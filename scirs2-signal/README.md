@@ -1,5 +1,9 @@
 # SciRS2 Signal
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-signal.svg)](https://crates.io/crates/scirs2-signal)
+[![License](https://img.shields.io/crates/l/scirs2-signal.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
+
 Signal processing module for the SciRS2 scientific computing library. This module provides tools for signal creation, filtering, convolution, peak detection, spectral analysis, and more.
 
 ## Features
@@ -12,13 +16,14 @@ Signal processing module for the SciRS2 scientific computing library. This modul
 - **Resampling**: Methods for changing sampling rates
 - **Measurements**: Signal quality and statistical measurements
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-signal = { workspace = true }
+scirs2-signal = "0.1.0-alpha.1"
+ndarray = "0.16.1"
 ```
 
 Basic usage examples:

@@ -1,5 +1,9 @@
 # SciRS2: Scientific Computing in Rust
 
+[![crates.io](https://img.shields.io/crates/v/scirs2.svg)](https://crates.io/crates/scirs2)
+[![License](https://img.shields.io/crates/l/scirs2.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2)](https://docs.rs/scirs2)
+
 SciRS2 is a comprehensive scientific computing library for Rust, inspired by SciPy and designed to provide a complete ecosystem for numerical computation, statistical analysis, and scientific algorithms.
 
 ## Overview
@@ -26,20 +30,29 @@ SciRS2 brings together a large collection of scientific computing tools:
 - **Data I/O**: Reading and writing various scientific data formats via `scirs2-io`
 - **And more**: Various additional modules for specific applications
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0"  # Enable only the features you need
+scirs2 = "0.1.0-alpha.2"  # Main package with default features
 ```
 
 You can enable only the features you need:
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.1.0", features = ["linalg", "stats", "optimize"] }
+scirs2 = { version = "0.1.0-alpha.2", features = ["linalg", "stats", "optimize"] }
+```
+
+Or use specific modules directly:
+
+```toml
+[dependencies]
+scirs2-core = "0.1.0-alpha.1"
+scirs2-linalg = "0.1.0-alpha.1"
+scirs2-stats = "0.1.0-alpha.1"
 ```
 
 Basic usage examples:

@@ -1,5 +1,9 @@
 # SciRS2 Core
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-core.svg)](https://crates.io/crates/scirs2-core)
+[![License](https://img.shields.io/crates/l/scirs2-core.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-core)](https://docs.rs/scirs2-core)
+
 Core utilities and common functionality for the SciRS2 library. This crate provides the foundation for the entire SciRS2 ecosystem. All modules in the SciRS2 project should leverage this core module to ensure consistency and reduce duplication.
 
 ## Features
@@ -40,7 +44,7 @@ Add the following to your `Cargo.toml`, including only the features you need:
 
 ```toml
 [dependencies]
-scirs2-core = { workspace = true, features = ["validation", "simd", "parallel", "cache"] }
+scirs2-core = { version = "0.1.0-alpha.1", features = ["validation", "simd", "parallel", "cache"] }
 ```
 
 Basic usage examples:
@@ -109,16 +113,16 @@ Each module should enable only the features it requires:
 
 ```toml
 # For modules performing numerical computations
-scirs2-core = { workspace = true, features = ["validation", "simd"] }
+scirs2-core = { version = "0.1.0-alpha.1", features = ["validation", "simd"] }
 
 # For modules with parallel operations and caching
-scirs2-core = { workspace = true, features = ["validation", "parallel", "cache"] }
+scirs2-core = { version = "0.1.0-alpha.1", features = ["validation", "parallel", "cache"] }
 
 # For AI/ML modules that need GPU acceleration
-scirs2-core = { workspace = true, features = ["validation", "gpu", "memory_management", "random"] }
+scirs2-core = { version = "0.1.0-alpha.1", features = ["validation", "gpu", "memory_management", "random"] }
 
 # For development and testing
-scirs2-core = { workspace = true, features = ["validation", "logging", "profiling"] }
+scirs2-core = { version = "0.1.0-alpha.1", features = ["validation", "logging", "profiling"] }
 ```
 
 ## Core Module Components

@@ -1,5 +1,9 @@
 # scirs2-stats
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-stats.svg)](https://crates.io/crates/scirs2-stats)
+[![License](https://img.shields.io/crates/l/scirs2-stats.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-stats)](https://docs.rs/scirs2-stats)
+
 Statistical functions module for the scirs2 project.
 
 ## Overview
@@ -26,6 +30,16 @@ This module provides implementations of various statistical algorithms, modeled 
 - Regression models
 - Sampling techniques (bootstrap, stratified sampling)
 - Contingency table functions
+
+## Installation
+
+Add scirs2-stats to your Cargo.toml:
+
+```toml
+[dependencies]
+scirs2-stats = "0.1.0-alpha.1"
+ndarray = "0.16.1"
+```
 
 ## Requirements
 

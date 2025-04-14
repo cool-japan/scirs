@@ -1,5 +1,9 @@
 # SciRS2 FFT
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-fft.svg)](https://crates.io/crates/scirs2-fft)
+[![License](https://img.shields.io/crates/l/scirs2-fft.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-fft)](https://docs.rs/scirs2-fft)
+
 Fast Fourier Transform implementation and related functionality for the SciRS2 scientific computing library. This module provides efficient FFT implementations, DCT/DST transforms, and window functions.
 
 ## Features
@@ -18,13 +22,15 @@ Fast Fourier Transform implementation and related functionality for the SciRS2 s
 - **Visualization Tools**: Colormaps and 3D data formatting for signal visualization
 - **Spectral Analysis**: Comprehensive tools for frequency domain analysis
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-fft = { workspace = true, features = ["parallel"] }  # Include parallel processing features
+scirs2-fft = "0.1.0-alpha.1"
+# Optional: Enable parallel processing
+scirs2-fft = { version = "0.1.0-alpha.1", features = ["parallel"] }
 ```
 
 Basic usage examples:

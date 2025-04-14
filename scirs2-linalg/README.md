@@ -1,5 +1,9 @@
 # scirs2-linalg
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-linalg.svg)](https://crates.io/crates/scirs2-linalg)
+[![License](https://img.shields.io/crates/l/scirs2-linalg.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-linalg)](https://docs.rs/scirs2-linalg)
+
 Linear algebra module for SciRS2, providing functionality comparable to NumPy/SciPy's linalg module.
 
 ## Features
@@ -23,6 +27,16 @@ Linear algebra module for SciRS2, providing functionality comparable to NumPy/Sc
   - Quantization-aware linear algebra operations
   - Mixed-precision operations
   - Sparse-dense matrix operations
+
+## Installation
+
+Add scirs2-linalg to your Cargo.toml:
+
+```toml
+[dependencies]
+scirs2-linalg = "0.1.0-alpha.1"
+ndarray = "0.16.1"
+```
 
 ## Usage
 
