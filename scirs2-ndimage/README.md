@@ -1,5 +1,9 @@
 # SciRS2 NDImage
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-ndimage.svg)](https://crates.io/crates/scirs2-ndimage)
+[![License](https://img.shields.io/crates/l/scirs2-ndimage.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
+
 Multidimensional image processing functionality for the SciRS2 scientific computing library. This module provides a comprehensive set of tools for image processing in n-dimensional arrays, including filtering, morphology, measurements, segmentation, and interpolation.
 
 ## Features
@@ -11,14 +15,23 @@ Multidimensional image processing functionality for the SciRS2 scientific comput
 - **Feature Detection**: Corner and edge detection
 - **Interpolation**: Spline and geometric interpolation algorithms
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { workspace = true }
+scirs2-ndimage = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-ndimage = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 

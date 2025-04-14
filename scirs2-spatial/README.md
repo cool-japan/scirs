@@ -1,5 +1,9 @@
 # SciRS2 Spatial
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-spatial.svg)](https://crates.io/crates/scirs2-spatial)
+[![License](https://img.shields.io/crates/l/scirs2-spatial.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-spatial)](https://docs.rs/scirs2-spatial)
+
 Spatial algorithms and data structures for the SciRS2 scientific computing library. This module provides tools for spatial queries, distance calculations, and geometric algorithms.
 
 ## Features
@@ -10,21 +14,30 @@ Spatial algorithms and data structures for the SciRS2 scientific computing libra
 - **Voronoi Diagrams**: Functions for generating Voronoi diagrams
 - **Utility Functions**: Helper functions for spatial data processing
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-spatial = { workspace = true }
+scirs2-spatial = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-spatial = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_spatial::{kdtree, distance, convex_hull, voronoi};
 use scirs2_core::error::CoreResult;
-use ndarray::{Array2, array};
+use ndarray::array;
 
 // k-d Tree for nearest neighbor searches
 fn kdtree_example() -> CoreResult<()> {

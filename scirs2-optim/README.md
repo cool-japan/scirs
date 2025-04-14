@@ -1,5 +1,9 @@
 # SciRS2 Optim
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-optim.svg)](https://crates.io/crates/scirs2-optim)
+[![License](https://img.shields.io/crates/l/scirs2-optim.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-optim)](https://docs.rs/scirs2-optim)
+
 Optimization algorithms for the SciRS2 scientific computing library. This module provides various optimizers, regularizers, and learning rate schedulers for machine learning and numerical optimization tasks.
 
 ## Features
@@ -9,21 +13,30 @@ Optimization algorithms for the SciRS2 scientific computing library. This module
 - **Learning Rate Schedulers**: Techniques for adjusting learning rates during training
 - **Utility Functions**: Additional utilities for optimization tasks
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optim = { workspace = true }
+scirs2-optim = "0.1.0-alpha.1"
 ```
+
+To enable optimizations:
+
+```toml
+[dependencies]
+scirs2-optim = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_optim::{optimizers, regularizers, schedulers};
 use scirs2_core::error::CoreResult;
-use ndarray::{Array1, array};
+use ndarray::array;
 
 // Optimizer example: Stochastic Gradient Descent
 fn sgd_optimizer_example() -> CoreResult<()> {

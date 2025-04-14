@@ -1,5 +1,9 @@
 # SciRS2 Datasets
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-datasets.svg)](https://crates.io/crates/scirs2-datasets)
+[![License](https://img.shields.io/crates/l/scirs2-datasets.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-datasets)](https://docs.rs/scirs2-datasets)
+
 A collection of dataset utilities for the SciRS2 scientific computing library. This module provides functionality for loading, generating, and working with common datasets used in scientific computing, machine learning, and statistical analysis.
 
 ## Features
@@ -10,14 +14,23 @@ A collection of dataset utilities for the SciRS2 scientific computing library. T
 - **Caching**: Efficient caching mechanism for dataset loading
 - **Data Sampling**: Tools for sampling from datasets
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-datasets = { workspace = true }
+scirs2-datasets = "0.1.0-alpha.1"
 ```
+
+To enable additional download and caching features:
+
+```toml
+[dependencies]
+scirs2-datasets = { version = "0.1.0-alpha.1", features = ["remote-datasets"] }
+```
+
+## Usage
 
 Basic usage examples:
 

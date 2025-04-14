@@ -1,5 +1,9 @@
 # SciRS2 Sparse
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-sparse.svg)](https://crates.io/crates/scirs2-sparse)
+[![License](https://img.shields.io/crates/l/scirs2-sparse.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-sparse)](https://docs.rs/scirs2-sparse)
+
 Sparse matrix module for the SciRS2 scientific computing library. This module provides various sparse matrix formats and operations for efficient handling of sparse data.
 
 ## Features
@@ -11,21 +15,30 @@ Sparse matrix module for the SciRS2 scientific computing library. This module pr
 - **Matrix Norms**: Compute 1-norm, infinity norm, Frobenius norm, and spectral norm
 - **Utility Functions**: Helper functions for working with sparse matrices
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-sparse = { workspace = true }
+scirs2-sparse = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-sparse = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_sparse::{csr, csc, coo, convert, linalg};
 use scirs2_core::error::CoreResult;
-use ndarray::{Array2, array};
+use ndarray::{array};
 
 // Create and use a CSR matrix
 fn csr_matrix_example() -> CoreResult<()> {

@@ -1,5 +1,9 @@
 # SciRS2 IO
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-io.svg)](https://crates.io/crates/scirs2-io)
+[![License](https://img.shields.io/crates/l/scirs2-io.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
+
 Input/Output module for the SciRS2 scientific computing library. This module provides functionality for reading and writing various scientific and numerical data formats.
 
 ## Features
@@ -14,14 +18,30 @@ Input/Output module for the SciRS2 scientific computing library. This module pro
 - **Data Validation**: Verify data integrity through checksums and format validation
 - **Error Handling**: Robust error handling with detailed error information
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = { workspace = true }
+scirs2-io = "0.1.0-alpha.1"
 ```
+
+To enable specific features:
+
+```toml
+[dependencies]
+scirs2-io = { version = "0.1.0-alpha.1", features = ["matlab", "image", "compression"] }
+```
+
+Available features:
+- `matlab`: MATLAB file support
+- `image`: Image file support
+- `compression`: Advanced compression algorithms
+- `validation`: File format validation tools
+- `all`: All features
+
+## Usage
 
 Basic usage examples:
 

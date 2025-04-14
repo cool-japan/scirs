@@ -1,4 +1,8 @@
-# scirs2-autograd
+# SciRS2 Autograd
+
+[![crates.io](https://img.shields.io/crates/v/scirs2-autograd.svg)](https://crates.io/crates/scirs2-autograd)
+[![License](https://img.shields.io/crates/l/scirs2-autograd.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-autograd)](https://docs.rs/scirs2-autograd)
 
 Automatic differentiation module for SciRS2, providing functionality comparable to PyTorch/TensorFlow's autograd systems and extending NumPy/SciPy's capabilities.
 
@@ -18,6 +22,22 @@ Automatic differentiation module for SciRS2, providing functionality comparable 
 - Higher-order derivatives
 - GPU computation support (planned)
 - BLAS acceleration for linear algebra operations
+
+## Installation
+
+Add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+scirs2-autograd = "0.1.0-alpha.1"
+```
+
+To enable optimizations and GPU support:
+
+```toml
+[dependencies]
+scirs2-autograd = { version = "0.1.0-alpha.1", features = ["blas", "cuda"] }
+```
 
 ## Usage
 
@@ -112,4 +132,4 @@ for epoch in 0..10 {
 
 ## License
 
-Licensed under the Apache License, Version 2.0.
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.

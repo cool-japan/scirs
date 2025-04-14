@@ -1,4 +1,8 @@
-# scirs2-transform
+# SciRS2 Transform
+
+[![crates.io](https://img.shields.io/crates/v/scirs2-transform.svg)](https://crates.io/crates/scirs2-transform)
+[![License](https://img.shields.io/crates/l/scirs2-transform.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-transform)](https://docs.rs/scirs2-transform)
 
 This crate provides data transformation utilities for the SciRS2 library, designed to mimic the functionality of scikit-learn's preprocessing and decomposition modules.
 
@@ -74,13 +78,20 @@ let explained_variance = pca.explained_variance_ratio().unwrap();
 println!("Explained variance ratio: {:?}", explained_variance);
 ```
 
-## Usage
+## Installation
 
 Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.1.0"
+scirs2-transform = "0.1.0-alpha.1"
+```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-transform = { version = "0.1.0-alpha.1", features = ["parallel"] }
 ```
 
 ## Examples
@@ -89,4 +100,4 @@ See the documentation for detailed examples of each transformation.
 
 ## License
 
-This project is licensed under the same license as the SciRS2 library.
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.

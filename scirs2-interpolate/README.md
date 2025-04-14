@@ -1,5 +1,9 @@
 # SciRS2 Interpolation Module
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-interpolate.svg)](https://crates.io/crates/scirs2-interpolate)
+[![License](https://img.shields.io/crates/l/scirs2-interpolate.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-interpolate)](https://docs.rs/scirs2-interpolate)
+
 The `scirs2-interpolate` crate provides a comprehensive set of interpolation methods for scientific computing in Rust. It aims to provide functionality similar to SciPy's interpolation module while leveraging Rust's performance and safety features.
 
 ## Features

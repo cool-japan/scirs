@@ -1,5 +1,9 @@
 # SciRS2 Special
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-special.svg)](https://crates.io/crates/scirs2-special)
+[![License](https://img.shields.io/crates/l/scirs2-special.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-special)](https://docs.rs/scirs2-special)
+
 Special functions module for the SciRS2 scientific computing library. This module provides implementations of various special mathematical functions used in scientific computing, engineering, and statistics.
 
 ## Features
@@ -14,14 +18,23 @@ Special functions module for the SciRS2 scientific computing library. This modul
 - **Mathieu Functions**: Solutions to Mathieu's differential equation
 - **Zeta Functions**: Riemann and Hurwitz zeta functions
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = { workspace = true }
+scirs2-special = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-special = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 

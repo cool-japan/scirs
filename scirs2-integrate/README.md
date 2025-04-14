@@ -1,5 +1,9 @@
 # SciRS2 Integrate
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-integrate.svg)](https://crates.io/crates/scirs2-integrate)
+[![License](https://img.shields.io/crates/l/scirs2-integrate.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-integrate)](https://docs.rs/scirs2-integrate)
+
 Numerical integration module for the SciRS2 scientific computing library. This module provides methods for numerical integration of functions and ordinary differential equations (ODEs).
 
 ## Features
@@ -16,13 +20,14 @@ Numerical integration module for the SciRS2 scientific computing library. This m
 - **Multi-dimensional Integration**: Support for integrating functions of several variables
 - **Vector ODE Support**: Support for systems of ODEs
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = { workspace = true }
+scirs2-integrate = "0.1.0-alpha.1"
+ndarray = "0.16.1"
 ```
 
 Basic usage examples:

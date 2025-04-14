@@ -1,5 +1,9 @@
 # SciRS2 Text
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-text.svg)](https://crates.io/crates/scirs2-text)
+[![License](https://img.shields.io/crates/l/scirs2-text.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-text)](https://docs.rs/scirs2-text)
+
 Text analysis and natural language processing module for the SciRS2 scientific computing library. This module provides tools for text processing, vectorization, and comparison.
 
 ## Features
@@ -10,14 +14,23 @@ Text analysis and natural language processing module for the SciRS2 scientific c
 - **Vocabulary Management**: Tools for building and managing vocabularies
 - **Utility Functions**: Helper functions for text manipulation
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-text = { workspace = true }
+scirs2-text = "0.1.0-alpha.1"
 ```
+
+To enable optional features for integration with popular NLP libraries:
+
+```toml
+[dependencies]
+scirs2-text = { version = "0.1.0-alpha.1", features = ["tokenizers", "wordpiece"] }
+```
+
+## Usage
 
 Basic usage examples:
 

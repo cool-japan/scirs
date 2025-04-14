@@ -1,5 +1,9 @@
 # SciRS2 Neural
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-neural.svg)](https://crates.io/crates/scirs2-neural)
+[![License](https://img.shields.io/crates/l/scirs2-neural.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-neural)](https://docs.rs/scirs2-neural)
+
 Neural network module for the SciRS2 scientific computing library. This module provides tools for building, training, and evaluating neural networks.
 
 ## Features
@@ -10,21 +14,30 @@ Neural network module for the SciRS2 scientific computing library. This module p
 - **Optimizers**: Various optimization algorithms (SGD, Adam, etc.)
 - **Utilities**: Initializers, metrics, and dataset handling
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-neural = { workspace = true }
+scirs2-neural = "0.1.0-alpha.1"
 ```
+
+To enable optimizations and optional features:
+
+```toml
+[dependencies]
+scirs2-neural = { version = "0.1.0-alpha.1", features = ["cuda", "blas"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_neural::{models, layers, activations, losses, optimizers};
 use scirs2_core::error::CoreResult;
-use ndarray::{Array2, array};
+use ndarray::array;
 
 // Create a simple neural network
 fn create_neural_network() -> CoreResult<()> {

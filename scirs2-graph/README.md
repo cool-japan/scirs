@@ -1,5 +1,9 @@
 # SciRS2 Graph
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-graph.svg)](https://crates.io/crates/scirs2-graph)
+[![License](https://img.shields.io/crates/l/scirs2-graph.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-graph)](https://docs.rs/scirs2-graph)
+
 Graph theory and network analysis module for the SciRS2 scientific computing library. This module provides data structures and algorithms for working with graphs and networks.
 
 ## Features
@@ -10,14 +14,23 @@ Graph theory and network analysis module for the SciRS2 scientific computing lib
 - **Spectral Methods**: Spectral clustering, graph Laplacian, eigenvalue decomposition
 - **I/O Functions**: Tools for reading and writing graphs in various formats
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-graph = { workspace = true }
+scirs2-graph = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-graph = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 

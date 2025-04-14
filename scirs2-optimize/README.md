@@ -1,5 +1,9 @@
 # SciRS2 Optimization Module
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-optimize.svg)](https://crates.io/crates/scirs2-optimize)
+[![License](https://img.shields.io/crates/l/scirs2-optimize.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-optimize)](https://docs.rs/scirs2-optimize)
+
 `scirs2-optimize` is a comprehensive optimization library providing algorithms for unconstrained and constrained optimization, least-squares problems, and root finding. It aims to provide a Rust implementation of SciPy's optimization functionality with a similar API.
 
 ## Features
@@ -44,7 +48,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.1.0"
+scirs2-optimize = "0.1.0-alpha.1"
+```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-optimize = { version = "0.1.0-alpha.1", features = ["parallel"] }
 ```
 
 ## Usage Examples

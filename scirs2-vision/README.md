@@ -1,4 +1,8 @@
-# scirs2-vision
+# SciRS2 Vision
+
+[![crates.io](https://img.shields.io/crates/v/scirs2-vision.svg)](https://crates.io/crates/scirs2-vision)
+[![License](https://img.shields.io/crates/l/scirs2-vision.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-vision)](https://docs.rs/scirs2-vision)
 
 Computer vision module for SciRS2, providing functionality for image processing, feature detection, segmentation, and color transformations.
 
@@ -118,13 +122,20 @@ let opened = opening(&img, se)?;
 let gradient = morphological_gradient(&img, se)?;
 ```
 
-## Usage
+## Installation
 
 Add `scirs2-vision` to your dependencies in `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.1.0"
+scirs2-vision = "0.1.0-alpha.1"
+```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-vision = { version = "0.1.0-alpha.1", features = ["parallel"] }
 ```
 
 ## Documentation
@@ -153,8 +164,8 @@ cargo test test_grayscale_conversion
 
 ## License
 
-This project is licensed under the terms specified in the repository's LICENSE file.
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please see the project's CONTRIBUTING.md file for guidelines.
+Contributions are welcome! Please see the project's [CONTRIBUTING.md](../CONTRIBUTING.md) file for guidelines.

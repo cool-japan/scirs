@@ -1,5 +1,9 @@
 # SciRS2 Series
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
+[![License](https://img.shields.io/crates/l/scirs2-series.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
+
 Time series analysis module for the SciRS2 scientific computing library. This module provides tools for analyzing, decomposing, and forecasting time series data.
 
 ## Features
@@ -10,21 +14,30 @@ Time series analysis module for the SciRS2 scientific computing library. This mo
 - **Feature Extraction**: Extraction of meaningful features from time series data
 - **Utility Functions**: Helper functions for time series manipulation
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-series = { workspace = true }
+scirs2-series = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-series = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_series::{utils, decomposition, forecasting, features};
 use scirs2_core::error::CoreResult;
-use ndarray::{Array1, array};
+use ndarray::array;
 
 // Create a simple time series
 fn time_series_example() -> CoreResult<()> {

@@ -1,5 +1,9 @@
 # SciRS2 Metrics
 
+[![crates.io](https://img.shields.io/crates/v/scirs2-metrics.svg)](https://crates.io/crates/scirs2-metrics)
+[![License](https://img.shields.io/crates/l/scirs2-metrics.svg)](../LICENSE)
+[![Documentation](https://img.shields.io/docsrs/scirs2-metrics)](https://docs.rs/scirs2-metrics)
+
 Evaluation metrics module for the SciRS2 scientific computing library. This module provides functions to evaluate prediction performance for classification, regression, and clustering tasks.
 
 ## Features
@@ -9,20 +13,29 @@ Evaluation metrics module for the SciRS2 scientific computing library. This modu
 - **Clustering Metrics**: Silhouette score, Calinski-Harabasz index, Davies-Bouldin index, etc.
 - **General Evaluation**: Cross-validation, learning curves, confusion matrices
 
-## Usage
+## Installation
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-metrics = { workspace = true }
+scirs2-metrics = "0.1.0-alpha.1"
 ```
+
+To enable optimizations through the core module, add feature flags:
+
+```toml
+[dependencies]
+scirs2-metrics = { version = "0.1.0-alpha.1", features = ["parallel"] }
+```
+
+## Usage
 
 Basic usage examples:
 
 ```rust
 use scirs2_metrics::{classification, regression, clustering};
-use ndarray::{Array1, array};
+use ndarray::array;
 use scirs2_core::error::CoreResult;
 
 // Classification metrics example
