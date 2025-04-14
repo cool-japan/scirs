@@ -23,7 +23,7 @@ scirs2-linalg = { version = "0.1.0-alpha.1", path = "../scirs2-linalg" }
 rand = "0.9.0"
 rand_distr = "0.5.1"
 rand_pcg = "0.9.0"
-statrs = "0.16.0"
+statrs = "0.18.0"
 
 [dev-dependencies]
 approx = "0.5.1"
