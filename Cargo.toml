@@ -46,7 +46,7 @@ categories = ["science", "mathematics", "algorithms", "ai"]
 [workspace.dependencies]
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-stats = "0.6.0"
-ndarray-rand = "0.14.0"
+ndarray-rand = "0.15.0"
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 num-integer = "0.1.46"

@@ -16,7 +16,7 @@ scirs2-interpolate = { path = "../scirs2-interpolate", version = "0.1.0-alpha.1"
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 thiserror = "2.0.12"
-ndarray-rand = "0.14.0"
+ndarray-rand = "0.15.0"
 approx = "0.5.1"
 cached = "0.48.1"
 
