@@ -17,6 +17,97 @@ const DEFAULT_CACHE_SIZE: usize = 100;
 /// Default TTL for in-memory cache (in seconds)
 const DEFAULT_CACHE_TTL: u64 = 3600; // 1 hour
 
+/// Registry entry for dataset files
+pub struct RegistryEntry {
+    /// SHA256 hash of the file
+    pub sha256: &'static str,
+    /// URL to download the file from
+    pub url: &'static str,
+}
+
+/// Get the cache directory for downloading and storing datasets
+pub fn get_cache_dir() -> Result<PathBuf> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| DatasetsError::CacheError("Could not find home directory".to_string()))?;
+    let cache_dir = home_dir.join(DEFAULT_CACHE_DIR);
+    
+    if !cache_dir.exists() {
+        fs::create_dir_all(&cache_dir).map_err(|e| {
+            DatasetsError::CacheError(format!("Failed to create cache directory: {}", e))
+        })?;
+    }
+    
+    Ok(cache_dir)
+}
+
+/// Fetch a dataset file from either cache or download it from the URL
+///
+/// This function will:
+/// 1. Check if the file exists in the cache directory
+/// 2. If not, download it from the URL in the registry entry
+/// 3. Store it in the cache directory
+/// 4. Return the path to the cached file
+///
+/// # Arguments
+///
+/// * `filename` - The name of the file to fetch
+/// * `registry_entry` - Optional registry entry containing URL and SHA256 hash
+///
+/// # Returns
+///
+/// * `Ok(PathBuf)` - Path to the cached file
+/// * `Err(String)` - Error message if fetching fails
+pub fn fetch_data(
+    filename: &str,
+    registry_entry: Option<&RegistryEntry>,
+) -> std::result::Result<PathBuf, String> {
+    // Get the cache directory
+    let cache_dir = match get_cache_dir() {
+        Ok(dir) => dir,
+        Err(e) => return Err(format!("Failed to get cache directory: {}", e)),
+    };
+
+    // Check if file exists in cache
+    let cache_path = cache_dir.join(filename);
+    if cache_path.exists() {
+        return Ok(cache_path);
+    }
+
+    // If not in cache, fetch from the URL
+    let entry = match registry_entry {
+        Some(entry) => entry,
+        None => return Err(format!("No registry entry found for {}", filename)),
+    };
+
+    // Create a temporary file to download to
+    let temp_dir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {}", e))?;
+    let temp_file = temp_dir.path().join(filename);
+
+    // Download the file
+    let response = ureq::get(entry.url)
+        .call()
+        .map_err(|e| format!("Failed to download {}: {}", filename, e))?;
+
+    let mut reader = response.into_reader();
+    let mut file = std::fs::File::create(&temp_file)
+        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+
+    std::io::copy(&mut reader, &mut file).map_err(|e| format!("Failed to download file: {}", e))?;
+
+    // TODO: Verify the SHA256 hash of the downloaded file
+    // This is omitted for brevity but should be implemented for production use
+
+    // Move the file to the cache
+    fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create cache dir: {}", e))?;
+    }
+
+    fs::copy(&temp_file, &cache_path).map_err(|e| format!("Failed to copy to cache: {}", e))?;
+
+    Ok(cache_path)
+}
+
 /// File path wrapper for hashing
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileCacheKey(String);

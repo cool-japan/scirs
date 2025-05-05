@@ -107,6 +107,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
 - [x] Contingency table analysis
 - [x] Fix all Clippy warnings and style issues
 - [x] Update rand API to 0.9.0
+- [x] Mark randomness-dependent tests as ignored
 
 ### Priority 3: Optimization Module ([`scirs2-optimize`](./scirs2-optimize/TODO.md))
 - [x] Set up module structure
@@ -176,6 +177,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] Vector quantization (K-Means)
   - [x] Hierarchical clustering
   - [x] Density-based clustering (DBSCAN)
+  - [x] Improved algorithm numerical stability
   
 - [x] N-dimensional Image Processing ([`scirs2-ndimage`](./scirs2-ndimage/TODO.md))
   - [x] Module structure setup
@@ -260,6 +262,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] Forecasting algorithms
   - [x] Temporal feature extraction
   - [x] Core module structure implemented
+  - [x] Fixed remote data dependencies in doc tests
 
 ## Phase 6: Advanced Core Features Implementation
 

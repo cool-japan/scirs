@@ -58,6 +58,14 @@ pub mod error;
 /// - Basic image processing operations
 pub mod image;
 pub mod matlab;
+/// NetCDF file format module
+///
+/// Provides functionality for reading and writing NetCDF files:
+/// - Reading and writing NetCDF3 files
+/// - Support for dimensions, variables, and attributes
+/// - Conversion between NetCDF and ndarray data structures
+/// - Memory-efficient access to large datasets
+pub mod netcdf;
 /// Data serialization utilities
 ///
 /// Provides functionality for serializing and deserializing scientific data:

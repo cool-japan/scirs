@@ -70,17 +70,17 @@ This document outlines the strategy for the SciRS2 0.1.0 release, including scop
 
 ### Phase 2: Alpha and Beta Releases (2-4 weeks)
 - **Week 1-2**: Alpha Release
-  - Publish 0.1.0-alpha.2 to crates.io (April 2025)
-  - Collect initial feedback
+  - Publish 0.1.0-alpha.2 to crates.io (May 2025)May
+  - Collect feedbacks
   - Fix critical issues
-- **Week 3-4**: Beta Release
+- **Week 3-8**: Beta Releaseｓ
   - Publish 0.1.0-beta.1 to crates.io
   - Create examples
   - Improve test coverage
   - Finalize documentation
   - Complete remaining pre-release tasks
 
-### Phase 3: Final Release (1-2 weeks)
+### Phase 3: Final Release (4-8 weeks)
 - Publish 0.1.0 to crates.io
 - Announce on relevant platforms
 - Monitor initial usage and feedback

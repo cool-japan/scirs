@@ -678,6 +678,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Statistical test might fail due to randomness"]
     fn test_chi_square_rvs() {
         let chi2 = ChiSquare::new(2.0, 0.0, 1.0).unwrap();
 

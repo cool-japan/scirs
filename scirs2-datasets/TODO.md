@@ -62,10 +62,10 @@ This module provides dataset loading utilities similar to scikit-learn's dataset
   - [ ] Face dataset
   - [ ] Ascent dataset (or equivalent)
   - [ ] Sample photography dataset
-- [ ] Time series datasets
-  - [ ] Electrocardiogram dataset
-  - [ ] Stock market dataset
-  - [ ] Weather time series
+- [x] Time series datasets
+  - [x] Electrocardiogram dataset
+  - [x] Stock market dataset
+  - [x] Weather time series
 - [ ] Add real-world datasets
   - [x] Classic machine learning datasets (iris, breast cancer, digits, boston)
   - [ ] Domain-specific scientific datasets
@@ -166,7 +166,9 @@ This module provides dataset loading utilities similar to scikit-learn's dataset
 
 ## Code Cleanup Tasks
 
-- [ ] Fix warnings about unused imports
+- [x] Fix warnings about unused imports 
+- [x] Fix warning about dead code in time_series.rs
+- [x] Mark doc tests with remote dependencies as ignored
 - [ ] Add missing documentation for public items
 - [ ] Improve error handling for edge cases
 - [ ] Add more unit tests

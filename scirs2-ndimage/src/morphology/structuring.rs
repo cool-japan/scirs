@@ -1,7 +1,6 @@
 //! Functions for creating and manipulating structuring elements
 
 use ndarray::{Array, Dimension, IxDyn};
-// use std::fmt::Debug;
 
 use super::Connectivity;
 use crate::error::{NdimageError, Result};
@@ -15,14 +14,32 @@ use crate::error::{NdimageError, Result};
 ///
 /// # Returns
 ///
-/// * `Result<Array<bool, D>>` - Binary structuring element
-pub fn generate_binary_structure<D>(
+/// * `Result<Array<bool, IxDyn>>` - Binary structuring element
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_ndimage::morphology::{generate_binary_structure, Connectivity};
+///
+/// // Create a 2D structure with face connectivity (4-connectivity in 2D)
+/// let structure = generate_binary_structure(2, Connectivity::Face).unwrap();
+/// assert_eq!(structure.shape(), &[3, 3]);
+/// // Center element and face neighbors
+/// assert!(structure[[1, 1]]);  // Center
+/// assert!(structure[[0, 1]]);  // Top
+/// assert!(structure[[1, 0]]);  // Left
+/// assert!(structure[[1, 2]]);  // Right
+/// assert!(structure[[2, 1]]);  // Bottom
+/// // Corner elements should be false for face connectivity
+/// assert!(!structure[[0, 0]]);  // Top-left
+/// assert!(!structure[[0, 2]]);  // Top-right
+/// assert!(!structure[[2, 0]]);  // Bottom-left
+/// assert!(!structure[[2, 2]]);  // Bottom-right
+/// ```
+pub fn generate_binary_structure(
     rank: usize,
-    _connectivity: Connectivity,
-) -> Result<Array<bool, D>>
-where
-    D: Dimension,
-{
+    connectivity: Connectivity,
+) -> Result<Array<bool, IxDyn>> {
     // Validate inputs
     if rank == 0 {
         return Err(NdimageError::InvalidInput(
@@ -30,14 +47,95 @@ where
         ));
     }
 
-    // For a proper implementation, we would:
-    // 1. Create an array of the appropriate shape (3^rank)
-    // 2. Fill it with the appropriate values based on connectivity
+    // Create a structure of shape (3, 3, ..., 3) with rank dimensions
+    let shape = vec![3; rank];
+    let mut structure = Array::<bool, _>::from_elem(IxDyn(&shape), false);
+    
+    // Center indices (1, 1, ..., 1)
+    let center = vec![1; rank];
+    
+    // Set the center element to true
+    structure[IxDyn(&center)] = true;
+    
+    // For each dimension, create indices that are adjacent in that dimension
+    for dim in 0..rank {
+        let mut lower_idx = center.clone();
+        let mut upper_idx = center.clone();
+        
+        lower_idx[dim] = 0;
+        upper_idx[dim] = 2;
+        
+        // Set adjacent elements to true for face connectivity
+        structure[IxDyn(&lower_idx)] = true;
+        structure[IxDyn(&upper_idx)] = true;
+    }
+    
+    // For FaceEdge and Full connectivity, add edges and vertices
+    if connectivity == Connectivity::FaceEdge || connectivity == Connectivity::Full {
+        // Recursively add all combinations of indices that differ by at most 1
+        // from the center in each dimension
+        let mut indices = vec![1; rank];
+        add_connected_indices(&mut structure, &mut indices, 0, connectivity);
+    }
+    
+    Ok(structure)
+}
 
-    // Placeholder implementation that returns an error
-    Err(NdimageError::ImplementationError(
-        "generate_binary_structure is not fully implemented yet".into(),
-    ))
+/// Recursively add connected indices to the structure
+fn add_connected_indices(
+    structure: &mut Array<bool, IxDyn>,
+    indices: &mut Vec<usize>,
+    dim: usize,
+    connectivity: Connectivity,
+) {
+    if dim == indices.len() {
+        // Set the current indices to true
+        structure[IxDyn(indices)] = true;
+        return;
+    }
+    
+    // Save the original value for this dimension
+    let orig_val = indices[dim];
+    
+    // Try all possible values for this dimension (0, 1, 2)
+    for val in 0..3 {
+        indices[dim] = val;
+        
+        // Check if this combination is valid based on connectivity
+        let center_dist = indices.iter()
+            .enumerate()
+            .map(|(i, &idx)| if i == dim { 
+                0 // Don't count the current dimension
+            } else {
+                match idx {
+                    0 | 2 => 1, // Distance from center (1)
+                    _ => 0,     // No distance (at center)
+                }
+            })
+            .sum::<usize>();
+        
+        let is_valid = match connectivity {
+            Connectivity::Face => {
+                // Only direct neighbors (at most one dimension can differ from center)
+                center_dist == 0
+            },
+            Connectivity::FaceEdge => {
+                // Neighbors and diagonal connections (at most two dimensions can differ)
+                center_dist <= 1
+            },
+            Connectivity::Full => {
+                // All elements within the 3x3x... cube
+                true
+            },
+        };
+        
+        if is_valid {
+            add_connected_indices(structure, indices, dim + 1, connectivity);
+        }
+    }
+    
+    // Restore the original value
+    indices[dim] = orig_val;
 }
 
 /// Iterate binary erosion or dilation until convergence

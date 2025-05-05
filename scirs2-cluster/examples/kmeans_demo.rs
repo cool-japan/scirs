@@ -36,7 +36,7 @@ fn main() {
     }
 
     // Count points in each cluster
-    let mut counts = vec![0; 3];
+    let mut counts = [0; 3];
     for &label in labels.iter() {
         counts[label] += 1;
     }

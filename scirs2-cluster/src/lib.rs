@@ -3,19 +3,28 @@
 //! This module provides implementations of various clustering algorithms such as:
 //! - Vector quantization (k-means, etc.)
 //! - Hierarchical clustering
-//! - Density-based clustering (DBSCAN, etc.)
+//! - Density-based clustering (DBSCAN, OPTICS, etc.)
+//! - Mean Shift clustering
+//! - Spectral clustering
+//! - Affinity Propagation
 //!
 //! ## Features
 //!
 //! * **Vector Quantization**: K-means and K-means++ for partitioning data
 //! * **Hierarchical Clustering**: Agglomerative clustering with various linkage methods
-//! * **Density-based Clustering**: DBSCAN for finding clusters of arbitrary shape
+//! * **Density-based Clustering**: DBSCAN and OPTICS for finding clusters of arbitrary shape
+//! * **Mean Shift**: Non-parametric clustering based on density estimation
+//! * **Spectral Clustering**: Graph-based clustering using eigenvectors of the graph Laplacian
+//! * **Affinity Propagation**: Message-passing based clustering that identifies exemplars
+//! * **Evaluation Metrics**: Silhouette coefficient, Davies-Bouldin index, and other measures to evaluate clustering quality
+//! * **Data Preprocessing**: Utilities for normalizing, standardizing, and whitening data before clustering
 //!
 //! ## Examples
 //!
 //! ```
 //! use ndarray::{Array2, ArrayView2};
 //! use scirs2_cluster::vq::kmeans;
+//! use scirs2_cluster::preprocess::standardize;
 //!
 //! // Example data with two clusters
 //! let data = Array2::from_shape_vec((6, 2), vec![
@@ -27,8 +36,11 @@
 //!     4.2, 4.1,
 //! ]).unwrap();
 //!
+//! // Standardize the data
+//! let standardized = standardize(data.view(), true).unwrap();
+//!
 //! // Run k-means with k=2
-//! let (centroids, labels) = kmeans(data.view(), 2, None).unwrap();
+//! let (centroids, labels) = kmeans(standardized.view(), 2, None).unwrap();
 //!
 //! // Print the results
 //! println!("Centroids: {:?}", centroids);
@@ -37,12 +49,33 @@
 
 #![warn(missing_docs)]
 
+pub mod affinity;
 pub mod density;
 pub mod error;
 pub mod hierarchy;
+/// Mean Shift clustering implementation.
+///
+/// This module provides the Mean Shift clustering algorithm, which is a centroid-based
+/// algorithm that works by updating candidates for centroids to be the mean of the points
+/// within a given region. These candidates are then filtered in a post-processing stage to
+/// eliminate near-duplicates, forming the final set of centroids.
+///
+/// Mean Shift is a non-parametric clustering technique that doesn't require specifying the
+/// number of clusters in advance and can find clusters of arbitrary shapes.
+pub mod meanshift;
+pub mod metrics;
+pub mod preprocess;
+pub mod spectral;
 pub mod vq;
 
 // Re-exports
+pub use affinity::{affinity_propagation, AffinityPropagationOptions};
 pub use density::*;
+pub use density::optics::{OPTICSResult, extract_dbscan_clustering, extract_xi_clusters};
+pub use density::hdbscan::{hdbscan, dbscan_clustering, HDBSCANResult, HDBSCANOptions, ClusterSelectionMethod, StoreCenter};
 pub use hierarchy::*;
+pub use meanshift::{mean_shift, estimate_bandwidth, get_bin_seeds, MeanShift, MeanShiftOptions};
+pub use metrics::{silhouette_score, silhouette_samples, davies_bouldin_score, calinski_harabasz_score};
+pub use preprocess::{whiten, standardize, normalize, min_max_scale, NormType};
+pub use spectral::{spectral_clustering, spectral_bipartition, SpectralClusteringOptions, AffinityMode};
 pub use vq::*;

@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use ndarray::{Array2, ArrayView2};
-//! use scirs2_cluster::vq::{kmeans, kmeans_plus_plus};
+//! use scirs2_cluster::vq::{kmeans, KMeansInit, KMeansOptions};
 //!
 //! // Example data
 //! let data = Array2::from_shape_vec((6, 2), vec![
@@ -19,8 +19,12 @@
 //!     4.2, 4.1,
 //! ]).unwrap();
 //!
-//! // Run k-means with k=2
-//! let (centroids, labels) = kmeans(ArrayView2::from(&data), 2, None).unwrap();
+//! // Run k-means with k=2 and parallel initialization
+//! let options = KMeansOptions {
+//!     init_method: KMeansInit::KMeansParallel,
+//!     ..Default::default()
+//! };
+//! let (centroids, labels) = kmeans(ArrayView2::from(&data), 2, Some(options)).unwrap();
 //!
 //! // Print the results
 //! println!("Centroids: {:?}", centroids);
@@ -34,7 +38,9 @@ use std::fmt::Debug;
 use crate::error::{ClusteringError, Result};
 
 mod kmeans;
+mod minibatch_kmeans;
 pub use kmeans::*;
+pub use minibatch_kmeans::*;
 
 /// Computes the Euclidean distance between two vectors
 pub fn euclidean_distance<F>(x: ArrayView1<F>, y: ArrayView1<F>) -> F

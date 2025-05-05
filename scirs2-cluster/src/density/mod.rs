@@ -2,10 +2,15 @@
 //!
 //! This module provides implementations of density-based clustering algorithms such as:
 //! - DBSCAN (Density-Based Spatial Clustering of Applications with Noise)
-//! - Future: OPTICS (Ordering Points To Identify the Clustering Structure)
+//! - OPTICS (Ordering Points To Identify the Clustering Structure)
+//! - HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise)
 //!
 //! These algorithms are particularly useful for discovering clusters of arbitrary shape
-//! and for identifying noise points in the data.
+//! and for identifying noise points in the data. Density-based methods are also capable
+//! of finding clusters of arbitrary shapes and handling clusters of different densities.
+
+pub mod optics;
+pub mod hdbscan;
 
 use ndarray::{Array1, Array2, ArrayView2};
 use num_traits::{Float, FromPrimitive};
@@ -251,18 +256,35 @@ pub fn dbscan<F: Float + FromPrimitive + Debug + PartialOrd>(
     Ok(Array1::from(labels))
 }
 
-/// OPTICS clustering algorithm (Ordering Points To Identify the Clustering Structure)
+/// Runs the OPTICS clustering algorithm 
 ///
-/// # Note
+/// This is a wrapper around the more detailed implementation in the optics module.
+/// See `optics::optics` for more details.
 ///
-/// This is a placeholder for the future implementation of OPTICS.
+/// # Arguments
+///
+/// * `data` - The input data as a 2D array (n_samples x n_features)
+/// * `min_samples` - The minimum number of samples required for a point to be a core point
+/// * `max_eps` - The maximum distance for neighborhood consideration (default: infinity)
+/// * `metric` - Distance metric to use (default: Euclidean)
+///
+/// # Returns
+///
+/// * `Result<Array1<i32>>` - Cluster labels from a default extraction (using DBSCAN-like extraction
+///   with a reasonable epsilon value), or an error if the computation fails.
 pub fn optics<F: Float + FromPrimitive + Debug + PartialOrd>(
-    _data: ArrayView2<F>,
-    _eps: F,
-    _min_samples: usize,
-    _metric: Option<DistanceMetric>,
+    data: ArrayView2<F>,
+    min_samples: usize,
+    max_eps: Option<F>,
+    metric: Option<DistanceMetric>,
 ) -> Result<Array1<i32>> {
-    Err(ClusteringError::ComputationError(
-        "OPTICS algorithm not yet implemented".into(),
-    ))
+    let result = optics::optics(data, min_samples, max_eps, metric)?;
+    
+    // Convert max_eps to f64 for use with default extraction
+    let default_eps = match max_eps {
+        Some(eps) => eps.to_f64().unwrap() / 10.0, // Use smaller epsilon by default
+        None => 0.5, // Default eps if none provided
+    };
+    
+    Ok(optics::extract_dbscan_clustering(&result, default_eps))
 }
