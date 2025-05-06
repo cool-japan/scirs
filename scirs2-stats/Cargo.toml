@@ -15,7 +15,7 @@ ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
 scirs2-core = { version = "0.1.0-alpha.2", path = "../scirs2-core", features = ["validation", "parallel", "simd", "linalg", "openblas"] }
 scirs2-linalg = { version = "0.1.0-alpha.2", path = "../scirs2-linalg" }
 
