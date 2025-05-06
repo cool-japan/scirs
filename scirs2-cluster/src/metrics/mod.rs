@@ -5,7 +5,7 @@
 //! - Davies-Bouldin index for evaluating cluster separation
 //! - Future: Calinski-Harabasz index, etc.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, s};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -117,7 +117,7 @@ pub fn silhouette_score<F: Float + FromPrimitive + Debug + PartialOrd>(
 
     for i in 0..n_samples {
         let sample_label = labels[i];
-        
+
         // Skip noise points (label -1)
         if sample_label < 0 {
             continue;
@@ -185,7 +185,9 @@ pub fn silhouette_score<F: Float + FromPrimitive + Debug + PartialOrd>(
         ));
     }
 
-    let sum = silhouette_values.iter().fold(F::zero(), |acc, &val| acc + val);
+    let sum = silhouette_values
+        .iter()
+        .fold(F::zero(), |acc, &val| acc + val);
     let mean = sum / F::from_usize(silhouette_values.len()).unwrap();
 
     Ok(mean)
@@ -301,9 +303,10 @@ pub fn davies_bouldin_score<F: Float + FromPrimitive + Debug + PartialOrd>(
     // Normalize centroids by cluster sizes
     for i in 0..n_clusters {
         if cluster_sizes[i] == 0 {
-            return Err(ClusteringError::ComputationError(
-                format!("Cluster {} is empty", unique_labels[i])
-            ));
+            return Err(ClusteringError::ComputationError(format!(
+                "Cluster {} is empty",
+                unique_labels[i]
+            )));
         }
 
         for j in 0..n_features {
@@ -323,7 +326,7 @@ pub fn davies_bouldin_score<F: Float + FromPrimitive + Debug + PartialOrd>(
         let cluster_idx = unique_labels.iter().position(|&l| l == label).unwrap();
         let centroid = centroids.slice(s![cluster_idx, ..]);
         let point = data.slice(s![i, ..]);
-        
+
         // Distance to centroid
         let dist = distance(&point.to_vec(), &centroid.to_vec());
         cluster_diameters[cluster_idx] = cluster_diameters[cluster_idx] + dist;
@@ -337,7 +340,7 @@ pub fn davies_bouldin_score<F: Float + FromPrimitive + Debug + PartialOrd>(
     // Calculate pairwise centroid distances
     let mut centroid_distances = Array2::<F>::zeros((n_clusters, n_clusters));
     for i in 0..n_clusters {
-        for j in (i+1)..n_clusters {
+        for j in (i + 1)..n_clusters {
             let centroid_i = centroids.slice(s![i, ..]);
             let centroid_j = centroids.slice(s![j, ..]);
             let dist = distance(&centroid_i.to_vec(), &centroid_j.to_vec());
@@ -353,7 +356,8 @@ pub fn davies_bouldin_score<F: Float + FromPrimitive + Debug + PartialOrd>(
         for j in 0..n_clusters {
             if i != j {
                 // Skip self-comparison
-                let ratio = (cluster_diameters[i] + cluster_diameters[j]) / centroid_distances[[i, j]];
+                let ratio =
+                    (cluster_diameters[i] + cluster_diameters[j]) / centroid_distances[[i, j]];
                 if ratio > max_ratio {
                     max_ratio = ratio;
                 }
@@ -452,7 +456,7 @@ pub fn calinski_harabasz_score<F: Float + FromPrimitive + Debug + PartialOrd>(
         if label < 0 {
             continue; // Skip noise points
         }
-        
+
         valid_samples += 1;
         for j in 0..n_features {
             global_centroid[j] = global_centroid[j] + data[[i, j]];
@@ -491,9 +495,10 @@ pub fn calinski_harabasz_score<F: Float + FromPrimitive + Debug + PartialOrd>(
     // Normalize centroids by cluster sizes
     for i in 0..n_clusters {
         if cluster_sizes[i] == 0 {
-            return Err(ClusteringError::ComputationError(
-                format!("Cluster {} is empty", unique_labels[i])
-            ));
+            return Err(ClusteringError::ComputationError(format!(
+                "Cluster {} is empty",
+                unique_labels[i]
+            )));
         }
 
         for j in 0..n_features {
@@ -506,12 +511,12 @@ pub fn calinski_harabasz_score<F: Float + FromPrimitive + Debug + PartialOrd>(
     for i in 0..n_clusters {
         let cluster_size = F::from_usize(cluster_sizes[i]).unwrap();
         let mut squared_dist = F::zero();
-        
+
         for j in 0..n_features {
             let diff = centroids[[i, j]] - global_centroid[j];
             squared_dist = squared_dist + diff * diff;
         }
-        
+
         bcss = bcss + cluster_size * squared_dist;
     }
 
@@ -525,20 +530,20 @@ pub fn calinski_harabasz_score<F: Float + FromPrimitive + Debug + PartialOrd>(
 
         let cluster_idx = unique_labels.iter().position(|&l| l == label).unwrap();
         let mut squared_dist = F::zero();
-        
+
         for j in 0..n_features {
             let diff = data[[i, j]] - centroids[[cluster_idx, j]];
             squared_dist = squared_dist + diff * diff;
         }
-        
+
         wcss = wcss + squared_dist;
     }
 
     // Calculate the Calinski-Harabasz index
     let ch_index = if wcss > F::zero() {
         // (BCSS / (k-1)) / (WCSS / (n-k))
-        (bcss / F::from_usize(n_clusters - 1).unwrap()) / 
-        (wcss / F::from_usize(valid_samples - n_clusters).unwrap())
+        (bcss / F::from_usize(n_clusters - 1).unwrap())
+            / (wcss / F::from_usize(valid_samples - n_clusters).unwrap())
     } else {
         // In the unlikely case where all points are at the exact centroid of their clusters
         F::infinity()
@@ -618,7 +623,7 @@ pub fn silhouette_samples<F: Float + FromPrimitive + Debug + PartialOrd>(
 
     for i in 0..n_samples {
         let sample_label = labels[i];
-        
+
         // Skip noise points (label -1)
         if sample_label < 0 {
             continue;
@@ -689,56 +694,58 @@ mod tests {
     #[test]
     fn test_silhouette_score_well_separated() {
         // Two well-separated clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            10.0, 10.0,
-            10.2, 9.8,
-            9.9, 10.1,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 10.0, 10.0, 10.2, 9.8, 9.9, 10.1,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = silhouette_score(data.view(), labels.view(), None).unwrap();
-        assert!(score > 0.9, "Silhouette score should be high for well-separated clusters");
+        assert!(
+            score > 0.9,
+            "Silhouette score should be high for well-separated clusters"
+        );
     }
 
     #[test]
     fn test_silhouette_score_overlapping() {
         // Two overlapping clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            3.0, 3.0,  // Overlapping point
-            2.5, 2.5,  // Overlapping point
-            4.0, 4.0,
-            4.2, 3.8,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 3.0, 3.0, // Overlapping point
+                2.5, 2.5, // Overlapping point
+                4.0, 4.0, 4.2, 3.8,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = silhouette_score(data.view(), labels.view(), None).unwrap();
-        assert!(score < 0.9, "Silhouette score should be lower for overlapping clusters");
+        assert!(
+            score < 0.9,
+            "Silhouette score should be lower for overlapping clusters"
+        );
     }
 
     #[test]
     fn test_silhouette_samples() {
         // Simple dataset
-        let data = Array2::from_shape_vec((4, 2), vec![
-            1.0, 1.0,
-            2.0, 1.0,
-            4.0, 4.0,
-            5.0, 4.0,
-        ]).unwrap();
+        let data =
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 4.0, 4.0, 5.0, 4.0]).unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let samples = silhouette_samples(data.view(), labels.view(), None).unwrap();
-        
+
         // Check dimensions
         assert_eq!(samples.len(), 4);
-        
+
         // All samples should have positive silhouette scores
         for &score in samples.iter() {
             assert!(score > 0.0);
@@ -748,76 +755,88 @@ mod tests {
     #[test]
     fn test_davies_bouldin_score_well_separated() {
         // Two well-separated clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            10.0, 10.0,
-            10.2, 9.8,
-            9.9, 10.1,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 10.0, 10.0, 10.2, 9.8, 9.9, 10.1,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = davies_bouldin_score(data.view(), labels.view(), None).unwrap();
         // Low score is better for Davies-Bouldin index
-        assert!(score < 0.5, "Davies-Bouldin score should be low for well-separated clusters");
+        assert!(
+            score < 0.5,
+            "Davies-Bouldin score should be low for well-separated clusters"
+        );
     }
 
     #[test]
     fn test_davies_bouldin_score_overlapping() {
         // Two overlapping clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            3.0, 3.0,  // Overlapping point
-            2.5, 2.5,  // Overlapping point
-            4.0, 4.0,
-            4.2, 3.8,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 3.0, 3.0, // Overlapping point
+                2.5, 2.5, // Overlapping point
+                4.0, 4.0, 4.2, 3.8,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = davies_bouldin_score(data.view(), labels.view(), None).unwrap();
         // Higher score for overlapping clusters
-        assert!(score > 0.5, "Davies-Bouldin score should be higher for overlapping clusters");
+        assert!(
+            score > 0.5,
+            "Davies-Bouldin score should be higher for overlapping clusters"
+        );
     }
-    
+
     #[test]
     fn test_calinski_harabasz_score_well_separated() {
         // Two well-separated clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            10.0, 10.0,
-            10.2, 9.8,
-            9.9, 10.1,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 10.0, 10.0, 10.2, 9.8, 9.9, 10.1,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = calinski_harabasz_score(data.view(), labels.view()).unwrap();
         // High score is better for Calinski-Harabasz index
-        assert!(score > 100.0, "Calinski-Harabasz score should be high for well-separated clusters");
+        assert!(
+            score > 100.0,
+            "Calinski-Harabasz score should be high for well-separated clusters"
+        );
     }
 
     #[test]
     fn test_calinski_harabasz_score_overlapping() {
         // Two overlapping clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            3.0, 3.0,  // Overlapping point
-            2.5, 2.5,  // Overlapping point
-            4.0, 4.0,
-            4.2, 3.8,
-        ]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 3.0, 3.0, // Overlapping point
+                2.5, 2.5, // Overlapping point
+                4.0, 4.0, 4.2, 3.8,
+            ],
+        )
+        .unwrap();
 
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let score = calinski_harabasz_score(data.view(), labels.view()).unwrap();
         // Lower score for overlapping clusters compared to well-separated ones
-        assert!(score < 100.0, "Calinski-Harabasz score should be lower for overlapping clusters");
+        assert!(
+            score < 100.0,
+            "Calinski-Harabasz score should be lower for overlapping clusters"
+        );
     }
 }

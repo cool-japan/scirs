@@ -33,23 +33,23 @@ This module provides machine learning evaluation metrics for model performance a
 ## Classification Metrics
 
 - [ ] Basic classification metrics
-  - [ ] Matthews correlation coefficient
-  - [ ] Balanced accuracy
-  - [ ] Cohen's kappa
-  - [ ] Brier score
-  - [ ] Log loss
-  - [ ] Jaccard index
-  - [ ] Hamming loss
+  - [x] Matthews correlation coefficient
+  - [x] Balanced accuracy
+  - [x] Cohen's kappa
+  - [x] Brier score
+  - [x] Log loss
+  - [x] Jaccard index
+  - [x] Hamming loss
 - [ ] Probability-based metrics
-  - [ ] Calibration curves
-  - [ ] Expected calibration error
-  - [ ] Maximum calibration error
-  - [ ] Area under precision-recall curve (AUPRC)
+  - [x] Calibration curves
+  - [x] Expected calibration error
+  - [x] Maximum calibration error
+  - [x] Area under precision-recall curve (AUPRC)
   - [ ] Lift and gain charts
-- [ ] Multi-class and multi-label metrics
-  - [ ] One-vs-rest metrics
+- [x] Multi-class and multi-label metrics
+  - [x] One-vs-rest metrics
   - [ ] One-vs-one metrics
-  - [ ] Micro/macro/weighted averaging
+  - [x] Micro/macro/weighted averaging
   - [ ] Label ranking metrics
   - [ ] Coverage error
   - [ ] Label ranking loss

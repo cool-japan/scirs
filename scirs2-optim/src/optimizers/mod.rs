@@ -71,11 +71,15 @@ where
 // Import specific optimizers
 mod adagrad;
 mod adam;
+mod adamw;
+mod radam;
 mod rmsprop;
 mod sgd;
 
 // Re-export specific optimizers
 pub use adagrad::Adagrad;
 pub use adam::Adam;
+pub use adamw::AdamW;
+pub use radam::RAdam;
 pub use rmsprop::RMSprop;
 pub use sgd::SGD;

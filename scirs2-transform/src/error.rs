@@ -17,6 +17,10 @@ pub enum TransformError {
     #[error("Core error: {0}")]
     CoreError(#[from] scirs2_core::error::CoreError),
 
+    /// Linear algebra error
+    #[error("Linear algebra error: {0}")]
+    LinalgError(#[from] scirs2_linalg::error::LinalgError),
+
     /// IO error
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),

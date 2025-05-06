@@ -1,7 +1,7 @@
 //! Datasets module for SciRS2
 //!
 //! This module provides dataset loading utilities similar to scikit-learn's datasets module.
-//! It includes toy datasets, sample datasets, time series datasets, data generators, 
+//! It includes toy datasets, sample datasets, time series datasets, data generators,
 //! and utilities for loading and processing datasets.
 
 #![warn(missing_docs)]

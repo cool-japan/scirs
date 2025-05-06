@@ -646,8 +646,7 @@ pub fn clear_snapshots() {
 mod tests {
     use super::*;
     use crate::memory::metrics::{
-        reset_memory_metrics, track_allocation, track_deallocation, 
-        generate_memory_report
+        generate_memory_report, reset_memory_metrics, track_allocation, track_deallocation,
     };
 
     /// Synchronize tests using a mutex to prevent concurrent use of the global metrics collector
@@ -665,15 +664,20 @@ mod tests {
 
         // Print initial state for debugging
         let initial_report = generate_memory_report();
-        println!("Initial state: total_current_usage={}", initial_report.total_current_usage);
+        println!(
+            "Initial state: total_current_usage={}",
+            initial_report.total_current_usage
+        );
 
         // Take a snapshot with no allocations
         let snapshot1 = MemorySnapshot::new("start", "Initial state");
-        
+
         // Verify no allocations in first snapshot
-        assert_eq!(snapshot1.report.total_current_usage, 0, 
-            "First snapshot should have 0 memory usage but had {} bytes", 
-            snapshot1.report.total_current_usage);
+        assert_eq!(
+            snapshot1.report.total_current_usage, 0,
+            "First snapshot should have 0 memory usage but had {} bytes",
+            snapshot1.report.total_current_usage
+        );
 
         // Reset to get clean metrics state
         reset_memory_metrics();
@@ -684,36 +688,45 @@ mod tests {
 
         // Print state after allocations
         let allocations_report = generate_memory_report();
-        println!("After allocations: total_current_usage={}", allocations_report.total_current_usage);
+        println!(
+            "After allocations: total_current_usage={}",
+            allocations_report.total_current_usage
+        );
 
         // Take another snapshot
         let snapshot2 = MemorySnapshot::new("allocated", "After allocations");
-        
+
         // Check that we have the expected memory usage (should be 3072 bytes)
-        let expected_usage = 1024 + 2048;  // From the two allocations above
-        assert_eq!(snapshot2.report.total_current_usage, expected_usage,
-            "Second snapshot should have {} bytes but had {} bytes", 
-            expected_usage, snapshot2.report.total_current_usage);
+        let expected_usage = 1024 + 2048; // From the two allocations above
+        assert_eq!(
+            snapshot2.report.total_current_usage, expected_usage,
+            "Second snapshot should have {} bytes but had {} bytes",
+            expected_usage, snapshot2.report.total_current_usage
+        );
 
         // Create a direct comparison (not using the global snapshots)
         // This ensures we're just comparing these two snapshots directly
         let diff = snapshot1.compare(&snapshot2);
 
         // Verify correct deltas
-        assert_eq!(diff.current_usage_delta, expected_usage as isize, 
-            "Delta between snapshots should be {} bytes but was {} bytes", 
-            expected_usage, diff.current_usage_delta);
+        assert_eq!(
+            diff.current_usage_delta, expected_usage as isize,
+            "Delta between snapshots should be {} bytes but was {} bytes",
+            expected_usage, diff.current_usage_delta
+        );
 
         // Reset and test deallocation
         reset_memory_metrics();
 
         // Create a new baseline snapshot
         let snapshot_base = MemorySnapshot::new("base", "Base for deallocation test");
-        
+
         // Verify that it starts with zero
-        assert_eq!(snapshot_base.report.total_current_usage, 0,
+        assert_eq!(
+            snapshot_base.report.total_current_usage, 0,
             "Baseline snapshot after reset should have 0 memory usage but had {} bytes",
-            snapshot_base.report.total_current_usage);
+            snapshot_base.report.total_current_usage
+        );
 
         // Allocate and then deallocate
         track_allocation("TestComponent", 1024, 0x1000);
@@ -743,10 +756,15 @@ mod tests {
 
         // Verify the initial state is clean
         let initial_report = generate_memory_report();
-        println!("Initial state: total_current_usage={}", initial_report.total_current_usage);
-        assert_eq!(initial_report.total_current_usage, 0, 
-                  "Initial memory usage should be 0 but was {} bytes",
-                  initial_report.total_current_usage);
+        println!(
+            "Initial state: total_current_usage={}",
+            initial_report.total_current_usage
+        );
+        assert_eq!(
+            initial_report.total_current_usage, 0,
+            "Initial memory usage should be 0 but was {} bytes",
+            initial_report.total_current_usage
+        );
 
         // Create a snapshot manager
         let mut manager = SnapshotManager::new();
@@ -754,12 +772,17 @@ mod tests {
         // Take a snapshot
         let snapshot1 = manager.take_snapshot("s1", "First snapshot");
         assert_eq!(snapshot1.id, "s1", "First snapshot should have ID 's1'");
-        println!("First snapshot total_current_usage: {}", snapshot1.report.total_current_usage);
+        println!(
+            "First snapshot total_current_usage: {}",
+            snapshot1.report.total_current_usage
+        );
 
         // Verify there are no allocations to start with
-        assert_eq!(snapshot1.report.total_current_usage, 0, 
-                 "First snapshot should have 0 memory usage but had {} bytes", 
-                 snapshot1.report.total_current_usage);
+        assert_eq!(
+            snapshot1.report.total_current_usage, 0,
+            "First snapshot should have 0 memory usage but had {} bytes",
+            snapshot1.report.total_current_usage
+        );
 
         // Reset before allocating
         reset_memory_metrics();
@@ -769,23 +792,33 @@ mod tests {
 
         // Print state after allocation
         let after_alloc_report = generate_memory_report();
-        println!("After allocation: total_current_usage={}", after_alloc_report.total_current_usage);
+        println!(
+            "After allocation: total_current_usage={}",
+            after_alloc_report.total_current_usage
+        );
 
         // Take another snapshot
         let snapshot2 = manager.take_snapshot("s2", "Second snapshot");
         assert_eq!(snapshot2.id, "s2", "Second snapshot should have ID 's2'");
-        println!("Second snapshot total_current_usage: {}", snapshot2.report.total_current_usage);
+        println!(
+            "Second snapshot total_current_usage: {}",
+            snapshot2.report.total_current_usage
+        );
 
         // Verify the allocation is recorded in the second snapshot
-        assert_eq!(snapshot2.report.total_current_usage, 1024,
-                  "Second snapshot should have 1024 bytes but had {} bytes",
-                  snapshot2.report.total_current_usage);
+        assert_eq!(
+            snapshot2.report.total_current_usage, 1024,
+            "Second snapshot should have 1024 bytes but had {} bytes",
+            snapshot2.report.total_current_usage
+        );
 
         // Compare snapshots
         let diff = manager.compare_snapshots("s1", "s2").unwrap();
-        assert_eq!(diff.current_usage_delta, 1024, 
-                  "Delta between snapshots should be 1024 bytes but was {} bytes",
-                  diff.current_usage_delta);
+        assert_eq!(
+            diff.current_usage_delta, 1024,
+            "Delta between snapshots should be 1024 bytes but was {} bytes",
+            diff.current_usage_delta
+        );
 
         // Get a snapshot by ID
         let retrieved = manager.get_snapshot("s1").unwrap();
@@ -793,7 +826,10 @@ mod tests {
 
         // Clear snapshots
         manager.clear();
-        assert!(manager.get_snapshot("s1").is_none(), "After clearing, snapshot 's1' should not exist");
+        assert!(
+            manager.get_snapshot("s1").is_none(),
+            "After clearing, snapshot 's1' should not exist"
+        );
 
         // Clean up for the next test
         reset_memory_metrics();
@@ -813,17 +849,25 @@ mod tests {
 
         // Print initial state for debugging
         let initial_report = generate_memory_report();
-        println!("Initial state: total_current_usage={}", initial_report.total_current_usage);
+        println!(
+            "Initial state: total_current_usage={}",
+            initial_report.total_current_usage
+        );
 
         // Take a snapshot with no allocations
         let snapshot1 = take_snapshot("g1", "Global snapshot 1");
         assert_eq!(snapshot1.id, "g1", "First snapshot should have ID 'g1'");
-        println!("First snapshot total_current_usage: {}", snapshot1.report.total_current_usage);
-        
+        println!(
+            "First snapshot total_current_usage: {}",
+            snapshot1.report.total_current_usage
+        );
+
         // Verify there are no allocations in the first snapshot
-        assert_eq!(snapshot1.report.total_current_usage, 0, 
-                   "First snapshot should have 0 memory usage but had {} bytes", 
-                   snapshot1.report.total_current_usage);
+        assert_eq!(
+            snapshot1.report.total_current_usage, 0,
+            "First snapshot should have 0 memory usage but had {} bytes",
+            snapshot1.report.total_current_usage
+        );
 
         // Reset metrics to get a clean state (in our thread-safe version, we need this)
         reset_memory_metrics();
@@ -833,23 +877,33 @@ mod tests {
 
         // Print state after allocation
         let after_alloc_report = generate_memory_report();
-        println!("After allocation: total_current_usage={}", after_alloc_report.total_current_usage);
+        println!(
+            "After allocation: total_current_usage={}",
+            after_alloc_report.total_current_usage
+        );
 
         // Take another snapshot with just our new allocation
         let snapshot2 = take_snapshot("g2", "Global snapshot 2");
         assert_eq!(snapshot2.id, "g2", "Second snapshot should have ID 'g2'");
-        println!("Second snapshot total_current_usage: {}", snapshot2.report.total_current_usage);
-        
+        println!(
+            "Second snapshot total_current_usage: {}",
+            snapshot2.report.total_current_usage
+        );
+
         // Verify the allocation is recorded in the second snapshot
-        assert_eq!(snapshot2.report.total_current_usage, 1024,
-                  "Second snapshot should have 1024 bytes but had {} bytes",
-                  snapshot2.report.total_current_usage);
+        assert_eq!(
+            snapshot2.report.total_current_usage, 1024,
+            "Second snapshot should have 1024 bytes but had {} bytes",
+            snapshot2.report.total_current_usage
+        );
 
         // Compare snapshots - we should have exactly 1024 bytes difference
         let diff = compare_snapshots("g1", "g2").unwrap();
-        assert_eq!(diff.current_usage_delta, 1024, 
-                  "Delta between snapshots should be 1024 bytes but was {} bytes",
-                  diff.current_usage_delta);
+        assert_eq!(
+            diff.current_usage_delta, 1024,
+            "Delta between snapshots should be 1024 bytes but was {} bytes",
+            diff.current_usage_delta
+        );
 
         // Clean up by clearing snapshots for the next test
         clear_snapshots();
@@ -945,47 +999,68 @@ mod tests {
 
         // Print initial state for debugging
         let initial_report = generate_memory_report();
-        println!("Initial state: total_current_usage={}", initial_report.total_current_usage);
+        println!(
+            "Initial state: total_current_usage={}",
+            initial_report.total_current_usage
+        );
 
         // Take initial snapshot with no allocations
         let snapshot1 = MemorySnapshot::new("leak_test_1", "Before potential leak");
-        println!("First snapshot total_current_usage: {}", snapshot1.report.total_current_usage);
-        
+        println!(
+            "First snapshot total_current_usage: {}",
+            snapshot1.report.total_current_usage
+        );
+
         // Verify there are no allocations to start with
-        assert_eq!(snapshot1.report.total_current_usage, 0, 
-                  "Initial snapshot should have 0 memory usage but had {} bytes",
-                  snapshot1.report.total_current_usage);
+        assert_eq!(
+            snapshot1.report.total_current_usage, 0,
+            "Initial snapshot should have 0 memory usage but had {} bytes",
+            snapshot1.report.total_current_usage
+        );
 
         // Reset again to ensure clean state
         reset_memory_metrics();
-        
+
         // Allocate memory without tracking deallocation (simulating a leak)
         track_allocation("LeakyComponent", 4096, 0x3000);
 
         // Print state after allocation
         let after_alloc_report = generate_memory_report();
-        println!("After allocation: total_current_usage={}", after_alloc_report.total_current_usage);
+        println!(
+            "After allocation: total_current_usage={}",
+            after_alloc_report.total_current_usage
+        );
 
         // Take snapshot after our leak
         let snapshot2 = MemorySnapshot::new("leak_test_2", "After operations");
-        println!("Second snapshot total_current_usage: {}", snapshot2.report.total_current_usage);
-        
+        println!(
+            "Second snapshot total_current_usage: {}",
+            snapshot2.report.total_current_usage
+        );
+
         // Verify the second snapshot has exactly the allocation we made
-        assert_eq!(snapshot2.report.total_current_usage, 4096,
-                  "Second snapshot should have 4096 bytes but had {} bytes",
-                  snapshot2.report.total_current_usage);
+        assert_eq!(
+            snapshot2.report.total_current_usage, 4096,
+            "Second snapshot should have 4096 bytes but had {} bytes",
+            snapshot2.report.total_current_usage
+        );
 
         // Compare the snapshots
         let diff = snapshot1.compare(&snapshot2);
 
         // We should have a leaked memory of 4096 bytes
-        assert_eq!(diff.current_usage_delta, 4096,
-                  "Delta between snapshots should be 4096 bytes but was {} bytes",
-                  diff.current_usage_delta);
+        assert_eq!(
+            diff.current_usage_delta, 4096,
+            "Delta between snapshots should be 4096 bytes but was {} bytes",
+            diff.current_usage_delta
+        );
 
         // Our simple leak detection identifies any memory increase as a potential leak
         // This is a simplification for the test
-        assert!(diff.current_usage_delta > 0, "Memory increase should be detected as potential leak");
+        assert!(
+            diff.current_usage_delta > 0,
+            "Memory increase should be detected as potential leak"
+        );
 
         // Let's artificially introduce a component with a leak
         let mut component_diffs = HashMap::new();
@@ -1013,13 +1088,23 @@ mod tests {
         };
 
         // This should detect potential leaks
-        assert!(test_diff.has_potential_leaks(), "Leak detection should identify potential leaks");
+        assert!(
+            test_diff.has_potential_leaks(),
+            "Leak detection should identify potential leaks"
+        );
 
         // And identify the leaky component
         let leak_components = test_diff.get_potential_leak_components();
-        assert_eq!(leak_components.len(), 1, "Should find exactly one leaky component");
-        assert_eq!(leak_components[0], "LeakyComponent", "Leaky component should be 'LeakyComponent'");
-        
+        assert_eq!(
+            leak_components.len(),
+            1,
+            "Should find exactly one leaky component"
+        );
+        assert_eq!(
+            leak_components[0], "LeakyComponent",
+            "Leaky component should be 'LeakyComponent'"
+        );
+
         // Clean up for the next test
         reset_memory_metrics();
         clear_snapshots();

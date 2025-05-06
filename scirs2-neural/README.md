@@ -9,9 +9,13 @@ Neural network module for the SciRS2 scientific computing library. This module p
 ## Features
 
 - **Core Neural Network Components**: Layers, activations, loss functions
+- **Advanced Layer Types**: Convolutional, pooling, recurrent, normalization, and attention layers
+- **Transformer Architecture**: Full transformer implementation with multi-head attention
 - **Sequential Model API**: Simple API for creating feed-forward neural networks
+- **Advanced Activations**: GELU, Swish/SiLU, Mish, and more
 - **Automatic Differentiation**: Efficient gradient computation with autograd
-- **Optimizers**: Various optimization algorithms (SGD, Adam, etc.)
+- **Optimizers**: Various optimization algorithms (SGD, Adam, AdamW, RAdam, etc.)
+- **Model Serialization**: Save and load trained models
 - **Utilities**: Initializers, metrics, and dataset handling
 
 ## Installation
@@ -113,12 +117,22 @@ Neural network layer implementations:
 use scirs2_neural::layers::{
     Layer,                  // Layer trait
     dense::Dense,           // Fully connected layer
-    
-    // Other layer types (examples)
-    // dropout::Dropout,       // Dropout layer
-    // conv2d::Conv2D,         // 2D convolutional layer
-    // maxpool2d::MaxPool2D,   // 2D max pooling layer
-    // batchnorm::BatchNorm,   // Batch normalization layer
+    dropout::Dropout,       // Dropout layer
+    conv::Conv2D,           // 2D convolutional layer
+    conv::Conv2DTranspose,  // 2D transposed convolutional layer
+    pooling::MaxPool2D,     // 2D max pooling layer
+    pooling::AvgPool2D,     // 2D average pooling layer
+    pooling::GlobalPooling, // Global pooling layer
+    norm::BatchNorm,        // Batch normalization layer
+    norm::LayerNorm,        // Layer normalization layer
+    recurrent::LSTM,        // Long Short-Term Memory layer
+    recurrent::GRU,         // Gated Recurrent Unit layer
+    recurrent::RNN,         // Simple RNN layer
+    attention::MultiHeadAttention, // Multi-head attention mechanism
+    attention::SelfAttention,      // Self-attention mechanism
+    transformer::TransformerEncoder, // Transformer encoder block
+    transformer::TransformerDecoder, // Transformer decoder block
+    transformer::Transformer,        // Full transformer architecture
 };
 ```
 
@@ -133,6 +147,9 @@ use scirs2_neural::activations::{
     sigmoid::Sigmoid,       // Sigmoid activation
     tanh::Tanh,             // Hyperbolic tangent
     softmax::Softmax,       // Softmax activation
+    gelu::GELU,             // Gaussian Error Linear Unit
+    swish::Swish,           // Swish/SiLU activation
+    mish::Mish,             // Mish activation
 };
 ```
 
@@ -164,12 +181,14 @@ use scirs2_neural::models::{
 Optimization algorithms:
 
 ```rust
-use scirs2_neural::optimizers_temp::{
-    // Optimizer,            // Optimizer trait
+use scirs2_neural::optimizers::{
+    Optimizer,              // Optimizer trait
     sgd::SGD,               // Stochastic Gradient Descent
     adagrad::AdaGrad,       // Adaptive Gradient Algorithm
     rmsprop::RMSprop,       // Root Mean Square Propagation
     adam::Adam,             // Adaptive Moment Estimation
+    adamw::AdamW,           // Adam with decoupled weight decay
+    radam::RAdam,           // Rectified Adam
 };
 ```
 
@@ -197,6 +216,13 @@ use scirs2_neural::utils::{
     metrics,                // Evaluation metrics
     datasets,               // Dataset utilities
 };
+
+// Model serialization
+use scirs2_neural::serialization::{
+    SaveLoad,               // Save/load trait for models
+    ModelConfig,            // Configuration for model serialization
+    load_model,             // Load model from file
+};
 ```
 
 ## Integration with Other SciRS2 Modules
@@ -211,11 +237,11 @@ Example of using linear algebra functions:
 
 ```rust
 use scirs2_neural::linalg::batch_operations;
-use ndarray::Array2;
+use ndarray::Array3;
 
 // Batch matrix multiplication
-let a = Array2::<f64>::zeros((32, 10, 20));
-let b = Array2::<f64>::zeros((32, 20, 15));
+let a = Array3::<f64>::zeros((32, 10, 20));
+let b = Array3::<f64>::zeros((32, 20, 15));
 let result = batch_operations::batch_matmul(&a, &b);
 ```
 

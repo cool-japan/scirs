@@ -12,14 +12,17 @@ categories = ["science", "mathematics", "algorithms"]
 [dependencies]
 # Core dependencies
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.2", features = ["validation"] }
-# Temporarily commented out for publishing
-# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.2" }
-# scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.2" }
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.2" }
+scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.2" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
+ndarray-rand = { workspace = true }
+ndarray-stats = "0.6.0"
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
 approx = "0.5.1"
+rayon = "1.5.3"
+rand = "0.9.0"
 
 # Future dependency for PandRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
@@ -28,3 +31,7 @@ approx = "0.5.1"
 default = []
 # Enable external ML library wrappers
 # pandrs = ["dep:pandrs_wrapper"]
+
+[dev-dependencies]
+scirs2-datasets = { path = "../scirs2-datasets", version = "0.1.0-alpha.2" }
+plotters = "0.3.5"

@@ -46,6 +46,16 @@ impl<F: Float + Debug + ScalarOperand + 'static> Sequential<F> {
     pub fn num_layers(&self) -> usize {
         self.layers.len()
     }
+
+    /// Get the layers in the model
+    pub fn layers(&self) -> &[Box<dyn Layer<F> + Send + Sync>] {
+        &self.layers
+    }
+
+    /// Get a mutable reference to the layers in the model
+    pub fn layers_mut(&mut self) -> &mut Vec<Box<dyn Layer<F> + Send + Sync>> {
+        &mut self.layers
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + 'static> Model<F> for Sequential<F> {
@@ -59,7 +69,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> Model<F> for Sequential<F> {
         Ok(current_output)
     }
 
-    fn backward(&self, grad_output: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn backward(&self, input: &Array<F, ndarray::IxDyn>, grad_output: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
         if self.layer_outputs.is_empty() {
             return Err(NeuralError::InferenceError(
                 "No forward pass performed before backward pass".to_string(),
@@ -71,17 +81,16 @@ impl<F: Float + Debug + ScalarOperand + 'static> Model<F> for Sequential<F> {
         // Iterate through layers in reverse
         for (i, layer) in self.layers.iter().enumerate().rev() {
             // Get input for this layer (either from previous layer or the original input)
-            let _layer_input = if i > 0 {
+            let layer_input = if i > 0 {
                 &self.layer_outputs[i - 1]
-            } else if let Some(input) = &self.input {
-                input
+            } else if let Some(saved_input) = &self.input {
+                saved_input
             } else {
-                return Err(NeuralError::InferenceError(
-                    "Input not saved during forward pass".to_string(),
-                ));
+                // Fallback to the provided input if nothing is saved
+                input
             };
 
-            grad_input = layer.backward(&grad_input)?;
+            grad_input = layer.backward(layer_input, &grad_input)?;
         }
 
         Ok(grad_input)
@@ -130,13 +139,13 @@ impl<F: Float + Debug + ScalarOperand + 'static> Model<F> for Sequential<F> {
         // Iterate through layers in reverse
         for (i, layer) in self.layers.iter_mut().enumerate().rev() {
             // Get input for this layer (either from previous layer or the original input)
-            let _layer_input = if i > 0 {
+            let layer_input = if i > 0 {
                 &self.layer_outputs[i - 1]
             } else {
                 inputs
             };
 
-            grad_input = layer.backward(&grad_input)?;
+            grad_input = layer.backward(layer_input, &grad_input)?;
         }
 
         // Update parameters using optimizer

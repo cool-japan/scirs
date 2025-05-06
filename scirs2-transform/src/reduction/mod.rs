@@ -4,6 +4,10 @@
 //! which is useful for visualization, feature extraction, and reducing
 //! computational complexity.
 
+mod tsne;
+
+pub use crate::reduction::tsne::{TSNE, trustworthiness};
+
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use num_traits::{Float, NumCast};
 use scirs2_linalg::svd;
@@ -17,6 +21,7 @@ const EPSILON: f64 = 1e-10;
 ///
 /// PCA finds the directions of maximum variance in the data and
 /// projects the data onto a lower dimensional space.
+#[derive(Debug, Clone)]
 pub struct PCA {
     /// Number of components to keep
     n_components: usize,
@@ -257,6 +262,7 @@ impl PCA {
 /// This transformer performs linear dimensionality reduction by means of
 /// truncated singular value decomposition (SVD). It works on any data and
 /// not just sparse matrices.
+#[derive(Debug, Clone)]
 pub struct TruncatedSVD {
     /// Number of components to keep
     n_components: usize,
@@ -436,6 +442,7 @@ impl TruncatedSVD {
 /// Linear Discriminant Analysis (LDA) for dimensionality reduction
 ///
 /// LDA finds the directions that maximize the separation between classes.
+#[derive(Debug, Clone)]
 pub struct LDA {
     /// Number of components to keep
     n_components: usize,

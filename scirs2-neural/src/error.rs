@@ -1,7 +1,10 @@
 //! Error types for the neural network module
 
-use std::error::Error;
+use std::error;
 use std::fmt;
+
+// Re-export Error trait for public use
+pub use std::error::Error;
 
 /// Error type for neural network operations
 #[derive(Debug)]
@@ -27,7 +30,7 @@ impl fmt::Display for NeuralError {
     }
 }
 
-impl Error for NeuralError {}
+impl error::Error for NeuralError {}
 
 /// Result type for neural network operations
 pub type Result<T> = std::result::Result<T, NeuralError>;

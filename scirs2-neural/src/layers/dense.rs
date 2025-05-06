@@ -70,7 +70,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> Dense<F> {
     ///
     /// * `input_dim` - Number of input features
     /// * `output_dim` - Number of output features
-    /// * `activation` - Optional activation function
+    /// * `activation` - Optional activation function name
     /// * `rng` - Random number generator for weight initialization
     ///
     /// # Returns
@@ -79,9 +79,31 @@ impl<F: Float + Debug + ScalarOperand + 'static> Dense<F> {
     pub fn new<R: Rng>(
         input_dim: usize,
         output_dim: usize,
-        activation: Option<Box<dyn Activation<F> + Send + Sync>>,
+        activation_name: Option<&str>,
         rng: &mut R,
     ) -> Result<Self> {
+        // Create activation function from name
+        let activation = if let Some(name) = activation_name {
+            match name.to_lowercase().as_str() {
+                "relu" => Some(Box::new(crate::activations::ReLU::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "sigmoid" => Some(Box::new(crate::activations::Sigmoid::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "tanh" => Some(Box::new(crate::activations::Tanh::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "softmax" => Some(Box::new(crate::activations::Softmax::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "gelu" => Some(Box::new(crate::activations::GELU::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "swish" => Some(Box::new(crate::activations::Swish::new(1.0))
+                    as Box<dyn Activation<F> + Send + Sync>),
+                "mish" => Some(Box::new(crate::activations::Mish::new())
+                    as Box<dyn Activation<F> + Send + Sync>),
+                _ => None,
+            }
+        } else {
+            None
+        };
         // Initialize weights with Xavier/Glorot initialization
         let scale = F::from(1.0 / f64::sqrt(input_dim as f64)).ok_or_else(|| {
             NeuralError::InvalidArchitecture("Failed to convert scale factor".to_string())
@@ -120,6 +142,44 @@ impl<F: Float + Debug + ScalarOperand + 'static> Dense<F> {
             input: RefCell::new(None),
             output_pre_activation: RefCell::new(None),
         })
+    }
+
+    /// Get the input dimension
+    pub fn input_dim(&self) -> usize {
+        self.input_dim
+    }
+
+    /// Get the output dimension
+    pub fn output_dim(&self) -> usize {
+        self.output_dim
+    }
+
+    /// Get the activation function name
+    pub fn activation_name(&self) -> Option<&str> {
+        if let Some(ref activation) = self.activation {
+            // Determine activation type by checking type_id
+            let type_id = (*activation).type_id();
+
+            if type_id == std::any::TypeId::of::<crate::activations::ReLU>() {
+                Some("relu")
+            } else if type_id == std::any::TypeId::of::<crate::activations::Sigmoid>() {
+                Some("sigmoid")
+            } else if type_id == std::any::TypeId::of::<crate::activations::Tanh>() {
+                Some("tanh")
+            } else if type_id == std::any::TypeId::of::<crate::activations::Softmax>() {
+                Some("softmax")
+            } else if type_id == std::any::TypeId::of::<crate::activations::GELU>() {
+                Some("gelu")
+            } else if type_id == std::any::TypeId::of::<crate::activations::Swish>() {
+                Some("swish")
+            } else if type_id == std::any::TypeId::of::<crate::activations::Mish>() {
+                Some("mish")
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -219,16 +279,17 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
         Ok(reshaped_output)
     }
 
-    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-        // If we have no saved input, we can't compute gradients
-        let input_ref = self.input.borrow();
-        if input_ref.is_none() {
-            return Err(NeuralError::InferenceError(
-                "No saved input found for backward pass".to_string(),
-            ));
-        }
-
-        let input = input_ref.as_ref().unwrap();
+    fn backward(&self, input: &Array<F, IxDyn>, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        // We can use the provided input parameter directly, but for compatibility 
+        // with existing code, we'll also check the stored input
+        let saved_input = self.input.borrow().clone();
+        
+        // Use provided input parameter, but fall back to saved input if needed
+        let input_to_use = if saved_input.is_none() {
+            input
+        } else {
+            saved_input.as_ref().unwrap()
+        };
 
         // If activation is present, first compute gradient through the activation
         let grad_pre_activation = if let Some(ref activation) = self.activation {
@@ -246,8 +307,8 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
         };
 
         // Reshape input and grad_pre_activation if necessary
-        let reshaped_input = if input.ndim() == 1 {
-            input
+        let reshaped_input = if input_to_use.ndim() == 1 {
+            input_to_use
                 .clone()
                 .into_shape_with_order(IxDyn(&[1, self.input_dim]))
                 .map_err(|e| {
@@ -255,8 +316,8 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
                 })?
         } else {
             // For batched input, flatten all dimensions except the last one
-            let batch_size: usize = input.shape().iter().take(input.ndim() - 1).product();
-            input
+            let batch_size: usize = input_to_use.shape().iter().take(input_to_use.ndim() - 1).product();
+            input_to_use
                 .clone()
                 .into_shape_with_order(IxDyn(&[batch_size, self.input_dim]))
                 .map_err(|e| {
@@ -326,10 +387,10 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
         }
 
         // Reshape output gradient to match input shape
-        let final_shape = if input.ndim() == 1 {
+        let final_shape = if input_to_use.ndim() == 1 {
             IxDyn(&[self.input_dim])
         } else {
-            let mut new_shape = input.shape().to_vec();
+            let mut new_shape = input_to_use.shape().to_vec();
             let last_idx = new_shape.len() - 1;
             new_shape[last_idx] = self.input_dim;
             IxDyn(&new_shape)

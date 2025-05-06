@@ -1,7 +1,29 @@
 //! Classification metrics module
 //!
 //! This module provides functions for evaluating classification models, including
-//! accuracy, precision, recall, F1 score, and ROC AUC.
+//! accuracy, precision, recall, F1 score, ROC AUC, and advanced metrics.
+//!
+//! ## Basic Metrics
+//!
+//! Basic classification metrics include accuracy, precision, recall, and F1 score.
+//!
+//! ## Advanced Metrics
+//!
+//! Advanced metrics include Matthews Correlation Coefficient, balanced accuracy,
+//! Cohen's kappa, Brier score, Jaccard similarity, and Hamming loss.
+//!
+//! ```
+//! use ndarray::array;
+//! use scirs2_metrics::classification::advanced::{matthews_corrcoef, balanced_accuracy_score};
+//!
+//! let y_true = array![0, 1, 2, 0, 1, 2];
+//! let y_pred = array![0, 2, 1, 0, 0, 2];
+//!
+//! let mcc = matthews_corrcoef(&y_true, &y_pred).unwrap();
+//! let bal_acc = balanced_accuracy_score(&y_true, &y_pred).unwrap();
+//! ```
+
+pub mod advanced;
 
 use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
 use num_traits::NumCast;

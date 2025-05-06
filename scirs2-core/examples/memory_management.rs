@@ -1,7 +1,5 @@
 use ndarray::Array2;
-use scirs2_core::memory::{
-    global_buffer_pool, BufferPool, ChunkProcessor2D, ZeroCopyView,
-};
+use scirs2_core::memory::{global_buffer_pool, BufferPool, ChunkProcessor2D, ZeroCopyView};
 
 fn main() {
     println!("Memory Management Example");

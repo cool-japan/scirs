@@ -70,12 +70,18 @@ pub mod vq;
 
 // Re-exports
 pub use affinity::{affinity_propagation, AffinityPropagationOptions};
+pub use density::hdbscan::{
+    dbscan_clustering, hdbscan, ClusterSelectionMethod, HDBSCANOptions, HDBSCANResult, StoreCenter,
+};
+pub use density::optics::{extract_dbscan_clustering, extract_xi_clusters, OPTICSResult};
 pub use density::*;
-pub use density::optics::{OPTICSResult, extract_dbscan_clustering, extract_xi_clusters};
-pub use density::hdbscan::{hdbscan, dbscan_clustering, HDBSCANResult, HDBSCANOptions, ClusterSelectionMethod, StoreCenter};
 pub use hierarchy::*;
-pub use meanshift::{mean_shift, estimate_bandwidth, get_bin_seeds, MeanShift, MeanShiftOptions};
-pub use metrics::{silhouette_score, silhouette_samples, davies_bouldin_score, calinski_harabasz_score};
-pub use preprocess::{whiten, standardize, normalize, min_max_scale, NormType};
-pub use spectral::{spectral_clustering, spectral_bipartition, SpectralClusteringOptions, AffinityMode};
+pub use meanshift::{estimate_bandwidth, get_bin_seeds, mean_shift, MeanShift, MeanShiftOptions};
+pub use metrics::{
+    calinski_harabasz_score, davies_bouldin_score, silhouette_samples, silhouette_score,
+};
+pub use preprocess::{min_max_scale, normalize, standardize, whiten, NormType};
+pub use spectral::{
+    spectral_bipartition, spectral_clustering, AffinityMode, SpectralClusteringOptions,
+};
 pub use vq::*;

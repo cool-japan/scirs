@@ -30,13 +30,13 @@ pub fn get_cache_dir() -> Result<PathBuf> {
     let home_dir = dirs::home_dir()
         .ok_or_else(|| DatasetsError::CacheError("Could not find home directory".to_string()))?;
     let cache_dir = home_dir.join(DEFAULT_CACHE_DIR);
-    
+
     if !cache_dir.exists() {
         fs::create_dir_all(&cache_dir).map_err(|e| {
             DatasetsError::CacheError(format!("Failed to create cache directory: {}", e))
         })?;
     }
-    
+
     Ok(cache_dir)
 }
 
