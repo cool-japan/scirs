@@ -1,7 +1,7 @@
 # SciRS2 Series
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
-[![License](https://img.shields.io/crates/l/scirs2-series.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
 
 Time series analysis module for the SciRS2 scientific computing library. This module provides tools for analyzing, decomposing, and forecasting time series data.
@@ -227,4 +227,9 @@ See the [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

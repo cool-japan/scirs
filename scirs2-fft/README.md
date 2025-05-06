@@ -1,7 +1,7 @@
 # SciRS2 FFT
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-fft.svg)](https://crates.io/crates/scirs2-fft)
-[![License](https://img.shields.io/crates/l/scirs2-fft.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-fft)](https://docs.rs/scirs2-fft)
 
 Fast Fourier Transform implementation and related functionality for the SciRS2 scientific computing library. This module provides efficient FFT implementations, DCT/DST transforms, and window functions.
@@ -295,4 +295,9 @@ See the [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

@@ -1,7 +1,7 @@
 # SciRS2 Vision
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-vision.svg)](https://crates.io/crates/scirs2-vision)
-[![License](https://img.shields.io/crates/l/scirs2-vision.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-vision)](https://docs.rs/scirs2-vision)
 
 Computer vision module for SciRS2, providing functionality for image processing, feature detection, segmentation, and color transformations.
@@ -164,8 +164,12 @@ cargo test test_grayscale_conversion
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
 
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.
 ## Contributing
 
 Contributions are welcome! Please see the project's [CONTRIBUTING.md](../CONTRIBUTING.md) file for guidelines.

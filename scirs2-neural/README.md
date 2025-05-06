@@ -1,7 +1,7 @@
 # SciRS2 Neural
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-neural.svg)](https://crates.io/crates/scirs2-neural)
-[![License](https://img.shields.io/crates/l/scirs2-neural.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-neural)](https://docs.rs/scirs2-neural)
 
 Neural network module for the SciRS2 scientific computing library. This module provides tools for building, training, and evaluating neural networks.
@@ -225,4 +225,9 @@ See the [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.
