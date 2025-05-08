@@ -1,7 +1,7 @@
 # SciRS2 Autograd
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-autograd.svg)](https://crates.io/crates/scirs2-autograd)
-[![License](https://img.shields.io/crates/l/scirs2-autograd.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-autograd)](https://docs.rs/scirs2-autograd)
 
 Automatic differentiation module for SciRS2, providing functionality comparable to PyTorch/TensorFlow's autograd systems and extending NumPy/SciPy's capabilities.
@@ -132,4 +132,9 @@ for epoch in 0..10 {
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

@@ -50,26 +50,26 @@ pub fn generate_binary_structure(
     // Create a structure of shape (3, 3, ..., 3) with rank dimensions
     let shape = vec![3; rank];
     let mut structure = Array::<bool, _>::from_elem(IxDyn(&shape), false);
-    
+
     // Center indices (1, 1, ..., 1)
     let center = vec![1; rank];
-    
+
     // Set the center element to true
     structure[IxDyn(&center)] = true;
-    
+
     // For each dimension, create indices that are adjacent in that dimension
     for dim in 0..rank {
         let mut lower_idx = center.clone();
         let mut upper_idx = center.clone();
-        
+
         lower_idx[dim] = 0;
         upper_idx[dim] = 2;
-        
+
         // Set adjacent elements to true for face connectivity
         structure[IxDyn(&lower_idx)] = true;
         structure[IxDyn(&upper_idx)] = true;
     }
-    
+
     // For FaceEdge and Full connectivity, add edges and vertices
     if connectivity == Connectivity::FaceEdge || connectivity == Connectivity::Full {
         // Recursively add all combinations of indices that differ by at most 1
@@ -77,7 +77,7 @@ pub fn generate_binary_structure(
         let mut indices = vec![1; rank];
         add_connected_indices(&mut structure, &mut indices, 0, connectivity);
     }
-    
+
     Ok(structure)
 }
 
@@ -93,47 +93,50 @@ fn add_connected_indices(
         structure[IxDyn(indices)] = true;
         return;
     }
-    
+
     // Save the original value for this dimension
     let orig_val = indices[dim];
-    
+
     // Try all possible values for this dimension (0, 1, 2)
     for val in 0..3 {
         indices[dim] = val;
-        
+
         // Check if this combination is valid based on connectivity
-        let center_dist = indices.iter()
+        let center_dist = indices
+            .iter()
             .enumerate()
-            .map(|(i, &idx)| if i == dim { 
-                0 // Don't count the current dimension
-            } else {
-                match idx {
-                    0 | 2 => 1, // Distance from center (1)
-                    _ => 0,     // No distance (at center)
+            .map(|(i, &idx)| {
+                if i == dim {
+                    0 // Don't count the current dimension
+                } else {
+                    match idx {
+                        0 | 2 => 1, // Distance from center (1)
+                        _ => 0,     // No distance (at center)
+                    }
                 }
             })
             .sum::<usize>();
-        
+
         let is_valid = match connectivity {
             Connectivity::Face => {
                 // Only direct neighbors (at most one dimension can differ from center)
                 center_dist == 0
-            },
+            }
             Connectivity::FaceEdge => {
                 // Neighbors and diagonal connections (at most two dimensions can differ)
                 center_dist <= 1
-            },
+            }
             Connectivity::Full => {
                 // All elements within the 3x3x... cube
                 true
-            },
+            }
         };
-        
+
         if is_valid {
             add_connected_indices(structure, indices, dim + 1, connectivity);
         }
     }
-    
+
     // Restore the original value
     indices[dim] = orig_val;
 }

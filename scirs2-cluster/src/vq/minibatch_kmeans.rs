@@ -137,10 +137,9 @@ where
         for _ in 0..init_size {
             indices.push(rng.random_range(0..n_samples));
         }
-        
-        let init_data = Array2::from_shape_fn((init_size, n_features), |(i, j)| {
-            data[[indices[i], j]]
-        });
+
+        let init_data =
+            Array2::from_shape_fn((init_size, n_features), |(i, j)| data[[indices[i], j]]);
         kmeans_plus_plus(init_data.view(), k, opts.random_seed)?
     } else {
         // Use all data points for initialization
@@ -150,13 +149,13 @@ where
     // Initialize variables for optimization
     let mut centroids = centroids;
     let mut counts = Array1::ones(k); // Initialize counts to avoid division by zero
-    
+
     // Variables for convergence detection
     let mut ewa_inertia = None; // Exponentially weighted average of inertia
     let mut no_improvement_count = 0;
     let mut best_inertia = F::infinity();
     let mut prev_centers: Option<Array2<F>> = None;
-    
+
     // Mini-batch optimization
     for iter in 0..opts.max_iter {
         // Sample a mini-batch
@@ -165,11 +164,11 @@ where
         for _ in 0..batch_size {
             batch_indices.push(rng.random_range(0..n_samples));
         }
-        
+
         // Perform mini-batch step
-        let (batch_inertia, has_converged) = 
+        let (batch_inertia, has_converged) =
             mini_batch_step(&data, &batch_indices, &mut centroids, &mut counts, &opts)?;
-        
+
         // If this is the last iteration, assign all points to clusters for final labeling
         // We don't need to do this on every iteration, just for the final result
         if iter == opts.max_iter - 1 {
@@ -177,17 +176,15 @@ where
             let (_new_labels, _) = assign_labels(data, centroids.view())?;
             // We don't store this since we'll recompute it at the end anyway
         }
-        
+
         // Update exponentially weighted average of inertia
         let ewa_factor = F::from(0.7).unwrap(); // Smoothing factor for EWA
         let current_ewa = match ewa_inertia {
-            Some(prev_ewa) => {
-                prev_ewa * ewa_factor + batch_inertia * (F::one() - ewa_factor)
-            },
-            None => batch_inertia
+            Some(prev_ewa) => prev_ewa * ewa_factor + batch_inertia * (F::one() - ewa_factor),
+            None => batch_inertia,
         };
         ewa_inertia = Some(current_ewa);
-        
+
         // Check for convergence based on inertia
         if current_ewa < best_inertia {
             best_inertia = current_ewa;
@@ -195,44 +192,41 @@ where
         } else {
             no_improvement_count += 1;
         }
-        
+
         // Check for convergence based on centroid movement
         if let Some(prev) = prev_centers {
             let mut center_shift = F::zero();
             for i in 0..k {
-                let dist = euclidean_distance(
-                    centroids.slice(s![i, ..]), 
-                    prev.slice(s![i, ..])
-                );
+                let dist = euclidean_distance(centroids.slice(s![i, ..]), prev.slice(s![i, ..]));
                 center_shift = center_shift + dist;
             }
-            
+
             // Normalize by number of centroids and features
             center_shift = center_shift / F::from(k).unwrap();
-            
+
             if center_shift < opts.tol {
                 // Converged based on centroid movement
                 break;
             }
         }
-        
+
         // Store current centroids for next iteration
         prev_centers = Some(centroids.clone());
-        
+
         // Check for early stopping
         if no_improvement_count >= opts.max_no_improvement {
             break;
         }
-        
+
         // If convergence detected in mini-batch step
         if has_converged {
             break;
         }
     }
-    
+
     // Final label assignment
     let (final_labels, _) = assign_labels(data, centroids.view())?;
-    
+
     Ok((centroids, final_labels))
 }
 
@@ -262,20 +256,20 @@ where
     let k = centroids.shape()[0];
     let n_features = centroids.shape()[1];
     let batch_size = batch_indices.len();
-    
+
     // Initialize mini-batch specific variables
     let mut closest_distances = Array1::from_elem(batch_size, F::infinity());
     let mut closest_centers = Array1::zeros(batch_size);
     let mut inertia = F::zero();
-    
+
     // Assign samples to closest centroids
     for (i, &sample_idx) in batch_indices.iter().enumerate() {
         let sample = data.slice(s![sample_idx, ..]);
-        
+
         // Find closest centroid
         let mut min_dist = F::infinity();
         let mut min_idx = 0;
-        
+
         for j in 0..k {
             let dist = euclidean_distance(sample, centroids.slice(s![j, ..]));
             if dist < min_dist {
@@ -283,75 +277,75 @@ where
                 min_idx = j;
             }
         }
-        
+
         closest_centers[i] = min_idx;
         closest_distances[i] = min_dist;
         inertia = inertia + min_dist * min_dist;
     }
-    
+
     // Update centroids based on mini-batch assignments
     for i in 0..batch_size {
         let center_idx = closest_centers[i];
         let sample_idx = batch_indices[i];
         let sample = data.slice(s![sample_idx, ..]);
-        
+
         // Incremental update of centroid
         let count = counts[center_idx];
         let learning_rate = F::one() / (count + F::one()); // Decrease learning rate as count increases
-        
+
         for j in 0..n_features {
-            centroids[[center_idx, j]] = 
+            centroids[[center_idx, j]] =
                 centroids[[center_idx, j]] * (F::one() - learning_rate) + sample[j] * learning_rate;
         }
-        
+
         counts[center_idx] = count + F::one();
     }
-    
+
     // Handle reassignment of small or empty clusters
     let mut has_empty = false;
     let max_count = counts.fold(F::zero(), |a, &b| a.max(b));
     let reassign_threshold = max_count * opts.reassignment_ratio;
-    
+
     for i in 0..k {
         if counts[i] < reassign_threshold {
             has_empty = true;
-            
+
             // Find the point furthest from its centroid in this batch
             let mut max_dist = F::zero();
             let mut max_idx = 0;
-            
+
             for j in 0..batch_size {
                 if closest_distances[j] > max_dist {
                     max_dist = closest_distances[j];
                     max_idx = j;
                 }
             }
-            
+
             // Reassign this centroid to the furthest point
             if max_dist > F::zero() {
                 let sample_idx = batch_indices[max_idx];
                 let sample = data.slice(s![sample_idx, ..]);
-                
+
                 for j in 0..n_features {
                     centroids[[i, j]] = sample[j];
                 }
-                
+
                 // Reset count to a small value to prevent immediate reassignment
                 counts[i] = counts[i].max(F::from(1.0).unwrap());
-                
+
                 // Update closest center and distance for this point
                 closest_centers[max_idx] = i;
                 closest_distances[max_idx] = F::zero();
             }
         }
     }
-    
+
     // Normalize inertia by batch size
     inertia = inertia / F::from(batch_size).unwrap();
-    
+
     // Check if we have converged
     let has_converged = !has_empty && inertia < opts.tol;
-    
+
     Ok((inertia, has_converged))
 }
 
@@ -374,29 +368,29 @@ where
 {
     let n_samples = data.shape()[0];
     let n_clusters = centroids.shape()[0];
-    
+
     let mut labels = Array1::zeros(n_samples);
     let mut distances = Array1::zeros(n_samples);
-    
+
     for i in 0..n_samples {
         let sample = data.slice(s![i, ..]);
         let mut min_dist = F::infinity();
         let mut min_idx = 0;
-        
+
         for j in 0..n_clusters {
             let centroid = centroids.slice(s![j, ..]);
             let dist = euclidean_distance(sample, centroid);
-            
+
             if dist < min_dist {
                 min_dist = dist;
                 min_idx = j;
             }
         }
-        
+
         labels[i] = min_idx;
         distances[i] = min_dist;
     }
-    
+
     Ok((labels, distances))
 }
 
@@ -404,19 +398,16 @@ where
 mod tests {
     use super::*;
     use ndarray::Array2;
-    
+
     #[test]
     fn test_minibatch_kmeans_simple() {
         // Create a simple dataset with clear clusters
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            4.0, 5.0,
-            4.2, 4.8,
-            3.9, 5.1,
-        ]).unwrap();
-        
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
         // Run mini-batch k-means with k=2
         let options = MiniBatchKMeansOptions {
             max_iter: 10,
@@ -424,76 +415,83 @@ mod tests {
             random_seed: Some(42), // For reproducibility
             ..Default::default()
         };
-        
+
         let (centroids, labels) = minibatch_kmeans(data.view(), 2, Some(options)).unwrap();
-        
+
         // Check dimensions
         assert_eq!(centroids.shape(), &[2, 2]);
         assert_eq!(labels.shape(), &[6]);
-        
+
         // Check that we have 2 unique labels
-        let unique_labels: Vec<_> = labels.iter().copied().collect::<std::collections::HashSet<_>>().into_iter().collect();
+        let unique_labels: Vec<_> = labels
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
         assert_eq!(unique_labels.len(), 2);
-        
+
         // Check that the first 3 points are in one cluster and the last 3 in another
         let first_label = labels[0];
         assert_eq!(labels[1], first_label);
         assert_eq!(labels[2], first_label);
-        
+
         let second_label = labels[3];
         assert_eq!(labels[4], second_label);
         assert_eq!(labels[5], second_label);
-        
+
         // First cluster should be around (1, 2)
         let cluster1_idx = if first_label == 0 { 0 } else { 1 };
         assert!((centroids[[cluster1_idx, 0]] - 1.0).abs() < 0.5);
         assert!((centroids[[cluster1_idx, 1]] - 2.0).abs() < 0.5);
-        
+
         // Second cluster should be around (4, 5)
         let cluster2_idx = if first_label == 0 { 1 } else { 0 };
         assert!((centroids[[cluster2_idx, 0]] - 4.0).abs() < 0.5);
         assert!((centroids[[cluster2_idx, 1]] - 5.0).abs() < 0.5);
     }
-    
+
     #[test]
     fn test_minibatch_kmeans_empty_clusters() {
         // Create a dataset where empty clusters could occur
-        let data = Array2::from_shape_vec((8, 2), vec![
-            1.0, 1.0,
-            1.1, 1.1,
-            1.2, 1.0,
-            1.0, 1.2,
-            5.0, 5.0,
-            5.1, 5.1,
-            5.2, 5.0,
-            5.0, 5.2,
-        ]).unwrap();
-        
+        let data = Array2::from_shape_vec(
+            (8, 2),
+            vec![
+                1.0, 1.0, 1.1, 1.1, 1.2, 1.0, 1.0, 1.2, 5.0, 5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2,
+            ],
+        )
+        .unwrap();
+
         // Run mini-batch k-means with k=3 (which would likely lead to an empty cluster)
         let options = MiniBatchKMeansOptions {
             max_iter: 20,
             batch_size: 4,
-            random_seed: Some(42), // For reproducibility
+            random_seed: Some(42),          // For reproducibility
             reassignment_ratio: 0.1.into(), // Higher reassignment to test this feature
             ..Default::default()
         };
-        
+
         let (centroids, labels) = minibatch_kmeans(data.view(), 3, Some(options)).unwrap();
-        
+
         // Check dimensions
         assert_eq!(centroids.shape(), &[3, 2]);
         assert_eq!(labels.shape(), &[8]);
-        
+
         // We should have at most 3 clusters
-        let unique_labels: Vec<_> = labels.iter().copied().collect::<std::collections::HashSet<_>>().into_iter().collect();
+        let unique_labels: Vec<_> = labels
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
         assert!(unique_labels.len() <= 3);
-        
+
         // Every centroid should have at least one point assigned to it
         let mut centroid_counts = vec![0; 3];
         for &label in labels.iter() {
             centroid_counts[label] += 1;
         }
-        
+
         // We might not have all 3 clusters used due to reassignment
         // but there should be no empty clusters in the output
         for &count in centroid_counts.iter() {

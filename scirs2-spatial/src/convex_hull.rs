@@ -141,8 +141,8 @@ impl ConvexHull {
 
                 for i in 0..npoints {
                     let mut pt = points.row(i).to_vec();
-                    for j in 0..ndim {
-                        pt[j] += rng.random_range(-0.0001..0.0001);
+                    for val in pt.iter_mut().take(ndim) {
+                        *val += rng.random_range(-0.0001..0.0001);
                     }
                     perturbed_points.push(pt);
                 }

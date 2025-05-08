@@ -1,7 +1,7 @@
 # SciRS2 Core
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-core.svg)](https://crates.io/crates/scirs2-core)
-[![License](https://img.shields.io/crates/l/scirs2-core.svg)](../LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-core)](https://docs.rs/scirs2-core)
 
 Core utilities and common functionality for the SciRS2 library. This crate provides the foundation for the entire SciRS2 ecosystem. All modules in the SciRS2 project should leverage this core module to ensure consistency and reduce duplication.
@@ -514,4 +514,9 @@ See the [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](../LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

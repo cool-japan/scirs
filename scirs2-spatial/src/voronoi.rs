@@ -568,7 +568,7 @@ impl Voronoi {
     /// # Returns
     ///
     /// * Vector of pairs of point indices, representing the points
-    /// separated by each Voronoi ridge
+    ///   separated by each Voronoi ridge
     pub fn ridge_points(&self) -> &[[usize; 2]] {
         &self.ridge_points
     }

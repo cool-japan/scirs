@@ -171,13 +171,13 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
             let point_idx = self.indices[i];
             let point = self.data.row(point_idx);
 
-            for j in 0..self.n_features {
-                centroid[j] = centroid[j] + point[j];
+            for (j, &val) in point.iter().take(self.n_features).enumerate() {
+                centroid[j] = centroid[j] + val;
             }
         }
 
-        for j in 0..self.n_features {
-            centroid[j] = centroid[j] / T::from(n_points).unwrap();
+        for val in centroid.iter_mut().take(self.n_features) {
+            *val = *val / T::from(n_points).unwrap();
         }
 
         // Calculate radius (maximum distance from centroid to any point)
@@ -186,9 +186,7 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
             let point_idx = self.indices[i];
             let point = self.data.row(point_idx);
 
-            let dist = self
-                .distance
-                .distance(&centroid, &point.as_slice().unwrap());
+            let dist = self.distance.distance(&centroid, point.as_slice().unwrap());
 
             if dist > radius {
                 radius = dist;
@@ -259,7 +257,7 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
             .map(|i| {
                 let point_idx = self.indices[i];
                 let point = self.data.row(point_idx);
-                let dist = self.distance.distance(centroid, &point.as_slice().unwrap());
+                let dist = self.distance.distance(centroid, point.as_slice().unwrap());
                 (i, dist)
             })
             .collect();
@@ -369,7 +367,7 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
                 let idx = self.indices[i];
                 let dist = self
                     .distance
-                    .distance(point, &self.data.row(idx).as_slice().unwrap());
+                    .distance(point, self.data.row(idx).as_slice().unwrap());
 
                 if dist < *max_dist || nearest.len() < k {
                     // Add this point to nearest neighbors
@@ -463,10 +461,8 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
 
         // Sort by distance if needed
         if !result_indices.is_empty() {
-            let mut idx_dist: Vec<(usize, T)> = result_indices
-                .into_iter()
-                .zip(result_distances.into_iter())
-                .collect();
+            let mut idx_dist: Vec<(usize, T)> =
+                result_indices.into_iter().zip(result_distances).collect();
 
             idx_dist.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
 
@@ -514,7 +510,7 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
                 let idx = self.indices[i];
                 let dist = self
                     .distance
-                    .distance(point, &self.data.row(idx).as_slice().unwrap());
+                    .distance(point, self.data.row(idx).as_slice().unwrap());
 
                 if dist <= radius {
                     indices.push(idx);
@@ -600,8 +596,8 @@ impl<T: Float + Send + Sync + 'static, D: Distance<T> + Send + Sync + 'static> B
                     let other_point = other.data.row(other_idx);
 
                     let dist = self.distance.distance(
-                        &self_point.as_slice().unwrap(),
-                        &other_point.as_slice().unwrap(),
+                        self_point.as_slice().unwrap(),
+                        other_point.as_slice().unwrap(),
                     );
 
                     if dist <= radius {

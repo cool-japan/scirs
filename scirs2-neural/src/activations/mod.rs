@@ -23,12 +23,18 @@ pub trait Activation<F: Float> {
     ) -> Result<Array<F, ndarray::IxDyn>>;
 }
 
+mod gelu;
+mod mish;
 mod relu;
 mod sigmoid;
 mod softmax;
+mod swish;
 mod tanh;
 
-pub use relu::ReLU;
+pub use gelu::GELU;
+pub use mish::Mish;
+pub use relu::{LeakyReLU, ReLU, ELU};
 pub use sigmoid::Sigmoid;
 pub use softmax::Softmax;
+pub use swish::Swish;
 pub use tanh::Tanh;

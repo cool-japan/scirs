@@ -755,7 +755,7 @@ mod tests {
         // Since the exact order can differ based on implementation,
         // let's just verify that the expected results are all present
         let expected_values = [1.0, 1.0, 2.0, 1.0, 2.0, 4.0];
-        let mut found_values = vec![false; 6];
+        let mut found_values = [false; 6];
 
         for i in 0..6 {
             for j in 0..6 {
@@ -772,7 +772,7 @@ mod tests {
 
         // Second row: Similar approach for second row
         let expected_values = [1.0, 3.0, 4.0, 9.0, 12.0, 16.0];
-        let mut found_values = vec![false; 6];
+        let mut found_values = [false; 6];
 
         for i in 0..6 {
             for j in 0..6 {

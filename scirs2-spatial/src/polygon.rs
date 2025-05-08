@@ -721,9 +721,7 @@ pub fn convex_hull_graham<T: Float + std::fmt::Debug>(points: &ArrayView2<T>) ->
     // Add first three points
     hull_indices.push(lowest);
 
-    for i in 0..indexed_points.len() {
-        let index = indexed_points[i].0;
-
+    for &(index, _) in &indexed_points {
         // Skip pivot point
         if index == lowest {
             continue;

@@ -4,7 +4,7 @@ version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Signal processing module for SciRS2"
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["signal-processing", "filter", "scientific", "scipy", "numerical"]
 categories = ["science", "mathematics", "algorithms"]
@@ -16,6 +16,7 @@ ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
+openblas-src = "0.10.11"
 
 # Signal processing specific dependencies
 rustfft = "6.2.0"

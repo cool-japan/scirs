@@ -1,7 +1,7 @@
 # SciRS2 Interpolation Module
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-interpolate.svg)](https://crates.io/crates/scirs2-interpolate)
-[![License](https://img.shields.io/crates/l/scirs2-interpolate.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-interpolate)](https://docs.rs/scirs2-interpolate)
 
 The `scirs2-interpolate` crate provides a comprehensive set of interpolation methods for scientific computing in Rust. It aims to provide functionality similar to SciPy's interpolation module while leveraging Rust's performance and safety features.
@@ -372,4 +372,9 @@ The module is designed with performance in mind:
 
 ## License
 
-This crate is part of the SciRS2 project and is licensed under the Apache License 2.0.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

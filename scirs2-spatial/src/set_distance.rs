@@ -256,8 +256,8 @@ pub fn wasserstein_distance<T: Float + Send + Sync>(
             let mut best_j = 0;
 
             // Find the closest available point in set2
-            for j in 0..n2 {
-                if !used[j] {
+            for (j, &is_used) in used.iter().enumerate().take(n2) {
+                if !is_used {
                     let point2 = set2.row(j);
                     let dist = euclidean(&point1.to_vec(), &point2.to_vec());
                     if dist < min_dist {

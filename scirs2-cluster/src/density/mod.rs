@@ -9,8 +9,8 @@
 //! and for identifying noise points in the data. Density-based methods are also capable
 //! of finding clusters of arbitrary shapes and handling clusters of different densities.
 
-pub mod optics;
 pub mod hdbscan;
+pub mod optics;
 
 use ndarray::{Array1, Array2, ArrayView2};
 use num_traits::{Float, FromPrimitive};
@@ -256,7 +256,7 @@ pub fn dbscan<F: Float + FromPrimitive + Debug + PartialOrd>(
     Ok(Array1::from(labels))
 }
 
-/// Runs the OPTICS clustering algorithm 
+/// Runs the OPTICS clustering algorithm
 ///
 /// This is a wrapper around the more detailed implementation in the optics module.
 /// See `optics::optics` for more details.
@@ -279,12 +279,12 @@ pub fn optics<F: Float + FromPrimitive + Debug + PartialOrd>(
     metric: Option<DistanceMetric>,
 ) -> Result<Array1<i32>> {
     let result = optics::optics(data, min_samples, max_eps, metric)?;
-    
+
     // Convert max_eps to f64 for use with default extraction
     let default_eps = match max_eps {
         Some(eps) => eps.to_f64().unwrap() / 10.0, // Use smaller epsilon by default
-        None => 0.5, // Default eps if none provided
+        None => 0.5,                               // Default eps if none provided
     };
-    
+
     Ok(optics::extract_dbscan_clustering(&result, default_eps))
 }

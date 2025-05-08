@@ -24,8 +24,14 @@ pub trait Loss<F: Float + Debug> {
     ) -> Result<Array<F, ndarray::IxDyn>>;
 }
 
+mod contrastive;
 mod crossentropy;
+mod focal;
 mod mse;
+mod triplet;
 
+pub use contrastive::ContrastiveLoss;
 pub use crossentropy::CrossEntropyLoss;
+pub use focal::FocalLoss;
 pub use mse::MeanSquaredError;
+pub use triplet::TripletLoss;

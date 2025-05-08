@@ -16,11 +16,11 @@ This module provides machine learning optimization algorithms such as SGD, Adam,
   - [x] Adam
   - [x] AdaGrad
   - [x] RMSprop
-- [ ] Advanced optimizers
-  - [ ] AdamW (Adam with decoupled weight decay)
+- [x] Advanced optimizers
+  - [x] AdamW (Adam with decoupled weight decay)
   - [ ] Lamb (Layer-wise Adaptive Moments for Batch optimization)
   - [ ] LARS (Layer-wise Adaptive Rate Scaling)
-  - [ ] RAdam (Rectified Adam)
+  - [x] RAdam (Rectified Adam)
   - [ ] Lookahead
   - [ ] Lion
   - [ ] SAM (Sharpness-Aware Minimization)
@@ -133,9 +133,9 @@ This module provides machine learning optimization algorithms such as SGD, Adam,
   - [ ] Convergence rate comparison
   - [ ] Memory usage profiling
   - [ ] Wall-clock time analysis
-- [ ] Visualization tools
-  - [ ] Learning curves
-  - [ ] Parameter statistics
+- [x] Visualization tools
+  - [x] Learning curves
+  - [x] Parameter statistics
   - [ ] Gradient flow analysis
   - [ ] Optimizer state visualization
 
@@ -175,9 +175,9 @@ This module provides machine learning optimization algorithms such as SGD, Adam,
   - [ ] Task-specific recommendations
   - [ ] Hyperparameter tuning guidance
   - [ ] Common pitfalls and solutions
-- [ ] Advanced usage examples
-  - [ ] Multi-optimizer workflows
-  - [ ] Custom optimization loops
+- [x] Advanced usage examples
+  - [x] Multi-optimizer workflows
+  - [x] Custom optimization loops
   - [ ] Hyperparameter search strategies
 
 ## Long-term Goals

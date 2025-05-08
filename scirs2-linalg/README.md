@@ -1,7 +1,7 @@
 # scirs2-linalg
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-linalg.svg)](https://crates.io/crates/scirs2-linalg)
-[![License](https://img.shields.io/crates/l/scirs2-linalg.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-linalg)](https://docs.rs/scirs2-linalg)
 
 Linear algebra module for SciRS2, providing functionality comparable to NumPy/SciPy's linalg module.
@@ -104,4 +104,9 @@ Select a backend using the corresponding feature flag.
 
 ## License
 
-Licensed under the Apache License, Version 2.0.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

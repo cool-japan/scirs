@@ -1,7 +1,7 @@
 SciRS2 - Scientific Computing in Rust
 Copyright 2025 cool-japan/SciRS2 Team
 
-This software is licensed under Apache License 2.0. Please see the LICENSE file for details.
+This software is dual-licensed under MIT License and Apache License 2.0. Please see the LICENSE file for details.
 
 Portions of this software are inspired by or based on SciPy:
 SciPy (https://scipy.org/)

@@ -38,7 +38,7 @@ version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "A Rust port of SciPy with AI/ML extensions - Scientific Computing and AI Library"
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["scientific", "mathematics", "science", "scipy", "ai", "machine-learning"]
 categories = ["science", "mathematics", "algorithms", "ai"]
@@ -67,7 +67,7 @@ serde_json = "1.0"
 
 # Common dependencies for specific modules
 nalgebra = "0.33.2"
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
 rustfft = "6.2.0"
 argmin = "0.10.0"
 sprs = "0.11.3"

@@ -282,11 +282,7 @@ where
 /// # Returns
 ///
 /// * Array of shape (k × n_features) with initial centroids
-pub fn random_init<F>(
-    data: ArrayView2<F>,
-    k: usize,
-    _random_seed: Option<u64>,
-) -> Result<Array2<F>>
+pub fn random_init<F>(data: ArrayView2<F>, k: usize, _random_seed: Option<u64>) -> Result<Array2<F>>
 where
     F: Float + FromPrimitive + Debug + std::iter::Sum,
 {
@@ -423,7 +419,7 @@ where
 
 /// K-means|| initialization algorithm (parallel version of K-means++)
 ///
-/// This algorithm samples more than one center at each step, which makes it 
+/// This algorithm samples more than one center at each step, which makes it
 /// suitable for parallel or distributed implementations.
 ///
 /// # Arguments
@@ -510,7 +506,7 @@ where
 
         for sample_idx in 0..n_samples {
             let probability = min_distances[sample_idx] * min_distances[sample_idx] * oversampling;
-            
+
             // Sample with probability proportional to distance^2
             if F::from(rng.random_range(0.0..1.0)).unwrap() < probability {
                 let mut new_center = Vec::with_capacity(n_features);
@@ -578,14 +574,14 @@ where
     } else if centers.len() < k {
         // If we have too few centers, add random points
         let mut centroids = Array2::zeros((k, n_features));
-        
+
         // Copy existing centers
         for i in 0..centers.len() {
             for j in 0..n_features {
                 centroids[[i, j]] = centers[i][j];
             }
         }
-        
+
         // Add random points to reach k centers
         let mut selected_indices = Vec::with_capacity(k - centers.len());
         while selected_indices.len() < k - centers.len() {
@@ -594,13 +590,13 @@ where
                 selected_indices.push(idx);
             }
         }
-        
+
         for (i, &idx) in selected_indices.iter().enumerate() {
             for j in 0..n_features {
                 centroids[[centers.len() + i, j]] = data[[idx, j]];
             }
         }
-        
+
         Ok(centroids)
     } else {
         // We have exactly k centers
@@ -661,7 +657,10 @@ where
                 let mut far_idx = 0;
 
                 for j in 0..n_samples {
-                    let dist = euclidean_distance(data.slice(s![j, ..]), centroids.slice(s![labels[j], ..]));
+                    let dist = euclidean_distance(
+                        data.slice(s![j, ..]),
+                        centroids.slice(s![labels[j], ..]),
+                    );
                     if dist > max_dist {
                         max_dist = dist;
                         far_idx = j;
@@ -706,104 +705,103 @@ where
 mod tests {
     use super::*;
     use ndarray::Array2;
-    
+
     #[test]
     fn test_kmeans_random_init() {
         // Create a sample dataset
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            4.0, 5.0,
-            4.2, 4.8,
-            3.9, 5.1,
-        ]).unwrap();
-        
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
         // Run k-means with random initialization
         let options = KMeansOptions {
             init_method: KMeansInit::Random,
             ..Default::default()
         };
-        
+
         let result = kmeans(data.view(), 2, Some(options));
         assert!(result.is_ok());
-        
+
         let (centroids, labels) = result.unwrap();
-        
+
         // Check dimensions
         assert_eq!(centroids.shape(), &[2, 2]);
         assert_eq!(labels.len(), 6);
-        
+
         // Check that we have exactly 2 clusters
         let unique_labels: std::collections::HashSet<_> = labels.iter().cloned().collect();
         assert_eq!(unique_labels.len(), 2);
     }
-    
+
     #[test]
     fn test_kmeans_plusplus_init() {
         // Create a sample dataset
-        let data = Array2::from_shape_vec((6, 2), vec![
-            1.0, 2.0,
-            1.2, 1.8,
-            0.8, 1.9,
-            4.0, 5.0,
-            4.2, 4.8,
-            3.9, 5.1,
-        ]).unwrap();
-        
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
         // Run k-means with k-means++ initialization
         let options = KMeansOptions {
             init_method: KMeansInit::KMeansPlusPlus,
             ..Default::default()
         };
-        
+
         let result = kmeans(data.view(), 2, Some(options));
         assert!(result.is_ok());
-        
+
         let (centroids, labels) = result.unwrap();
-        
+
         // Check dimensions
         assert_eq!(centroids.shape(), &[2, 2]);
         assert_eq!(labels.len(), 6);
-        
+
         // Check that we have exactly 2 clusters
         let unique_labels: std::collections::HashSet<_> = labels.iter().cloned().collect();
         assert_eq!(unique_labels.len(), 2);
     }
-    
+
     #[test]
     fn test_kmeans_parallel_init() {
         // Create a sample dataset
-        let data = Array2::from_shape_vec((20, 2), vec![
-            1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 1.1, 2.2, 0.9, 1.7, 1.3, 2.1, 1.0, 1.9, 0.7, 2.0, 1.2, 2.3, 1.5, 1.8,
-            5.0, 6.0, 5.2, 5.8, 4.8, 6.2, 5.1, 5.9, 5.3, 6.1, 4.9, 5.7, 5.0, 6.3, 5.4, 5.6, 4.7, 5.9, 5.2, 6.2,
-        ]).unwrap();
-        
+        let data = Array2::from_shape_vec(
+            (20, 2),
+            vec![
+                1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 1.1, 2.2, 0.9, 1.7, 1.3, 2.1, 1.0, 1.9, 0.7, 2.0,
+                1.2, 2.3, 1.5, 1.8, 5.0, 6.0, 5.2, 5.8, 4.8, 6.2, 5.1, 5.9, 5.3, 6.1, 4.9, 5.7,
+                5.0, 6.3, 5.4, 5.6, 4.7, 5.9, 5.2, 6.2,
+            ],
+        )
+        .unwrap();
+
         // Run k-means with k-means|| initialization
         let options = KMeansOptions {
             init_method: KMeansInit::KMeansParallel,
             ..Default::default()
         };
-        
+
         let result = kmeans(data.view(), 2, Some(options));
         assert!(result.is_ok());
-        
+
         let (centroids, labels) = result.unwrap();
-        
+
         // Check dimensions
         assert_eq!(centroids.shape(), &[2, 2]);
         assert_eq!(labels.len(), 20);
-        
+
         // Check that we have exactly 2 clusters
         let unique_labels: std::collections::HashSet<_> = labels.iter().cloned().collect();
         assert_eq!(unique_labels.len(), 2);
-        
+
         // Check that the clusters are sensible (first 10 points should be in one cluster, last 10 in another)
         let first_cluster = labels[0];
         for i in 0..10 {
             assert_eq!(labels[i], first_cluster);
         }
-        
+
         let second_cluster = labels[10];
         assert_ne!(first_cluster, second_cluster);
         for i in 10..20 {

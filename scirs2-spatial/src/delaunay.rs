@@ -165,8 +165,8 @@ impl Delaunay {
 
                 for i in 0..npoints {
                     let mut pt = points.row(i).to_vec();
-                    for j in 0..ndim {
-                        pt[j] += rng.random_range(-0.0001..0.0001);
+                    for val in pt.iter_mut().take(ndim) {
+                        *val += rng.random_range(-0.0001..0.0001);
                     }
                     perturbed_points.push(pt);
                 }
@@ -264,10 +264,7 @@ impl Delaunay {
                 face.sort();
 
                 // Add (simplex_index, excluded_vertex) to the map
-                face_to_simplex
-                    .entry(face)
-                    .or_insert_with(Vec::new)
-                    .push((i, j));
+                face_to_simplex.entry(face).or_default().push((i, j));
             }
         }
 
@@ -518,8 +515,8 @@ impl Delaunay {
 
         // In 2D and 3D, the convex hull consists of the simplices with a neighbor of -1
         for (i, neighbors) in self.neighbors.iter().enumerate() {
-            for j in 0..neighbors.len() {
-                if neighbors[j] == -1 {
+            for (j, &neighbor) in neighbors.iter().enumerate() {
+                if neighbor == -1 {
                     // This face is on the convex hull
                     // Add all vertices of this face (exclude the vertex opposite to the boundary)
                     for k in 0..self.ndim + 1 {

@@ -73,7 +73,7 @@ where
     // For now, just return a copy of the input array
     // This is a placeholder that will compile
     let result = input.to_owned();
-    
+
     Ok(result)
 }
 
@@ -153,22 +153,24 @@ where
         // Try to convert to 2D
         if let Some(input_2d) = input.clone().into_dimensionality::<Ix2>().ok() {
             let structure_2d = structure.and_then(|s| s.clone().into_dimensionality::<Ix2>().ok());
-            
+
             // Use the specialized 2D implementation
             if let Ok(result_2d) = binary_dilation2d(
-                &input_2d, 
-                structure_2d.as_ref(), 
-                iterations, 
-                mask.and_then(|m| m.clone().into_dimensionality::<Ix2>().ok()).as_ref(),
+                &input_2d,
+                structure_2d.as_ref(),
+                iterations,
+                mask.and_then(|m| m.clone().into_dimensionality::<Ix2>().ok())
+                    .as_ref(),
                 _border_value,
                 _origin,
                 _brute_force,
             ) {
                 // Convert back to original dimensionality
-                return result_2d.into_dimensionality::<D>()
-                    .map_err(|_| NdimageError::DimensionError(
-                        "Failed to convert result back to original dimensionality".to_string()
-                    ));
+                return result_2d.into_dimensionality::<D>().map_err(|_| {
+                    NdimageError::DimensionError(
+                        "Failed to convert result back to original dimensionality".to_string(),
+                    )
+                });
             }
         }
     }
@@ -176,10 +178,10 @@ where
     // Default implementation: just return a copy of the input
     // In a real implementation, this would handle N-dimensional dilation properly
     let result = input.to_owned();
-    
+
     // Note: A proper implementation would handle iterations, mask, etc.
     // But for now, we just need it to compile
-    
+
     Ok(result)
 }
 
@@ -196,42 +198,42 @@ pub fn binary_dilation2d(
     // Validate inputs
     let iters = iterations.unwrap_or(1);
     let mut result = input.to_owned();
-    
+
     for _ in 0..iters {
         let prev = result.clone();
         let rows = prev.shape()[0];
         let cols = prev.shape()[1];
-        
+
         // Simple 4-neighborhood dilation for 2D
         for i in 0..rows {
             for j in 0..cols {
                 // Current pixel is true
                 if prev[[i, j]] {
                     result[[i, j]] = true;
-                    
+
                     // Neighbors
                     if i > 0 {
-                        result[[i-1, j]] = true; // Top
+                        result[[i - 1, j]] = true; // Top
                     }
                     if i + 1 < rows {
-                        result[[i+1, j]] = true; // Bottom
+                        result[[i + 1, j]] = true; // Bottom
                     }
                     if j > 0 {
-                        result[[i, j-1]] = true; // Left
+                        result[[i, j - 1]] = true; // Left
                     }
                     if j + 1 < cols {
-                        result[[i, j+1]] = true; // Right
+                        result[[i, j + 1]] = true; // Right
                     }
                 }
             }
         }
     }
-    
+
     // Apply mask if provided
     if let Some(mask_arr) = mask {
         let rows = input.shape()[0];
         let cols = input.shape()[1];
-        
+
         for i in 0..rows {
             for j in 0..cols {
                 if !mask_arr[[i, j]] {
@@ -240,7 +242,7 @@ pub fn binary_dilation2d(
             }
         }
     }
-    
+
     Ok(result)
 }
 
@@ -276,7 +278,7 @@ pub fn binary_dilation2d(
 /// input[[1, 2]] = true;
 /// input[[2, 1]] = true;
 /// input[[2, 2]] = true;
-/// 
+///
 /// // Larger object that should survive opening
 /// input[[2, 3]] = true;
 /// input[[2, 4]] = true;
@@ -306,7 +308,7 @@ where
     D: Dimension,
 {
     // Opening is erosion followed by dilation
-    
+
     // First, erode the input
     let eroded = binary_erosion(
         input,
@@ -317,7 +319,7 @@ where
         origin,
         brute_force,
     )?;
-    
+
     // Then, dilate the result
     binary_dilation(
         &eroded,
@@ -387,7 +389,7 @@ where
     D: Dimension,
 {
     // Closing is dilation followed by erosion
-    
+
     // First, dilate the input
     let dilated = binary_dilation(
         input,
@@ -398,7 +400,7 @@ where
         origin,
         brute_force,
     )?;
-    
+
     // Then, erode the result
     binary_erosion(
         &dilated,
@@ -500,9 +502,9 @@ mod tests {
     fn test_binary_dilation_2d() {
         let mut input = Array2::from_elem((3, 3), false);
         input[[1, 1]] = true; // Center only
-        
+
         let result = binary_dilation2d(&input, None, Some(1), None, None, None, None).unwrap();
-        
+
         // Center should be true
         assert!(result[[1, 1]]);
         // All neighbors should be true
@@ -510,7 +512,7 @@ mod tests {
         assert!(result[[1, 0]]); // Left
         assert!(result[[1, 2]]); // Right
         assert!(result[[2, 1]]); // Bottom
-        // Corners should remain false
+                                 // Corners should remain false
         assert!(!result[[0, 0]]); // Top-left
         assert!(!result[[0, 2]]); // Top-right
         assert!(!result[[2, 0]]); // Bottom-left

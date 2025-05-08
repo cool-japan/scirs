@@ -15,8 +15,8 @@
 
 use ndarray::{Array, ArrayD, Dimension};
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 use crate::error::{IoError, Result};
 
@@ -47,7 +47,7 @@ pub struct NetCDFFile {
     mode: String,
     /// Dimensions defined in the file
     dimensions: HashMap<String, usize>,
-    /// Variables defined in the file 
+    /// Variables defined in the file
     variables: HashMap<String, VariableInfo>,
     /// Global attributes
     #[allow(dead_code)]
@@ -83,7 +83,7 @@ enum AttributeValue {
     Short(i16),
     /// Int value
     Int(i32),
-    /// Float value 
+    /// Float value
     Float(f32),
     /// Double value
     Double(f64),
@@ -113,11 +113,11 @@ impl NetCDFFile {
         // This is a placeholder implementation
         // In a real implementation, you'd open the actual file
         let path_str = path.as_ref().to_string_lossy().to_string();
-        
+
         if !Path::new(&path_str).exists() {
             return Err(IoError::FileError(format!("File not found: {}", path_str)));
         }
-        
+
         // Just create an empty file object for now
         Ok(Self {
             path: path_str,
@@ -127,7 +127,7 @@ impl NetCDFFile {
             attributes: HashMap::new(),
         })
     }
-    
+
     /// Create a new NetCDF file for writing
     ///
     /// # Arguments
@@ -139,15 +139,16 @@ impl NetCDFFile {
     /// * `Result<NetCDFFile>` - The created NetCDF file or an error
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path_str = path.as_ref().to_string_lossy().to_string();
-        
+
         // Create parent directories if they don't exist
         if let Some(parent) = Path::new(&path_str).parent() {
             if !parent.exists() {
-                fs::create_dir_all(parent).map_err(|e| 
-                    IoError::FileError(format!("Failed to create directories: {}", e)))?;
+                fs::create_dir_all(parent).map_err(|e| {
+                    IoError::FileError(format!("Failed to create directories: {}", e))
+                })?;
             }
         }
-        
+
         // Just create an empty file object for now
         Ok(Self {
             path: path_str,
@@ -157,7 +158,7 @@ impl NetCDFFile {
             attributes: HashMap::new(),
         })
     }
-    
+
     /// Add a dimension to the file
     ///
     /// # Arguments
@@ -170,13 +171,15 @@ impl NetCDFFile {
     /// * `Result<()>` - Success or an error
     pub fn add_dimension(&mut self, name: &str, size: usize) -> Result<()> {
         if self.mode != "w" {
-            return Err(IoError::FileError("File not opened in write mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in write mode".to_string(),
+            ));
         }
-        
+
         self.dimensions.insert(name.to_string(), size);
         Ok(())
     }
-    
+
     /// Add a variable to the file
     ///
     /// # Arguments
@@ -190,36 +193,40 @@ impl NetCDFFile {
     /// * `Result<()>` - Success or an error
     pub fn add_variable(
         &mut self,
-        name: &str, 
+        name: &str,
         data_type: NetCDFDataType,
-        dimensions: &[&str]
+        dimensions: &[&str],
     ) -> Result<()> {
         if self.mode != "w" {
-            return Err(IoError::FileError("File not opened in write mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in write mode".to_string(),
+            ));
         }
-        
+
         // Check that all dimensions exist
         for &dim in dimensions {
             if !self.dimensions.contains_key(dim) {
-                return Err(IoError::ValidationError(
-                    format!("Dimension '{}' not defined", dim)));
+                return Err(IoError::ValidationError(format!(
+                    "Dimension '{}' not defined",
+                    dim
+                )));
             }
         }
-        
+
         let var_info = VariableInfo {
             name: name.to_string(),
             data_type,
             dimensions: dimensions.iter().map(|&s| s.to_string()).collect(),
             attributes: HashMap::new(),
         };
-        
+
         self.variables.insert(name.to_string(), var_info);
         Ok(())
     }
-    
+
     /// Read a variable from the file
     ///
-    /// # Arguments 
+    /// # Arguments
     ///
     /// * `name` - Name of the variable
     ///
@@ -228,19 +235,23 @@ impl NetCDFFile {
     /// * `Result<ArrayD<T>>` - The variable's data or an error
     pub fn read_variable<T: Clone>(&self, name: &str) -> Result<ArrayD<T>> {
         if self.mode != "r" {
-            return Err(IoError::FileError("File not opened in read mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in read mode".to_string(),
+            ));
         }
-        
+
         if !self.variables.contains_key(name) {
-            return Err(IoError::ValidationError(
-                format!("Variable '{}' not found", name)));
+            return Err(IoError::ValidationError(format!(
+                "Variable '{}' not found",
+                name
+            )));
         }
-        
+
         // This is a placeholder implementation
         // In a real implementation, you'd read the data from the file
         Err(IoError::Other("Not implemented".to_string()))
     }
-    
+
     /// Write data to a variable
     ///
     /// # Arguments
@@ -254,22 +265,26 @@ impl NetCDFFile {
     pub fn write_variable<T: Clone, D: Dimension>(
         &self,
         name: &str,
-        _data: &Array<T, D>
+        _data: &Array<T, D>,
     ) -> Result<()> {
         if self.mode != "w" {
-            return Err(IoError::FileError("File not opened in write mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in write mode".to_string(),
+            ));
         }
-        
+
         if !self.variables.contains_key(name) {
-            return Err(IoError::ValidationError(
-                format!("Variable '{}' not defined", name)));
+            return Err(IoError::ValidationError(format!(
+                "Variable '{}' not defined",
+                name
+            )));
         }
-        
+
         // This is a placeholder implementation
         // In a real implementation, you'd write the data to the file
         Err(IoError::Other("Not implemented".to_string()))
     }
-    
+
     /// Add an attribute to a variable
     ///
     /// # Arguments
@@ -285,22 +300,26 @@ impl NetCDFFile {
         &self,
         var_name: &str,
         _attr_name: &str,
-        _value: T
+        _value: T,
     ) -> Result<()> {
         if self.mode != "w" {
-            return Err(IoError::FileError("File not opened in write mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in write mode".to_string(),
+            ));
         }
-        
+
         if !self.variables.contains_key(var_name) {
-            return Err(IoError::ValidationError(
-                format!("Variable '{}' not defined", var_name)));
+            return Err(IoError::ValidationError(format!(
+                "Variable '{}' not defined",
+                var_name
+            )));
         }
-        
+
         // This is a placeholder implementation
         // In a real implementation, you'd add the attribute to the variable
         Err(IoError::Other("Not implemented".to_string()))
     }
-    
+
     /// Add a global attribute to the file
     ///
     /// # Arguments
@@ -311,20 +330,18 @@ impl NetCDFFile {
     /// # Returns
     ///
     /// * `Result<()>` - Success or an error
-    pub fn add_global_attribute<T: Clone>(
-        &self,
-        _name: &str,
-        _value: T
-    ) -> Result<()> {
+    pub fn add_global_attribute<T: Clone>(&self, _name: &str, _value: T) -> Result<()> {
         if self.mode != "w" {
-            return Err(IoError::FileError("File not opened in write mode".to_string()));
+            return Err(IoError::FileError(
+                "File not opened in write mode".to_string(),
+            ));
         }
-        
+
         // This is a placeholder implementation
         // In a real implementation, you'd add the global attribute to the file
         Err(IoError::Other("Not implemented".to_string()))
     }
-    
+
     /// Get the dimensions of the file
     ///
     /// # Returns
@@ -333,7 +350,7 @@ impl NetCDFFile {
     pub fn dimensions(&self) -> &HashMap<String, usize> {
         &self.dimensions
     }
-    
+
     /// Get the variables of the file
     ///
     /// # Returns
@@ -342,7 +359,7 @@ impl NetCDFFile {
     pub fn variables(&self) -> Vec<String> {
         self.variables.keys().cloned().collect()
     }
-    
+
     /// Close the file
     ///
     /// # Returns
@@ -359,7 +376,7 @@ impl NetCDFFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_create_netcdf() {
         // This test only verifies we can create a NetCDFFile object
@@ -371,32 +388,37 @@ mod tests {
         assert!(file.variables.is_empty());
         assert!(file.attributes.is_empty());
     }
-    
+
     #[test]
     fn test_add_dimension() {
         let mut file = NetCDFFile::create("test.nc").unwrap();
         file.add_dimension("time", 10).unwrap();
         file.add_dimension("lat", 180).unwrap();
         file.add_dimension("lon", 360).unwrap();
-        
+
         assert_eq!(file.dimensions.len(), 3);
         assert_eq!(*file.dimensions.get("time").unwrap(), 10);
         assert_eq!(*file.dimensions.get("lat").unwrap(), 180);
         assert_eq!(*file.dimensions.get("lon").unwrap(), 360);
     }
-    
+
     #[test]
     fn test_add_variable() {
         let mut file = NetCDFFile::create("test.nc").unwrap();
         file.add_dimension("time", 10).unwrap();
         file.add_dimension("lat", 180).unwrap();
         file.add_dimension("lon", 360).unwrap();
-        
-        file.add_variable("temperature", NetCDFDataType::Float, &["time", "lat", "lon"]).unwrap();
-        
+
+        file.add_variable(
+            "temperature",
+            NetCDFDataType::Float,
+            &["time", "lat", "lon"],
+        )
+        .unwrap();
+
         assert_eq!(file.variables.len(), 1);
         assert!(file.variables.contains_key("temperature"));
-        
+
         let var_info = file.variables.get("temperature").unwrap();
         assert_eq!(var_info.name, "temperature");
         assert_eq!(var_info.data_type, NetCDFDataType::Float);

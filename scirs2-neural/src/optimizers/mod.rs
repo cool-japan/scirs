@@ -31,13 +31,30 @@ pub trait Optimizer<F: Float + Debug + ScalarOperand> {
     fn set_learning_rate(&mut self, lr: F);
 }
 
+/// Extension methods for optimizers
+pub trait OptimizerExt<F: Float + Debug + ScalarOperand>: Optimizer<F> {
+    /// Step the optimizer with a model's parameters
+    fn step<L: crate::layers::Layer<F> + ?Sized>(&mut self, model: &mut L) -> Result<()> {
+        let params = model.params();
+        let gradients = model.gradients();
+        self.update(&mut params.clone(), &gradients)
+    }
+}
+
+// Implement OptimizerExt for all Optimizer implementations
+impl<F: Float + Debug + ScalarOperand, T: Optimizer<F> + ?Sized> OptimizerExt<F> for T {}
+
 mod adagrad;
 mod adam;
+mod adamw;
+mod radam;
 mod rmsprop;
 mod sgd;
 
 pub use adagrad::Adagrad;
 pub use adam::Adam;
+pub use adamw::AdamW;
+pub use radam::RAdam;
 pub use rmsprop::RMSprop;
 pub use sgd::SGD;
 
@@ -147,5 +164,29 @@ mod wrappers {
     ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::Adam<F>> {
         let adam = optim::Adam::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
         OptimOptimizerWrapper::new(adam)
+    }
+
+    // Helper function to create wrapped AdamW optimizer
+    pub fn wrap_adamw<F: Float + Debug + ScalarOperand>(
+        lr: F,
+        beta1: F,
+        beta2: F,
+        epsilon: F,
+        weight_decay: F,
+    ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::AdamW<F>> {
+        let adamw = optim::AdamW::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
+        OptimOptimizerWrapper::new(adamw)
+    }
+
+    // Helper function to create wrapped RAdam optimizer
+    pub fn wrap_radam<F: Float + Debug + ScalarOperand>(
+        lr: F,
+        beta1: F,
+        beta2: F,
+        epsilon: F,
+        weight_decay: F,
+    ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::RAdam<F>> {
+        let radam = optim::RAdam::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
+        OptimOptimizerWrapper::new(radam)
     }
 }

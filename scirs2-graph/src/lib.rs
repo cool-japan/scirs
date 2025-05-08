@@ -13,6 +13,9 @@
 
 #![warn(missing_docs)]
 
+extern crate blas;
+extern crate openblas_src;
+
 pub mod algorithms;
 pub mod base;
 pub mod error;

@@ -3,7 +3,7 @@ name = "scirs2-neural"
 version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 description = "Neural network building blocks module for SciRS2"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["neural-network", "deep-learning", "scientific", "ai", "machine-learning"]
@@ -11,38 +11,78 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.2", optional = true }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.2", optional = true, features = ["linalg", "openblas"] }
 # Temporarily commented out for publishing
 # scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.2", optional = true }
 # scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.2", optional = true }
 # scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.2", optional = true }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-stats = "0.5.0"
+ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
 num-integer = "0.1.46"
 approx = "0.5.1"
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "1.0.69"
 rand = "0.9.0"
+rand_distr = "0.5.0"
+blas = "0.23.0"
+openblas-src = "0.10.11"
 
 # AI/ML specific dependencies
 autograd = "1.1.1"
 # Temporarily commented out for publishing
 # scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.2" }
 
+# Note: clip_example.rs and feature_fusion_example.rs were removed due to BLAS linking issues
+
+# Serialization dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+serde_cbor = "0.11.2"
+rmp-serde = "1.0.0"
+
 # Future dependency for PandRS and NumRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
 # numrs_wrapper = { path = "../wrappers/numrs_wrapper", optional = true }
 
 [features]
-default = []
-full = ["core"]  # Temporarily limited for publishing
+default = ["openblas"]
+full = ["core", "openblas"]  # Temporarily limited for publishing
 core = ["dep:scirs2-core"]
 # Features temporarily disabled for publishing
 # linalg = ["dep:scirs2-linalg"] 
 # optimize = ["dep:scirs2-optimize"]
 optim = [] # Empty feature for compatibility with existing code
+openblas = ["ndarray-linalg/openblas-static"]
+netlib = ["ndarray-linalg/netlib"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
 
 [[example]]
 name = "autograd_example"
 path = "examples/autograd_example.rs"
+
+[[example]]
+name = "transformer_example"
+path = "examples/transformer_example.rs"
+
+[[example]]
+name = "batchnorm_example"
+path = "examples/batchnorm_example.rs"
+
+[[example]]
+name = "dropout_example"
+path = "examples/dropout_example.rs"
+
+[[example]]
+name = "activations_example"
+path = "examples/activations_example.rs"
+
+[[example]]
+name = "model_serialization_example"
+path = "examples/model_serialization_example.rs"
+
+[[example]]
+name = "advanced_optimizers_example"
+path = "examples/advanced_optimizers_example.rs"

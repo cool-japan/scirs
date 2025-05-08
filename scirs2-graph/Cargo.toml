@@ -3,7 +3,7 @@ name = "scirs2-graph"
 version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 description = "Graph processing module for SciRS2"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["graph", "network", "scientific", "ai", "machine-learning"]
@@ -18,6 +18,8 @@ ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
+openblas-src = "0.10.11"
+blas = "0.23.0"
 
 # Graph processing specific dependencies
 petgraph = "0.6"

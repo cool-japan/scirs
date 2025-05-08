@@ -82,6 +82,8 @@
 //! // Fast matrix multiplication for large matrices
 //! let c = blas_accelerated::matmul(&a.view(), &b.view()).unwrap();
 //! ```
+extern crate blas as _;
+extern crate openblas_src;
 
 // Export error types
 pub mod error;

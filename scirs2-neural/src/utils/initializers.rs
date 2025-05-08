@@ -173,3 +173,29 @@ impl Initializer {
         }
     }
 }
+
+/// Xavier/Glorot uniform initialization
+///
+/// # Arguments
+///
+/// * `shape` - Shape of the weights array
+///
+/// # Returns
+///
+/// * Initialized weights array
+pub fn xavier_uniform<F: Float + Debug>(shape: IxDyn) -> Result<Array<F, IxDyn>> {
+    let fan_in = match shape.ndim() {
+        0 => 1,
+        1 => shape[0],
+        _ => shape[0],
+    };
+
+    let fan_out = match shape.ndim() {
+        0 => 1,
+        1 => 1,
+        _ => shape[1],
+    };
+
+    let mut rng = rand::rng();
+    Initializer::Xavier.initialize(shape, fan_in, fan_out, &mut rng)
+}

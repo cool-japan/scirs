@@ -1,7 +1,8 @@
 //! Utility functions for neural networks
 //!
 //! This module provides various utility functions for neural networks,
-//! such as weight initialization strategies, metric calculations, etc.
+//! such as weight initialization strategies, metric calculations, positional encoding
+//! for transformer models, etc.
 
 use crate::error::{NeuralError, Result};
 use ndarray::{Array, Dimension};
@@ -10,11 +11,16 @@ use rand::Rng;
 use std::fmt::Debug;
 
 pub mod datasets;
-mod initializers;
+pub mod initializers;
 pub mod metrics;
+pub mod positional_encoding;
 
 pub use initializers::*;
 pub use metrics::*;
+pub use positional_encoding::{
+    LearnedPositionalEncoding, PositionalEncoding, PositionalEncodingFactory,
+    PositionalEncodingType, RelativePositionalEncoding, SinusoidalPositionalEncoding,
+};
 
 /// Generate a random vector or matrix with values from a normal distribution
 ///

@@ -1,10 +1,8 @@
 # SciRS2 - Scientific Computing and AI in Rust
 
 [![crates.io](https://img.shields.io/crates/v/scirs2.svg)](https://crates.io/crates/scirs2)
-[![License](https://img.shields.io/crates/l/scirs2.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
 ![SciRS2 CI](https://github.com/cool-japan/scirs/workflows/SciRS2%20CI/badge.svg)
-![Advanced & AI/ML Modules](https://github.com/cool-japan/scirs/workflows/SciRS2%20Advanced%20%26%20AI%2FML%20Modules/badge.svg)
-![Documentation](https://github.com/cool-japan/scirs/workflows/SciRS2%20Documentation/badge.svg)
 
 SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust, providing SciPy-compatible APIs while leveraging Rust's performance, safety, and concurrency features. The project aims to provide a complete ecosystem for scientific computing, data analysis, and machine learning in Rust.
 
@@ -519,7 +517,12 @@ See our [TODO.md](TODO.md) for specific tasks and project roadmap.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is dual-licensed under:
+
+- [MIT License](LICENSE-MIT)
+- [Apache License Version 2.0](LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

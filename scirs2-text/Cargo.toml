@@ -3,7 +3,7 @@ name = "scirs2-text"
 version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 description = "Text processing module for SciRS2"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["text", "nlp", "scientific", "ai", "machine-learning"]
@@ -19,6 +19,7 @@ num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
 rand = "0.9.0"
+approx = "0.5.1"
 
 # Text processing specific dependencies
 regex = "1.10"

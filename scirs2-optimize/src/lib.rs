@@ -118,6 +118,8 @@
 //! let bounds2 = Bounds::from_vecs(lb, ub).unwrap();
 //! ```
 
+extern crate openblas_src;
+
 // Export error types
 pub mod error;
 pub use error::{OptimizeError, OptimizeResult};

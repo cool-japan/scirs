@@ -67,14 +67,14 @@ This module provides text processing functionality for scientific computing appl
   - [ ] Co-occurrence matrix construction
   - [ ] PMI (Pointwise Mutual Information)
 - [ ] Distributional semantics
-  - [ ] Word2Vec implementation
-    - [ ] Skip-gram model
-    - [ ] CBOW model
-    - [ ] Negative sampling
+  - [x] Word2Vec implementation
+    - [x] Skip-gram model
+    - [x] CBOW model
+    - [x] Negative sampling
   - [ ] FastText interface
   - [ ] GloVe implementation
-  - [ ] Custom embedding creation tools
-  - [ ] Embedding matrix handling utilities
+  - [x] Custom embedding creation tools
+  - [x] Embedding matrix handling utilities
 - [ ] Contextual embeddings
   - [ ] Integration with transformer models
   - [ ] Pooling strategies for contextual vectors

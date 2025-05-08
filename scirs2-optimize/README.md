@@ -1,7 +1,7 @@
 # SciRS2 Optimization Module
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-optimize.svg)](https://crates.io/crates/scirs2-optimize)
-[![License](https://img.shields.io/crates/l/scirs2-optimize.svg)](../LICENSE)
+[[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-optimize)](https://docs.rs/scirs2-optimize)
 
 `scirs2-optimize` is a comprehensive optimization library providing algorithms for unconstrained and constrained optimization, least-squares problems, and root finding. It aims to provide a Rust implementation of SciPy's optimization functionality with a similar API.
@@ -245,4 +245,9 @@ All functions return `OptimizeResult<OptimizeResults<T>>` where:
 
 ## License
 
-This crate is part of the SciRS2 project and is licensed under the Apache License 2.0.
+This project is dual-licensed under:
+
+- [MIT License](../LICENSE-MIT)
+- [Apache License Version 2.0](../LICENSE-APACHE)
+
+You can choose to use either license. See the [LICENSE](../LICENSE) file for details.

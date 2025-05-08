@@ -4,7 +4,7 @@ version = "0.1.0-alpha.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Statistical functions module for SciRS2"
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["statistics", "probability", "scientific", "scipy", "numerical"]
 categories = ["science", "mathematics", "algorithms"]
@@ -15,9 +15,10 @@ ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
 scirs2-core = { version = "0.1.0-alpha.2", path = "../scirs2-core", features = ["validation", "parallel", "simd", "linalg", "openblas"] }
 scirs2-linalg = { version = "0.1.0-alpha.2", path = "../scirs2-linalg" }
+openblas-src = "0.10.11"
 
 # Statistics specific dependencies
 rand = "0.9.0"

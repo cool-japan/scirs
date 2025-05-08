@@ -17,7 +17,11 @@ pub trait Model<F: Float + Debug + ScalarOperand> {
     fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
 
     /// Backward pass to compute gradients
-    fn backward(&self, grad_output: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
+    fn backward(
+        &self,
+        input: &Array<F, ndarray::IxDyn>,
+        grad_output: &Array<F, ndarray::IxDyn>,
+    ) -> Result<Array<F, ndarray::IxDyn>>;
 
     /// Update the model parameters with the given learning rate
     fn update(&mut self, learning_rate: F) -> Result<()>;
@@ -43,8 +47,10 @@ pub trait Model<F: Float + Debug + ScalarOperand> {
     ) -> Result<F>;
 }
 
-mod sequential;
-mod trainer;
+pub mod architectures;
+pub mod sequential;
+pub mod trainer;
 
+pub use architectures::*;
 pub use sequential::Sequential;
 pub use trainer::{History, Trainer, TrainingConfig};
