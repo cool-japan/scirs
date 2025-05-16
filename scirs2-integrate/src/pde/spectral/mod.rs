@@ -1317,7 +1317,7 @@ impl From<SpectralResult> for PDESolution<f64> {
 // In a real implementation, these would use a proper FFT library
 
 /// Perform a Fast Fourier Transform (FFT) on a real-valued array
-/// 
+///
 /// # Arguments
 /// * `x` - The input array
 ///
@@ -1328,7 +1328,7 @@ fn fft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
     // In a real implementation, this would use a proper FFT algorithm
     let n = x.len();
     let mut result = Array1::zeros(n);
-    
+
     for k in 0..n {
         let mut sum = num_complex::Complex::new(0.0, 0.0);
         for j in 0..n {
@@ -1338,12 +1338,12 @@ fn fft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
         }
         result[k] = sum;
     }
-    
+
     result
 }
 
 /// Perform an Inverse Fast Fourier Transform (IFFT) on a complex-valued array
-/// 
+///
 /// # Arguments
 /// * `x` - The input array
 ///
@@ -1354,7 +1354,7 @@ fn ifft(x: &Array1<num_complex::Complex<f64>>) -> Array1<num_complex::Complex<f6
     // In a real implementation, this would use a proper IFFT algorithm
     let n = x.len();
     let mut result = Array1::zeros(n);
-    
+
     for k in 0..n {
         let mut sum = num_complex::Complex::new(0.0, 0.0);
         for j in 0..n {
@@ -1364,12 +1364,12 @@ fn ifft(x: &Array1<num_complex::Complex<f64>>) -> Array1<num_complex::Complex<f6
         }
         result[k] = sum / (n as f64);
     }
-    
+
     result
 }
 
 /// Perform a Real Fast Fourier Transform (RFFT) on a real-valued array
-/// 
+///
 /// # Arguments
 /// * `x` - The input array
 ///
@@ -1381,7 +1381,7 @@ fn rfft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
 }
 
 /// Perform an Inverse Real Fast Fourier Transform (IRFFT) on a complex-valued array
-/// 
+///
 /// # Arguments
 /// * `x` - The input array
 ///
@@ -1391,15 +1391,15 @@ fn irfft(x: &Array1<num_complex::Complex<f64>>) -> Array1<f64> {
     // This is a stub implementation
     // In a real implementation, this would use a proper IRFFT algorithm
     let complex_result = ifft(x);
-    
+
     // Extract real parts
     let n = complex_result.len();
     let mut result = Array1::zeros(n);
-    
+
     for i in 0..n {
         result[i] = complex_result[i].re;
     }
-    
+
     result
 }
 

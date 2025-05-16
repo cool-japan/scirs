@@ -3,11 +3,12 @@
 //! This module provides functions for handling mass matrices in ODEs of the form:
 //! M(t,y)·y' = f(t,y), where M is a mass matrix that may depend on time t and state y.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{MassMatrix, MassMatrixType};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, LowerExp};
 
 /// Solve a linear system with mass matrix: M·x = b
 ///
@@ -31,13 +32,7 @@ pub fn solve_mass_system<F>(
     b: ArrayView1<F>,
 ) -> IntegrateResult<Array1<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
 {
     match mass.matrix_type {
         MassMatrixType::Identity => {
@@ -61,13 +56,7 @@ where
 /// Helper function to solve linear systems with mass matrices
 fn solve_matrix_system<F>(matrix: ArrayView2<F>, b: ArrayView1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
 {
     use crate::ode::utils::linear_solvers::solve_linear_system;
 
@@ -98,7 +87,7 @@ pub fn apply_mass<F>(
     v: ArrayView1<F>,
 ) -> IntegrateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     match mass.matrix_type {
         MassMatrixType::Identity => {
@@ -122,23 +111,14 @@ where
 ///
 /// This can be used to cache the decomposition for repeated solves
 /// with the same mass matrix
-struct LUDecomposition<F: Float> {
+struct LUDecomposition<F: IntegrateFloat> {
     /// The LU factors
     lu: Array2<F>,
     /// Pivot indices
     pivots: Vec<usize>,
 }
 
-impl<
-        F: Float
-            + FromPrimitive
-            + Debug
-            + std::ops::AddAssign
-            + std::ops::SubAssign
-            + std::ops::MulAssign
-            + std::ops::DivAssign,
-    > LUDecomposition<F>
-{
+impl<F: IntegrateFloat> LUDecomposition<F> {
     /// Create a new LU decomposition from a matrix
     fn new(matrix: ArrayView2<F>) -> IntegrateResult<Self> {
         // Implement our own LU factorization
@@ -178,7 +158,7 @@ pub fn check_mass_compatibility<F>(
     y: ArrayView1<F>,
 ) -> IntegrateResult<()>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let n = y.len();
 
@@ -228,13 +208,7 @@ pub fn transform_to_standard_form<F, Func>(
     mass: &MassMatrix<F>,
 ) -> impl Fn(F, ArrayView1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     let mass_cloned = mass.clone();
@@ -254,7 +228,7 @@ where
 /// close to singular, which would cause problems for ODE solvers
 pub fn is_singular<F>(matrix: ArrayView2<F>, threshold: Option<F>) -> bool
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     // Default condition number threshold
     let thresh = threshold.unwrap_or_else(|| F::from_f64(1e14).unwrap());

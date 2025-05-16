@@ -3,25 +3,25 @@
 //! This example shows how to use different extrapolation methods to handle
 //! queries outside the convex hull of the input data points.
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use rand::Rng;
 use scirs2_interpolate::voronoi::{
     constant_value_extrapolation, inverse_distance_extrapolation, linear_gradient_extrapolation,
-    make_sibson_interpolator, nearest_neighbor_extrapolation, Extrapolation, ExtrapolationMethod,
-    ExtrapolationParams, InterpolationMethod, NaturalNeighborInterpolator,
+    make_sibson_interpolator, nearest_neighbor_extrapolation,
 };
+use scirs2_interpolate::Extrapolation;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points in a unit square
     let n_points = 50;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Create points in a specific region (unit square)
     let mut points_vec = Vec::with_capacity(n_points * 2);
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..1.0);
-        let y = rng.gen_range(0.0..1.0);
+        let x = rng.random_range(0.0..=1.0);
+        let y = rng.random_range(0.0..=1.0);
         points_vec.push(x);
         points_vec.push(y);
     }
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let y = points[[i, 1]];
 
         // Test function: f(x,y) = x² + y²
-        let value = x.powi(2) + y.powi(2);
+        let value = f64::powi(x, 2) + f64::powi(y, 2);
 
         values_vec.push(value);
     }
@@ -91,13 +91,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for &(x, y) in &test_points {
         // Compute true function value
-        let true_value = x.powi(2) + y.powi(2);
+        let true_value = f64::powi(x, 2) + f64::powi(y, 2);
 
         // Find the index of this point in our queries array
         let idx = queries
             .rows()
             .into_iter()
-            .position(|row| (row[0] - x).abs() < 1e-10 && (row[1] - y).abs() < 1e-10);
+            .position(|row| f64::abs(row[0] - x) < 1e-10 && f64::abs(row[1] - y) < 1e-10);
 
         if let Some(idx) = idx {
             println!(
@@ -131,11 +131,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
 
             // Compute true function value
-            let true_value = x.powi(2) + y.powi(2);
+            let true_value = f64::powi(x, 2) + f64::powi(y, 2);
 
             // Compute squared error
             let error = true_value - results[i];
-            sum_squared_error += error.powi(2);
+            sum_squared_error += f64::powi(error, 2);
             count += 1;
         }
 

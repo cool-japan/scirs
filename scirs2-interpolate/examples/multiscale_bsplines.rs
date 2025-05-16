@@ -1,8 +1,31 @@
-use ndarray::{Array1, Axis};
+use ndarray::Array1;
 use scirs2_interpolate::{
-    make_adaptive_bspline, make_lsq_bspline, ExtrapolateMode, MultiscaleBSpline,
-    RefinementCriterion,
+    make_adaptive_bspline, make_lsq_bspline, BSplineExtrapolateMode, ExtrapolateMode,
+    MultiscaleBSpline, RefinementCriterion,
 };
+
+// Helper function to calculate squared difference
+fn squared_diff<T>(a: &T, b: &T) -> f64
+where
+    T: std::ops::Sub<Output = f64> + Copy,
+{
+    let diff = *a - *b;
+    f64::powi(diff, 2)
+}
+
+// Helper function to calculate absolute difference
+fn abs_diff<T>(a: &T, b: &T) -> f64
+where
+    T: std::ops::Sub<Output = f64> + Copy,
+{
+    let diff = *a - *b;
+    f64::abs(diff)
+}
+
+// Helper function to extract scalar value from array
+fn extract_scalar(arr: &Array1<f64>) -> f64 {
+    arr[0]
+}
 
 fn main() {
     println!("Multiscale B-Splines with Adaptive Refinement Example");
@@ -14,12 +37,22 @@ fn main() {
 
     // Create a sampled sine function with some noise
     let x = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 101);
-    let noise = Array1::from_vec((0..101).map(|i| (i as f64 * 0.3).sin() * 0.05).collect());
-    let y = x.mapv(|v| v.sin()) + &noise;
+    let noise = Array1::from_vec((0..101).map(|i| f64::sin(i as f64 * 0.3) * 0.05).collect());
+    let y = x.mapv(|v| f64::sin(v)) + &noise;
 
     // Create a regular B-spline with fixed number of knots
-    let regular_spline =
-        make_lsq_bspline(&x.view(), &y.view(), 8, 3, ExtrapolateMode::Error).unwrap();
+    // Create knots for the B-spline
+    let t = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 8);
+
+    let regular_spline = make_lsq_bspline(
+        &x.view(),
+        &y.view(),
+        &t.view(),
+        3,
+        None,
+        BSplineExtrapolateMode::Error,
+    )
+    .unwrap();
 
     // Create a multiscale B-spline starting with few knots
     let mut adaptive_spline =
@@ -53,22 +86,36 @@ fn main() {
 
     // Evaluate both splines on a fine grid
     let x_fine = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 201);
-    let y_regular = regular_spline.evaluate(&x_fine.view()).unwrap();
-    let y_adaptive = adaptive_spline.evaluate(&x_fine.view()).unwrap();
-    let y_exact = x_fine.mapv(|v| v.sin());
+    let y_regular = Array1::from_vec(
+        x_fine
+            .iter()
+            .map(|&x| regular_spline.evaluate(x).unwrap())
+            .collect(),
+    );
+    let y_adaptive = Array1::from_vec(
+        x_fine
+            .iter()
+            .map(|&x| {
+                // Create a single-element array for evaluation
+                let x_single = Array1::from_vec(vec![x]);
+                adaptive_spline.evaluate(&x_single.view()).unwrap()[0]
+            })
+            .collect(),
+    );
+    let y_exact = x_fine.mapv(|v| f64::sin(v));
 
     // Calculate errors
     let mse_regular = y_regular
         .iter()
         .zip(y_exact.iter())
-        .map(|(y_pred, y_true)| (y_pred - y_true).powi(2))
+        .map(|(y_pred, y_true)| squared_diff(y_pred, y_true))
         .sum::<f64>()
         / y_regular.len() as f64;
 
     let mse_adaptive = y_adaptive
         .iter()
         .zip(y_exact.iter())
-        .map(|(y_pred, y_true)| (y_pred - y_true).powi(2))
+        .map(|(y_pred, y_true)| squared_diff(y_pred, y_true))
         .sum::<f64>()
         / y_adaptive.len() as f64;
 
@@ -89,7 +136,7 @@ fn main() {
             2.5
         } else {
             // Smooth transition using sigmoid
-            0.5 + 2.0 / (1.0 + (-3.0 * (v - 5.0)).exp())
+            0.5 + 2.0 / (1.0 + f64::exp(-3.0 * (v - 5.0)))
         }
     });
 
@@ -153,9 +200,42 @@ fn main() {
 
     // Evaluate at points around the transition zone
     let x_trans = Array1::linspace(3.0, 7.0, 41);
-    let y_abs = spline_abs.evaluate(&x_trans.view()).unwrap();
-    let y_curv = spline_curv.evaluate(&x_trans.view()).unwrap();
-    let y_comb = spline_comb.evaluate(&x_trans.view()).unwrap();
+    let y_abs = Array1::from_vec(
+        x_trans
+            .iter()
+            .map(|&x| {
+                {
+                    // Create a single-element array for evaluation
+                    let x_single = Array1::from_vec(vec![x]);
+                    extract_scalar(&spline_abs.evaluate(&x_single.view()).unwrap())
+                }
+            })
+            .collect(),
+    );
+    let y_curv = Array1::from_vec(
+        x_trans
+            .iter()
+            .map(|&x| {
+                {
+                    // Create a single-element array for evaluation
+                    let x_single = Array1::from_vec(vec![x]);
+                    extract_scalar(&spline_curv.evaluate(&x_single.view()).unwrap())
+                }
+            })
+            .collect(),
+    );
+    let y_comb = Array1::from_vec(
+        x_trans
+            .iter()
+            .map(|&x| {
+                {
+                    // Create a single-element array for evaluation
+                    let x_single = Array1::from_vec(vec![x]);
+                    extract_scalar(&spline_comb.evaluate(&x_single.view()).unwrap())
+                }
+            })
+            .collect(),
+    );
 
     // Calculate actual values for comparison
     let y_actual = x_trans.mapv(|v| {
@@ -164,7 +244,7 @@ fn main() {
         } else if v > 6.0 {
             2.5
         } else {
-            0.5 + 2.0 / (1.0 + (-3.0 * (v - 5.0)).exp())
+            0.5 + 2.0 / (1.0 + f64::exp(-3.0 * (v - 5.0)))
         }
     });
 
@@ -172,21 +252,21 @@ fn main() {
     let mse_abs = y_abs
         .iter()
         .zip(y_actual.iter())
-        .map(|(y_pred, y_true)| (y_pred - y_true).powi(2))
+        .map(|(y_pred, y_true)| squared_diff(y_pred, y_true))
         .sum::<f64>()
         / y_abs.len() as f64;
 
     let mse_curv = y_curv
         .iter()
         .zip(y_actual.iter())
-        .map(|(y_pred, y_true)| (y_pred - y_true).powi(2))
+        .map(|(y_pred, y_true)| squared_diff(y_pred, y_true))
         .sum::<f64>()
         / y_curv.len() as f64;
 
     let mse_comb = y_comb
         .iter()
         .zip(y_actual.iter())
-        .map(|(y_pred, y_true)| (y_pred - y_true).powi(2))
+        .map(|(y_pred, y_true)| squared_diff(y_pred, y_true))
         .sum::<f64>()
         / y_comb.len() as f64;
 
@@ -204,7 +284,7 @@ fn main() {
 
     // Create a more complex function
     let x3 = Array1::linspace(0.0, 10.0, 201);
-    let y3 = x3.mapv(|v| v.sin() + 0.5 * (v * 2.0).sin() + 0.1 * v.powi(2) / 10.0);
+    let y3 = x3.mapv(|v| f64::sin(v) + 0.5 * f64::sin(v * 2.0) + 0.1 * f64::powi(v, 2) / 10.0);
 
     // Create a multiscale B-spline with multiple refinement levels
     let mut multi_spline = make_adaptive_bspline(
@@ -228,20 +308,32 @@ fn main() {
     // Calculate errors at each level
     println!("\nErrors at each refinement level:");
     let x_test = Array1::linspace(0.0, 10.0, 101);
-    let y_test = x_test.mapv(|v| v.sin() + 0.5 * (v * 2.0).sin() + 0.1 * v.powi(2) / 10.0);
+    let y_test =
+        x_test.mapv(|v| f64::sin(v) + 0.5 * f64::sin(v * 2.0) + 0.1 * f64::powi(v, 2) / 10.0);
 
     for level in 0..num_levels {
         // Switch to this level
         multi_spline.switch_level(level);
 
         // Evaluate at test points
-        let y_approx = multi_spline.evaluate(&x_test.view()).unwrap();
+        let y_approx = Array1::from_vec(
+            x_test
+                .iter()
+                .map(|&x| {
+                    {
+                        // Create a single-element array for evaluation
+                        let x_single = Array1::from_vec(vec![x]);
+                        multi_spline.evaluate(&x_single.view()).unwrap()[0]
+                    }
+                })
+                .collect(),
+        );
 
         // Calculate MSE
         let mse = y_test
             .iter()
             .zip(y_approx.iter())
-            .map(|(y_true, y_pred)| (y_true - y_pred).powi(2))
+            .map(|(y_true, y_pred)| squared_diff(y_true, y_pred))
             .sum::<f64>()
             / y_test.len() as f64;
 
@@ -266,11 +358,11 @@ fn main() {
     // Create a function with multiple localized features
     let x4 = Array1::linspace(0.0, 10.0, 501);
     let y4 = x4.mapv(|v| {
-        let base = v.sin() / 2.0;
-        let bumps =
-            2.0 * (-5.0 * (v - 2.5).powi(2)).exp() + 1.5 * (-10.0 * (v - 7.0).powi(2)).exp();
+        let base = f64::sin(v) / 2.0;
+        let bumps = 2.0 * f64::exp(-5.0 * f64::powi(v - 2.5, 2))
+            + 1.5 * f64::exp(-10.0 * f64::powi(v - 7.0, 2));
         let oscillation = if v > 4.0 && v < 6.0 {
-            0.5 * (5.0 * v).sin()
+            0.5 * f64::sin(5.0 * v)
         } else {
             0.0
         };
@@ -303,13 +395,21 @@ fn main() {
     );
 
     // Evaluate the spline at the original points
-    let y_approx = adaptive_spline.evaluate(&x4.view()).unwrap();
+    let y_approx = Array1::from_vec(
+        x4.iter()
+            .map(|&x| {
+                // Create a single-element array for evaluation
+                let x_single = Array1::from_vec(vec![x]);
+                adaptive_spline.evaluate(&x_single.view()).unwrap()[0]
+            })
+            .collect(),
+    );
 
     // Calculate error statistics
     let errors = y4
         .iter()
         .zip(y_approx.iter())
-        .map(|(y_true, y_pred)| (y_true - y_pred).abs())
+        .map(|(y_true, y_pred)| abs_diff(y_true, y_pred))
         .collect::<Vec<_>>();
 
     let max_error = errors
@@ -321,24 +421,40 @@ fn main() {
     println!("  Maximum absolute error: {:.6}", max_error);
     println!("  Mean absolute error:    {:.6}", mean_error);
 
-    // Calculate first and second derivatives
-    let first_deriv = adaptive_spline.derivative(1, &x4.view()).unwrap();
-    let second_deriv = adaptive_spline.derivative(2, &x4.view()).unwrap();
+    // Create arrays to store derivatives
+    let mut first_deriv = Array1::zeros(x4.len());
+    let mut second_deriv = Array1::zeros(x4.len());
+
+    // Calculate derivatives at each point
+    for (i, &x) in x4.iter().enumerate() {
+        // Create a single-element array for this point
+        let x_single = Array1::from_vec(vec![x]);
+
+        // Get derivatives at this point
+        let d1 = adaptive_spline.derivative(1, &x_single.view()).unwrap();
+        let d2 = adaptive_spline.derivative(2, &x_single.view()).unwrap();
+
+        // Store the derivatives
+        first_deriv[i] = d1[0]; // Extract scalar value
+        second_deriv[i] = d2[0]; // Extract scalar value
+    }
 
     // Find maximum curvature regions
-    let max_curvature =
-        second_deriv.iter().fold(
-            0.0f64,
-            |max, &d2| if d2.abs() > max { d2.abs() } else { max },
-        );
+    let max_curvature = second_deriv.iter().fold(0.0f64, |max, &d2| {
+        if f64::abs(d2) > max {
+            f64::abs(d2)
+        } else {
+            max
+        }
+    });
 
     println!("\nDerivative statistics:");
     println!(
         "  Maximum first derivative magnitude:  {:.6}",
         first_deriv
             .iter()
-            .fold(0.0f64, |max, &d1| if d1.abs() > max {
-                d1.abs()
+            .fold(0.0f64, |max, &d1| if f64::abs(d1) > max {
+                f64::abs(d1)
             } else {
                 max
             })

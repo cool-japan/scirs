@@ -2,6 +2,7 @@
 //!
 //! This module provides utilities needed across multiple integration methods.
 
+use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -25,7 +26,7 @@ pub fn numerical_jacobian<F, Func>(
     eps: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(ArrayView1<F>) -> Array1<F>,
 {
     let n = x.len();
@@ -72,7 +73,7 @@ pub fn numerical_jacobian_with_param<F, Func>(
     eps: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let n = x.len();
@@ -108,10 +109,7 @@ where
 /// # Returns
 ///
 /// * The solution vector
-pub fn solve_linear_system<F: Float + FromPrimitive + Debug>(
-    a: ArrayView2<F>,
-    b: ArrayView1<F>,
-) -> Array1<F> {
+pub fn solve_linear_system<F: IntegrateFloat>(a: ArrayView2<F>, b: ArrayView1<F>) -> Array1<F> {
     let n_rows = a.shape()[0];
     let n_cols = a.shape()[1];
 
@@ -243,7 +241,7 @@ pub fn newton_method<F, Func>(
     max_iter: usize,
 ) -> (Array1<F>, bool)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(ArrayView1<F>) -> Array1<F>,
 {
     let mut x = x0.to_owned();
@@ -298,7 +296,7 @@ pub fn newton_method_with_param<F, Func>(
     max_iter: usize,
 ) -> (Array1<F>, bool)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let mut x = x0.to_owned();

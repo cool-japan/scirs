@@ -4,6 +4,7 @@
 //! sampling, which are particularly useful for high-dimensional integrals.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use rand::prelude::*;
@@ -15,7 +16,7 @@ use std::ops::AddAssign;
 
 /// Options for controlling the behavior of Monte Carlo integration
 #[derive(Debug, Clone)]
-pub struct MonteCarloOptions<F: Float> {
+pub struct MonteCarloOptions<F: IntegrateFloat> {
     /// Number of sample points to use
     pub n_samples: usize,
     /// Random number generator seed (for reproducibility)
@@ -37,7 +38,7 @@ pub enum ErrorEstimationMethod {
     BatchMeans,
 }
 
-impl<F: Float + FromPrimitive> Default for MonteCarloOptions<F> {
+impl<F: IntegrateFloat> Default for MonteCarloOptions<F> {
     fn default() -> Self {
         Self {
             n_samples: 10000,
@@ -51,7 +52,7 @@ impl<F: Float + FromPrimitive> Default for MonteCarloOptions<F> {
 
 /// Result of a Monte Carlo integration
 #[derive(Debug, Clone)]
-pub struct MonteCarloResult<F: Float> {
+pub struct MonteCarloResult<F: IntegrateFloat> {
     /// Estimated value of the integral
     pub value: F,
     /// Estimated standard error
@@ -101,7 +102,7 @@ pub fn monte_carlo<F, Func>(
     options: Option<MonteCarloOptions<F>>,
 ) -> IntegrateResult<MonteCarloResult<F>>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync + AddAssign + SampleUniform,
+    F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync,
     rand_distr::StandardNormal: Distribution<F>,
 {
@@ -320,7 +321,7 @@ pub fn importance_sampling<F, Func, Pdf, Sampler>(
     options: Option<MonteCarloOptions<F>>,
 ) -> IntegrateResult<MonteCarloResult<F>>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync + AddAssign + SampleUniform,
+    F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync,
     Pdf: Fn(ArrayView1<F>) -> F + Sync,
     Sampler: Fn(&mut StdRng, usize) -> Array1<F> + Sync,

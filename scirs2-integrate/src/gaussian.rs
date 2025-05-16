@@ -6,20 +6,21 @@
 //! functions that can be well-approximated by polynomials.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Gauss-Legendre quadrature nodes and weights
 #[derive(Debug, Clone)]
-pub struct GaussLegendreQuadrature<F: Float> {
+pub struct GaussLegendreQuadrature<F: IntegrateFloat> {
     /// Quadrature nodes (points) on the interval [-1, 1]
     pub nodes: Array1<F>,
     /// Quadrature weights
     pub weights: Array1<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug> GaussLegendreQuadrature<F> {
+impl<F: IntegrateFloat> GaussLegendreQuadrature<F> {
     /// Create a new Gauss-Legendre quadrature with the given number of points
     ///
     /// # Arguments
@@ -258,7 +259,7 @@ impl<F: Float + FromPrimitive + Debug> GaussLegendreQuadrature<F> {
 /// ```
 pub fn gauss_legendre<F, Func>(f: Func, a: F, b: F, n: usize) -> IntegrateResult<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F) -> F,
 {
     let quadrature = GaussLegendreQuadrature::new(n)?;
@@ -297,7 +298,7 @@ pub fn multi_gauss_legendre<F, Func>(
     n_points: usize,
 ) -> IntegrateResult<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(ArrayView1<F>) -> F,
 {
     if ranges.is_empty() {
@@ -319,7 +320,7 @@ where
         n_dims: usize,
     ) -> F
     where
-        F: Float + FromPrimitive + Debug,
+        F: IntegrateFloat,
         Func: Fn(ArrayView1<F>) -> F,
     {
         if dim == n_dims {
@@ -369,7 +370,7 @@ where
 /// - Number of function evaluations
 pub fn gauss_kronrod15<F, Func>(f: Func, a: F, b: F) -> (F, F, usize)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F) -> F,
 {
     // Gauss-Kronrod 15-point rule (7-point Gauss, 15-point Kronrod)
@@ -478,7 +479,7 @@ where
 /// - Number of function evaluations
 pub fn gauss_kronrod21<F, Func>(f: Func, a: F, b: F) -> (F, F, usize)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F) -> F,
 {
     // Gauss-Kronrod 21-point rule (10-point Gauss, 21-point Kronrod)

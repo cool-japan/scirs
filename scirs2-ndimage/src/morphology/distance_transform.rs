@@ -29,6 +29,8 @@
 //! - Optional sampling parameter allows for non-uniform pixel spacing
 //!
 
+#![allow(clippy::type_complexity)]
+
 use ndarray::{Array, Dimension, IxDyn};
 use num_traits::Float;
 
@@ -132,7 +134,7 @@ where
 
     // For each point in the array
     for idx in ndarray::indices(shape) {
-        let idx_vec: Vec<_> = idx.slice().iter().cloned().collect();
+        let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
             if let Some(ref mut dist) = distances {
@@ -155,7 +157,7 @@ where
             // Scan the entire image to find the nearest background pixel
             // This is inefficient but simple for now
             for bg_idx in ndarray::indices(shape) {
-                let bg_idx_vec: Vec<_> = bg_idx.slice().iter().cloned().collect();
+                let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the Euclidean distance
                     let mut dist_sq = 0.0;
@@ -269,7 +271,7 @@ where
 
     // For each point in the array
     for idx in ndarray::indices(shape) {
-        let idx_vec: Vec<_> = idx.slice().iter().cloned().collect();
+        let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
             if let Some(ref mut dist) = distances {
@@ -291,7 +293,7 @@ where
 
             // Scan the entire image to find the nearest background pixel
             for bg_idx in ndarray::indices(shape) {
-                let bg_idx_vec: Vec<_> = bg_idx.slice().iter().cloned().collect();
+                let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the distance based on the metric
                     let dist = match metric {
@@ -430,7 +432,7 @@ where
 
     // For each point in the array
     for idx in ndarray::indices(shape) {
-        let idx_vec: Vec<_> = idx.slice().iter().cloned().collect();
+        let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
             if let Some(ref mut dist) = distances {
@@ -452,7 +454,7 @@ where
 
             // Scan the entire image to find the nearest background pixel
             for bg_idx in ndarray::indices(shape) {
-                let bg_idx_vec: Vec<_> = bg_idx.slice().iter().cloned().collect();
+                let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the distance based on the metric
                     let dist = match metric {

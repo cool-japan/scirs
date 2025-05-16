@@ -16,7 +16,7 @@ use ndarray::{s, Array1, Array2};
 use num_complex::{Complex64, ComplexFloat};
 use std::f64::consts::PI;
 
-use crate::error::{SignalError, SignalResult};
+use crate::error::SignalResult;
 use crate::spectral;
 use crate::window;
 
@@ -215,14 +215,14 @@ fn compute_stft(
 ) -> SignalResult<Array2<Complex64>> {
     let stft_result = spectral::stft(
         signal.as_slice().unwrap(),
-        None, // fs
-        None, // window
+        None,               // fs
+        None,               // window
         Some(window.len()), // nperseg
-        Some(hop_size), // noverlap
-        Some(n_fft), // nfft
-        None, // detrend
-        None, // boundary
-        None, // padded
+        Some(hop_size),     // noverlap
+        Some(n_fft),        // nfft
+        None,               // detrend
+        None,               // boundary
+        None,               // padded
     )?;
 
     // Extract the result

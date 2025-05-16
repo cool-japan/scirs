@@ -9,7 +9,6 @@
 
 use ndarray::{s, Array1, Array2};
 use num_complex::Complex64;
-use std::f64::consts::PI;
 
 use crate::error::{SignalError, SignalResult};
 use crate::hilbert;
@@ -325,7 +324,7 @@ fn compute_cross_wvd(
         }
 
         // Compute FFT of autocorrelation to get the spectrum at this time point
-        let mut spectrum =
+        let spectrum =
             scirs2_fft::fft(acorr.as_slice().unwrap(), None).expect("FFT computation failed");
 
         // Store only the positive frequencies (the result is conjugate symmetric for real signals)

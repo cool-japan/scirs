@@ -7,6 +7,7 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
+use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -21,7 +22,7 @@ enum LsodaMethodType {
 }
 
 /// State information for the LSODA integrator
-struct LsodaState<F: Float> {
+struct LsodaState<F: IntegrateFloat> {
     /// Current time
     t: F,
     /// Current solution
@@ -70,17 +71,7 @@ struct LsodaState<F: Float> {
     tol_scale: Array1<F>,
 }
 
-impl<
-        F: Float
-            + FromPrimitive
-            + Debug
-            + ScalarOperand
-            + std::ops::AddAssign
-            + std::ops::SubAssign
-            + std::ops::DivAssign
-            + std::ops::MulAssign,
-    > LsodaState<F>
-{
+impl<F: IntegrateFloat> LsodaState<F> {
     /// Create a new LSODA state
     fn new(t: F, y: Array1<F>, dy: Array1<F>, h: F, rtol: F, atol: F) -> Self {
         let n_dim = y.len();
@@ -177,7 +168,7 @@ impl<
 }
 
 /// Stiffness detector for LSODA
-struct StiffnessDetector<F: Float> {
+struct StiffnessDetector<F: IntegrateFloat> {
     // Minimum number of steps before considering method switch
     min_steps_before_switch: usize,
     // How many stiffness indicators needed to detect stiffness
@@ -188,7 +179,7 @@ struct StiffnessDetector<F: Float> {
     step_size_ratio_threshold: F,
 }
 
-impl<F: Float + FromPrimitive> StiffnessDetector<F> {
+impl<F: IntegrateFloat> StiffnessDetector<F> {
     /// Create a new stiffness detector
     fn new() -> Self {
         StiffnessDetector {
@@ -250,14 +241,7 @@ pub fn lsoda_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -435,14 +419,7 @@ fn adams_step<F, Func>(
     func_evals: &mut usize,
 ) -> IntegrateResult<bool>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Coefficients for Adams-Bashforth (predictor)
@@ -832,14 +809,7 @@ fn bdf_step<F, Func>(
     func_evals: &mut usize,
 ) -> IntegrateResult<bool>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Coefficients for BDF methods of different orders

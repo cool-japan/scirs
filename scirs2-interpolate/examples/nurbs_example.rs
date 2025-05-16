@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::array;
 use scirs2_interpolate::bspline::ExtrapolateMode;
 use scirs2_interpolate::nurbs::{make_nurbs_circle, make_nurbs_sphere, NurbsCurve, NurbsSurface};
 
@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify that points are on the circle (distance from center should be radius)
     let p = circle.evaluate(0.3)?;
-    let dist = ((p[0] - center[0]).powi(2) + (p[1] - center[1]).powi(2)).sqrt();
+    let dist = (f64::powi(p[0] - center[0], 2) + f64::powi(p[1] - center[1], 2)).sqrt();
     println!("  Distance from center for point at t=0.3: {}", dist);
     println!("  (Should be equal to radius = {})", radius);
 
@@ -193,9 +193,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify points are on the sphere (distance from center should be radius)
     let p = sphere.evaluate(0.3, 0.7)?;
-    let dist =
-        ((p[0] - center[0]).powi(2) + (p[1] - center[1]).powi(2) + (p[2] - center[2]).powi(2))
-            .sqrt();
+    let dist = (f64::powi(p[0] - center[0], 2)
+        + f64::powi(p[1] - center[1], 2)
+        + f64::powi(p[2] - center[2], 2))
+    .sqrt();
     println!(
         "  Distance from center for point at (u,v)=(0.3,0.7): {}",
         dist
@@ -232,7 +233,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 9: Sampling a NURBS curve at multiple parameter values
     println!("\nExample 9: Sampling a NURBS curve");
-    let t_values = ndarray::Array1::linspace(0.0, 1.0, 5);
+    let t_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 5);
     let curve_points = circle.evaluate_array(&t_values.view())?;
 
     println!("  Circle points at t = [0.0, 0.25, 0.5, 0.75, 1.0]:");
@@ -247,8 +248,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 10: Sampling a NURBS surface at multiple parameter values
     println!("\nExample 10: Sampling a NURBS surface on a grid");
-    let u_values = ndarray::Array1::linspace(0.0, 1.0, 3); // [0.0, 0.5, 1.0]
-    let v_values = ndarray::Array1::linspace(0.0, 1.0, 3);
+    let u_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 3); // [0.0, 0.5, 1.0]
+    let v_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 3);
     let surface_points = nurbs_surface.evaluate_array(&u_values.view(), &v_values.view(), true)?;
 
     println!("  Surface points at (u,v) grid [0.0, 0.5, 1.0] x [0.0, 0.5, 1.0]:");

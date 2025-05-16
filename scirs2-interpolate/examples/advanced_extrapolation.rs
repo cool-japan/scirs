@@ -19,7 +19,7 @@ where
                 "  f({:.2f}) = {:.6f} {}",
                 x,
                 value,
-                if (value - expected).abs() < 1e-6 {
+                if f64::abs(value - expected) < 1e-6 {
                     "(correct)"
                 } else {
                     format!("(expected: {:.6f})", expected)
@@ -86,7 +86,7 @@ fn main() {
                 if let scirs2_interpolate::InterpolateError::MappedPoint(mapped_x) = e {
                     // For demonstration, calculate exact value at mapped point
                     // In real usage, you'd interpolate at the mapped point
-                    Ok(mapped_x.powi(2))
+                    Ok(f64::powi(mapped_x, 2))
                 } else {
                     Err(e.to_string())
                 }
@@ -101,7 +101,7 @@ fn main() {
                 // Handle MappedPoint error for reflection extrapolation
                 if let scirs2_interpolate::InterpolateError::MappedPoint(mapped_x) = e {
                     // Calculate exact value at mapped point
-                    Ok(mapped_x.powi(2))
+                    Ok(f64::powi(mapped_x, 2))
                 } else {
                     Err(e.to_string())
                 }
@@ -128,7 +128,7 @@ fn main() {
 
     // Demonstrate constant extrapolation
     println!("Points inside domain (f(x) = x^2):");
-    demonstrate_extrapolation("Inside Domain", &inside_domain, |x| Ok(x.powi(2)));
+    demonstrate_extrapolation("Inside Domain", &inside_domain, |x| Ok(f64::powi(x, 2)));
 
     // NOTE: In real usage, for points inside domain you'd use interpolation,
     // not extrapolation. This is just for demonstration.
@@ -184,8 +184,8 @@ fn main() {
     demonstrate_extrapolation("Above domain", &cubic_above, cubic_fn);
 
     println!("Exact values of f(x) = x^3 for comparison:");
-    demonstrate_extrapolation("Below domain", &cubic_below, |x| Ok(x.powi(3)));
-    demonstrate_extrapolation("Above domain", &cubic_above, |x| Ok(x.powi(3)));
+    demonstrate_extrapolation("Below domain", &cubic_below, |x| Ok(f64::powi(x, 3)));
+    demonstrate_extrapolation("Above domain", &cubic_above, |x| Ok(f64::powi(x, 3)));
 
     // Example 3: Physics-Based Extrapolation
     println!("\nExample 3: Physics-Based Extrapolation");
@@ -224,7 +224,7 @@ fn main() {
 
     println!("Exponential extrapolation compared to f(x) = e^x:");
     demonstrate_extrapolation("Exponential extrapolation", &exp_points, exp_fn);
-    demonstrate_extrapolation("Exact exponential", &exp_points, |x| Ok(x.exp()));
+    demonstrate_extrapolation("Exact exponential", &exp_points, |x| Ok(f64::exp(x)));
 
     // Example 4: Boundary Handling for PDEs
     println!("\nExample 4: Boundary Handling for PDEs");
@@ -232,7 +232,7 @@ fn main() {
 
     // Domain [0, 10] with various boundary conditions
     let domain_points = Array1::linspace(0.0, 10.0, 11);
-    let values = domain_points.mapv(|x| x.sin());
+    let values = domain_points.mapv(|x| f64::sin(x));
 
     // Create various boundary handlers
     let zero_gradient = make_zero_gradient_boundary(0.0, 10.0);
@@ -285,10 +285,9 @@ fn main() {
                     .iter()
                     .enumerate()
                     .min_by(|(_, a), (_, b)| {
-                        (mapped_x - *a)
-                            .abs()
-                            .partial_cmp(&(mapped_x - *b).abs())
-                            .unwrap()
+                        let diff_a = f64::abs(mapped_x - *a);
+                        let diff_b = f64::abs(mapped_x - *b);
+                        diff_a.partial_cmp(&diff_b).unwrap()
                     })
                     .map(|(idx, _)| idx)
                     .unwrap();
@@ -311,10 +310,9 @@ fn main() {
                     .iter()
                     .enumerate()
                     .min_by(|(_, a), (_, b)| {
-                        (mapped_x - *a)
-                            .abs()
-                            .partial_cmp(&(mapped_x - *b).abs())
-                            .unwrap()
+                        let diff_a = f64::abs(mapped_x - *a);
+                        let diff_b = f64::abs(mapped_x - *b);
+                        diff_a.partial_cmp(&diff_b).unwrap()
                     })
                     .map(|(idx, _)| idx)
                     .unwrap();

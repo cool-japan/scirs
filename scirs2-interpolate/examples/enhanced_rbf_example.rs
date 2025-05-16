@@ -1,7 +1,7 @@
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use scirs2_interpolate::advanced::enhanced_rbf::{
     make_accurate_rbf, make_auto_rbf, make_fast_rbf, EnhancedRBFInterpolator, EnhancedRBFKernel,
-    KernelType, KernelWidthStrategy,
+    KernelType,
 };
 use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
 
@@ -27,8 +27,8 @@ fn main() {
             points.push(y);
 
             // Function with two peaks: f(x,y) = exp(-x²-y²) + 0.5*exp(-(x-1)²-(y-1)²)
-            let f = (-x * x - y * y).exp()
-                + 0.5 * (-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0)).exp();
+            let f = f64::exp(-x * x - y * y)
+                + 0.5 * f64::exp(-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0));
             values.push(f);
         }
     }
@@ -129,8 +129,8 @@ fn main() {
             sparse_points.push(y);
 
             // Same function as before
-            let f = (-x * x - y * y).exp()
-                + 0.5 * (-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0)).exp();
+            let f = f64::exp(-x * x - y * y)
+                + 0.5 * f64::exp(-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0));
             sparse_values.push(f);
         }
     }
@@ -170,8 +170,8 @@ fn main() {
         for j in 0..n_grid {
             let x = i as f64 / (n_grid as f64 - 1.0) * 4.0 - 2.0;
             let y = j as f64 / (n_grid as f64 - 1.0) * 4.0 - 2.0;
-            let f = (-x * x - y * y).exp()
-                + 0.5 * (-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0)).exp();
+            let f = f64::exp(-x * x - y * y)
+                + 0.5 * f64::exp(-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0));
             exact_values.push(f);
         }
     }
@@ -203,20 +203,20 @@ fn main() {
     let mut noisy_points = Vec::with_capacity(n_noisy * 2);
     let mut noisy_values = Vec::with_capacity(n_noisy);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     use rand::Rng;
 
     for _ in 0..n_noisy {
-        let x = rng.gen_range(-2.0..2.0);
-        let y = rng.gen_range(-2.0..2.0);
+        let x = rng.random_range(-2.0..2.0);
+        let y = rng.random_range(-2.0..2.0);
 
         noisy_points.push(x);
         noisy_points.push(y);
 
         // Function with noise
-        let f =
-            (-x * x - y * y).exp() + 0.5 * (-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0)).exp();
-        let noise = rng.gen_range(-0.05..0.05);
+        let f = f64::exp(-x * x - y * y)
+            + 0.5 * f64::exp(-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0));
+        let noise = rng.random_range(-0.05..0.05);
         noisy_values.push(f + noise);
     }
 
@@ -245,24 +245,24 @@ fn main() {
     let x = 0.5;
     let y = 0.5;
     let exact =
-        (-x * x - y * y).exp() + 0.5 * (-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0)).exp();
+        f64::exp(-x * x - y * y) + 0.5 * f64::exp(-(x - 1.0) * (x - 1.0) - (y - 1.0) * (y - 1.0));
 
     println!("\nInterpolation at (0.5, 0.5):");
     println!("  Exact:      {:.6}", exact);
     println!(
         "  Auto:       {:.6} (error: {:.6})",
         auto_result[0],
-        (auto_result[0] - exact).abs()
+        f64::abs(auto_result[0] - exact)
     );
     println!(
         "  Accurate:   {:.6} (error: {:.6})",
         accurate_result[0],
-        (accurate_result[0] - exact).abs()
+        f64::abs(accurate_result[0] - exact)
     );
     println!(
         "  Fast:       {:.6} (error: {:.6})",
         fast_result[0],
-        (fast_result[0] - exact).abs()
+        f64::abs(fast_result[0] - exact)
     );
 
     // Example 4: Multi-scale RBF for Complex Surfaces
@@ -275,16 +275,16 @@ fn main() {
     let mut complex_values = Vec::with_capacity(n_complex);
 
     for _ in 0..n_complex {
-        let x = rng.gen_range(-3.0..3.0);
-        let y = rng.gen_range(-3.0..3.0);
+        let x = rng.random_range(-3.0..3.0);
+        let y = rng.random_range(-3.0..3.0);
 
         complex_points.push(x);
         complex_points.push(y);
 
         // Function with multiple scales: global trend + local features
         let global = 0.1 * (x * x + y * y); // Quadratic bowl
-        let medium = 0.5 * (-(x * x + y * y) / 4.0).exp(); // Medium-scale Gaussian
-        let local = 0.3 * (-(x * x + y * y) * 4.0).exp(); // Small-scale Gaussian
+        let medium = 0.5 * f64::exp(-(x * x + y * y) / 4.0); // Medium-scale Gaussian
+        let local = 0.3 * f64::exp(-(x * x + y * y) * 4.0); // Small-scale Gaussian
         let spike = if x * x + y * y < 0.2 { 0.8 } else { 0.0 }; // Sharp feature
 
         complex_values.push(global + medium + local + spike);

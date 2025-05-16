@@ -7,7 +7,6 @@
 //! - Dropout
 //! - Early stopping
 
-use autograd::rand::distributions::{Distribution, Uniform};
 use ndarray::{Array1, Array2, Axis};
 use rand::prelude::*;
 use rand::rngs::SmallRng;
@@ -16,6 +15,7 @@ use scirs2_neural::error::Result;
 use std::f32;
 
 /// Activation function type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 enum ActivationFunction {
     ReLU,
@@ -63,6 +63,7 @@ impl ActivationFunction {
 }
 
 /// Loss function type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 enum LossFunction {
     MSE,
@@ -225,10 +226,12 @@ impl Dense {
     ) -> Self {
         // He/Kaiming initialization for weights
         let std_dev = (2.0 / input_size as f32).sqrt();
-        let dist = Uniform::new_inclusive(-std_dev, std_dev);
 
-        // Initialize weights and biases
-        let weights = Array2::from_shape_fn((input_size, output_size), |_| dist.sample(rng));
+        // Initialize weights with random values
+        let mut weights = Array2::zeros((input_size, output_size));
+        for elem in weights.iter_mut() {
+            *elem = rng.random_range(-std_dev..std_dev);
+        }
         let biases = Array1::zeros(output_size);
 
         Self {
@@ -433,7 +436,7 @@ impl NeuralNetwork {
 
         for layer_idx in (0..self.layers.len()).rev() {
             // Apply dropout backward if applicable
-            if dropout_idx > 0 && dropout_idx - 1 >= layer_idx {
+            if dropout_idx > 0 && dropout_idx > layer_idx {
                 dropout_idx -= 1;
                 grad = self.dropout_layers[dropout_idx].backward(&grad);
             }

@@ -4,9 +4,8 @@
 //! and its inverse (ISTFT), similar to SciPy's ShortTimeFFT class.
 
 use crate::error::{SignalError, SignalResult};
-use crate::utils;
 use crate::window;
-use ndarray::{s, Array, Array1, Array2, ArrayView1, Axis};
+use ndarray::{s, Array1, Array2};
 use num_complex::Complex64;
 use num_traits::{Float, NumCast};
 use std::fmt::Debug;
@@ -360,7 +359,7 @@ impl ShortTimeFft {
 
         // Create self-dual window
         for (w_i, &dd_i) in w.iter_mut().zip(dd.iter()) {
-            *w_i = (*w_i / dd_i.sqrt());
+            *w_i = *w_i / dd_i.sqrt();
         }
 
         // Create ShortTimeFft
@@ -420,53 +419,6 @@ impl ShortTimeFft {
         Ok(instance)
     }
 
-    /// Calculate the canonical dual window
-    ///
-    /// # Arguments
-    ///
-    /// * `win` - Window function
-    /// * `hop` - Hop size
-    ///
-    /// # Returns
-    ///
-    /// * Dual window as Array1<f64>
-    fn calc_dual_window_internal(win: &[f64], hop: usize) -> SignalResult<Array1<f64>> {
-        if hop > win.len() {
-            return Err(SignalError::ValueError(format!(
-                "Hop size {} is larger than window length {} => STFT not invertible!",
-                hop,
-                win.len()
-            )));
-        }
-
-        // Create squared window values
-        let w2: Vec<f64> = win.iter().map(|&w| w * w).collect();
-        let mut dd = w2.clone();
-
-        // Calculate sum of shifted windows
-        for k in (hop..win.len()).step_by(hop) {
-            for i in k..win.len() {
-                dd[i] += w2[i - k];
-            }
-            for i in 0..(win.len() - k) {
-                dd[i] += w2[i + k];
-            }
-        }
-
-        // Check DD > 0
-        let relative_resolution = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val| val.max(max));
-        if !dd.iter().all(|&v| v >= relative_resolution) {
-            return Err(SignalError::ValueError(
-                "Short-time Fourier Transform not invertible!".to_string(),
-            ));
-        }
-
-        // Calculate dual window
-        let dual_win = Array1::from_vec(win.iter().zip(dd.iter()).map(|(&w, &d)| w / d).collect());
-
-        Ok(dual_win)
-    }
-
     /// Check if the STFT is invertible
     ///
     /// # Returns
@@ -491,7 +443,7 @@ impl ShortTimeFft {
             return Ok(dual.clone());
         }
 
-        calc_dual_window_internal(self.win.as_slice().expect("Failed to get slice"), self.hop)
+        calc_dual_window_internal(self.win.as_slice().unwrap(), self.hop)
     }
 
     /// Returns the sampling interval
@@ -1234,11 +1186,60 @@ impl ShortTimeFft {
 
         let upper_begin = (
             (n as isize - self.m_num_mid as isize) / self.hop as isize,
-            ((n as isize) + (self.m_num as isize) - (self.m_num_mid as isize) - 1) / (self.hop as isize) + 1,
+            ((n as isize) + (self.m_num as isize) - (self.m_num_mid as isize) - 1)
+                / (self.hop as isize)
+                + 1,
         );
 
         (lower_end, upper_begin)
     }
+}
+
+/// Calculate the canonical dual window
+///
+/// # Arguments
+///
+/// * `win` - Window function
+/// * `hop` - Hop size
+///
+/// # Returns
+///
+/// * Dual window as Array1<f64>
+fn calc_dual_window_internal(win: &[f64], hop: usize) -> SignalResult<Array1<f64>> {
+    if hop > win.len() {
+        return Err(SignalError::ValueError(format!(
+            "Hop size {} is larger than window length {} => STFT not invertible!",
+            hop,
+            win.len()
+        )));
+    }
+
+    // Create squared window values
+    let w2: Vec<f64> = win.iter().map(|&w| w * w).collect();
+    let mut dd = w2.clone();
+
+    // Calculate sum of shifted windows
+    for k in (hop..win.len()).step_by(hop) {
+        for i in k..win.len() {
+            dd[i] += w2[i - k];
+        }
+        for i in 0..(win.len() - k) {
+            dd[i] += w2[i + k];
+        }
+    }
+
+    // Check DD > 0
+    let relative_resolution = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val| val.max(max));
+    if !dd.iter().all(|&v| v >= relative_resolution) {
+        return Err(SignalError::ValueError(
+            "Short-time Fourier Transform not invertible!".to_string(),
+        ));
+    }
+
+    // Calculate dual window
+    let dual_win = Array1::from_vec(win.iter().zip(dd.iter()).map(|(&w, &d)| w / d).collect());
+
+    Ok(dual_win)
 }
 
 /// Find the closest STFT dual window to a desired window
@@ -1312,7 +1313,7 @@ pub fn closest_stft_dual_window(
 
     // Calculate scaling factor
     let numerator = (q_d.iter().map(|&x| x * x).sum::<f64>()).sqrt();
-    let denominator = (q_d.iter().map(|&x| x * x).sum::<f64>());
+    let denominator = q_d.iter().map(|&x| x * x).sum::<f64>();
 
     if !(numerator > 0.0 && denominator > std::f64::EPSILON) {
         return Err(SignalError::ValueError(

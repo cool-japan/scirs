@@ -3,6 +3,7 @@
 //! This module provides utility functions for controlling step sizes
 //! in adaptive ODE solvers.
 
+use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use std::cmp::Ordering;
@@ -19,12 +20,7 @@ use std::cmp::Ordering;
 /// # Returns
 ///
 /// The normalized error
-pub fn error_norm<F: Float + FromPrimitive>(
-    error: &Array1<F>,
-    y: &Array1<F>,
-    rtol: F,
-    atol: F,
-) -> F {
+pub fn error_norm<F: IntegrateFloat>(error: &Array1<F>, y: &Array1<F>, rtol: F, atol: F) -> F {
     // Calculate the denominator for normalization
     let scale = y
         .iter()
@@ -54,7 +50,7 @@ pub fn error_norm<F: Float + FromPrimitive>(
 /// # Returns
 ///
 /// The suggested new step size
-pub fn calculate_new_step_size<F: Float + FromPrimitive>(
+pub fn calculate_new_step_size<F: IntegrateFloat>(
     h_current: F,
     error_norm: F,
     error_order: usize,
@@ -111,7 +107,7 @@ pub fn select_initial_step<F, Func>(
     atol: F,
 ) -> F
 where
-    F: Float + FromPrimitive,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Calculate scale based on tolerances

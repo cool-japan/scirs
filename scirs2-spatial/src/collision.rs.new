@@ -1,0 +1,108 @@
+// Get the first part of the file
+/// Tests if two moving spheres will collide within a time step
+///
+/// # Arguments
+///
+/// * `sphere1` - The first sphere
+/// * `velocity1` - The velocity of the first sphere [vx, vy, vz]
+/// * `sphere2` - The second sphere
+/// * `velocity2` - The velocity of the second sphere [vx, vy, vz]
+/// * `time_step` - The time step to check for collision
+///
+/// # Returns
+///
+/// `Some((time, pos1, pos2))` if the spheres will collide within the time step, where pos1 and pos2 are 
+/// the positions of the spheres at the time of collision, `None` otherwise
+pub fn continuous_sphere_sphere_collision(
+    sphere1: &Sphere,
+    velocity1: &[f64; 3],
+    sphere2: &Sphere,
+    velocity2: &[f64; 3],
+    time_step: f64,
+) -> Option<(f64, [f64; 3], [f64; 3])> {
+    // Calculate relative position and velocity
+    let relative_position = [
+        sphere1.center[0] - sphere2.center[0],
+        sphere1.center[1] - sphere2.center[1],
+        sphere1.center[2] - sphere2.center[2],
+    ];
+
+    let relative_velocity = [
+        velocity1[0] - velocity2[0],
+        velocity1[1] - velocity2[1],
+        velocity1[2] - velocity2[2],
+    ];
+
+    // Calculate the quadratic equation coefficients
+    // a*t^2 + b*t + c = 0, where t is the time of collision
+
+    // a = |relative_velocity|^2
+    let a = relative_velocity[0] * relative_velocity[0]
+        + relative_velocity[1] * relative_velocity[1]
+        + relative_velocity[2] * relative_velocity[2];
+
+    // If a is very close to 0, the spheres are moving at the same velocity
+    if a < 1e-10 {
+        // Check if they are already colliding
+        let distance_squared = relative_position[0] * relative_position[0]
+            + relative_position[1] * relative_position[1]
+            + relative_position[2] * relative_position[2];
+        let sum_of_radii = sphere1.radius + sphere2.radius;
+
+        if distance_squared <= sum_of_radii * sum_of_radii {
+            // They're already colliding, return positions at time 0
+            return Some((0.0, sphere1.center, sphere2.center));
+        } else {
+            return None;
+        }
+    }
+
+    // b = 2 * dot(relative_velocity, relative_position)
+    let b = 2.0
+        * (relative_velocity[0] * relative_position[0]
+            + relative_velocity[1] * relative_position[1]
+            + relative_velocity[2] * relative_position[2]);
+
+    // c = |relative_position|^2 - (sphere1.radius + sphere2.radius)^2
+    let c = relative_position[0] * relative_position[0]
+        + relative_position[1] * relative_position[1]
+        + relative_position[2] * relative_position[2]
+        - (sphere1.radius + sphere2.radius) * (sphere1.radius + sphere2.radius);
+
+    // If c <= 0, the spheres are already colliding
+    if c <= 0.0 {
+        // They're already colliding, return positions at time 0
+        return Some((0.0, sphere1.center, sphere2.center));
+    }
+
+    // Discriminant determines if the spheres will collide
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        // No collision will occur
+        return None;
+    }
+
+    // Calculate the time of collision
+    let t = (-b - discriminant.sqrt()) / (2.0 * a);
+
+    // Check if the collision occurs within the time step
+    if t >= 0.0 && t <= time_step {
+        // Calculate positions at collision time
+        let pos1 = [
+            sphere1.center[0] + velocity1[0] * t,
+            sphere1.center[1] + velocity1[1] * t,
+            sphere1.center[2] + velocity1[2] * t,
+        ];
+        
+        let pos2 = [
+            sphere2.center[0] + velocity2[0] * t,
+            sphere2.center[1] + velocity2[1] * t,
+            sphere2.center[2] + velocity2[2] * t,
+        ];
+        
+        Some((t, pos1, pos2))
+    } else {
+        None
+    }
+}

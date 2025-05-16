@@ -4,4 +4,6 @@
 
 mod scirs_metrics;
 
+// Re-export ScirsMetricsCallback
+#[allow(unused_imports)]
 pub use scirs_metrics::ScirsMetricsCallback;

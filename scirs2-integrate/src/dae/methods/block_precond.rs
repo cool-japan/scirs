@@ -12,6 +12,7 @@
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
+use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -35,7 +36,7 @@ use std::fmt::Debug;
 ///
 /// This block structure is exploited by the preconditioner for more efficient
 /// solution of the linear systems arising in Newton iterations.
-pub struct BlockILUPreconditioner<F: Float> {
+pub struct BlockILUPreconditioner<F: IntegrateFloat> {
     // Sizes of differential and algebraic parts
     n_x: usize,
     n_y: usize,
@@ -54,7 +55,7 @@ pub struct BlockILUPreconditioner<F: Float> {
     d_scaling: Array1<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug + ScalarOperand> BlockILUPreconditioner<F> {
+impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
     /// Create a new block ILU(0) preconditioner for semi-explicit DAE systems
     ///
     /// # Arguments
@@ -259,7 +260,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand> BlockILUPreconditioner<F>
 /// This struct implements a block Jacobi preconditioner that exploits the natural
 /// block structure in DAE systems. The preconditioner uses approximate inverses
 /// of the diagonal blocks, which is computationally efficient and preserves sparsity.
-pub struct BlockJacobiPreconditioner<F: Float> {
+pub struct BlockJacobiPreconditioner<F: IntegrateFloat> {
     // Total size of the system
     n: usize,
 
@@ -273,7 +274,7 @@ pub struct BlockJacobiPreconditioner<F: Float> {
     block_inverses: Vec<Array2<F>>,
 }
 
-impl<F: Float + FromPrimitive + Debug + ScalarOperand> BlockJacobiPreconditioner<F> {
+impl<F: IntegrateFloat> BlockJacobiPreconditioner<F> {
     /// Create a new block Jacobi preconditioner with automatic block detection
     ///
     /// This constructor attempts to identify natural blocks in the Jacobian
@@ -540,7 +541,7 @@ pub fn create_block_ilu_preconditioner<F>(
     beta: F,
 ) -> impl Fn(&Array1<F>) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
 {
     // Create the preconditioner
     let preconditioner = BlockILUPreconditioner::new(f_x, f_y, g_x, g_y, h, beta);
@@ -565,7 +566,7 @@ pub fn create_block_jacobi_preconditioner<F>(
     block_size: usize,
 ) -> impl Fn(&Array1<F>) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
 {
     // Create the preconditioner
     let preconditioner = BlockJacobiPreconditioner::new(jacobian, block_size);

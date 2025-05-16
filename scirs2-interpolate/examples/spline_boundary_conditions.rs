@@ -1,5 +1,5 @@
-use ndarray::{array, ArrayView1};
-use scirs2_interpolate::spline::{make_interp_spline, BoundaryCondition, CubicSpline};
+use ndarray::{array, Array1, ArrayView1};
+use scirs2_interpolate::spline::make_interp_spline;
 
 fn main() {
     println!("Cubic Spline Boundary Conditions Example");
@@ -73,9 +73,9 @@ fn compare_boundary_conditions(x: &ArrayView1<f64>, y: &ArrayView1<f64>) {
 
     for i in 0..test_points.len() {
         let true_value = test_points[i] * test_points[i];
-        natural_mse += (natural_values[i] - true_value).powi(2);
-        not_a_knot_mse += (not_a_knot_values[i] - true_value).powi(2);
-        clamped_mse += (clamped_values[i] - true_value).powi(2);
+        natural_mse += f64::powi(natural_values[i] - true_value, 2);
+        not_a_knot_mse += f64::powi(not_a_knot_values[i] - true_value, 2);
+        clamped_mse += f64::powi(clamped_values[i] - true_value, 2);
     }
 
     natural_mse /= test_points.len() as f64;
@@ -140,7 +140,7 @@ fn demonstrate_derivatives_and_integration(x: &ArrayView1<f64>, y: &ArrayView1<f
         let spline_integral = spline.integrate(a, b).unwrap();
 
         // For y = x^2, the indefinite integral is x^3/3
-        let true_integral = (b.powi(3) - a.powi(3)) / 3.0;
+        let true_integral = (f64::powi(b, 3) - f64::powi(a, 3)) / 3.0;
 
         println!(
             "[{:.1}, {:.1}] |     {:.4}      |          {:.4}",
@@ -157,13 +157,13 @@ fn demonstrate_periodic_splines() {
 
     // Create sample data for a periodic function
     // Using sin(x) over [0, 2π] as an example
-    let n_points = 9;
-    let mut x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 6.28318530718];
+    let _n_points = 9;
+    let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 6.28318530718];
     let mut y = Array1::zeros(x.len());
 
     // Fill y with sin(x) values
     for i in 0..x.len() {
-        y[i] = x[i].sin();
+        y[i] = f64::sin(x[i]);
     }
 
     println!("\nSample data (y = sin(x) over [0, 2π]):");
@@ -191,7 +191,7 @@ fn demonstrate_periodic_splines() {
         let test_point = test_points[i];
         let periodic_value = periodic_spline.evaluate(test_point).unwrap();
         let natural_value = natural_spline.evaluate(test_point).unwrap();
-        let true_value = test_point.sin();
+        let true_value = f64::sin(test_point);
 
         println!(
             " {:.1} |     {:.6}     |    {:.6}    |  {:.6}",
@@ -212,7 +212,7 @@ fn demonstrate_periodic_splines() {
     for i in 0..outside_points.len() {
         let test_point = outside_points[i];
         let periodic_value = periodic_spline.evaluate(test_point);
-        let true_value = test_point.sin();
+        let true_value = f64::sin(test_point);
         let natural_value = natural_spline.evaluate(test_point);
 
         let periodic_str = match periodic_value {

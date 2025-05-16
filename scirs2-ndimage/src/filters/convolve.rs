@@ -1,6 +1,6 @@
 //! Convolution functions for n-dimensional arrays
 
-use ndarray::{Array, Dimension};
+use ndarray::{Array, Array1, Dimension};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -187,6 +187,74 @@ where
     }
 
     Ok(output)
+}
+
+/// Apply a 1D correlation along the specified axis
+pub fn correlate1d<T, D>(
+    input: &Array<T, D>,
+    weights: &Array1<T>,
+    axis: usize,
+    mode: Option<BorderMode>,
+    cval: Option<T>,
+) -> Result<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + Clone,
+    D: Dimension,
+{
+    use ndarray::IxDyn;
+
+    let mode = mode.unwrap_or(BorderMode::Reflect);
+    let _cval = cval.unwrap_or(T::zero());
+
+    // Validate axis
+    if axis >= input.ndim() {
+        return Err(NdimageError::InvalidInput(format!(
+            "Axis {} is out of bounds for array of dimension {}",
+            axis,
+            input.ndim()
+        )));
+    }
+
+    // Convert to dynamic dimension for easier manipulation
+    let input_dyn = input.to_owned().into_dimensionality::<IxDyn>().unwrap();
+
+    // Create padding for this axis only
+    let mut pad_width = vec![(0, 0); input.ndim()];
+    let kernel_size = weights.len();
+    let pad_before = kernel_size / 2;
+    let pad_after = kernel_size - pad_before - 1;
+    pad_width[axis] = (pad_before, pad_after);
+
+    // Import pad_array
+    use super::pad_array;
+
+    // Pad the input
+    let padded = pad_array(&input_dyn, &pad_width, &mode, cval)?;
+
+    // Create output array
+    let mut output = Array::zeros(input_dyn.raw_dim());
+
+    // Iterate over the output and compute convolution
+    for out_idx in ndarray::indices(output.shape()) {
+        let mut sum = T::zero();
+
+        // For this output position, compute the 1D convolution
+        let out_coords: Vec<_> = out_idx.slice().to_vec();
+
+        for k in 0..kernel_size {
+            let mut in_coords = out_coords.clone();
+            in_coords[axis] = out_coords[axis] + k;
+
+            sum = sum + padded[IxDyn(&in_coords)] * weights[k];
+        }
+
+        output[IxDyn(&out_coords)] = sum;
+    }
+
+    // Convert back to the original dimension type
+    output.into_dimensionality().map_err(|_| {
+        NdimageError::DimensionError("Failed to convert output back to original dimension".into())
+    })
 }
 
 #[cfg(test)]

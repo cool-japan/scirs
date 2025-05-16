@@ -23,6 +23,9 @@ use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
 
+/// Type alias for sparse matrix representation
+type SparseComponents<F> = (Vec<(usize, usize)>, Vec<F>);
+
 /// Maximum number of neighbors to consider in local kriging
 const DEFAULT_MAX_NEIGHBORS: usize = 50;
 
@@ -136,7 +139,7 @@ where
 
     /// Sparse representation for Tapering method
     /// Indices and values for sparse covariance matrix
-    sparse_components: Option<(Vec<(usize, usize)>, Vec<F>)>,
+    sparse_components: Option<SparseComponents<F>>,
 
     /// Weights for kriging predictions
     /// Different format based on approximation method
@@ -238,6 +241,28 @@ where
     _phantom: PhantomData<F>,
 }
 
+impl<F> Default for FastKrigingBuilder<F>
+where
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + Add<Output = F>
+        + Sub<Output = F>
+        + Mul<Output = F>
+        + Div<Output = F>
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign
+        + 'static,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F> FastKrigingBuilder<F>
 where
     F: Float
@@ -252,7 +277,8 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 {
     /// Create a new builder for FastKriging
     pub fn new() -> Self {
@@ -484,11 +510,27 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 {
     /// Create a new builder for FastKriging
     pub fn builder() -> FastKrigingBuilder<F> {
         FastKrigingBuilder::new()
+    }
+
+    /// Get the kriging weights
+    pub fn weights(&self) -> &Array1<F> {
+        &self.weights
+    }
+
+    /// Check if parameter optimization is enabled
+    pub fn optimize_parameters(&self) -> bool {
+        self.optimize_parameters
+    }
+
+    /// Check if exact variance computation is enabled
+    pub fn compute_exact_variance(&self) -> bool {
+        self.compute_exact_variance
     }
 
     /// Predict values at new points using fast approximation
@@ -526,7 +568,7 @@ where
             let query_point = query_points.slice(ndarray::s![i, ..]);
 
             // Find nearest neighbors
-            let (indices, distances) = find_nearest_neighbors(
+            let (indices, _distances) = find_nearest_neighbors(
                 &query_point,
                 &self.points,
                 self.max_neighbors,
@@ -572,10 +614,11 @@ where
             }
 
             // Compute local trend basis if needed
+            #[allow(unused_variables)]
             let local_prediction: (F, Array1<F>) = if self.trend_fn != TrendFunction::Constant {
                 // Universal Kriging with trend
                 let local_basis = create_basis_functions(&local_points.view(), self.trend_fn)?;
-                let query_basis = create_basis_functions(
+                let _query_basis = create_basis_functions(
                     &query_point.to_shape((1, query_point.len()))?.view(),
                     self.trend_fn,
                 )?;
@@ -595,15 +638,19 @@ where
                 // Fill basis function blocks
                 for j in 0..n_neighbors {
                     for k in 0..n_basis {
-                        aug_matrix[[j, n_neighbors + k]] = local_basis[[j, k]];
-                        aug_matrix[[n_neighbors + k, j]] = local_basis[[j, k]];
+                        let idx = n_neighbors + k;
+                        aug_matrix[[j, idx]] = local_basis[[j, k]];
+                        let idx = n_neighbors + k;
+                        aug_matrix[[idx, j]] = local_basis[[j, k]];
                     }
                 }
 
                 // Zero block in lower right
                 for j in 0..n_basis {
                     for k in 0..n_basis {
-                        aug_matrix[[n_neighbors + j, n_neighbors + k]] = F::zero();
+                        let idx1 = n_neighbors + j;
+                        let idx2 = n_neighbors + k;
+                        aug_matrix[[idx1, idx2]] = F::zero();
                     }
                 }
 
@@ -656,21 +703,22 @@ where
                     let weights = solution.slice(ndarray::s![0..n_neighbors]).to_owned();
                     let trend_coeffs = solution.slice(ndarray::s![n_neighbors..]).to_owned();
 
-                // Compute prediction
-                let mut trend = F::zero();
-                for j in 0..n_basis {
-                    trend = trend + trend_coeffs[j] * query_basis[[0, j]];
-                }
+                    // Compute prediction
+                    let mut trend = F::zero();
+                    for j in 0..n_basis {
+                        trend = trend + trend_coeffs[j] * query_basis[[0, j]];
+                    }
 
-                let mut residual = F::zero();
-                for j in 0..n_neighbors {
-                    residual = residual + weights[j] * local_values[j];
-                }
+                    let mut residual = F::zero();
+                    for j in 0..n_neighbors {
+                        residual = residual + weights[j] * local_values[j];
+                    }
 
                     (trend + residual, weights)
-                }  // end cfg(feature = "linalg")
-                
-                // Default case - neither linalg nor universal kriging would reach here, but needed for type checking
+                } // end cfg(feature = "linalg")
+
+                // Use a placeholder value that will never be returned
+                #[allow(unreachable_code)]
                 #[cfg(not(feature = "linalg"))]
                 (F::zero(), Array1::zeros(n_neighbors))
             } else {
@@ -703,9 +751,10 @@ where
                     }
 
                     (prediction, weights)
-                }  // end cfg(feature = "linalg")
-                
-                // Default case - neither linalg nor simple kriging would reach here, but needed for type checking
+                } // end cfg(feature = "linalg")
+
+                // Use a placeholder value that will never be returned
+                #[allow(unreachable_code)]
                 #[cfg(not(feature = "linalg"))]
                 (F::zero(), Array1::zeros(n_neighbors))
             };
@@ -793,7 +842,7 @@ where
             // Compute trend component
             let mut trend = F::zero();
             for j in 0..query_basis.shape()[1] {
-                trend = trend + trend_coeffs[j] * query_basis[[i, j]];
+                trend += trend_coeffs[j] * query_basis[[i, j]];
             }
 
             // Compute residual using low-rank approximation
@@ -874,7 +923,7 @@ where
             // Compute trend component
             let mut trend = F::zero();
             for j in 0..query_basis.shape()[1] {
-                trend = trend + trend_coeffs[j] * query_basis[[i, j]];
+                trend += trend_coeffs[j] * query_basis[[i, j]];
             }
 
             // Find training points within taper range
@@ -918,7 +967,7 @@ where
                         for (&(row, col), &val) in indices.iter().zip(values.iter()) {
                             if row == p {
                                 // Multiply sparse row by residual vector
-                                a_j = a_j + val * (self.values[col] - trend);
+                                a_j += val * (self.values[col] - trend);
                             }
                         }
                         break;
@@ -930,7 +979,7 @@ where
             // Compute prediction
             let mut residual = F::zero();
             for idx in 0..n_nonzero {
-                residual = residual + k_star[idx] * alpha[idx];
+                residual += k_star[idx] * alpha[idx];
             }
 
             // Final prediction
@@ -938,8 +987,8 @@ where
 
             // Compute approximate variance (simplified for sparse case)
             let mut variance = self.anisotropic_cov.sigma_sq;
-            for idx in 0..n_nonzero {
-                variance = variance - k_star[idx] * k_star[idx] / self.anisotropic_cov.sigma_sq;
+            for value in k_star.iter().take(n_nonzero) {
+                variance -= *value * *value / self.anisotropic_cov.sigma_sq;
             }
 
             pred_variances[i] = if variance < F::zero() {
@@ -1006,7 +1055,7 @@ where
 
         // Recursion helper: Start with the full dataset
         let n_train = self.points.shape()[0];
-        let mut train_indices: Vec<usize> = (0..n_train).collect();
+        let train_indices: Vec<usize> = (0..n_train).collect();
 
         // For each query point
         for i in 0..n_query {
@@ -1015,7 +1064,7 @@ where
             // Compute trend component
             let mut trend = F::zero();
             for j in 0..query_basis.shape()[1] {
-                trend = trend + trend_coeffs[j] * query_basis[[i, j]];
+                trend += trend_coeffs[j] * query_basis[[i, j]];
             }
 
             // Compute prediction using HODLR approximation
@@ -1157,7 +1206,7 @@ where
             .collect();
         values_at_dim.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median = if values_at_dim.len() % 2 == 0 {
+        let _median = if values_at_dim.len() % 2 == 0 {
             (values_at_dim[values_at_dim.len() / 2 - 1] + values_at_dim[values_at_dim.len() / 2])
                 * F::from_f64(0.5).unwrap()
         } else {
@@ -1167,7 +1216,7 @@ where
         // Partition into near and far sets
         let query_val = query_point[split_dim];
         let (near_indices, far_indices): (Vec<usize>, Vec<usize>) =
-            indices.iter().map(|&idx| idx).partition(|&idx| {
+            indices.iter().copied().partition(|&idx| {
                 let dist = (self.points[[idx, split_dim]] - query_val).abs();
                 dist <= max_extent * F::from_f64(0.5).unwrap()
             });
@@ -1386,9 +1435,17 @@ fn find_nearest_neighbors<F: Float + FromPrimitive>(
 }
 
 /// Compute anisotropic distance between two points
-fn compute_anisotropic_distance<F: Float + FromPrimitive + Debug + Display + 
-    std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + 
-    std::ops::DivAssign + std::ops::RemAssign>(
+fn compute_anisotropic_distance<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+>(
     p1: &ArrayView1<F>,
     p2: &ArrayView1<F>,
     anisotropic_cov: &AnisotropicCovariance<F>,
@@ -1405,16 +1462,24 @@ fn compute_anisotropic_distance<F: Float + FromPrimitive + Debug + Display +
     let mut sum_sq = F::zero();
     for i in 0..n_dims {
         let diff = (p1[i] - p2[i]) / anisotropic_cov.length_scales[i];
-        sum_sq = sum_sq + diff * diff;
+        sum_sq += diff * diff;
     }
 
     Ok(sum_sq.sqrt())
 }
 
 /// Evaluate the covariance function
-fn compute_covariance<F: Float + FromPrimitive + Debug + Display + 
-    std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + 
-    std::ops::DivAssign + std::ops::RemAssign>(
+fn compute_covariance<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+>(
     r: F,
     anisotropic_cov: &AnisotropicCovariance<F>,
 ) -> F {
@@ -1449,9 +1514,17 @@ fn compute_covariance<F: Float + FromPrimitive + Debug + Display +
 }
 
 /// Compute low-rank approximation of the covariance matrix
-fn compute_low_rank_approximation<F: Float + FromPrimitive + Debug + Display + 
-    std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + 
-    std::ops::DivAssign + std::ops::RemAssign>(
+fn compute_low_rank_approximation<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+>(
     points: &Array2<F>,
     anisotropic_cov: &AnisotropicCovariance<F>,
     rank: usize,
@@ -1520,13 +1593,21 @@ fn compute_low_rank_approximation<F: Float + FromPrimitive + Debug + Display +
 }
 
 /// Compute tapered covariance representation
-fn compute_tapered_covariance<F: Float + FromPrimitive + Debug + Display + 
-    std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + 
-    std::ops::DivAssign + std::ops::RemAssign>(
+fn compute_tapered_covariance<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+>(
     points: &Array2<F>,
     anisotropic_cov: &AnisotropicCovariance<F>,
     taper_range: F,
-) -> InterpolateResult<(Vec<(usize, usize)>, Vec<F>)> {
+) -> InterpolateResult<SparseComponents<F>> {
     let n_points = points.shape()[0];
     let mut indices = Vec::new();
     let mut values = Vec::new();
@@ -1566,9 +1647,17 @@ fn compute_tapered_covariance<F: Float + FromPrimitive + Debug + Display +
 }
 
 /// Project a point onto a feature in the feature space
-fn project_to_feature<F: Float + FromPrimitive + Debug + Display + 
-    std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + 
-    std::ops::DivAssign + std::ops::RemAssign>(
+fn project_to_feature<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+>(
     query_point: &ArrayView1<F>,
     points: &Array2<F>,
     feature_idx: usize,
@@ -1647,7 +1736,8 @@ pub fn make_local_kriging<
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 >(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -1720,7 +1810,8 @@ pub fn make_fixed_rank_kriging<
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 >(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -1792,7 +1883,8 @@ pub fn make_hodlr_kriging<
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 >(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -1864,7 +1956,8 @@ pub fn make_tapered_kriging<
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + 'static,
 >(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,

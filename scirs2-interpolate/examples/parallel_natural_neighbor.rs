@@ -3,11 +3,10 @@
 //! This example shows how to use parallel Voronoi-based Natural Neighbor
 //! interpolation methods and compares performance with sequential methods.
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use rand::Rng;
 use scirs2_interpolate::voronoi::{
-    make_parallel_sibson_interpolator, make_sibson_interpolator, InterpolationMethod,
-    NaturalNeighborInterpolator, ParallelConfig, ParallelNaturalNeighborInterpolator,
+    make_parallel_sibson_interpolator, make_sibson_interpolator, ParallelConfig,
 };
 use std::error::Error;
 use std::time::Instant;
@@ -15,13 +14,13 @@ use std::time::Instant;
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points
     let n_points = 500;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Create points in a 2D domain
     let mut points_vec = Vec::with_capacity(n_points * 2);
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..10.0);
-        let y = rng.gen_range(0.0..10.0);
+        let x = rng.random_range(0.0..=10.0);
+        let y = rng.random_range(0.0..=10.0);
         points_vec.push(x);
         points_vec.push(y);
     }
@@ -35,9 +34,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let y = points[[i, 1]];
 
         // Test function: peaks with exponential decay
-        let value = 2.0 * (-(x - 5.0).powi(2) - (y - 5.0).powi(2) / 8.0).exp()
-            + (-(x - 2.0).powi(2) - (y - 7.0).powi(2) / 2.0).exp()
-            + 0.5 * (-(x - 8.0).powi(2) - (y - 3.0).powi(2) / 4.0).exp();
+        let value = 2.0 * f64::exp(-(f64::powi(x - 5.0, 2) + f64::powi(y - 5.0, 2) / 8.0))
+            + f64::exp(-(f64::powi(x - 2.0, 2) + f64::powi(y - 7.0, 2) / 2.0))
+            + 0.5 * f64::exp(-(f64::powi(x - 8.0, 2) + f64::powi(y - 3.0, 2) / 4.0));
 
         values_vec.push(value);
     }
@@ -95,8 +94,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let max_diff = sequential_results
         .iter()
         .zip(parallel_results.iter())
-        .map(|(s, p)| (*s - *p).abs())
-        .fold(0.0, |a, b| a.max(b));
+        .map(|(s, p)| f64::abs(*s - *p))
+        .fold(0.0, |a, b| f64::max(a, b));
 
     println!(
         "Maximum difference between sequential and parallel results: {}",

@@ -4,16 +4,14 @@
 // L1/L0 regularization, basis pursuit, matching pursuit, and orthogonal matching pursuit.
 
 use crate::error::{SignalError, SignalResult};
-use crate::utils;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use ndarray_linalg::{Norm, UPLO};
-use scirs2_linalg::solve;
+use ndarray::{s, Array1, Array2};
 use num_complex::Complex64;
-use rustfft::{num_complex::Complex, FftPlanner};
-use std::cmp::min;
-use rand::{thread_rng as rng, Rng, SeedableRng};
-use rand_distr::{Distribution};
 use rand::seq::SliceRandom;
+use rand::{rngs::StdRng, thread_rng as rng, Rng, SeedableRng};
+use rand_distr::Distribution;
+use rustfft::{num_complex::Complex, FftPlanner};
+use scirs2_linalg::{solve, vector_norm};
+use std::cmp::min;
 
 /// Configuration for sparse signal recovery algorithms
 #[derive(Debug, Clone)]
@@ -119,7 +117,7 @@ pub fn omp(
     let mut x = Array1::<f64>::zeros(n);
 
     // Store phi_active (dictionary restricted to active set)
-    let mut phi_active = Array2::zeros((m, 0));
+    let mut phi_active = Array2::<f64>::zeros((m, 0));
 
     // OMP iterations
     for _ in 0..min(k, config.max_iterations) {
@@ -146,7 +144,7 @@ pub fn omp(
         active_set.push(best_idx);
 
         // Create new phi_active by adding the new column
-        let mut new_phi_active = Array2::zeros((m, active_set.len()));
+        let mut new_phi_active = Array2::<f64>::zeros((m, active_set.len()));
         for (i, &idx) in active_set.iter().enumerate() {
             let column = phi.slice(s![.., idx]);
             new_phi_active.slice_mut(s![.., i]).assign(&column);
@@ -154,9 +152,10 @@ pub fn omp(
         phi_active = new_phi_active;
 
         // Solve least squares problem for active columns
-        let coefficients = match solve(&phi_active.t().dot(&phi_active).view(), 
-                                       &phi_active.t().dot(y).view())
-        {
+        let coefficients = match solve(
+            &phi_active.t().dot(&phi_active).view(),
+            &phi_active.t().dot(y).view(),
+        ) {
             Ok(coef) => coef,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -169,7 +168,8 @@ pub fn omp(
         residual = y - &phi_active.dot(&coefficients);
 
         // Check convergence
-        let res_norm = residual.norm();
+        let res_norm = vector_norm(&residual.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
         if res_norm < config.convergence_threshold || res_norm < config.eps {
             break;
         }
@@ -183,9 +183,10 @@ pub fn omp(
     }
 
     // Solve least squares once more to get final coefficients
-    let coefficients = match solve(&phi_active.t().dot(&phi_active).view(),
-                                   &phi_active.t().dot(y).view())
-    {
+    let coefficients = match solve(
+        &phi_active.t().dot(&phi_active).view(),
+        &phi_active.t().dot(y).view(),
+    ) {
         Ok(coef) => coef,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -244,7 +245,8 @@ pub fn mp(
     let mut normalized_phi = phi.clone();
     for j in 0..n {
         let mut col = normalized_phi.slice_mut(s![.., j]);
-        let norm = col.norm();
+        let norm = vector_norm(&col.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
         if norm > config.eps {
             col.mapv_inplace(|val| val / norm);
         }
@@ -294,7 +296,8 @@ pub fn mp(
         }
 
         // Check convergence
-        let res_norm = residual.norm();
+        let res_norm = vector_norm(&residual.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
         if res_norm < config.convergence_threshold || res_norm < config.eps {
             break;
         }
@@ -336,14 +339,14 @@ pub fn ista(
     // Compute step size (based on max eigenvalue of phi^T * phi)
     // For efficiency, we use an approximation: 1 / (largest singular value of phi)^2
     let phi_norm = (0..n)
-        .map(|j| phi.slice(s![.., j]).norm())
-        .fold(0.0, |a, b| a.max(b));
+        .map(|j| vector_norm(&phi.slice(s![.., j]).view(), 2).unwrap_or(0.0))
+        .fold(0.0, |a: f64, b: f64| a.max(b));
 
     let step_size = 1.0 / (phi_norm * phi_norm);
 
     // Initialize solution
     let mut x = Array1::<f64>::zeros(n);
-    let mut x_prev = Array1::zeros(n);
+    let mut x_prev = Array1::<f64>::zeros(n);
 
     // Pre-compute phi^T
     let phi_t = phi.t();
@@ -374,7 +377,11 @@ pub fn ista(
         }
 
         // Check convergence
-        let diff = (&x - &x_prev).norm() / x.norm().max(config.eps);
+        let x_diff_norm = vector_norm(&(&x - &x_prev).view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let x_norm = vector_norm(&x.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let diff = x_diff_norm / x_norm.max(config.eps);
         if diff < config.convergence_threshold {
             break;
         }
@@ -404,8 +411,8 @@ pub fn fista(
     // Compute step size (based on max eigenvalue of phi^T * phi)
     // For efficiency, we use an approximation: 1 / (largest singular value of phi)^2
     let phi_norm = (0..n)
-        .map(|j| phi.slice(s![.., j]).norm())
-        .fold(0.0, |a, b| a.max(b));
+        .map(|j| vector_norm(&phi.slice(s![.., j]).view(), 2).unwrap_or(0.0))
+        .fold(0.0, |a: f64, b: f64| a.max(b));
 
     let step_size = 1.0 / (phi_norm * phi_norm);
 
@@ -454,7 +461,11 @@ pub fn fista(
         t = t_next;
 
         // Check convergence
-        let diff = (&x - &x_prev).norm() / x.norm().max(config.eps);
+        let x_diff_norm = vector_norm(&(&x - &x_prev).view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let x_norm = vector_norm(&x.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let diff = x_diff_norm / x_norm.max(config.eps);
         if diff < config.convergence_threshold {
             break;
         }
@@ -492,7 +503,7 @@ pub fn cosamp(
 
     // Initialize solution
     let mut x = Array1::<f64>::zeros(n);
-    let mut x_prev = Array1::zeros(n);
+    let mut x_prev = Array1::<f64>::zeros(n);
 
     // Initialize residual
     let mut residual = y.clone();
@@ -538,16 +549,17 @@ pub fn cosamp(
         }
 
         // Create restricted sensing matrix for the merged support
-        let mut phi_restricted = Array2::zeros((m, support.len()));
+        let mut phi_restricted = Array2::<f64>::zeros((m, support.len()));
         for (i, &idx) in support.iter().enumerate() {
             let column = phi.slice(s![.., idx]);
             phi_restricted.slice_mut(s![.., i]).assign(&column);
         }
 
         // Solve least squares problem
-        let coefficients = match solve(&phi_restricted.t().dot(&phi_restricted).view(),
-                                        &phi_restricted.t().dot(y).view())
-        {
+        let coefficients = match solve(
+            &phi_restricted.t().dot(&phi_restricted).view(),
+            &phi_restricted.t().dot(y).view(),
+        ) {
             Ok(coef) => coef,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -557,7 +569,7 @@ pub fn cosamp(
         };
 
         // Create temporary solution
-        let mut x_temp = Array1::zeros(n);
+        let mut x_temp = Array1::<f64>::zeros(n);
         for (i, &idx) in support.iter().enumerate() {
             x_temp[idx] = coefficients[i];
         }
@@ -573,7 +585,7 @@ pub fn cosamp(
         temp_values.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         // Create new solution with K largest entries
-        let mut x_new = Array1::zeros(n);
+        let mut x_new = Array1::<f64>::zeros(n);
         for &(i, _) in temp_values.iter().take(k) {
             x_new[i] = x_temp[i];
         }
@@ -585,13 +597,18 @@ pub fn cosamp(
         residual = y - &phi.dot(&x);
 
         // Check convergence
-        let diff = (&x - &x_prev).norm() / x.norm().max(config.eps);
+        let x_diff_norm = vector_norm(&(&x - &x_prev).view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let x_norm = vector_norm(&x.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let diff = x_diff_norm / x_norm.max(config.eps);
         if diff < config.convergence_threshold {
             break;
         }
 
         // Check residual
-        let res_norm = residual.norm();
+        let res_norm = vector_norm(&residual.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
         if res_norm < config.convergence_threshold || res_norm < config.eps {
             break;
         }
@@ -642,14 +659,14 @@ pub fn iht(
     // Compute step size (based on max eigenvalue of phi^T * phi)
     // For efficiency, we use an approximation: 1 / (largest singular value of phi)^2
     let phi_norm = (0..n)
-        .map(|j| phi.slice(s![.., j]).norm())
-        .fold(0.0, |a, b| a.max(b));
+        .map(|j| vector_norm(&phi.slice(s![.., j]).view(), 2).unwrap_or(0.0))
+        .fold(0.0, |a: f64, b: f64| a.max(b));
 
     let step_size = 0.9 / (phi_norm * phi_norm); // slightly smaller for stability
 
     // Initialize solution
     let mut x = Array1::<f64>::zeros(n);
-    let mut x_prev = Array1::zeros(n);
+    let mut x_prev = Array1::<f64>::zeros(n);
 
     // Pre-compute phi^T
     let phi_t = phi.t();
@@ -682,7 +699,7 @@ pub fn iht(
         values.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         // Create new solution with K largest entries
-        let mut x_new = Array1::zeros(n);
+        let mut x_new = Array1::<f64>::zeros(n);
         for &(i, _) in values.iter().take(k) {
             x_new[i] = x_grad[i];
         }
@@ -691,14 +708,20 @@ pub fn iht(
         x = x_new;
 
         // Check convergence
-        let diff = (&x - &x_prev).norm() / x.norm().max(config.eps);
+        let x_diff_norm = vector_norm(&(&x - &x_prev).view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let x_norm = vector_norm(&x.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let diff = x_diff_norm / x_norm.max(config.eps);
         if diff < config.convergence_threshold {
             break;
         }
 
         // Check if target error is achieved
         if let Some(target) = config.target_error {
-            let err = (phi.dot(&x) - y).norm();
+            let err_vec = phi.dot(&x) - y;
+            let err = vector_norm(&err_vec.view(), 2)
+                .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
             if err <= target {
                 break;
             }
@@ -736,7 +759,7 @@ pub fn subspace_pursuit(
     };
 
     // Initialize solution
-    let mut x = Array1::<f64>::zeros(n);
+    let x = Array1::<f64>::zeros(n);
 
     // Initialize residual
     let mut residual = y.clone();
@@ -761,15 +784,16 @@ pub fn subspace_pursuit(
     // Subspace Pursuit iterations
     for _ in 0..config.max_iterations {
         // Solve least squares problem on the current support
-        let mut phi_support = Array2::zeros((m, support.len()));
+        let mut phi_support = Array2::<f64>::zeros((m, support.len()));
         for (i, &idx) in support.iter().enumerate() {
             let column = phi.slice(s![.., idx]);
             phi_support.slice_mut(s![.., i]).assign(&column);
         }
 
-        let signal_proxy = match solve(&phi_support.t().dot(&phi_support).view(),
-                                        &phi_support.t().dot(y).view())
-        {
+        let signal_proxy = match solve(
+            &phi_support.t().dot(&phi_support).view(),
+            &phi_support.t().dot(y).view(),
+        ) {
             Ok(proxy) => proxy,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -805,15 +829,16 @@ pub fn subspace_pursuit(
         }
 
         // Solve least squares on merged support
-        let mut phi_merged = Array2::zeros((m, merged_support.len()));
+        let mut phi_merged = Array2::<f64>::zeros((m, merged_support.len()));
         for (i, &idx) in merged_support.iter().enumerate() {
             let column = phi.slice(s![.., idx]);
             phi_merged.slice_mut(s![.., i]).assign(&column);
         }
 
-        let merged_proxy = match solve(&phi_merged.t().dot(&phi_merged).view(),
-                                       &phi_merged.t().dot(y).view())
-        {
+        let merged_proxy = match solve(
+            &phi_merged.t().dot(&phi_merged).view(),
+            &phi_merged.t().dot(y).view(),
+        ) {
             Ok(proxy) => proxy,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -847,22 +872,25 @@ pub fn subspace_pursuit(
 
         // Check if target error is achieved
         if let Some(target) = config.target_error {
-            if residual.norm() <= target {
+            let res_norm = vector_norm(&residual.view(), 2)
+                .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+            if res_norm <= target {
                 break;
             }
         }
     }
 
     // Solve final least squares problem on the support
-    let mut phi_support = Array2::zeros((m, support.len()));
+    let mut phi_support = Array2::<f64>::zeros((m, support.len()));
     for (i, &idx) in support.iter().enumerate() {
         let column = phi.slice(s![.., idx]);
         phi_support.slice_mut(s![.., i]).assign(&column);
     }
 
-    let coefficients = match solve(&phi_support.t().dot(&phi_support).view(),
-                                    &phi_support.t().dot(y).view())
-    {
+    let coefficients = match solve(
+        &phi_support.t().dot(&phi_support).view(),
+        &phi_support.t().dot(y).view(),
+    ) {
         Ok(coef) => coef,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -872,7 +900,7 @@ pub fn subspace_pursuit(
     };
 
     // Fill recovered signal with coefficients at support indices
-    let mut x_final = Array1::zeros(n);
+    let mut x_final = Array1::<f64>::zeros(n);
     for (i, &idx) in support.iter().enumerate() {
         x_final[idx] = coefficients[i];
     }
@@ -917,7 +945,7 @@ pub fn smooth_l0(
     };
 
     // Initialize sigma (decreasing sequence of smoothing parameters)
-    let max_x = x.fold(0.0, |a, &b| a.max(b.abs()));
+    let max_x = x.fold(0.0_f64, |a, &b| a.max(b.abs()));
     let mut sigma = 2.0 * max_x;
     let sigma_min = config.eps;
     let sigma_decrease_factor = 0.5;
@@ -1102,11 +1130,11 @@ where
     // Create sensing matrix (masked inverse transform)
     // For each column j, compute inverse transform of a unit vector at position j,
     // then apply the observation mask
-    let mut phi = Array2::zeros((m, n));
+    let mut phi = Array2::<f64>::zeros((m, n));
 
     for j in 0..n {
         // Create unit vector
-        let mut unit = Array1::zeros(n);
+        let mut unit = Array1::<f64>::zeros(n);
         unit[j] = 1.0;
 
         // Apply inverse transform
@@ -1123,7 +1151,7 @@ where
     }
 
     // Extract observed samples into a vector
-    let mut y_observed = Array1::zeros(m);
+    let mut y_observed = Array1::<f64>::zeros(m);
     let mut idx = 0;
     for i in 0..n {
         if mask[i] > 0.5 {
@@ -1179,7 +1207,7 @@ pub fn recover_missing_samples(
         fft.process(&mut complex_signal);
 
         // Convert back to real (taking magnitude)
-        let mut result = Array1::zeros(n);
+        let mut result = Array1::<f64>::zeros(n);
         for i in 0..n {
             result[i] = (complex_signal[i].re.powi(2) + complex_signal[i].im.powi(2)).sqrt();
         }
@@ -1203,7 +1231,7 @@ pub fn recover_missing_samples(
 
         // Scale and convert back to real
         let scale = 1.0 / n as f64;
-        let mut result = Array1::zeros(n);
+        let mut result = Array1::<f64>::zeros(n);
         for i in 0..n {
             result[i] = complex_spectrum[i].re * scale;
         }
@@ -1272,7 +1300,7 @@ pub fn image_inpainting(
                 let recovered_flat = recover_missing_samples(&patch_flat, method, config)?;
 
                 // Reshape back to 2D
-                let mut recovered_patch = Array2::zeros((i_size, j_size));
+                let mut recovered_patch = Array2::<f64>::zeros((i_size, j_size));
                 let mut idx = 0;
                 for ii in 0..i_size {
                     for jj in 0..j_size {
@@ -1310,13 +1338,13 @@ pub fn image_inpainting(
 pub fn random_sensing_matrix(m: usize, n: usize, seed: Option<u64>) -> Array2<f64> {
     // Initialize with random Gaussian entries
     let mut rng = match seed {
-        Some(s) => rand::rngs::StdRng::from_seed([s as u8; 32]),
-        None => rand::rngs::StdRng::from_rng(&mut rng()).expect("Could not create rng"),
+        Some(s) => StdRng::from_seed([s as u8; 32]),
+        None => StdRng::from_seed([0u8; 32]), // Use deterministic seed for consistency
     };
 
     let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
 
-    let mut phi = Array2::zeros((m, n));
+    let mut phi = Array2::<f64>::zeros((m, n));
 
     for i in 0..m {
         for j in 0..n {
@@ -1345,18 +1373,20 @@ pub fn random_sensing_matrix(m: usize, n: usize, seed: Option<u64>) -> Array2<f6
 /// # Returns
 ///
 /// * Coherence (maximum absolute inner product between normalized columns)
-pub fn matrix_coherence(phi: &Array2<f64>) -> f64 {
+pub fn matrix_coherence(phi: &Array2<f64>) -> SignalResult<f64> {
     let (_, n) = phi.dim();
 
     let mut max_coherence = 0.0;
 
     for i in 0..n {
         let col_i = phi.slice(s![.., i]);
-        let norm_i = col_i.norm();
+        let norm_i = vector_norm(&col_i.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
 
         for j in i + 1..n {
             let col_j = phi.slice(s![.., j]);
-            let norm_j = col_j.norm();
+            let norm_j = vector_norm(&col_j.view(), 2)
+                .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
 
             let inner_product = col_i.dot(&col_j);
             let coherence = (inner_product / (norm_i * norm_j)).abs();
@@ -1365,7 +1395,7 @@ pub fn matrix_coherence(phi: &Array2<f64>) -> f64 {
         }
     }
 
-    max_coherence
+    Ok(max_coherence)
 }
 
 /// Computes the restricted isometry property (RIP) constant approximation
@@ -1413,7 +1443,8 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
         }
 
         // Normalize x
-        let x_norm = x.norm();
+        let x_norm = vector_norm(&x.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
         x.mapv_inplace(|val| val / x_norm);
 
         // Compute Phi * x
@@ -1421,7 +1452,9 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
 
         // Compute the ratio ||Phi * x||^2 / ||x||^2
         // Since x is normalized, ||x||^2 = 1
-        let ratio = y.norm().powi(2);
+        let y_norm = vector_norm(&y.view(), 2)
+            .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
+        let ratio = y_norm.powi(2);
 
         min_ratio = f64::min(min_ratio, ratio);
         max_ratio = f64::max(max_ratio, ratio);
@@ -1443,7 +1476,7 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
 /// # Returns
 ///
 /// * Normalized sparsity measure (0 = dense, 1 = maximally sparse)
-pub fn measure_sparsity(x: &Array1<f64>, threshold: f64) -> f64 {
+pub fn measure_sparsity(x: &Array1<f64>, threshold: f64) -> SignalResult<f64> {
     let n = x.len();
 
     // Count non-zero elements (L0 norm approximation)
@@ -1455,17 +1488,19 @@ pub fn measure_sparsity(x: &Array1<f64>, threshold: f64) -> f64 {
     }
 
     // L1 norm
-    let l1_norm = x.fold(0.0, |acc, &val| acc + val.abs());
+    let l1_norm = vector_norm(&x.view(), 1)
+        .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
 
     // L2 norm
-    let l2_norm = x.fold(0.0, |acc, &val| acc + val * val).sqrt();
+    let l2_norm_val = vector_norm(&x.view(), 2)
+        .map_err(|_| SignalError::Compute("Failed to compute norm".to_string()))?;
 
     // Compute normalized sparsity measure: 1 - (L1/L2)/sqrt(n)
     // This will be close to 1 for sparse signals and close to 0 for dense signals
-    if l2_norm < 1e-10 {
-        0.0 // All zeros is considered dense
+    if l2_norm_val < 1e-10 {
+        Ok(0.0) // All zeros is considered dense
     } else {
-        1.0 - (l1_norm / l2_norm) / (n as f64).sqrt()
+        Ok(1.0 - (l1_norm / l2_norm_val) / (n as f64).sqrt())
     }
 }
 
@@ -1490,7 +1525,7 @@ pub fn sparse_denoise(
     let n = y.len();
 
     // Create identity sensing matrix
-    let phi = Array2::eye(n);
+    let phi = Array2::<f64>::eye(n);
 
     // Define FFT transform functions
     let fft_forward = |signal: &Array1<f64>| -> SignalResult<Array1<Complex64>> {
@@ -1526,8 +1561,8 @@ pub fn sparse_denoise(
             let spectrum = fft_forward(y)?;
 
             // Separate real and imaginary parts
-            let mut real_part = Array1::zeros(n);
-            let mut imag_part = Array1::zeros(n);
+            let mut real_part = Array1::<f64>::zeros(n);
+            let mut imag_part = Array1::<f64>::zeros(n);
 
             for i in 0..n {
                 real_part[i] = spectrum[i].re;
@@ -1539,7 +1574,7 @@ pub fn sparse_denoise(
             let imag_sparse = compressed_sensing_recover(&imag_part, &phi, method, config)?;
 
             // Recombine
-            let mut sparse_spectrum = Array1::zeros(n);
+            let mut sparse_spectrum = Array1::<Complex64>::zeros(n);
             for i in 0..n {
                 sparse_spectrum[i] = Complex64::new(real_sparse[i], imag_sparse[i]);
             }

@@ -230,7 +230,7 @@ pub struct IncrementalMetrics<T, S> {
 impl<T, S> Default for IncrementalMetrics<T, S>
 where
     S: Default,
- {
+{
     fn default() -> Self {
         Self::new()
     }

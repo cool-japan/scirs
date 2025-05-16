@@ -33,7 +33,7 @@ fn main() {
         max: [1.0, 1.0, 1.0],
     };
 
-    let triangle2d = Triangle2D {
+    let _triangle2d = Triangle2D {
         v1: [0.0, 0.0],
         v2: [2.0, 0.0],
         v3: [1.0, 2.0],
@@ -219,12 +219,12 @@ fn main() {
     );
 
     match ray_sphere_collision(&ray_origin1, &ray_direction1, &ray_sphere) {
-        Some(distance) => println!("  Ray1 intersects sphere at distance {:.2}", distance),
+        Some(distance) => println!("  Ray1 intersects sphere at distance {:.2?}", distance),
         None => println!("  Ray1 does not intersect sphere"),
     }
 
     match ray_sphere_collision(&ray_origin2, &ray_direction2, &ray_sphere) {
-        Some(distance) => println!("  Ray2 intersects sphere at distance {:.2}", distance),
+        Some(distance) => println!("  Ray2 intersects sphere at distance {:.2?}", distance),
         None => println!("  Ray2 does not intersect sphere"),
     }
 
@@ -240,12 +240,12 @@ fn main() {
     );
 
     match ray_box3d_collision(&ray_origin1, &ray_direction1, &ray_box) {
-        Some(distance) => println!("  Ray1 intersects box at distance {:.2}", distance),
+        Some(distance) => println!("  Ray1 intersects box at distance {:.2?}", distance),
         None => println!("  Ray1 does not intersect box"),
     }
 
     match ray_box3d_collision(&ray_origin2, &ray_direction2, &ray_box) {
-        Some(distance) => println!("  Ray2 intersects box at distance {:.2}", distance),
+        Some(distance) => println!("  Ray2 intersects box at distance {:.2?}", distance),
         None => println!("  Ray2 does not intersect box"),
     }
 
@@ -262,12 +262,12 @@ fn main() {
     );
 
     match ray_triangle3d_collision(&ray_origin1, &ray_direction1, &ray_triangle) {
-        Some(distance) => println!("  Ray1 intersects triangle at distance {:.2}", distance),
+        Some(distance) => println!("  Ray1 intersects triangle at distance {:.2?}", distance),
         None => println!("  Ray1 does not intersect triangle"),
     }
 
     match ray_triangle3d_collision(&ray_origin2, &ray_direction2, &ray_triangle) {
-        Some(distance) => println!("  Ray2 intersects triangle at distance {:.2}", distance),
+        Some(distance) => println!("  Ray2 intersects triangle at distance {:.2?}", distance),
         None => println!("  Ray2 does not intersect triangle"),
     }
 
@@ -313,19 +313,24 @@ fn main() {
             time_step,
         ) {
             Some(collision_time) => {
-                println!("  Spheres will collide at time {:.2}", collision_time);
+                println!("  Spheres will collide at time {:.2?}", collision_time);
+
+                // Extract the collision time as a float (the first element of the tuple)
+                let collision_time_float = match collision_time {
+                    (t, _, _) => t,
+                };
 
                 // Calculate positions at collision time
                 let position1 = [
-                    moving_sphere1.center[0] + velocity1[0] * collision_time,
-                    moving_sphere1.center[1] + velocity1[1] * collision_time,
-                    moving_sphere1.center[2] + velocity1[2] * collision_time,
+                    moving_sphere1.center[0] + velocity1[0] * collision_time_float,
+                    moving_sphere1.center[1] + velocity1[1] * collision_time_float,
+                    moving_sphere1.center[2] + velocity1[2] * collision_time_float,
                 ];
 
                 let position2 = [
-                    moving_sphere2.center[0] + velocity2[0] * collision_time,
-                    moving_sphere2.center[1] + velocity2[1] * collision_time,
-                    moving_sphere2.center[2] + velocity2[2] * collision_time,
+                    moving_sphere2.center[0] + velocity2[0] * collision_time_float,
+                    moving_sphere2.center[1] + velocity2[1] * collision_time_float,
+                    moving_sphere2.center[2] + velocity2[2] * collision_time_float,
                 ];
 
                 println!("  Sphere1 position at collision: {:?}", position1);

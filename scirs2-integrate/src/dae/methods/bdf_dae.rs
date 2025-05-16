@@ -4,12 +4,11 @@
 //! methods specifically tailored for solving Differential-Algebraic Equations (DAEs).
 //! These methods are particularly effective for stiff and index-1 DAE systems.
 
+use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 /// BDF method for semi-explicit DAE systems
 ///
@@ -24,14 +23,7 @@ pub fn bdf_semi_explicit_dae<F, FFunc, GFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
@@ -526,14 +518,7 @@ pub fn bdf_implicit_dae<F, FFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     // Get dimensions
@@ -947,7 +932,7 @@ fn predict_step<F>(
     t_history: &[F],
 ) -> (Array1<F>, Array1<F>)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let n_x = x_history[0].len();
     let n_y = y_history[0].len();
@@ -1019,7 +1004,7 @@ where
 /// Predict the next state for fully implicit DAE
 fn predict_fully_implicit<F>(y_history: &[Array1<F>], order: usize, h: F) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let n = y_history[0].len();
     let history_len = y_history.len();
@@ -1053,7 +1038,7 @@ fn compute_jacobian_x<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n_x = x.len();
@@ -1100,7 +1085,7 @@ fn compute_jacobian_y<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n_y = y.len();
@@ -1147,7 +1132,7 @@ fn compute_jacobian_y_implicit<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n = y.len();
@@ -1194,7 +1179,7 @@ fn compute_jacobian_yprime_implicit<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n = y_prime.len();
@@ -1235,13 +1220,7 @@ where
 /// Solve a linear system using Gaussian elimination with partial pivoting
 fn solve_linear_system<F>(a: &Array2<F>, b: &Array1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
 {
     let n = a.shape()[0];
     if n != a.shape()[1] || n != b.len() {

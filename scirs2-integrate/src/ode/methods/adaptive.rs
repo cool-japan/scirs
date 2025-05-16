@@ -4,11 +4,10 @@
 //! including Dormand-Prince (RK45), Bogacki-Shampine (RK23),
 //! and Dormand-Prince 8th order (DOP853) methods.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using the Dormand-Prince method (RK45)
 ///
@@ -32,14 +31,7 @@ pub fn rk45_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -284,14 +276,7 @@ pub fn rk23_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -408,14 +393,7 @@ pub fn dop853_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize

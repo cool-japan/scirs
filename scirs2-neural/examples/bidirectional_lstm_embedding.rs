@@ -1,6 +1,5 @@
-use ndarray::{s, Array, Array1, Array2, Array3, Axis};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use ndarray::{s, Array1, Array2, Array3};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f32;
@@ -17,7 +16,15 @@ impl Embedding {
     fn new(vocab_size: usize, embedding_dim: usize) -> Self {
         // Xavier/Glorot initialization
         let bound = (3.0 / embedding_dim as f32).sqrt();
-        let weight = Array::random((vocab_size, embedding_dim), Uniform::new(-bound, bound));
+
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut weight = Array2::<f32>::zeros((vocab_size, embedding_dim));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         Embedding {
             vocab_size,
@@ -172,24 +179,53 @@ impl LSTMCell {
         // Xavier/Glorot initialization
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+
         // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_i = Array1::zeros(hidden_size);
 
         // Forget gate weights (initialize forget gate bias to 1 to avoid vanishing gradients early in training)
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_f = Array1::ones(hidden_size);
 
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_g = Array1::zeros(hidden_size);
 
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_o = Array1::zeros(hidden_size);
 
         LSTMCell {
@@ -270,6 +306,7 @@ impl LSTMCell {
 }
 
 // Dropout layer
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Dropout {
     p: f32, // Dropout probability
@@ -277,6 +314,7 @@ struct Dropout {
     is_training: bool,
 }
 
+#[allow(dead_code)]
 impl Dropout {
     fn new(p: f32) -> Self {
         assert!(p >= 0.0 && p < 1.0, "Dropout probability must be in [0, 1)");
@@ -353,24 +391,33 @@ impl BiLSTMClassifier {
         // Output layer
         let output_input_size = hidden_size * 2; // Concatenated forward and backward hidden states
         let output_bound = (6.0 / (output_input_size + output_size) as f32).sqrt();
-        let w_out = Array::random(
-            (output_size, output_input_size),
-            Uniform::new(-output_bound, output_bound),
-        );
+
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize output weights with random values
+        let mut w_out = Array2::<f32>::zeros((output_size, output_input_size));
+        for elem in w_out.iter_mut() {
+            *elem = rng.random_range(-output_bound..output_bound);
+        }
         let b_out = Array1::zeros(output_size);
 
         // Attention parameters (if used)
         let (w_attention, v_attention) = if use_attention {
             let attention_bound = (6.0 / (hidden_size * 2) as f32).sqrt();
-            let w_attention = Some(Array::random(
-                (hidden_size * 2, hidden_size * 2),
-                Uniform::new(-attention_bound, attention_bound),
-            ));
-            let v_attention = Some(Array::random(
-                hidden_size * 2,
-                Uniform::new(-attention_bound, attention_bound),
-            ));
-            (w_attention, v_attention)
+
+            // Initialize attention weights with random values
+            let mut w_att = Array2::<f32>::zeros((hidden_size * 2, hidden_size * 2));
+            for elem in w_att.iter_mut() {
+                *elem = rng.random_range(-attention_bound..attention_bound);
+            }
+
+            let mut v_att = Array1::<f32>::zeros(hidden_size * 2);
+            for elem in v_att.iter_mut() {
+                *elem = rng.random_range(-attention_bound..attention_bound);
+            }
+
+            (Some(w_att), Some(v_att))
         } else {
             (None, None)
         };
@@ -399,7 +446,7 @@ impl BiLSTMClassifier {
         let bilstm_output = self.bilstm.forward(&embedded);
 
         // Apply attention or get last hidden state
-        let mut features = if self.use_attention {
+        let features = if self.use_attention {
             // Attention mechanism
             let w_attention = self.w_attention.as_ref().unwrap();
             let v_attention = self.v_attention.as_ref().unwrap();
@@ -700,7 +747,7 @@ fn train_model(
     x_train: &Array2<usize>,
     y_train: &Array2<f32>,
     num_epochs: usize,
-    learning_rate: f32,
+    _learning_rate: f32,
 ) {
     // Training loop
     for epoch in 0..num_epochs {
@@ -917,7 +964,7 @@ fn main() {
     let (texts, labels) = create_sentiment_dataset();
 
     // Create vocabulary
-    let (word_to_idx, idx_to_word) = create_vocabulary(&texts);
+    let (word_to_idx, _idx_to_word) = create_vocabulary(&texts);
     let vocab_size = word_to_idx.len();
 
     println!("Vocabulary size: {}", vocab_size);

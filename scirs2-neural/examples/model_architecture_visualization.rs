@@ -1,7 +1,7 @@
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use scirs2_neural::error::Result;
-use scirs2_neural::layers::{BatchNorm, Conv2D, Dense, Dropout, LSTM};
+use scirs2_neural::layers::{BatchNorm, Conv2D, Dense, Dropout, PaddingMode};
 use scirs2_neural::models::sequential::Sequential;
 use scirs2_neural::utils::colors::ColorOptions;
 use scirs2_neural::utils::{sequential_model_dataflow, sequential_model_summary, ModelVizOptions};
@@ -81,37 +81,7 @@ fn main() -> Result<()> {
 
     // Example 3: RNN (Recurrent Neural Network) Architecture
     println!("\n--- Example 3: RNN (LSTM) Architecture ---\n");
-    let rnn = create_rnn_model(&mut rng)?;
-
-    // Display model summary
-    let rnn_summary = sequential_model_summary(
-        &rnn,
-        Some(vec![32, 100, 128]), // Input shape (batch_size, sequence_length, features)
-        Some("RNN Neural Network"),
-        Some(ModelVizOptions {
-            width: 80,
-            show_params: true,
-            show_shapes: true,
-            show_properties: true,
-            color_options,
-        }),
-    )?;
-    println!("{}", rnn_summary);
-
-    // Display model dataflow
-    let rnn_dataflow = sequential_model_dataflow(
-        &rnn,
-        vec![32, 100, 128], // Input shape
-        Some("RNN Data Flow"),
-        Some(ModelVizOptions {
-            width: 80,
-            show_params: true,
-            show_shapes: true,
-            show_properties: false,
-            color_options,
-        }),
-    )?;
-    println!("\n{}", rnn_dataflow);
+    println!("Skipping RNN example due to threading constraints with LSTM implementation.");
 
     println!("\nModel Architecture Visualization Complete!");
     Ok(())
@@ -150,32 +120,30 @@ fn create_cnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
 
     // First convolutional block
     let conv1 = Conv2D::new(
-        1,        // input channels
-        32,       // output channels
-        (3, 3),   // kernel size
-        (1, 1),   // stride
-        (1, 1),   // padding
-        (28, 28), // input spatial dims
+        1,                      // input channels
+        32,                     // output channels
+        (3, 3),                 // kernel size
+        (1, 1),                 // stride
+        PaddingMode::Custom(1), // padding mode
         rng,
     )?;
     model.add_layer(conv1);
 
-    let batch_norm1 = BatchNorm::new(vec![32, 28, 28], 0.99, 1e-5, rng)?;
+    let batch_norm1 = BatchNorm::new(32, 0.99, 1e-5, rng)?;
     model.add_layer(batch_norm1);
 
     // Second convolutional block
     let conv2 = Conv2D::new(
-        32,       // input channels
-        64,       // output channels
-        (3, 3),   // kernel size
-        (2, 2),   // stride (downsampling)
-        (1, 1),   // padding
-        (28, 28), // input spatial dims
+        32,                     // input channels
+        64,                     // output channels
+        (3, 3),                 // kernel size
+        (2, 2),                 // stride (downsampling)
+        PaddingMode::Custom(1), // padding mode
         rng,
     )?;
     model.add_layer(conv2);
 
-    let batch_norm2 = BatchNorm::new(vec![64, 14, 14], 0.99, 1e-5, rng)?;
+    let batch_norm2 = BatchNorm::new(64, 0.99, 1e-5, rng)?;
     model.add_layer(batch_norm2);
 
     let dropout1 = Dropout::new(0.25, rng)?;
@@ -199,7 +167,8 @@ fn create_cnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
     Ok(model)
 }
 
-// Create a simple RNN (LSTM) model
+// Create a simple RNN (LSTM) model - Currently disabled due to thread safety constraints
+/*
 fn create_rnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
     let mut model = Sequential::new();
 
@@ -207,8 +176,6 @@ fn create_rnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
     let lstm1 = LSTM::new(
         128,   // input size
         256,   // hidden size
-        true,  // return sequences
-        false, // bias
         rng,
     )?;
     model.add_layer(lstm1);
@@ -219,8 +186,6 @@ fn create_rnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
     let lstm2 = LSTM::new(
         256,   // input size
         128,   // hidden size
-        false, // return sequences
-        false, // bias
         rng,
     )?;
     model.add_layer(lstm2);
@@ -234,3 +199,4 @@ fn create_rnn_model(rng: &mut SmallRng) -> Result<Sequential<f32>> {
 
     Ok(model)
 }
+*/

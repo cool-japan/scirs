@@ -22,13 +22,12 @@
 ///
 /// Each method offers different trade-offs between computational efficiency and
 /// prediction accuracy, enabling kriging to scale to much larger datasets.
-use ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::RandomState;
-use scirs2_interpolate::advanced::enhanced_kriging::CovarianceFunction;
+use ndarray::{Array1, Array2};
 use scirs2_interpolate::advanced::fast_kriging::{
-    make_fixed_rank_kriging, make_hodlr_kriging, make_local_kriging, make_tapered_kriging,
-    FastKriging, FastKrigingBuilder, FastKrigingMethod,
+    make_fixed_rank_kriging, make_hodlr_kriging, make_local_kriging, FastKrigingBuilder,
+    FastKrigingMethod,
 };
+use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -143,7 +142,7 @@ fn generate_synthetic_data(
     n_dims: usize,
     noise_level: f64,
 ) -> Result<(Array2<f64>, Array1<f64>), Box<dyn std::error::Error>> {
-    let mut rng = RandomState::new();
+    let mut rng = scirs2_core::random::rng();
 
     // Create points using Latin Hypercube Sampling for better space filling
     let mut points = Array2::zeros((n_points, n_dims));
@@ -154,13 +153,13 @@ fn generate_synthetic_data(
             .map(|i| {
                 let bin_width = 1.0 / (n_points as f64);
                 let bin_min = i as f64 * bin_width;
-                bin_min + rng.uniform(0.0, bin_width)
+                bin_min + rng.random_range(0.0, bin_width)
             })
             .collect();
 
         // Shuffle the dimension values
         for i in (1..values.len()).rev() {
-            let j = rng.uniform_int(0, i as u64) as usize;
+            let j = rng.random_range(0usize, i + 1);
             values.swap(i, j);
         }
 
@@ -180,15 +179,15 @@ fn generate_synthetic_data(
             let y = points[[i, 1]];
 
             // Pattern: f(x,y) = sin(x/2) + cos(y/3) + x*y/50
-            values[i] = (x / 2.0).sin() + (y / 3.0).cos() + (x * y / 50.0);
+            values[i] = f64::sin(x / 2.0) + f64::cos(y / 3.0) + (x * y / 50.0);
         } else {
             // 1D fallback
             let x = points[[i, 0]];
-            values[i] = (x / 2.0).sin();
+            values[i] = f64::sin(x / 2.0);
         }
 
         // Add noise
-        values[i] += rng.normal(0.0, noise_level);
+        values[i] += noise_level * rng.random_normal();
     }
 
     Ok((points, values))

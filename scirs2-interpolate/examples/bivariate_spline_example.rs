@@ -16,7 +16,7 @@ fn main() {
     let mut z = Array2::zeros((3, 3));
     for i in 0..3 {
         for j in 0..3 {
-            z[[i, j]] = x[i].powi(2) + y[j].powi(2);
+            z[[i, j]] = f64::powi(x[i], 2) + f64::powi(y[j], 2);
         }
     }
 
@@ -39,7 +39,7 @@ fn main() {
     println!("\nAttempting to interpolate at x=0.5, y=0.5");
     println!(
         "Exact value at (0.5, 0.5): {:5.1}",
-        xi[0].powi(2) + yi[0].powi(2)
+        f64::powi(xi[0], 2) + f64::powi(yi[0], 2)
     );
 
     match rect_spline.evaluate(&xi.view(), &yi.view(), false) {
@@ -80,7 +80,7 @@ fn main() {
     println!("\nAttempting to interpolate at x=0.5, y=0.5");
     println!(
         "Exact value at (0.5, 0.5): {:5.1}",
-        xi[0].powi(2) + yi[0].powi(2)
+        f64::powi(xi[0], 2) + f64::powi(yi[0], 2)
     );
 
     match smooth_spline.evaluate(&xi.view(), &yi.view(), false) {

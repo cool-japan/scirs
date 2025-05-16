@@ -230,6 +230,13 @@ pub fn disk_structure(radius: f64, dimension: Option<usize>) -> Result<Array<boo
     box_structure(&shape)
 }
 
+/// Generate a binary structure for morphological operations (dynamic dimension version)
+///
+/// Creates a default cross-shaped structure for each rank
+pub(crate) fn generate_binary_structure_dyn(rank: usize) -> Result<Array<bool, IxDyn>> {
+    generate_binary_structure(rank, Connectivity::Face)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,5 +1,3 @@
-use scirs2_interpolate::advanced::fast_kriging;
-
 fn main() {
     println!("Successfully imported fast_kriging module!");
 

@@ -2,13 +2,12 @@
 //!
 //! This module provides common utilities used by multiple ODE solvers.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Result of a single integration step
-pub enum StepResult<F: Float> {
+pub enum StepResult<F: IntegrateFloat> {
     /// Step accepted with the given solution
     Accepted(Array1<F>),
     /// Step rejected
@@ -18,7 +17,7 @@ pub enum StepResult<F: Float> {
 }
 
 /// State information for ODE solvers
-pub struct ODEState<F: Float> {
+pub struct ODEState<F: IntegrateFloat> {
     /// Current time
     pub t: F,
     /// Current solution
@@ -57,7 +56,7 @@ pub fn estimate_initial_step<F, Func>(
     tend: F,
 ) -> F
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Calculate a scaling factor based on the solution magnitude
@@ -118,7 +117,7 @@ pub fn finite_difference_jacobian<F, Func>(
     perturbation_scale: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let n_dim = y.len();
@@ -148,7 +147,7 @@ where
 }
 
 /// Apply a scaled norm to an array
-pub fn scaled_norm<F: Float>(v: &Array1<F>, scale: &Array1<F>) -> F {
+pub fn scaled_norm<F: IntegrateFloat>(v: &Array1<F>, scale: &Array1<F>) -> F {
     let mut max_err = F::zero();
     for i in 0..v.len() {
         let err = v[i].abs() / scale[i];
@@ -158,7 +157,7 @@ pub fn scaled_norm<F: Float>(v: &Array1<F>, scale: &Array1<F>) -> F {
 }
 
 /// Calculate scaling factors for error control
-pub fn calculate_error_weights<F: Float>(y: &Array1<F>, atol: F, rtol: F) -> Array1<F> {
+pub fn calculate_error_weights<F: IntegrateFloat>(y: &Array1<F>, atol: F, rtol: F) -> Array1<F> {
     let mut weights = Array1::<F>::zeros(y.len());
     for i in 0..y.len() {
         weights[i] = atol + rtol * y[i].abs();
@@ -167,13 +166,10 @@ pub fn calculate_error_weights<F: Float>(y: &Array1<F>, atol: F, rtol: F) -> Arr
 }
 
 /// Solve a linear system Ax = b using Gaussian elimination with partial pivoting
-pub fn solve_linear_system<F: Float + FromPrimitive + Debug>(
+pub fn solve_linear_system<F: IntegrateFloat>(
     a: &Array2<F>,
     b: &Array1<F>,
-) -> IntegrateResult<Array1<F>>
-where
-    F: std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + std::ops::DivAssign,
-{
+) -> IntegrateResult<Array1<F>> {
     let n = a.shape()[0];
     if n != a.shape()[1] || n != b.len() {
         return Err(IntegrateError::DimensionMismatch(
@@ -247,11 +243,7 @@ where
 }
 
 /// Extrapolate solution values for use as initial guess
-pub fn extrapolate<F: Float + FromPrimitive>(
-    times: &[F],
-    values: &[Array1<F>],
-    t_target: F,
-) -> Array1<F> {
+pub fn extrapolate<F: IntegrateFloat>(times: &[F], values: &[Array1<F>], t_target: F) -> Array1<F> {
     let n = values.len();
 
     if n == 0 {

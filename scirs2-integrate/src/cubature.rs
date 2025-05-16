@@ -5,13 +5,14 @@
 //! rules for dimensions greater than 1, with global and local error estimation.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::Array1;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Options for the cubature integration
 #[derive(Debug, Clone)]
-pub struct CubatureOptions<F: Float> {
+pub struct CubatureOptions<F: IntegrateFloat> {
     /// Absolute error tolerance
     pub abs_tol: F,
     /// Relative error tolerance
@@ -26,7 +27,7 @@ pub struct CubatureOptions<F: Float> {
     pub log: bool,
 }
 
-impl<F: Float + FromPrimitive> Default for CubatureOptions<F> {
+impl<F: IntegrateFloat> Default for CubatureOptions<F> {
     fn default() -> Self {
         Self {
             abs_tol: F::from_f64(1.49e-8).unwrap(),
@@ -41,7 +42,7 @@ impl<F: Float + FromPrimitive> Default for CubatureOptions<F> {
 
 /// Result of a cubature integration
 #[derive(Debug, Clone)]
-pub struct CubatureResult<F: Float> {
+pub struct CubatureResult<F: IntegrateFloat> {
     /// Estimated value of the integral
     pub value: F,
     /// Estimated absolute error
@@ -54,7 +55,7 @@ pub struct CubatureResult<F: Float> {
 
 /// Type of bound for integration limits
 #[derive(Debug, Clone, Copy)]
-pub enum Bound<F: Float> {
+pub enum Bound<F: IntegrateFloat> {
     /// Finite bound with a specific value
     Finite(F),
     /// Negative infinity bound
@@ -63,7 +64,7 @@ pub enum Bound<F: Float> {
     PosInf,
 }
 
-impl<F: Float + FromPrimitive> Bound<F> {
+impl<F: IntegrateFloat> Bound<F> {
     /// Check if bound is infinite
     fn is_infinite(&self) -> bool {
         matches!(self, Bound::NegInf | Bound::PosInf)
@@ -71,11 +72,7 @@ impl<F: Float + FromPrimitive> Bound<F> {
 }
 
 /// Function to handle the transformation of infinite bounds
-fn transform_for_infinite_bounds<F: Float + FromPrimitive>(
-    x: F,
-    a: &Bound<F>,
-    b: &Bound<F>,
-) -> (F, F) {
+fn transform_for_infinite_bounds<F: IntegrateFloat>(x: F, a: &Bound<F>, b: &Bound<F>) -> (F, F) {
     match (a, b) {
         // Finite bounds - no transformation needed
         (Bound::Finite(_), Bound::Finite(_)) => (x, F::one()),
@@ -175,7 +172,7 @@ pub fn cubature<F, Func>(
     options: Option<CubatureOptions<F>>,
 ) -> IntegrateResult<CubatureResult<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> F,
 {
     let opts = options.unwrap_or_default();
@@ -266,7 +263,7 @@ fn adaptive_cubature_impl<F, Func>(
 ) -> IntegrateResult<(F, F, bool)>
 // (value, error, converged)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> F,
 {
     let ndim = mapped_bounds.len();
@@ -323,7 +320,7 @@ fn integrate_with_finite_bounds<F, Func>(
     options: &CubatureOptions<F>,
 ) -> IntegrateResult<(F, F, bool)>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> F,
 {
     // Get the current dimension's bounds
@@ -421,7 +418,7 @@ fn integrate_with_infinite_bounds<F, Func>(
     options: &CubatureOptions<F>,
 ) -> IntegrateResult<(F, F, bool)>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> F,
 {
     // For infinite bounds, we need more points for accurate transformation
@@ -533,7 +530,7 @@ pub fn nquad<F, Func>(
     options: Option<CubatureOptions<F>>,
 ) -> IntegrateResult<CubatureResult<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(&[F]) -> F,
 {
     // Convert regular ranges to Bound type

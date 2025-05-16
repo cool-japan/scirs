@@ -24,7 +24,7 @@ pub enum InterpolateError {
     /// Not implemented error
     #[error("Not implemented: {0}")]
     NotImplementedError(String),
-    
+
     /// Feature not implemented (alias for NotImplementedError)
     #[error("Not implemented: {0}")]
     NotImplemented(String),
@@ -53,6 +53,11 @@ pub enum InterpolateError {
     /// This is a special case that's not really an error, but used for control flow
     #[error("Point was mapped to {0}")]
     MappedPoint(f64),
+
+    /// Generic version of MappedPoint that can handle any numeric type
+    /// Used for control flow in generic interpolation functions
+    #[error("Point was mapped to equivalent")]
+    MappedPointGeneric(Box<dyn std::any::Any + Send + Sync>),
 
     /// Index out of bounds error
     #[error("Index error: {0}")]

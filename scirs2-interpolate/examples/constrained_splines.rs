@@ -1,8 +1,6 @@
-use ndarray::{Array1, Axis};
-use scirs2_interpolate::constrained::{
-    ConstrainedSpline, Constraint, ConstraintRegion, ConstraintType, FittingMethod,
-};
-use scirs2_interpolate::ExtrapolateMode;
+use ndarray::{s, Array1};
+use scirs2_interpolate::bspline::ExtrapolateMode as BSplineExtrapolateMode;
+use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint, ConstraintType};
 
 fn main() {
     println!("Constrained Splines Examples");
@@ -11,30 +9,41 @@ fn main() {
     // Create some test data that's not monotonic or convex
     let x = Array1::linspace(0.0, 10.0, 15);
     let y = x.mapv(|v| {
-        (v - 5.0).powi(2) * 0.1 + // Parabola
+        f64::powi(v - 5.0, 2) * 0.1 + // Parabola
         f64::sin(v * 0.8) * 2.0 + // Add sine wave
         (v * 0.2) // Add linear trend
     });
 
     println!("Example 1: Monotone Increasing Spline");
     println!("-------------------------------------");
-    let monotone_inc = ConstrainedSpline::monotone_increasing_spline(
+    // Create constraints for monotone increasing
+    let constraint = Constraint::monotone_increasing(None, None);
+
+    // Use interpolate method with fitting method
+    let monotone_inc = ConstrainedSpline::penalized(
         &x.view(),
         &y.view(),
-        FittingMethod::Penalized,
-        8,
-        3,
-        0.1,
-        ExtrapolateMode::Extrapolate,
+        vec![constraint],
+        8,   // number of knots
+        3,   // degree
+        0.1, // smoothing parameter
+        BSplineExtrapolateMode::Extrapolate,
     )
     .unwrap();
 
     // Evaluate on a finer grid
     let x_fine = Array1::linspace(0.0, 10.0, 100);
-    let y_fine = monotone_inc.evaluate(&x_fine.view()).unwrap();
+    // Compute function values at each point in x_fine
+    let mut y_fine = Array1::zeros(x_fine.len());
+    for (i, &x_val) in x_fine.iter().enumerate() {
+        y_fine[i] = monotone_inc.evaluate(x_val).unwrap();
+    }
 
     // Compute first derivatives to verify monotonicity
-    let dy_fine = monotone_inc.derivative(1, &x_fine.view()).unwrap();
+    let mut dy_fine = Array1::zeros(x_fine.len());
+    for (i, &x_val) in x_fine.iter().enumerate() {
+        dy_fine[i] = monotone_inc.derivative(x_val, 1).unwrap();
+    }
 
     println!("Original data points: {:?}", y);
     println!(
@@ -54,20 +63,31 @@ fn main() {
 
     println!("\nExample 2: Convex Spline");
     println!("----------------------");
-    let convex = ConstrainedSpline::convex_spline(
+    // Create constraints for convex
+    let constraint = Constraint::convex(None, None);
+
+    // Use least squares method with constraints
+    let convex = ConstrainedSpline::least_squares(
         &x.view(),
         &y.view(),
-        FittingMethod::LeastSquares,
-        10,
-        3,
-        ExtrapolateMode::Extrapolate,
+        vec![constraint],
+        10, // number of knots
+        3,  // degree
+        BSplineExtrapolateMode::Extrapolate,
     )
     .unwrap();
 
-    let y_convex = convex.evaluate(&x_fine.view()).unwrap();
+    // Compute function values
+    let mut y_convex = Array1::zeros(x_fine.len());
+    for (i, &x_val) in x_fine.iter().enumerate() {
+        y_convex[i] = convex.evaluate(x_val).unwrap();
+    }
 
     // Compute second derivatives to verify convexity
-    let d2y_convex = convex.derivative(2, &x_fine.view()).unwrap();
+    let mut d2y_convex = Array1::zeros(x_fine.len());
+    for (i, &x_val) in x_fine.iter().enumerate() {
+        d2y_convex[i] = convex.derivative(x_val, 2).unwrap();
+    }
 
     println!(
         "First few values from convex fit: {:?}",
@@ -89,9 +109,11 @@ fn main() {
 
     // Create constraints
     let constraints = vec![
-        Constraint::new(ConstraintType::MonotoneIncreasing, ConstraintRegion::Full),
-        Constraint::new(ConstraintType::UpperBound(15.0), ConstraintRegion::Full),
-        Constraint::new(ConstraintType::LowerBound(0.0), ConstraintRegion::Full),
+        Constraint::monotone_increasing(None, None),
+        // Create an upper bound constraint at 15.0
+        Constraint::upper_bound(None, None, 15.0),
+        // Create a lower bound constraint at 0.0
+        Constraint::lower_bound(None, None, 0.0),
     ];
 
     let multi_constraint = ConstrainedSpline::interpolate(
@@ -99,12 +121,17 @@ fn main() {
         &y.view(),
         constraints,
         3,
-        ExtrapolateMode::Extrapolate,
+        BSplineExtrapolateMode::Extrapolate,
     )
     .unwrap();
 
-    let y_multi = multi_constraint.evaluate(&x_fine.view()).unwrap();
-    let dy_multi = multi_constraint.derivative(1, &x_fine.view()).unwrap();
+    // Compute function values and derivatives
+    let mut y_multi = Array1::zeros(x_fine.len());
+    let mut dy_multi = Array1::zeros(x_fine.len());
+    for (i, &x_val) in x_fine.iter().enumerate() {
+        y_multi[i] = multi_constraint.evaluate(x_val).unwrap();
+        dy_multi[i] = multi_constraint.derivative(x_val, 1).unwrap();
+    }
 
     println!(
         "First few values from multi-constrained fit: {:?}",
@@ -137,21 +164,18 @@ fn main() {
             10.0 - (v - 3.0) * 1.2 + f64::sin(v * 2.0) * 0.5
         } else {
             // Convex region
-            (v - 7.0).powi(2) * 0.3 + 2.0
+            f64::powi(v - 7.0, 2) * 0.3 + 2.0
         }
     });
 
     // Different constraints in different regions
     let region_constraints = vec![
-        Constraint::new(
-            ConstraintType::MonotoneIncreasing,
-            ConstraintRegion::Range(0.0, 3.0),
-        ),
-        Constraint::new(
-            ConstraintType::MonotoneDecreasing,
-            ConstraintRegion::Range(3.0, 7.0),
-        ),
-        Constraint::new(ConstraintType::Convex, ConstraintRegion::Range(7.0, 10.0)),
+        // Monotone increasing in range 0-3
+        Constraint::monotone_increasing(Some(0.0), Some(3.0)),
+        // Monotone decreasing in range 3-7
+        Constraint::monotone_decreasing(Some(3.0), Some(7.0)),
+        // Convex in range 7-10
+        Constraint::convex(Some(7.0), Some(10.0)),
     ];
 
     let regional = ConstrainedSpline::penalized(
@@ -161,14 +185,22 @@ fn main() {
         15,
         3,
         0.01,
-        ExtrapolateMode::Extrapolate,
+        BSplineExtrapolateMode::Extrapolate,
     )
     .unwrap();
 
     let x_fine_region = Array1::linspace(0.0, 10.0, 200);
-    let y_fine_region = regional.evaluate(&x_fine_region.view()).unwrap();
-    let dy_region = regional.derivative(1, &x_fine_region.view()).unwrap();
-    let d2y_region = regional.derivative(2, &x_fine_region.view()).unwrap();
+
+    // Compute function values and derivatives
+    let mut y_fine_region = Array1::zeros(x_fine_region.len());
+    let mut dy_region = Array1::zeros(x_fine_region.len());
+    let mut d2y_region = Array1::zeros(x_fine_region.len());
+
+    for (i, &x_val) in x_fine_region.iter().enumerate() {
+        y_fine_region[i] = regional.evaluate(x_val).unwrap();
+        dy_region[i] = regional.derivative(x_val, 1).unwrap();
+        d2y_region[i] = regional.derivative(x_val, 2).unwrap();
+    }
 
     // Verify constraints in each region
     let region1_indices = x_fine_region
@@ -225,24 +257,37 @@ fn main() {
 
     // Create data with multiple behaviors
     let x_custom = Array1::linspace(0.0, 1.0, 15);
-    let y_custom = x_custom.mapv(|v| v.powf(3.0) - 0.5 * v + f64::sin(v * 10.0) * 0.05);
+    let y_custom = x_custom.mapv(|v| f64::powf(v, 3.0) - 0.5 * v + f64::sin(v * 10.0) * 0.05);
 
     // Impose monotonicity and convexity together
-    let custom = ConstrainedSpline::monotone_convex_spline(
+    let constraints = vec![
+        Constraint::monotone_increasing(None, None),
+        Constraint::convex(None, None),
+    ];
+
+    let custom = ConstrainedSpline::penalized(
         &x_custom.view(),
         &y_custom.view(),
-        FittingMethod::Penalized,
-        10,
-        3,
-        0.01,
-        ExtrapolateMode::Extrapolate,
+        constraints,
+        10,   // number of knots
+        3,    // degree
+        0.01, // smoothing parameter
+        BSplineExtrapolateMode::Extrapolate,
     )
     .unwrap();
 
     let x_fine_custom = Array1::linspace(0.0, 1.0, 100);
-    let y_fine_custom = custom.evaluate(&x_fine_custom.view()).unwrap();
-    let dy_custom = custom.derivative(1, &x_fine_custom.view()).unwrap();
-    let d2y_custom = custom.derivative(2, &x_fine_custom.view()).unwrap();
+
+    // Compute function values and derivatives
+    let mut y_fine_custom = Array1::zeros(x_fine_custom.len());
+    let mut dy_custom = Array1::zeros(x_fine_custom.len());
+    let mut d2y_custom = Array1::zeros(x_fine_custom.len());
+
+    for (i, &x_val) in x_fine_custom.iter().enumerate() {
+        y_fine_custom[i] = custom.evaluate(x_val).unwrap();
+        dy_custom[i] = custom.derivative(x_val, 1).unwrap();
+        d2y_custom[i] = custom.derivative(x_val, 2).unwrap();
+    }
 
     let min_dy = dy_custom.fold(f64::INFINITY, |a, &b| a.min(b));
     let min_d2y = d2y_custom.fold(f64::INFINITY, |a, &b| a.min(b));

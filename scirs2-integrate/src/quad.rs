@@ -4,12 +4,13 @@
 //! for approximating the definite integral of a function.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Options for controlling the behavior of the adaptive quadrature algorithm
 #[derive(Debug, Clone)]
-pub struct QuadOptions<F: Float> {
+pub struct QuadOptions<F: IntegrateFloat> {
     /// Absolute error tolerance
     pub abs_tol: F,
     /// Relative error tolerance
@@ -22,7 +23,7 @@ pub struct QuadOptions<F: Float> {
     pub use_simpson: bool,
 }
 
-impl<F: Float + FromPrimitive> Default for QuadOptions<F> {
+impl<F: IntegrateFloat> Default for QuadOptions<F> {
     fn default() -> Self {
         Self {
             abs_tol: F::from_f64(1.49e-8).unwrap(), // Default from SciPy
@@ -36,7 +37,7 @@ impl<F: Float + FromPrimitive> Default for QuadOptions<F> {
 
 /// Result of a quadrature computation
 #[derive(Debug, Clone)]
-pub struct QuadResult<F: Float> {
+pub struct QuadResult<F: IntegrateFloat> {
     /// Estimated value of the integral
     pub value: F,
     /// Estimated absolute error
@@ -71,7 +72,7 @@ pub struct QuadResult<F: Float> {
 /// ```
 pub fn trapezoid<F, Func>(f: Func, a: F, b: F, n: usize) -> F
 where
-    F: Float + FromPrimitive,
+    F: IntegrateFloat,
     Func: Fn(F) -> F,
 {
     if n == 0 {
@@ -113,7 +114,7 @@ where
 /// ```
 pub fn simpson<F, Func>(mut f: Func, a: F, b: F, n: usize) -> IntegrateResult<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: FnMut(F) -> F,
 {
     if n == 0 {
@@ -176,7 +177,7 @@ pub fn quad<F, Func>(
     options: Option<QuadOptions<F>>,
 ) -> IntegrateResult<QuadResult<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F) -> F + Copy,
 {
     let opts = options.unwrap_or_default();
@@ -218,7 +219,7 @@ fn adaptive_quad_impl<F, Func>(
 ) -> IntegrateResult<(F, F, bool)>
 // (value, error, converged)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F) -> F + Copy,
 {
     // Calculate coarse estimate
@@ -296,7 +297,7 @@ fn simpson_with_count<F, Func>(
     count: &mut usize,
 ) -> IntegrateResult<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: FnMut(F) -> F,
 {
     if n == 0 {

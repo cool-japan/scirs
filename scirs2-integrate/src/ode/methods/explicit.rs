@@ -8,6 +8,7 @@ use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
 use ndarray::{Array1, ArrayView1, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
+use crate::IntegrateFloat;
 
 /// Solve ODE using Euler's method
 ///
@@ -34,14 +35,7 @@ pub fn euler_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -139,14 +133,7 @@ pub fn rk4_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize

@@ -3,7 +3,7 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! hyperbolic PDEs, such as the wave equation.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, s};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::time::Instant;
 
 use crate::ode::{solve_ivp, ODEMethod, ODEOptions, ODEResult};

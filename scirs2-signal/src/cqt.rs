@@ -184,7 +184,7 @@ pub fn constant_q_transform(signal: &Array1<f64>, config: &CqtConfig) -> SignalR
         ((config.f_max / config.f_min).log2() * config.bins_per_octave as f64).ceil() as usize;
 
     // Generate frequency array
-    let mut frequencies = Array1::zeros(n_bins);
+    let mut frequencies = Array1::<f64>::zeros(n_bins);
     for k in 0..n_bins {
         frequencies[k] = config.f_min * 2.0f64.powf(k as f64 / config.bins_per_octave as f64);
     }
@@ -210,7 +210,7 @@ pub fn constant_q_transform(signal: &Array1<f64>, config: &CqtConfig) -> SignalR
         let cqt = compute_cqt_frame(signal, &kernel)?;
 
         // Reshape to 2D array (single time frame)
-        let mut cqt_2d = Array2::zeros((n_bins, 1));
+        let mut cqt_2d = Array2::<Complex64>::zeros((n_bins, 1));
         for i in 0..n_bins {
             cqt_2d[[i, 0]] = cqt[i];
         }
@@ -239,7 +239,7 @@ fn compute_cqt_kernel(
     let n_bins = ((f_max / f_min).log2() * bins_per_octave as f64).ceil() as usize;
 
     // Generate frequency array
-    let mut frequencies = Array1::zeros(n_bins);
+    let mut frequencies = Array1::<f64>::zeros(n_bins);
     for k in 0..n_bins {
         frequencies[k] = f_min * 2.0f64.powf(k as f64 / bins_per_octave as f64);
     }
@@ -439,10 +439,10 @@ fn compute_cqt_spectrogram(
     let n_frames = (n_signal as f64 / hop_size as f64).ceil() as usize;
 
     // Initialize CQT spectrogram
-    let mut cqt_spec = Array2::zeros((n_bins, n_frames));
+    let mut cqt_spec = Array2::<Complex64>::zeros((n_bins, n_frames));
 
     // Initialize time points
-    let mut times = Array1::zeros(n_frames);
+    let mut times = Array1::<f64>::zeros(n_frames);
 
     // For each frame
     for frame in 0..n_frames {
@@ -454,7 +454,7 @@ fn compute_cqt_spectrogram(
         times[frame] = (start + (end - start) / 2) as f64 / kernel.fs;
 
         // Extract frame and zero-pad if needed
-        let mut frame_signal = Array1::zeros(n_fft);
+        let mut frame_signal = Array1::<f64>::zeros(n_fft);
         for i in start..end {
             frame_signal[i - start] = signal[i];
         }
@@ -512,7 +512,7 @@ fn next_power_of_two(n: usize) -> usize {
 ///
 /// A 2D array containing the magnitude (or log magnitude) of the CQT coefficients
 pub fn cqt_magnitude(cqt: &CqtResult, log_scale: bool, ref_value: Option<f64>) -> Array2<f64> {
-    let mut magnitude = Array2::zeros(cqt.cqt.raw_dim());
+    let mut magnitude = Array2::<f64>::zeros(cqt.cqt.raw_dim());
 
     // Compute magnitude (absolute value) of complex coefficients
     for i in 0..cqt.cqt.shape()[0] {
@@ -548,7 +548,7 @@ pub fn cqt_magnitude(cqt: &CqtResult, log_scale: bool, ref_value: Option<f64>) -
 ///
 /// A 2D array containing the phase of the CQT coefficients (in radians)
 pub fn cqt_phase(cqt: &CqtResult) -> Array2<f64> {
-    let mut phase = Array2::zeros(cqt.cqt.raw_dim());
+    let mut phase = Array2::<f64>::zeros(cqt.cqt.raw_dim());
 
     // Compute phase (argument) of complex coefficients
     for i in 0..cqt.cqt.shape()[0] {
@@ -642,7 +642,7 @@ pub fn inverse_constant_q_transform(
         }
     });
 
-    let mut output = Array1::zeros(output_length);
+    let mut output = Array1::<f64>::zeros(output_length);
 
     // For each frame
     for frame in 0..n_frames {
@@ -664,7 +664,8 @@ pub fn inverse_constant_q_transform(
         }
 
         // Inverse FFT
-        let frame_signal = scirs2_fft::ifft(&frame_spectrum, None).expect("IFFT computation failed");
+        let frame_signal =
+            scirs2_fft::ifft(&frame_spectrum, None).expect("IFFT computation failed");
 
         // Overlap-add to output
         let start = frame * hop_size;
@@ -677,7 +678,10 @@ pub fn inverse_constant_q_transform(
     }
 
     // Normalize the output
-    let max_abs = output.iter().cloned().fold(0.0, |a, b| f64::max(a, b.abs()));
+    let max_abs = output
+        .iter()
+        .map(|&x| x.abs())
+        .fold(0.0, |a: f64, b: f64| f64::max(a, b));
     if max_abs > 0.0 {
         output.iter_mut().for_each(|x| *x /= max_abs);
     }
@@ -717,7 +721,7 @@ pub fn chromagram(
     });
 
     // Initialize chromagram
-    let mut chroma = Array2::zeros((n_chroma_bins, n_frames));
+    let mut chroma = Array2::<f64>::zeros((n_chroma_bins, n_frames));
 
     // Map CQT bins to chroma bins
     for i in 0..n_bins {

@@ -3,7 +3,7 @@
 //! This example shows how to use the gradient estimation feature of
 //! Voronoi-based Natural Neighbor interpolation methods.
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use rand::Rng;
 use scirs2_interpolate::voronoi::{
     make_sibson_interpolator, GradientEstimation, InterpolateWithGradient, InterpolationMethod,
@@ -27,15 +27,15 @@ fn analytical_gradient(x: f64, y: f64) -> Vec<f64> {
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points
     let n_points = 100;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Create points in a 2D domain
     let mut points_vec = Vec::with_capacity(n_points * 2);
     let mut values_vec = Vec::with_capacity(n_points);
 
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
-        let y = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+        let x = rng.random_range(0.0..2.0 * std::f64::consts::PI);
+        let y = rng.random_range(0.0..2.0 * std::f64::consts::PI);
 
         points_vec.push(x);
         points_vec.push(y);
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Point            | Interpolated Value | Estimated Gradient           | Analytical Gradient");
     println!("---------------- | ------------------ | ---------------------------- | ----------------------------");
 
-    for point in test_points {
+    for point in &test_points {
         let x = point[0];
         let y = point[1];
         let query = Array1::from_vec(point.clone());
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Point            | Value and Gradient");
     println!("---------------- | --------------------------------------------");
 
-    for point in test_points {
+    for point in &test_points {
         let query = Array1::from_vec(point.clone());
 
         // Get both value and gradient in one call
@@ -118,7 +118,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         InterpolationMethod::Laplace,
     )?;
 
-    for point in test_points {
+    for point in &test_points {
         let x = point[0];
         let y = point[1];
         let query = Array1::from_vec(point.clone());

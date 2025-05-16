@@ -1,8 +1,8 @@
 /// Example demonstrating sparse signal recovery techniques
 use ndarray::{Array1, Array2, Axis};
-use ndarray_linalg::Norm;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use scirs2_linalg::vector_norm;
 use scirs2_signal::sparse::{
     compressed_sensing_recover, image_inpainting, measure_sparsity, random_sensing_matrix,
     recover_missing_samples, sparse_denoise, SparseRecoveryConfig, SparseRecoveryMethod,
@@ -80,16 +80,17 @@ fn basic_compressed_sensing_example() {
         compressed_sensing_recover(&noisy_y, &phi, SparseRecoveryMethod::OMP, &config).unwrap();
 
     // Calculate recovery error
+    let diff = &original_signal - &recovered_signal;
     let recovery_error =
-        (&original_signal - &recovered_signal).norm_l2() / original_signal.norm_l2();
+        vector_norm(&diff, 2.0).unwrap() / vector_norm(&original_signal, 2.0).unwrap();
 
     println!(
         "Original signal sparsity: {:.3}",
-        measure_sparsity(&original_signal, 1e-6)
+        measure_sparsity(&original_signal, 1e-6).unwrap()
     );
     println!(
         "Recovered signal sparsity: {:.3}",
-        measure_sparsity(&recovered_signal, 1e-6)
+        measure_sparsity(&recovered_signal, 1e-6).unwrap()
     );
     println!("Relative recovery error: {:.6}", recovery_error);
 
@@ -230,8 +231,10 @@ fn sparse_denoising_example() {
     println!("SNR improvement: {:.2} dB", snr_after - snr_before);
 
     // Calculate RMSE
-    let rmse_before = (&clean_signal - &noisy_signal).norm_l2() / (n as f64).sqrt();
-    let rmse_after = (&clean_signal - &denoised_signal).norm_l2() / (n as f64).sqrt();
+    let diff_before = &clean_signal - &noisy_signal;
+    let diff_after = &clean_signal - &denoised_signal;
+    let rmse_before = vector_norm(&diff_before, 2.0).unwrap() / (n as f64).sqrt();
+    let rmse_after = vector_norm(&diff_after, 2.0).unwrap() / (n as f64).sqrt();
 
     println!("RMSE before denoising: {:.6}", rmse_before);
     println!("RMSE after denoising: {:.6}", rmse_after);
@@ -303,11 +306,12 @@ fn compare_recovery_methods() {
         let elapsed = start_time.elapsed().as_millis();
 
         // Calculate recovery error
+        let diff = &original_signal - &recovered_signal;
         let recovery_error =
-            (&original_signal - &recovered_signal).norm_l2() / original_signal.norm_l2();
+            vector_norm(&diff, 2.0).unwrap() / vector_norm(&original_signal, 2.0).unwrap();
 
         // Measure output sparsity
-        let sparsity = measure_sparsity(&recovered_signal, 1e-6);
+        let sparsity = measure_sparsity(&recovered_signal, 1e-6).unwrap();
 
         println!(
             "| {:?} | {:.6} | {:5} | {:.6} |",

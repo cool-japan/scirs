@@ -1,8 +1,7 @@
 use ndarray::{array, Array2, ArrayView2};
-use scirs2_core::error::CoreResult;
-use scirs2_spatial::{procrustes, procrustes_extended};
+use scirs2_spatial::{error::SpatialResult, procrustes, procrustes_extended};
 
-fn main() -> CoreResult<()> {
+fn main() -> SpatialResult<()> {
     println!("Procrustes Analysis Example");
     println!("==========================\n");
 
@@ -84,7 +83,7 @@ fn main() -> CoreResult<()> {
     println!("----------------------------------");
 
     // No scaling allowed
-    let (transformed_no_scale, params_no_scale, disparity_no_scale) =
+    let (_transformed_no_scale, params_no_scale, disparity_no_scale) =
         procrustes_extended(&points3d_a.view(), &points3d_b.view(), false, true, true)?;
 
     println!("Without scaling:");
@@ -92,14 +91,14 @@ fn main() -> CoreResult<()> {
     println!("Scale factor: {:.6} (should be 1.0)", params_no_scale.scale);
 
     // No reflection allowed
-    let (transformed_no_reflection, params_no_reflection, disparity_no_reflection) =
+    let (_transformed_no_reflection, _params_no_reflection, disparity_no_reflection) =
         procrustes_extended(&points3d_a.view(), &points3d_b.view(), true, false, true)?;
 
     println!("\nWithout reflection:");
     println!("Disparity: {:.10}", disparity_no_reflection);
 
     // No translation allowed
-    let (transformed_no_translation, params_no_translation, disparity_no_translation) =
+    let (_transformed_no_translation, params_no_translation, disparity_no_translation) =
         procrustes_extended(&points3d_a.view(), &points3d_b.view(), true, true, false)?;
 
     println!("\nWithout translation:");

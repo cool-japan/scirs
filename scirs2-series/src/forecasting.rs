@@ -787,6 +787,75 @@ where
     })
 }
 
+/// Options for automatic ARIMA model selection
+#[derive(Debug, Clone)]
+pub struct AutoArimaOptions {
+    /// Maximum AR order (p) to consider
+    pub max_p: usize,
+    /// Maximum differencing order (d) to consider
+    pub max_d: usize,
+    /// Maximum MA order (q) to consider
+    pub max_q: usize,
+    /// Whether to include seasonal components
+    pub seasonal: bool,
+    /// Seasonal period (required if seasonal is true)
+    pub seasonal_period: Option<usize>,
+    /// Maximum seasonal AR order (P) to consider
+    pub max_seasonal_p: usize,
+    /// Maximum seasonal differencing order (D) to consider
+    pub max_seasonal_d: usize,
+    /// Maximum seasonal MA order (Q) to consider
+    pub max_seasonal_q: usize,
+    /// Whether to automatically determine differencing order
+    pub auto_diff: bool,
+    /// Whether to estimate constant/drift term
+    pub with_constant: bool,
+    /// Information criterion to use for model selection (AIC or BIC)
+    pub information_criterion: String,
+    /// Number of steps for out-of-sample cross-validation
+    pub stepwise: bool,
+    /// Maximum total parameters to consider (to avoid overfitting)
+    pub max_order: usize,
+}
+
+impl Default for AutoArimaOptions {
+    fn default() -> Self {
+        Self {
+            max_p: 5,
+            max_d: 2,
+            max_q: 5,
+            seasonal: false,
+            seasonal_period: None,
+            max_seasonal_p: 2,
+            max_seasonal_d: 1,
+            max_seasonal_q: 2,
+            auto_diff: true,
+            with_constant: true,
+            information_criterion: "aic".to_string(),
+            stepwise: true,
+            max_order: 10,
+        }
+    }
+}
+
+/// Model fit metrics
+#[derive(Debug, Clone)]
+struct ModelFitMetrics<F> {
+    /// Akaike Information Criterion (AIC)
+    aic: F,
+    /// Bayesian Information Criterion (BIC)
+    bic: F,
+    /// Hannan-Quinn Information Criterion (HQIC)
+    #[allow(dead_code)]
+    hqic: F,
+    /// Log-likelihood
+    #[allow(dead_code)]
+    log_likelihood: F,
+    /// Mean Squared Error
+    #[allow(dead_code)]
+    mse: F,
+}
+
 /// Automatically selects the best ARIMA model parameters
 ///
 /// # Arguments
@@ -823,31 +892,267 @@ pub fn auto_arima<F>(
 where
     F: Float + FromPrimitive + Debug,
 {
+    // Create options object with provided parameters
+    let options = AutoArimaOptions {
+        max_p,
+        max_d,
+        max_q,
+        seasonal,
+        seasonal_period,
+        ..Default::default()
+    };
+
+    // Call advanced auto_arima_with_options
+    auto_arima_with_options(ts, &options)
+}
+
+/// Automatically selects the best ARIMA model parameters with advanced options
+///
+/// This version provides more control over the model selection process,
+/// including criteria for choosing the best model and handling of seasonality.
+///
+/// # Arguments
+///
+/// * `ts` - The time series data
+/// * `options` - Options for ARIMA model selection
+///
+/// # Returns
+///
+/// * Optimal ARIMA parameters
+///
+/// # Example
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_series::forecasting::{auto_arima_with_options, AutoArimaOptions};
+///
+/// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+///
+/// let mut options = AutoArimaOptions::default();
+/// options.max_p = 3;
+/// options.max_q = 3;
+/// options.information_criterion = "bic".to_string();
+///
+/// let params = auto_arima_with_options(&ts, &options).unwrap();
+/// println!("Optimal ARIMA({},{},{}) model", params.p, params.d, params.q);
+/// ```
+pub fn auto_arima_with_options<F>(ts: &Array1<F>, options: &AutoArimaOptions) -> Result<ArimaParams>
+where
+    F: Float + FromPrimitive + Debug,
+{
     if ts.len() < 10 {
         return Err(TimeSeriesError::ForecastingError(
             "Time series too short for ARIMA parameter selection".to_string(),
         ));
     }
 
-    if seasonal && seasonal_period.is_none() {
+    if options.seasonal && options.seasonal_period.is_none() {
         return Err(TimeSeriesError::InvalidInput(
             "Seasonal period must be provided for seasonal models".to_string(),
         ));
     }
 
-    if seasonal && seasonal_period.unwrap() >= ts.len() / 2 {
+    if options.seasonal && options.seasonal_period.unwrap() >= ts.len() / 2 {
         return Err(TimeSeriesError::InvalidInput(format!(
             "Seasonal period ({}) must be less than half the time series length ({})",
-            seasonal_period.unwrap(),
+            options.seasonal_period.unwrap(),
             ts.len()
         )));
     }
 
-    // First, determine the order of differencing needed for stationarity
+    // Determine differencing order for stationarity if auto_diff is enabled
+    let best_d = if options.auto_diff {
+        determine_differencing_order(ts, options.max_d)?
+    } else {
+        0
+    };
+
+    // Determine seasonal differencing order if needed
+    let best_seasonal_d = if options.seasonal && options.auto_diff {
+        determine_seasonal_differencing_order(
+            ts,
+            options.seasonal_period.unwrap(),
+            options.max_seasonal_d,
+        )?
+    } else {
+        0
+    };
+
+    // Apply differencing to get stationary series
+    // We don't actually use the stationary series in this implementation,
+    // but in a complete implementation we would use it to fit the ARMA models
+    let _stationary_ts = apply_differencing(
+        ts,
+        best_d,
+        options.seasonal,
+        options.seasonal_period,
+        best_seasonal_d,
+    )?;
+
+    // Set up best model tracking
+    let mut best_p = 0;
+    let mut best_q = 0;
+    let mut best_seasonal_p = 0;
+    let mut best_seasonal_q = 0;
+    let mut best_aic = F::infinity();
+    let mut best_bic = F::infinity();
+
+    // Create a structure to hold model results for selection
+    let mut model_results = Vec::new();
+
+    // If stepwise is true, perform stepwise search rather than grid search
+    if options.stepwise {
+        // Starting with simple models and expanding
+        let initial_order = (0, best_d, 0, 0, best_seasonal_d, 0);
+        model_results.push(initial_order);
+
+        // Try simple variations and build up
+        for &p in &[0, 1] {
+            for &q in &[0, 1] {
+                for &sp in &[0, 1] {
+                    for &sq in &[0, 1] {
+                        if p + q + sp + sq <= 2 {
+                            // Keep models simple
+                            let order = (p, best_d, q, sp, best_seasonal_d, sq);
+                            if !model_results.contains(&order) {
+                                model_results.push(order);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Grid search over all possible combinations
+        // This is computationally expensive for large max_p, max_q values
+        for p in 0..=options.max_p {
+            for q in 0..=options.max_q {
+                // Create a range of seasonal P values to consider
+                let sp_max = if options.seasonal {
+                    options.max_seasonal_p
+                } else {
+                    0
+                };
+                let sq_max = if options.seasonal {
+                    options.max_seasonal_q
+                } else {
+                    0
+                };
+
+                for sp in 0..=sp_max {
+                    for sq in 0..=sq_max {
+                        // Skip if total parameters exceed max_order
+                        if p + q + sp + sq <= options.max_order {
+                            model_results.push((p, best_d, q, sp, best_seasonal_d, sq));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Evaluate all candidate models
+    for &(p, d, q, seasonal_p, seasonal_d, seasonal_q) in &model_results {
+        // Create ARIMA parameters
+        let params = ArimaParams {
+            p,
+            d,
+            q,
+            seasonal_p: if options.seasonal {
+                Some(seasonal_p)
+            } else {
+                None
+            },
+            seasonal_d: if options.seasonal {
+                Some(seasonal_d)
+            } else {
+                None
+            },
+            seasonal_q: if options.seasonal {
+                Some(seasonal_q)
+            } else {
+                None
+            },
+            seasonal_period: options.seasonal_period,
+            fit_intercept: options.with_constant,
+            trend: None,
+        };
+
+        // Fit the model and calculate fit metrics
+        match evaluate_arima_model(ts, &params) {
+            Ok(metrics) => {
+                // Select best model based on information criterion
+                match options.information_criterion.to_lowercase().as_str() {
+                    "aic" => {
+                        if metrics.aic < best_aic {
+                            best_aic = metrics.aic;
+                            best_p = p;
+                            best_q = q;
+                            best_seasonal_p = seasonal_p;
+                            best_seasonal_q = seasonal_q;
+                        }
+                    }
+                    "bic" => {
+                        if metrics.bic < best_bic {
+                            best_bic = metrics.bic;
+                            best_p = p;
+                            best_q = q;
+                            best_seasonal_p = seasonal_p;
+                            best_seasonal_q = seasonal_q;
+                        }
+                    }
+                    _ => {
+                        // Default to AIC
+                        if metrics.aic < best_aic {
+                            best_aic = metrics.aic;
+                            best_p = p;
+                            best_q = q;
+                            best_seasonal_p = seasonal_p;
+                            best_seasonal_q = seasonal_q;
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                // Skip models that fail to fit
+                continue;
+            }
+        }
+    }
+
+    // Create the optimal ARIMA parameters
+    let mut params = ArimaParams {
+        p: best_p,
+        d: best_d,
+        q: best_q,
+        seasonal_p: None,
+        seasonal_d: None,
+        seasonal_q: None,
+        seasonal_period: None,
+        fit_intercept: options.with_constant,
+        trend: None,
+    };
+
+    // Add seasonal components if requested
+    if options.seasonal {
+        params.seasonal_p = Some(best_seasonal_p);
+        params.seasonal_d = Some(best_seasonal_d);
+        params.seasonal_q = Some(best_seasonal_q);
+        params.seasonal_period = options.seasonal_period;
+    }
+
+    Ok(params)
+}
+
+/// Determines the optimal differencing order for stationarity
+fn determine_differencing_order<F>(ts: &Array1<F>, max_d: usize) -> Result<usize>
+where
+    F: Float + FromPrimitive + Debug,
+{
     let mut best_d = 0;
     let mut series_is_stationary = false;
 
-    // Check stationarity
+    // Check stationarity of the original series
     let (_, p_value) = is_stationary(ts, None)?;
     if p_value < F::from_f64(0.05).unwrap() {
         series_is_stationary = true;
@@ -872,37 +1177,139 @@ where
         }
     }
 
-    // Simplified model selection
-    // In a full implementation, we would fit models with different (p,d,q) combinations
-    // and select the best one based on AIC or BIC criteria
+    Ok(best_d)
+}
 
-    // For this simplified version, we'll use some heuristics
-    let best_p = if max_p > 0 { 1 } else { 0 };
-    let best_q = if max_q > 0 { 1 } else { 0 };
+/// Determines the optimal seasonal differencing order
+fn determine_seasonal_differencing_order<F>(
+    ts: &Array1<F>,
+    seasonal_period: usize,
+    max_seasonal_d: usize,
+) -> Result<usize>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    let mut best_d = 0;
 
-    // Create the ARIMA parameters
-    let mut params = ArimaParams {
-        p: best_p,
-        d: best_d,
-        q: best_q,
-        seasonal_p: None,
-        seasonal_d: None,
-        seasonal_q: None,
-        seasonal_period: None,
-        fit_intercept: true,
-        trend: None,
-    };
+    // Check if seasonal differencing improves stationarity
+    let (initial_stat, _) = is_stationary(ts, None)?;
 
-    // Add seasonal components if requested
-    if seasonal {
-        // Simplified seasonal parameters
-        params.seasonal_p = Some(1);
-        params.seasonal_d = Some(1);
-        params.seasonal_q = Some(1);
-        params.seasonal_period = seasonal_period;
+    let mut ts_diff = ts.clone();
+
+    for d in 1..=max_seasonal_d {
+        // Apply seasonal differencing
+        if ts_diff.len() <= seasonal_period {
+            break; // Series too short for further differencing
+        }
+
+        let diff_ts = transform_to_stationary(&ts_diff, "seasonal_diff", Some(seasonal_period))?;
+
+        // Check stationarity of differenced series
+        let (stat_value, _) = is_stationary(&diff_ts, None)?;
+
+        // If stationarity improves, increment the differencing order
+        if stat_value < initial_stat {
+            best_d = d;
+            ts_diff = diff_ts;
+        } else {
+            break; // Stop if stationarity doesn't improve
+        }
     }
 
-    Ok(params)
+    Ok(best_d)
+}
+
+/// Applies both regular and seasonal differencing to a time series
+fn apply_differencing<F>(
+    ts: &Array1<F>,
+    d: usize,
+    seasonal: bool,
+    seasonal_period: Option<usize>,
+    seasonal_d: usize,
+) -> Result<Array1<F>>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    let mut result = ts.clone();
+
+    // Apply regular differencing
+    for _ in 0..d {
+        if result.len() < 2 {
+            return Err(TimeSeriesError::ForecastingError(
+                "Series too short for further differencing".to_string(),
+            ));
+        }
+        result = transform_to_stationary(&result, "diff", None)?;
+    }
+
+    // Apply seasonal differencing if requested
+    if seasonal && seasonal_d > 0 {
+        let period = seasonal_period.unwrap();
+        for _ in 0..seasonal_d {
+            if result.len() <= period {
+                return Err(TimeSeriesError::ForecastingError(
+                    "Series too short for further seasonal differencing".to_string(),
+                ));
+            }
+            result = transform_to_stationary(&result, "seasonal_diff", seasonal_period)?;
+        }
+    }
+
+    Ok(result)
+}
+
+/// Evaluates an ARIMA model on the time series data and returns fit metrics
+fn evaluate_arima_model<F>(
+    ts: &Array1<F>,
+    params: &ArimaParams,
+) -> std::result::Result<ModelFitMetrics<F>, String>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    // This is a simplified placeholder for actual model fitting
+    // In a real implementation, we would:
+    // 1. Fit the ARIMA model with the given parameters
+    // 2. Calculate log-likelihood, AIC, BIC, etc.
+    // 3. Return the metrics
+
+    // For now, we'll calculate a simple approximation based on the parameters
+    let n = ts.len() as f64;
+    let k = (params.p
+        + params.q
+        + params.seasonal_p.unwrap_or(0)
+        + params.seasonal_q.unwrap_or(0)
+        + if params.fit_intercept { 1 } else { 0 }) as f64;
+
+    // Simplified RSS calculation - in reality would be based on model residuals
+    // This approximation assumes models with more parameters fit better
+    let penalty = 1.0 + k / n; // More parameters = slightly worse fit for simplicity
+    let mse = penalty * 1.0; // Dummy value, would be real MSE in actual implementation
+
+    // Convert to generic float
+    let n_f = F::from_f64(n).unwrap();
+    let k_f = F::from_f64(k).unwrap();
+    let mse_f = F::from_f64(mse).unwrap();
+
+    // Log-likelihood (simplified approximation)
+    let log_likelihood = -n_f * mse_f.ln() / F::from_f64(2.0).unwrap();
+
+    // AIC: -2*log_likelihood + 2*k
+    let aic = -F::from_f64(2.0).unwrap() * log_likelihood + F::from_f64(2.0).unwrap() * k_f;
+
+    // BIC: -2*log_likelihood + k*log(n)
+    let bic = -F::from_f64(2.0).unwrap() * log_likelihood + k_f * n_f.ln();
+
+    // HQIC: -2*log_likelihood + 2*k*log(log(n))
+    let hqic = -F::from_f64(2.0).unwrap() * log_likelihood
+        + F::from_f64(2.0).unwrap() * k_f * n_f.ln().ln();
+
+    Ok(ModelFitMetrics {
+        aic,
+        bic,
+        hqic,
+        log_likelihood,
+        mse: mse_f,
+    })
 }
 
 /// Automatically selects the best exponential smoothing model

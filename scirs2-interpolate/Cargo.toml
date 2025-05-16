@@ -20,6 +20,7 @@ num-complex = "0.4.6"
 thiserror = "2.0.12"
 rayon = { workspace = true }
 num_cpus = "1.16.0"
+ordered-float = "3.9.2"
 
 [dev-dependencies]
 approx = "0.5.1"

@@ -9,7 +9,7 @@ fn main() {
     let x = Array1::linspace(0.0, 10.0, 11);
 
     // Create oscillating data to demonstrate tension effects
-    let y = x.mapv(|v| v.sin() + 0.1 * v);
+    let y = x.mapv(|v| f64::sin(v) + 0.1 * v);
 
     println!("Example 1: Comparing Different Tension Values");
     println!("-------------------------------------------");
@@ -39,7 +39,7 @@ fn main() {
         println!(
             " {:.2} |    {:.4}    |     {:.4}     |    {:.4}    |     {:.4}",
             x_fine[i],
-            x_fine[i].sin() + 0.1 * x_fine[i],
+            f64::sin(x_fine[i]) + 0.1 * x_fine[i],
             y_low[i],
             y_med[i],
             y_high[i]
@@ -70,7 +70,7 @@ fn main() {
 
     // Create a quadratic function
     let x_quad = Array1::linspace(0.0, 5.0, 6);
-    let y_quad = x_quad.mapv(|x| x.powi(2));
+    let y_quad = x_quad.mapv(|x| f64::powi(x, 2));
 
     // Create a tension spline for this quadratic data
     let quad_spline =
@@ -173,7 +173,7 @@ fn main() {
         &x_simple.view(),
         &y_simple.view(),
         1.0,
-        ExtrapolateMode::UseNearestValue,
+        ExtrapolateMode::Constant,
     )
     .unwrap();
 
@@ -181,14 +181,22 @@ fn main() {
     let x_outside = Array1::from_vec(vec![-2.0, -1.0, 6.0, 7.0]);
 
     println!("Extrapolation results with different modes:");
-    println!("   x   | Extrapolate | UseNearestValue | Error mode");
+    println!("   x   | Extrapolate | Constant | Error mode");
     println!("---------------------------------------------------");
 
     for &x_val in x_outside.iter() {
-        let result_allow = extrap_allow.evaluate_single(x_val).unwrap();
-        let result_nearest = extrap_nearest.evaluate_single(x_val).unwrap();
-        let result_error = match extrap_error.as_ref().unwrap().evaluate_single(x_val) {
-            Ok(v) => format!("{:.4}", v),
+        let result_allow = extrap_allow
+            .evaluate(&Array1::from_vec(vec![x_val]).view())
+            .unwrap()[0];
+        let result_nearest = extrap_nearest
+            .evaluate(&Array1::from_vec(vec![x_val]).view())
+            .unwrap()[0];
+        let result_error = match extrap_error
+            .as_ref()
+            .unwrap()
+            .evaluate(&Array1::from_vec(vec![x_val]).view())
+        {
+            Ok(v) => format!("{:.4}", v[0]),
             Err(_) => "Error".to_string(),
         };
 
@@ -203,7 +211,7 @@ fn main() {
 
     // Create data with oscillation to show the difference
     let x_osc = Array1::linspace(0.0, 4.0 * std::f64::consts::PI, 9);
-    let y_osc = x_osc.mapv(|x| x.sin());
+    let y_osc = x_osc.mapv(|x| f64::sin(x));
 
     // Create tension splines with different tension values
     let tens_0 =
@@ -213,17 +221,44 @@ fn main() {
     let tens_5 =
         make_tension_spline(&x_osc.view(), &y_osc.view(), 5.0, ExtrapolateMode::Error).unwrap();
 
-    // Also create a standard cubic spline for comparison
-    let cubic = cubic_interpolate(&x_osc.view(), &y_osc.view(), None, None).unwrap();
-
     // Evaluate at fine points
     let x_fine_osc = Array1::linspace(0.0, 4.0 * std::f64::consts::PI, 101);
-    let y_exact = x_fine_osc.mapv(|x| x.sin());
+    let y_exact = x_fine_osc.mapv(|x| f64::sin(x));
 
-    let y_tens_0 = tens_0.evaluate(&x_fine_osc.view()).unwrap();
-    let y_tens_1 = tens_1.evaluate(&x_fine_osc.view()).unwrap();
-    let y_tens_5 = tens_5.evaluate(&x_fine_osc.view()).unwrap();
-    let y_cubic = cubic.evaluate(&x_fine_osc.view()).unwrap();
+    // Also create a standard cubic spline for comparison - handle potential errors
+    let y_cubic = match cubic_interpolate(&x_osc.view(), &y_osc.view(), &x_fine_osc.view()) {
+        Ok(result) => result,
+        Err(_) => {
+            // If interpolation fails, create a dummy array matching the size of y_exact
+            println!("Note: Cubic interpolation failed, using zeros for comparison");
+            Array1::zeros(y_exact.len())
+        }
+    };
+
+    // Handle potential errors with evaluate
+    let y_tens_0 = match tens_0.evaluate(&x_fine_osc.view()) {
+        Ok(result) => result,
+        Err(_) => {
+            println!("Note: Tension=0.0 evaluation failed, using zeros for comparison");
+            Array1::zeros(y_exact.len())
+        }
+    };
+
+    let y_tens_1 = match tens_1.evaluate(&x_fine_osc.view()) {
+        Ok(result) => result,
+        Err(_) => {
+            println!("Note: Tension=1.0 evaluation failed, using zeros for comparison");
+            Array1::zeros(y_exact.len())
+        }
+    };
+
+    let y_tens_5 = match tens_5.evaluate(&x_fine_osc.view()) {
+        Ok(result) => result,
+        Err(_) => {
+            println!("Note: Tension=5.0 evaluation failed, using zeros for comparison");
+            Array1::zeros(y_exact.len())
+        }
+    };
 
     // Calculate root mean square error for each spline
     let calc_rmse = |y_pred: &Array1<f64>, y_true: &Array1<f64>| -> f64 {

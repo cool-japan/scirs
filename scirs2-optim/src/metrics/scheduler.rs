@@ -78,7 +78,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricScheduler<F> {
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F> for MetricScheduler<F> {
+impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
+    for MetricScheduler<F>
+{
     fn get_learning_rate(&self) -> F {
         self.scheduler.get_learning_rate()
     }
@@ -146,7 +148,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricBasedReduceOnPlatea
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F> for MetricBasedReduceOnPlateau<F> {
+impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
+    for MetricBasedReduceOnPlateau<F>
+{
     fn get_learning_rate(&self) -> F {
         self.adapter.get_learning_rate()
     }

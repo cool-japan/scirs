@@ -1,5 +1,5 @@
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_interpolate::{make_thinplate_interpolator, ThinPlateSpline};
+use scirs2_interpolate::make_thinplate_interpolator;
 
 /// Generate a grid of points in the 2D square [min, max] x [min, max]
 fn generate_grid(min: f64, max: f64, resolution: usize) -> Array2<f64> {
@@ -30,8 +30,8 @@ fn generate_scattered_data(n_points: usize, add_noise: bool) -> (Array2<f64>, Ar
     // Generate random (x,y) points in [-1, 1] x [-1, 1]
     let mut points = Array2::zeros((n_points, 2));
     for i in 0..n_points {
-        points[[i, 0]] = 2.0 * rng.gen::<f64>() - 1.0; // x in [-1, 1]
-        points[[i, 1]] = 2.0 * rng.gen::<f64>() - 1.0; // y in [-1, 1]
+        points[[i, 0]] = 2.0 * rng.random::<f64>() - 1.0; // x in [-1, 1]
+        points[[i, 1]] = 2.0 * rng.random::<f64>() - 1.0; // y in [-1, 1]
     }
 
     // Compute function values
@@ -41,11 +41,11 @@ fn generate_scattered_data(n_points: usize, add_noise: bool) -> (Array2<f64>, Ar
         let y = points[[i, 1]];
 
         // Function: f(x,y) = x^2 + sin(y)
-        values[i] = x.powi(2) + y.sin();
+        values[i] = f64::powi(x, 2) + f64::sin(y);
 
         // Add noise if specified
         if add_noise {
-            values[i] += 0.05 * (2.0 * rng.gen::<f64>() - 1.0);
+            values[i] += 0.05 * (2.0 * rng.random::<f64>() - 1.0);
         }
     }
 
@@ -60,7 +60,7 @@ fn true_function(points: &ArrayView2<f64>) -> Array1<f64> {
     for i in 0..n_points {
         let x = points[[i, 0]];
         let y = points[[i, 1]];
-        values[i] = x.powi(2) + y.sin();
+        values[i] = f64::powi(x, 2) + f64::sin(y);
     }
 
     values
@@ -209,7 +209,7 @@ fn noisy_data_example() {
         println!("Added outlier at (0.0, 0.0) with value 5.0");
         println!(
             "True value at this point should be {:.4}",
-            0.0_f64.powi(2) + 0.0_f64.sin()
+            f64::powi(0.0, 2) + f64::sin(0.0)
         );
     }
 
@@ -241,12 +241,12 @@ fn noisy_data_example() {
     println!(
         "  Exact TPS:           {:.4} (error: {:.4})",
         exact_pred,
-        (exact_pred - true_value).abs()
+        f64::abs(exact_pred - true_value)
     );
     println!(
         "  Smoothed TPS:        {:.4} (error: {:.4})",
         smoothed_pred,
-        (smoothed_pred - true_value).abs()
+        f64::abs(smoothed_pred - true_value)
     );
 
     // Evaluate at some nearby points

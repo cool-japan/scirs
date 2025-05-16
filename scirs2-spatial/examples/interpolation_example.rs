@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2, Axis};
+use ndarray::{array, Array1, Array2};
 use rand::Rng;
 use scirs2_spatial::interpolate::{
     IDWInterpolator, NaturalNeighborInterpolator, RBFInterpolator, RBFKernel,
@@ -176,12 +176,12 @@ fn create_grid(x_min: f64, x_max: f64, y_min: f64, y_max: f64, size: usize) -> A
 
 /// Generate random points in a given range
 fn generate_random_points(n: usize, x_min: f64, x_max: f64, y_min: f64, y_max: f64) -> Array2<f64> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut points = Array2::zeros((n, 2));
 
     for i in 0..n {
-        points[[i, 0]] = rng.gen_range(x_min..x_max);
-        points[[i, 1]] = rng.gen_range(y_min..y_max);
+        points[[i, 0]] = rng.random_range(x_min..x_max);
+        points[[i, 1]] = rng.random_range(y_min..y_max);
     }
 
     points

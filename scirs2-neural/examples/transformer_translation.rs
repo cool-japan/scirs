@@ -1,6 +1,5 @@
-use ndarray::{s, Array, Array1, Array2, Array3, Array4, Axis};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use ndarray::{s, Array1, Array2, Array3, Array4};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f32;
@@ -17,7 +16,15 @@ impl Embedding {
     fn new(vocab_size: usize, embedding_dim: usize) -> Self {
         // Xavier/Glorot initialization
         let bound = (3.0 / embedding_dim as f32).sqrt();
-        let weight = Array::random((vocab_size, embedding_dim), Uniform::new(-bound, bound));
+
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut weight = Array2::<f32>::zeros((vocab_size, embedding_dim));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         Embedding {
             vocab_size,
@@ -51,6 +58,7 @@ impl Embedding {
 }
 
 // Positional Encoding
+#[derive(Debug, Serialize, Deserialize)]
 struct PositionalEncoding {
     max_seq_len: usize,
     d_model: usize,
@@ -189,10 +197,30 @@ impl MultiHeadAttention {
         // Xavier initialization
         let bound = (6.0 / (d_model + d_model) as f32).sqrt();
 
-        let w_q = Array::random((d_model, d_model), Uniform::new(-bound, bound));
-        let w_k = Array::random((d_model, d_model), Uniform::new(-bound, bound));
-        let w_v = Array::random((d_model, d_model), Uniform::new(-bound, bound));
-        let w_o = Array::random((d_model, d_model), Uniform::new(-bound, bound));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut w_q = Array2::<f32>::zeros((d_model, d_model));
+        let mut w_k = Array2::<f32>::zeros((d_model, d_model));
+        let mut w_v = Array2::<f32>::zeros((d_model, d_model));
+        let mut w_o = Array2::<f32>::zeros((d_model, d_model));
+
+        for elem in w_q.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
+        for elem in w_k.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
+        for elem in w_v.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
+        for elem in w_o.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         MultiHeadAttention {
             d_model,
@@ -439,10 +467,22 @@ impl FeedForward {
         let bound1 = (6.0 / (d_model + d_ff) as f32).sqrt();
         let bound2 = (6.0 / (d_ff + d_model) as f32).sqrt();
 
-        let w1 = Array::random((d_model, d_ff), Uniform::new(-bound1, bound1));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut w1 = Array2::<f32>::zeros((d_model, d_ff));
         let b1 = Array1::<f32>::zeros(d_ff);
-        let w2 = Array::random((d_ff, d_model), Uniform::new(-bound2, bound2));
+        let mut w2 = Array2::<f32>::zeros((d_ff, d_model));
         let b2 = Array1::<f32>::zeros(d_model);
+
+        for elem in w1.iter_mut() {
+            *elem = rng.random_range(-bound1..bound1);
+        }
+
+        for elem in w2.iter_mut() {
+            *elem = rng.random_range(-bound2..bound2);
+        }
 
         FeedForward {
             d_model,
@@ -836,10 +876,15 @@ impl Transformer {
 
         // Create output projection
         let output_bound = (3.0 / (d_model + tgt_vocab_size) as f32).sqrt();
-        let output_projection = Array::random(
-            (tgt_vocab_size, d_model),
-            Uniform::new(-output_bound, output_bound),
-        );
+
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut output_projection = Array2::<f32>::zeros((tgt_vocab_size, d_model));
+        for elem in output_projection.iter_mut() {
+            *elem = rng.random_range(-output_bound..output_bound);
+        }
 
         Transformer {
             src_embedding,
@@ -924,7 +969,7 @@ impl Transformer {
         // src: [batch_size, src_len] - Source token IDs
         // tgt: [batch_size, tgt_len] - Target token IDs
         let batch_size = src.shape()[0];
-        let src_len = src.shape()[1];
+        let _src_len = src.shape()[1];
         let tgt_len = tgt.shape()[1];
 
         // Create masks
@@ -985,7 +1030,7 @@ impl Transformer {
     ) -> Array2<usize> {
         // src: [batch_size, src_len] - Source token IDs
         let batch_size = src.shape()[0];
-        let src_len = src.shape()[1];
+        let _src_len = src.shape()[1];
 
         // Create source mask
         let src_mask = self.create_padding_mask(src, src_pad_idx);
@@ -1436,7 +1481,7 @@ fn main() {
     let num_encoder_layers = 2;
     let num_decoder_layers = 2;
     let d_ff = 64; // Feed-forward dimension
-    let batch_size = english.len();
+    let _batch_size = english.len();
     let max_seq_len = max_len + 2; // Add space for SOS and EOS
     let dropout_rate = 0.1;
 

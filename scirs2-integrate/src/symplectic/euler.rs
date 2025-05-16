@@ -10,11 +10,10 @@
 //! While first-order, these methods exactly conserve the symplectic structure
 //! and provide bounded energy error over long integration times.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
 use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Symplectic Euler Method A - updates position first, then momentum
@@ -23,11 +22,11 @@ use std::marker::PhantomData;
 /// 1. q_{n+1} = q_n + dt * dq/dt(t_n, q_n, p_n)
 /// 2. p_{n+1} = p_n + dt * dp/dt(t_n, q_{n+1}, p_n)
 #[derive(Debug, Clone)]
-pub struct SymplecticEulerA<F: Float> {
+pub struct SymplecticEulerA<F: IntegrateFloat> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticEulerA<F> {
+impl<F: IntegrateFloat> SymplecticEulerA<F> {
     /// Create a new Symplectic Euler A integrator
     pub fn new() -> Self {
         SymplecticEulerA {
@@ -36,13 +35,13 @@ impl<F: Float + Debug + FromPrimitive> SymplecticEulerA<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> Default for SymplecticEulerA<F> {
+impl<F: IntegrateFloat> Default for SymplecticEulerA<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for SymplecticEulerA<F> {
+impl<F: IntegrateFloat> SymplecticIntegrator<F> for SymplecticEulerA<F> {
     fn step(
         &self,
         system: &dyn HamiltonianFn<F>,
@@ -69,11 +68,11 @@ impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for SymplecticEul
 /// 1. p_{n+1} = p_n + dt * dp/dt(t_n, q_n, p_n)
 /// 2. q_{n+1} = q_n + dt * dq/dt(t_n, q_n, p_{n+1})
 #[derive(Debug, Clone)]
-pub struct SymplecticEulerB<F: Float> {
+pub struct SymplecticEulerB<F: IntegrateFloat> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticEulerB<F> {
+impl<F: IntegrateFloat> SymplecticEulerB<F> {
     /// Create a new Symplectic Euler B integrator
     pub fn new() -> Self {
         SymplecticEulerB {
@@ -82,13 +81,13 @@ impl<F: Float + Debug + FromPrimitive> SymplecticEulerB<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> Default for SymplecticEulerB<F> {
+impl<F: IntegrateFloat> Default for SymplecticEulerB<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for SymplecticEulerB<F> {
+impl<F: IntegrateFloat> SymplecticIntegrator<F> for SymplecticEulerB<F> {
     fn step(
         &self,
         system: &dyn HamiltonianFn<F>,
@@ -113,7 +112,7 @@ impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for SymplecticEul
 ///
 /// Provides a simple functional interface to the Symplectic Euler A algorithm,
 /// which updates position first, then momentum.
-pub fn symplectic_euler<F: Float + Debug + FromPrimitive>(
+pub fn symplectic_euler<F: IntegrateFloat>(
     system: &dyn HamiltonianFn<F>,
     t: F,
     q: &Array1<F>,
@@ -124,7 +123,7 @@ pub fn symplectic_euler<F: Float + Debug + FromPrimitive>(
 }
 
 /// Convenience function for the Symplectic Euler A method (position first)
-pub fn symplectic_euler_a<F: Float + Debug + FromPrimitive>(
+pub fn symplectic_euler_a<F: IntegrateFloat>(
     system: &dyn HamiltonianFn<F>,
     t: F,
     q: &Array1<F>,
@@ -135,7 +134,7 @@ pub fn symplectic_euler_a<F: Float + Debug + FromPrimitive>(
 }
 
 /// Convenience function for the Symplectic Euler B method (momentum first)
-pub fn symplectic_euler_b<F: Float + Debug + FromPrimitive>(
+pub fn symplectic_euler_b<F: IntegrateFloat>(
     system: &dyn HamiltonianFn<F>,
     t: F,
     q: &Array1<F>,

@@ -291,6 +291,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BivariateSpline<F> {
     }
 
     /// Find the interval containing x in the knot sequence
+    #[allow(dead_code)] // Currently unused but kept for potential future use
     fn find_interval(&self, x: F, knots: &Array1<F>) -> InterpolateResult<(usize, F)> {
         let n = knots.len();
 
@@ -680,7 +681,9 @@ pub struct RectBivariateSpline<F: Float + FromPrimitive + Debug + std::fmt::Disp
     spline: BivariateSpline<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug + std::fmt::Display + std::ops::AddAssign> RectBivariateSpline<F> {
+impl<F: Float + FromPrimitive + Debug + std::fmt::Display + std::ops::AddAssign>
+    RectBivariateSpline<F>
+{
     /// Create a new bivariate spline over a rectangular mesh
     ///
     /// # Arguments

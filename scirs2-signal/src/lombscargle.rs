@@ -4,7 +4,7 @@
 //! using the Lomb-Scargle periodogram technique.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array, Array1, ArrayView1};
+use ndarray::Array1;
 use num_traits::{Float, NumCast};
 use std::f64::consts::PI;
 use std::fmt::Debug;
@@ -379,7 +379,7 @@ fn _lombscargle_impl(
         // Calculate the trigonometric terms
         let (mut c_tau, mut s_tau) = (0.0, 0.0);
         let (mut c_tau2, mut s_tau2) = (0.0, 0.0);
-        let (mut cs_tau) = 0.0;
+        let mut cs_tau = 0.0;
 
         for (ti, &yi) in t.iter().zip(y_centered.iter()) {
             let c = (omega * ti - tau).cos();

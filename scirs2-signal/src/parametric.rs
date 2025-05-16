@@ -126,7 +126,7 @@ pub fn yule_walker(
 
     // Calculate autocorrelation up to lag 'order'
     let n = signal.len();
-    let mut autocorr = Array1::zeros(order + 1);
+    let mut autocorr = Array1::<f64>::zeros(order + 1);
 
     for lag in 0..=order {
         let mut sum = 0.0;
@@ -148,7 +148,7 @@ pub fn yule_walker(
     let (ar_coeffs, reflection_coeffs, variance) = levinson_durbin(&autocorr, order)?;
 
     // Return AR coefficients with a leading 1
-    let mut full_ar_coeffs = Array1::zeros(order + 1);
+    let mut full_ar_coeffs = Array1::<f64>::zeros(order + 1);
     full_ar_coeffs[0] = 1.0;
     for i in 0..order {
         full_ar_coeffs[i + 1] = -ar_coeffs[i]; // Note: Negation of coefficients for standard form
@@ -172,8 +172,8 @@ fn levinson_durbin(
     order: usize,
 ) -> SignalResult<(Array1<f64>, Array1<f64>, f64)> {
     let p = order;
-    let mut a = Array1::zeros(p);
-    let mut reflection = Array1::zeros(p);
+    let mut a = Array1::<f64>::zeros(p);
+    let mut reflection = Array1::<f64>::zeros(p);
 
     // Initial error is the zero-lag autocorrelation
     let mut e = autocorr[0];
@@ -244,8 +244,8 @@ pub fn burg_method(
     let mut b = signal.clone();
 
     // Initialize AR coefficients and reflection coefficients
-    let mut a = Array2::eye(order + 1);
-    let mut k = Array1::zeros(order);
+    let mut a = Array2::<f64>::eye(order + 1);
+    let mut k = Array1::<f64>::zeros(order);
 
     // Initial prediction error power
     let mut e = signal.iter().map(|&x| x * x).sum::<f64>() / n as f64;
@@ -327,8 +327,8 @@ pub fn covariance_method(
     let n = signal.len();
 
     // Form the covariance matrix and vector
-    let mut r = Array2::zeros((order, order));
-    let mut r_vec = Array1::zeros(order);
+    let mut r = Array2::<f64>::zeros((order, order));
+    let mut r_vec = Array1::<f64>::zeros(order);
 
     for i in 0..order {
         for j in 0..order {
@@ -364,7 +364,7 @@ pub fn covariance_method(
     variance /= (n - order) as f64;
 
     // Create full AR coefficients with leading 1
-    let mut full_ar_coeffs = Array1::zeros(order + 1);
+    let mut full_ar_coeffs = Array1::<f64>::zeros(order + 1);
     full_ar_coeffs[0] = 1.0;
     for i in 0..order {
         full_ar_coeffs[i + 1] = -ar_params[i]; // Note: Negation for standard form
@@ -401,8 +401,8 @@ pub fn modified_covariance_method(
     let n = signal.len();
 
     // Form the covariance matrix and vector for both forward and backward predictions
-    let mut r = Array2::zeros((order, order));
-    let mut r_vec = Array1::zeros(order);
+    let mut r = Array2::<f64>::zeros((order, order));
+    let mut r_vec = Array1::<f64>::zeros(order);
 
     for i in 0..order {
         for j in 0..order {
@@ -464,7 +464,7 @@ pub fn modified_covariance_method(
     variance /= count as f64;
 
     // Create full AR coefficients with leading 1
-    let mut full_ar_coeffs = Array1::zeros(order + 1);
+    let mut full_ar_coeffs = Array1::<f64>::zeros(order + 1);
     full_ar_coeffs[0] = 1.0;
     for i in 0..order {
         full_ar_coeffs[i + 1] = -ar_params[i]; // Note: Negation for standard form
@@ -498,8 +498,8 @@ pub fn least_squares_method(
     let n = signal.len();
 
     // Create the design matrix (lagged signal values)
-    let mut x = Array2::zeros((n - order, order));
-    let mut y = Array1::zeros(n - order);
+    let mut x = Array2::<f64>::zeros((n - order, order));
+    let mut y = Array1::<f64>::zeros(n - order);
 
     for i in 0..(n - order) {
         for j in 0..order {
@@ -529,7 +529,7 @@ pub fn least_squares_method(
     variance /= (n - order) as f64;
 
     // Create full AR coefficients with leading 1
-    let mut full_ar_coeffs = Array1::zeros(order + 1);
+    let mut full_ar_coeffs = Array1::<f64>::zeros(order + 1);
     full_ar_coeffs[0] = 1.0;
     for i in 0..order {
         full_ar_coeffs[i + 1] = -ar_params[i]; // Note: Negation for standard form
@@ -587,7 +587,7 @@ pub fn ar_spectrum(
     let norm_freqs = freqs.mapv(|f| f * 2.0 * PI / fs);
 
     // Calculate PSD for each frequency
-    let mut psd = Array1::zeros(norm_freqs.len());
+    let mut psd = Array1::<f64>::zeros(norm_freqs.len());
 
     for (i, &w) in norm_freqs.iter().enumerate() {
         // Compute frequency response: H(w) = 1 / A(e^{jw})
@@ -636,7 +636,7 @@ pub fn estimate_arma(
 
     // Step 2: Compute the residuals
     let n = signal.len();
-    let mut residuals = Array1::zeros(n);
+    let mut residuals = Array1::<f64>::zeros(n);
 
     for t in ar_init_order..n {
         let mut pred = 0.0;
@@ -650,7 +650,7 @@ pub fn estimate_arma(
     // This is a simplified approach for MA parameter estimation
 
     // Compute autocorrelation of residuals
-    let mut r = Array1::zeros(ma_order + 1);
+    let mut r = Array1::<f64>::zeros(ma_order + 1);
     for k in 0..=ma_order {
         let mut sum = 0.0;
         let mut count = 0;
@@ -666,10 +666,10 @@ pub fn estimate_arma(
     }
 
     // Solve for MA parameters using Durbin's method
-    let mut ma_coeffs = Array1::zeros(ma_order + 1);
+    let mut ma_coeffs = Array1::<f64>::zeros(ma_order + 1);
     ma_coeffs[0] = 1.0;
 
-    let mut v = Array1::zeros(ma_order + 1);
+    let mut v = Array1::<f64>::zeros(ma_order + 1);
     v[0] = r[0];
 
     for k in 1..=ma_order {
@@ -693,7 +693,7 @@ pub fn estimate_arma(
     // This is a simplified version - in practice, more iterative approaches are used
 
     // Extract the final model parameters
-    let mut final_ar = Array1::zeros(ar_order + 1);
+    let mut final_ar = Array1::<f64>::zeros(ar_order + 1);
     final_ar[0] = 1.0;
     for i in 1..=ar_order {
         final_ar[i] = ar_init[i];
@@ -743,7 +743,7 @@ pub fn arma_spectrum(
     let norm_freqs = freqs.mapv(|f| f * 2.0 * PI / fs);
 
     // Calculate PSD for each frequency
-    let mut psd = Array1::zeros(norm_freqs.len());
+    let mut psd = Array1::<f64>::zeros(norm_freqs.len());
 
     for (i, &w) in norm_freqs.iter().enumerate() {
         // Compute AR polynomial: A(e^{jw})
@@ -814,7 +814,7 @@ pub fn select_ar_order(
     }
 
     let n = signal.len() as f64;
-    let mut criteria = Array1::zeros(max_order + 1);
+    let mut criteria = Array1::<f64>::zeros(max_order + 1);
 
     for order in 0..=max_order {
         if order == 0 {

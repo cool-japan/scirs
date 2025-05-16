@@ -4,16 +4,15 @@
 //! that arise in implicit ODE solvers. It includes standard Newton's method,
 //! modified Newton's method, and inexact Newton variants.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianManager;
 use crate::ode::utils::linear_solvers::{auto_solve_linear_system, LinearSolverType};
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Newton solver parameters
 #[derive(Debug, Clone)]
-pub struct NewtonParameters<F: Float> {
+pub struct NewtonParameters<F: IntegrateFloat> {
     /// Maximum number of iterations
     pub max_iterations: usize,
     /// Absolute tolerance for convergence
@@ -32,7 +31,7 @@ pub struct NewtonParameters<F: Float> {
     pub force_jacobian_init: bool,
 }
 
-impl<F: Float + FromPrimitive> Default for NewtonParameters<F> {
+impl<F: IntegrateFloat> Default for NewtonParameters<F> {
     fn default() -> Self {
         NewtonParameters {
             max_iterations: 10,
@@ -49,7 +48,7 @@ impl<F: Float + FromPrimitive> Default for NewtonParameters<F> {
 
 /// Result of a Newton solve
 #[derive(Debug, Clone)]
-pub struct NewtonResult<F: Float> {
+pub struct NewtonResult<F: IntegrateFloat> {
     /// Solution vector
     pub solution: Array1<F>,
     /// Residual at solution
@@ -78,13 +77,7 @@ pub fn newton_solve<F, Func>(
     params: NewtonParameters<F>,
 ) -> IntegrateResult<NewtonResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> Array1<F>,
 {
     let n = x0.len();
@@ -201,13 +194,7 @@ pub fn modified_newton_solve<F, Func>(
     params: NewtonParameters<F>,
 ) -> IntegrateResult<NewtonResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> Array1<F>,
 {
     // Set large Jacobian update frequency
@@ -221,7 +208,7 @@ where
 }
 
 /// Calculate error norm of residual vector
-fn calculate_error<F: Float>(residual: &Array1<F>, params: &NewtonParameters<F>) -> F {
+fn calculate_error<F: IntegrateFloat>(residual: &Array1<F>, params: &NewtonParameters<F>) -> F {
     // Use L-infinity norm (max absolute value)
     let mut max_abs = F::zero();
     for &r in residual.iter() {
@@ -231,7 +218,7 @@ fn calculate_error<F: Float>(residual: &Array1<F>, params: &NewtonParameters<F>)
 }
 
 /// Calculate norm of a vector (for relative convergence)
-fn calculate_norm<F: Float>(x: &Array1<F>) -> F {
+fn calculate_norm<F: IntegrateFloat>(x: &Array1<F>) -> F {
     // Use L-infinity norm
     let mut max_abs = F::zero();
     for &val in x.iter() {

@@ -5,13 +5,11 @@
 // Non-negative Matrix Factorization (NMF), and related methods.
 
 use crate::error::{SignalError, SignalResult};
-use crate::utils;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{s, Array1, Array2, Axis};
 // Use scirs2-linalg for linear algebra operations
-use ndarray_linalg::SVD;
-use scirs2_linalg::{eigh, solve, solve_multiple};
-use rand::{Rng, rngs::StdRng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
+use scirs2_linalg::{eigh, solve, solve_multiple, svd};
 use std::f64::consts::PI;
 
 /// Configuration for blind source separation
@@ -132,7 +130,7 @@ pub fn pca(signals: &Array2<f64>, config: &BssConfig) -> SignalResult<(Array2<f6
     let mut indices: Vec<usize> = (0..n_signals).collect();
     indices.sort_by(|&i, &j| eigvals[j].partial_cmp(&eigvals[i]).unwrap());
 
-    let mut sorted_eigvecs = Array2::zeros((n_signals, n_signals));
+    let mut sorted_eigvecs = Array2::<f64>::zeros((n_signals, n_signals));
     for (i, &idx) in indices.iter().enumerate() {
         for j in 0..n_signals {
             sorted_eigvecs[[j, i]] = eigvecs[[j, idx]];
@@ -218,7 +216,7 @@ pub fn ica(
     let (whitened, whitening_matrix) = if config.apply_whitening {
         whiten_signals(&centered)?
     } else {
-        (centered.clone(), Array2::eye(n_signals))
+        (centered.clone(), Array2::<f64>::eye(n_signals))
     };
 
     // Apply the requested ICA method
@@ -231,7 +229,10 @@ pub fn ica(
 
     // Calculate mixing matrix
     // A = W^-1 * whitening_matrix^-1
-    let ica_mixing = match solve_multiple(&unmixing.view(), &Array2::eye(unmixing.dim().0).view()) {
+    let ica_mixing = match solve_multiple(
+        &unmixing.view(),
+        &Array2::<f64>::eye(unmixing.dim().0).view(),
+    ) {
         Ok(inv) => inv,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -240,7 +241,10 @@ pub fn ica(
         }
     };
 
-    let whitening_inv = match solve_multiple(&whitening_matrix.view(), &Array2::eye(whitening_matrix.dim().0).view()) {
+    let whitening_inv = match solve_multiple(
+        &whitening_matrix.view(),
+        &Array2::<f64>::eye(whitening_matrix.dim().0).view(),
+    ) {
         Ok(inv) => inv,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -282,7 +286,7 @@ fn whiten_signals(signals: &Array2<f64>) -> SignalResult<(Array2<f64>, Array2<f6
     };
 
     // Create diagonal matrix of scaled eigenvalues
-    let mut d_inv_sqrt = Array2::zeros((n_signals, n_signals));
+    let mut d_inv_sqrt = Array2::<f64>::zeros((n_signals, n_signals));
     for i in 0..n_signals {
         if eigvals[i] > 1e-10 {
             d_inv_sqrt[[i, i]] = 1.0 / eigvals[i].sqrt();
@@ -324,11 +328,14 @@ fn fast_ica(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
-    let mut w = Array2::zeros((n_components, n_signals));
+    let mut w = Array2::<f64>::zeros((n_components, n_signals));
 
     for i in 0..n_components {
         for j in 0..n_signals {
@@ -374,7 +381,7 @@ fn fast_ica(
                 wp /= norm;
             }
 
-            let mut w_old = Array1::zeros(n_signals);
+            let mut w_old = Array1::<f64>::zeros(n_signals);
             let mut iteration = 0;
 
             // Fixed-point iteration
@@ -383,7 +390,7 @@ fn fast_ica(
                 w_old.assign(&wp);
 
                 // Compute projections of signals onto current weight vector
-                let mut projected = Array1::zeros(n_samples);
+                let mut projected = Array1::<f64>::zeros(n_samples);
                 for j in 0..n_samples {
                     for i in 0..n_signals {
                         projected[j] += wp[i] * signals[[i, j]];
@@ -391,7 +398,7 @@ fn fast_ica(
                 }
 
                 // Apply nonlinearity
-                let mut gx = Array1::zeros(n_samples);
+                let mut gx = Array1::<f64>::zeros(n_samples);
                 let mut g_prime_sum = 0.0;
                 for j in 0..n_samples {
                     gx[j] = g(projected[j]);
@@ -400,7 +407,7 @@ fn fast_ica(
                 g_prime_sum /= n_samples as f64;
 
                 // Update weight vector
-                let mut new_wp = Array1::zeros(n_signals);
+                let mut new_wp = Array1::<f64>::zeros(n_signals);
                 for i in 0..n_signals {
                     let mut sum_gx_x = 0.0;
                     for j in 0..n_samples {
@@ -444,7 +451,7 @@ fn fast_ica(
         }
     } else {
         // Apply simple gradient algorithm (less efficient but more robust)
-        let mut w_old = Array2::zeros((n_components, n_signals));
+        let mut w_old = Array2::<f64>::zeros((n_components, n_signals));
 
         for iteration in 0..config.max_iterations {
             // Store previous weight matrix
@@ -454,7 +461,7 @@ fn fast_ica(
             let projected = w.dot(signals);
 
             // Apply nonlinearity
-            let mut gx = Array2::zeros(projected.dim());
+            let mut gx = Array2::<f64>::zeros(projected.dim());
             for i in 0..n_components {
                 for j in 0..n_samples {
                     gx[[i, j]] = g(projected[[i, j]]);
@@ -463,7 +470,7 @@ fn fast_ica(
 
             // Compute gradient
             let gradient = gx.dot(&signals.t()) / (n_samples as f64)
-                - Array2::eye(n_components) * w.mapv(|x| g_prime(x)).mean().unwrap();
+                - Array2::<f64>::eye(n_components) * w.mapv(|x: f64| g_prime(x)).mean().unwrap();
 
             // Update weight matrix
             w = &w + &(&gradient * config.learning_rate);
@@ -479,7 +486,7 @@ fn fast_ica(
                 }
             };
 
-            let mut d_inv_sqrt = Array2::zeros((n_components, n_components));
+            let mut d_inv_sqrt = Array2::<f64>::zeros((n_components, n_components));
             for i in 0..n_components {
                 if eigvals[i] > 1e-10 {
                     d_inv_sqrt[[i, i]] = 1.0 / eigvals[i].sqrt();
@@ -540,11 +547,14 @@ fn infomax_ica(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
-    let mut w = Array2::zeros((n_components, n_signals));
+    let mut w = Array2::<f64>::zeros((n_components, n_signals));
 
     for i in 0..n_components {
         for j in 0..n_signals {
@@ -553,7 +563,7 @@ fn infomax_ica(
     }
 
     // Use identity matrix as initial unmixing matrix
-    let eye = Array2::eye(n_components);
+    let eye = Array2::<f64>::eye(n_components);
     for i in 0..n_components.min(n_signals) {
         w[[i, i]] = 1.0;
     }
@@ -569,7 +579,7 @@ fn infomax_ica(
 
     // Apply Infomax algorithm
     for iteration in 0..config.max_iterations {
-        let mut delta_w_sum = Array2::zeros((n_components, n_signals));
+        let mut delta_w_sum = Array2::<f64>::zeros((n_components, n_signals));
 
         // Process in batches
         for batch in 0..n_batches {
@@ -580,7 +590,7 @@ fn infomax_ica(
             let y = w.dot(&x_batch);
 
             // Apply logistic nonlinearity
-            let mut y_sigmoid = Array2::zeros(y.dim());
+            let mut y_sigmoid = Array2::<f64>::zeros(y.dim());
             for i in 0..n_components {
                 for j in 0..batch_size {
                     y_sigmoid[[i, j]] = 1.0 / (1.0 + (-y[[i, j]]).exp());
@@ -592,17 +602,18 @@ fn infomax_ica(
             let delta_w =
                 &block.dot(&y_sigmoid.dot(&x_batch.t())) * (learning_rate / batch_size as f64);
 
-            delta_w_sum = &delta_w_sum + &delta_w;
+            delta_w_sum += &delta_w;
         }
 
         // Update unmixing matrix
-        w = &w + &(delta_w_sum / n_batches as f64);
+        let delta_w_avg = delta_w_sum / n_batches as f64;
+        w = &w + &delta_w_avg;
 
         // Reduce learning rate
         learning_rate = (learning_rate * decay_rate).max(min_learning_rate);
 
         // Check for convergence (simplified)
-        if delta_w_sum.mapv(|x| x.abs()).mean().unwrap() < config.convergence_threshold {
+        if delta_w_avg.mapv(|x: f64| x.abs()).mean().unwrap() < config.convergence_threshold {
             break;
         }
     }
@@ -638,19 +649,20 @@ fn jade_ica(
 
     // Use PCA as initial guess
     let (pca_sources, pca_mixing) = pca(signals, config)?;
-    let pca_unmixing = match solve_multiple(&pca_mixing.view(), &Array2::eye(n_signals).view()) {
-        Ok(inv) => inv.slice(s![0..n_components, ..]).to_owned(),
-        Err(_) => {
-            return Err(SignalError::Compute(
-                "Failed to compute PCA unmixing matrix".to_string(),
-            ));
-        }
-    };
+    let pca_unmixing =
+        match solve_multiple(&pca_mixing.view(), &Array2::<f64>::eye(n_signals).view()) {
+            Ok(inv) => inv.slice(s![0..n_components, ..]).to_owned(),
+            Err(_) => {
+                return Err(SignalError::Compute(
+                    "Failed to compute PCA unmixing matrix".to_string(),
+                ));
+            }
+        };
 
     // Calculate cumulant matrices
     for k in 0..n_components {
         for l in k..n_components {
-            let mut q = Array2::zeros((n_components, n_components));
+            let mut q = Array2::<f64>::zeros((n_components, n_components));
 
             // Compute fourth-order cross-cumulants
             for i in 0..n_components {
@@ -686,7 +698,7 @@ fn jade_ica(
     }
 
     // Joint diagonalization
-    let mut v = Array2::eye(n_components);
+    let mut v = Array2::<f64>::eye(n_components);
 
     for _ in 0..config.max_iterations {
         let mut diagonalized = true;
@@ -724,7 +736,7 @@ fn jade_ica(
                     // Givens rotation matrix
                     let c = theta.cos();
                     let s = theta.sin();
-                    let mut g = Array2::eye(n_components);
+                    let mut g = Array2::<f64>::eye(n_components);
                     g[[i, i]] = c;
                     g[[i, j]] = -s;
                     g[[j, i]] = s;
@@ -780,11 +792,14 @@ fn extended_infomax_ica(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
-    let mut w = Array2::zeros((n_components, n_signals));
+    let mut w = Array2::<f64>::zeros((n_components, n_signals));
 
     for i in 0..n_components {
         for j in 0..n_signals {
@@ -793,7 +808,7 @@ fn extended_infomax_ica(
     }
 
     // Use identity matrix as initial unmixing matrix
-    let eye = Array2::eye(n_components);
+    let eye = Array2::<f64>::eye(n_components);
     for i in 0..n_components.min(n_signals) {
         w[[i, i]] = 1.0;
     }
@@ -812,7 +827,7 @@ fn extended_infomax_ica(
 
     // Apply Extended Infomax algorithm
     for iteration in 0..config.max_iterations {
-        let mut delta_w_sum = Array2::zeros((n_components, n_signals));
+        let mut delta_w_sum = Array2::<f64>::zeros((n_components, n_signals));
 
         // Process in batches
         for batch in 0..n_batches {
@@ -835,8 +850,8 @@ fn extended_infomax_ica(
             }
 
             // Compute nonlinearity based on sub/super-Gaussian nature
-            let mut k = Array2::zeros(y.dim());
-            let mut k_prime = Array2::zeros((n_components, n_components));
+            let mut k = Array2::<f64>::zeros(y.dim());
+            let mut k_prime = Array2::<f64>::zeros((n_components, n_components));
 
             for i in 0..n_components {
                 if is_super_gaussian[i] {
@@ -844,7 +859,8 @@ fn extended_infomax_ica(
                     for j in 0..batch_size {
                         k[[i, j]] = y[[i, j]].tanh();
                     }
-                    k_prime[[i, i]] = 1.0 - k.slice(s![i, ..]).mapv(|x| x.powi(2)).mean().unwrap();
+                    k_prime[[i, i]] =
+                        1.0 - k.slice(s![i, ..]).mapv(|x: f64| x.powi(2)).mean().unwrap();
                 } else {
                     // Sub-Gaussian: cubic nonlinearity
                     for j in 0..batch_size {
@@ -858,17 +874,18 @@ fn extended_infomax_ica(
             let block = &eye - &k.dot(&y.t()) / batch_size as f64 + &k_prime;
             let delta_w = &block.dot(&w) * learning_rate;
 
-            delta_w_sum = &delta_w_sum + &delta_w;
+            delta_w_sum += &delta_w;
         }
 
         // Update unmixing matrix
-        w = &w + &(delta_w_sum / n_batches as f64);
+        let delta_w_avg = delta_w_sum / n_batches as f64;
+        w = &w + &delta_w_avg;
 
         // Reduce learning rate
         learning_rate = (learning_rate * decay_rate).max(min_learning_rate);
 
         // Check for convergence (simplified)
-        if delta_w_sum.mapv(|x| x.abs()).mean().unwrap() < config.convergence_threshold {
+        if delta_w_avg.mapv(|x: f64| x.abs()).mean().unwrap() < config.convergence_threshold {
             break;
         }
     }
@@ -910,11 +927,14 @@ pub fn nmf(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
-    let mut w = Array2::zeros((n_signals, n_components));
-    let mut h = Array2::zeros((n_components, n_samples));
+    let mut w = Array2::<f64>::zeros((n_signals, n_components));
+    let mut h = Array2::<f64>::zeros((n_components, n_samples));
 
     for i in 0..n_signals {
         for j in 0..n_components {
@@ -930,14 +950,13 @@ pub fn nmf(
 
     // Normalize columns of W
     for j in 0..n_components {
-        let norm = w.slice(s![.., j]).mapv(|x| x.powi(2)).sum().sqrt();
+        let norm = w.slice(s![.., j]).mapv(|x: f64| x.powi(2)).sum().sqrt();
         if norm > 0.0 {
             for i in 0..n_signals {
                 w[[i, j]] /= norm;
             }
         }
     }
-
     // Perform NMF using multiplicative update rules
     for _ in 0..config.max_iterations {
         // Update H (sources)
@@ -967,7 +986,7 @@ pub fn nmf(
 
         // Normalize columns of W
         for j in 0..n_components {
-            let norm = w.slice(s![.., j]).mapv(|x| x.powi(2)).sum().sqrt();
+            let norm = w.slice(s![.., j]).mapv(|x: f64| x.powi(2)).sum().sqrt();
             if norm > 0.0 {
                 for i in 0..n_signals {
                     w[[i, j]] /= norm;
@@ -1110,7 +1129,7 @@ pub fn joint_bss(
     let n_datasets = datasets.len();
 
     // Build joint covariance matrices
-    let mut joint_cov = Array2::zeros((0, 0));
+    let mut joint_cov = Array2::<f64>::zeros((0, 0));
     let mut dataset_dims = Vec::with_capacity(n_datasets);
 
     for dataset in datasets {
@@ -1137,7 +1156,7 @@ pub fn joint_bss(
             // Create block diagonal matrix
             let current_dim = joint_cov.dim().0;
             let new_dim = current_dim + n_signals;
-            let mut new_joint_cov = Array2::zeros((new_dim, new_dim));
+            let mut new_joint_cov = Array2::<f64>::zeros((new_dim, new_dim));
 
             // Copy existing joint covariance
             for i in 0..current_dim {
@@ -1187,7 +1206,7 @@ pub fn joint_bss(
         extracted_sources.push(sources);
 
         // Calculate mixing matrix (pseudoinverse of unmixing)
-        let (u, s, vt) = match unmixing.svd() {
+        let (u, s, vt) = match svd(&unmixing.view(), false) {
             Ok((u, s, vt)) => (u, s, vt),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1196,7 +1215,7 @@ pub fn joint_bss(
             }
         };
 
-        let mut s_inv = Array2::zeros((vt.dim().0, u.dim().0));
+        let mut s_inv = Array2::<f64>::zeros((vt.dim().0, u.dim().0));
         for i in 0..s.len() {
             if s[i] > 1e-10 {
                 s_inv[[i, i]] = 1.0 / s[i];
@@ -1251,7 +1270,7 @@ pub fn joint_diagonalization(
     let max_lag = 10.min(n_samples / 4);
 
     for lag in 1..=max_lag {
-        let mut cov_lagged = Array2::zeros((n_signals, n_signals));
+        let mut cov_lagged = Array2::<f64>::zeros((n_signals, n_signals));
 
         for i in 0..n_signals {
             for j in 0..n_signals {
@@ -1269,7 +1288,7 @@ pub fn joint_diagonalization(
     }
 
     // Perform approximate joint diagonalization
-    let mut v = Array2::eye(n_signals);
+    let mut v = Array2::<f64>::eye(n_signals);
 
     for _ in 0..config.max_iterations {
         let mut diagonalized = true;
@@ -1306,7 +1325,7 @@ pub fn joint_diagonalization(
                     let sin_t = theta.sin();
 
                     // Create Givens rotation matrix
-                    let mut g = Array2::eye(n_signals);
+                    let mut g = Array2::<f64>::eye(n_signals);
                     g[[i, i]] = cos_t;
                     g[[i, j]] = -sin_t;
                     g[[j, i]] = sin_t;
@@ -1335,7 +1354,7 @@ pub fn joint_diagonalization(
     let sources = w.dot(&centered);
 
     // Calculate mixing matrix (pseudoinverse of w)
-    let (u, s, vt) = match w.svd() {
+    let (u, s, vt) = match svd(&w.view(), false) {
         Ok((u, s, vt)) => (u, s, vt),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1344,7 +1363,7 @@ pub fn joint_diagonalization(
         }
     };
 
-    let mut s_inv = Array2::zeros((vt.dim().0, u.dim().0));
+    let mut s_inv = Array2::<f64>::zeros((vt.dim().0, u.dim().0));
     for i in 0..s.len().min(s_inv.dim().0).min(s_inv.dim().1) {
         if s[i] > 1e-10 {
             s_inv[[i, i]] = 1.0 / s[i];
@@ -1378,7 +1397,7 @@ pub fn sort_components(
     for i in 0..n_components {
         let component = sources.slice(s![i, ..]);
         let mean = component.mean().unwrap();
-        let var = component.mapv(|x| (x - mean).powi(2)).sum() / (n_samples as f64 - 1.0);
+        let var = component.mapv(|x: f64| (x - mean).powi(2)).sum() / (n_samples as f64 - 1.0);
         variances.push((i, var));
     }
 
@@ -1386,8 +1405,8 @@ pub fn sort_components(
     variances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
     // Reorder components
-    let mut sorted_sources = Array2::zeros(sources.dim());
-    let mut sorted_mixing = Array2::zeros(mixing.dim());
+    let mut sorted_sources = Array2::<f64>::zeros(sources.dim());
+    let mut sorted_mixing = Array2::<f64>::zeros(mixing.dim());
 
     for (new_idx, (old_idx, _)) in variances.into_iter().enumerate() {
         sorted_sources
@@ -1414,12 +1433,12 @@ pub fn calculate_correlation_matrix(signals: &Array2<f64>) -> SignalResult<Array
     let (n_signals, n_samples) = signals.dim();
 
     // Center and normalize signals
-    let mut normalized = Array2::zeros(signals.dim());
+    let mut normalized = Array2::<f64>::zeros(signals.dim());
 
     for i in 0..n_signals {
         let signal = signals.slice(s![i, ..]);
         let mean = signal.mean().unwrap();
-        let std_dev = (signal.mapv(|x| (x - mean).powi(2)).sum() / n_samples as f64).sqrt();
+        let std_dev = (signal.mapv(|x: f64| (x - mean).powi(2)).sum() / n_samples as f64).sqrt();
 
         if std_dev > 1e-10 {
             for j in 0..n_samples {
@@ -1449,7 +1468,7 @@ pub fn calculate_mutual_information(
     n_bins: usize,
 ) -> SignalResult<Array2<f64>> {
     let (n_signals, n_samples) = signals.dim();
-    let mut mi_matrix = Array2::zeros((n_signals, n_signals));
+    let mut mi_matrix = Array2::<f64>::zeros((n_signals, n_signals));
 
     // For each pair of signals
     for i in 0..n_signals {
@@ -1462,18 +1481,18 @@ pub fn calculate_mutual_information(
             let y = signals.slice(s![j, ..]);
 
             // Find min and max for each signal to define histogram bins
-            let x_min = x.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-            let x_max = x.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-            let y_min = y.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-            let y_max = y.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+            let x_min = x.iter().fold(f64::INFINITY, |a: f64, &b| a.min(b));
+            let x_max = x.iter().fold(f64::NEG_INFINITY, |a: f64, &b| a.max(b));
+            let y_min = y.iter().fold(f64::INFINITY, |a: f64, &b| a.min(b));
+            let y_max = y.iter().fold(f64::NEG_INFINITY, |a: f64, &b| a.max(b));
 
             let x_bin_width = (x_max - x_min) / n_bins as f64;
             let y_bin_width = (y_max - y_min) / n_bins as f64;
 
             // Create joint histogram
-            let mut joint_hist = Array2::zeros((n_bins, n_bins));
-            let mut x_hist = Array1::zeros(n_bins);
-            let mut y_hist = Array1::zeros(n_bins);
+            let mut joint_hist = Array2::<f64>::zeros((n_bins, n_bins));
+            let mut x_hist = Array1::<f64>::zeros(n_bins);
+            let mut y_hist = Array1::<f64>::zeros(n_bins);
 
             // Fill histograms
             for s in 0..n_samples {
@@ -1617,11 +1636,14 @@ pub fn kernel_ica(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
-    let mut w = Array2::zeros((n_components, n_components));
+    let mut w = Array2::<f64>::zeros((n_components, n_components));
 
     for i in 0..n_components {
         for j in 0..n_components {
@@ -1638,8 +1660,8 @@ pub fn kernel_ica(
     let whitened = pca_sources.slice(s![0..n_components, ..]).to_owned();
 
     // Compute Gram matrices for each component
-    let mut compute_gram_matrix = |component: &Array1<f64>| -> Array2<f64> {
-        let mut gram = Array2::zeros((n_samples, n_samples));
+    let compute_gram_matrix = |component: &Array1<f64>| -> Array2<f64> {
+        let mut gram = Array2::<f64>::zeros((n_samples, n_samples));
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -1669,7 +1691,7 @@ pub fn kernel_ica(
 
     for iteration in 0..config.max_iterations {
         // Apply current unmixing matrix
-        let mut y = Array2::zeros((n_components, n_samples));
+        let mut y = Array2::<f64>::zeros((n_components, n_samples));
         for i in 0..n_components {
             for j in 0..n_samples {
                 for k in 0..n_components {
@@ -1704,7 +1726,7 @@ pub fn kernel_ica(
         hsic /= (n_samples * n_samples) as f64;
 
         // Compute gradient
-        let mut gradient = Array2::zeros((n_components, n_components));
+        let mut gradient = Array2::<f64>::zeros((n_components, n_components));
 
         for c in 0..n_components {
             for d in 0..n_components {
@@ -1752,7 +1774,7 @@ pub fn kernel_ica(
             }
         };
 
-        let mut d_inv_sqrt = Array2::zeros((n_components, n_components));
+        let mut d_inv_sqrt = Array2::<f64>::zeros((n_components, n_components));
         for i in 0..n_components {
             if eigvals[i] > 1e-10 {
                 d_inv_sqrt[[i, i]] = 1.0 / eigvals[i].sqrt();
@@ -1777,7 +1799,7 @@ pub fn kernel_ica(
     let unmixing = w.dot(&pca_mixing.slice(s![.., 0..n_components]).t());
 
     // Calculate mixing matrix (pseudoinverse of unmixing)
-    let (u, s, vt) = match unmixing.svd() {
+    let (u, s, vt) = match svd(&unmixing.view(), false) {
         Ok((u, s, vt)) => (u, s, vt),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1786,7 +1808,7 @@ pub fn kernel_ica(
         }
     };
 
-    let mut s_inv = Array2::zeros((vt.dim().0, u.dim().0));
+    let mut s_inv = Array2::<f64>::zeros((vt.dim().0, u.dim().0));
     for i in 0..s.len().min(s_inv.dim().0).min(s_inv.dim().1) {
         if s[i] > 1e-10 {
             s_inv[[i, i]] = 1.0 / s[i];
@@ -1825,7 +1847,10 @@ pub fn multivariate_emd(
     let mut rng = if let Some(seed) = config.random_seed {
         rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
+        {
+            // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
+            rand::rngs::StdRng::from_rng(&mut rand::rng())
+        }
     };
 
     for _ in 0..n_directions {
@@ -1861,7 +1886,7 @@ pub fn multivariate_emd(
     for imf_idx in 0..max_imf_count {
         // Current IMF
         let mut imf = residuals.clone();
-        let mut prev_imf = Array2::zeros(imf.dim());
+        let mut prev_imf = Array2::<f64>::zeros(imf.dim());
 
         // Apply sifting process
         for iteration in 0..config.max_iterations {
@@ -1873,7 +1898,7 @@ pub fn multivariate_emd(
 
             for dir in &directions {
                 // Project signals onto direction
-                let mut projection = Array1::zeros(n_samples);
+                let mut projection = Array1::<f64>::zeros(n_samples);
 
                 for j in 0..n_samples {
                     for i in 0..n_signals {
@@ -1897,7 +1922,7 @@ pub fn multivariate_emd(
                 extrema_indices.push(n_samples - 1);
 
                 // Compute envelope for this direction
-                let mut envelope = Array2::zeros((n_signals, n_samples));
+                let mut envelope = Array2::<f64>::zeros((n_signals, n_samples));
 
                 // Simple linear interpolation for envelope
                 for i in 0..extrema_indices.len() - 1 {
@@ -1921,7 +1946,7 @@ pub fn multivariate_emd(
             }
 
             // Compute mean of envelopes
-            let mut mean_envelope = Array2::zeros((n_signals, n_samples));
+            let mut mean_envelope = Array2::<f64>::zeros((n_signals, n_samples));
 
             for envelope in &envelopes {
                 mean_envelope = &mean_envelope + envelope;
@@ -1933,8 +1958,8 @@ pub fn multivariate_emd(
             imf = &imf - &mean_envelope;
 
             // Check if IMF criteria are met
-            let diff = (&imf - &prev_imf).mapv(|x| x.powi(2)).sum().sqrt();
-            let norm = imf.mapv(|x| x.powi(2)).sum().sqrt();
+            let diff = (&imf - &prev_imf).mapv(|x: f64| x.powi(2)).sum().sqrt();
+            let norm = imf.mapv(|x: f64| x.powi(2)).sum().sqrt();
 
             if diff / norm < config.convergence_threshold {
                 break;

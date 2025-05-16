@@ -145,6 +145,23 @@ where
     Ok(center)
 }
 
+/// Get the center of a structuring element (dynamic version)
+///
+/// # Arguments
+///
+/// * `structure` - Structuring element
+/// * `origin` - Optional origin offset
+///
+/// # Returns
+///
+/// * `Result<Vec<isize>>` - Center indices
+pub(crate) fn get_structure_center_dyn(
+    structure: &Array<bool, ndarray::IxDyn>,
+    origin: Option<&[isize]>,
+) -> Result<Vec<isize>> {
+    get_structure_center(structure, origin)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

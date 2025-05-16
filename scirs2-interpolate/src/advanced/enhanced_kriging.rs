@@ -144,7 +144,7 @@ where
     anisotropic_cov: AnisotropicCovariance<F>,
 
     /// Trend function for universal kriging
-    trend_fn: TrendFunction,
+    _trend_fn: TrendFunction,
 
     /// Covariance matrix of sample points
     cov_matrix: Array2<F>,
@@ -251,7 +251,7 @@ where
     extra_params: F,
 
     /// Trend function type
-    trend_fn: TrendFunction,
+    _trend_fn: TrendFunction,
 
     /// Anisotropic covariance specification
     anisotropic_cov: Option<AnisotropicCovariance<F>>,
@@ -273,6 +273,27 @@ where
 
     /// Marker for generic type
     _phantom: PhantomData<F>,
+}
+
+impl<F> Default for EnhancedKrigingBuilder<F>
+where
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + Sub<Output = F>
+        + Div<Output = F>
+        + Mul<Output = F>
+        + Add<Output = F>
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F> EnhancedKrigingBuilder<F>
@@ -302,7 +323,7 @@ where
             angles: None,
             nugget: F::from_f64(1e-10).unwrap(),
             extra_params: F::from_f64(1.0).unwrap(),
-            trend_fn: TrendFunction::Constant,
+            _trend_fn: TrendFunction::Constant,
             anisotropic_cov: None,
             priors: None,
             n_samples: 0,
@@ -322,6 +343,78 @@ where
     /// Set values for the interpolation
     pub fn values(mut self, values: Array1<F>) -> Self {
         self.values = Some(values);
+        self
+    }
+
+    /// Set covariance function
+    pub fn cov_fn(mut self, cov_fn: CovarianceFunction) -> Self {
+        self.cov_fn = cov_fn;
+        self
+    }
+
+    /// Set length scales for anisotropy
+    pub fn length_scales(mut self, length_scales: Array1<F>) -> Self {
+        self.length_scales = Some(length_scales);
+        self
+    }
+
+    /// Set signal variance parameter
+    pub fn sigma_sq(mut self, sigma_sq: F) -> Self {
+        self.sigma_sq = sigma_sq;
+        self
+    }
+
+    /// Set orientation angles for anisotropy
+    pub fn angles(mut self, angles: Array1<F>) -> Self {
+        self.angles = Some(angles);
+        self
+    }
+
+    /// Set nugget parameter
+    pub fn nugget(mut self, nugget: F) -> Self {
+        self.nugget = nugget;
+        self
+    }
+
+    /// Set extra parameters for specific covariance functions
+    pub fn extra_params(mut self, extra_params: F) -> Self {
+        self.extra_params = extra_params;
+        self
+    }
+
+    /// Set anisotropic covariance specification
+    pub fn anisotropic_cov(mut self, anisotropic_cov: AnisotropicCovariance<F>) -> Self {
+        self.anisotropic_cov = Some(anisotropic_cov);
+        self
+    }
+
+    /// Set prior distributions for Bayesian Kriging
+    pub fn priors(mut self, priors: KrigingPriors<F>) -> Self {
+        self.priors = Some(priors);
+        self
+    }
+
+    /// Set number of posterior samples
+    pub fn n_samples(mut self, n_samples: usize) -> Self {
+        self.n_samples = n_samples;
+        self
+    }
+
+    /// Enable or disable full posterior covariance computation
+    pub fn compute_full_covariance(mut self, compute_full_covariance: bool) -> Self {
+        self.compute_full_covariance = compute_full_covariance;
+        self
+    }
+
+    /// Enable or disable exact computation
+    pub fn use_exact_computation(mut self, use_exact_computation: bool) -> Self {
+        self.use_exact_computation = use_exact_computation;
+        self
+    }
+
+    /// Enable or disable parameter optimization
+    pub fn optimize_parameters(mut self, optimize_parameters: bool) -> Self {
+        self.optimize_parameters = optimize_parameters;
         self
     }
 
@@ -373,6 +466,27 @@ where
     _phantom: PhantomData<F>,
 }
 
+impl<F> Default for BayesianKrigingBuilder<F>
+where
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + Sub<Output = F>
+        + Div<Output = F>
+        + Mul<Output = F>
+        + Add<Output = F>
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F> BayesianKrigingBuilder<F>
 where
     F: Float
@@ -405,6 +519,31 @@ where
     /// Dummy build implementation for this simplified example
     pub fn build(self) -> InterpolateResult<EnhancedKriging<F>> {
         self.kriging_builder.build()
+    }
+
+    /// Get the length scale prior
+    pub fn length_scale_prior(&self) -> Option<&(F, F)> {
+        self.length_scale_prior.as_ref()
+    }
+
+    /// Get the variance prior
+    pub fn variance_prior(&self) -> Option<&(F, F)> {
+        self.variance_prior.as_ref()
+    }
+
+    /// Get the nugget prior
+    pub fn nugget_prior(&self) -> Option<&(F, F)> {
+        self.nugget_prior.as_ref()
+    }
+
+    /// Get the number of samples
+    pub fn n_samples(&self) -> usize {
+        self.n_samples
+    }
+
+    /// Check if parameter optimization is enabled
+    pub fn optimize_parameters(&self) -> bool {
+        self.optimize_parameters
     }
 }
 
@@ -473,15 +612,75 @@ where
             "This is a simplified example".to_string(),
         ))
     }
+
+    /// Get the sample points
+    pub fn points(&self) -> &Array2<F> {
+        &self.points
+    }
+
+    /// Get the sample values
+    pub fn values(&self) -> &Array1<F> {
+        &self.values
+    }
+
+    /// Get the anisotropic covariance configuration
+    pub fn anisotropic_cov(&self) -> &AnisotropicCovariance<F> {
+        &self.anisotropic_cov
+    }
+
+    /// Get the covariance matrix
+    pub fn cov_matrix(&self) -> &Array2<F> {
+        &self.cov_matrix
+    }
+
+    /// Get the Cholesky factor of the covariance matrix
+    pub fn cholesky_factor(&self) -> Option<&Array2<F>> {
+        self.cholesky_factor.as_ref()
+    }
+
+    /// Get the kriging weights
+    pub fn weights(&self) -> &Array1<F> {
+        &self.weights
+    }
+
+    /// Get the trend coefficients
+    pub fn trend_coeffs(&self) -> Option<&Array1<F>> {
+        self.trend_coeffs.as_ref()
+    }
+
+    /// Get the priors
+    pub fn priors(&self) -> Option<&KrigingPriors<F>> {
+        self.priors.as_ref()
+    }
+
+    /// Get the number of posterior samples
+    pub fn n_samples(&self) -> usize {
+        self.n_samples
+    }
+
+    /// Get the basis functions
+    pub fn basis_functions(&self) -> Option<&Array2<F>> {
+        self.basis_functions.as_ref()
+    }
+
+    /// Check if full covariance computation is enabled
+    pub fn compute_full_covariance(&self) -> bool {
+        self.compute_full_covariance
+    }
+
+    /// Check if exact computation is enabled
+    pub fn use_exact_computation(&self) -> bool {
+        self.use_exact_computation
+    }
 }
 
 /// Convenience function to create an enhanced kriging model
 pub fn make_enhanced_kriging<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
-    cov_fn: CovarianceFunction,
-    length_scale: F,
-    sigma_sq: F,
+    _cov_fn: CovarianceFunction,
+    _length_scale: F,
+    _sigma_sq: F,
 ) -> InterpolateResult<EnhancedKriging<F>>
 where
     F: Float
@@ -508,10 +707,10 @@ where
 pub fn make_universal_kriging<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
-    cov_fn: CovarianceFunction,
-    length_scale: F,
-    sigma_sq: F,
-    trend_fn: TrendFunction,
+    _cov_fn: CovarianceFunction,
+    _length_scale: F,
+    _sigma_sq: F,
+    _trend_fn: TrendFunction,
 ) -> InterpolateResult<EnhancedKriging<F>>
 where
     F: Float
@@ -536,11 +735,11 @@ where
 
 /// Convenience function to create a Bayesian kriging model
 pub fn make_bayesian_kriging<F>(
-    points: &ArrayView2<F>,
-    values: &ArrayView1<F>,
-    cov_fn: CovarianceFunction,
-    priors: KrigingPriors<F>,
-    n_samples: usize,
+    _points: &ArrayView2<F>,
+    _values: &ArrayView1<F>,
+    _cov_fn: CovarianceFunction,
+    _priors: KrigingPriors<F>,
+    _n_samples: usize,
 ) -> InterpolateResult<EnhancedKriging<F>>
 where
     F: Float
@@ -568,7 +767,7 @@ mod tests {
     fn test_creation() {
         // A simple test to verify that the builders can be created
         let builder = EnhancedKrigingBuilder::<f64>::new();
-        assert_eq!(builder.trend_fn, TrendFunction::Constant);
+        assert_eq!(builder._trend_fn, TrendFunction::Constant);
 
         let bayes_builder = BayesianKrigingBuilder::<f64>::new();
         assert_eq!(bayes_builder.n_samples, 1000);

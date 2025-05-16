@@ -70,6 +70,13 @@ pub struct BoundaryParameters<T: Float> {
 }
 
 impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
+    /// Get the custom functions registry
+    pub fn custom_functions(&self) -> &Vec<usize> {
+        &self.custom_functions
+    }
+}
+
+impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
     /// Creates new boundary parameters with the specified modes.
     ///
     /// # Arguments
@@ -178,6 +185,14 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                         x, self.lower_bound
                     ))),
                     ExtrapolateMode::Extrapolate => {
+                        // Allow extrapolation - return the original point
+                        Ok(BoundaryResult::AllowExtrapolation(x))
+                    }
+                    ExtrapolateMode::Nan => {
+                        // Return NaN for points outside the interpolation domain
+                        Ok(BoundaryResult::DirectValue(T::nan()))
+                    }
+                    ExtrapolateMode::Constant => {
                         // Use the value at the lower boundary
                         if let Some(val) = self.lower_value {
                             Ok(BoundaryResult::DirectValue(val))
@@ -187,14 +202,10 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                             Ok(BoundaryResult::DirectValue(vals[idx]))
                         } else {
                             Err(InterpolateError::InvalidState(
-                                "Values or domain points not provided for Extrapolate mode"
+                                "Values or domain points not provided for Constant mode"
                                     .to_string(),
                             ))
                         }
-                    }
-                    ExtrapolateMode::Extrapolate => {
-                        // Allow extrapolation - return the original point
-                        Ok(BoundaryResult::AllowExtrapolation(x))
                     }
                 }
             }
@@ -306,6 +317,14 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                         x, self.upper_bound
                     ))),
                     ExtrapolateMode::Extrapolate => {
+                        // Allow extrapolation - return the original point
+                        Ok(BoundaryResult::AllowExtrapolation(x))
+                    }
+                    ExtrapolateMode::Nan => {
+                        // Return NaN for points outside the interpolation domain
+                        Ok(BoundaryResult::DirectValue(T::nan()))
+                    }
+                    ExtrapolateMode::Constant => {
                         // Use the value at the upper boundary
                         if let Some(val) = self.upper_value {
                             Ok(BoundaryResult::DirectValue(val))
@@ -315,14 +334,10 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                             Ok(BoundaryResult::DirectValue(vals[idx]))
                         } else {
                             Err(InterpolateError::InvalidState(
-                                "Values or domain points not provided for Extrapolate mode"
+                                "Values or domain points not provided for Constant mode"
                                     .to_string(),
                             ))
                         }
-                    }
-                    ExtrapolateMode::Extrapolate => {
-                        // Allow extrapolation - return the original point
-                        Ok(BoundaryResult::AllowExtrapolation(x))
                     }
                 }
             }
@@ -521,7 +536,10 @@ pub fn make_zero_gradient_boundary<T: Float + std::fmt::Display>(
 /// # Returns
 ///
 /// A new `BoundaryParameters` instance with zero-value boundary conditions
-pub fn make_zero_value_boundary<T: Float + std::fmt::Display>(lower_bound: T, upper_bound: T) -> BoundaryParameters<T> {
+pub fn make_zero_value_boundary<T: Float + std::fmt::Display>(
+    lower_bound: T,
+    upper_bound: T,
+) -> BoundaryParameters<T> {
     BoundaryParameters::new(
         lower_bound,
         upper_bound,
@@ -543,7 +561,10 @@ pub fn make_zero_value_boundary<T: Float + std::fmt::Display>(lower_bound: T, up
 /// # Returns
 ///
 /// A new `BoundaryParameters` instance with periodic boundary conditions
-pub fn make_periodic_boundary<T: Float + std::fmt::Display>(lower_bound: T, upper_bound: T) -> BoundaryParameters<T> {
+pub fn make_periodic_boundary<T: Float + std::fmt::Display>(
+    lower_bound: T,
+    upper_bound: T,
+) -> BoundaryParameters<T> {
     BoundaryParameters::new(
         lower_bound,
         upper_bound,
@@ -565,7 +586,10 @@ pub fn make_periodic_boundary<T: Float + std::fmt::Display>(lower_bound: T, uppe
 /// # Returns
 ///
 /// A new `BoundaryParameters` instance with symmetric boundary conditions
-pub fn make_symmetric_boundary<T: Float + std::fmt::Display>(lower_bound: T, upper_bound: T) -> BoundaryParameters<T> {
+pub fn make_symmetric_boundary<T: Float + std::fmt::Display>(
+    lower_bound: T,
+    upper_bound: T,
+) -> BoundaryParameters<T> {
     BoundaryParameters::new(
         lower_bound,
         upper_bound,

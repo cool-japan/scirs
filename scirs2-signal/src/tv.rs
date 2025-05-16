@@ -34,8 +34,7 @@
 //! let denoised = tv_denoise_1d(&noisy_signal, 0.5, &config).unwrap();
 //! ```
 
-use ndarray::{s, Array1, Array2, Array3, Axis};
-use std::cmp;
+use ndarray::{Array1, Array2, Array3, Axis};
 
 use crate::error::{SignalError, SignalResult};
 
@@ -377,8 +376,8 @@ fn tv_denoise_2d_chambolle(
     let (height, width) = image.dim();
 
     // Dual variables (related to gradients)
-    let mut p1 = Array2::zeros((height, width)); // Horizontal component
-    let mut p2 = Array2::zeros((height, width)); // Vertical component
+    let mut p1 = Array2::<f64>::zeros((height, width)); // Horizontal component
+    let mut p2 = Array2::<f64>::zeros((height, width)); // Vertical component
 
     // Result initialization
     let mut denoised = image.clone();
@@ -392,7 +391,7 @@ fn tv_denoise_2d_chambolle(
         let prev_denoised = denoised.clone();
 
         // Compute divergence of p (adjoint of gradient)
-        let mut div_p = Array2::zeros((height, width));
+        let mut div_p = Array2::<f64>::zeros((height, width));
 
         for i in 0..height {
             for j in 0..width {
@@ -417,13 +416,13 @@ fn tv_denoise_2d_chambolle(
         // Update denoised image: u = f + lambda * div(p)
         for i in 0..height {
             for j in 0..width {
-                denoised[[i, j]] = image[[i, j]] + weight * div_p[[i, j]];
+                denoised[[i, j]] = image[[i, j]] + (weight * div_p[[i, j]]);
             }
         }
 
         // Compute gradient of divergence
-        let mut grad_div_p1 = Array2::zeros((height, width));
-        let mut grad_div_p2 = Array2::zeros((height, width));
+        let mut grad_div_p1 = Array2::<f64>::zeros((height, width));
+        let mut grad_div_p2 = Array2::<f64>::zeros((height, width));
 
         for i in 0..height {
             for j in 0..width {
@@ -466,7 +465,8 @@ fn tv_denoise_2d_chambolle(
                         let new_p1 = p1[[i, j]] + dp1;
                         let new_p2 = p2[[i, j]] + dp2;
 
-                        let norm = f64::max((new_p1 * new_p1 + new_p2 * new_p2).sqrt(), 1.0);
+                        let sum: f64 = new_p1 * new_p1 + new_p2 * new_p2;
+                        let norm = f64::max(sum.sqrt(), 1.0);
 
                         p1[[i, j]] = new_p1 / norm;
                         p2[[i, j]] = new_p2 / norm;
@@ -580,7 +580,7 @@ fn compute_tv_gradient_2d(
     variant: TvVariant,
 ) -> Array2<f64> {
     let (height, width) = image.dim();
-    let mut gradient = Array2::zeros((height, width));
+    let mut gradient = Array2::<f64>::zeros((height, width));
 
     // Data fidelity term gradient: 2 * (image - original)
     for i in 0..height {
@@ -689,9 +689,10 @@ pub fn tv_denoise_color(
         for c in 0..channels {
             // Extract channel
             let channel = image.index_axis(Axis(2), c);
+            let channel_owned = channel.to_owned();
 
             // Apply TV denoising to the channel
-            let denoised_channel = tv_denoise_2d(&channel, weight, config)?;
+            let denoised_channel = tv_denoise_2d(&channel_owned, weight, config)?;
 
             // Store result
             for i in 0..height {
@@ -887,7 +888,7 @@ pub fn tv_bregman_1d(
     let n = signal.len();
 
     // Initialize variables
-    let mut u = signal.clone();
+    let u = signal.clone();
     let mut v = Array1::zeros(n);
 
     // Main iteration loop
@@ -923,8 +924,8 @@ pub fn tv_bregman_2d(
     let (height, width) = image.dim();
 
     // Initialize variables
-    let mut u = image.clone();
-    let mut v = Array2::zeros((height, width));
+    let u = image.clone();
+    let mut v = Array2::<f64>::zeros((height, width));
 
     // Main iteration loop
     for _ in 0..num_iter {
@@ -962,7 +963,7 @@ pub fn tv_inpaint(
     let (height, width) = image.dim();
 
     // Create a mask of known pixels (1 = known, 0 = unknown)
-    let mut mask = Array2::zeros((height, width));
+    let mut mask = Array2::<f64>::zeros((height, width));
     for i in 0..height {
         for j in 0..width {
             if !image[[i, j]].is_nan() {
@@ -1020,8 +1021,8 @@ pub fn tv_inpaint(
     let mut prev_result = result.clone();
 
     // Dual variables
-    let mut p1 = Array2::zeros((height, width));
-    let mut p2 = Array2::zeros((height, width));
+    let mut p1 = Array2::<f64>::zeros((height, width));
+    let mut p2 = Array2::<f64>::zeros((height, width));
 
     // Step size
     let mut step = config.initial_step;
@@ -1032,7 +1033,7 @@ pub fn tv_inpaint(
         prev_result.assign(&result);
 
         // Compute divergence of p
-        let mut div_p = Array2::zeros((height, width));
+        let mut div_p = Array2::<f64>::zeros((height, width));
 
         for i in 0..height {
             for j in 0..width {
@@ -1068,8 +1069,8 @@ pub fn tv_inpaint(
         }
 
         // Compute gradient
-        let mut grad1 = Array2::zeros((height, width));
-        let mut grad2 = Array2::zeros((height, width));
+        let mut grad1 = Array2::<f64>::zeros((height, width));
+        let mut grad2 = Array2::<f64>::zeros((height, width));
 
         for i in 0..height {
             for j in 0..width {
@@ -1105,7 +1106,8 @@ pub fn tv_inpaint(
                         let new_p1 = p1[[i, j]] + step * grad1[[i, j]];
                         let new_p2 = p2[[i, j]] + step * grad2[[i, j]];
 
-                        let norm = f64::max((new_p1 * new_p1 + new_p2 * new_p2).sqrt(), 1.0);
+                        let sum: f64 = new_p1 * new_p1 + new_p2 * new_p2;
+                        let norm = f64::max(sum.sqrt(), 1.0);
 
                         p1[[i, j]] = new_p1 / norm;
                         p2[[i, j]] = new_p2 / norm;

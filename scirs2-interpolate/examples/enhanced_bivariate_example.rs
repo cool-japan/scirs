@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2, Array2};
+use ndarray::{array, Array1, Array2};
 use scirs2_interpolate::{
     BivariateInterpolator, RectBivariateSpline, SmoothBivariateSpline, SmoothBivariateSplineBuilder,
 };
@@ -6,7 +6,7 @@ use scirs2_interpolate::{
 /// Create a 2D test function: f(x,y) = sin(πx) * cos(πy)
 fn test_function(x: f64, y: f64) -> f64 {
     let pi = std::f64::consts::PI;
-    (pi * x).sin() * (pi * y).cos()
+    f64::sin(pi * x) * f64::cos(pi * y)
 }
 
 /// Generate a 2D grid of data points
@@ -38,8 +38,8 @@ fn generate_scattered_data(n_points: usize) -> (Array1<f64>, Array1<f64>, Array1
     let mut z = Array1::zeros(n_points);
 
     for i in 0..n_points {
-        x[i] = rng.gen::<f64>();
-        y[i] = rng.gen::<f64>();
+        x[i] = rng.random::<f64>();
+        y[i] = rng.random::<f64>();
         z[i] = test_function(x[i], y[i]);
     }
 
@@ -168,7 +168,7 @@ fn smooth_bivariate_example() {
     println!("-------------------------------------------------------");
 
     // Generate scattered data points with some noise
-    let (mut x, mut y, mut z) = generate_scattered_data(200);
+    let (x, y, mut z) = generate_scattered_data(200);
 
     // Add some noise to the z values
     use rand::rngs::StdRng;
@@ -176,7 +176,7 @@ fn smooth_bivariate_example() {
     let mut rng = StdRng::seed_from_u64(99);
 
     for i in 0..z.len() {
-        z[i] += 0.1 * (2.0 * rng.gen::<f64>() - 1.0);
+        z[i] += 0.1 * (2.0 * rng.random::<f64>() - 1.0);
     }
 
     println!("Generated {} scattered data points with noise", x.len());
@@ -293,9 +293,9 @@ fn bivariate_calculus_example() {
     // Compute the exact derivatives for the test function
     let pi = std::f64::consts::PI;
     let true_val = test_function(0.5, 0.5);
-    let true_dx = pi * (pi * 0.5).cos() * (pi * 0.5).cos();
-    let true_dy = -pi * (pi * 0.5).sin() * (pi * 0.5).sin();
-    let true_dxy = -pi * pi * (pi * 0.5).cos() * (pi * 0.5).sin();
+    let true_dx = pi * f64::cos(pi * 0.5) * f64::cos(pi * 0.5);
+    let true_dy = -pi * f64::sin(pi * 0.5) * f64::sin(pi * 0.5);
+    let true_dxy = -pi * pi * f64::cos(pi * 0.5) * f64::sin(pi * 0.5);
 
     println!("\nValues and derivatives at (0.5, 0.5):");
     println!("  f(0.5, 0.5):        {:.6} (true: {:.6})", val, true_val);

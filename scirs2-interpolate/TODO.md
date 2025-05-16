@@ -46,7 +46,7 @@ This module provides interpolation functionality similar to SciPy's interpolate 
   - [x] Complete bivariate spline implementation
   - [x] Improve n-dimensional thin-plate splines
   - [x] Better tensor-product spline interpolation
-  - [ ] Voronoi-based interpolation methods
+  - [x] Voronoi-based interpolation methods
 
 ## Interpolation Algorithm Extensions
 
@@ -81,11 +81,11 @@ This module provides interpolation functionality similar to SciPy's interpolate 
   - [x] Universal kriging with trend functions
   - [x] Bayesian kriging with uncertainty quantification
   - [x] Fast approximate kriging for large datasets
-- [ ] Local interpolation techniques
-  - [ ] Moving least squares interpolation
-  - [ ] Local polynomial regression models
-  - [ ] Adaptive bandwidth selection
-  - [ ] Windowed radial basis functions
+- [x] Local interpolation techniques
+  - [x] Moving least squares interpolation
+  - [x] Local polynomial regression models
+  - [x] Adaptive bandwidth selection
+  - [x] Windowed radial basis functions
 
 ## Performance Improvements
 

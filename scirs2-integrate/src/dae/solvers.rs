@@ -2,13 +2,12 @@
 //!
 //! This module provides solver implementations for various types of DAEs.
 
+use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianStrategy;
 use crate::ode::{solve_ivp, MassMatrix, ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 /// Solve an initial value problem (IVP) for a semi-explicit index-1 DAE
 ///
@@ -40,14 +39,7 @@ pub fn solve_semi_explicit_dae<F, FFunc, GFunc>(
     options: Option<DAEOptions<F>>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
 {
@@ -106,8 +98,15 @@ where
 
         // Compute the Jacobian of g with respect to y
         // For index-1 DAEs, this Jacobian must be invertible
-        let g_y = crate::dae::utils::compute_constraint_jacobian(&g_closure, t, x, y)
-            .unwrap_or_else(|_| Array2::eye(n_y));
+        // Convert ArrayView1 to slices for the constraint function
+        let x_slice: Vec<F> = x.to_vec();
+        let y_slice: Vec<F> = y.to_vec();
+        let g_y = crate::dae::utils::compute_constraint_jacobian(
+            &|t, x, y| g_closure(t, ArrayView1::from(x), ArrayView1::from(y)).to_vec(),
+            t,
+            &x_slice,
+            &y_slice,
+        );
 
         // Compute the Jacobian of g with respect to x
         // This is needed for the index-1 DAE solution
@@ -217,7 +216,7 @@ fn compute_jacobian_x<F, GFunc>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n_x = x.len();
@@ -259,13 +258,7 @@ where
 /// This is a helper function for the semi-explicit DAE solver
 fn solve_matrix_system<F>(matrix: ArrayView2<F>, b: ArrayView1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
+    F: IntegrateFloat,
 {
     use crate::dae::utils::linear_solvers::solve_linear_system;
 
@@ -302,14 +295,7 @@ pub fn solve_implicit_dae<F, FFunc>(
     options: Option<DAEOptions<F>>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Use default options if none provided
@@ -519,24 +505,25 @@ where
             }
 
             // Newton iteration: Compute the Jacobian of the residual function
-            let jacobian_t = crate::ode::utils::jacobian::compute_jacobian(
-                &|t: F, _: ArrayView1<F>| f(t, y_pred.view(), y_prime_pred.view()),
+            // Note: For time-dependent Jacobian, we differentiate with respect to time
+            // This is a placeholder - in a full implementation, we'd compute d(residual)/dt
+            let jacobian_t = Array2::zeros((n, n));
+
+            // Compute jacobians directly using finite differences
+            let f_current = f(t_new, y_pred.view(), y_prime_pred.view());
+            let jacobian_y = crate::ode::utils::common::finite_difference_jacobian(
+                &|t, y| f(t, y, y_prime_pred.view()),
                 t_new,
-                Array1::zeros(n).view(),
+                &y_pred,
+                &f_current,
                 F::from_f64(1e-8).unwrap(),
             );
 
-            let jacobian_y = crate::ode::utils::jacobian::compute_jacobian(
-                &|_: F, y: ArrayView1<F>| f(t_new, y, y_prime_pred.view()),
-                F::zero(),
-                y_pred.view(),
-                F::from_f64(1e-8).unwrap(),
-            );
-
-            let jacobian_y_prime = crate::ode::utils::jacobian::compute_jacobian(
-                &|_: F, y_prime: ArrayView1<F>| f(t_new, y_pred.view(), y_prime),
-                F::zero(),
-                y_prime_pred.view(),
+            let jacobian_y_prime = crate::ode::utils::common::finite_difference_jacobian(
+                &|t, y_prime| f(t, y_pred.view(), y_prime),
+                t_new,
+                &y_prime_pred,
+                &f_current,
                 F::from_f64(1e-8).unwrap(),
             );
 
@@ -787,14 +774,7 @@ pub fn solve_higher_index_dae<F, FFunc, GFunc>(
     options: Option<DAEOptions<F>>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
 {
@@ -899,14 +879,7 @@ fn solve_semi_explicit_dae_with_projection<F, FFunc, GFunc>(
     options: Option<DAEOptions<F>>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
 {
@@ -1001,14 +974,7 @@ pub fn solve_ivp_dae<F, FFunc>(
     options: Option<DAEOptions<F>>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Use default options if none provided

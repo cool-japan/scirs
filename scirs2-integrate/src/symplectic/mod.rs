@@ -69,14 +69,13 @@ pub use leapfrog::{position_verlet, velocity_verlet, StormerVerlet};
 pub use potential::{HamiltonianSystem, SeparableHamiltonian};
 pub use runge_kutta::{GaussLegendre4, GaussLegendre6};
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Result of symplectic integration containing state history
 #[derive(Debug, Clone)]
-pub struct SymplecticResult<F: Float> {
+pub struct SymplecticResult<F: IntegrateFloat> {
     /// Time points
     pub t: Vec<F>,
     /// Position coordinates at each time point
@@ -94,7 +93,7 @@ pub struct SymplecticResult<F: Float> {
 }
 
 /// Trait for symplectic integrators
-pub trait SymplecticIntegrator<F: Float + FromPrimitive> {
+pub trait SymplecticIntegrator<F: IntegrateFloat> {
     /// Perform a single integration step
     ///
     /// # Arguments
@@ -220,7 +219,7 @@ pub trait SymplecticIntegrator<F: Float + FromPrimitive> {
 }
 
 /// Trait for Hamiltonian systems
-pub trait HamiltonianFn<F: Float + FromPrimitive> {
+pub trait HamiltonianFn<F: IntegrateFloat> {
     /// Computes the time derivative of position coordinates: dq/dt = ∂H/∂p
     ///
     /// # Arguments

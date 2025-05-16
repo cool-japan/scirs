@@ -7,12 +7,11 @@
 //! The implementation uses iterative Krylov methods (like GMRES) to solve the linear
 //! systems that arise in the Newton iterations for implicit DAE solvers.
 
+use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 /// Maximum number of GMRES iterations
 const MAX_GMRES_ITER: usize = 100;
@@ -42,14 +41,7 @@ pub fn krylov_bdf_semi_explicit_dae<F, FFunc, GFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
@@ -577,14 +569,7 @@ pub fn krylov_bdf_implicit_dae<F, FFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     // Get dimensions
@@ -1051,7 +1036,7 @@ fn gmres_solver<F>(
     restart: usize,
 ) -> IntegrateResult<(Array1<F>, usize)>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
 {
     let n = b.len();
     let mut x = Array1::<F>::zeros(n);
@@ -1152,7 +1137,7 @@ fn arnoldi_process<F>(
     max_iter: usize,
 ) -> IntegrateResult<(Array2<F>, Vec<Array1<F>>, F, usize)>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
 {
     let n = r0.len();
     let m = max_iter.min(n);
@@ -1236,7 +1221,7 @@ where
 /// Compute the dot product of two vectors
 fn dot<F>(a: &Array1<F>, b: &Array1<F>) -> F
 where
-    F: Float,
+    F: IntegrateFloat,
 {
     a.iter()
         .zip(b.iter())
@@ -1246,7 +1231,7 @@ where
 /// Compute a Givens rotation matrix that zeros out an entry
 fn givens_rotation<F>(a: F, b: F) -> (F, F)
 where
-    F: Float,
+    F: IntegrateFloat,
 {
     if b == F::zero() {
         (F::one(), F::zero())
@@ -1266,7 +1251,7 @@ where
 /// Solve an upper triangular system Rx = b
 fn solve_upper_triangular<F>(r: &Array2<F>, g: &F, n: usize) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let mut x = Array1::<F>::zeros(n);
     let mut g_vec = Array1::<F>::zeros(n);
@@ -1291,7 +1276,7 @@ fn predict_step<F>(
     h: F,
 ) -> (Array1<F>, Array1<F>)
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let n_x = x_history[0].len();
     let n_y = y_history[0].len();
@@ -1350,7 +1335,7 @@ where
 /// Predict the next state for fully implicit DAE
 fn predict_fully_implicit<F>(y_history: &[Array1<F>], order: usize) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
 {
     let n = y_history[0].len();
     let history_len = y_history.len();
@@ -1384,7 +1369,7 @@ fn compute_jacobian_x<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n_x = x.len();
@@ -1431,7 +1416,7 @@ fn compute_jacobian_y<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n_y = y.len();
@@ -1478,7 +1463,7 @@ fn compute_jacobian_y_implicit<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n = y.len();
@@ -1525,7 +1510,7 @@ fn compute_jacobian_yprime_implicit<F, Func>(
     epsilon: F,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     let n = y_prime.len();

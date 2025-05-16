@@ -37,8 +37,8 @@ pub mod schedulers;
 pub mod utils;
 
 // Re-exports for convenience
+#[cfg(feature = "metrics_integration")]
+pub use metrics::*;
 pub use optimizers::*;
 pub use regularizers::*;
 pub use schedulers::*;
-#[cfg(feature = "metrics_integration")]
-pub use metrics::*;

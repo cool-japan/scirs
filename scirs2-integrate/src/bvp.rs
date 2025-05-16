@@ -3,15 +3,14 @@
 //! This module provides numerical solvers for boundary value problems (BVPs)
 //! of ordinary differential equations.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 
 /// Options for controlling the behavior of the BVP solver
 #[derive(Debug, Clone)]
-pub struct BVPOptions<F: Float> {
+pub struct BVPOptions<F: IntegrateFloat> {
     /// Maximum number of iterations for the solver
     pub max_iter: usize,
     /// Tolerance for convergence
@@ -24,7 +23,7 @@ pub struct BVPOptions<F: Float> {
     pub fixed_mesh: bool,
 }
 
-impl<F: Float + FromPrimitive + Debug> Default for BVPOptions<F> {
+impl<F: IntegrateFloat> Default for BVPOptions<F> {
     fn default() -> Self {
         Self {
             max_iter: 50,
@@ -43,7 +42,7 @@ impl<F: Float + FromPrimitive + Debug> Default for BVPOptions<F> {
 
 /// Result of a BVP solution
 #[derive(Debug, Clone)]
-pub struct BVPResult<F: Float> {
+pub struct BVPResult<F: IntegrateFloat> {
     /// Mesh points (values of the independent variable)
     pub x: Vec<F>,
     /// Solution values at each mesh point
@@ -123,7 +122,7 @@ pub fn solve_bvp<F, FunType, BCType>(
     options: Option<BVPOptions<F>>,
 ) -> IntegrateResult<BVPResult<F>>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
     FunType: Fn(F, ArrayView1<F>) -> Array1<F> + Copy,
     BCType: Fn(ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
@@ -341,7 +340,7 @@ where
 }
 
 /// Solve a linear system Ax = b using Gaussian elimination with partial pivoting
-fn solve_linear_system<F: Float + FromPrimitive + Debug>(
+fn solve_linear_system<F: IntegrateFloat>(
     a: ArrayView2<F>,
     b: ArrayView1<F>,
 ) -> IntegrateResult<Array1<F>> {
@@ -457,7 +456,7 @@ pub fn solve_bvp_auto<F, FunType>(
     options: Option<BVPOptions<F>>,
 ) -> IntegrateResult<BVPResult<F>>
 where
-    F: Float + FromPrimitive + Debug + ScalarOperand,
+    F: IntegrateFloat,
     FunType: Fn(F, ArrayView1<F>) -> Array1<F> + Copy,
 {
     let [a, b] = x_span;

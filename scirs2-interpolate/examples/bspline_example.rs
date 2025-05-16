@@ -1,4 +1,4 @@
-use ndarray::{array, ArrayView1};
+use ndarray::{array, Array1};
 use scirs2_interpolate::{
     generate_knots, make_interp_bspline, make_lsq_bspline, BSpline, BSplineExtrapolateMode,
 };
@@ -191,8 +191,8 @@ fn bspline_least_squares_example() {
     let mut y = Array1::zeros(x.len());
     for (i, &xi) in x.iter().enumerate() {
         // Add some random noise (simulated here with a deterministic pattern)
-        let noise = 0.05 * (i as f64 / 10.0).sin();
-        y[i] = xi.sin() + noise;
+        let noise = 0.05 * f64::sin(i as f64 / 10.0);
+        y[i] = f64::sin(xi) + noise;
     }
 
     println!("Data points (showing first 5):");
@@ -225,7 +225,7 @@ fn bspline_least_squares_example() {
 
     for point in test_points.iter() {
         let value = lsq_spline.evaluate(*point).unwrap();
-        let true_value = point.sin();
+        let true_value = f64::sin(*point);
         let error = value - true_value;
 
         println!(
@@ -238,7 +238,7 @@ fn bspline_least_squares_example() {
     let mut weights = Array1::ones(x.len());
     for (i, &xi) in x.iter().enumerate() {
         // More weight near x=2
-        let weight_factor = (-2.0 * (xi - 2.0).powi(2)).exp();
+        let weight_factor = f64::exp(-2.0 * f64::powi(xi - 2.0, 2));
         weights[i] = 1.0 + 5.0 * weight_factor;
     }
 

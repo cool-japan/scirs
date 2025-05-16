@@ -6,7 +6,7 @@
 //! - Ray-primitive collision tests
 //! - Continuous collision detection
 
-use ndarray::array;
+// No imports needed
 use scirs2_spatial::collision::*;
 
 fn main() {
@@ -50,7 +50,7 @@ fn run_2d_examples() {
     let triangle = Triangle2D::new([0.0, 0.0], [2.0, 0.0], [1.0, 2.0]);
     println!(
         "\nTriangle2D: a={:?}, b={:?}, c={:?}",
-        triangle.a, triangle.b, triangle.c
+        triangle.v1, triangle.v2, triangle.v3
     );
     println!("  Area: {}", triangle.area());
 
@@ -140,7 +140,7 @@ fn run_3d_examples() {
     let triangle = Triangle3D::new([0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [1.0, 2.0, 0.0]);
     println!(
         "\nTriangle3D: a={:?}, b={:?}, c={:?}",
-        triangle.a, triangle.b, triangle.c
+        triangle.v1, triangle.v2, triangle.v3
     );
     println!("  Area: {}", triangle.area());
     println!("  Normal: {:?}", triangle.normal());

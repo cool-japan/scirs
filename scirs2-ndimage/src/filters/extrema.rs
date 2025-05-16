@@ -20,7 +20,7 @@ use crate::error::{NdimageError, Result};
 ///
 /// * `input` - Input array to filter
 /// * `size` - Size of the filter kernel in each dimension. If a single integer is provided,
-///            it will be used for all dimensions.
+///   it will be used for all dimensions.
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `origin` - Origin of the filter kernel. Default is None, which centers the kernel.
 ///
@@ -62,7 +62,7 @@ where
 ///
 /// * `input` - Input array to filter
 /// * `size` - Size of the filter kernel in each dimension. If a single integer is provided,
-///            it will be used for all dimensions.
+///   it will be used for all dimensions.
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `origin` - Origin of the filter kernel. Default is None, which centers the kernel.
 ///

@@ -5,12 +5,10 @@
 // and ensemble Kalman filter.
 
 use crate::error::{SignalError, SignalResult};
-use crate::utils;
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, Axis};
-use ndarray_linalg::{UPLO};
-use scirs2_linalg::{inv, cholesky};
-use rand::thread_rng;
-use rand_distr::{Distribution, Normal};
+use ndarray::{s, Array1, Array2, Array3};
+use rand::Rng;
+use rand_distr::Distribution;
+use scirs2_linalg::{cholesky, inv};
 
 /// Configuration for Kalman filter
 #[derive(Debug, Clone)]
@@ -97,7 +95,7 @@ pub fn kalman_filter(
             }
             x0
         }
-        None => Array1::zeros(n_states),
+        None => Array1::<f64>::zeros(n_states),
     };
 
     // Initialize state covariance
@@ -110,7 +108,7 @@ pub fn kalman_filter(
             }
             p0.clone()
         }
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Process noise covariance
@@ -123,7 +121,7 @@ pub fn kalman_filter(
             }
             q.clone()
         }
-        None => Array2::eye(n_states) * config.process_noise_scale,
+        None => Array2::<f64>::eye(n_states) * config.process_noise_scale,
     };
 
     // Measurement noise covariance
@@ -136,11 +134,11 @@ pub fn kalman_filter(
             }
             r.clone()
         }
-        None => Array2::eye(h.shape()[0]) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(h.shape()[0]) * config.measurement_noise_scale,
     };
 
     // Prepare results
-    let mut x_history = Array2::zeros((n_samples, n_states));
+    let mut x_history = Array2::<f64>::zeros((n_samples, n_states));
 
     // Adaptive filtering variables
     let mut adaptive_q = q.clone();
@@ -188,19 +186,21 @@ pub fn kalman_filter(
 
             if innovation_history.len() >= 3 {
                 // Adaptive estimation of R
-                let mut innovation_sum = Array1::zeros(innovation.len());
+                let mut innovation_sum = Array1::<f64>::zeros(innovation.len());
                 for inn in &innovation_history {
                     innovation_sum += inn;
                 }
                 let innovation_mean = innovation_sum / (innovation_history.len() as f64);
 
                 // Compute sample covariance
-                let mut r_estimate = Array2::zeros(adaptive_r.dim());
+                let mut r_estimate = Array2::<f64>::zeros(adaptive_r.dim());
                 for inn in &innovation_history {
                     let centered = inn - &innovation_mean;
-                    r_estimate += &centered.outer(&centered);
+                    let centered_col = centered.clone().into_shape((centered.len(), 1)).unwrap();
+                    let centered_row = centered.clone().into_shape((1, centered.len())).unwrap();
+                    r_estimate += &centered_col.dot(&centered_row);
                 }
-                r_estimate /= (innovation_history.len() as f64);
+                r_estimate /= innovation_history.len() as f64;
 
                 // Update R with forgetting factor
                 adaptive_r = &adaptive_r * (1.0 - config.forgetting_factor)
@@ -269,7 +269,7 @@ where
             }
             p0.clone()
         }
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Process noise covariance
@@ -282,7 +282,7 @@ where
             }
             q.clone()
         }
-        None => Array2::eye(n_states) * config.process_noise_scale,
+        None => Array2::<f64>::eye(n_states) * config.process_noise_scale,
     };
 
     // Measurement noise covariance
@@ -295,11 +295,11 @@ where
             }
             r.clone()
         }
-        None => Array2::eye(n_measurements) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(n_measurements) * config.measurement_noise_scale,
     };
 
     // Prepare results
-    let mut x_history = Array2::zeros((n_samples, n_states));
+    let mut x_history = Array2::<f64>::zeros((n_samples, n_states));
 
     // Run Extended Kalman filter
     for i in 0..n_samples {
@@ -384,7 +384,7 @@ where
             }
             p0.clone()
         }
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Process noise covariance
@@ -397,7 +397,7 @@ where
             }
             q.clone()
         }
-        None => Array2::eye(n_states) * config.process_noise_scale,
+        None => Array2::<f64>::eye(n_states) * config.process_noise_scale,
     };
 
     // Measurement noise covariance
@@ -410,7 +410,7 @@ where
             }
             r.clone()
         }
-        None => Array2::eye(n_measurements) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(n_measurements) * config.measurement_noise_scale,
     };
 
     // UKF parameters
@@ -429,7 +429,7 @@ where
     weights_cov.append(&mut w_c_i);
 
     // Prepare results
-    let mut x_history = Array2::zeros((n_samples, n_states));
+    let mut x_history = Array2::<f64>::zeros((n_samples, n_states));
 
     // Run Unscented Kalman filter
     for i in 0..n_samples {
@@ -443,12 +443,12 @@ where
         }
 
         // Calculate predicted state and covariance
-        let mut x_pred = Array1::zeros(n_states);
+        let mut x_pred = Array1::<f64>::zeros(n_states);
         for j in 0..predicted_sigmas.len() {
             x_pred = &x_pred + &(&predicted_sigmas[j] * weights_mean[j]);
         }
 
-        let mut p_pred = Array2::zeros((n_states, n_states));
+        let mut p_pred = Array2::<f64>::zeros((n_states, n_states));
         for j in 0..predicted_sigmas.len() {
             let diff = &predicted_sigmas[j] - &x_pred;
             let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
@@ -464,13 +464,13 @@ where
         }
 
         // Calculate predicted measurement
-        let mut z_pred = Array1::zeros(n_measurements);
+        let mut z_pred = Array1::<f64>::zeros(n_measurements);
         for j in 0..measurement_sigmas.len() {
             z_pred = &z_pred + &(&measurement_sigmas[j] * weights_mean[j]);
         }
 
         // Calculate innovation covariance
-        let mut s = Array2::zeros((n_measurements, n_measurements));
+        let mut s = Array2::<f64>::zeros((n_measurements, n_measurements));
         for j in 0..measurement_sigmas.len() {
             let diff = &measurement_sigmas[j] - &z_pred;
             let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
@@ -480,7 +480,7 @@ where
         s = &s + &r;
 
         // Calculate cross-correlation
-        let mut c = Array2::zeros((n_states, n_measurements));
+        let mut c = Array2::<f64>::zeros((n_states, n_measurements));
         for j in 0..predicted_sigmas.len() {
             let diff_x = &predicted_sigmas[j] - &x_pred;
             let diff_z = &measurement_sigmas[j] - &z_pred;
@@ -536,7 +536,7 @@ fn generate_sigma_points(
     sigma_points.push(x.clone());
 
     // Calculate square root of covariance matrix using Cholesky decomposition
-    let sqrt_p = match cholesky(&p.view(), UPLO::Lower) {
+    let sqrt_p = match cholesky(&p.view()) {
         Ok(l) => l,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -587,9 +587,9 @@ where
     F: Fn(&Array1<f64>) -> Array1<f64>,
     H: Fn(&Array1<f64>) -> Array1<f64>,
 {
-    use ndarray_rand::rand_distr::Normal;
-    use ndarray_rand::RandomExt;
-    use rand::rng;
+    
+    
+    
 
     let n_samples = z.shape()[0];
     let n_states = initial_x.len();
@@ -605,23 +605,22 @@ where
             }
             p0.clone()
         }
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Initialize ensemble
     let mut ensemble = Vec::with_capacity(n_ensemble);
-    let mut rng = thread_rng();
+    let mut rng = rand::thread_rng();
 
     for _ in 0..n_ensemble {
         // Generate random perturbation based on initial covariance
-        let normal = Normal::new(0.0, 1.0).unwrap();
-        let mut perturbation = Array1::zeros(n_states);
+        let mut perturbation = Array1::<f64>::zeros(n_states);
         for j in 0..n_states {
-            perturbation[j] = normal.sample(&mut rng);
+            perturbation[j] = rng.sample(rand_distr::StandardNormal);
         }
 
         // Apply Cholesky decomposition to ensure correct covariance structure
-        let sqrt_p = match cholesky(&initial_p.view(), UPLO::Lower) {
+        let sqrt_p = match cholesky(&initial_p.view()) {
             Ok(l) => l,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -644,11 +643,11 @@ where
             }
             r.clone()
         }
-        None => Array2::eye(n_measurements) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(n_measurements) * config.measurement_noise_scale,
     };
 
     // Prepare results
-    let mut x_history = Array2::zeros((n_samples, n_states));
+    let mut x_history = Array2::<f64>::zeros((n_samples, n_states));
 
     // Run Ensemble Kalman filter
     for i in 0..n_samples {
@@ -658,7 +657,7 @@ where
         }
 
         // Calculate ensemble mean
-        let mut x_mean = Array1::zeros(n_states);
+        let mut x_mean = Array1::<f64>::zeros(n_states);
         for e in &ensemble {
             x_mean = &x_mean + e;
         }
@@ -671,15 +670,15 @@ where
         }
 
         // Calculate measured ensemble mean
-        let mut z_mean = Array1::zeros(n_measurements);
+        let mut z_mean = Array1::<f64>::zeros(n_measurements);
         for me in &measured_ensemble {
             z_mean = &z_mean + me;
         }
         z_mean /= n_ensemble as f64;
 
         // Calculate covariance matrices
-        let mut pxz = Array2::zeros((n_states, n_measurements));
-        let mut pzz = Array2::zeros((n_measurements, n_measurements));
+        let mut pxz = Array2::<f64>::zeros((n_states, n_measurements));
+        let mut pzz = Array2::<f64>::zeros((n_measurements, n_measurements));
 
         for j in 0..n_ensemble {
             let x_diff = &ensemble[j] - &x_mean;
@@ -712,10 +711,10 @@ where
             // Generate perturbed observation
             let perturbed_z = &z.slice(s![i, ..]).to_owned()
                 + &{
-                    let normal = Normal::new(0.0, config.measurement_noise_scale.sqrt()).unwrap();
-                    let mut noise = Array1::zeros(n_measurements);
+                    let std_dev = config.measurement_noise_scale.sqrt();
+                    let mut noise = Array1::<f64>::zeros(n_measurements);
                     for k in 0..n_measurements {
-                        noise[k] = normal.sample(&mut rng);
+                        noise[k] = rng.sample(rand_distr::Normal::new(0.0, std_dev).unwrap());
                     }
                     noise
                 };
@@ -726,7 +725,7 @@ where
         }
 
         // Recalculate ensemble mean as state estimate
-        let mut x_updated = Array1::zeros(n_states);
+        let mut x_updated = Array1::<f64>::zeros(n_states);
         for e in &ensemble {
             x_updated = &x_updated + e;
         }
@@ -762,11 +761,21 @@ pub fn kalman_denoise_1d(
     // Define a simple constant-velocity model
     let f = match Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 0.0, 1.0]) {
         Ok(arr) => arr,
-        Err(e) => return Err(SignalError::InvalidInput(format!("Invalid shape: {}", e))),
+        Err(e) => {
+            return Err(SignalError::InvalidArgument(format!(
+                "Invalid shape: {}",
+                e
+            )))
+        }
     };
     let h = match Array2::from_shape_vec((1, 2), vec![1.0, 0.0]) {
         Ok(arr) => arr,
-        Err(e) => return Err(SignalError::InvalidInput(format!("Invalid shape: {}", e))),
+        Err(e) => {
+            return Err(SignalError::InvalidArgument(format!(
+                "Invalid shape: {}",
+                e
+            )))
+        }
     };
 
     // Configuration
@@ -803,7 +812,7 @@ pub fn kalman_denoise_2d(
     measurement_variance: Option<f64>,
 ) -> SignalResult<Array2<f64>> {
     let (n_rows, n_cols) = image.dim();
-    let mut denoised = Array2::zeros((n_rows, n_cols));
+    let mut denoised = Array2::<f64>::zeros((n_rows, n_cols));
 
     // Process each row independently
     for i in 0..n_rows {
@@ -813,7 +822,7 @@ pub fn kalman_denoise_2d(
     }
 
     // Process each column independently
-    let mut column_denoised = Array2::zeros((n_rows, n_cols));
+    let mut column_denoised = Array2::<f64>::zeros((n_rows, n_cols));
     for j in 0..n_cols {
         let col = denoised.slice(s![.., j]).to_owned();
         let denoised_col = kalman_denoise_1d(&col, process_variance, measurement_variance)?;
@@ -845,12 +854,12 @@ pub fn kalman_denoise_color(
     joint_channels: bool,
 ) -> SignalResult<Array3<f64>> {
     let (height, width, channels) = image.dim();
-    let mut output = Array3::zeros((height, width, channels));
+    let mut output = Array3::<f64>::zeros((height, width, channels));
 
     if joint_channels {
         // Process each pixel as a vector measurement
-        let f = Array2::eye(channels) * 1.0;
-        let h = Array2::eye(channels) * 1.0;
+        let f = Array2::<f64>::eye(channels) * 1.0;
+        let h = Array2::<f64>::eye(channels) * 1.0;
 
         let mut config = KalmanConfig::default();
         config.process_noise_scale = process_variance.unwrap_or(1e-5);
@@ -867,7 +876,7 @@ pub fn kalman_denoise_color(
 
                 // Create a measurement array
                 let n_neighbors = neighbors.len();
-                let mut z = Array2::zeros((n_neighbors, channels));
+                let mut z = Array2::<f64>::zeros((n_neighbors, channels));
                 for (idx, neighbor) in neighbors.iter().enumerate() {
                     z.slice_mut(s![idx, ..]).assign(neighbor);
                 }
@@ -886,7 +895,7 @@ pub fn kalman_denoise_color(
         }
 
         // Process each column to further smooth the result
-        let mut column_output = Array3::zeros((height, width, channels));
+        let mut column_output = Array3::<f64>::zeros((height, width, channels));
         for j in 0..width {
             for i in 0..height {
                 // Create a time series of neighboring pixels vertically
@@ -897,7 +906,7 @@ pub fn kalman_denoise_color(
 
                 // Create a measurement array
                 let n_neighbors = neighbors.len();
-                let mut z = Array2::zeros((n_neighbors, channels));
+                let mut z = Array2::<f64>::zeros((n_neighbors, channels));
                 for (idx, neighbor) in neighbors.iter().enumerate() {
                     z.slice_mut(s![idx, ..]).assign(neighbor);
                 }
@@ -977,7 +986,7 @@ fn kalman_filter_vector_measurement(
             }
             x0
         }
-        None => Array1::zeros(n_states),
+        None => Array1::<f64>::zeros(n_states),
     };
 
     // Initialize state covariance
@@ -990,7 +999,7 @@ fn kalman_filter_vector_measurement(
             }
             p0.clone()
         }
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Process noise covariance
@@ -1003,7 +1012,7 @@ fn kalman_filter_vector_measurement(
             }
             q.clone()
         }
-        None => Array2::eye(n_states) * config.process_noise_scale,
+        None => Array2::<f64>::eye(n_states) * config.process_noise_scale,
     };
 
     // Measurement noise covariance
@@ -1016,11 +1025,11 @@ fn kalman_filter_vector_measurement(
             }
             r.clone()
         }
-        None => Array2::eye(n_measurements) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(n_measurements) * config.measurement_noise_scale,
     };
 
     // Prepare results
-    let mut x_history = Array2::zeros((n_samples, n_states));
+    let mut x_history = Array2::<f64>::zeros((n_samples, n_states));
 
     // Run Kalman filter
     for i in 0..n_samples {
@@ -1144,19 +1153,19 @@ pub fn kalman_smooth(
     // Initialize state covariance
     let mut p = match &config.initial_p {
         Some(p0) => p0.clone(),
-        None => Array2::eye(n_states) * 1.0,
+        None => Array2::<f64>::eye(n_states) * 1.0,
     };
 
     // Process noise covariance
     let q = match &config.q {
         Some(q) => q.clone(),
-        None => Array2::eye(n_states) * config.process_noise_scale,
+        None => Array2::<f64>::eye(n_states) * config.process_noise_scale,
     };
 
     // Measurement noise covariance
     let r = match &config.r {
         Some(r) => r.clone(),
-        None => Array2::eye(h.shape()[0]) * config.measurement_noise_scale,
+        None => Array2::<f64>::eye(h.shape()[0]) * config.measurement_noise_scale,
     };
 
     // Recompute filtered covariances (we need them for smoothing)
@@ -1168,7 +1177,7 @@ pub fn kalman_smooth(
         let x_pred = if i > 0 {
             f.dot(&filtered_states.slice(s![i - 1, ..]))
         } else {
-            Array1::zeros(n_states)
+            Array1::<f64>::zeros(n_states)
         };
 
         let p_pred = f.dot(&p).dot(&f.t()) + &q;
@@ -1241,8 +1250,8 @@ pub fn adaptive_kalman_filter(
     let n = signal.len();
 
     // Simple constant position model
-    let f = Array2::eye(1) * 1.0;
-    let h = Array2::eye(1) * 1.0;
+    let f = Array2::<f64>::eye(1) * 1.0;
+    let h = Array2::<f64>::eye(1) * 1.0;
 
     // Configuration with adaptive settings
     let mut config = KalmanConfig::default();
@@ -1275,19 +1284,19 @@ pub fn robust_kalman_filter(
     let n_states = 1;
 
     // Simple model
-    let f = Array2::eye(n_states) * 1.0;
-    let h = Array2::eye(n_states) * 1.0;
+    let f = Array2::<f64>::eye(n_states) * 1.0;
+    let h = Array2::<f64>::eye(n_states) * 1.0;
 
     // Initialize state and covariance
     let mut x = Array1::from_vec(vec![signal[0]]);
-    let mut p = Array2::eye(n_states) * 1.0;
+    let mut p = Array2::<f64>::eye(n_states) * 1.0;
 
     // Process and measurement noise
-    let q = Array2::eye(n_states) * 1e-4;
-    let r = Array2::eye(n_states) * 1e-2;
+    let q = Array2::<f64>::eye(n_states) * 1e-4;
+    let r = Array2::<f64>::eye(n_states) * 1e-2;
 
     // Prepare results
-    let mut x_history = Array2::zeros((n, n_states));
+    let mut x_history = Array2::<f64>::zeros((n, n_states));
 
     // Run robust Kalman filter
     for i in 0..n {

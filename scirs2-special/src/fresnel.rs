@@ -54,7 +54,7 @@ pub fn fresnel(x: f64) -> SpecialResult<(f64, f64)> {
     // For x with large magnitude, use the asymptotic form
     if x.abs() > 6.0 {
         let (s, c) = fresnel_asymptotic(x)?;
-        return Ok((s, c))
+        return Ok((s, c));
     }
 
     // For small to moderate x, use power series or auxiliary functions
@@ -96,7 +96,7 @@ pub fn fresnel_complex(z: Complex64) -> SpecialResult<(Complex64, Complex64)> {
     // For z with large magnitude, use the asymptotic form
     if z.norm() > 6.0 {
         let (s, c) = fresnel_complex_asymptotic(z)?;
-        return Ok((s, c))
+        return Ok((s, c));
     }
 
     // For small to moderate z, use power series
@@ -627,7 +627,7 @@ fn fresnel_complex_asymptotic(z: Complex64) -> SpecialResult<(Complex64, Complex
         let s = half - f_first_term * cos_pi_z2_half - g_first_term * sin_pi_z2_half;
         let c = half + f_first_term * sin_pi_z2_half - g_first_term * cos_pi_z2_half;
 
-        return Ok((s, c))
+        return Ok((s, c));
     }
 
     // For moderately large |z|, compute more terms of the asymptotic series

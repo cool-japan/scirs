@@ -140,8 +140,10 @@
 //! assert!((y_val - sin_val).abs() < 1e-2);
 //! ```
 
-// Export error types
+// Export common types and error types
+pub mod common;
 pub mod error;
+pub use common::IntegrateFloat;
 pub use error::{IntegrateError, IntegrateResult};
 
 // Integration modules

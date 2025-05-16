@@ -36,7 +36,7 @@ fn main() {
         .search_range(&central_europe_min.view(), &central_europe_max.view())
         .unwrap();
 
-    for (idx, city) in results {
+    for (_idx, city) in results {
         println!("- {}", city);
     }
 
@@ -46,7 +46,7 @@ fn main() {
 
     let nearest_results = rtree.nearest(&vienna_coords.view(), 3).unwrap();
 
-    for (idx, city, distance) in nearest_results {
+    for (_idx, city, distance) in nearest_results {
         println!("- {} (distance: {:.2})", city, distance);
     }
 
@@ -56,14 +56,16 @@ fn main() {
 
     let nearest_results = rtree.nearest(&paris_coords.view(), 3).unwrap();
 
-    for (idx, city, distance) in nearest_results {
+    for (_idx, city, distance) in nearest_results {
         println!("- {} (distance: {:.2})", city, distance);
     }
 
     // Delete a city from the R-tree
     println!("\nDeleting London from the R-tree...");
     let london_coords = array![-0.1278, 51.5074];
-    let deleted = rtree.delete(&london_coords.view(), None).unwrap();
+    let deleted = rtree
+        .delete::<fn(&String) -> bool>(&london_coords.view(), None)
+        .unwrap();
 
     if deleted {
         println!("London successfully deleted.");
@@ -77,7 +79,7 @@ fn main() {
 
     let nearest_results = rtree.nearest(&london_coords.view(), 3).unwrap();
 
-    for (idx, city, distance) in nearest_results {
+    for (_idx, city, distance) in nearest_results {
         println!("- {} (distance: {:.2})", city, distance);
     }
 }

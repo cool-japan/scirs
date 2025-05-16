@@ -25,8 +25,7 @@
 //! // The outliers (5.0 and 0.0) will be replaced with median values
 //! ```
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView2, Axis};
-use std::cmp;
+use ndarray::{s, Array1, Array2, Array3, Axis};
 
 use crate::error::{SignalError, SignalResult};
 

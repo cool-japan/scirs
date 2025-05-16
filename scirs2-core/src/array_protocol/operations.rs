@@ -680,8 +680,12 @@ array_function_dispatch!(
 
 // Linear algebra operations
 
-// Type alias for SVD return type  
-type SVDResult = (Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>);
+// Type alias for SVD return type
+type SVDResult = (
+    Box<dyn ArrayProtocol>,
+    Box<dyn ArrayProtocol>,
+    Box<dyn ArrayProtocol>,
+);
 
 // SVD decomposition operation
 array_function_dispatch!(

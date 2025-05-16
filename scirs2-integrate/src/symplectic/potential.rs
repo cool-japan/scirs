@@ -8,11 +8,11 @@
 //! It also provides a generic Hamiltonian system implementation for
 //! non-separable Hamiltonians.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::HamiltonianFn;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use num_traits::Float;
 
 /// A separable Hamiltonian system with H(q, p) = T(p) + V(q)
 ///
@@ -25,7 +25,7 @@ use std::fmt::Debug;
 /// - Pendulum: H = p²/2 - cos(q)
 /// - Kepler problem: H = |p|²/2 - 1/|q|
 #[derive(Debug)]
-pub struct SeparableHamiltonian<F: Float> {
+pub struct SeparableHamiltonian<F: IntegrateFloat> {
     /// Kinetic energy function T(p)
     kinetic_energy: Box<dyn Fn(F, &Array1<F>) -> F + Send + Sync>,
 
@@ -39,7 +39,7 @@ pub struct SeparableHamiltonian<F: Float> {
     kinetic_gradient: Option<Box<dyn Fn(F, &Array1<F>) -> Array1<F> + Send + Sync>>,
 }
 
-impl<F: Float + Debug> SeparableHamiltonian<F> {
+impl<F: IntegrateFloat> SeparableHamiltonian<F> {
     /// Create a new separable Hamiltonian system
     ///
     /// # Arguments
@@ -165,7 +165,7 @@ impl<F: Float + Debug> SeparableHamiltonian<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> HamiltonianFn<F> for SeparableHamiltonian<F> {
+impl<F: IntegrateFloat> HamiltonianFn<F> for SeparableHamiltonian<F> {
     fn dq_dt(&self, t: F, _q: &Array1<F>, p: &Array1<F>) -> IntegrateResult<Array1<F>> {
         // For separable Hamiltonian: dq/dt = ∂H/∂p = ∂T/∂p
         if let Some(grad) = &self.kinetic_gradient {
@@ -240,7 +240,7 @@ impl<F: Float + Debug + FromPrimitive> HamiltonianFn<F> for SeparableHamiltonian
 /// This represents Hamiltonian systems where the equations of motion are
 /// specified directly without assuming a separable structure.
 #[derive(Debug)]
-pub struct HamiltonianSystem<F: Float> {
+pub struct HamiltonianSystem<F: IntegrateFloat> {
     /// Function computing dq/dt = ∂H/∂p
     dq_dt_fn: Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + Send + Sync>,
 
@@ -251,7 +251,7 @@ pub struct HamiltonianSystem<F: Float> {
     hamiltonian_fn: Option<Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> F + Send + Sync>>,
 }
 
-impl<F: Float + Debug + FromPrimitive> HamiltonianSystem<F> {
+impl<F: IntegrateFloat> HamiltonianSystem<F> {
     /// Create a new general Hamiltonian system
     ///
     /// # Arguments
@@ -292,7 +292,7 @@ impl<F: Float + Debug + FromPrimitive> HamiltonianSystem<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> HamiltonianFn<F> for HamiltonianSystem<F> {
+impl<F: IntegrateFloat> HamiltonianFn<F> for HamiltonianSystem<F> {
     fn dq_dt(&self, t: F, q: &Array1<F>, p: &Array1<F>) -> IntegrateResult<Array1<F>> {
         Ok((self.dq_dt_fn)(t, q, p))
     }

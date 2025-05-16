@@ -2,16 +2,20 @@
 //!
 //! This module provides a callback for using scirs2-metrics with scirs2-neural models.
 
+#[cfg(feature = "metrics_integration")]
 use crate::callbacks::{Callback, CallbackContext, CallbackTiming};
+#[cfg(feature = "metrics_integration")]
 use crate::error::Result;
-use ndarray::{Array, IxDyn};
+#[cfg(feature = "metrics_integration")]
+use ndarray::{Array, IxDyn, ScalarOperand};
+#[cfg(feature = "metrics_integration")]
 use num_traits::{Float, FromPrimitive};
+#[cfg(feature = "metrics_integration")]
+use scirs2_metrics::integration::traits::MetricComputation;
+#[cfg(feature = "metrics_integration")]
 use std::collections::HashMap;
+#[cfg(feature = "metrics_integration")]
 use std::fmt::{Debug, Display};
-
-/// Feature flag check for scirs2-metrics integration
-#[cfg(not(feature = "metrics_integration"))]
-compile_error!("The 'metrics_integration' feature must be enabled to use ScirsMetricsCallback");
 
 /// Callback for using scirs2-metrics with neural network training
 ///
@@ -36,13 +40,15 @@ compile_error!("The 'metrics_integration' feature must be enabled to use ScirsMe
 /// # }
 /// ```
 #[cfg(feature = "metrics_integration")]
-pub struct ScirsMetricsCallback<F: Float + Debug + Display + FromPrimitive + Send + Sync> {
+pub struct ScirsMetricsCallback<
+    F: Float + Debug + Display + FromPrimitive + Send + Sync + ScalarOperand,
+> {
     /// Metrics adapters
     metrics: Vec<scirs2_metrics::integration::neural::NeuralMetricAdapter<F>>,
     /// Current batch predictions
-    current_predictions: Option<Array<F, IxDyn>>,
+    pub current_predictions: Option<Array<F, IxDyn>>,
     /// Current batch targets
-    current_targets: Option<Array<F, IxDyn>>,
+    pub current_targets: Option<Array<F, IxDyn>>,
     /// Current epoch results
     epoch_results: HashMap<String, F>,
     /// History of results
@@ -52,19 +58,21 @@ pub struct ScirsMetricsCallback<F: Float + Debug + Display + FromPrimitive + Sen
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + Display + FromPrimitive + Send + Sync> ScirsMetricsCallback<F> {
+impl<F: Float + Debug + Display + FromPrimitive + Send + Sync + ScalarOperand>
+    ScirsMetricsCallback<F>
+{
     /// Create a new ScirsMetricsCallback with the given metrics
     pub fn new(
-        metrics: Vec<scirs2_metrics::integration::neural::NeuralMetricAdapter<F>>
-    ) -> Self {
-        Self {
+        metrics: Vec<scirs2_metrics::integration::neural::NeuralMetricAdapter<F>>,
+    ) -> Option<Self> {
+        Some(Self {
             metrics,
             current_predictions: None,
             current_targets: None,
             epoch_results: HashMap::new(),
             history: Vec::new(),
             verbose: true,
-        }
+        })
     }
 
     /// Set whether to log metric values
@@ -85,17 +93,21 @@ impl<F: Float + Debug + Display + FromPrimitive + Send + Sync> ScirsMetricsCallb
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + Display + FromPrimitive + Send + Sync> Callback<F> for ScirsMetricsCallback<F> {
+impl<F: Float + Debug + Display + FromPrimitive + Send + Sync + ScalarOperand> Callback<F>
+    for ScirsMetricsCallback<F>
+{
     fn on_event(&mut self, timing: CallbackTiming, context: &mut CallbackContext<F>) -> Result<()> {
         match timing {
             CallbackTiming::AfterBatch => {
                 // After each batch, we store the predictions and targets
                 // We'll need to wait for this feature to be implemented in scirs2-neural
                 // as the current CallbackContext doesn't provide access to this data
-            },
+            }
             CallbackTiming::AfterEpoch => {
                 // After each epoch, compute metrics if we have predictions and targets
-                if let (Some(preds), Some(targets)) = (&self.current_predictions, &self.current_targets) {
+                if let (Some(preds), Some(targets)) =
+                    (&self.current_predictions, &self.current_targets)
+                {
                     // Compute each metric
                     self.epoch_results.clear();
 
@@ -107,10 +119,10 @@ impl<F: Float + Debug + Display + FromPrimitive + Send + Sync> Callback<F> for S
                                     println!("  {}: {:.4}", metric_name, value);
                                 }
                                 self.epoch_results.insert(metric_name.clone(), value);
-                                
+
                                 // Update context metrics for history tracking
                                 context.metrics.push((metric_name, Some(value)));
-                            },
+                            }
                             Err(err) => {
                                 if self.verbose {
                                     eprintln!("Error computing {}: {}", metric.name(), err);
@@ -126,10 +138,37 @@ impl<F: Float + Debug + Display + FromPrimitive + Send + Sync> Callback<F> for S
                 // Reset for next epoch
                 self.current_predictions = None;
                 self.current_targets = None;
-            },
+            }
             _ => {}
         }
 
         Ok(())
+    }
+}
+
+/// Placeholder implementation when metrics_integration feature is not enabled
+#[cfg(not(feature = "metrics_integration"))]
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct ScirsMetricsCallback<F> {
+    _phantom: std::marker::PhantomData<F>,
+}
+
+#[cfg(not(feature = "metrics_integration"))]
+#[allow(unused_attributes, dead_code)]
+impl<F> ScirsMetricsCallback<F> {
+    /// Creates a new ScirsMetricsCallback placeholder
+    ///
+    /// This is a no-op implementation when the metrics_integration feature is not enabled.
+    /// To use the full functionality, enable the feature with --features metrics_integration.
+    pub fn new<T>(_metrics: Vec<T>) -> Option<Self> {
+        eprintln!("Warning: ScirsMetricsCallback requires the 'metrics_integration' feature.");
+        eprintln!("To use it, compile with: --features metrics_integration");
+        None
+    }
+
+    /// Sets verbosity (no-op)
+    pub fn with_verbose(self, _verbose: bool) -> Self {
+        self
     }
 }

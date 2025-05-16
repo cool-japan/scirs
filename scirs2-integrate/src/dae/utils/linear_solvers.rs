@@ -4,6 +4,7 @@
 //! These replace the need for external linear algebra libraries like ndarray-linalg.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -18,18 +19,19 @@ use std::fmt::Debug;
 /// * `Result<Array1<F>, IntegrateError>` - The solution vector x
 pub fn solve_linear_system<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign,
+    F: IntegrateFloat,
 {
     // Get dimensions
     let n = a.shape()[0];
-    
+
     // Check that A is square
     if a.shape()[0] != a.shape()[1] {
-        return Err(IntegrateError::ValueError(
-            format!("Matrix must be square to solve linear system, got shape {:?}", a.shape())
-        ));
+        return Err(IntegrateError::ValueError(format!(
+            "Matrix must be square to solve linear system, got shape {:?}",
+            a.shape()
+        )));
     }
-    
+
     // Check that b has compatible dimensions
     if b.len() != n {
         return Err(IntegrateError::ValueError(
@@ -37,32 +39,32 @@ where
                 n, b.len())
         ));
     }
-    
+
     // Create copies of A and b that we can modify
     let mut a_copy = a.to_owned();
     let mut b_copy = b.to_owned();
-    
+
     // Gaussian elimination with partial pivoting
     for k in 0..n {
         // Find pivot
         let mut pivot_idx = k;
         let mut max_val = a_copy[[k, k]].abs();
-        
-        for i in (k+1)..n {
+
+        for i in (k + 1)..n {
             let val = a_copy[[i, k]].abs();
             if val > max_val {
                 max_val = val;
                 pivot_idx = i;
             }
         }
-        
+
         // Check for singularity
         if max_val < F::from_f64(1e-14).unwrap() {
             return Err(IntegrateError::ValueError(
-                "Matrix is singular or nearly singular".to_string()
+                "Matrix is singular or nearly singular".to_string(),
             ));
         }
-        
+
         // Swap rows if necessary
         if pivot_idx != k {
             // Swap rows in A
@@ -71,42 +73,42 @@ where
                 a_copy[[k, j]] = a_copy[[pivot_idx, j]];
                 a_copy[[pivot_idx, j]] = temp;
             }
-            
+
             // Swap elements in b
             let temp = b_copy[k];
             b_copy[k] = b_copy[pivot_idx];
             b_copy[pivot_idx] = temp;
         }
-        
+
         // Eliminate below the pivot
-        for i in (k+1)..n {
+        for i in (k + 1)..n {
             let factor = a_copy[[i, k]] / a_copy[[k, k]];
-            
+
             // Update the right-hand side
             b_copy[i] = b_copy[i] - factor * b_copy[k];
-            
+
             // Update the matrix
             a_copy[[i, k]] = F::zero(); // Explicitly set to zero to avoid numerical issues
-            
-            for j in (k+1)..n {
+
+            for j in (k + 1)..n {
                 a_copy[[i, j]] = a_copy[[i, j]] - factor * a_copy[[k, j]];
             }
         }
     }
-    
+
     // Back-substitution
     let mut x = Array1::<F>::zeros(n);
-    
+
     for i in (0..n).rev() {
         let mut sum = b_copy[i];
-        
-        for j in (i+1)..n {
+
+        for j in (i + 1)..n {
             sum = sum - a_copy[[i, j]] * x[j];
         }
-        
+
         x[i] = sum / a_copy[[i, i]];
     }
-    
+
     Ok(x)
 }
 
@@ -120,50 +122,50 @@ where
 /// * `Result<Array1<F>, IntegrateError>` - The solution vector x
 pub fn solve_lu<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> IntegrateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign,
+    F: IntegrateFloat,
 {
     // For small systems, just use Gaussian elimination
     if a.shape()[0] <= 10 {
         return solve_linear_system(a, b);
     }
-    
+
     // Get dimensions
     let n = a.shape()[0];
-    
+
     // Create copies of A that we can modify
     let mut a_copy = a.to_owned();
-    
+
     // Arrays to store the LU decomposition
     let mut l = Array2::<F>::eye(n);
     let mut u = Array2::<F>::zeros((n, n));
-    
+
     // Array to store permutation
     let mut p = vec![0; n];
     for i in 0..n {
         p[i] = i;
     }
-    
+
     // Perform LU decomposition with partial pivoting
     for k in 0..n {
         // Find pivot
         let mut pivot_idx = k;
         let mut max_val = a_copy[[k, k]].abs();
-        
-        for i in (k+1)..n {
+
+        for i in (k + 1)..n {
             let val = a_copy[[i, k]].abs();
             if val > max_val {
                 max_val = val;
                 pivot_idx = i;
             }
         }
-        
+
         // Check for singularity
         if max_val < F::from_f64(1e-14).unwrap() {
             return Err(IntegrateError::ValueError(
-                "Matrix is singular or nearly singular".to_string()
+                "Matrix is singular or nearly singular".to_string(),
             ));
         }
-        
+
         // Swap rows if necessary
         if pivot_idx != k {
             // Swap rows in A
@@ -172,12 +174,12 @@ where
                 a_copy[[k, j]] = a_copy[[pivot_idx, j]];
                 a_copy[[pivot_idx, j]] = temp;
             }
-            
+
             // Update permutation
             let temp = p[k];
             p[k] = p[pivot_idx];
             p[pivot_idx] = temp;
-            
+
             // If k > 0, swap rows in L for columns 0 to k-1
             if k > 0 {
                 for j in 0..k {
@@ -187,7 +189,7 @@ where
                 }
             }
         }
-        
+
         // Compute elements of U
         for j in k..n {
             u[[k, j]] = a_copy[[k, j]];
@@ -195,15 +197,15 @@ where
                 u[[k, j]] = u[[k, j]] - l[[k, p]] * u[[p, j]];
             }
         }
-        
+
         // Compute elements of L
-        for i in (k+1)..n {
+        for i in (k + 1)..n {
             if u[[k, k]].abs() < F::from_f64(1e-14).unwrap() {
                 return Err(IntegrateError::ValueError(
-                    "LU decomposition failed: division by zero".to_string()
+                    "LU decomposition failed: division by zero".to_string(),
                 ));
             }
-            
+
             l[[i, k]] = a_copy[[i, k]];
             for p in 0..k {
                 l[[i, k]] = l[[i, k]] - l[[i, p]] * u[[p, k]];
@@ -211,16 +213,16 @@ where
             l[[i, k]] = l[[i, k]] / u[[k, k]];
         }
     }
-    
+
     // Solve Ly = Pb
     let mut y = Array1::<F>::zeros(n);
     let mut pb = Array1::<F>::zeros(n);
-    
+
     // Permute b
     for i in 0..n {
         pb[i] = b[p[i]];
     }
-    
+
     // Forward substitution
     for i in 0..n {
         y[i] = pb[i];
@@ -228,25 +230,25 @@ where
             y[i] = y[i] - l[[i, j]] * y[j];
         }
     }
-    
+
     // Solve Ux = y
     let mut x = Array1::<F>::zeros(n);
-    
+
     // Back substitution
     for i in (0..n).rev() {
         if u[[i, i]].abs() < F::from_f64(1e-14).unwrap() {
             return Err(IntegrateError::ValueError(
-                "LU decomposition: singular matrix detected during back substitution".to_string()
+                "LU decomposition: singular matrix detected during back substitution".to_string(),
             ));
         }
-        
+
         x[i] = y[i];
-        for j in (i+1)..n {
+        for j in (i + 1)..n {
             x[i] = x[i] - u[[i, j]] * x[j];
         }
         x[i] = x[i] / u[[i, i]];
     }
-    
+
     Ok(x)
 }
 
@@ -259,7 +261,7 @@ where
 /// * The L2 norm of the vector
 pub fn vector_norm<F>(v: &ArrayView1<F>) -> F
 where
-    F: Float,
+    F: IntegrateFloat,
 {
     let mut sum = F::zero();
     for &val in v.iter() {
@@ -277,7 +279,7 @@ where
 /// * The Frobenius norm of the matrix
 pub fn matrix_norm<F>(m: &ArrayView2<F>) -> F
 where
-    F: Float,
+    F: IntegrateFloat,
 {
     let mut sum = F::zero();
     for val in m.iter() {

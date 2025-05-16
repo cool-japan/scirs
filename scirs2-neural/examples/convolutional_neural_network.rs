@@ -4,11 +4,11 @@
 //! (CNNs) in Rust, including Conv2D layers, pooling, and fully connected
 //! layers for image classification tasks.
 
-use ndarray::{s, Array, Array1, Array2, Array4, Axis, ArrayView1};
 use autograd::rand::distributions::{Distribution, Uniform};
+use autograd::rand::prelude::SliceRandom;
 use autograd::rand::rngs::SmallRng;
 use autograd::rand::{Rng, SeedableRng};
-use autograd::rand::prelude::SliceRandom;
+use ndarray::{s, Array, Array1, Array2, Array4, ArrayView1, Axis};
 use scirs2_neural::error::Result;
 use serde::{Deserialize, Serialize};
 use std::f32;
@@ -74,6 +74,7 @@ impl ActivationFunction {
 }
 
 /// Loss function type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 enum LossFunction {
     MSE,
@@ -769,7 +770,10 @@ impl Layer for Flatten {
         let flat_size: usize = input_shape[1..].iter().product();
 
         // Reshape to (batch_size, flat_size, 1, 1) - a 4D tensor with last two dims = 1
-        let flattened = x.clone().into_shape_with_order((batch_size, flat_size, 1, 1)).unwrap();
+        let flattened = x
+            .clone()
+            .into_shape_with_order((batch_size, flat_size, 1, 1))
+            .unwrap();
 
         // Store original shape for backward pass
         self.input_shape = Some(input_shape);
@@ -784,7 +788,10 @@ impl Layer for Flatten {
             .expect("Forward pass must be called first");
 
         // Reshape back to original shape
-        let reshaped = grad_output.clone().into_shape_with_order(input_shape.clone()).unwrap();
+        let reshaped = grad_output
+            .clone()
+            .into_shape_with_order(input_shape.clone())
+            .unwrap();
         let reshaped_4d: Array4<f32> = reshaped.into_dimensionality().unwrap();
 
         reshaped_4d
@@ -863,7 +870,10 @@ impl Layer for Dense {
         let batch_size = x.shape()[0];
 
         // Reshape input from [batch_size, features, 1, 1] to [batch_size, features]
-        let x_2d = x.clone().into_shape_with_order((batch_size, self.input_size)).unwrap();
+        let x_2d = x
+            .clone()
+            .into_shape_with_order((batch_size, self.input_size))
+            .unwrap();
 
         // Compute linear transformation: z = x @ W + b
         let mut z_2d = Array2::<f32>::zeros((batch_size, self.output_size));
@@ -1131,7 +1141,9 @@ impl Sequential {
         let output_size = predictions.shape()[1];
 
         // Reshape to 2D for easier handling
-        predictions.into_shape_with_order((batch_size, output_size)).unwrap()
+        predictions
+            .into_shape_with_order((batch_size, output_size))
+            .unwrap()
     }
 
     /// Print a summary of the model
@@ -1215,14 +1227,14 @@ fn create_synthetic_dataset(
 fn argmax(arr: ArrayView1<f32>) -> usize {
     let mut max_idx = 0;
     let mut max_val = arr[0];
-    
+
     for (idx, &val) in arr.iter().enumerate() {
         if val > max_val {
             max_val = val;
             max_idx = idx;
         }
     }
-    
+
     max_idx
 }
 

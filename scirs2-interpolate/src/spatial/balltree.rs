@@ -17,6 +17,7 @@
 
 use ndarray::Array2;
 use num_traits::{Float, FromPrimitive};
+use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -72,7 +73,7 @@ struct BallNode<F: Float> {
 #[derive(Debug, Clone)]
 pub struct BallTree<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float + FromPrimitive + Debug + std::cmp::PartialOrd,
 {
     /// The original points used to build the tree
     points: Array2<F>,
@@ -95,7 +96,7 @@ where
 
 impl<F> BallTree<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float + FromPrimitive + Debug + std::cmp::PartialOrd,
 {
     /// Create a new Ball Tree from points
     ///
@@ -319,8 +320,10 @@ where
         self.search_k_nearest(self.root.unwrap(), query, k, &mut heap);
 
         // Convert heap to sorted vector
-        let mut results: Vec<(usize, F)> =
-            heap.into_iter().map(|(dist, idx)| (idx, dist)).collect();
+        let mut results: Vec<(usize, F)> = heap
+            .into_iter()
+            .map(|(dist, idx)| (idx, dist.into_inner()))
+            .collect();
 
         // Sort by distance (since heap gives reverse order)
         results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
@@ -443,7 +446,7 @@ where
         node_idx: usize,
         query: &[F],
         k: usize,
-        heap: &mut std::collections::BinaryHeap<(F, usize)>,
+        heap: &mut std::collections::BinaryHeap<(OrderedFloat<F>, usize)>,
     ) {
         let node = &self.nodes[node_idx];
 
@@ -456,7 +459,7 @@ where
         } else {
             // Peek at the top of the max-heap to get the farthest point
             match heap.peek() {
-                Some(&(dist, _)) => dist,
+                Some(&(dist, _)) => dist.into_inner(),
                 None => F::infinity(),
             }
         };
@@ -473,7 +476,7 @@ where
                 let dist = euclidean_distance(query, &point.to_vec());
 
                 // Add to heap
-                heap.push((dist, idx));
+                heap.push((OrderedFloat(dist), idx));
 
                 // If heap is too large, remove the farthest point
                 if heap.len() > k {
@@ -661,8 +664,8 @@ fn compute_centroid<F: Float + FromPrimitive>(points: &Array2<F>, indices: &[usi
 
     // Divide by number of points
     let n = F::from_usize(n_points).unwrap();
-    for d in 0..n_dims {
-        center[d] = center[d] / n;
+    for val in center.iter_mut() {
+        *val = *val / n;
     }
 
     center

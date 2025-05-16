@@ -1,6 +1,6 @@
 use ndarray::{array, Array1};
 use plotters::prelude::*;
-use scirs2_spatial::transform::{Rotation, RotationSpline, Slerp};
+use scirs2_spatial::transform::{Rotation, RotationSpline};
 use std::error::Error;
 use std::f64::consts::PI;
 
@@ -11,10 +11,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a sequence of rotations
     let rotations = vec![
         Rotation::identity(),
-        Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz")?,
-        Rotation::from_euler(&array![0.0, 0.0, PI], "xyz")?,
-        Rotation::from_euler(&array![0.0, 0.0, 3.0 * PI / 2.0], "xyz")?,
-        Rotation::from_euler(&array![0.0, 0.0, 2.0 * PI], "xyz")?,
+        {
+            let angles = array![0.0, 0.0, PI / 2.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![0.0, 0.0, PI];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![0.0, 0.0, 3.0 * PI / 2.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![0.0, 0.0, 2.0 * PI];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
     ];
 
     // Define times
@@ -88,11 +100,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create more complex rotations in 3D
     let rotations_3d = vec![
-        Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 4.0, 0.0, 0.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 4.0, PI / 4.0, 0.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 4.0, PI / 4.0, PI / 4.0], "xyz")?,
-        Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz")?,
+        {
+            let angles = array![0.0, 0.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 4.0, 0.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 4.0, PI / 4.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 4.0, PI / 4.0, PI / 4.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![0.0, 0.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
     ];
 
     let mut spline_3d = RotationSpline::new(&rotations_3d, &times)?;

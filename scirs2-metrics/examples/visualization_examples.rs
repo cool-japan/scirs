@@ -5,8 +5,8 @@
 
 use ndarray::{array, Array2};
 use scirs2_metrics::{
-    classification::curves::{calibration_curve, precision_recall_curve, roc_curve},
     classification::confusion_matrix,
+    classification::curves::{calibration_curve, precision_recall_curve, roc_curve},
     visualization::{
         backends, helpers, ColorMap, PlotType, VisualizationData, VisualizationMetadata,
         VisualizationOptions,

@@ -1,14 +1,12 @@
+#![allow(dead_code)]
+
 use ndarray::{s, Array, Array1, Array2, Array3, Array4, Axis};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
-use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::collections::HashMap;
+use rand::Rng;
 use std::f32;
-use std::fmt::{self, Debug};
-use std::rc::Rc;
+use std::fmt::Debug;
 
 // Trait for all neural network layers
+#[allow(dead_code)]
 trait Layer: Debug {
     // Forward pass for training mode
     fn forward(&mut self, input: &Tensor, is_training: bool) -> Tensor;
@@ -33,6 +31,7 @@ enum TensorDim {
 }
 
 // Tensor wrapper to handle different dimensions
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Tensor {
     // Actual data is stored in the most general case
@@ -96,14 +95,10 @@ impl Tensor {
 
     // Create a 4D tensor
     fn new_4d(data: Array4<f32>) -> Self {
+        let shape = data.shape().to_vec();
         Tensor {
             data,
-            dim: TensorDim::Dim4(
-                data.shape()[0],
-                data.shape()[1],
-                data.shape()[2],
-                data.shape()[3],
-            ),
+            dim: TensorDim::Dim4(shape[0], shape[1], shape[2], shape[3]),
         }
     }
 
@@ -403,7 +398,8 @@ impl Tensor {
 }
 
 // Linear Layer
-#[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug)]
 struct Linear {
     name_str: String,
     in_features: usize,
@@ -424,7 +420,15 @@ impl Linear {
         // Xavier/Glorot initialization
         let bound = (6.0 / (in_features + out_features) as f32).sqrt();
 
-        let weight = Array::random((out_features, in_features), Uniform::new(-bound, bound));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize weight matrix with random values
+        let mut weight = Array2::<f32>::zeros((out_features, in_features));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         let bias = Array::zeros(out_features);
 
         Linear {
@@ -466,7 +470,7 @@ impl Layer for Linear {
     fn backward(&mut self, grad_output: &Tensor) -> Tensor {
         // Gradient from next layer
         let dout = grad_output.as_2d();
-        let batch_size = dout.shape()[0];
+        let _batch_size = dout.shape()[0];
 
         // Get cached input
         let x = self
@@ -505,6 +509,7 @@ impl Layer for Linear {
 }
 
 // ReLU Activation Layer
+#[allow(dead_code)]
 #[derive(Debug)]
 struct ReLU {
     name_str: String,
@@ -637,6 +642,7 @@ impl Layer for ReLU {
 }
 
 // Sigmoid Activation Layer
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Sigmoid {
     name_str: String,
@@ -767,6 +773,7 @@ impl Layer for Sigmoid {
 }
 
 // Softmax Layer for classification
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Softmax {
     name_str: String,
@@ -873,7 +880,8 @@ impl Layer for Softmax {
 }
 
 // LSTM Cell for sequence processing
-#[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug)]
 struct LSTMCell {
     name_str: String,
     input_size: usize,
@@ -930,25 +938,60 @@ impl LSTMCell {
         // Xavier/Glorot initialization
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_i = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Forget gate weights (initialize forget gate bias to 1 to avoid vanishing gradients early in training)
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_f = Array1::ones(hidden_size);
 
+        // Initialize with random values
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_g = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_o = Array1::zeros(hidden_size);
+
+        // Initialize with random values
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         LSTMCell {
             name_str: name.unwrap_or_else(|| format!("LSTMCell_{}_{}", input_size, hidden_size)),
@@ -1000,6 +1043,7 @@ impl LSTMCell {
 }
 
 // Sequential model that contains a list of layers
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Sequential {
     name_str: String,
@@ -1263,12 +1307,14 @@ impl Loss for CrossEntropyLoss {
 }
 
 // Optimizer trait
+#[allow(dead_code)]
 trait Optimizer {
     fn step(&mut self, model: &mut Sequential, learning_rate: f32);
     fn zero_grad(&mut self);
 }
 
 // Simple SGD Optimizer
+#[allow(dead_code)]
 #[derive(Debug)]
 struct SGD {
     model: Option<Box<Sequential>>,

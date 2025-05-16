@@ -18,6 +18,12 @@ The `scirs2-interpolate` crate provides a comprehensive set of interpolation met
   - Not-a-knot cubic splines
   - Akima splines (robust to outliers)
   - PCHIP (Piecewise Cubic Hermite Interpolating Polynomial) for shape preservation
+  - Penalized splines (P-splines) with penalty term control
+  - Constrained splines (monotonicity, convexity)
+  - Tension splines with adjustable tension parameters
+  - Hermite splines with derivative constraints
+  - Multiscale B-splines for adaptive refinement
+  - NURBS (Non-Uniform Rational B-Splines)
 
 - **Multi-dimensional Interpolation**
   - Regular grid interpolation
@@ -28,6 +34,9 @@ The `scirs2-interpolate` crate provides a comprehensive set of interpolation met
   - Radial Basis Function (RBF) interpolation with multiple kernel types
   - Kriging (Gaussian process regression) with uncertainty quantification
   - Barycentric interpolation for stable polynomial fitting
+  - Natural neighbor interpolation
+  - Moving least squares interpolation
+  - Local polynomial regression
 
 - **Grid Transformation and Resampling**
   - Resample scattered data onto regular grids
@@ -368,7 +377,22 @@ The module is designed with performance in mind:
 - Efficient memory usage with `ndarray`
 - Specialized algorithms for different interpolation needs
 - Carefully optimized numerical computations
-- Future support for parallel processing with Rayon
+- Parallel processing support with Rayon
+
+## Current Status
+
+The interpolate module now features a complete implementation of:
+
+- All standard spline variants (cubic, Akima, PCHIP, B-splines)
+- Advanced spline types (penalized, constrained, tension, multiscale)
+- 1D, 2D and N-dimensional interpolation methods
+- Natural neighbor and moving least squares interpolation
+- NURBS and Bezier curves/surfaces
+- Radial basis functions with multiple kernel types
+- Fast kriging for large datasets
+- Local polynomial regression
+
+Future work will focus on performance optimization for large datasets and GPU acceleration.
 
 ## License
 

@@ -93,6 +93,29 @@ where
         + std::ops::RemAssign
         + 'static,
 {
+    /// Check if the knots were generated automatically
+    pub fn generated_knots(&self) -> bool {
+        self.generated_knots
+    }
+}
+
+impl<T> PSpline<T>
+where
+    T: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + std::ops::RemAssign
+        + 'static,
+{
     /// Construct a new P-spline by fitting to data
     ///
     /// # Arguments
@@ -202,9 +225,10 @@ where
         lambda: T,
         penalty_type: PenaltyType,
         extrapolate: ExtrapolateMode,
-    ) -> InterpolateResult<Self> 
-    where 
-        T: 'static {
+    ) -> InterpolateResult<Self>
+    where
+        T: 'static,
+    {
         // Input validation
         if x.len() != y.len() {
             return Err(InterpolateError::ValueError(
@@ -250,9 +274,10 @@ where
         penalty_type: PenaltyType,
         extrapolate: ExtrapolateMode,
         generated_knots: bool,
-    ) -> InterpolateResult<Self> 
-    where 
-        T: 'static {
+    ) -> InterpolateResult<Self>
+    where
+        T: 'static,
+    {
         // Create design matrix (B-spline basis functions evaluated at each x)
         // The design matrix has dimensions n_data × n_basis
         // where n_basis = length(knots) - degree - 1
@@ -282,8 +307,7 @@ where
         let mut penalized_system = btb.clone();
         for i in 0..n_basis {
             for j in 0..n_basis {
-                penalized_system[[i, j]] =
-                    penalized_system[[i, j]] + lambda * penalty_matrix[[i, j]];
+                penalized_system[[i, j]] += lambda * penalty_matrix[[i, j]];
             }
         }
 
@@ -315,7 +339,7 @@ where
     /// A square penalty matrix of size n × n
     fn create_penalty_matrix(
         n: usize,
-        degree: usize,
+        _degree: usize,
         penalty_type: PenaltyType,
     ) -> InterpolateResult<Array2<T>> {
         let mut penalty = Array2::zeros((n, n));
@@ -332,12 +356,12 @@ where
                 // D₁ has dimensions (n-1) × n
                 for i in 0..n - 1 {
                     // Diagonal elements
-                    penalty[[i, i]] = penalty[[i, i]] + T::one();
-                    penalty[[i + 1, i + 1]] = penalty[[i + 1, i + 1]] + T::one();
+                    penalty[[i, i]] += T::one();
+                    penalty[[i + 1, i + 1]] += T::one();
 
                     // Off-diagonal elements
-                    penalty[[i, i + 1]] = penalty[[i, i + 1]] - T::one();
-                    penalty[[i + 1, i]] = penalty[[i + 1, i]] - T::one();
+                    penalty[[i, i + 1]] -= T::one();
+                    penalty[[i + 1, i]] -= T::one();
                 }
             }
             PenaltyType::SecondDerivative => {
@@ -348,19 +372,19 @@ where
 
                 for i in 0..n - 2 {
                     // Diagonal elements
-                    penalty[[i, i]] = penalty[[i, i]] + one;
-                    penalty[[i + 1, i + 1]] = penalty[[i + 1, i + 1]] + two * two;
-                    penalty[[i + 2, i + 2]] = penalty[[i + 2, i + 2]] + one;
+                    penalty[[i, i]] += one;
+                    penalty[[i + 1, i + 1]] += two * two;
+                    penalty[[i + 2, i + 2]] += one;
 
                     // Off-diagonal elements
-                    penalty[[i, i + 1]] = penalty[[i, i + 1]] - two;
-                    penalty[[i + 1, i]] = penalty[[i + 1, i]] - two;
+                    penalty[[i, i + 1]] -= two;
+                    penalty[[i + 1, i]] -= two;
 
-                    penalty[[i, i + 2]] = penalty[[i, i + 2]] + one;
-                    penalty[[i + 2, i]] = penalty[[i + 2, i]] + one;
+                    penalty[[i, i + 2]] += one;
+                    penalty[[i + 2, i]] += one;
 
-                    penalty[[i + 1, i + 2]] = penalty[[i + 1, i + 2]] - two;
-                    penalty[[i + 2, i + 1]] = penalty[[i + 2, i + 1]] - two;
+                    penalty[[i + 1, i + 2]] -= two;
+                    penalty[[i + 2, i + 1]] -= two;
                 }
             }
             PenaltyType::ThirdDerivative => {
@@ -371,29 +395,29 @@ where
 
                 for i in 0..n - 3 {
                     // Diagonal elements
-                    penalty[[i, i]] = penalty[[i, i]] + one;
-                    penalty[[i + 1, i + 1]] = penalty[[i + 1, i + 1]] + three * three;
-                    penalty[[i + 2, i + 2]] = penalty[[i + 2, i + 2]] + three * three;
-                    penalty[[i + 3, i + 3]] = penalty[[i + 3, i + 3]] + one;
+                    penalty[[i, i]] += one;
+                    penalty[[i + 1, i + 1]] += three * three;
+                    penalty[[i + 2, i + 2]] += three * three;
+                    penalty[[i + 3, i + 3]] += one;
 
                     // Off-diagonal elements (complex pattern for third derivative)
-                    penalty[[i, i + 1]] = penalty[[i, i + 1]] - three;
-                    penalty[[i + 1, i]] = penalty[[i + 1, i]] - three;
+                    penalty[[i, i + 1]] -= three;
+                    penalty[[i + 1, i]] -= three;
 
-                    penalty[[i, i + 2]] = penalty[[i, i + 2]] + three;
-                    penalty[[i + 2, i]] = penalty[[i + 2, i]] + three;
+                    penalty[[i, i + 2]] += three;
+                    penalty[[i + 2, i]] += three;
 
-                    penalty[[i, i + 3]] = penalty[[i, i + 3]] - one;
-                    penalty[[i + 3, i]] = penalty[[i + 3, i]] - one;
+                    penalty[[i, i + 3]] -= one;
+                    penalty[[i + 3, i]] -= one;
 
-                    penalty[[i + 1, i + 2]] = penalty[[i + 1, i + 2]] - three * three;
-                    penalty[[i + 2, i + 1]] = penalty[[i + 2, i + 1]] - three * three;
+                    penalty[[i + 1, i + 2]] -= three * three;
+                    penalty[[i + 2, i + 1]] -= three * three;
 
-                    penalty[[i + 1, i + 3]] = penalty[[i + 1, i + 3]] + three;
-                    penalty[[i + 3, i + 1]] = penalty[[i + 3, i + 1]] + three;
+                    penalty[[i + 1, i + 3]] += three;
+                    penalty[[i + 3, i + 1]] += three;
 
-                    penalty[[i + 2, i + 3]] = penalty[[i + 2, i + 3]] - three;
-                    penalty[[i + 3, i + 2]] = penalty[[i + 3, i + 2]] - three;
+                    penalty[[i + 2, i + 3]] -= three;
+                    penalty[[i + 3, i + 2]] -= three;
                 }
             }
         }
@@ -406,15 +430,27 @@ where
     /// Using SVD for numerical stability, especially important for large penalty values
     /// which can make the system ill-conditioned.
     fn solve_penalized_system(
-        a: &ArrayView2<T>,
-        b: &ArrayView1<T>,
+        _a: &ArrayView2<T>,
+        _b: &ArrayView1<T>,
     ) -> InterpolateResult<Array1<T>> {
-        match a.solve(b) {
-            Ok(solution) => Ok(solution),
-            Err(_) => {
-                // If direct solve fails, try SVD approach
-                #[cfg(feature = "linalg")]
-                {
+        #[cfg(feature = "linalg")]
+        return {
+            // Use direct solver when linalg is available
+            // If that fails, use SVD as a fallback
+            a.to_owned()
+                .solve(&b.to_owned())
+                .map_err(|_| {
+                    // SVD fallback for ill-conditioned systems
+                    InterpolateError::ComputationError(
+                        "Direct solver failed, trying SVD decomposition".to_string(),
+                    )
+                })
+                .and_then(|solution| {
+                    // If direct solve succeeds, return the solution
+                    Ok(solution)
+                })
+                .or_else(|_| {
+                    // If direct solve fails, try SVD approach
                     let svd = match a.svd(true, true) {
                         Ok(s) => s,
                         Err(_) => {
@@ -444,18 +480,14 @@ where
                     let s_inv_ut_b = s_inv.dot(&ut_b);
                     let v = vt.t();
                     let solution = v.dot(&s_inv_ut_b);
-
                     Ok(solution)
-                }
+                })
+        };
 
-                #[cfg(not(feature = "linalg"))]
-                {
-                    return Err(InterpolateError::UnsupportedOperation(
-                        "SVD requires the linalg feature to be enabled".to_string(),
-                    ));
-                }
-            }
-        }
+        #[cfg(not(feature = "linalg"))]
+        return Err(InterpolateError::UnsupportedOperation(
+            "SVD requires the linalg feature to be enabled".to_string(),
+        ));
     }
 
     /// Evaluate the P-spline at a given point
@@ -610,7 +642,7 @@ where
     let mut penalized_system = btb.clone();
     for i in 0..n_basis {
         for j in 0..n_basis {
-            penalized_system[[i, j]] = penalized_system[[i, j]] + lambda * penalty_matrix[[i, j]];
+            penalized_system[[i, j]] += lambda * penalty_matrix[[i, j]];
         }
     }
 
@@ -648,7 +680,7 @@ where
 pub fn cross_validate_lambda<T>(
     x: &ArrayView1<T>,
     y: &ArrayView1<T>,
-    n_knots: usize,
+    _n_knots: usize,
     degree: usize,
     lambda_values: &ArrayView1<T>,
     penalty_type: PenaltyType,
@@ -744,6 +776,7 @@ mod tests {
     use ndarray::array;
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_pspline_basic() {
         // Create some simple data
         let x = array![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
@@ -778,6 +811,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_pspline_smoothing() {
         // Create data with noise
         let x = array![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
@@ -830,6 +864,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_custom_penalty() {
         // Create some data
         let x = array![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
@@ -867,6 +902,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_cross_validation() {
         // Create some noisy data
         let x = array![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
@@ -910,6 +946,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_derivatives() {
         // Create data that follows a simple parabola: y = x^2
         let x = array![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
@@ -948,6 +985,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "linalg")]
     fn test_extrapolation() {
         // Create some data on [0, 1]
         let x = array![0.0, 0.2, 0.4, 0.6, 0.8, 1.0];

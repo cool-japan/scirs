@@ -9,6 +9,7 @@ use ndarray::{Array1, Array2, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use crate::IntegrateFloat;
 
 /// Detection method for stiffness analysis
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +34,7 @@ impl Default for StiffnessDetectionMethod {
 
 /// Configuration for stiffness detection
 #[derive(Debug, Clone)]
-pub struct StiffnessDetectionConfig<F: Float> {
+pub struct StiffnessDetectionConfig<F: IntegrateFloat> {
     /// Method used for stiffness detection
     pub method: StiffnessDetectionMethod,
     /// Minimum number of steps before considering method switch
@@ -58,7 +59,7 @@ pub struct StiffnessDetectionConfig<F: Float> {
     _phantom: PhantomData<F>,
 }
 
-impl<F: Float + FromPrimitive> Default for StiffnessDetectionConfig<F> {
+impl<F: IntegrateFloat> Default for StiffnessDetectionConfig<F> {
     fn default() -> Self {
         StiffnessDetectionConfig {
             method: StiffnessDetectionMethod::default(),
@@ -78,7 +79,7 @@ impl<F: Float + FromPrimitive> Default for StiffnessDetectionConfig<F> {
 
 /// Weight factors for different stiffness indicators
 #[derive(Debug, Clone)]
-pub struct IndicatorWeights<F: Float> {
+pub struct IndicatorWeights<F: IntegrateFloat> {
     /// Weight for error pattern indicators
     pub error_pattern_weight: F,
     /// Weight for step size pattern indicators
@@ -89,7 +90,7 @@ pub struct IndicatorWeights<F: Float> {
     pub eigenvalue_weight: F,
 }
 
-impl<F: Float + FromPrimitive> Default for IndicatorWeights<F> {
+impl<F: IntegrateFloat> Default for IndicatorWeights<F> {
     fn default() -> Self {
         IndicatorWeights {
             error_pattern_weight: F::from_f64(1.0).unwrap(),
@@ -102,7 +103,7 @@ impl<F: Float + FromPrimitive> Default for IndicatorWeights<F> {
 
 /// Enhanced stiffness detector that uses multiple indicators
 #[derive(Debug, Clone)]
-pub struct StiffnessDetector<F: Float> {
+pub struct StiffnessDetector<F: IntegrateFloat> {
     /// Configuration for stiffness detection
     config: StiffnessDetectionConfig<F>,
     /// History of step sizes
@@ -125,7 +126,7 @@ pub struct StiffnessDetector<F: Float> {
     stiffness_score: F,
 }
 
-impl<F: Float + FromPrimitive + Debug> StiffnessDetector<F> {
+impl<F: IntegrateFloat> StiffnessDetector<F> {
     /// Create a new stiffness detector with default configuration
     pub fn new() -> Self {
         Self::with_config(StiffnessDetectionConfig::default())
@@ -403,7 +404,7 @@ impl<F: Float + FromPrimitive + Debug> StiffnessDetector<F> {
 
 /// Provides information about method switching for diagnostic purposes
 #[derive(Debug, Clone)]
-pub struct MethodSwitchInfo<F: Float> {
+pub struct MethodSwitchInfo<F: IntegrateFloat> {
     /// Number of switches from non-stiff to stiff method
     pub nonstiff_to_stiff_switches: usize,
     /// Number of switches from stiff to non-stiff method
@@ -416,7 +417,7 @@ pub struct MethodSwitchInfo<F: Float> {
     pub switch_reasons: Vec<String>,
 }
 
-impl<F: Float> MethodSwitchInfo<F> {
+impl<F: IntegrateFloat> MethodSwitchInfo<F> {
     /// Create a new method switch info tracker
     pub fn new() -> Self {
         MethodSwitchInfo {

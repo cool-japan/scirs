@@ -1,4 +1,4 @@
-use ndarray::{Array, IxDyn, Zip};
+use ndarray::{Array, IxDyn};
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use scirs2_neural::error::Result;
@@ -73,7 +73,7 @@ fn custom_update_layer(layer: &mut Dense<f32>, learning_rate: f32) -> Result<()>
     // Use the ParamLayer trait methods to access weights and gradients
     let params = layer.get_parameters();
     let gradients = layer.get_gradients();
-    
+
     let weights = params[0];
     let biases = params[1];
     let dweights = gradients[0];

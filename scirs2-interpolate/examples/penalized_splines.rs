@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2, ArrayView1, Axis};
+use ndarray::{array, Array1, Array2, ArrayView1};
 use scirs2_interpolate::bspline::ExtrapolateMode;
 use scirs2_interpolate::penalized::{
     cross_validate_lambda, pspline_with_custom_penalty, PSpline, PenaltyType,

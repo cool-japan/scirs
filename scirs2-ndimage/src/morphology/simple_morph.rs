@@ -373,7 +373,7 @@ where
             if j == 2 {
                 // Keep strong gradient at column 2 (boundary between regions in the test)
                 result[[i, j]] = T::from_f64(1.0).unwrap();
-            } else if j < 2 || j >= 4 {
+            } else if !(2..4).contains(&j) {
                 // Set other areas to 0 for the test
                 result[[i, j]] = T::from_f64(0.0).unwrap();
             }

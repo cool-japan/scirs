@@ -3,26 +3,23 @@
 //! This example shows how to use the Voronoi-based Natural Neighbor
 //! interpolation methods for scattered 2D data.
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use plotters::prelude::*;
-use plotters::style::colors::{BLACK, BLUE, GREEN, RED};
+use plotters::style::colors::{BLACK, BLUE, RED};
 use rand::Rng;
-use scirs2_interpolate::voronoi::{
-    make_laplace_interpolator, make_sibson_interpolator, InterpolationMethod,
-    NaturalNeighborInterpolator,
-};
+use scirs2_interpolate::voronoi::{make_laplace_interpolator, make_sibson_interpolator};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points
     let n_points = 30;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Create points in a 2D domain
     let mut points_vec = Vec::with_capacity(n_points * 2);
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..10.0);
-        let y = rng.gen_range(0.0..10.0);
+        let x = rng.random_range(0.0..=10.0);
+        let y = rng.random_range(0.0..=10.0);
         points_vec.push(x);
         points_vec.push(y);
     }
@@ -36,9 +33,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let y = points[[i, 1]];
 
         // Test function: peaks with exponential decay
-        let value = 2.0 * (-(x - 5.0).powi(2) - (y - 5.0).powi(2) / 8.0).exp()
-            + (-(x - 2.0).powi(2) - (y - 7.0).powi(2) / 2.0).exp()
-            + 0.5 * (-(x - 8.0).powi(2) - (y - 3.0).powi(2) / 4.0).exp();
+        let value = 2.0 * f64::exp(-(f64::powi(x - 5.0, 2) + f64::powi(y - 5.0, 2) / 8.0))
+            + f64::exp(-(f64::powi(x - 2.0, 2) + f64::powi(y - 7.0, 2) / 2.0))
+            + 0.5 * f64::exp(-(f64::powi(x - 8.0, 2) + f64::powi(y - 3.0, 2) / 4.0));
 
         values_vec.push(value);
     }
@@ -54,10 +51,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         BitMapBackend::new("natural_neighbor_comparison.png", (800, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let plot_title = "Natural Neighbor Interpolation Comparison";
+    let _plot_title = "Natural Neighbor Interpolation Comparison";
 
     // Split the drawing area into two parts
-    let mut areas = root.split_evenly((2, 1));
+    let areas = root.split_evenly((2, 1));
 
     // Define plot area
     let mut cc = ChartBuilder::on(&areas[0])
@@ -127,7 +124,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             let point_color = RGBColor(r, g, b);
 
             let point_size = 3;
-            cc.draw_pixel((x, y), &point_color, point_size)?;
+            cc.draw_series(PointSeries::of_element(
+                vec![(x, y)],
+                point_size,
+                point_color,
+                &|c, s, st| Circle::new(c, s, st),
+            ))?;
         }
     }
 
@@ -136,7 +138,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = points[[i, 0]];
         let y = points[[i, 1]];
 
-        cc.draw_circle((x, y), 5, &BLACK.filled(), &BLACK)?;
+        cc.draw_series(PointSeries::of_element(
+            vec![(x, y)],
+            5,
+            BLACK.filled(),
+            &|c, s, st| Circle::new(c, s, st.stroke_width(1)),
+        ))?;
     }
 
     // Now create a similar plot for Laplace interpolation
@@ -184,7 +191,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             let point_color = RGBColor(r, g, b);
 
             let point_size = 3;
-            cc.draw_pixel((x, y), &point_color, point_size)?;
+            cc.draw_series(PointSeries::of_element(
+                vec![(x, y)],
+                point_size,
+                point_color,
+                &|c, s, st| Circle::new(c, s, st),
+            ))?;
         }
     }
 
@@ -193,7 +205,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = points[[i, 0]];
         let y = points[[i, 1]];
 
-        cc.draw_circle((x, y), 5, &BLACK.filled(), &BLACK)?;
+        cc.draw_series(PointSeries::of_element(
+            vec![(x, y)],
+            5,
+            BLACK.filled(),
+            &|c, s, st| Circle::new(c, s, st.stroke_width(1)),
+        ))?;
     }
 
     // Add a title to the plot
@@ -236,20 +253,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             .iter()
             .zip(sibson_slice.iter())
             .map(|(&x, &y)| (x, y)),
-        &RED.mix(0.8).stroke_width(3),
+        RED.mix(0.8).stroke_width(3),
     ))?
     .label("Sibson")
-    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED.mix(0.8).stroke_width(3)));
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED.mix(0.8).stroke_width(3)));
 
     cc.draw_series(LineSeries::new(
         x_vals
             .iter()
             .zip(laplace_slice.iter())
             .map(|(&x, &y)| (x, y)),
-        &BLUE.mix(0.8).stroke_width(3),
+        BLUE.mix(0.8).stroke_width(3),
     ))?
     .label("Laplace")
-    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE.mix(0.8).stroke_width(3)));
+    .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE.mix(0.8).stroke_width(3)));
 
     // Plot the original data points that are close to y=5.0
     let threshold = 0.5; // Points within this distance of y=5.0 will be shown

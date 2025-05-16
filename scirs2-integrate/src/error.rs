@@ -3,7 +3,7 @@
 use thiserror::Error;
 
 /// Integration error type
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum IntegrateError {
     /// Computation error (generic error)
     #[error("Computation error: {0}")]
@@ -32,6 +32,10 @@ pub enum IntegrateError {
     /// Method switching error
     #[error("Method switching error: {0}")]
     MethodSwitchingError(String),
+
+    /// Step size too small error
+    #[error("Step size too small: {0}")]
+    StepSizeTooSmall(String),
 }
 
 /// Result type for integration operations

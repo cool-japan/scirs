@@ -10,7 +10,8 @@ use std::sync::Arc;
 use crate::error::Result;
 
 /// Type alias for a metric function that can be executed in parallel
-pub type ParallelMetricFn<S1, S2, D1, D2> = dyn Fn(&ArrayBase<S1, D1>, &ArrayBase<S2, D2>) -> Result<f64> + Send + Sync;
+pub type ParallelMetricFn<S1, S2, D1, D2> =
+    dyn Fn(&ArrayBase<S1, D1>, &ArrayBase<S2, D2>) -> Result<f64> + Send + Sync;
 
 /// Configuration for parallel metrics computation
 ///

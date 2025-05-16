@@ -14,10 +14,9 @@ pub use newton::*;
 pub use parallel::*;
 pub use specialized::*;
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Strategy for Jacobian approximation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,13 +49,9 @@ impl Default for JacobianStrategy {
 }
 
 /// Compute Jacobian using finite differences (for compatibility)
-pub fn compute_jacobian<F, Func>(
-    f: &Func,
-    t: F,
-    y: &Array1<F>,
-) -> IntegrateResult<Array2<F>>
+pub fn compute_jacobian<F, Func>(f: &Func, t: F, y: &Array1<F>) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, &ArrayView1<F>) -> IntegrateResult<Array1<F>>,
 {
     let f_current = f(t, &y.view())?;
@@ -100,7 +95,7 @@ impl Default for JacobianStructure {
 
 /// Manages Jacobian computation, updates, and reuse
 #[derive(Debug, Clone)]
-pub struct JacobianManager<F: Float> {
+pub struct JacobianManager<F: IntegrateFloat> {
     /// The current Jacobian approximation
     jacobian: Option<Array2<F>>,
     /// The system state at which the Jacobian was computed
@@ -121,7 +116,7 @@ pub struct JacobianManager<F: Float> {
     factorized: bool,
 }
 
-impl<F: Float + FromPrimitive + Debug> JacobianManager<F> {
+impl<F: IntegrateFloat> JacobianManager<F> {
     /// Create a new Jacobian manager with default settings
     pub fn new() -> Self {
         JacobianManager {

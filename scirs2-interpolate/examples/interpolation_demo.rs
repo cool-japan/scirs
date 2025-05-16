@@ -132,7 +132,7 @@ fn demo_spline_interpolation() {
     println!();
 
     // Create a cubic spline (with natural boundary conditions)
-    let cs = make_interp_spline(&x.view(), &y.view(), "natural").unwrap();
+    let cs = make_interp_spline(&x.view(), &y.view(), "natural", None).unwrap();
 
     // Evaluate the spline at new points
     let x_new = array![1.0, 2.5, 4.5, 5.0];

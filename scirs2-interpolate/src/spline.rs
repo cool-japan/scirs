@@ -940,9 +940,9 @@ pub fn make_interp_spline<F: Float + FromPrimitive + Debug>(
                 }
                 CubicSpline::new_clamped(x, y, params[0], params[1])
             } else {
-                return Err(InterpolateError::ValueError(
+                Err(InterpolateError::ValueError(
                     "clamped boundary conditions require bc_params: [first_deriv_start, first_deriv_end]".to_string(),
-                ));
+                ))
             }
         },
         "periodic" => {
@@ -1036,7 +1036,8 @@ mod tests {
         assert_relative_eq!(spline_natural.evaluate(1.5).unwrap(), 2.25, epsilon = 0.1);
 
         // Test not-a-knot boundary conditions
-        let spline_not_a_knot = make_interp_spline(&x.view(), &y.view(), "not-a-knot", None).unwrap();
+        let spline_not_a_knot =
+            make_interp_spline(&x.view(), &y.view(), "not-a-knot", None).unwrap();
         assert_relative_eq!(
             spline_not_a_knot.evaluate(1.5).unwrap(),
             2.25,

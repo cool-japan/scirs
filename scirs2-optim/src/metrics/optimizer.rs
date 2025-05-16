@@ -37,11 +37,7 @@ where
     D: Dimension + 'static,
 {
     /// Create a new MetricOptimizer
-    pub fn new<O>(
-        optimizer: O,
-        metric_name: &str,
-        maximize: bool,
-    ) -> Self
+    pub fn new<O>(optimizer: O, metric_name: &str, maximize: bool) -> Self
     where
         O: Optimizer<F, D> + 'static,
     {
@@ -69,14 +65,14 @@ where
         if let Some(value) = metrics.get(self.metric_adapter.metric_name()) {
             self.metric_adapter.add_value(*value);
         }
-        
+
         // Update additional metrics
         for (name, value) in metrics {
             if name != self.metric_adapter.metric_name() {
                 self.metric_adapter.add_additional_value(&name, value);
             }
         }
-        
+
         Ok(())
     }
 
@@ -86,7 +82,9 @@ where
     }
 
     /// Get the metric adapter (mutable)
-    pub fn metric_adapter_mut(&mut self) -> &mut scirs2_metrics::integration::optim::MetricOptimizer<F> {
+    pub fn metric_adapter_mut(
+        &mut self,
+    ) -> &mut scirs2_metrics::integration::optim::MetricOptimizer<F> {
         &mut self.metric_adapter
     }
 
@@ -125,13 +123,9 @@ where
         patience: usize,
         min_lr: F,
     ) -> crate::schedulers::ReduceOnPlateau<F> {
-        let mut scheduler = crate::schedulers::ReduceOnPlateau::new(
-            initial_lr,
-            factor,
-            patience,
-            min_lr,
-        );
-        
+        let mut scheduler =
+            crate::schedulers::ReduceOnPlateau::new(initial_lr, factor, patience, min_lr);
+
         // Set mode based on optimization mode
         match self.metric_adapter.mode() {
             scirs2_metrics::integration::optim::OptimizationMode::Minimize => {
@@ -141,7 +135,7 @@ where
                 scheduler.mode_max();
             }
         }
-        
+
         scheduler
     }
 }
@@ -155,13 +149,13 @@ where
     fn step(&mut self, params: &Array<F, D>, gradients: &Array<F, D>) -> Result<Array<F, D>> {
         // Use base optimizer to update parameters
         let updated_params = self.base_optimizer.step(params, gradients)?;
-        
+
         // Record parameter update in history
         let mut param_update = HashMap::new();
         param_update.insert("params".to_string(), updated_params.clone());
         param_update.insert("gradients".to_string(), gradients.clone());
         self.history.push(param_update);
-        
+
         // Update best parameters if metric has improved
         if let Some(best_value) = self.metric_adapter.best_value() {
             let is_improvement = match self.metric_adapter.mode() {
@@ -182,14 +176,14 @@ where
                     }
                 }
             };
-            
+
             if is_improvement {
                 let mut best_params = HashMap::new();
                 best_params.insert("params".to_string(), updated_params.clone());
                 self.best_params = Some(best_params);
             }
         }
-        
+
         Ok(updated_params)
     }
 
@@ -205,7 +199,7 @@ where
 /// Error raised when metrics integration is not enabled
 #[cfg(not(feature = "metrics_integration"))]
 #[derive(Debug)]
-pub struct MetricOptimizer<F, D> 
+pub struct MetricOptimizer<F, D>
 where
     F: Float + Debug + FromPrimitive,
     D: Dimension,

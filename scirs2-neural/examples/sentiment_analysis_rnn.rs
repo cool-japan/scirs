@@ -1,7 +1,5 @@
-use ndarray_rand::RandomExt;
-use ndarray::{s, Array, Array1, Array2, Array3, Axis};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use ndarray::{s, Array1, Array2, Array3, Axis};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f32;
@@ -85,32 +83,59 @@ impl LSTMClassifier {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_i = Array1::zeros(hidden_size);
 
         // Forget gate weights
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_f = Array1::ones(hidden_size); // Initialize to 1s to avoid forgetting early in training
 
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_g = Array1::zeros(hidden_size);
 
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_o = Array1::zeros(hidden_size);
 
         // Output projection weights
         let output_bound = (6.0 / (hidden_size + output_size) as f32).sqrt();
-        let w_out = Array::random(
-            (output_size, hidden_size),
-            Uniform::new(-output_bound, output_bound),
-        );
+        let mut w_out = Array2::<f32>::zeros((output_size, hidden_size));
+        for elem in w_out.iter_mut() {
+            *elem = rng.random_range(-output_bound..output_bound);
+        }
         let b_out = Array1::zeros(output_size);
 
         LSTMClassifier {
@@ -252,7 +277,7 @@ impl LSTMClassifier {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get previous hidden and cell states
@@ -328,7 +353,7 @@ impl RecurrentClassifier for LSTMClassifier {
         probabilities
     }
 
-    fn backward(&mut self, x: &Array3<f32>, targets: &Array2<f32>) -> f32 {
+    fn backward(&mut self, _x: &Array3<f32>, targets: &Array2<f32>) -> f32 {
         let inputs = self
             .inputs
             .as_ref()
@@ -391,7 +416,7 @@ impl RecurrentClassifier for LSTMClassifier {
 
         // Calculate cross-entropy loss
         let mut total_loss = 0.0;
-        for (i, (output_row, target_row)) in
+        for (_i, (output_row, target_row)) in
             output.outer_iter().zip(targets.outer_iter()).enumerate()
         {
             for (j, &target) in target_row.iter().enumerate() {
@@ -400,7 +425,7 @@ impl RecurrentClassifier for LSTMClassifier {
                 }
             }
         }
-        let avg_loss = total_loss / batch_size as f32;
+        let avg_loss = total_loss / (batch_size as f32);
 
         // Gradient of cross-entropy loss with respect to softmax output
         let mut doutput = output.clone();
@@ -409,14 +434,14 @@ impl RecurrentClassifier for LSTMClassifier {
                 doutput[[i, j]] -= targets[[i, j]];
             }
         }
-        doutput = doutput / batch_size as f32;
+        doutput = doutput / (batch_size as f32);
 
         // Backpropagate through output layer
         dw_out = dw_out + doutput.t().dot(final_hidden);
         db_out = db_out + doutput.sum_axis(Axis(0));
 
         // Gradient with respect to final hidden state
-        let mut dh_final = doutput.dot(&self.w_out);
+        let dh_final = doutput.dot(&self.w_out);
 
         // Initialize gradients for the last time step
         let mut dh_next = Array2::zeros((batch_size, self.hidden_size));
@@ -442,7 +467,7 @@ impl RecurrentClassifier for LSTMClassifier {
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Gradient of output gate: do = dh * tanh(c) * sigmoid_derivative(o)
@@ -450,7 +475,7 @@ impl RecurrentClassifier for LSTMClassifier {
             let do_t = &dh_next * &tanh_c_t * &Self::sigmoid_derivative(&o_t);
 
             // Gradient of cell state: dc = dh * o * tanh_derivative(c) + dc_next
-            let mut dc = &dh_next * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
+            let dc = &dh_next * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
 
             // Gradient of input gate: di = dc * g * sigmoid_derivative(i)
             let di_t = &dc * &g_t * &Self::sigmoid_derivative(&i_t);
@@ -648,27 +673,48 @@ impl GRUClassifier {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Reset gate weights
-        let w_ir = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hr = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ir = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hr = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_ir.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hr.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_r = Array1::zeros(hidden_size);
 
         // Update gate weights
-        let w_iz = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hz = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_iz = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hz = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_iz.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hz.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_z = Array1::zeros(hidden_size);
 
         // New gate weights
-        let w_in = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hn = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_in = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hn = Array2::<f32>::zeros((hidden_size, hidden_size));
+        for elem in w_in.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hn.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let b_n = Array1::zeros(hidden_size);
 
         // Output projection weights
         let output_bound = (6.0 / (hidden_size + output_size) as f32).sqrt();
-        let w_out = Array::random(
-            (output_size, hidden_size),
-            Uniform::new(-output_bound, output_bound),
-        );
+        let mut w_out = Array2::<f32>::zeros((output_size, hidden_size));
+        for elem in w_out.iter_mut() {
+            *elem = rng.random_range(-output_bound..output_bound);
+        }
         let b_out = Array1::zeros(output_size);
 
         GRUClassifier {
@@ -787,7 +833,7 @@ impl GRUClassifier {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get previous hidden state
@@ -851,7 +897,7 @@ impl RecurrentClassifier for GRUClassifier {
         probabilities
     }
 
-    fn backward(&mut self, x: &Array3<f32>, targets: &Array2<f32>) -> f32 {
+    fn backward(&mut self, _x: &Array3<f32>, targets: &Array2<f32>) -> f32 {
         let inputs = self
             .inputs
             .as_ref()
@@ -902,7 +948,7 @@ impl RecurrentClassifier for GRUClassifier {
 
         // Calculate cross-entropy loss
         let mut total_loss = 0.0;
-        for (i, (output_row, target_row)) in
+        for (_i, (output_row, target_row)) in
             output.outer_iter().zip(targets.outer_iter()).enumerate()
         {
             for (j, &target) in target_row.iter().enumerate() {
@@ -911,7 +957,7 @@ impl RecurrentClassifier for GRUClassifier {
                 }
             }
         }
-        let avg_loss = total_loss / batch_size as f32;
+        let avg_loss = total_loss / (batch_size as f32);
 
         // Gradient of cross-entropy loss with respect to softmax output
         let mut doutput = output.clone();
@@ -920,14 +966,14 @@ impl RecurrentClassifier for GRUClassifier {
                 doutput[[i, j]] -= targets[[i, j]];
             }
         }
-        doutput = doutput / batch_size as f32;
+        doutput = doutput / (batch_size as f32);
 
         // Backpropagate through output layer
         dw_out = dw_out + doutput.t().dot(final_hidden);
         db_out = db_out + doutput.sum_axis(Axis(0));
 
         // Gradient with respect to final hidden state
-        let mut dh_final = doutput.dot(&self.w_out);
+        let dh_final = doutput.dot(&self.w_out);
 
         // Initialize gradient for the last time step
         let mut dh_next = Array2::zeros((batch_size, self.hidden_size));
@@ -949,7 +995,7 @@ impl RecurrentClassifier for GRUClassifier {
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Gradient of GRU equations:
@@ -1189,8 +1235,8 @@ fn sentiment_analysis_example() {
         }
 
         // Calculate average loss
-        let lstm_avg_loss = lstm_total_loss / train_size as f32;
-        let gru_avg_loss = gru_total_loss / train_size as f32;
+        let lstm_avg_loss = lstm_total_loss / (train_size as f32);
+        let gru_avg_loss = gru_total_loss / (train_size as f32);
 
         // Print progress
         if (epoch + 1) % 10 == 0 {
@@ -1238,8 +1284,8 @@ fn sentiment_analysis_example() {
     }
 
     // Calculate accuracy
-    let lstm_accuracy = lstm_correct as f32 / test_size as f32;
-    let gru_accuracy = gru_correct as f32 / test_size as f32;
+    let lstm_accuracy = (lstm_correct as f32) / (test_size as f32);
+    let gru_accuracy = (gru_correct as f32) / (test_size as f32);
 
     println!("LSTM Test Accuracy: {:.2}%", lstm_accuracy * 100.0);
     println!("GRU Test Accuracy: {:.2}%", gru_accuracy * 100.0);

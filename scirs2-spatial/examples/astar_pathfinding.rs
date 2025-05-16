@@ -1,7 +1,7 @@
 //! Example demonstrating A* search algorithm for pathfinding
 
 use scirs2_spatial::error::SpatialResult;
-use scirs2_spatial::pathplanning::{AStarPlanner, ContinuousAStarPlanner, GridAStarPlanner, Path};
+use scirs2_spatial::pathplanning::{ContinuousAStarPlanner, GridAStarPlanner};
 
 fn main() -> SpatialResult<()> {
     println!("A* Pathfinding Examples");

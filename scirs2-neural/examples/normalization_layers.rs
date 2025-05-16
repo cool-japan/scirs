@@ -19,6 +19,7 @@ use std::f32;
 use std::fmt::Debug;
 
 /// Activation function type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 enum ActivationFunction {
     ReLU,
@@ -281,7 +282,7 @@ impl Layer<Array4<f32>> for BatchNorm2D {
         let channels = input.shape()[1];
         let height = input.shape()[2];
         let width = input.shape()[3];
-        let N = (batch_size * height * width) as f32;
+        let n_pixels = (batch_size * height * width) as f32;
 
         // Initialize gradient arrays
         let mut dgamma = Array1::zeros(channels);
@@ -350,7 +351,7 @@ impl Layer<Array4<f32>> for BatchNorm2D {
                 }
             }
 
-            dmean[c] = sum1 + dvar[c] * sum2 / N;
+            dmean[c] = sum1 + dvar[c] * sum2 / n_pixels;
         }
 
         // Compute gradient with respect to input
@@ -359,8 +360,8 @@ impl Layer<Array4<f32>> for BatchNorm2D {
                 for h in 0..height {
                     for w in 0..width {
                         dinput[[b, c, h, w]] = dxhat[[b, c, h, w]] / std_dev[c]
-                            + dvar[c] * 2.0 * (input[[b, c, h, w]] - batch_mean[c]) / N
-                            + dmean[c] / N;
+                            + dvar[c] * 2.0 * (input[[b, c, h, w]] - batch_mean[c]) / n_pixels
+                            + dmean[c] / n_pixels;
                     }
                 }
             }
@@ -446,7 +447,7 @@ impl LayerNorm {
 }
 
 impl Layer<Array2<f32>> for LayerNorm {
-    fn forward(&mut self, x: &Array2<f32>, is_training: bool) -> Array2<f32> {
+    fn forward(&mut self, x: &Array2<f32>, _is_training: bool) -> Array2<f32> {
         let batch_size = x.shape()[0];
         let feature_size = x.shape()[1];
 
@@ -515,7 +516,7 @@ impl Layer<Array2<f32>> for LayerNorm {
 
         let batch_size = input.shape()[0];
         let feature_size = input.shape()[1];
-        let N = feature_size as f32;
+        let n_features = feature_size as f32;
 
         // Initialize gradient arrays
         let mut dgamma = Array1::zeros(feature_size);
@@ -565,9 +566,10 @@ impl Layer<Array2<f32>> for LayerNorm {
         // Compute gradient with respect to input
         for b in 0..batch_size {
             for f in 0..feature_size {
-                let dvar_term = 2.0 * (input[[b, f]] - mean[b]) / N;
+                let dvar_term = 2.0 * (input[[b, f]] - mean[b]) / n_features;
 
-                dinput[[b, f]] = dxhat[[b, f]] / std_dev[b] + dvar[b] * dvar_term + dmean[b] / N;
+                dinput[[b, f]] =
+                    dxhat[[b, f]] / std_dev[b] + dvar[b] * dvar_term + dmean[b] / n_features;
             }
         }
 
@@ -756,7 +758,7 @@ impl Layer<Array4<f32>> for GroupNorm {
 
         let channels_per_group = channels / self.num_groups;
         let pixels_per_group = height * width * channels_per_group;
-        let N = pixels_per_group as f32;
+        let n_pixels_per_group = pixels_per_group as f32;
 
         // Initialize gradient arrays
         let mut dgamma = Array1::zeros(channels);
@@ -831,8 +833,8 @@ impl Layer<Array4<f32>> for GroupNorm {
                     for w in 0..width {
                         dinput[[b, c, h, w]] = dxhat[[b, c, h, w]] / group_std[[b, g]]
                             + dgroup_var[[b, g]] * 2.0 * (input[[b, c, h, w]] - group_mean[[b, g]])
-                                / N
-                            + dgroup_mean[[b, g]] / N;
+                                / n_pixels_per_group
+                            + dgroup_mean[[b, g]] / n_pixels_per_group;
                     }
                 }
             }
@@ -989,6 +991,7 @@ impl Layer<Array2<f32>> for Dense {
 }
 
 /// Loss function type
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 enum LossFunction {
     MSE,
@@ -1067,7 +1070,7 @@ fn example_batchnorm() -> Result<()> {
 
     // Create random input tensor
     let x = Array4::from_shape_fn((batch_size, channels, height, width), |_| {
-        rng.random::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
+        rng.gen::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
     });
 
     // Create a BatchNorm2D layer
@@ -1114,7 +1117,7 @@ fn example_layernorm() -> Result<()> {
 
     // Create random input tensor
     let x = Array2::from_shape_fn((batch_size, features), |_| {
-        rng.random::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
+        rng.gen::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
     });
 
     // Create a LayerNorm layer
@@ -1158,7 +1161,7 @@ fn example_groupnorm() -> Result<()> {
 
     // Create random input tensor
     let x = Array4::from_shape_fn((batch_size, channels, height, width), |_| {
-        rng.random::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
+        rng.gen::<f32>() * 2.0 - 1.0 // Random values between -1 and 1
     });
 
     // Create a GroupNorm layer
@@ -1200,13 +1203,13 @@ fn compare_normalization_methods() -> Result<()> {
 
     // Generate synthetic data
     let x_train = Array2::from_shape_fn((n_samples, n_features), |_| {
-        rng.random::<f32>() // Values between 0 and 1
+        rng.gen::<f32>() // Values between 0 and 1
     });
 
     // Generate one-hot encoded labels
     let mut y_train = Array2::zeros((n_samples, n_classes));
     for i in 0..n_samples {
-        let class = (rng.random::<f32>() * n_classes as f32).floor() as usize;
+        let class = (rng.gen::<f32>() * n_classes as f32).floor() as usize;
         y_train[[i, class]] = 1.0;
     }
 

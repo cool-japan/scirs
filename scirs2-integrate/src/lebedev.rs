@@ -7,13 +7,14 @@
 //! The implementation provides quadrature points and weights for various orders of precision.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::{array, Array1, Array2};
 use num_traits::Float;
 use std::f64::consts::PI;
 
 /// Represents a Lebedev quadrature rule with points and weights
 #[derive(Debug, Clone)]
-pub struct LebedevRule<F: Float> {
+pub struct LebedevRule<F: IntegrateFloat> {
     /// Quadrature points on the unit sphere (x, y, z coordinates)
     pub points: Array2<F>,
 
@@ -126,7 +127,7 @@ impl LebedevOrder {
 /// let weight_sum: f64 = rule.weights.sum();
 /// assert!((weight_sum - 1.0).abs() < 1e-10);
 /// ```
-pub fn lebedev_rule<F: Float + 'static>(order: LebedevOrder) -> IntegrateResult<LebedevRule<F>> {
+pub fn lebedev_rule<F: IntegrateFloat>(order: LebedevOrder) -> IntegrateResult<LebedevRule<F>> {
     // Generate the rule based on the requested order
     match order {
         LebedevOrder::Order6 => generate_order6(),
@@ -171,7 +172,7 @@ pub fn lebedev_rule<F: Float + 'static>(order: LebedevOrder) -> IntegrateResult<
 /// ```
 pub fn lebedev_integrate<F, Func>(f: Func, order: LebedevOrder) -> IntegrateResult<F>
 where
-    F: Float + 'static,
+    F: IntegrateFloat,
     Func: Fn(F, F, F) -> F,
 {
     // Get the Lebedev rule
@@ -197,7 +198,7 @@ where
 //////////////////////////////////////////////////
 
 /// Generates a 6th-order Lebedev rule with 6 points
-fn generate_order6<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
+fn generate_order6<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // These are the 6 points along the Cartesian axes
     let points_data = [
         // x, y, z coordinates
@@ -230,7 +231,7 @@ fn generate_order6<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
 }
 
 /// Generates a 14th-order Lebedev rule with 26 points
-fn generate_order14<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
+fn generate_order14<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // Start with the 6 axial points from order 6
     let order6 = generate_order6()?;
 
@@ -324,7 +325,7 @@ fn generate_order14<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
 }
 
 /// Generates a 26th-order Lebedev rule with 50 points
-fn generate_order26<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
+fn generate_order26<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // Start with the points from order 14
     let order14 = generate_order14()?;
 
@@ -396,7 +397,7 @@ fn generate_order26<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
 }
 
 /// Generates a 38th-order Lebedev rule with 86 points
-fn generate_order38<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
+fn generate_order38<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // Start with the points from order 26
     let order26 = generate_order26()?;
 
@@ -512,7 +513,7 @@ fn generate_order38<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
 }
 
 /// Generates a 50th-order Lebedev rule with 146 points
-fn generate_order50<F: Float + 'static>() -> IntegrateResult<LebedevRule<F>> {
+fn generate_order50<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // Start with the points from order 38
     let order38 = generate_order38()?;
 

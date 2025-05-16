@@ -1,6 +1,6 @@
-use ndarray::{Array, Array1, Array2, Array3, ArrayD, Axis, Dimension, Ix2, Ix3};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use ndarray::{s, Array1, Array2, Array3, Axis};
+use rand::seq::SliceRandom;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::f32;
 
@@ -52,8 +52,19 @@ impl SimpleRNN {
     fn new(input_size: usize, hidden_size: usize, batch_size: usize) -> Self {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
-        let w_ih = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hh = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut w_ih = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hh = Array2::<f32>::zeros((hidden_size, hidden_size));
+
+        for elem in w_ih.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hh.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         // Initialize biases to zero
         let b_ih = Array1::zeros(hidden_size);
@@ -116,7 +127,7 @@ impl RecurrentLayer for SimpleRNN {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get previous hidden state [batch_size, hidden_size]
@@ -205,7 +216,7 @@ impl RecurrentLayer for SimpleRNN {
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Calculate gradients through tanh
@@ -328,25 +339,60 @@ impl LSTM {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_i = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Forget gate weights (initialize with small positive bias to encourage remembering)
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_f = Array1::ones(hidden_size); // Initialize to 1s for better learning
 
+        // Initialize with random values
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_g = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_o = Array1::zeros(hidden_size);
+
+        // Initialize with random values
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         LSTM {
             input_size,
@@ -451,7 +497,7 @@ impl RecurrentLayer for LSTM {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get previous hidden and cell states
@@ -582,7 +628,7 @@ impl RecurrentLayer for LSTM {
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get gradient from the output plus gradient from next timestep
@@ -598,7 +644,7 @@ impl RecurrentLayer for LSTM {
             let do_t = &dh * &tanh_c_t * &Self::sigmoid_derivative(&o_t);
 
             // Gradient of cell state: dc = dh * o * tanh_derivative(c) + dc_next
-            let mut dc = &dh * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
+            let dc = &dh * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
 
             // Gradient of input gate: di = dc * g * sigmoid_derivative(i)
             let di_t = &dc * &g_t * &Self::sigmoid_derivative(&i_t);
@@ -769,20 +815,47 @@ impl GRU {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Reset gate weights
-        let w_ir = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hr = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ir = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hr = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_r = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ir.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hr.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Update gate weights
-        let w_iz = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hz = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_iz = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hz = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_z = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_iz.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hz.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // New gate weights
-        let w_in = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hn = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_in = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hn = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_n = Array1::zeros(hidden_size);
+
+        // Initialize with random values
+        for elem in w_in.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hn.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         GRU {
             input_size,
@@ -864,7 +937,7 @@ impl RecurrentLayer for GRU {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get previous hidden state
@@ -964,11 +1037,11 @@ impl RecurrentLayer for GRU {
             let z_t = update_gates.slice(s![.., t, ..]).to_owned();
             let n_t = new_gates.slice(s![.., t, ..]).to_owned();
             let h_prev = hidden_states.slice(s![.., t, ..]).to_owned();
-            let h_t = hidden_states.slice(s![.., t + 1, ..]).to_owned();
+            let _h_t = hidden_states.slice(s![.., t + 1, ..]).to_owned();
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order((batch_size, self.input_size))
                 .unwrap();
 
             // Get gradient from the output plus gradient from next timestep
@@ -1211,7 +1284,7 @@ fn compare_recurrent_networks() {
         let t = i as f32 * 0.1;
         let sin_val = (t).sin();
         // Add small noise
-        let noise: f32 = ndarray_rand::rand::random::<f32>() * 0.1 - 0.05;
+        let noise: f32 = rand::random::<f32>() * 0.1 - 0.05;
         data.push(sin_val + noise);
     }
 
@@ -1232,7 +1305,7 @@ fn compare_recurrent_networks() {
 
     // Create batches
     let num_batches = all_inputs.len() / batch_size;
-    let train_split = (num_batches * 0.8) as usize;
+    let train_split = (num_batches as f32 * 0.8) as usize;
 
     // Create models
     let mut simple_rnn = SimpleRNN::new(input_size, hidden_size, batch_size);
@@ -1253,10 +1326,8 @@ fn compare_recurrent_networks() {
 
         // Shuffle training data
         let mut indices: Vec<usize> = (0..train_split * batch_size).collect();
-        ndarray_rand::rand::seq::SliceRandom::shuffle(
-            &mut indices,
-            &mut ndarray_rand::rand::thread_rng(),
-        );
+        let mut rng = rand::rng();
+        indices.shuffle(&mut rng);
 
         for batch in 0..train_split {
             // Prepare batch

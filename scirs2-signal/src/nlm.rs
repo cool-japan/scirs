@@ -35,7 +35,7 @@
 //! let denoised = nlm_denoise_1d(&noisy_signal, &config).unwrap();
 //! ```
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, Axis};
+use ndarray::{s, Array1, Array2, Array3, Axis};
 use std::cmp;
 use std::f64::consts::PI;
 
@@ -780,19 +780,11 @@ pub fn nlm_color_image(image: &Array3<f64>, config: &NlmConfig) -> SignalResult<
                     for c in 0..channels {
                         // Extract patches from each channel
                         let channel_view = padded_image.index_axis(Axis(2), c).to_owned();
-                        let center_patch = extract_patch_2d(
-                            &channel_view,
-                            center_i,
-                            center_j,
-                            config.patch_size,
-                        );
+                        let center_patch =
+                            extract_patch_2d(&channel_view, center_i, center_j, config.patch_size);
 
-                        let search_patch = extract_patch_2d(
-                            &channel_view,
-                            si,
-                            sj,
-                            config.patch_size,
-                        );
+                        let search_patch =
+                            extract_patch_2d(&channel_view, si, sj, config.patch_size);
 
                         // Add weighted channel distance
                         total_dist += compute_patch_distance_2d(&center_patch, &search_patch, None);

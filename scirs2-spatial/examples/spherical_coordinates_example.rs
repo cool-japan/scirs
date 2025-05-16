@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use ndarray::array;
 use scirs2_spatial::transform::spherical::{
     cart_to_spherical, cart_to_spherical_batch, geodesic_distance, spherical_to_cart,
     spherical_to_cart_batch, spherical_triangle_area,
@@ -181,12 +181,4 @@ fn main() -> SpatialResult<()> {
     }
 
     Ok(())
-}
-
-/// Helper function to print spherical coordinates in a nice format
-fn print_spherical(name: &str, coords: &ArrayView1<f64>) {
-    println!("{}:", name);
-    println!("  r = {:.4}", coords[0]);
-    println!("  θ = {:.4} rad, {:.2}°", coords[1], coords[1] * 180.0 / PI);
-    println!("  φ = {:.4} rad, {:.2}°", coords[2], coords[2] * 180.0 / PI);
 }

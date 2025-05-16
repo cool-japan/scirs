@@ -18,7 +18,16 @@ use crate::error::InterpolateResult;
 ///
 /// Uses Rayon's parallel iterators to parallelize interpolation of multiple query points.
 #[derive(Debug, Clone)]
-pub struct ParallelNaturalNeighborInterpolator<F: Float + FromPrimitive + Debug + Send + Sync> {
+pub struct ParallelNaturalNeighborInterpolator<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Send
+        + Sync
+        + ndarray::ScalarOperand
+        + 'static
+        + std::cmp::PartialOrd,
+> {
     /// The underlying sequential interpolator
     interpolator: NaturalNeighborInterpolator<F>,
 
@@ -45,7 +54,17 @@ impl Default for ParallelConfig {
     }
 }
 
-impl<F: Float + FromPrimitive + Debug + Send + Sync> ParallelNaturalNeighborInterpolator<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + Send
+            + Sync
+            + ndarray::ScalarOperand
+            + 'static
+            + std::cmp::PartialOrd,
+    > ParallelNaturalNeighborInterpolator<F>
+{
     /// Creates a new parallel Natural Neighbor interpolator
     ///
     /// # Arguments
@@ -97,7 +116,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> ParallelNaturalNeighborInte
     /// An array of interpolated values
     pub fn interpolate_multi(&self, queries: &ArrayView2<F>) -> InterpolateResult<Array1<F>> {
         let n_queries = queries.nrows();
-        let dim = queries.ncols();
+        let _dim = queries.ncols();
 
         // For very small numbers of queries, just use the sequential version
         if n_queries <= self.parallel_config.min_points_per_thread {
@@ -112,7 +131,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> ParallelNaturalNeighborInte
         }
         .max(1);
 
-        let chunk_size = (n_queries + num_threads - 1) / num_threads;
+        let chunk_size = n_queries.div_ceil(num_threads);
 
         // Create a container for the results
         let results = Arc::new(Mutex::new(Array1::zeros(n_queries)));
@@ -173,7 +192,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> ParallelNaturalNeighborInte
 /// # Returns
 /// A new parallel Natural Neighbor interpolator
 pub fn make_parallel_natural_neighbor_interpolator<
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand + 'static + std::cmp::Ord,
 >(
     points: Array2<F>,
     values: Array1<F>,
@@ -192,7 +211,16 @@ pub fn make_parallel_natural_neighbor_interpolator<
 ///
 /// # Returns
 /// A new parallel Natural Neighbor interpolator using Sibson's method
-pub fn make_parallel_sibson_interpolator<F: Float + FromPrimitive + Debug + Send + Sync>(
+pub fn make_parallel_sibson_interpolator<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Send
+        + Sync
+        + ndarray::ScalarOperand
+        + 'static
+        + std::cmp::PartialOrd,
+>(
     points: Array2<F>,
     values: Array1<F>,
     config: Option<ParallelConfig>,
@@ -209,7 +237,16 @@ pub fn make_parallel_sibson_interpolator<F: Float + FromPrimitive + Debug + Send
 ///
 /// # Returns
 /// A new parallel Natural Neighbor interpolator using the non-Sibsonian (Laplace) method
-pub fn make_parallel_laplace_interpolator<F: Float + FromPrimitive + Debug + Send + Sync>(
+pub fn make_parallel_laplace_interpolator<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Send
+        + Sync
+        + ndarray::ScalarOperand
+        + 'static
+        + std::cmp::PartialOrd,
+>(
     points: Array2<F>,
     values: Array1<F>,
     config: Option<ParallelConfig>,

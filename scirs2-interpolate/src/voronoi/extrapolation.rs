@@ -118,7 +118,16 @@ pub trait Extrapolation<F: Float + FromPrimitive + Debug> {
     ) -> InterpolateResult<Array1<F>>;
 }
 
-impl<F: Float + FromPrimitive + Debug> Extrapolation<F> for NaturalNeighborInterpolator<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ndarray::ScalarOperand
+            + 'static
+            + for<'a> std::iter::Sum<&'a F>
+            + std::cmp::PartialOrd,
+    > Extrapolation<F> for NaturalNeighborInterpolator<F>
+{
     fn extrapolate(
         &self,
         query: &ArrayView1<F>,

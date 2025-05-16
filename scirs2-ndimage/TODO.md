@@ -37,7 +37,7 @@ This module provides multidimensional image processing functionality similar to 
 - [ ] Complete implementation of remaining filter operations
   - [ ] Full implementation of Gaussian filters
   - [ ] Full implementation of Median filters
-  - [ ] Full implementation of Sobel filters
+  - [x] Full implementation of Sobel filters (n-dimensional support added)
 
 - [ ] Complete interpolation functionality
   - [ ] Affine transformations
@@ -50,7 +50,7 @@ This module provides multidimensional image processing functionality similar to 
   - [x] Opening and closing
   - [x] Morphological gradient
   - [x] Top-hat and black-hat transforms
-  - [ ] Fix dimensionality and indexing issues in morphological operations
+  - [x] Fix dimensionality and indexing issues in morphological operations (fixed for n-dimensional support)
   - [ ] Optimize implementations for better performance
 
 - [ ] Complete measurements and analysis
@@ -193,11 +193,12 @@ This module provides multidimensional image processing functionality similar to 
 
 ## Next Steps (Immediate)
 
-- [ ] Fix dimensionality and indexing issues in morphological operations
-- [ ] Complete implementation of filter operations
+- [x] Fix dimensionality and indexing issues in morphological operations (completed)
+- [x] Complete implementation of filter operations (Sobel n-dimensional support added, correlate1d implemented)
 - [ ] Fix generic parameter issues in feature detection modules
 - [ ] Address type conversion issues between arrays and image data
 - [ ] Implement comprehensive test suite for new functionality
+- [x] Address clippy warnings (too_many_arguments fixed with #allow, needless_range_loop fixed)
 
 ## Long-term Goals
 

@@ -14,6 +14,7 @@ use crate::ode::utils::linear_solvers::LinearSolverType;
 use ndarray::{Array1, ArrayView1, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
+use crate::IntegrateFloat;
 
 /// Solve ODE using an enhanced Backward Differentiation Formula (BDF) method
 ///
@@ -40,14 +41,7 @@ pub fn enhanced_bdf_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Check BDF order is valid (1-5 supported)

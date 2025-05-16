@@ -1,4 +1,4 @@
-use ndarray::{array, Array2, Axis};
+use ndarray::{array, Array2};
 use rand::prelude::*;
 use scirs2_spatial::{BoundingBox, Octree};
 
@@ -134,12 +134,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let n_points = 100000;
     println!("Creating a random dataset with {} points...", n_points);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut large_points = Array2::zeros((n_points, 3));
 
     for i in 0..n_points {
         for j in 0..3 {
-            large_points[[i, j]] = rng.gen_range(-100.0..100.0);
+            large_points[[i, j]] = rng.random_range(-100.0..100.0);
         }
     }
 
@@ -156,7 +156,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let query_point = array![0.0, 0.0, 0.0];
 
     let start = std::time::Instant::now();
-    let (indices, _) = large_octree.query_nearest(&query_point.view(), 10)?;
+    let (_indices, _) = large_octree.query_nearest(&query_point.view(), 10)?;
     let query_time = start.elapsed();
 
     println!("  Found 10 nearest neighbors in {:.2?}", query_time);

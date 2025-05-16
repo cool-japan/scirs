@@ -8,11 +8,10 @@
 //! These methods are widely used in molecular dynamics simulations and
 //! provide excellent long-term energy conservation properties.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
 use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Störmer-Verlet Method (also known as Leapfrog)
@@ -25,11 +24,11 @@ use std::marker::PhantomData;
 /// 2. q_{n+1} = q_n + dt * dq/dt(t_n+dt/2, q_n, p_{n+1/2})
 /// 3. p_{n+1} = p_{n+1/2} + (dt/2) * dp/dt(t_n+dt, q_{n+1}, p_{n+1/2})
 #[derive(Debug, Clone)]
-pub struct StormerVerlet<F: Float> {
+pub struct StormerVerlet<F: IntegrateFloat> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive> StormerVerlet<F> {
+impl<F: IntegrateFloat> StormerVerlet<F> {
     /// Create a new Störmer-Verlet integrator
     pub fn new() -> Self {
         StormerVerlet {
@@ -38,13 +37,13 @@ impl<F: Float + Debug + FromPrimitive> StormerVerlet<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> Default for StormerVerlet<F> {
+impl<F: IntegrateFloat> Default for StormerVerlet<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for StormerVerlet<F> {
+impl<F: IntegrateFloat> SymplecticIntegrator<F> for StormerVerlet<F> {
     fn step(
         &self,
         system: &dyn HamiltonianFn<F>,
@@ -83,7 +82,7 @@ impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for StormerVerlet
 /// For separable Hamiltonians, this simplifies to:
 /// 1. q_{n+1} = q_n + dt * p_n/m
 /// 2. p_{n+1} = p_n - dt * ∇V(q_{n+1})
-pub fn velocity_verlet<F: Float + Debug + FromPrimitive>(
+pub fn velocity_verlet<F: IntegrateFloat>(
     system: &dyn HamiltonianFn<F>,
     t: F,
     q: &Array1<F>,
@@ -114,7 +113,7 @@ pub fn velocity_verlet<F: Float + Debug + FromPrimitive>(
 /// 1. p_{n+1/2} = p_n + (dt/2) * dp/dt(t_n, q_n, p_n)
 /// 2. q_{n+1} = q_n + dt * dq/dt(t_n+dt/2, q_n, p_{n+1/2})
 /// 3. p_{n+1} = p_{n+1/2} + (dt/2) * dp/dt(t_n+dt, q_{n+1}, p_{n+1/2})
-pub fn position_verlet<F: Float + Debug + FromPrimitive>(
+pub fn position_verlet<F: IntegrateFloat>(
     system: &dyn HamiltonianFn<F>,
     t: F,
     q: &Array1<F>,

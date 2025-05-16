@@ -31,7 +31,9 @@ pub enum InterpolationMethod {
 /// Provides natural neighbor interpolation for scattered data points.
 /// Supports both Sibson and non-Sibsonian (Laplace) interpolation methods.
 #[derive(Debug, Clone)]
-pub struct NaturalNeighborInterpolator<F: Float + FromPrimitive + Debug> {
+pub struct NaturalNeighborInterpolator<
+    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
+> {
     /// The Voronoi diagram of the input points
     voronoi_diagram: VoronoiDiagram<F>,
 
@@ -48,7 +50,10 @@ pub struct NaturalNeighborInterpolator<F: Float + FromPrimitive + Debug> {
     pub kdtree: KdTree<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug> NaturalNeighborInterpolator<F> {
+impl<
+        F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
+    > NaturalNeighborInterpolator<F>
+{
     /// Creates a new Natural Neighbor interpolator
     ///
     /// # Arguments
@@ -280,7 +285,9 @@ impl<F: Float + FromPrimitive + Debug> NaturalNeighborInterpolator<F> {
 ///
 /// # Returns
 /// A new Natural Neighbor interpolator
-pub fn make_natural_neighbor_interpolator<F: Float + FromPrimitive + Debug>(
+pub fn make_natural_neighbor_interpolator<
+    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::Ord,
+>(
     points: Array2<F>,
     values: Array1<F>,
     method: InterpolationMethod,
@@ -296,7 +303,9 @@ pub fn make_natural_neighbor_interpolator<F: Float + FromPrimitive + Debug>(
 ///
 /// # Returns
 /// A new Natural Neighbor interpolator using Sibson's method
-pub fn make_sibson_interpolator<F: Float + FromPrimitive + Debug>(
+pub fn make_sibson_interpolator<
+    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
+>(
     points: Array2<F>,
     values: Array1<F>,
 ) -> InterpolateResult<NaturalNeighborInterpolator<F>> {
@@ -311,7 +320,9 @@ pub fn make_sibson_interpolator<F: Float + FromPrimitive + Debug>(
 ///
 /// # Returns
 /// A new Natural Neighbor interpolator using the non-Sibsonian (Laplace) method
-pub fn make_laplace_interpolator<F: Float + FromPrimitive + Debug>(
+pub fn make_laplace_interpolator<
+    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
+>(
     points: Array2<F>,
     values: Array1<F>,
 ) -> InterpolateResult<NaturalNeighborInterpolator<F>> {

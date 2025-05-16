@@ -11,22 +11,21 @@
 //!
 //! with appropriate coefficients c₁, c₂, ..., cₘ, can achieve order p+2.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
 use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// A symplectic integrator constructed by composition of a base method
 #[derive(Debug, Clone)]
-pub struct CompositionMethod<F: Float, S: SymplecticIntegrator<F>> {
+pub struct CompositionMethod<F: IntegrateFloat, S: SymplecticIntegrator<F>> {
     /// Base integrator
     base_method: S,
     /// Coefficients for the composition
     coefficients: Vec<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive, S: SymplecticIntegrator<F>> CompositionMethod<F, S> {
+impl<F: IntegrateFloat, S: SymplecticIntegrator<F>> CompositionMethod<F, S> {
     /// Create a new composition method from a base integrator and coefficients
     ///
     /// # Arguments
@@ -140,7 +139,7 @@ impl<F: Float + Debug + FromPrimitive, S: SymplecticIntegrator<F>> CompositionMe
     }
 }
 
-impl<F: Float + Debug + FromPrimitive, S: SymplecticIntegrator<F>> SymplecticIntegrator<F>
+impl<F: IntegrateFloat, S: SymplecticIntegrator<F>> SymplecticIntegrator<F>
     for CompositionMethod<F, S>
 {
     fn step(

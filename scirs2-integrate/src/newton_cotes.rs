@@ -7,6 +7,7 @@
 //! The module provides functionality similar to SciPy's `scipy.integrate.newton_cotes`.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::Array1;
 use num_traits::Float;
 
@@ -21,7 +22,7 @@ pub enum NewtonCotesType {
 
 /// Result of generating a Newton-Cotes formula
 #[derive(Debug, Clone)]
-pub struct NewtonCotesResult<F: Float> {
+pub struct NewtonCotesResult<F: IntegrateFloat> {
     /// Integration points (nodes)
     pub points: Array1<F>,
     /// Quadrature weights
@@ -78,7 +79,7 @@ pub struct NewtonCotesResult<F: Float> {
 ///
 /// - Higher-order rules (n > 8) may have poor numerical properties due to
 ///   Runge's phenomenon and should be used with caution.
-pub fn newton_cotes<F: Float + 'static>(
+pub fn newton_cotes<F: IntegrateFloat>(
     n: usize,
     formula_type: NewtonCotesType,
     a: Option<F>,
@@ -168,7 +169,7 @@ pub fn newton_cotes<F: Float + 'static>(
 }
 
 /// Calculates the weights for a Newton-Cotes formula
-fn calculate_weights<F: Float + 'static>(
+fn calculate_weights<F: IntegrateFloat>(
     n: usize,
     formula_type: &NewtonCotesType,
 ) -> IntegrateResult<Array1<F>> {
@@ -296,7 +297,7 @@ fn calculate_weights<F: Float + 'static>(
 }
 
 /// Calculates weights for Newton-Cotes formulas of any order using general approach
-fn calculate_weights_general<F: Float + 'static>(
+fn calculate_weights_general<F: IntegrateFloat>(
     n: usize,
     formula_type: &NewtonCotesType,
 ) -> IntegrateResult<Array1<F>> {
@@ -388,7 +389,7 @@ fn calculate_weights_general<F: Float + 'static>(
 }
 
 /// Calculates error coefficient for error estimation
-fn calculate_error_coefficient<F: Float>(
+fn calculate_error_coefficient<F: IntegrateFloat>(
     n: usize,
     formula_type: &NewtonCotesType,
 ) -> IntegrateResult<F> {
@@ -457,7 +458,7 @@ pub fn newton_cotes_integrate<F, Func>(
     formula_type: NewtonCotesType,
 ) -> IntegrateResult<(F, F)>
 where
-    F: Float + 'static,
+    F: IntegrateFloat,
     Func: Fn(F) -> F,
 {
     // Generate the Newton-Cotes rule

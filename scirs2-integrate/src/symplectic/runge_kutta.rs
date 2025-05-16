@@ -7,11 +7,10 @@
 //! The implementations focus on Gauss-Legendre based methods which are known
 //! to provide optimal order for a given number of stages.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Gauss-Legendre 4th order symplectic Runge-Kutta method
@@ -19,11 +18,11 @@ use std::marker::PhantomData;
 /// This is a 2-stage method with 4th order accuracy, based on
 /// Gauss-Legendre quadrature points.
 #[derive(Debug, Clone)]
-pub struct GaussLegendre4<F: Float> {
+pub struct GaussLegendre4<F: IntegrateFloat> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive> GaussLegendre4<F> {
+impl<F: IntegrateFloat> GaussLegendre4<F> {
     /// Create a new Gauss-Legendre 4th order integrator
     pub fn new() -> Self {
         GaussLegendre4 {
@@ -32,13 +31,13 @@ impl<F: Float + Debug + FromPrimitive> GaussLegendre4<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> Default for GaussLegendre4<F> {
+impl<F: IntegrateFloat> Default for GaussLegendre4<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for GaussLegendre4<F> {
+impl<F: IntegrateFloat> SymplecticIntegrator<F> for GaussLegendre4<F> {
     fn step(
         &self,
         system: &dyn HamiltonianFn<F>,
@@ -138,11 +137,11 @@ impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for GaussLegendre
 /// This is a 3-stage method with 6th order accuracy, based on
 /// Gauss-Legendre quadrature points.
 #[derive(Debug, Clone)]
-pub struct GaussLegendre6<F: Float> {
+pub struct GaussLegendre6<F: IntegrateFloat> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Float + Debug + FromPrimitive> GaussLegendre6<F> {
+impl<F: IntegrateFloat> GaussLegendre6<F> {
     /// Create a new Gauss-Legendre 6th order integrator
     pub fn new() -> Self {
         GaussLegendre6 {
@@ -151,13 +150,13 @@ impl<F: Float + Debug + FromPrimitive> GaussLegendre6<F> {
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> Default for GaussLegendre6<F> {
+impl<F: IntegrateFloat> Default for GaussLegendre6<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + Debug + FromPrimitive> SymplecticIntegrator<F> for GaussLegendre6<F> {
+impl<F: IntegrateFloat> SymplecticIntegrator<F> for GaussLegendre6<F> {
     fn step(
         &self,
         system: &dyn HamiltonianFn<F>,

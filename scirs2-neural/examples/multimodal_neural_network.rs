@@ -1,6 +1,5 @@
 use ndarray::{s, Array, Array1, Array2, Array3, Array4};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f32;
@@ -35,10 +34,15 @@ impl Conv2D {
         let fan_out = out_channels * kernel_size * kernel_size;
         let bound = (6.0 / (fan_in + fan_out) as f32).sqrt();
 
-        let weight = Array::random(
-            (out_channels, in_channels, kernel_size, kernel_size),
-            Uniform::new(-bound, bound),
-        );
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut weight =
+            Array4::<f32>::zeros((out_channels, in_channels, kernel_size, kernel_size));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         let bias = Array::zeros(out_channels);
 
@@ -238,25 +242,60 @@ impl LSTMCell {
         // Xavier/Glorot initialization
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
+        // Create a random number generator
+        let mut rng = rand::rng();
+
         // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_i = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Forget gate weights (initialize forget gate bias to 1 to avoid vanishing gradients early in training)
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_f = Array1::ones(hidden_size);
 
+        // Initialize with random values
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_g = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_o = Array1::zeros(hidden_size);
+
+        // Initialize with random values
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         LSTMCell {
             input_size,
@@ -368,7 +407,15 @@ impl Embedding {
     fn new(vocab_size: usize, embedding_dim: usize) -> Self {
         // Xavier/Glorot initialization
         let bound = (3.0 / embedding_dim as f32).sqrt();
-        let weight = Array::random((vocab_size, embedding_dim), Uniform::new(-bound, bound));
+
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut weight = Array2::<f32>::zeros((vocab_size, embedding_dim));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         Embedding {
             vocab_size,
@@ -415,7 +462,14 @@ impl Linear {
         // Xavier/Glorot initialization
         let bound = (6.0 / (in_features + out_features) as f32).sqrt();
 
-        let weight = Array::random((out_features, in_features), Uniform::new(-bound, bound));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Initialize with random values
+        let mut weight = Array2::<f32>::zeros((out_features, in_features));
+        for elem in weight.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
         let bias = Array::zeros(out_features);
 
         Linear {

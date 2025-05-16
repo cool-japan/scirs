@@ -1,6 +1,6 @@
 //! Edge detection filters for n-dimensional arrays
 
-use ndarray::{Array, Array2, Dimension, Ix2};
+use ndarray::{array, Array, Array2, Dimension, Ix2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -91,11 +91,8 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        // For now, return a placeholder until we implement the full n-dimensional version
-        Err(NdimageError::NotImplementedError(
-            "Sobel filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For higher dimensions, apply separable 1D filters
+        sobel_nd(input, axis, &border_mode)
     }
 }
 
@@ -110,8 +107,8 @@ where
 /// * `input` - Input array to filter
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `diagonal` - Whether to include diagonal neighbors in the Laplacian kernel (defaults to false)
-///                When true, uses an 8-connected kernel [-1,-1,-1; -1,8,-1; -1,-1,-1]
-///                When false, uses a 4-connected kernel [0,-1,0; -1,4,-1; 0,-1,0]
+///   When true, uses an 8-connected kernel [-1,-1,-1; -1,8,-1; -1,-1,-1]
+///   When false, uses a 4-connected kernel [0,-1,0; -1,4,-1; 0,-1,0]
 ///
 /// # Returns
 ///
@@ -286,7 +283,7 @@ where
 /// * `input` - Input array to filter
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `axis` - Optional axis parameter (0 for vertical gradient, 1 for horizontal gradient).
-///            If None, returns the combined gradient magnitude.
+///   If None, returns the combined gradient magnitude.
 ///
 /// # Returns
 ///
@@ -341,9 +338,9 @@ where
             Some(0) => roberts_2d_x(&input_2d, &border_mode)?, // Vertical gradient
             Some(1) => roberts_2d_y(&input_2d, &border_mode)?, // Horizontal gradient
             Some(_) => {
-                return Err(NdimageError::InvalidInput(format!(
-                    "Invalid axis for 2D array, must be 0 or 1"
-                )));
+                return Err(NdimageError::InvalidInput(
+                    "Invalid axis for 2D array, must be 0 or 1".to_string(),
+                ));
             }
             None => {
                 // Calculate gradient magnitude
@@ -387,7 +384,7 @@ where
 /// * `input` - Input array
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `method` - Edge detection method to use for gradient calculation ("sobel", "prewitt", "roberts", or "scharr").
-///              Default is "sobel".
+///   Default is "sobel".
 ///
 /// # Returns
 ///
@@ -939,6 +936,39 @@ mod tests {
         let invalid_result = gradient_magnitude(&image, None, Some("invalid_method"));
         assert!(invalid_result.is_err());
     }
+
+    #[test]
+    fn test_sobel_3d() {
+        use ndarray::Array3;
+
+        // Create a simple 3x3x3 test volume with a plane at z=1
+        let mut volume = Array3::<f64>::zeros((3, 3, 3));
+        for i in 0..3 {
+            for j in 0..3 {
+                volume[[i, j, 1]] = 1.0;
+            }
+        }
+
+        // Test Sobel along axis 0 (x-axis)
+        let result_x = sobel(&volume, 0, None).unwrap();
+        assert_eq!(result_x.shape(), volume.shape());
+
+        // Test Sobel along axis 1 (y-axis)
+        let result_y = sobel(&volume, 1, None).unwrap();
+        assert_eq!(result_y.shape(), volume.shape());
+
+        // Test Sobel along axis 2 (z-axis)
+        let result_z = sobel(&volume, 2, None).unwrap();
+        assert_eq!(result_z.shape(), volume.shape());
+
+        // The gradient should be strongest along the z-axis
+        let max_x = result_x.iter().map(|&x| x.abs()).fold(0.0, f64::max);
+        let max_y = result_y.iter().map(|&x| x.abs()).fold(0.0, f64::max);
+        let max_z = result_z.iter().map(|&x| x.abs()).fold(0.0, f64::max);
+
+        assert!(max_z > max_x, "Z gradient should be strongest");
+        assert!(max_z > max_y, "Z gradient should be strongest");
+    }
 }
 
 /// Apply a Scharr filter to calculate gradients in an n-dimensional array
@@ -1073,4 +1103,28 @@ where
 
     // Apply convolution
     convolve(input, &kernel, Some(*mode))
+}
+
+/// N-dimensional Sobel filter implementation
+fn sobel_nd<T, D>(input: &Array<T, D>, axis: usize, mode: &BorderMode) -> Result<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + Clone,
+    D: Dimension,
+{
+    use super::convolve::correlate1d;
+
+    // First apply the derivative filter [-1, 0, 1] along the specified axis
+    let deriv_kernel = array![-T::one(), T::zero(), T::one()];
+    let mut result = correlate1d(input, &deriv_kernel, axis, Some(*mode), None)?;
+
+    // Then apply the smoothing filter [1, 2, 1] along all other axes
+    let smooth_kernel = array![T::one(), T::from(2).unwrap(), T::one()];
+
+    for ax in 0..input.ndim() {
+        if ax != axis {
+            result = correlate1d(&result, &smooth_kernel, ax, Some(*mode), None)?;
+        }
+    }
+
+    Ok(result)
 }

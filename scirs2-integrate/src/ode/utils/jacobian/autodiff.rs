@@ -5,10 +5,9 @@
 //! the need for finite difference approximations and can provide better
 //! accuracy and performance for complex ODE systems.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Compute Jacobian matrix using automatic differentiation
 ///
@@ -36,7 +35,7 @@ pub fn autodiff_jacobian<F, Func>(
     _perturbation_scale: F, // Not used but kept for API compatibility
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug + scirs2_autograd::Float + 'static,
+    F: IntegrateFloat + scirs2_autograd::Float,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     use ag::tensor_ops as T;
@@ -97,7 +96,7 @@ pub fn autodiff_jacobian<F, Func>(
     _perturbation_scale: F,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     Err(IntegrateError::NotImplementedError(
@@ -120,7 +119,7 @@ pub fn adaptive_jacobian<F, Func>(
     perturbation_scale: F,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug + 'static,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     if is_autodiff_available() {

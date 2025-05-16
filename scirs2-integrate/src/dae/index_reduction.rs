@@ -12,13 +12,24 @@
 use crate::dae::types::{DAEIndex, DAEResult, DAEType};
 use crate::dae::utils::{compute_constraint_jacobian, is_singular_matrix};
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, LowerExp};
 
 /// Index structure of a DAE system
 #[derive(Debug, Clone)]
-pub struct DAEStructure<F: Float> {
+pub struct DAEStructure<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + ScalarOperand
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
+> {
     /// Number of differential variables
     pub n_differential: usize,
 
@@ -53,7 +64,19 @@ pub struct DAEStructure<F: Float> {
     pub equation_dependencies: Option<Vec<Vec<usize>>>,
 }
 
-impl<F: Float + FromPrimitive + Debug> Default for DAEStructure<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ScalarOperand
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + Display
+            + LowerExp,
+    > Default for DAEStructure<F>
+{
     fn default() -> Self {
         DAEStructure {
             n_differential: 0,
@@ -71,7 +94,19 @@ impl<F: Float + FromPrimitive + Debug> Default for DAEStructure<F> {
     }
 }
 
-impl<F: Float + FromPrimitive + Debug> DAEStructure<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ScalarOperand
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + Display
+            + LowerExp,
+    > DAEStructure<F>
+{
     /// Create a new DAE structure for a semi-explicit system
     pub fn new_semi_explicit(n_differential: usize, n_algebraic: usize) -> Self {
         DAEStructure {
@@ -124,7 +159,12 @@ impl<F: Float + FromPrimitive + Debug> DAEStructure<F> {
         // Convert ArrayView1 to slices for the constraint function
         let x_slice: Vec<F> = x.to_vec();
         let y_slice: Vec<F> = y.to_vec();
-        let g_y = compute_constraint_jacobian(&|t, x, y| g(t, ArrayView1::from(x), ArrayView1::from(y)).to_vec(), t, &x_slice, &y_slice);
+        let g_y = compute_constraint_jacobian(
+            &|t, x, y| g(t, ArrayView1::from(x), ArrayView1::from(y)).to_vec(),
+            t,
+            &x_slice,
+            &y_slice,
+        );
         self.constraint_jacobian = Some(g_y.clone());
 
         // Check if constraint Jacobian is invertible
@@ -185,7 +225,18 @@ impl<F: Float + FromPrimitive + Debug> DAEStructure<F> {
 ///
 /// This algorithm automatically detects and reduces the index of a DAE system
 /// by finding structural singularities and adding differentiated equations.
-pub struct PantelidesReducer<F: Float> {
+pub struct PantelidesReducer<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + ScalarOperand
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
+> {
     /// DAE structure information
     pub structure: DAEStructure<F>,
 
@@ -196,7 +247,19 @@ pub struct PantelidesReducer<F: Float> {
     pub tol: F,
 }
 
-impl<F: Float + FromPrimitive + Debug> PantelidesReducer<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ScalarOperand
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + Display
+            + LowerExp,
+    > PantelidesReducer<F>
+{
     /// Create a new Pantelides reducer for index reduction
     pub fn new(structure: DAEStructure<F>) -> Self {
         PantelidesReducer {
@@ -361,7 +424,18 @@ impl<F: Float + FromPrimitive + Debug> PantelidesReducer<F> {
 ///
 /// This method replaces some differentiated variables with new "dummy" variables
 /// to maintain the correct number of degrees of freedom in the system.
-pub struct DummyDerivativeReducer<F: Float> {
+pub struct DummyDerivativeReducer<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + ScalarOperand
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
+> {
     /// DAE structure information
     pub structure: DAEStructure<F>,
 
@@ -372,7 +446,19 @@ pub struct DummyDerivativeReducer<F: Float> {
     pub dummy_equations: Vec<usize>,
 }
 
-impl<F: Float + FromPrimitive + Debug> DummyDerivativeReducer<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ScalarOperand
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + Display
+            + LowerExp,
+    > DummyDerivativeReducer<F>
+{
     /// Create a new dummy derivative reducer
     pub fn new(structure: DAEStructure<F>) -> Self {
         DummyDerivativeReducer {
@@ -423,7 +509,18 @@ impl<F: Float + FromPrimitive + Debug> DummyDerivativeReducer<F> {
 ///
 /// This method combines index reduction with projection-based stabilization
 /// to maintain constraint satisfaction during integration.
-pub struct ProjectionMethod<F: Float> {
+pub struct ProjectionMethod<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + ScalarOperand
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
+> {
     /// DAE structure information
     pub structure: DAEStructure<F>,
 
@@ -437,7 +534,19 @@ pub struct ProjectionMethod<F: Float> {
     pub constraint_tol: F,
 }
 
-impl<F: Float + FromPrimitive + Debug> ProjectionMethod<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ScalarOperand
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + Display
+            + LowerExp,
+    > ProjectionMethod<F>
+{
     /// Create a new projection method for constraint satisfaction
     pub fn new(structure: DAEStructure<F>) -> Self {
         ProjectionMethod {
@@ -476,7 +585,15 @@ impl<F: Float + FromPrimitive + Debug> ProjectionMethod<F> {
         }
 
         // Compute the constraint Jacobian
-        let g_y = compute_constraint_jacobian(g, t, x.view(), y.view())?;
+        // Convert ArrayView1 to slices for the constraint function
+        let x_slice: Vec<F> = x.to_vec();
+        let y_slice: Vec<F> = y.to_vec();
+        let g_y = compute_constraint_jacobian(
+            &|t, x, y| g(t, ArrayView1::from(x), ArrayView1::from(y)).to_vec(),
+            t,
+            &x_slice,
+            &y_slice,
+        );
 
         // Solve the correction equation: g_y * Δy = -g
         let neg_g = g_val.mapv(|val| -val);
@@ -567,7 +684,16 @@ fn compute_jacobian_for_variables<F, Func>(
     n_vars: usize,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + ScalarOperand
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     // Evaluate the base function
@@ -642,10 +768,13 @@ where
     F: Float
         + FromPrimitive
         + Debug
+        + ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign
-        + std::ops::DivAssign,
+        + std::ops::DivAssign
+        + Display
+        + LowerExp,
 {
     use crate::dae::utils::linear_solvers::solve_linear_system;
 

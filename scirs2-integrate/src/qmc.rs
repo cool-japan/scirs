@@ -7,6 +7,7 @@
 //! offering better convergence rates than traditional Monte Carlo methods for many
 //! integration problems, especially in higher dimensions.
 
+use crate::IntegrateFloat;
 use ndarray::{s, Array1, Array2, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use rand::random;

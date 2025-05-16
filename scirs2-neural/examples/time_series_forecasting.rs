@@ -499,6 +499,7 @@ struct MinMaxScaler {
 }
 
 impl MinMaxScaler {
+    #[allow(dead_code)]
     fn new(min_vals: Array1<f32>, max_vals: Array1<f32>) -> Self {
         MinMaxScaler { min_vals, max_vals }
     }
@@ -569,14 +570,14 @@ fn create_sliding_window_dataset(
 
     let n_windows = n_samples - window_size - forecast_horizon + 1;
 
-    let mut X = Array3::<f32>::zeros((n_windows, window_size, n_features));
+    let mut x = Array3::<f32>::zeros((n_windows, window_size, n_features));
     let mut y = Array3::<f32>::zeros((n_windows, forecast_horizon, n_features));
 
     for i in 0..n_windows {
         // Extract window
         for t in 0..window_size {
             for f in 0..n_features {
-                X[[i, t, f]] = data[[i + t, f]];
+                x[[i, t, f]] = data[[i + t, f]];
             }
         }
 
@@ -588,7 +589,7 @@ fn create_sliding_window_dataset(
         }
     }
 
-    (X, y)
+    (x, y)
 }
 
 // Generate synthetic time series data
@@ -662,12 +663,12 @@ fn mean_absolute_error(y_true: &Array3<f32>, y_pred: &Array3<f32>) -> f32 {
 // Train the forecaster (simplified training loop without actual parameter updates)
 fn train_forecaster(
     model: &mut TimeSeriesForecaster,
-    X_train: &Array3<f32>,
+    x_train: &Array3<f32>,
     y_train: &Array3<f32>,
     num_epochs: usize,
     batch_size: usize,
 ) {
-    let n_samples = X_train.shape()[0];
+    let n_samples = x_train.shape()[0];
     let n_batches = (n_samples + batch_size - 1) / batch_size; // Ceiling division
 
     println!("Training forecaster model...");
@@ -686,15 +687,15 @@ fn train_forecaster(
             }
 
             // Extract batch
-            let mut X_batch =
-                Array3::<f32>::zeros((actual_batch_size, X_train.shape()[1], X_train.shape()[2]));
+            let mut x_batch =
+                Array3::<f32>::zeros((actual_batch_size, x_train.shape()[1], x_train.shape()[2]));
             let mut y_batch =
                 Array3::<f32>::zeros((actual_batch_size, y_train.shape()[1], y_train.shape()[2]));
 
             for i in 0..actual_batch_size {
-                for t in 0..X_train.shape()[1] {
-                    for f in 0..X_train.shape()[2] {
-                        X_batch[[i, t, f]] = X_train[[start_idx + i, t, f]];
+                for t in 0..x_train.shape()[1] {
+                    for f in 0..x_train.shape()[2] {
+                        x_batch[[i, t, f]] = x_train[[start_idx + i, t, f]];
                     }
                 }
 
@@ -706,7 +707,7 @@ fn train_forecaster(
             }
 
             // Forward pass
-            let predictions = model.forward(&X_batch, None);
+            let predictions = model.forward(&x_batch, None);
 
             // Calculate loss (MSE)
             let mut batch_loss = 0.0;
@@ -742,14 +743,14 @@ fn train_forecaster(
 // Evaluate the model
 fn evaluate_forecaster(
     model: &mut TimeSeriesForecaster,
-    X_test: &Array3<f32>,
+    x_test: &Array3<f32>,
     y_test: &Array3<f32>,
     scaler: &MinMaxScaler,
 ) {
     println!("\nEvaluating forecaster...");
 
     // Forward pass
-    let predictions = model.forward(X_test, None);
+    let predictions = model.forward(x_test, None);
 
     // Calculate metrics
     let mae = mean_absolute_error(y_test, &predictions);
@@ -804,16 +805,16 @@ fn forecast_future(
     let n_features = last_window.shape()[1];
 
     // Prepare input with correct shape
-    let mut X = Array3::<f32>::zeros((1, window_size, n_features));
+    let mut x = Array3::<f32>::zeros((1, window_size, n_features));
     for t in 0..window_size {
         for f in 0..n_features {
-            X[[0, t, f]] = last_window[[t, f]];
+            x[[0, t, f]] = last_window[[t, f]];
         }
     }
 
     // Initial forecast
     let mut all_forecasts = Array2::<f32>::zeros((num_steps, n_features));
-    let mut forecast_window = X.clone();
+    let mut forecast_window = x.clone();
 
     // Generate forecasts step by step
     for step in 0..num_steps {
@@ -883,25 +884,25 @@ fn main() {
     let window_size = 24; // Look back window
     let forecast_horizon = 8; // How many steps to forecast
 
-    let (X, y) = create_sliding_window_dataset(&scaled_data, window_size, forecast_horizon);
+    let (x, y) = create_sliding_window_dataset(&scaled_data, window_size, forecast_horizon);
 
-    println!("Created dataset with {} samples", X.shape()[0]);
-    println!("Input shape: {:?}", X.shape());
+    println!("Created dataset with {} samples", x.shape()[0]);
+    println!("Input shape: {:?}", x.shape());
     println!("Output shape: {:?}", y.shape());
 
     // Split into train and test sets (80% train, 20% test)
-    let train_size = (X.shape()[0] as f32 * 0.8) as usize;
+    let train_size = (x.shape()[0] as f32 * 0.8) as usize;
 
-    let X_train = X.slice(s![0..train_size, .., ..]).to_owned();
+    let x_train = x.slice(s![0..train_size, .., ..]).to_owned();
     let y_train = y.slice(s![0..train_size, .., ..]).to_owned();
 
-    let X_test = X.slice(s![train_size.., .., ..]).to_owned();
+    let x_test = x.slice(s![train_size.., .., ..]).to_owned();
     let y_test = y.slice(s![train_size.., .., ..]).to_owned();
 
     // Model parameters
     let hidden_size = 32;
     let num_encoder_layers = 1;
-    let batch_size = X_train.shape()[0].min(16); // Use the whole dataset or max 16 samples per batch
+    let batch_size = x_train.shape()[0].min(16); // Use the whole dataset or max 16 samples per batch
 
     // Create model
     let mut model = TimeSeriesForecaster::new(
@@ -914,10 +915,10 @@ fn main() {
     );
 
     // Train model
-    train_forecaster(&mut model, &X_train, &y_train, 50, batch_size);
+    train_forecaster(&mut model, &x_train, &y_train, 50, batch_size);
 
     // Evaluate model
-    evaluate_forecaster(&mut model, &X_test, &y_test, &scaler);
+    evaluate_forecaster(&mut model, &x_test, &y_test, &scaler);
 
     // Forecast future values
     let last_window = scaled_data

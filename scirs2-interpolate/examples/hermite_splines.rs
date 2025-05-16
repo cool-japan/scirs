@@ -1,4 +1,4 @@
-use ndarray::{Array1, Axis};
+use ndarray::Array1;
 use scirs2_interpolate::{
     make_hermite_spline, make_hermite_spline_with_derivatives, make_natural_hermite_spline,
     make_periodic_hermite_spline, make_quintic_hermite_spline, DerivativeSpec, ExtrapolateMode,
@@ -15,7 +15,7 @@ fn main() {
 
     // Create some sample data - a parabola
     let x = Array1::linspace(0.0, 10.0, 6);
-    let y = x.mapv(|v| v.powi(2));
+    let y = x.mapv(|v| f64::powi(v, 2));
 
     // Create a Hermite spline with automatic derivative estimation
     let spline = make_hermite_spline(&x.view(), &y.view(), ExtrapolateMode::Error).unwrap();
@@ -23,7 +23,7 @@ fn main() {
     // Evaluate at more points to see the interpolation
     let x_fine = Array1::linspace(0.0, 10.0, 21);
     let y_interp = spline.evaluate(&x_fine.view()).unwrap();
-    let y_exact = x_fine.mapv(|v| v.powi(2));
+    let y_exact = x_fine.mapv(|v| f64::powi(v, 2));
 
     println!("Interpolation of y = x² with 6 data points:");
     println!("  x   |  Estimated  |  Exact  |  Error");
@@ -32,7 +32,7 @@ fn main() {
     for i in 0..x_fine.len() {
         if i % 4 == 0 {
             // Show just a subset of points
-            let error = (y_interp[i] - y_exact[i]).abs();
+            let error = f64::abs(y_interp[i] - y_exact[i]);
             println!(
                 "{:5.2} | {:11.6} | {:7.6} | {:8.6}",
                 x_fine[i], y_interp[i], y_exact[i], error
@@ -44,7 +44,7 @@ fn main() {
     let mse = y_interp
         .iter()
         .zip(y_exact.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| f64::powi(a - b, 2))
         .sum::<f64>()
         / y_interp.len() as f64;
     let rmse = mse.sqrt();
@@ -88,7 +88,7 @@ fn main() {
     let mse_exact = y_interp_exact
         .iter()
         .zip(y_exact.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| f64::powi(a - b, 2))
         .sum::<f64>()
         / y_interp_exact.len() as f64;
     let rmse_exact = mse_exact.sqrt();
@@ -167,7 +167,7 @@ fn main() {
 
     // Create a sine wave from 0 to 2π
     let x_sine = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 7);
-    let y_sine = x_sine.mapv(|v| v.sin());
+    let y_sine = x_sine.mapv(|v| f64::sin(v));
 
     // Create splines with different boundary conditions
     let spline_auto_sine =
@@ -219,7 +219,7 @@ fn main() {
     let y_auto = spline_auto_sine.evaluate(&x_extend.view()).unwrap();
     let y_natural = spline_natural.evaluate(&x_extend.view()).unwrap();
     let y_periodic = spline_periodic.evaluate(&x_extend.view()).unwrap();
-    let y_exact = x_extend.mapv(|v| v.sin());
+    let y_exact = x_extend.mapv(|v| f64::sin(v));
 
     println!("\nExtrapolation behavior:");
     println!("     x     |   Auto   |  Natural |  Periodic |   Exact");
@@ -240,10 +240,10 @@ fn main() {
 
     // Create data for a cubic function y = x³
     let x_cubic = Array1::linspace(0.0, 5.0, 6);
-    let y_cubic = x_cubic.mapv(|v| v.powi(3));
+    let y_cubic = x_cubic.mapv(|v| f64::powi(v, 3));
 
     // For y = x³, first derivative is 3x², second derivative is 6x
-    let first_derivs = x_cubic.mapv(|v| 3.0 * v.powi(2));
+    let first_derivs = x_cubic.mapv(|v| 3.0 * f64::powi(v, 2));
     let second_derivs = x_cubic.mapv(|v| 6.0 * v);
 
     // Create cubic and quintic Hermite splines
@@ -266,7 +266,7 @@ fn main() {
 
     // Evaluate at fine points
     let x_fine_cubic = Array1::linspace(0.0, 5.0, 51);
-    let y_cubic_exact = x_fine_cubic.mapv(|v| v.powi(3));
+    let y_cubic_exact = x_fine_cubic.mapv(|v| f64::powi(v, 3));
 
     let y_cubic_hermite = cubic_spline.evaluate(&x_fine_cubic.view()).unwrap();
     let y_quintic_hermite = quintic_spline.evaluate(&x_fine_cubic.view()).unwrap();
@@ -275,14 +275,14 @@ fn main() {
     let mse_cubic = y_cubic_hermite
         .iter()
         .zip(y_cubic_exact.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| f64::powi(a - b, 2))
         .sum::<f64>()
         / y_cubic_hermite.len() as f64;
 
     let mse_quintic = y_quintic_hermite
         .iter()
         .zip(y_cubic_exact.iter())
-        .map(|(a, b)| (a - b).powi(2))
+        .map(|(a, b)| f64::powi(a - b, 2))
         .sum::<f64>()
         / y_quintic_hermite.len() as f64;
 
@@ -294,13 +294,13 @@ fn main() {
     let max_err_cubic = y_cubic_hermite
         .iter()
         .zip(y_cubic_exact.iter())
-        .map(|(a, b)| (a - b).abs())
+        .map(|(a, b)| f64::abs(a - b))
         .fold(0.0, |max, err| if err > max { err } else { max });
 
     let max_err_quintic = y_quintic_hermite
         .iter()
         .zip(y_cubic_exact.iter())
-        .map(|(a, b)| (a - b).abs())
+        .map(|(a, b)| f64::abs(a - b))
         .fold(0.0, |max, err| if err > max { err } else { max });
 
     println!("\nMaximum absolute errors:");

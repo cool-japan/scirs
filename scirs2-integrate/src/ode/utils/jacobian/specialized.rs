@@ -4,9 +4,8 @@
 //! for various types of ODE systems. These include methods for banded Jacobians,
 //! sparse Jacobians, and systems with special structure.
 
+use crate::common::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Computes Jacobian for a banded system with specified number of lower and upper diagonals
 pub fn compute_banded_jacobian<F, Func>(
@@ -18,7 +17,7 @@ pub fn compute_banded_jacobian<F, Func>(
     upper: usize,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let n = y.len();
@@ -60,7 +59,7 @@ pub fn compute_diagonal_jacobian<F, Func>(
     block_size: usize,
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let n = y.len();
@@ -100,7 +99,7 @@ pub fn compute_colored_jacobian<F, Func>(
     coloring: &[usize], // Each entry contains the color of the corresponding variable
 ) -> Array2<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     let n = y.len();
@@ -159,7 +158,7 @@ pub fn generate_banded_coloring(n: usize, lower: usize, upper: usize) -> Vec<usi
 /// J_{k+1} = J_k + (df - J_k * dy) * dy^T / (dy^T * dy)
 pub fn broyden_update<F>(jac: &mut Array2<F>, delta_y: &Array1<F>, delta_f: &Array1<F>)
 where
-    F: Float + Debug,
+    F: IntegrateFloat,
 {
     let n = delta_y.len();
 
@@ -194,7 +193,7 @@ pub fn block_update<F>(
     delta_f: &Array1<F>,
     block_size: usize,
 ) where
-    F: Float + Debug,
+    F: IntegrateFloat,
 {
     let n = delta_y.len();
     let n_blocks = (n + block_size - 1) / block_size;

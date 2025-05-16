@@ -5,6 +5,7 @@
 //! within the integration range without recomputing the entire solution.
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -64,11 +65,7 @@ pub fn find_index<F: Float>(sorted_array: &[F], value: F) -> usize {
 /// # Returns
 ///
 /// Linearly interpolated value at x_new
-pub fn linear_interpolation<F: Float + FromPrimitive>(
-    x: &[F],
-    y: &[Array1<F>],
-    x_new: F,
-) -> Array1<F> {
+pub fn linear_interpolation<F: IntegrateFloat>(x: &[F], y: &[Array1<F>], x_new: F) -> Array1<F> {
     let i = find_index(x, x_new);
 
     if i == 0 {
@@ -107,7 +104,7 @@ pub fn linear_interpolation<F: Float + FromPrimitive>(
 /// # Returns
 ///
 /// Cubic interpolated value at x_new
-pub fn cubic_hermite_interpolation<F: Float + FromPrimitive>(
+pub fn cubic_hermite_interpolation<F: IntegrateFloat>(
     x: &[F],
     y: &[Array1<F>],
     dy: &[Array1<F>],

@@ -36,7 +36,8 @@ pub use astar::{
     AStarPlanner, ContinuousAStarPlanner, GridAStarPlanner, HashableFloat2D, Node, Path,
 };
 pub use potentialfield::{
-    Obstacle, PotentialConfig, PotentialField2DPlanner, PotentialFieldPlanner,
+    CircularObstacle, Obstacle, PolygonObstacle, PotentialConfig, PotentialField2DPlanner,
+    PotentialFieldPlanner,
 };
 pub use prm::{PRM2DPlanner, PRMConfig, PRMPlanner};
 pub use rrt::{RRT2DPlanner, RRTConfig, RRTPlanner};

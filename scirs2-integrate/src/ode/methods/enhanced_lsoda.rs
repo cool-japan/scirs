@@ -16,9 +16,10 @@ use crate::ode::utils::stiffness::{MethodSwitchInfo, StiffnessDetectionConfig, S
 use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
+use crate::IntegrateFloat;
 
 /// Enhanced LSODA method state information
-struct EnhancedLsodaState<F: Float> {
+struct EnhancedLsodaState<F: IntegrateFloat> {
     /// Current time
     t: F,
     /// Current solution
@@ -34,7 +35,7 @@ struct EnhancedLsodaState<F: Float> {
     /// History of derivatives
     dy_history: Vec<Array1<F>>,
     /// Adaptive method state for method switching
-    adaptive_state: AdaptiveMethodState<F>,
+    adaptive_state: AdaptiveMethodState,
     /// Jacobian matrix
     jacobian: Option<Array2<F>>,
     /// Time since last Jacobian update
@@ -55,16 +56,7 @@ struct EnhancedLsodaState<F: Float> {
     tol_scale: Array1<F>,
 }
 
-impl<
-        F: Float
-            + FromPrimitive
-            + Debug
-            + ScalarOperand
-            + std::ops::AddAssign
-            + std::ops::SubAssign
-            + std::ops::DivAssign
-            + std::ops::MulAssign,
-    > EnhancedLsodaState<F>
+impl<F: IntegrateFloat> EnhancedLsodaState<F>
 {
     /// Create a new LSODA state
     fn new(t: F, y: Array1<F>, dy: Array1<F>, h: F, rtol: F, atol: F) -> Self {
@@ -163,14 +155,7 @@ pub fn enhanced_lsoda_method<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -359,14 +344,7 @@ fn enhanced_adams_step<F, Func>(
     func_evals: &mut usize,
 ) -> IntegrateResult<bool>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Coefficients for Adams-Bashforth (predictor)
@@ -681,14 +659,7 @@ fn enhanced_bdf_step<F, Func>(
     func_evals: &mut usize,
 ) -> IntegrateResult<bool>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Coefficients for BDF methods of different orders

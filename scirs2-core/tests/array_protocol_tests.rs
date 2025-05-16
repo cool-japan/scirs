@@ -261,7 +261,10 @@ fn test_array_interoperability() {
 
     // Define an operation that works with any array type
     array_function!(
-        fn dot_product(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, NotImplemented> {
+        fn dot_product(
+            a: &dyn ArrayProtocol,
+            b: &dyn ArrayProtocol,
+        ) -> Result<Box<dyn ArrayProtocol>, NotImplemented> {
             // In a real implementation, this would dispatch to the appropriate implementation
             // based on the array types. For this test, we'll use a simplified implementation.
             let a_array = a

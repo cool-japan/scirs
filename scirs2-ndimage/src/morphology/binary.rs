@@ -25,6 +25,8 @@
 
 use ndarray::{Array, Array1, Array2, Dimension, Ix1, Ix2, IxDyn};
 
+use super::structuring::generate_binary_structure_dyn;
+use super::utils::get_structure_center_dyn;
 use crate::error::{NdimageError, Result};
 
 /// Erode a binary array using a structuring element
@@ -454,19 +456,108 @@ fn binary_erosion2d(
 
 /// Implementation of binary erosion for n-dimensional arrays (using dynamic dimensions)
 fn binary_erosion_dyn(
-    _input: &Array<bool, IxDyn>,
-    _structure: Option<&Array<bool, IxDyn>>,
-    _iterations: Option<usize>,
-    _mask: Option<&Array<bool, IxDyn>>,
-    _border_value: Option<bool>,
-    _origin: Option<&[isize]>,
+    input: &Array<bool, IxDyn>,
+    structure: Option<&Array<bool, IxDyn>>,
+    iterations: Option<usize>,
+    mask: Option<&Array<bool, IxDyn>>,
+    border_value: Option<bool>,
+    origin: Option<&[isize]>,
     _brute_force: Option<bool>,
 ) -> Result<Array<bool, IxDyn>> {
-    // For dynamic dimensions, we simply return a placeholder for now
-    // This could be implemented properly later using a different approach
-    Err(NdimageError::NotImplementedError(
-        "Binary erosion for n-dimensional arrays is not implemented yet".into(),
-    ))
+    let iterations = iterations.unwrap_or(1);
+    let border = border_value.unwrap_or(false);
+
+    // Get or generate structure
+    let default_structure = if let Some(s) = structure {
+        s.to_owned()
+    } else {
+        generate_binary_structure_dyn(input.ndim())?
+    };
+
+    // Validate input dimensions
+    if input.ndim() != default_structure.ndim() {
+        return Err(NdimageError::DimensionError(
+            "Input and structure must have the same number of dimensions".into(),
+        ));
+    }
+
+    // Validate mask dimensions if provided
+    if let Some(m) = mask {
+        if m.ndim() != input.ndim() || m.shape() != input.shape() {
+            return Err(NdimageError::InvalidInput(
+                "Mask must have the same shape as input".into(),
+            ));
+        }
+    }
+
+    // Get structure center
+    let center = get_structure_center_dyn(&default_structure, origin)?;
+
+    // Create result array
+    let mut result = input.to_owned();
+
+    // Apply erosion iterations
+    for _ in 0..iterations {
+        let temp = result.clone();
+
+        // Iterate through all positions in the input array
+        for idx in ndarray::indices(input.shape()) {
+            let idx_vec: Vec<_> = idx.slice().to_vec();
+
+            // Skip if masked out
+            if let Some(m) = mask {
+                if !m[idx_vec.as_slice()] {
+                    continue;
+                }
+            }
+
+            // Check if all structure elements fit
+            let mut all_fit = true;
+
+            // Check each structure element
+            for str_idx in ndarray::indices(default_structure.shape()) {
+                let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
+
+                // Skip if structure element is false
+                if !default_structure[str_idx_vec.as_slice()] {
+                    continue;
+                }
+
+                // Calculate corresponding input position
+                let mut input_pos = vec![0isize; input.ndim()];
+                for d in 0..input.ndim() {
+                    input_pos[d] = idx_vec[d] as isize + str_idx_vec[d] as isize - center[d];
+                }
+
+                // Check if position is within bounds
+                let mut within_bounds = true;
+                for (d, &pos) in input_pos.iter().enumerate().take(input.ndim()) {
+                    if pos < 0 || pos >= input.shape()[d] as isize {
+                        within_bounds = false;
+                        break;
+                    }
+                }
+
+                // Get the value, using border value if out of bounds
+                let val = if within_bounds {
+                    let input_idx: Vec<_> = input_pos.iter().map(|&x| x as usize).collect();
+                    temp[input_idx.as_slice()]
+                } else {
+                    border
+                };
+
+                // Erosion requires all values to be true
+                if !val {
+                    all_fit = false;
+                    break;
+                }
+            }
+
+            result[idx_vec.as_slice()] = all_fit;
+        }
+    }
+
+    Ok(result)
 }
 
 /// Dilate a binary array using a structuring element
@@ -895,19 +986,108 @@ fn binary_dilation2d(
 
 /// Implementation of binary dilation for n-dimensional arrays (using dynamic dimensions)
 fn binary_dilation_dyn(
-    _input: &Array<bool, IxDyn>,
-    _structure: Option<&Array<bool, IxDyn>>,
-    _iterations: Option<usize>,
-    _mask: Option<&Array<bool, IxDyn>>,
-    _border_value: Option<bool>,
-    _origin: Option<&[isize]>,
+    input: &Array<bool, IxDyn>,
+    structure: Option<&Array<bool, IxDyn>>,
+    iterations: Option<usize>,
+    mask: Option<&Array<bool, IxDyn>>,
+    border_value: Option<bool>,
+    origin: Option<&[isize]>,
     _brute_force: Option<bool>,
 ) -> Result<Array<bool, IxDyn>> {
-    // For dynamic dimensions, we simply return a placeholder for now
-    // This could be implemented properly later using a different approach
-    Err(NdimageError::NotImplementedError(
-        "Binary dilation for n-dimensional arrays is not implemented yet".into(),
-    ))
+    let iterations = iterations.unwrap_or(1);
+    let border = border_value.unwrap_or(false);
+
+    // Get or generate structure
+    let default_structure = if let Some(s) = structure {
+        s.to_owned()
+    } else {
+        generate_binary_structure_dyn(input.ndim())?
+    };
+
+    // Validate input dimensions
+    if input.ndim() != default_structure.ndim() {
+        return Err(NdimageError::DimensionError(
+            "Input and structure must have the same number of dimensions".into(),
+        ));
+    }
+
+    // Validate mask dimensions if provided
+    if let Some(m) = mask {
+        if m.ndim() != input.ndim() || m.shape() != input.shape() {
+            return Err(NdimageError::InvalidInput(
+                "Mask must have the same shape as input".into(),
+            ));
+        }
+    }
+
+    // Get structure center
+    let center = get_structure_center_dyn(&default_structure, origin)?;
+
+    // Create result array
+    let mut result = input.to_owned();
+
+    // Apply dilation iterations
+    for _ in 0..iterations {
+        let temp = result.clone();
+
+        // Iterate through all positions in the input array
+        for idx in ndarray::indices(input.shape()) {
+            let idx_vec: Vec<_> = idx.slice().to_vec();
+
+            // Skip if masked out
+            if let Some(m) = mask {
+                if !m[idx_vec.as_slice()] {
+                    continue;
+                }
+            }
+
+            // Check if any structure element touches a true value
+            let mut any_fit = false;
+
+            // Check each structure element
+            for str_idx in ndarray::indices(default_structure.shape()) {
+                let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
+
+                // Skip if structure element is false
+                if !default_structure[str_idx_vec.as_slice()] {
+                    continue;
+                }
+
+                // Calculate corresponding input position
+                let mut input_pos = vec![0isize; input.ndim()];
+                for d in 0..input.ndim() {
+                    input_pos[d] = idx_vec[d] as isize + str_idx_vec[d] as isize - center[d];
+                }
+
+                // Check if position is within bounds
+                let mut within_bounds = true;
+                for (d, &pos) in input_pos.iter().enumerate().take(input.ndim()) {
+                    if pos < 0 || pos >= input.shape()[d] as isize {
+                        within_bounds = false;
+                        break;
+                    }
+                }
+
+                // Get the value, using border value if out of bounds
+                let val = if within_bounds {
+                    let input_idx: Vec<_> = input_pos.iter().map(|&x| x as usize).collect();
+                    temp[input_idx.as_slice()]
+                } else {
+                    border
+                };
+
+                // Dilation requires at least one value to be true
+                if val {
+                    any_fit = true;
+                    break;
+                }
+            }
+
+            result[idx_vec.as_slice()] = any_fit;
+        }
+    }
+
+    Ok(result)
 }
 
 /// Open an array using a structuring element
@@ -1172,5 +1352,64 @@ mod tests {
         assert!(result[[3, 1]]);
         assert!(result[[3, 2]]);
         assert!(result[[3, 3]]);
+    }
+
+    #[test]
+    fn test_binary_erosion_3d() {
+        // Create a 3D test array with a solid cube
+        let mut input: ndarray::Array<bool, ndarray::Ix3> =
+            ndarray::Array::from_elem((3, 3, 3), false);
+        // Fill the cube
+        for i in 0..3 {
+            for j in 0..3 {
+                for k in 0..3 {
+                    input[[i, j, k]] = true;
+                }
+            }
+        }
+
+        // Apply erosion with default structure
+        let result = binary_erosion(&input, None, None, None, None, None, None).unwrap();
+
+        // Only the center should remain true after erosion
+        assert!(result[[1, 1, 1]]);
+
+        // Edges should be eroded away
+        assert!(!result[[0, 0, 0]]);
+        assert!(!result[[0, 1, 1]]);
+        assert!(!result[[1, 0, 1]]);
+        assert!(!result[[1, 1, 0]]);
+
+        // Check that the shape is preserved
+        assert_eq!(result.shape(), input.shape());
+    }
+
+    #[test]
+    fn test_binary_dilation_3d() {
+        // Create a 3D test array with a single point
+        let mut input: ndarray::Array<bool, ndarray::Ix3> =
+            ndarray::Array::from_elem((3, 3, 3), false);
+        input[[1, 1, 1]] = true;
+
+        // Apply dilation with default structure
+        let result = binary_dilation(&input, None, None, None, None, None, None).unwrap();
+
+        // Center should remain true
+        assert!(result[[1, 1, 1]]);
+
+        // Face neighbors should be dilated
+        assert!(result[[0, 1, 1]]); // top
+        assert!(result[[2, 1, 1]]); // bottom
+        assert!(result[[1, 0, 1]]); // left
+        assert!(result[[1, 2, 1]]); // right
+        assert!(result[[1, 1, 0]]); // front
+        assert!(result[[1, 1, 2]]); // back
+
+        // Corners should not be dilated with default structure (face connectivity)
+        assert!(!result[[0, 0, 0]]);
+        assert!(!result[[2, 2, 2]]);
+
+        // Check that the shape is preserved
+        assert_eq!(result.shape(), input.shape());
     }
 }

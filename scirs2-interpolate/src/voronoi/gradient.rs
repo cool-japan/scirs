@@ -10,6 +10,22 @@ use std::fmt::Debug;
 use super::natural::{InterpolationMethod, NaturalNeighborInterpolator};
 use crate::error::{InterpolateError, InterpolateResult};
 
+/// Trait for interpolators that can calculate values at query points
+pub trait Interpolator<F: Float + FromPrimitive + Debug> {
+    /// Interpolate at a single query point
+    fn interpolate(&self, query: &ArrayView1<F>) -> InterpolateResult<F>;
+}
+
+impl<
+        F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
+    > Interpolator<F> for NaturalNeighborInterpolator<F>
+{
+    fn interpolate(&self, query: &ArrayView1<F>) -> InterpolateResult<F> {
+        // Simply forward to the NaturalNeighborInterpolator's interpolate method
+        NaturalNeighborInterpolator::interpolate(self, query)
+    }
+}
+
 /// Trait for interpolators that can compute gradients
 pub trait GradientEstimation<F: Float + FromPrimitive + Debug> {
     /// Computes the gradient of the interpolated function at a query point
@@ -32,7 +48,16 @@ pub trait GradientEstimation<F: Float + FromPrimitive + Debug> {
 }
 
 /// Extends NaturalNeighborInterpolator with gradient estimation
-impl<F: Float + FromPrimitive + Debug> GradientEstimation<F> for NaturalNeighborInterpolator<F> {
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ndarray::ScalarOperand
+            + 'static
+            + for<'a> std::iter::Sum<&'a F>
+            + std::cmp::PartialOrd,
+    > GradientEstimation<F> for NaturalNeighborInterpolator<F>
+{
     fn gradient(&self, query: &ArrayView1<F>) -> InterpolateResult<Array1<F>> {
         let dim = query.len();
 
@@ -48,7 +73,7 @@ impl<F: Float + FromPrimitive + Debug> GradientEstimation<F> for NaturalNeighbor
         // from the interpolation weights and the values at data points
 
         // Get the natural neighbor weights
-        let neighbor_weights = self.voronoi_diagram.natural_neighbors(query)?;
+        let neighbor_weights = self.voronoi_diagram().natural_neighbors(query)?;
 
         if neighbor_weights.is_empty() {
             // If no natural neighbors found, use finite difference approximation
@@ -56,7 +81,7 @@ impl<F: Float + FromPrimitive + Debug> GradientEstimation<F> for NaturalNeighbor
         }
 
         // Compute the gradient based on the interpolation method
-        match self.method {
+        match self.method() {
             InterpolationMethod::Sibson => {
                 // For Sibson's method, the gradient is computed as a weighted sum of
                 // value differences and point differences
@@ -174,7 +199,7 @@ fn finite_difference_gradient<F, T>(
 ) -> InterpolateResult<Array1<F>>
 where
     F: Float + FromPrimitive + Debug,
-    T: GradientEstimation<F>,
+    T: GradientEstimation<F> + Interpolator<F>,
 {
     let dim = query.len();
     let mut gradient = Array1::zeros(dim);
@@ -271,8 +296,15 @@ pub trait InterpolateWithGradient<F: Float + FromPrimitive + Debug> {
     ) -> InterpolateResult<Vec<InterpolateWithGradientResult<F>>>;
 }
 
-impl<F: Float + FromPrimitive + Debug> InterpolateWithGradient<F>
-    for NaturalNeighborInterpolator<F>
+impl<
+        F: Float
+            + FromPrimitive
+            + Debug
+            + ndarray::ScalarOperand
+            + 'static
+            + for<'a> std::iter::Sum<&'a F>
+            + std::cmp::PartialOrd,
+    > InterpolateWithGradient<F> for NaturalNeighborInterpolator<F>
 {
     fn interpolate_with_gradient(
         &self,

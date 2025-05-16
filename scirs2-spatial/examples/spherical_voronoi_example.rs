@@ -63,14 +63,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
+    // Get regions length first before any other borrow
+    let num_regions = sv.regions().len();
+
     // Calculate region areas
     println!("Calculating region areas...");
     let areas = sv.areas()?;
+    let total_area = 4.0 * PI * radius * radius;
+    let expected_area_per_region = total_area / (num_regions as f64);
 
     println!("Region areas on the unit sphere:");
-    let total_area = 4.0 * PI * radius * radius;
-    let expected_area_per_region = total_area / (sv.regions().len() as f64);
-
     for (i, &area) in areas.iter().enumerate() {
         println!(
             "  Region {}: {:.6} (expected: {:.6})",
@@ -196,6 +198,8 @@ fn generate_dodecahedron_points() -> ndarray::Array2<f64> {
     points
 }
 
+// This function is kept here for future reference but not currently used
+#[allow(dead_code)]
 /// Generate random points uniformly distributed on a sphere.
 fn generate_random_points_on_sphere(
     n: usize,
@@ -205,7 +209,7 @@ fn generate_random_points_on_sphere(
     use ndarray::Array2;
     use rand::Rng;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut points = Array2::zeros((n, 3));
 
     for i in 0..n {
@@ -219,11 +223,11 @@ fn generate_random_points_on_sphere(
         let mut z = 0.0;
 
         while !valid {
-            x = rng.gen_range(-1.0..1.0);
-            y = rng.gen_range(-1.0..1.0);
-            z = rng.gen_range(-1.0..1.0);
+            x = rng.random_range(-1.0..1.0);
+            y = rng.random_range(-1.0..1.0);
+            z = rng.random_range(-1.0..1.0);
 
-            let d2 = x * x + y * y + z * z;
+            let d2: f64 = x * x + y * y + z * z;
             if d2 > 0.0 && d2 <= 1.0 {
                 // Normalize to the sphere surface
                 let scale = radius / d2.sqrt();

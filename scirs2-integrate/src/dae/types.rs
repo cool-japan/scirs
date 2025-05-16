@@ -3,11 +3,9 @@
 //! This module defines the core types used by DAE solvers,
 //! including method enums, options, and results.
 
-use crate::error::IntegrateResult;
+use crate::common::IntegrateFloat;
 use crate::ode::ODEMethod;
 use ndarray::Array1;
-use num_traits::Float;
-use std::fmt::Debug;
 
 /// DAE system type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,7 +47,7 @@ impl Default for DAEIndex {
 
 /// Options for controlling the behavior of DAE solvers
 #[derive(Debug, Clone)]
-pub struct DAEOptions<F: Float> {
+pub struct DAEOptions<F: IntegrateFloat> {
     /// The DAE system type
     pub dae_type: DAEType,
 
@@ -82,12 +80,12 @@ pub struct DAEOptions<F: Float> {
 
     /// Tolerance for the nonlinear solver
     pub newton_tol: F,
-    
+
     /// Maximum BDF order (optional, defaults to 5)
     pub max_order: Option<usize>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Debug> Default for DAEOptions<F> {
+impl<F: IntegrateFloat> Default for DAEOptions<F> {
     fn default() -> Self {
         DAEOptions {
             dae_type: DAEType::default(),
@@ -108,7 +106,7 @@ impl<F: Float + num_traits::FromPrimitive + Debug> Default for DAEOptions<F> {
 
 /// Result of DAE integration
 #[derive(Debug, Clone)]
-pub struct DAEResult<F: Float> {
+pub struct DAEResult<F: IntegrateFloat> {
     /// Time points
     pub t: Vec<F>,
 

@@ -6,13 +6,11 @@
 
 use crate::convolve;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{concatenate, s, Array1, Array2, Array3, Axis};
-use ndarray_linalg::Norm;
+use ndarray::{s, Array1, Array2, Array3};
 use rustfft::{
-    num_complex::{Complex, Complex64},
+    num_complex::Complex,
     FftPlanner,
 };
-use std::f64::consts::PI;
 
 /// Deconvolution configuration
 #[derive(Debug, Clone)]
@@ -89,16 +87,16 @@ pub fn wiener_deconvolution_1d(
     // Pad signals if requested
     let (padded_signal, padded_psf, pad_amount) = if config.pad_signal {
         let pad_len = n + psf.len() - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
-        let mut padded_psf = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
+        let mut padded_psf = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
         padded_psf.slice_mut(s![..psf.len()]).assign(psf);
 
         (padded_signal, padded_psf, (pad_len - n) / 2)
     } else {
-        let mut padded_signal = Array1::zeros(n);
-        let mut padded_psf = Array1::zeros(n);
+        let mut padded_signal = Array1::<f64>::zeros(n);
+        let mut padded_psf = Array1::<f64>::zeros(n);
 
         padded_signal.assign(signal);
 
@@ -160,7 +158,7 @@ pub fn wiener_deconvolution_1d(
 
     // Scale and convert back to real
     let scale = 1.0 / (pad_len as f64);
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
 
     if config.pad_signal {
         for i in 0..n {
@@ -221,16 +219,16 @@ pub fn tikhonov_deconvolution_1d(
     // Pad signals if requested
     let (padded_signal, padded_psf, pad_amount) = if config.pad_signal {
         let pad_len = n + psf.len() - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
-        let mut padded_psf = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
+        let mut padded_psf = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
         padded_psf.slice_mut(s![..psf.len()]).assign(psf);
 
         (padded_signal, padded_psf, (pad_len - n) / 2)
     } else {
-        let mut padded_signal = Array1::zeros(n);
-        let mut padded_psf = Array1::zeros(n);
+        let mut padded_signal = Array1::<f64>::zeros(n);
+        let mut padded_psf = Array1::<f64>::zeros(n);
 
         padded_signal.assign(signal);
 
@@ -301,7 +299,7 @@ pub fn tikhonov_deconvolution_1d(
 
     // Scale and convert back to real
     let scale = 1.0 / (pad_len as f64);
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
 
     if config.pad_signal {
         for i in 0..n {
@@ -363,16 +361,16 @@ pub fn richardson_lucy_deconvolution_1d(
     // Pad signals if requested
     let (padded_signal, padded_psf, pad_amount) = if config.pad_signal {
         let pad_len = n + psf.len() - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
-        let mut padded_psf = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
+        let mut padded_psf = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
         padded_psf.slice_mut(s![..psf.len()]).assign(psf);
 
         (padded_signal, padded_psf, (pad_len - n) / 2)
     } else {
-        let mut padded_signal = Array1::zeros(n);
-        let mut padded_psf = Array1::zeros(n);
+        let mut padded_signal = Array1::<f64>::zeros(n);
+        let mut padded_psf = Array1::<f64>::zeros(n);
 
         padded_signal.assign(signal);
 
@@ -388,14 +386,14 @@ pub fn richardson_lucy_deconvolution_1d(
     let pad_len = padded_signal.len();
 
     // Flip the PSF for convolution (correlation)
-    let mut flipped_psf = Array1::zeros(pad_len);
+    let mut flipped_psf = Array1::<f64>::zeros(pad_len);
     for i in 0..psf.len() {
         flipped_psf[pad_len - 1 - i] = padded_psf[i];
     }
 
     // Initialize estimate with uniform positive values
     let signal_mean = padded_signal.sum() / (pad_len as f64);
-    let mut estimate = Array1::zeros(pad_len);
+    let mut estimate = Array1::<f64>::zeros(pad_len);
     estimate.fill(signal_mean.max(1e-6));
 
     // Normalize the PSF
@@ -405,7 +403,7 @@ pub fn richardson_lucy_deconvolution_1d(
         normalized_psf /= psf_sum;
     }
 
-    let mut prev_estimate = Array1::zeros(pad_len);
+    let mut prev_estimate = Array1::<f64>::zeros(pad_len);
 
     // Iterative Richardson-Lucy algorithm
     for iter in 0..max_iter {
@@ -413,17 +411,25 @@ pub fn richardson_lucy_deconvolution_1d(
         prev_estimate.assign(&estimate);
 
         // Compute the predicted signal
-        let predicted = convolve::convolve(estimate.as_slice(), normalized_psf.as_slice(), "same")?;
+        let predicted = convolve::convolve(
+            estimate.as_slice().unwrap(),
+            normalized_psf.as_slice().unwrap(),
+            "same",
+        )?;
 
         // Compute the correction factor
-        let mut correction = Array1::zeros(pad_len);
+        let mut correction = Array1::<f64>::zeros(pad_len);
         for i in 0..pad_len {
             let pred_val = predicted[i].max(1e-10);
             correction[i] = padded_signal[i] / pred_val;
         }
 
         // Apply the correction
-        let correction_blurred = convolve::convolve(correction.as_slice(), flipped_psf.as_slice(), "same")?;
+        let correction_blurred = convolve::convolve(
+            correction.as_slice().unwrap(),
+            flipped_psf.as_slice().unwrap(),
+            "same",
+        )?;
         for i in 0..pad_len {
             estimate[i] *= correction_blurred[i];
         }
@@ -439,7 +445,7 @@ pub fn richardson_lucy_deconvolution_1d(
     }
 
     // Extract result
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
     if config.pad_signal {
         for i in 0..n {
             deconvolved[i] = estimate[i + pad_amount];
@@ -498,16 +504,16 @@ pub fn clean_deconvolution_1d(
     // Pad signals if requested
     let (padded_signal, padded_psf, pad_amount) = if config.pad_signal {
         let pad_len = n + psf.len() - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
-        let mut padded_psf = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
+        let mut padded_psf = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
         padded_psf.slice_mut(s![..psf.len()]).assign(psf);
 
         (padded_signal, padded_psf, (pad_len - n) / 2)
     } else {
-        let mut padded_signal = Array1::zeros(n);
-        let mut padded_psf = Array1::zeros(n);
+        let mut padded_signal = Array1::<f64>::zeros(n);
+        let mut padded_psf = Array1::<f64>::zeros(n);
 
         padded_signal.assign(signal);
 
@@ -523,7 +529,7 @@ pub fn clean_deconvolution_1d(
     let pad_len = padded_signal.len();
 
     // Initialize model (clean components) and residual
-    let mut model = Array1::zeros(pad_len);
+    let mut model = Array1::<f64>::zeros(pad_len);
     let mut residual = padded_signal.clone();
 
     // Normalize the PSF
@@ -540,11 +546,14 @@ pub fn clean_deconvolution_1d(
     // CLEAN iterative algorithm
     for _ in 0..config.max_iterations {
         // Find the peak in the residual
-        let (peak_idx, peak_val) = residual
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap())
-            .unwrap();
+        let (peak_idx, peak_val) = {
+            let (idx, val) = residual
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap())
+                .unwrap();
+            (idx, *val)
+        };
 
         // Check if peak is below threshold
         if peak_val.abs() < stop_threshold {
@@ -564,14 +573,18 @@ pub fn clean_deconvolution_1d(
 
     // Convolve model with a restoring beam (Gaussian)
     let restoring_beam = create_gaussian_kernel((psf.len() / 2).max(3));
-    let restored_vec = convolve::convolve(model.as_slice(), restoring_beam.as_slice(), "same")?;
+    let restored_vec = convolve::convolve(
+        model.as_slice().unwrap(),
+        restoring_beam.as_slice().unwrap(),
+        "same",
+    )?;
     let restored = Array1::from_vec(restored_vec);
 
     // Add residual back to the model
     let result = restored + residual;
 
     // Extract final result
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
     if config.pad_signal {
         for i in 0..n {
             deconvolved[i] = result[i + pad_amount];
@@ -616,16 +629,16 @@ pub fn mem_deconvolution_1d(
     // Pad signals if requested
     let (padded_signal, padded_psf, pad_amount) = if config.pad_signal {
         let pad_len = n + psf.len() - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
-        let mut padded_psf = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
+        let mut padded_psf = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
         padded_psf.slice_mut(s![..psf.len()]).assign(psf);
 
         (padded_signal, padded_psf, (pad_len - n) / 2)
     } else {
-        let mut padded_signal = Array1::zeros(n);
-        let mut padded_psf = Array1::zeros(n);
+        let mut padded_signal = Array1::<f64>::zeros(n);
+        let mut padded_psf = Array1::<f64>::zeros(n);
 
         padded_signal.assign(signal);
 
@@ -649,7 +662,7 @@ pub fn mem_deconvolution_1d(
 
     // Initialize with flat positive spectrum
     let total_flux = padded_signal.sum().max(1e-6);
-    let mut model = Array1::zeros(pad_len);
+    let mut model = Array1::<f64>::zeros(pad_len);
     model.fill(total_flux / (pad_len as f64));
 
     let mut prev_model = model.clone();
@@ -661,7 +674,11 @@ pub fn mem_deconvolution_1d(
         prev_model.assign(&model);
 
         // Calculate model response
-        let response = convolve::convolve(model.as_slice(), normalized_psf.as_slice(), "same")?;
+        let response = convolve::convolve(
+            model.as_slice().unwrap(),
+            normalized_psf.as_slice().unwrap(),
+            "same",
+        )?;
 
         // Calculate chi-squared
         let mut chi_squared = 0.0;
@@ -713,7 +730,7 @@ pub fn mem_deconvolution_1d(
     }
 
     // Extract final result
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
     if config.pad_signal {
         for i in 0..n {
             deconvolved[i] = model[i + pad_amount];
@@ -756,7 +773,7 @@ pub fn blind_deconvolution_1d(
     // Pad signal if requested
     let (padded_signal, pad_amount) = if config.pad_signal {
         let pad_len = n + psf_size - 1;
-        let mut padded_signal = Array1::zeros(pad_len);
+        let mut padded_signal = Array1::<f64>::zeros(pad_len);
 
         padded_signal.slice_mut(s![..n]).assign(signal);
 
@@ -801,11 +818,11 @@ pub fn blind_deconvolution_1d(
 
         // Update PSF estimate (keeping signal fixed)
         // This is essentially solving the same deconvolution with roles reversed
-        let mut temp_psf =
+        let temp_psf =
             richardson_lucy_deconvolution_1d(&padded_signal, &estimated_signal, Some(5), config)?;
 
         // Constrain PSF to its expected size
-        let mut centered_psf = Array1::<f64>::zeros(pad_len);
+        let centered_psf = Array1::<f64>::zeros(pad_len);
         let start = (pad_len - psf_size) / 2;
         let mut psf_cropped = temp_psf.slice(s![start..start + psf_size]).to_owned();
 
@@ -838,7 +855,7 @@ pub fn blind_deconvolution_1d(
     }
 
     // Extract final signal result
-    let mut deconvolved = Array1::zeros(n);
+    let mut deconvolved = Array1::<f64>::zeros(n);
     if config.pad_signal {
         for i in 0..n {
             deconvolved[i] = estimated_signal[i + pad_amount];
@@ -888,8 +905,8 @@ pub fn wiener_deconvolution_2d(
         let pad_height = height + pad_h;
         let pad_width = width + pad_w;
 
-        let mut padded_image = Array2::zeros((pad_height, pad_width));
-        let mut padded_psf = Array2::zeros((pad_height, pad_width));
+        let mut padded_image = Array2::<f64>::zeros((pad_height, pad_width));
+        let mut padded_psf = Array2::<f64>::zeros((pad_height, pad_width));
 
         // Copy original image
         padded_image.slice_mut(s![..height, ..width]).assign(image);
@@ -899,8 +916,8 @@ pub fn wiener_deconvolution_2d(
 
         (padded_image, padded_psf, pad_h / 2, pad_w / 2)
     } else {
-        let mut padded_image = image.clone();
-        let mut padded_psf = Array2::zeros((height, width));
+        let padded_image = image.clone();
+        let mut padded_psf = Array2::<f64>::zeros((height, width));
 
         // Center the PSF
         let start_h = (height - psf_h) / 2;
@@ -965,7 +982,7 @@ pub fn wiener_deconvolution_2d(
 
     // Scale and convert back to real
     let scale = 1.0 / (pad_height * pad_width) as f64;
-    let mut deconvolved = Array2::zeros((height, width));
+    let mut deconvolved = Array2::<f64>::zeros((height, width));
 
     for i in 0..height {
         for j in 0..width {
@@ -1024,8 +1041,8 @@ pub fn richardson_lucy_deconvolution_2d(
         let pad_height = height + pad_h;
         let pad_width = width + pad_w;
 
-        let mut padded_image = Array2::zeros((pad_height, pad_width));
-        let mut padded_psf = Array2::zeros((pad_height, pad_width));
+        let mut padded_image = Array2::<f64>::zeros((pad_height, pad_width));
+        let mut padded_psf = Array2::<f64>::zeros((pad_height, pad_width));
 
         // Copy original image
         padded_image.slice_mut(s![..height, ..width]).assign(image);
@@ -1035,8 +1052,8 @@ pub fn richardson_lucy_deconvolution_2d(
 
         (padded_image, padded_psf, pad_h / 2, pad_w / 2)
     } else {
-        let mut padded_image = image.clone();
-        let mut padded_psf = Array2::zeros((height, width));
+        let padded_image = image.clone();
+        let mut padded_psf = Array2::<f64>::zeros((height, width));
 
         // Center the PSF
         let start_h = (height - psf_h) / 2;
@@ -1051,7 +1068,7 @@ pub fn richardson_lucy_deconvolution_2d(
     let (pad_height, pad_width) = padded_image.dim();
 
     // Flip the PSF for convolution (correlation)
-    let mut flipped_psf = Array2::zeros((pad_height, pad_width));
+    let mut flipped_psf = Array2::<f64>::zeros((pad_height, pad_width));
     for i in 0..psf_h {
         for j in 0..psf_w {
             flipped_psf[[pad_height - 1 - i, pad_width - 1 - j]] = padded_psf[[i, j]];
@@ -1060,7 +1077,7 @@ pub fn richardson_lucy_deconvolution_2d(
 
     // Initialize estimate with uniform positive values
     let image_mean = padded_image.sum() / (pad_height * pad_width) as f64;
-    let mut estimate = Array2::zeros((pad_height, pad_width));
+    let mut estimate = Array2::<f64>::zeros((pad_height, pad_width));
     estimate.fill(image_mean.max(1e-6));
 
     // Normalize the PSF
@@ -1070,7 +1087,7 @@ pub fn richardson_lucy_deconvolution_2d(
         normalized_psf /= psf_sum;
     }
 
-    let mut prev_estimate = Array2::zeros((pad_height, pad_width));
+    let mut prev_estimate = Array2::<f64>::zeros((pad_height, pad_width));
 
     // Iterative Richardson-Lucy algorithm
     for iter in 0..max_iter {
@@ -1081,7 +1098,7 @@ pub fn richardson_lucy_deconvolution_2d(
         let predicted = convolve::convolve2d(&estimate, &normalized_psf, "same")?;
 
         // Compute the correction factor
-        let mut correction = Array2::zeros((pad_height, pad_width));
+        let mut correction = Array2::<f64>::zeros((pad_height, pad_width));
         for i in 0..pad_height {
             for j in 0..pad_width {
                 let pred_val = predicted[[i, j]].max(1e-10);
@@ -1108,7 +1125,7 @@ pub fn richardson_lucy_deconvolution_2d(
     }
 
     // Extract result
-    let mut deconvolved = Array2::zeros((height, width));
+    let mut deconvolved = Array2::<f64>::zeros((height, width));
     for i in 0..height {
         for j in 0..width {
             deconvolved[[i, j]] = estimate[[i + pad_h, j + pad_w]];
@@ -1155,8 +1172,8 @@ pub fn tv_deconvolution_2d(
         let pad_height = height + pad_h;
         let pad_width = width + pad_w;
 
-        let mut padded_image = Array2::zeros((pad_height, pad_width));
-        let mut padded_psf = Array2::zeros((pad_height, pad_width));
+        let mut padded_image = Array2::<f64>::zeros((pad_height, pad_width));
+        let mut padded_psf = Array2::<f64>::zeros((pad_height, pad_width));
 
         // Copy original image
         padded_image.slice_mut(s![..height, ..width]).assign(image);
@@ -1166,8 +1183,8 @@ pub fn tv_deconvolution_2d(
 
         (padded_image, padded_psf, pad_h / 2, pad_w / 2)
     } else {
-        let mut padded_image = image.clone();
-        let mut padded_psf = Array2::zeros((height, width));
+        let padded_image = image.clone();
+        let mut padded_psf = Array2::<f64>::zeros((height, width));
 
         // Center the PSF
         let start_h = (height - psf_h) / 2;
@@ -1182,7 +1199,7 @@ pub fn tv_deconvolution_2d(
     let (pad_height, pad_width) = padded_image.dim();
 
     // Flip the PSF for convolution (correlation)
-    let mut flipped_psf = Array2::zeros((pad_height, pad_width));
+    let mut flipped_psf = Array2::<f64>::zeros((pad_height, pad_width));
     for i in 0..psf_h {
         for j in 0..psf_w {
             flipped_psf[[pad_height - 1 - i, pad_width - 1 - j]] = padded_psf[[i, j]];
@@ -1199,7 +1216,7 @@ pub fn tv_deconvolution_2d(
         normalized_psf /= psf_sum;
     }
 
-    let mut prev_estimate = Array2::zeros((pad_height, pad_width));
+    let mut prev_estimate = Array2::<f64>::zeros((pad_height, pad_width));
 
     // Small constant to avoid division by zero
     let eps = 1e-6;
@@ -1217,7 +1234,7 @@ pub fn tv_deconvolution_2d(
         let fidelity_grad = convolve::convolve2d(&diff, &flipped_psf, "same")?;
 
         // Compute the total variation gradient
-        let mut tv_grad = Array2::zeros((pad_height, pad_width));
+        let mut tv_grad = Array2::<f64>::zeros((pad_height, pad_width));
 
         for i in 1..pad_height - 1 {
             for j in 1..pad_width - 1 {
@@ -1270,7 +1287,7 @@ pub fn tv_deconvolution_2d(
     }
 
     // Extract result
-    let mut deconvolved = Array2::zeros((height, width));
+    let mut deconvolved = Array2::<f64>::zeros((height, width));
     for i in 0..height {
         for j in 0..width {
             deconvolved[[i, j]] = estimate[[i + pad_h, j + pad_w]];
@@ -1317,7 +1334,7 @@ pub fn blind_deconvolution_2d(
         let pad_height = height + pad_h;
         let pad_width = width + pad_w;
 
-        let mut padded_image = Array2::zeros((pad_height, pad_width));
+        let mut padded_image = Array2::<f64>::zeros((pad_height, pad_width));
 
         // Copy original image
         padded_image.slice_mut(s![..height, ..width]).assign(image);
@@ -1339,7 +1356,7 @@ pub fn blind_deconvolution_2d(
     }
 
     // Initialize padded PSF
-    let mut padded_psf = Array2::zeros((pad_height, pad_width));
+    let mut padded_psf = Array2::<f64>::zeros((pad_height, pad_width));
     padded_psf
         .slice_mut(s![..psf_size_h, ..psf_size_w])
         .assign(&estimated_psf);
@@ -1368,7 +1385,7 @@ pub fn blind_deconvolution_2d(
 
         // Update PSF estimate (keeping image fixed)
         // This is essentially solving the same deconvolution with roles reversed
-        let mut temp_psf =
+        let temp_psf =
             richardson_lucy_deconvolution_2d(&padded_image, &estimated_image, Some(5), config)?;
 
         // Constrain PSF to its expected size
@@ -1416,7 +1433,7 @@ pub fn blind_deconvolution_2d(
     }
 
     // Extract final image result
-    let mut deconvolved = Array2::zeros((height, width));
+    let mut deconvolved = Array2::<f64>::zeros((height, width));
     for i in 0..height {
         for j in 0..width {
             deconvolved[[i, j]] = estimated_image[[i + pad_h, j + pad_w]];
@@ -1429,7 +1446,7 @@ pub fn blind_deconvolution_2d(
 /// Helper function to create a Gaussian kernel for a PSF
 fn create_gaussian_kernel(size: usize) -> Array1<f64> {
     let half_size = size as isize / 2;
-    let mut kernel = Array1::zeros(size);
+    let mut kernel = Array1::<f64>::zeros(size);
 
     let sigma = size as f64 / 6.0; // Standard deviation
     let two_sigma_sq = 2.0 * sigma * sigma;
@@ -1452,7 +1469,7 @@ fn create_gaussian_kernel(size: usize) -> Array1<f64> {
 fn create_gaussian_kernel_2d(height: usize, width: usize) -> Array2<f64> {
     let half_h = height as isize / 2;
     let half_w = width as isize / 2;
-    let mut kernel = Array2::zeros((height, width));
+    let mut kernel = Array2::<f64>::zeros((height, width));
 
     let sigma_h = height as f64 / 6.0; // Standard deviation for height
     let sigma_w = width as f64 / 6.0; // Standard deviation for width
@@ -1484,7 +1501,11 @@ fn gaussian_filter_1d(signal: &Array1<f64>, sigma: f64) -> Array1<f64> {
 
     let kernel = create_gaussian_kernel(kernel_size);
 
-    match convolve::convolve(signal.as_slice(), kernel.as_slice(), "same") {
+    match convolve::convolve(
+        signal.as_slice().unwrap(),
+        kernel.as_slice().unwrap(),
+        "same",
+    ) {
         Ok(filtered) => Array1::from_vec(filtered),
         Err(_) => signal.clone(),
     }
@@ -1614,8 +1635,8 @@ pub fn estimate_regularization_param(
     }
 
     // Set up for FFT-based deconvolution
-    let mut padded_signal = signal.clone();
-    let mut padded_psf = Array1::zeros(n);
+    let padded_signal = signal.clone();
+    let mut padded_psf = Array1::<f64>::zeros(n);
 
     // Center the PSF
     let start = (n - psf.len()) / 2;
@@ -1673,14 +1694,18 @@ pub fn estimate_regularization_param(
 
         // Scale and convert back to real
         let scale = 1.0 / (n as f64);
-        let mut solution = Array1::zeros(n);
+        let mut solution = Array1::<f64>::zeros(n);
 
         for i in 0..n {
             solution[i] = result_complex[i].re * scale;
         }
 
         // Compute residual sum of squares (RSS)
-        let predicted = convolve::convolve(solution.as_slice(), padded_psf.as_slice(), "same")?;
+        let predicted = convolve::convolve(
+            solution.as_slice().unwrap(),
+            padded_psf.as_slice().unwrap(),
+            "same",
+        )?;
         let mut rss = 0.0;
 
         for i in 0..n {

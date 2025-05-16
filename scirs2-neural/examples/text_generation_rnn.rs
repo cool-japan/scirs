@@ -1,6 +1,5 @@
-use ndarray::{Array, Array1, Array2, Array3, Axis};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use ndarray::{s, Array1, Array2, Array3, Axis};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f32;
@@ -73,32 +72,69 @@ impl LSTM {
         // Xavier/Glorot initialization for weights
         let bound = (6.0 / (input_size + hidden_size) as f32).sqrt();
 
-        // Input gate weights
-        let w_ii = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hi = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        // Create a random number generator
+        let mut rng = rand::rng();
+
+        // Input gate weights - manually initialize with random values
+        let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_i = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ii.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hi.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Forget gate weights (initialize with small positive bias to encourage remembering)
-        let w_if = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hf = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_f = Array1::ones(hidden_size); // Initialize to 1s for better learning
 
+        // Initialize with random values
+        for elem in w_if.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hf.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Cell gate weights
-        let w_ig = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_hg = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_g = Array1::zeros(hidden_size);
 
+        // Initialize with random values
+        for elem in w_ig.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_hg.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+
         // Output gate weights
-        let w_io = Array::random((hidden_size, input_size), Uniform::new(-bound, bound));
-        let w_ho = Array::random((hidden_size, hidden_size), Uniform::new(-bound, bound));
+        let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
+        let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
         let b_o = Array1::zeros(hidden_size);
+
+        // Initialize with random values
+        for elem in w_io.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
+        for elem in w_ho.iter_mut() {
+            *elem = rng.random_range(-bound..bound);
+        }
 
         // Output projection weights
         let output_bound = (6.0 / (hidden_size + output_size) as f32).sqrt();
-        let w_out = Array::random(
-            (output_size, hidden_size),
-            Uniform::new(-output_bound, output_bound),
-        );
+        let mut w_out = Array2::<f32>::zeros((output_size, hidden_size));
+
+        // Initialize with random values
+        for elem in w_out.iter_mut() {
+            *elem = rng.random_range(-output_bound..output_bound);
+        }
         let b_out = Array1::zeros(output_size);
 
         LSTM {
@@ -235,7 +271,7 @@ impl LSTM {
             let x_t = x
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order([batch_size, self.input_size])
                 .unwrap();
 
             // Get previous hidden and cell states
@@ -419,7 +455,7 @@ impl LSTM {
             let x_t = inputs
                 .slice(s![.., t, ..])
                 .to_owned()
-                .into_shape((batch_size, self.input_size))
+                .into_shape_with_order([batch_size, self.input_size])
                 .unwrap();
 
             // Gradient of output gate: do = dh * tanh(c) * sigmoid_derivative(o)
@@ -427,7 +463,7 @@ impl LSTM {
             let do_t = &dh * &tanh_c_t * &Self::sigmoid_derivative(&o_t);
 
             // Gradient of cell state: dc = dh * o * tanh_derivative(c) + dc_next
-            let mut dc = &dh * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
+            let dc = &dh * &o_t * &Self::tanh_derivative(&tanh_c_t) + &dc_next;
 
             // Gradient of input gate: di = dc * g * sigmoid_derivative(i)
             let di_t = &dc * &g_t * &Self::sigmoid_derivative(&i_t);

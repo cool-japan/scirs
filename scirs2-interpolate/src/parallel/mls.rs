@@ -65,7 +65,7 @@ use crate::spatial::kdtree::KdTree;
 #[derive(Debug, Clone)]
 pub struct ParallelMovingLeastSquares<F>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: Float + FromPrimitive + Debug + Send + Sync + 'static + std::cmp::PartialOrd,
 {
     /// The standard MLS interpolator
     mls: MovingLeastSquares<F>,
@@ -79,7 +79,7 @@ where
 
 impl<F> ParallelMovingLeastSquares<F>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: Float + FromPrimitive + Debug + Send + Sync + 'static + std::cmp::PartialOrd,
 {
     /// Create a new parallel MLS interpolator
     ///
@@ -204,7 +204,7 @@ where
         }
 
         let n_points = points.shape()[0];
-        let n_dims = points.shape()[1];
+        let _n_dims = points.shape()[1];
         let values = self.mls.values();
 
         // Estimate the cost of each evaluation
@@ -290,7 +290,7 @@ where
 
 impl<F> ParallelEvaluate<F, Array1<F>> for ParallelMovingLeastSquares<F>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: Float + FromPrimitive + Debug + Send + Sync + 'static + std::cmp::PartialOrd,
 {
     fn evaluate_parallel(
         &self,
@@ -349,7 +349,7 @@ pub fn make_parallel_mls<F>(
     bandwidth: F,
 ) -> InterpolateResult<ParallelMovingLeastSquares<F>>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: Float + FromPrimitive + Debug + Send + Sync + 'static + std::cmp::Ord,
 {
     ParallelMovingLeastSquares::new(
         points,

@@ -60,7 +60,7 @@ use std::fmt::Debug;
 use crate::error::InterpolateResult;
 
 /// Configuration for parallel execution
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ParallelConfig {
     /// Number of worker threads to use
     /// If None, uses Rayon's default (usually the number of logical CPUs)
@@ -69,15 +69,6 @@ pub struct ParallelConfig {
     /// Chunk size for parallel iterators
     /// If None, Rayon chooses automatically
     pub chunk_size: Option<usize>,
-}
-
-impl Default for ParallelConfig {
-    fn default() -> Self {
-        Self {
-            n_workers: None,
-            chunk_size: None,
-        }
-    }
 }
 
 impl ParallelConfig {

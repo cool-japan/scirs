@@ -2,6 +2,7 @@
 //!
 //! This module provides the main interface for solving ODEs.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::methods::{
     bdf_method, dop853_method, enhanced_bdf_method, enhanced_lsoda_method, euler_method,
@@ -15,9 +16,7 @@ use crate::ode::utils::events::{
 };
 use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use crate::ode::utils::mass_matrix;
-use ndarray::{Array1, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, ArrayView1};
 
 /// Solve an initial value problem (IVP) for a system of ODEs.
 ///
@@ -100,15 +99,8 @@ pub fn solve_ivp<F, Func>(
     options: Option<ODEOptions<F>>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
-    Func: Fn(F, ArrayView1<F>) -> Array1<F>,
+    F: IntegrateFloat,
+    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Use default options if none provided
     let opts = options.unwrap_or_default();
@@ -220,14 +212,7 @@ fn solve_ivp_with_mass_internal<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Check if mass matrix is compatible with the initial state
@@ -419,15 +404,8 @@ pub fn solve_ivp_with_events<F, Func, EventFunc>(
     options: ODEOptionsWithEvents<F>,
 ) -> IntegrateResult<ODEResultWithEvents<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
-    Func: Fn(F, ArrayView1<F>) -> Array1<F>,
+    F: IntegrateFloat,
+    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
     EventFunc: Fn(F, ArrayView1<F>) -> F,
 {
     // Extract base options and ensure dense output is enabled for event detection

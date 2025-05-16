@@ -33,7 +33,7 @@ pub struct VoronoiCell<F: Float + FromPrimitive + Debug> {
     pub value: F,
 }
 
-impl<F: Float + FromPrimitive + Debug> VoronoiCell<F> {
+impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand> VoronoiCell<F> {
     /// Creates a new Voronoi cell with the given site and value
     pub fn new(site: Array1<F>, value: F) -> Self {
         VoronoiCell {
@@ -177,7 +177,7 @@ impl<F: Float + FromPrimitive + Debug> VoronoiCell<F> {
                 let clip_edge_start = clip_polygon.row(i).to_owned();
                 let clip_edge_end = clip_polygon.row((i + 1) % n_clip).to_owned();
 
-                let mut input_list = subject_polygon
+                let input_list = subject_polygon
                     .rows()
                     .into_iter()
                     .map(|row| row.to_owned())
@@ -192,7 +192,7 @@ impl<F: Float + FromPrimitive + Debug> VoronoiCell<F> {
                 let s = input_list.last().unwrap().clone();
 
                 for e in &input_list {
-                    if inside_edge(&e, &clip_edge_start, &clip_edge_end) {
+                    if inside_edge(e, &clip_edge_start, &clip_edge_end) {
                         if !inside_edge(&s, &clip_edge_start, &clip_edge_end) {
                             let intersection =
                                 compute_intersection(&s, e, &clip_edge_start, &clip_edge_end)?;
@@ -417,7 +417,7 @@ fn compute_bounding_box<F: Float + Debug>(points: ArrayView2<F>) -> (Array1<F>, 
 
 /// A collection of Voronoi cells forming a Voronoi diagram
 #[derive(Debug, Clone)]
-pub struct VoronoiDiagram<F: Float + FromPrimitive + Debug> {
+pub struct VoronoiDiagram<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> {
     /// The cells that make up the Voronoi diagram
     pub cells: Vec<VoronoiCell<F>>,
 
@@ -428,7 +428,7 @@ pub struct VoronoiDiagram<F: Float + FromPrimitive + Debug> {
     pub bounds: Array1<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug> VoronoiDiagram<F> {
+impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> VoronoiDiagram<F> {
     /// Creates a new Voronoi diagram from sites and values
     pub fn new(
         sites: ArrayView2<F>,
@@ -590,8 +590,8 @@ impl<F: Float + FromPrimitive + Debug> VoronoiDiagram<F> {
                 for k in 0..half_planes.len() {
                     let (mp_k, n_k, _) = &half_planes[k];
 
-                    for l in (k + 1)..half_planes.len() {
-                        let (mp_l, n_l, _) = &half_planes[l];
+                    for half_plane_l in half_planes.iter().skip(k + 1) {
+                        let (mp_l, n_l, _) = half_plane_l;
 
                         // Compute intersection of two lines:
                         // Line 1: mp_k + t * perpendicular(n_k)
@@ -704,7 +704,7 @@ impl<F: Float + FromPrimitive + Debug> VoronoiDiagram<F> {
             let max_z = self.bounds[5];
 
             // Define domain vertices (8 corners of the bounding box)
-            let domain_vertices = Array2::from_shape_vec(
+            let _domain_vertices = Array2::from_shape_vec(
                 (8, 3),
                 vec![
                     min_x, min_y, min_z, max_x, min_y, min_z, max_x, max_y, min_z, min_x, max_y,
@@ -781,7 +781,7 @@ impl<F: Float + FromPrimitive + Debug> VoronoiDiagram<F> {
 
                 // Create a bounding box for this Voronoi cell
                 // using half the distance to the nearest neighbor in each direction
-                let mut cell_bounds = vec![
+                let mut cell_bounds = [
                     site_i[0] - min_dist[0] / F::from(2).unwrap(), // min_x
                     site_i[1] - min_dist[2] / F::from(2).unwrap(), // min_y
                     site_i[2] - min_dist[4] / F::from(2).unwrap(), // min_z
@@ -962,8 +962,7 @@ impl<F: Float + FromPrimitive + Debug> VoronoiDiagram<F> {
 
                 // Compute weights based on inverse distance
                 let mut total_weight = F::zero();
-                for i in 0..k {
-                    let (idx, dist) = distances[i];
+                for &(idx, dist) in distances.iter().take(k) {
 
                     // Avoid division by zero
                     if dist < F::epsilon() {

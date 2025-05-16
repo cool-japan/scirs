@@ -4,7 +4,7 @@
 //! 3D parabolic PDEs, such as the 3D heat equation and 3D advection-diffusion.
 
 use ndarray::{
-    Array1, Array2, Array3, Array4, ArrayView1, ArrayView2, ArrayView3, ArrayView4, Axis, s,
+    s, Array1, Array2, Array3, Array4, ArrayView1, ArrayView2, ArrayView3, ArrayView4, Axis,
 };
 use std::time::Instant;
 

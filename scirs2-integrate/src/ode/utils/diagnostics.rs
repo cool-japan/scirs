@@ -2,6 +2,7 @@
 //!
 //! This module provides diagnostic utilities for ODE solvers.
 
+use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 
@@ -15,7 +16,7 @@ use num_traits::{Float, FromPrimitive};
 /// # Returns
 ///
 /// Stability metrics for the solution
-pub fn stability_metrics<F: Float + FromPrimitive>(t: &[F], y: &[Array1<F>]) -> F {
+pub fn stability_metrics<F: IntegrateFloat>(t: &[F], y: &[Array1<F>]) -> F {
     // Simple implementation for now
     // In the future, this could compute eigenvalues of the Jacobian, etc.
 
@@ -63,7 +64,7 @@ pub fn stability_metrics<F: Float + FromPrimitive>(t: &[F], y: &[Array1<F>]) -> 
 /// A stiffness score (higher values indicate more stiffness)
 pub fn stiffness_detector<F, Func>(t: &[F], y: &[Array1<F>], _f: &Func) -> F
 where
-    F: Float + FromPrimitive,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Simple implementation - could be enhanced later

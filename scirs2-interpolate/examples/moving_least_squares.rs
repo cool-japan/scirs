@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use scirs2_interpolate::local::mls::{MovingLeastSquares, PolynomialBasis, WeightFunction};
 use std::error::Error;
 
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Create scattered training data (50 random points)
     let n_samples = 50;
-    let mut rng = rand::thread_rng();
+    // No need to create rng instance as we're using rand::random directly
     let mut sample_points = Vec::with_capacity(n_samples);
     let mut sample_values = Vec::with_capacity(n_samples);
 
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Target function: z = sin(2πx) * cos(2πy) + some noise
         let true_z =
-            (2.0 * std::f64::consts::PI * x).sin() * (2.0 * std::f64::consts::PI * y).cos();
+            f64::sin(2.0 * std::f64::consts::PI * x) * f64::cos(2.0 * std::f64::consts::PI * y);
 
         // Add some noise
         let noise = (rand::random::<f64>() - 0.5) * 0.1;
@@ -95,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = grid_points_array[[i, 0]];
         let y = grid_points_array[[i, 1]];
         let true_z =
-            (2.0 * std::f64::consts::PI * x).sin() * (2.0 * std::f64::consts::PI * y).cos();
+            f64::sin(2.0 * std::f64::consts::PI * x) * f64::cos(2.0 * std::f64::consts::PI * y);
         true_values.push(true_z);
     }
     let true_grid_values = Array1::from_vec(true_values);

@@ -57,6 +57,13 @@ pub struct MonotonicInterpolator<F: Float> {
     extrapolate: bool,
 }
 
+impl<F: Float> MonotonicInterpolator<F> {
+    /// Get the interpolation method
+    pub fn method(&self) -> MonotonicMethod {
+        self.method
+    }
+}
+
 impl<F: Float + FromPrimitive + Debug> MonotonicInterpolator<F> {
     /// Create a new monotonic interpolator
     ///

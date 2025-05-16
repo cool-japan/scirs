@@ -41,12 +41,12 @@ fn rotation_examples() -> SpatialResult<()> {
 
     // 3. From rotation matrix
     let matrix = array![[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]; // 90-degree rotation around Z
-    let rot_matrix = Rotation::from_matrix(&matrix.view())?;
+    let _rot_matrix = Rotation::from_matrix(&matrix.view())?;
     println!("  3. From rotation matrix (90° around Z)");
 
     // 4. From axis-angle
     let rotvec = array![0.0, 0.0, PI / 2.0]; // 90-degree rotation around Z
-    let rot_rotvec = Rotation::from_rotvec(&rotvec.view())?;
+    let _rot_rotvec = Rotation::from_rotvec(&rotvec.view())?;
     println!("  4. From rotation vector [0, 0, π/2] (90° around Z)");
 
     // Apply rotations to a test point
@@ -126,7 +126,9 @@ fn rigid_transform_examples() -> SpatialResult<()> {
     println!("----------------------");
 
     // Create a rigid transform from rotation and translation
-    let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz")?;
+    // Create an array first, then pass its view
+    let euler_angles = array![0.0, 0.0, PI / 2.0];
+    let rotation = Rotation::from_euler(&euler_angles.view(), "xyz")?;
     let translation = array![1.0, 2.0, 3.0];
 
     let transform =
@@ -142,7 +144,7 @@ fn rigid_transform_examples() -> SpatialResult<()> {
         [0.0, 0.0, 1.0, 3.0],
         [0.0, 0.0, 0.0, 1.0]
     ];
-    let transform_from_matrix = RigidTransform::from_matrix(&matrix.view())?;
+    let _transform_from_matrix = RigidTransform::from_matrix(&matrix.view())?;
     println!("\nCreated an equivalent rigid transform from 4x4 matrix");
 
     // Apply the transform to points
@@ -174,7 +176,10 @@ fn rigid_transform_examples() -> SpatialResult<()> {
 
     // Composition of transforms
     let transform2 = RigidTransform::from_rotation_and_translation(
-        Rotation::from_euler(&array![PI / 2.0, 0.0, 0.0], "xyz")?,
+        {
+            let angles = array![PI / 2.0, 0.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
         &array![0.0, 0.0, 1.0].view(),
     )?;
 
@@ -200,7 +205,8 @@ fn slerp_examples() -> SpatialResult<()> {
 
     // Create two rotations to interpolate between
     let rot1 = Rotation::identity(); // No rotation
-    let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI], "xyz")?; // 180° around Z
+    let euler_angles2 = array![0.0, 0.0, PI];
+    let rot2 = Rotation::from_euler(&euler_angles2.view(), "xyz")?; // 180° around Z
 
     // Create a Slerp interpolator
     let slerp = Slerp::new(rot1, rot2)?;
@@ -242,9 +248,18 @@ fn rotation_spline_examples() -> SpatialResult<()> {
     // Create a sequence of rotations
     let rotations = vec![
         Rotation::identity(),
-        Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 2.0, 0.0, PI / 2.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 2.0, PI / 2.0, PI / 2.0], "xyz")?,
+        {
+            let angles = array![0.0, 0.0, PI / 2.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 2.0, 0.0, PI / 2.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 2.0, PI / 2.0, PI / 2.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
     ];
 
     // Define times at which these rotations occur
@@ -328,10 +343,22 @@ fn rotation_spline_examples() -> SpatialResult<()> {
     println!("\nCreating a complex spline for animation:");
     let animation_rotations = vec![
         Rotation::identity(),
-        Rotation::from_euler(&array![0.0, PI / 4.0, 0.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 4.0, PI / 4.0, 0.0], "xyz")?,
-        Rotation::from_euler(&array![PI / 4.0, 0.0, PI / 4.0], "xyz")?,
-        Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz")?,
+        {
+            let angles = array![0.0, PI / 4.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 4.0, PI / 4.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![PI / 4.0, 0.0, PI / 4.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
+        {
+            let angles = array![0.0, 0.0, 0.0];
+            Rotation::from_euler(&angles.view(), "xyz")?
+        },
     ];
 
     let animation_times = vec![0.0, 1.0, 2.0, 3.0, 4.0];

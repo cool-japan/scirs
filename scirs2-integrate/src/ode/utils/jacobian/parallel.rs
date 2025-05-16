@@ -14,10 +14,9 @@
 //! - Computationally expensive right-hand side functions
 //! - Multi-core systems where serial computation would be a bottleneck
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 #[cfg(feature = "parallel_jacobian")]
 use rayon::prelude::*;
@@ -51,7 +50,7 @@ pub fn parallel_finite_difference_jacobian<F, Func>(
     perturbation_scale: F,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: IntegrateFloat + Send + Sync,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Sync,
 {
     let n_dim = y.len();
@@ -150,7 +149,7 @@ pub fn parallel_sparse_jacobian<F, Func>(
     perturbation_scale: F,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync,
+    F: IntegrateFloat + Send + Sync,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Sync,
 {
     let n_dim = y.len();
@@ -445,7 +444,7 @@ impl ParallelJacobianStrategy {
         perturbation_scale: F,
     ) -> IntegrateResult<&Array2<F>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + 'static,
+        F: IntegrateFloat + Send + Sync,
         Func: Fn(F, ArrayView1<F>) -> Array1<F> + Sync,
     {
         // Decide which algorithm to use

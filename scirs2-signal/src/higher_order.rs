@@ -44,7 +44,6 @@
 
 use ndarray::{s, Array1, Array2};
 use num_complex::{Complex64, ComplexFloat};
-use std::f64::consts::PI;
 
 use crate::error::{SignalError, SignalResult};
 use crate::window;
@@ -292,7 +291,7 @@ fn compute_direct_bispectrum(
     };
 
     // Compute FFT
-    let mut signal_fft = compute_fft(&windowed_signal, nfft)?;
+    let signal_fft = compute_fft(&windowed_signal, nfft)?;
 
     // Number of frequency bins (for non-redundant region)
     let n_bins = (nfft / 2) + 1;

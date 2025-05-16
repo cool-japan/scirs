@@ -4,15 +4,12 @@
 // including linear, spline, Gaussian process, spectral, and iterative methods.
 
 use crate::error::{SignalError, SignalResult};
-use crate::spline::{bspline_evaluate, SplineOrder};
-use crate::utils;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use ndarray_linalg::UPLO;
-use scirs2_linalg::{solve, cholesky};
+use ndarray::{s, Array1, Array2};
 use rustfft::{
-    num_complex::{Complex, Complex64},
+    num_complex::Complex,
     FftPlanner,
 };
+use scirs2_linalg::{cholesky, solve, solve_triangular};
 use std::f64::consts::PI;
 
 /// Configuration for interpolation algorithms
@@ -585,7 +582,7 @@ pub fn gaussian_process_interpolate(
     }
 
     // Compute the Cholesky decomposition of K_xx
-    let l = match cholesky(&k_xx.view(), UPLO::Lower) {
+    let l = match cholesky(&k_xx.view()) {
         Ok(l) => l,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -596,7 +593,7 @@ pub fn gaussian_process_interpolate(
 
     // Solve for alpha = K_xx^(-1) * y
     let y = Array1::from_vec(valid_values);
-    let alpha = match l.solve_triangular(UPLO::Lower, &y) {
+    let alpha = match solve_triangular(&l.view(), &y.view(), true, false) {
         Ok(a) => a,
         Err(_) => {
             return Err(SignalError::Compute(

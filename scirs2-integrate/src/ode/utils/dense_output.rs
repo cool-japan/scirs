@@ -8,13 +8,14 @@ use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::interpolation::{
     cubic_hermite_interpolation, linear_interpolation, ContinuousOutputMethod,
 };
+use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// A dense solution that supports evaluation at any time within the integration range
 #[derive(Debug, Clone)]
-pub struct DenseSolution<F: Float> {
+pub struct DenseSolution<F: IntegrateFloat> {
     /// Time points from the discrete solution
     pub t: Vec<F>,
     /// Solution values at time points
@@ -27,7 +28,7 @@ pub struct DenseSolution<F: Float> {
     pub f: Option<Box<dyn Fn(F, ArrayView1<F>) -> Array1<F>>>,
 }
 
-impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
+impl<F: IntegrateFloat> DenseSolution<F> {
     /// Create a new dense solution object from a discrete solution
     pub fn new(
         t: Vec<F>,
@@ -132,7 +133,9 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
     /// Create a dense sequence of solution values for plotting or analysis
     pub fn dense_output(&self, n_points: usize) -> IntegrateResult<(Vec<F>, Vec<Array1<F>>)> {
         if self.t.is_empty() {
-            return Err(IntegrateError::ComputationError("Empty solution".to_string()));
+            return Err(IntegrateError::ComputationError(
+                "Empty solution".to_string(),
+            ));
         }
 
         let t_min = *self.t.first().unwrap();
@@ -159,7 +162,9 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
     ) -> IntegrateResult<(Vec<F>, Vec<F>)> {
         // Make sure the component index is valid
         if self.y.is_empty() {
-            return Err(IntegrateError::ComputationError("Empty solution".to_string()));
+            return Err(IntegrateError::ComputationError(
+                "Empty solution".to_string(),
+            ));
         }
 
         let dim = self.y[0].len();
@@ -183,7 +188,7 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
 
 /// Interpolation for DOP853 (8th order Dormand-Prince) method
 #[derive(Debug, Clone)]
-pub struct DOP853Interpolant<F: Float> {
+pub struct DOP853Interpolant<F: IntegrateFloat> {
     /// Time at the beginning of the step
     pub t0: F,
     /// Step size
@@ -194,7 +199,7 @@ pub struct DOP853Interpolant<F: Float> {
     pub k: Vec<Array1<F>>,
 }
 
-impl<F: Float + FromPrimitive + Debug> DOP853Interpolant<F> {
+impl<F: IntegrateFloat> DOP853Interpolant<F> {
     /// Create a new DOP853 interpolant
     pub fn new(t0: F, h: F, y0: Array1<F>, k: Vec<Array1<F>>) -> Self {
         DOP853Interpolant { t0, h, y0, k }
@@ -243,7 +248,7 @@ impl<F: Float + FromPrimitive + Debug> DOP853Interpolant<F> {
 
 /// Interpolation for Radau method
 #[derive(Debug, Clone)]
-pub struct RadauInterpolant<F: Float> {
+pub struct RadauInterpolant<F: IntegrateFloat> {
     /// Time at the beginning of the step
     pub t0: F,
     /// Step size
@@ -256,7 +261,7 @@ pub struct RadauInterpolant<F: Float> {
     pub k: Vec<Array1<F>>,
 }
 
-impl<F: Float + FromPrimitive + Debug> RadauInterpolant<F> {
+impl<F: IntegrateFloat> RadauInterpolant<F> {
     /// Create a new Radau interpolant
     pub fn new(t0: F, h: F, y0: Array1<F>, y1: Array1<F>, k: Vec<Array1<F>>) -> Self {
         RadauInterpolant { t0, h, y0, y1, k }
@@ -318,7 +323,7 @@ pub fn create_dense_solution<F, Func>(
     method: Option<ContinuousOutputMethod>,
 ) -> IntegrateResult<DenseSolution<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: IntegrateFloat,
     Func: 'static + Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     if t.is_empty() || y.is_empty() {

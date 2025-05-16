@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use ndarray::{array, Array1};
 use scirs2_interpolate::interp1d::monotonic::{
     hyman_interpolate, modified_akima_interpolate, monotonic_interpolate, steffen_interpolate,
     MonotonicMethod,
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let y = array![0.0, 1.0, 2.0, 4.0, 8.0];
 
     // Create a finer grid for evaluation
-    let x_fine = Array1::linspace(0.0, 4.0, 41);
+    let x_fine = Array1::<f64>::linspace(0.0, 4.0, 41);
 
     // Compare different monotonic interpolation methods
     let y_pchip = pchip_interpolate(&x.view(), &y.view(), &x_fine.view(), false)?;
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
     let y = array![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
 
-    let x_fine = Array1::linspace(0.0, 5.0, 51);
+    let x_fine = Array1::<f64>::linspace(0.0, 5.0, 51);
 
     let y_pchip = pchip_interpolate(&x.view(), &y.view(), &x_fine.view(), false)?;
     let y_hyman = hyman_interpolate(&x.view(), &y.view(), &x_fine.view(), false)?;
@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
     let y = array![0.0, 1.0, 0.5, 0.0, 0.5, 2.0];
 
-    let x_fine = Array1::linspace(0.0, 5.0, 51);
+    let x_fine = Array1::<f64>::linspace(0.0, 5.0, 51);
 
     let y_pchip = pchip_interpolate(&x.view(), &y.view(), &x_fine.view(), false)?;
     let y_hyman = hyman_interpolate(&x.view(), &y.view(), &x_fine.view(), false)?;
@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let y = array![0.0, 2.0, 1.0, 4.0, 3.0, 6.0, 5.0];
 
-    let x_fine = Array1::linspace(0.0, 6.0, 61);
+    let x_fine = Array1::<f64>::linspace(0.0, 6.0, 61);
 
     // Use the generic interface with different methods
     let y_pchip = monotonic_interpolate(
@@ -418,21 +418,31 @@ fn check_extrema(
     y_akima: &Array1<f64>,
 ) {
     // Find min and max of original data
-    let data_min = y_data.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let data_max = y_data.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let data_min = y_data.iter().fold(f64::INFINITY, |a, &b| f64::min(a, b));
+    let data_max = y_data
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| f64::max(a, b));
 
     // Find min and max of interpolated data
-    let pchip_min = y_pchip.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let pchip_max = y_pchip.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let pchip_min = y_pchip.iter().fold(f64::INFINITY, |a, &b| f64::min(a, b));
+    let pchip_max = y_pchip
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| f64::max(a, b));
 
-    let hyman_min = y_hyman.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let hyman_max = y_hyman.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let hyman_min = y_hyman.iter().fold(f64::INFINITY, |a, &b| f64::min(a, b));
+    let hyman_max = y_hyman
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| f64::max(a, b));
 
-    let steffen_min = y_steffen.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let steffen_max = y_steffen.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let steffen_min = y_steffen.iter().fold(f64::INFINITY, |a, &b| f64::min(a, b));
+    let steffen_max = y_steffen
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| f64::max(a, b));
 
-    let akima_min = y_akima.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let akima_max = y_akima.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let akima_min = y_akima.iter().fold(f64::INFINITY, |a, &b| f64::min(a, b));
+    let akima_max = y_akima
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| f64::max(a, b));
 
     println!("\nChecking for overshooting in {}:", label);
     println!("  Data range: min = {:.6}, max = {:.6}", data_min, data_max);

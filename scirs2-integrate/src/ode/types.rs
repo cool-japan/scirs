@@ -3,9 +3,9 @@
 //! This module defines the core types used by ODE solvers,
 //! including method enums, options, and results.
 
+use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use ndarray::Array1;
-use num_traits::Float;
 use std::fmt::Debug;
 
 /// ODE solver method
@@ -74,7 +74,7 @@ impl Default for MassMatrixType {
 }
 
 /// Mass matrix for ODE system of the form M(t,y)·y' = f(t,y)
-pub struct MassMatrix<F: Float> {
+pub struct MassMatrix<F: IntegrateFloat> {
     /// Type of the mass matrix
     pub matrix_type: MassMatrixType,
     /// Constant mass matrix (if applicable)
@@ -91,7 +91,7 @@ pub struct MassMatrix<F: Float> {
     pub upper_bandwidth: Option<usize>,
 }
 
-impl<F: Float> Debug for MassMatrix<F> {
+impl<F: IntegrateFloat> Debug for MassMatrix<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MassMatrix")
             .field("matrix_type", &self.matrix_type)
@@ -105,12 +105,12 @@ impl<F: Float> Debug for MassMatrix<F> {
     }
 }
 
-impl<F: Float> Clone for MassMatrix<F> {
+impl<F: IntegrateFloat> Clone for MassMatrix<F> {
     fn clone(&self) -> Self {
         MassMatrix {
             matrix_type: self.matrix_type.clone(),
             constant_matrix: self.constant_matrix.clone(),
-            time_function: None, // Cannot clone closures
+            time_function: None,  // Cannot clone closures
             state_function: None, // Cannot clone closures
             is_banded: self.is_banded,
             lower_bandwidth: self.lower_bandwidth,
@@ -119,7 +119,7 @@ impl<F: Float> Clone for MassMatrix<F> {
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Debug> MassMatrix<F> {
+impl<F: IntegrateFloat> MassMatrix<F> {
     /// Create a new identity mass matrix (standard ODE)
     pub fn identity() -> Self {
         MassMatrix {
@@ -211,7 +211,7 @@ impl<F: Float + num_traits::FromPrimitive + Debug> MassMatrix<F> {
 
 /// Options for controlling the behavior of ODE solvers
 #[derive(Debug, Clone)]
-pub struct ODEOptions<F: Float> {
+pub struct ODEOptions<F: IntegrateFloat> {
     /// The ODE solver method to use
     pub method: ODEMethod,
     /// Relative tolerance for error control
@@ -244,7 +244,7 @@ pub struct ODEOptions<F: Float> {
     pub jacobian_strategy: Option<crate::ode::utils::jacobian::JacobianStrategy>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Debug> Default for ODEOptions<F> {
+impl<F: IntegrateFloat> Default for ODEOptions<F> {
     fn default() -> Self {
         ODEOptions {
             method: ODEMethod::default(),
@@ -268,7 +268,7 @@ impl<F: Float + num_traits::FromPrimitive + Debug> Default for ODEOptions<F> {
 
 /// Result of ODE integration
 #[derive(Debug, Clone)]
-pub struct ODEResult<F: Float> {
+pub struct ODEResult<F: IntegrateFloat> {
     /// Time points
     pub t: Vec<F>,
     /// Solution values at time points

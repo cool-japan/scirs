@@ -6,7 +6,6 @@
 //! to a signal with continuous derivatives.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array, Array1, Array2, ArrayView1};
 use num_traits::{Float, NumCast};
 use std::fmt::Debug;
 
@@ -961,7 +960,7 @@ where
     }
 
     // Evaluate the differentiated spline at the specified points
-    let mut result = vec![0.0; x_f64.len()];
+    let result = vec![0.0; x_f64.len()];
 
     // Adjust the order for the derivative
     let new_order = if order_int >= deriv {

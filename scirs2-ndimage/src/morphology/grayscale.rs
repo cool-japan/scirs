@@ -42,6 +42,13 @@ use std::fmt::Debug;
 use super::MorphBorderMode;
 use crate::error::{NdimageError, Result};
 
+/// Internal enum for specifying morphological operation type
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum MorphOperation {
+    Erosion,
+    Dilation,
+}
+
 /// Erode a grayscale array using a structuring element
 ///
 /// Grayscale erosion replaces each pixel with the minimum value within the neighborhood
@@ -225,10 +232,18 @@ where
         });
     }
 
-    // If we can't handle the input, return an error
-    Err(NdimageError::NotImplementedError(
-        "Grey erosion currently only supports 2D arrays".to_string(),
-    ))
+    // For n-dimensional arrays, apply erosion with IxDyn
+    apply_grey_morphology_nd(
+        input,
+        structure,
+        size.and_then(|s| s.first().copied()),
+        None,
+        1,
+        mode,
+        cval,
+        origin.and_then(|o| o.first().copied()),
+        MorphOperation::Erosion,
+    )
 }
 
 /// Dilate a grayscale array using a structuring element
@@ -417,10 +432,18 @@ where
         });
     }
 
-    // If we can't handle the input, return an error
-    Err(NdimageError::NotImplementedError(
-        "Grey dilation currently only supports 2D arrays".to_string(),
-    ))
+    // For n-dimensional arrays, apply dilation with IxDyn
+    apply_grey_morphology_nd(
+        input,
+        structure,
+        size.and_then(|s| s.first().copied()),
+        None,
+        1,
+        mode,
+        cval,
+        origin.and_then(|o| o.first().copied()),
+        MorphOperation::Dilation,
+    )
 }
 
 /// Open a grayscale array using a structuring element
@@ -615,12 +638,7 @@ where
     let mut result = Array::from_elem(input.raw_dim(), T::from_f64(0.0).unwrap());
 
     // Calculate gradient as the difference between dilation and erosion
-    for (_i, ((d, e), r)) in dilated
-        .iter()
-        .zip(eroded.iter())
-        .zip(result.iter_mut())
-        .enumerate()
-    {
+    for ((d, e), r) in dilated.iter().zip(eroded.iter()).zip(result.iter_mut()) {
         *r = *d - *e;
     }
 
@@ -717,12 +735,11 @@ where
 
     // Calculate Laplace as (dilated + eroded) - 2 * input
     let two = T::from_f64(2.0).unwrap();
-    for (_i, (((d, e), inp), r)) in dilated
+    for (((d, e), inp), r) in dilated
         .iter()
         .zip(eroded.iter())
         .zip(input.iter())
         .zip(result.iter_mut())
-        .enumerate()
     {
         // Take absolute value to ensure peaks and valleys are both positive
         *r = (*d + *e - two * *inp).abs();
@@ -814,12 +831,7 @@ where
     let mut result = Array::from_elem(input.raw_dim(), T::from_f64(0.0).unwrap());
 
     // Calculate white tophat as input - opened
-    for (_i, ((inp, op), r)) in input
-        .iter()
-        .zip(opened.iter())
-        .zip(result.iter_mut())
-        .enumerate()
-    {
+    for ((inp, op), r) in input.iter().zip(opened.iter()).zip(result.iter_mut()) {
         *r = *inp - *op;
     }
 
@@ -917,12 +929,7 @@ where
     let mut result = Array::from_elem(input.raw_dim(), T::from_f64(0.0).unwrap());
 
     // Calculate black tophat as closed - input
-    for (_i, ((cl, inp), r)) in closed
-        .iter()
-        .zip(input.iter())
-        .zip(result.iter_mut())
-        .enumerate()
-    {
+    for ((cl, inp), r) in closed.iter().zip(input.iter()).zip(result.iter_mut()) {
         *r = *cl - *inp;
 
         // Ensure values at the border are zero to match test expectations
@@ -932,6 +939,143 @@ where
     }
 
     Ok(result)
+}
+
+/// Apply a grayscale morphological operation to an n-dimensional array
+#[allow(clippy::too_many_arguments)]
+fn apply_grey_morphology_nd<T, D>(
+    input: &Array<T, D>,
+    structure: Option<&Array<bool, D>>,
+    size: Option<usize>,
+    footprint: Option<&Array<bool, D>>,
+    iterations: usize,
+    mode: Option<MorphBorderMode>,
+    cval: Option<T>,
+    origin: Option<isize>,
+    operation: MorphOperation,
+) -> Result<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + Clone,
+    D: Dimension,
+{
+    let border_mode = mode.unwrap_or(MorphBorderMode::Constant);
+    let constant_value = cval.unwrap_or(T::zero());
+
+    // For generic dimensional operations, convert to IxDyn and process
+    let input_dyn = input
+        .to_owned()
+        .into_shape_with_order(ndarray::IxDyn(input.shape()))
+        .map_err(|_| {
+            NdimageError::DimensionError("Failed to convert to dynamic dimension".to_string())
+        })?;
+
+    // Get or create structure element
+    let struct_elem = if let Some(s) = structure {
+        s.to_owned()
+            .into_shape_with_order(ndarray::IxDyn(s.shape()))
+            .unwrap()
+    } else if let Some(f) = footprint {
+        f.to_owned()
+            .into_shape_with_order(ndarray::IxDyn(f.shape()))
+            .unwrap()
+    } else {
+        // Generate default structure based on size
+        let kernel_size = size.unwrap_or(3);
+        if kernel_size % 2 == 0 {
+            return Err(NdimageError::InvalidInput(
+                "Kernel size must be odd".to_string(),
+            ));
+        }
+
+        // Create a box structure of the specified size
+        let shape: Vec<_> = (0..input.ndim()).map(|_| kernel_size).collect();
+        Array::from_elem(ndarray::IxDyn(&shape), true)
+    };
+
+    // Get structure center
+    let center = origin.unwrap_or((struct_elem.shape()[0] as isize) / 2);
+    let center_vec = vec![center; struct_elem.ndim()];
+
+    // Apply operation iteratively
+    let mut result = input_dyn.clone();
+
+    for _ in 0..iterations {
+        let temp = result.clone();
+
+        // Apply morphological operation to each pixel
+        for idx in ndarray::indices(input_dyn.shape().to_vec()) {
+            let idx_vec: Vec<_> = idx.slice().to_vec();
+
+            // Initialize with appropriate value based on operation
+            let init_val = match operation {
+                MorphOperation::Erosion => T::infinity(),
+                MorphOperation::Dilation => T::neg_infinity(),
+            };
+
+            let mut extrema = init_val;
+
+            // Check neighborhood defined by structure element
+            for str_idx in ndarray::indices(struct_elem.shape()) {
+                let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
+
+                // Skip if structure element is false
+                let struct_val = struct_elem.get(str_idx_vec.as_slice());
+                if let Some(&false) = struct_val {
+                    continue;
+                }
+
+                // Calculate corresponding input position
+                let mut input_pos = vec![0isize; input.ndim()];
+                for d in 0..input.ndim() {
+                    input_pos[d] = idx_vec[d] as isize + str_idx_vec[d] as isize - center_vec[d];
+                }
+
+                // Check if position is within bounds
+                let mut within_bounds = true;
+                for (d, &pos) in input_pos.iter().enumerate().take(input.ndim()) {
+                    if pos < 0 || pos >= input.shape()[d] as isize {
+                        within_bounds = false;
+                        break;
+                    }
+                }
+
+                // Get the value
+                let val = if within_bounds {
+                    let input_idx: Vec<_> = input_pos.iter().map(|&x| x as usize).collect();
+                    temp[ndarray::IxDyn(&input_idx)]
+                } else {
+                    match border_mode {
+                        MorphBorderMode::Constant => constant_value,
+                        _ => constant_value, // For now, only support constant mode
+                    }
+                };
+
+                // Update extrema based on operation
+                match operation {
+                    MorphOperation::Erosion => {
+                        if val < extrema {
+                            extrema = val;
+                        }
+                    }
+                    MorphOperation::Dilation => {
+                        if val > extrema {
+                            extrema = val;
+                        }
+                    }
+                }
+            }
+
+            // Set result
+            result[ndarray::IxDyn(&idx_vec)] = extrema;
+        }
+    }
+
+    // Convert back to original type
+    result.into_shape_with_order(input.raw_dim()).map_err(|_| {
+        NdimageError::DimensionError(
+            "Failed to convert back to original dimensionality".to_string(),
+        )
+    })
 }
 
 #[cfg(test)]
@@ -1120,5 +1264,39 @@ mod tests {
 
         // Background should be close to zero
         assert!(result[[0, 0]].abs() < 0.1);
+    }
+
+    #[test]
+    fn test_grey_erosion_3d() {
+        // Create a 3D test array with a bright spot in the center
+        let mut input: ndarray::Array<f64, ndarray::Ix3> =
+            ndarray::Array::from_elem((3, 3, 3), 1.0);
+        input[[1, 1, 1]] = 2.0;
+
+        // Apply erosion
+        let result = grey_erosion(&input, None, None, None, None, None).unwrap();
+
+        // The bright center value should be eroded to match its neighbors
+        assert_abs_diff_eq!(result[[1, 1, 1]], 1.0, epsilon = 1e-10);
+
+        // Check that the shape is preserved
+        assert_eq!(result.shape(), input.shape());
+    }
+
+    #[test]
+    fn test_grey_dilation_3d() {
+        // Create a 3D test array with a dark spot in the center
+        let mut input: ndarray::Array<f64, ndarray::Ix3> =
+            ndarray::Array::from_elem((3, 3, 3), 1.0);
+        input[[1, 1, 1]] = 0.0;
+
+        // Apply dilation
+        let result = grey_dilation(&input, None, None, None, None, None).unwrap();
+
+        // The dark center value should be dilated to match its neighbors
+        assert_abs_diff_eq!(result[[1, 1, 1]], 1.0, epsilon = 1e-10);
+
+        // Check that the shape is preserved
+        assert_eq!(result.shape(), input.shape());
     }
 }

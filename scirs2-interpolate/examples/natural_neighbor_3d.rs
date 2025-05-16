@@ -3,12 +3,9 @@
 //! This example shows how to use the Voronoi-based Natural Neighbor
 //! interpolation methods for scattered 3D data.
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use rand::Rng;
-use scirs2_interpolate::voronoi::{
-    make_laplace_interpolator, make_sibson_interpolator, InterpolationMethod,
-    NaturalNeighborInterpolator,
-};
+use scirs2_interpolate::voronoi::{make_laplace_interpolator, make_sibson_interpolator};
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
@@ -16,14 +13,14 @@ use std::io::Write;
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points in 3D
     let n_points = 100;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Create points in a 3D domain
     let mut points_vec = Vec::with_capacity(n_points * 3);
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..10.0);
-        let y = rng.gen_range(0.0..10.0);
-        let z = rng.gen_range(0.0..10.0);
+        let x = rng.random_range(0.0..=10.0);
+        let y = rng.random_range(0.0..=10.0);
+        let z = rng.random_range(0.0..=10.0);
         points_vec.push(x);
         points_vec.push(y);
         points_vec.push(z);
@@ -39,9 +36,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let z = points[[i, 2]];
 
         // Test function: 3D peaks with exponential decay
-        let value = 2.0 * (-(x - 5.0).powi(2) - (y - 5.0).powi(2) - (z - 5.0).powi(2) / 8.0).exp()
-            + (-(x - 2.0).powi(2) - (y - 7.0).powi(2) - (z - 3.0).powi(2) / 2.0).exp()
-            + 0.5 * (-(x - 8.0).powi(2) - (y - 3.0).powi(2) - (z - 7.0).powi(2) / 4.0).exp();
+        let value =
+            2.0 * f64::exp(
+                -(f64::powi(x - 5.0, 2) + f64::powi(y - 5.0, 2) + f64::powi(z - 5.0, 2) / 8.0),
+            ) + f64::exp(
+                -(f64::powi(x - 2.0, 2) + f64::powi(y - 7.0, 2) + f64::powi(z - 3.0, 2) / 2.0),
+            ) + 0.5
+                * f64::exp(
+                    -(f64::powi(x - 8.0, 2) + f64::powi(y - 3.0, 2) + f64::powi(z - 7.0, 2) / 4.0),
+                );
 
         values_vec.push(value);
     }
@@ -79,9 +82,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let total_points = grid_size.pow(3);
     let mut processed = 0;
 
-    for (i, &x) in x_vals.iter().enumerate() {
-        for (j, &y) in y_vals.iter().enumerate() {
-            for (k, &z) in z_vals.iter().enumerate() {
+    for (_i, &x) in x_vals.iter().enumerate() {
+        for (_j, &y) in y_vals.iter().enumerate() {
+            for (_k, &z) in z_vals.iter().enumerate() {
                 let query = Array1::from_vec(vec![x, y, z]);
 
                 // Interpolate using Sibson method

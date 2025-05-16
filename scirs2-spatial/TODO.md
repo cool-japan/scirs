@@ -41,7 +41,7 @@ This module provides spatial algorithms and data structures similar to SciPy's s
   - [x] Construction algorithm for points on a sphere
   - [x] Region area calculations
   - [x] Geodesic distance calculations
-  - [ ] Visualization utilities
+  - [x] Visualization utilities
 - [x] Spatial transformations module (similar to scipy.spatial.transform)
   - [x] Rotation class with multiple representations
     - [x] Quaternions
@@ -128,12 +128,12 @@ This module provides spatial algorithms and data structures similar to SciPy's s
     - [x] 2D Voronoi diagrams
     - [x] Robust handling of degenerate inputs
     - [x] Special case handling for triangles/squares
-    - [ ] 3D Voronoi diagrams
-    - [ ] Fortune's algorithm implementation
-    - [ ] Integration with visualization tools
-  - [ ] Spherical Voronoi diagrams
-    - [ ] Construction algorithm
-    - [ ] Geodesic distance calculations
+    - [x] 3D Voronoi diagrams
+    - [x] Fortune's algorithm implementation
+    - [x] Integration with visualization tools
+  - [x] Spherical Voronoi diagrams
+    - [x] Construction algorithm
+    - [x] Geodesic distance calculations
   - [x] Delaunay triangulation
     - [x] 2D triangulation with proper error handling
     - [x] 3D triangulation
@@ -197,10 +197,10 @@ This module provides spatial algorithms and data structures similar to SciPy's s
     - [x] Local minimum detection and handling
     - [x] 2D-specific optimizations
 - [ ] Motion planning
-  - [ ] Collision detection
-  - [ ] Trajectory optimization
-  - [ ] Dubins paths
-  - [ ] Reeds-Shepp paths
+  - [x] Collision detection
+  - [x] Trajectory optimization
+  - [x] Dubins paths
+  - [x] Reeds-Shepp paths
 
 ## Geospatial Functionality
 

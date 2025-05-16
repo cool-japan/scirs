@@ -5,12 +5,11 @@
 //! function crosses zero. The event can trigger various actions, such as stopping
 //! the integration, modifying the state, or recording the event time.
 
+use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::dense_output::DenseSolution;
 use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Direction of zero-crossing for event detection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,7 +45,7 @@ impl Default for EventAction {
 
 /// Definition of an event to detect during integration
 #[derive(Debug, Clone)]
-pub struct EventSpec<F: Float> {
+pub struct EventSpec<F: IntegrateFloat> {
     /// Unique identifier for this event type
     pub id: String,
     /// Direction of zero-crossing to detect
@@ -61,7 +60,7 @@ pub struct EventSpec<F: Float> {
     pub precise_time: bool,
 }
 
-impl<F: Float + FromPrimitive> Default for EventSpec<F> {
+impl<F: IntegrateFloat> Default for EventSpec<F> {
     fn default() -> Self {
         EventSpec {
             id: "default".to_string(),
@@ -76,7 +75,7 @@ impl<F: Float + FromPrimitive> Default for EventSpec<F> {
 
 /// Represents a detected event during integration
 #[derive(Debug, Clone)]
-pub struct Event<F: Float> {
+pub struct Event<F: IntegrateFloat> {
     /// ID of the event that was triggered
     pub id: String,
     /// Time at which the event occurred
@@ -91,14 +90,14 @@ pub struct Event<F: Float> {
 
 /// Record of all events detected during integration
 #[derive(Debug, Clone)]
-pub struct EventRecord<F: Float> {
+pub struct EventRecord<F: IntegrateFloat> {
     /// List of all detected events in chronological order
     pub events: Vec<Event<F>>,
     /// Count of events by ID
     pub counts: std::collections::HashMap<String, usize>,
 }
 
-impl<F: Float> EventRecord<F> {
+impl<F: IntegrateFloat> EventRecord<F> {
     /// Create a new empty event record
     pub fn new() -> Self {
         EventRecord {
@@ -138,7 +137,7 @@ impl<F: Float> EventRecord<F> {
 
 /// Event detection and handling during ODE integration
 #[derive(Debug)]
-pub struct EventHandler<F: Float> {
+pub struct EventHandler<F: IntegrateFloat> {
     /// List of event specifications to detect
     pub specs: Vec<EventSpec<F>>,
     /// Record of detected events
@@ -149,7 +148,7 @@ pub struct EventHandler<F: Float> {
     last_state: Option<(F, Array1<F>)>,
 }
 
-impl<F: Float + FromPrimitive + Debug> EventHandler<F> {
+impl<F: IntegrateFloat> EventHandler<F> {
     /// Create a new event handler with the given event specifications
     pub fn new(specs: Vec<EventSpec<F>>) -> Self {
         let last_values = vec![None; specs.len()];
@@ -372,10 +371,7 @@ impl<F: Float + FromPrimitive + Debug> EventHandler<F> {
 }
 
 /// Function to create a terminal event (one that stops integration when triggered)
-pub fn terminal_event<F: Float + FromPrimitive>(
-    id: &str,
-    direction: EventDirection,
-) -> EventSpec<F> {
+pub fn terminal_event<F: IntegrateFloat>(id: &str, direction: EventDirection) -> EventSpec<F> {
     EventSpec {
         id: id.to_string(),
         direction,
@@ -388,14 +384,14 @@ pub fn terminal_event<F: Float + FromPrimitive>(
 
 /// Extension to ODEOptions to include event handling
 #[derive(Debug, Clone)]
-pub struct ODEOptionsWithEvents<F: Float> {
+pub struct ODEOptionsWithEvents<F: IntegrateFloat> {
     /// Base ODE options
     pub base_options: super::super::types::ODEOptions<F>,
     /// Event specifications
     pub event_specs: Vec<EventSpec<F>>,
 }
 
-impl<F: Float + FromPrimitive + Debug> ODEOptionsWithEvents<F> {
+impl<F: IntegrateFloat> ODEOptionsWithEvents<F> {
     /// Create options with events from base options
     pub fn new(
         base_options: super::super::types::ODEOptions<F>,
@@ -410,7 +406,7 @@ impl<F: Float + FromPrimitive + Debug> ODEOptionsWithEvents<F> {
 
 /// Extended ODE result that includes event information
 #[derive(Debug, Clone)]
-pub struct ODEResultWithEvents<F: Float> {
+pub struct ODEResultWithEvents<F: IntegrateFloat> {
     /// Base ODE result
     pub base_result: super::super::types::ODEResult<F>,
     /// Record of detected events
@@ -421,7 +417,7 @@ pub struct ODEResultWithEvents<F: Float> {
     pub event_termination: bool,
 }
 
-impl<F: Float + FromPrimitive + Debug> ODEResultWithEvents<F> {
+impl<F: IntegrateFloat> ODEResultWithEvents<F> {
     /// Create a new result with events
     pub fn new(
         base_result: super::super::types::ODEResult<F>,

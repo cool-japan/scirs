@@ -21,12 +21,12 @@ use crate::error::{NdimageError, Result};
 ///
 /// * `input` - Input array to filter
 /// * `size` - Size of the filter kernel in each dimension. If a single integer is provided,
-///            it will be used for all dimensions.
+///   it will be used for all dimensions.
 /// * `mode` - Border handling mode (defaults to Reflect)
 /// * `origin` - Origin of the filter kernel. Default is None, which centers the kernel.
-///              Provide an array of integers with one element for each axis, which specifies
-///              the origin of the kernel for that axis. The origin is 0 by default, which
-///              corresponds to the center of the kernel.
+///   Provide an array of integers with one element for each axis, which specifies
+///   the origin of the kernel for that axis. The origin is 0 by default, which
+///   corresponds to the center of the kernel.
 ///
 /// # Returns
 ///
@@ -548,6 +548,7 @@ where
 
             // Process each position in the output array
             // Helper function to iterate through all indices
+            #[allow(clippy::too_many_arguments)]
             fn process_indices<T: Float + FromPrimitive + std::ops::AddAssign>(
                 input_dyn: &ndarray::ArrayViewD<T>,
                 output_dyn: &mut ndarray::ArrayViewMutD<T>,

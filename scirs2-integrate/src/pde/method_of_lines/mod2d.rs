@@ -3,7 +3,7 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! 2D parabolic PDEs, such as the 2D heat equation and 2D advection-diffusion.
 
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis, s};
+use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
 use std::time::Instant;
 
 use crate::ode::{solve_ivp, ODEMethod, ODEOptions, ODEResult};

@@ -3,14 +3,13 @@
 //! This module provides implementations of BDF methods combined with
 //! index reduction techniques for solving higher-index DAE systems.
 
+use crate::common::IntegrateFloat;
 use crate::dae::index_reduction::{DAEStructure, ProjectionMethod};
 use crate::dae::methods::bdf_dae::{bdf_implicit_dae, bdf_semi_explicit_dae};
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 /// BDF method with index reduction for higher-index semi-explicit DAE systems
 ///
@@ -25,14 +24,7 @@ pub fn bdf_with_index_reduction<F, FFunc, GFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
@@ -48,12 +40,12 @@ where
     let n_y = y0.len();
 
     // Create a DAE structure for the system
-    let dae_structure = DAEStructure::new(n_x, n_y, index);
+    let mut dae_structure = DAEStructure::new_semi_explicit(n_x, n_y);
+    dae_structure.index = index;
 
     // Create a projection method for constraint stabilization
-    let projection_tol = options.newton_tol;
-    let max_projection_iter = options.max_newton_iterations;
-    let projection = ProjectionMethod::new(dae_structure, projection_tol, max_projection_iter);
+    let mut projection = ProjectionMethod::new(dae_structure);
+    projection.constraint_tol = options.newton_tol;
 
     // We'll wrap the system with projection steps to ensure constraint satisfaction
     let f_wrapped = |t: F, x: ArrayView1<F>, y: ArrayView1<F>| f(t, x, y);
@@ -96,7 +88,7 @@ where
             .map(|v| v.abs())
             .fold(F::zero(), |acc, val| acc + val);
 
-        if constraint_violation > projection_tol {
+        if constraint_violation > projection.constraint_tol {
             // In a full implementation, we would apply the projection method here
             // For the purposes of this example, we'll just make a note:
             result.message = Some(format!(
@@ -125,14 +117,7 @@ pub fn bdf_implicit_with_index_reduction<F, FFunc>(
     options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + ScalarOperand
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign,
+    F: IntegrateFloat,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     // Check the DAE index

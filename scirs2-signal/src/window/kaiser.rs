@@ -4,8 +4,8 @@
 //! the trade-off between the main lobe width and side lobe level.
 
 use crate::error::SignalResult;
-use std::f64::consts::PI;
 use scirs2_special::i0;
+use std::f64::consts::PI;
 
 /// Kaiser window.
 ///

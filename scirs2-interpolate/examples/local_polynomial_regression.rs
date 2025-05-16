@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for (i, &x) in x_array.iter().enumerate() {
         // Generate y = sin(x) + noise
-        let y_true = x.sin();
+        let y_true = f64::sin(x);
         let noise = (rand::random::<f64>() - 0.5) * 0.2; // Noise with ±0.1 amplitude
         y_array[i] = y_true + noise;
     }
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Compute true values for comparison
     let mut true_values = Array1::zeros(eval_x.len());
     for (i, &x) in eval_x.iter().enumerate() {
-        true_values[i] = x.sin();
+        true_values[i] = f64::sin(x);
     }
 
     // Compute mean squared errors
@@ -92,11 +92,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     // Evaluate at a specific point
-    let test_point = array![5.0];
+    let test_point = Array1::from_vec(vec![5.0]);
     let result = robust_model.fit_at_point(&test_point.view())?;
 
     println!("Results at x = 5.0:");
-    println!("  True value:     {:.4}", 5.0_f64.sin());
+    println!("  True value:     {:.4}", f64::sin(5.0));
     println!("  Fitted value:   {:.4}", result.value);
     println!("  Standard error: {:.4}", result.std_error);
 
