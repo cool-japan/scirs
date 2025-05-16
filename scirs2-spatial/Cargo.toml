@@ -16,10 +16,16 @@ num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
 rayon = "1.9.0"
+num = "0.4.1"
+approx = "0.5.1"
 
 # Computational geometry
 qhull = "0.4.0"
 rand = "0.9.0"
+
+# Linear algebra dependencies
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
 
 [features]
 default = []
@@ -29,3 +35,4 @@ parallel = []
 approx = "0.5.1"
 criterion = "0.5.1"
 rand_chacha = "0.9.0"
+plotters = "0.3.5"

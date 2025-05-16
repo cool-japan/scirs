@@ -19,10 +19,9 @@
 use std::fmt;
 use std::sync::Arc;
 
-
-use crate::array_protocol::ArrayProtocol;
 use crate::array_protocol::neural::Sequential;
-use crate::array_protocol::training::{Dataset, DataLoader, Trainer, TrainingCallback, Metrics};
+use crate::array_protocol::training::{DataLoader, Dataset, Metrics, Trainer, TrainingCallback};
+use crate::array_protocol::ArrayProtocol;
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Distributed training strategy.
@@ -30,13 +29,13 @@ use crate::error::{CoreError, CoreResult, ErrorContext};
 pub enum DistributedStrategy {
     /// Data parallelism - same model on each worker, different data.
     DataParallel,
-    
+
     /// Model parallelism - different parts of the model on each worker.
     ModelParallel,
-    
+
     /// Hybrid parallelism - combination of data and model parallelism.
     HybridParallel,
-    
+
     /// Pipeline parallelism - model stages executed in a pipeline.
     PipelineParallel,
 }
@@ -57,25 +56,25 @@ impl fmt::Display for DistributedStrategy {
 pub struct DistributedTrainingConfig {
     /// Distributed training strategy.
     pub strategy: DistributedStrategy,
-    
+
     /// Number of workers.
     pub num_workers: usize,
-    
+
     /// Rank of the current worker.
     pub rank: usize,
-    
+
     /// Whether this worker is the master.
     pub is_master: bool,
-    
+
     /// Synchronization interval (in batches).
     pub sync_interval: usize,
-    
+
     /// Communication backend.
     pub backend: String,
-    
+
     /// Whether to use mixed precision training.
     pub mixed_precision: bool,
-    
+
     /// Gradient accumulation steps.
     pub gradient_accumulation_steps: usize,
 }
@@ -120,42 +119,42 @@ impl DistributedNode {
             _channel: CommunicationChannel::new(channel),
         }
     }
-    
+
     /// Synchronize model parameters with other nodes.
     pub fn synchronize_parameters(&mut self) -> CoreResult<()> {
         match self.config.strategy {
             DistributedStrategy::DataParallel => {
                 // In data parallelism, we average the gradients across workers
                 self.average_gradients()?;
-            },
+            }
             DistributedStrategy::ModelParallel => {
                 // In model parallelism, we exchange activations and gradients
                 // between adjacent layers
                 self.exchange_activations_and_gradients()?;
-            },
+            }
             DistributedStrategy::HybridParallel => {
                 // In hybrid parallelism, we do a combination of both
                 self.average_gradients()?;
                 self.exchange_activations_and_gradients()?;
-            },
+            }
             DistributedStrategy::PipelineParallel => {
                 // In pipeline parallelism, we maintain a pipeline of batches
                 self.pipeline_forward_backward()?;
-            },
+            }
         }
-        
+
         Ok(())
     }
-    
+
     /// Average gradients across workers.
     fn average_gradients(&mut self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would use the DistributedCommunication
         // channel to exchange gradients with other workers.
-        
+
         // 1. Get model parameters
         let params = self.model.parameters();
-        
+
         // 2. For each parameter, send gradient to other workers and receive their gradients
         for _param in params {
             // Example: In a real implementation, we would do something like:
@@ -163,16 +162,16 @@ impl DistributedNode {
             // let averaged_gradient = self.channel.all_reduce(gradient, "mean")?;
             // param.set_grad(averaged_gradient)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Exchange activations and gradients between adjacent layers.
     fn exchange_activations_and_gradients(&mut self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would use the DistributedCommunication
         // channel to exchange activations and gradients with adjacent workers.
-        
+
         // For model parallelism, each worker has a subset of the model's layers.
         // During forward pass:
         //   - Worker i computes activations for its layers
@@ -183,15 +182,15 @@ impl DistributedNode {
         //   - Worker i+1 computes gradients for its layers
         //   - Worker i+1 sends gradients to worker i
         //   - Worker i receives gradients from worker i+1
-        
+
         Ok(())
     }
-    
+
     /// Implement pipeline parallelism.
     fn pipeline_forward_backward(&mut self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would maintain a pipeline of mini-batches.
-        
+
         // In pipeline parallelism:
         // - The model is divided into stages, with each stage on a different worker
         // - Multiple mini-batches are processed concurrently
@@ -199,7 +198,7 @@ impl DistributedNode {
         //   to worker i+1 and starts processing the next mini-batch
         // - This creates a pipeline where different workers are processing different
         //   mini-batches at the same time
-        
+
         Ok(())
     }
 }
@@ -222,13 +221,22 @@ pub trait DistributedCommunication: Send + Sync {
     fn scatter(&self, tensors: Vec<Box<dyn ArrayProtocol>>) -> CoreResult<Box<dyn ArrayProtocol>>;
 
     /// Reduce tensors from all workers to the master.
-    fn reduce(&self, tensor: Box<dyn ArrayProtocol>, op: &str) -> CoreResult<Box<dyn ArrayProtocol>>;
+    fn reduce(
+        &self,
+        tensor: Box<dyn ArrayProtocol>,
+        op: &str,
+    ) -> CoreResult<Box<dyn ArrayProtocol>>;
 
     /// All-reduce tensors across all workers.
-    fn all_reduce(&self, tensor: Box<dyn ArrayProtocol>, op: &str) -> CoreResult<Box<dyn ArrayProtocol>>;
+    fn all_reduce(
+        &self,
+        tensor: Box<dyn ArrayProtocol>,
+        op: &str,
+    ) -> CoreResult<Box<dyn ArrayProtocol>>;
 
     /// All-gather tensors from all workers to all workers.
-    fn all_gather(&self, tensor: Box<dyn ArrayProtocol>) -> CoreResult<Vec<Box<dyn ArrayProtocol>>>;
+    fn all_gather(&self, tensor: Box<dyn ArrayProtocol>)
+        -> CoreResult<Vec<Box<dyn ArrayProtocol>>>;
 
     /// Barrier synchronization.
     fn barrier(&self) -> CoreResult<()>;
@@ -264,7 +272,7 @@ impl Clone for Box<dyn DistributedCommunication> {
 pub struct MockDistributedCommunication {
     /// Number of workers.
     num_workers: usize,
-    
+
     /// Rank of the current worker.
     rank: usize,
 }
@@ -285,7 +293,7 @@ impl DistributedCommunication for MockDistributedCommunication {
     fn recv(&self, _source: usize) -> CoreResult<Box<dyn ArrayProtocol>> {
         // In a real implementation, this would receive a tensor from the source worker
         Err(CoreError::NotImplementedError(ErrorContext::new(
-            "recv not implemented for MockDistributedCommunication".to_string()
+            "recv not implemented for MockDistributedCommunication".to_string(),
         )))
     }
 
@@ -303,34 +311,47 @@ impl DistributedCommunication for MockDistributedCommunication {
         // In a real implementation, this would scatter tensors to all workers
         if tensors.is_empty() {
             return Err(CoreError::InvalidArgument(ErrorContext::new(
-                "Empty tensors list for scatter".to_string()
+                "Empty tensors list for scatter".to_string(),
             )));
         }
 
         Ok(tensors[0].clone())
     }
 
-    fn reduce(&self, tensor: Box<dyn ArrayProtocol>, op: &str) -> CoreResult<Box<dyn ArrayProtocol>> {
+    fn reduce(
+        &self,
+        tensor: Box<dyn ArrayProtocol>,
+        op: &str,
+    ) -> CoreResult<Box<dyn ArrayProtocol>> {
         // In a real implementation, this would reduce tensors across all workers
         match op {
             "sum" | "mean" => Ok(tensor),
-            _ => Err(CoreError::InvalidArgument(ErrorContext::new(
-                format!("Unknown reduction operation: {}", op)
-            ))),
+            _ => Err(CoreError::InvalidArgument(ErrorContext::new(format!(
+                "Unknown reduction operation: {}",
+                op
+            )))),
         }
     }
 
-    fn all_reduce(&self, tensor: Box<dyn ArrayProtocol>, op: &str) -> CoreResult<Box<dyn ArrayProtocol>> {
+    fn all_reduce(
+        &self,
+        tensor: Box<dyn ArrayProtocol>,
+        op: &str,
+    ) -> CoreResult<Box<dyn ArrayProtocol>> {
         // In a real implementation, this would all-reduce tensors across all workers
         match op {
             "sum" | "mean" => Ok(tensor),
-            _ => Err(CoreError::InvalidArgument(ErrorContext::new(
-                format!("Unknown reduction operation: {}", op)
-            ))),
+            _ => Err(CoreError::InvalidArgument(ErrorContext::new(format!(
+                "Unknown reduction operation: {}",
+                op
+            )))),
         }
     }
 
-    fn all_gather(&self, tensor: Box<dyn ArrayProtocol>) -> CoreResult<Vec<Box<dyn ArrayProtocol>>> {
+    fn all_gather(
+        &self,
+        tensor: Box<dyn ArrayProtocol>,
+    ) -> CoreResult<Vec<Box<dyn ArrayProtocol>>> {
         // In a real implementation, this would all-gather tensors from all workers
         Ok(vec![tensor])
     }
@@ -369,21 +390,21 @@ impl DistributedDataset {
         let num_samples = dataset.len();
         let samples_per_worker = num_samples / num_workers;
         let remainder = num_samples % num_workers;
-        
+
         let start = if rank < remainder {
             rank * (samples_per_worker + 1)
         } else {
             rank * samples_per_worker + remainder
         };
-        
+
         let end = if rank < remainder {
             start + samples_per_worker + 1
         } else {
             start + samples_per_worker
         };
-        
+
         let indices = (start..end).collect();
-        
+
         Self {
             dataset,
             _num_workers: num_workers,
@@ -397,20 +418,20 @@ impl Dataset for DistributedDataset {
     fn len(&self) -> usize {
         self.indices.len()
     }
-    
+
     fn get(&self, index: usize) -> Option<(Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>)> {
         if index >= self.len() {
             return None;
         }
-        
+
         let global_index = self.indices[index];
         self.dataset.get(global_index)
     }
-    
+
     fn input_shape(&self) -> Vec<usize> {
         self.dataset.input_shape()
     }
-    
+
     fn output_shape(&self) -> Vec<usize> {
         self.dataset.output_shape()
     }
@@ -445,7 +466,7 @@ impl DistributedTrainer {
             _batch_counter: 0,
         }
     }
-    
+
     /// Train the model in a distributed setting.
     pub fn train(
         &mut self,
@@ -466,34 +487,34 @@ impl DistributedTrainer {
             match self.config.strategy {
                 DistributedStrategy::ModelParallel => {
                     self.train_model_parallel(train_loader, num_epochs, val_loader)?;
-                },
+                }
                 DistributedStrategy::HybridParallel => {
                     self.train_hybrid_parallel(train_loader, num_epochs, val_loader)?;
-                },
+                }
                 DistributedStrategy::PipelineParallel => {
                     self.train_pipeline_parallel(train_loader, num_epochs, val_loader)?;
-                },
+                }
                 _ => unreachable!(),
             }
         }
 
         Ok(())
     }
-    
+
     /// Synchronize model parameters with other workers.
     fn synchronize_parameters(&mut self) -> CoreResult<()> {
         // In a real implementation, this would synchronize model parameters
         // across all workers.
-        
+
         // If this is the master worker, broadcast parameters to all workers
         // Otherwise, receive parameters from the master
-        
+
         // For simplicity, we'll just call barrier to synchronize all workers
         self.channel.inner().barrier()?;
 
         Ok(())
     }
-    
+
     /// Train the model using data parallelism.
     fn train_data_parallel(
         &mut self,
@@ -573,10 +594,7 @@ pub struct ParameterSyncCallback {
 
 impl ParameterSyncCallback {
     /// Create a new parameter synchronization callback.
-    pub fn new(
-        sync_interval: usize,
-        channel: Box<dyn DistributedCommunication>,
-    ) -> Self {
+    pub fn new(sync_interval: usize, channel: Box<dyn DistributedCommunication>) -> Self {
         Self {
             sync_interval,
             batch_counter: 0,
@@ -597,7 +615,7 @@ impl TrainingCallback for ParameterSyncCallback {
         // In a real implementation, this would call channel.all_reduce() for each parameter.
 
         match self.channel.inner().barrier() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => eprintln!("Error in barrier synchronization: {}", e),
         }
     }
@@ -616,7 +634,7 @@ impl TrainingCallback for ParameterSyncCallback {
             // In a real implementation, this would call channel.all_reduce() for each parameter.
 
             match self.channel.inner().barrier() {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(e) => eprintln!("Error in barrier synchronization: {}", e),
             }
         }
@@ -625,7 +643,7 @@ impl TrainingCallback for ParameterSyncCallback {
     fn on_train_start(&mut self, _num_epochs: usize) {
         // Synchronize initial parameters
         match self.channel.inner().barrier() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => eprintln!("Error in barrier synchronization: {}", e),
         }
     }
@@ -633,7 +651,7 @@ impl TrainingCallback for ParameterSyncCallback {
     fn on_train_end(&mut self, _metrics: &Metrics) {
         // Final synchronization
         match self.channel.inner().barrier() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => eprintln!("Error in barrier synchronization: {}", e),
         }
     }
@@ -654,7 +672,7 @@ impl DistributedTrainingFactory {
             config.rank,
         ))
     }
-    
+
     /// Create a new distributed trainer.
     pub fn create_trainer(
         trainer: Trainer,
@@ -672,7 +690,7 @@ impl DistributedTrainingFactory {
                 config.rank,
             )),
         };
-        
+
         DistributedTrainer::new(trainer, config, channel)
     }
 }
@@ -680,48 +698,54 @@ impl DistributedTrainingFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
-    use crate::array_protocol::NdarrayWrapper;
     use crate::array_protocol::training::InMemoryDataset;
-    
+    use crate::array_protocol::NdarrayWrapper;
+    use ndarray::Array2;
+
     #[test]
     fn test_distributed_dataset() {
         // Create a dataset
         let inputs = Array2::<f64>::ones((10, 5));
         let targets = Array2::<f64>::zeros((10, 2));
         let dataset = Box::new(InMemoryDataset::from_arrays(inputs, targets));
-        
+
         // Create a distributed dataset
         let dist_dataset = DistributedDataset::new(dataset, 2, 0);
-        
+
         // Check properties
         assert_eq!(dist_dataset.len(), 5);
         assert_eq!(dist_dataset.input_shape(), vec![5]);
         assert_eq!(dist_dataset.output_shape(), vec![2]);
-        
+
         // Get a sample
         let (input, target) = dist_dataset.get(0).unwrap();
-        assert!(input.as_any().downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>().is_some());
-        assert!(target.as_any().downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>().is_some());
+        assert!(input
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>()
+            .is_some());
+        assert!(target
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>()
+            .is_some());
     }
-    
+
     #[test]
     fn test_mock_distributed_communication() {
         // Create a mock distributed communication channel
         let channel = MockDistributedCommunication::new(2, 0);
-        
+
         // Create a tensor
         let tensor = NdarrayWrapper::new(Array2::<f64>::ones((2, 2)));
         let boxed_tensor = Box::new(tensor);
-        
+
         // Test broadcast
         let result = channel.broadcast(boxed_tensor.clone());
         assert!(result.is_ok());
-        
+
         // Test all_reduce
         let result = channel.all_reduce(boxed_tensor.clone(), "mean");
         assert!(result.is_ok());
-        
+
         // Test barrier
         let result = channel.barrier();
         assert!(result.is_ok());

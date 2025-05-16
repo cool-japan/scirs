@@ -43,7 +43,7 @@ pub struct CallbackContext<'a, F: Float + Debug + ScalarOperand> {
     /// Validation loss for current epoch
     pub val_loss: Option<F>,
     /// Training metrics for current epoch
-    pub metrics: Vec<(String, Option<F>)>,
+    pub metrics: Vec<F>,
     /// Training history so far
     pub history: &'a History<F>,
     /// Whether to stop training
@@ -62,8 +62,10 @@ mod early_stopping;
 mod gradient_clipping;
 mod learning_rate_scheduler;
 mod learning_rate_scheduler_trait;
+mod metrics;
 mod model_checkpoint;
 mod tensorboard;
+mod visualization_callback;
 
 /// Adapter to use a function as a callback
 pub struct FunctionCallback<F: Float + Debug + ScalarOperand + Send + Sync> {
@@ -99,4 +101,7 @@ pub use early_stopping::EarlyStopping;
 pub use gradient_clipping::{GradientClipping, GradientClippingMethod};
 pub use learning_rate_scheduler::{CosineAnnealingLR, ReduceOnPlateau, ScheduleMethod, StepDecay};
 pub use learning_rate_scheduler_trait::LearningRateScheduler;
+#[cfg(feature = "metrics_integration")]
+pub use metrics::*;
 pub use tensorboard::TensorBoardLogger;
+pub use visualization_callback::VisualizationCallback;

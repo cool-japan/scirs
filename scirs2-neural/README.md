@@ -32,6 +32,9 @@ To enable optimizations and optional features:
 ```toml
 [dependencies]
 scirs2-neural = { version = "0.1.0-alpha.3", features = ["cuda", "blas"] }
+
+# For integration with scirs2-metrics
+scirs2-neural = { version = "0.1.0-alpha.3", features = ["metrics_integration"] }
 ```
 
 ## Usage
@@ -232,6 +235,7 @@ This module integrates with other SciRS2 modules:
 - **scirs2-linalg**: For efficient matrix operations
 - **scirs2-optim**: For advanced optimization algorithms
 - **scirs2-autograd**: For automatic differentiation (if used separately)
+- **scirs2-metrics**: For advanced evaluation metrics and visualizations
 
 Example of using linear algebra functions:
 
@@ -243,6 +247,51 @@ use ndarray::Array3;
 let a = Array3::<f64>::zeros((32, 10, 20));
 let b = Array3::<f64>::zeros((32, 20, 15));
 let result = batch_operations::batch_matmul(&a, &b);
+```
+
+### Metrics Integration
+
+With the `metrics_integration` feature, you can use scirs2-metrics for advanced evaluation:
+
+```rust
+use scirs2_metrics::integration::neural::{NeuralMetricAdapter, MetricsCallback};
+use scirs2_neural::callbacks::ScirsMetricsCallback;
+use scirs2_neural::evaluation::MetricType;
+
+// Create metric adapters
+let metrics = vec![
+    NeuralMetricAdapter::<f32>::accuracy(),
+    NeuralMetricAdapter::<f32>::precision(),
+    NeuralMetricAdapter::<f32>::f1_score(),
+    NeuralMetricAdapter::<f32>::mse(),
+    NeuralMetricAdapter::<f32>::r2(),
+];
+
+// Create callback for tracking metrics during training
+let metrics_callback = ScirsMetricsCallback::new(metrics);
+
+// Train model with metrics tracking
+model.fit(&x_train, &y_train, 
+    epochs, 
+    batch_size, 
+    Some(&[&metrics_callback]), 
+    None
+)?;
+
+// Get evaluation metrics
+let eval_results = model.evaluate(
+    &x_test, 
+    &y_test, 
+    Some(batch_size),
+    Some(vec![
+        MetricType::Accuracy,
+        MetricType::Precision,
+        MetricType::F1Score,
+    ])
+)?;
+
+// Visualize results
+let roc_viz = neural_roc_curve_visualization(&y_true, &y_pred, Some(auc))?;
 ```
 
 ## Contributing

@@ -12,6 +12,9 @@ use rand::Rng;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
+/// Type alias for projection cache
+type ProjectionCache<F> = (Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>);
+
 /// Different types of attention masks
 #[derive(Debug, Clone)]
 pub enum AttentionMask {
@@ -113,7 +116,7 @@ pub struct MultiHeadAttention<F: Float + Debug> {
     /// Input cache for backward pass
     input_cache: RefCell<Option<Array<F, IxDyn>>>,
     /// Query, key, value projections cache
-    projection_cache: RefCell<Option<(Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>)>>,
+    projection_cache: RefCell<Option<ProjectionCache<F>>>,
     /// Attention weights cache for backward pass
     attention_weights_cache: RefCell<Option<Array<F, IxDyn>>>,
 }

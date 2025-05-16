@@ -96,7 +96,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Dropout<F> {
     ///
     /// * A new dropout layer
     pub fn new<R: Rng + 'static + Clone + Send + Sync>(p: f64, rng: &mut R) -> Result<Self> {
-        if p < 0.0 || p >= 1.0 {
+        if !(0.0..1.0).contains(&p) {
             return Err(NeuralError::InvalidArchitecture(
                 "Dropout probability must be in [0, 1)".to_string(),
             ));
@@ -243,6 +243,31 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Drop
     fn update(&mut self, _learning_rate: F) -> Result<()> {
         // Dropout has no parameters to update
         Ok(())
+    }
+
+    fn layer_type(&self) -> &str {
+        "Dropout"
+    }
+
+    fn parameter_count(&self) -> usize {
+        // Dropout layer has no trainable parameters
+        0
+    }
+
+    fn layer_description(&self) -> String {
+        format!(
+            "type:Dropout, p:{}, training:{}",
+            self.p.to_f64().unwrap_or(0.0),
+            self.training
+        )
+    }
+
+    fn set_training(&mut self, training: bool) {
+        self.training = training;
+    }
+
+    fn is_training(&self) -> bool {
+        self.training
     }
 }
 

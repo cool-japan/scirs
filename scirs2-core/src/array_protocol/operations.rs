@@ -22,11 +22,10 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 
-use ndarray::{Array, Ix1, Ix2, IxDyn, IntoDimension};
+use ndarray::{Array, IntoDimension, Ix1, Ix2, IxDyn};
 
 use crate::array_protocol::{
-    ArrayFunction, ArrayProtocol, NotImplemented, NdarrayWrapper,
-    get_implementing_args,
+    get_implementing_args, ArrayFunction, ArrayProtocol, NdarrayWrapper, NotImplemented,
 };
 use crate::error::CoreError;
 
@@ -96,7 +95,10 @@ macro_rules! array_function_dispatch {
 
 // Matrix multiplication operation
 array_function_dispatch!(
-    fn matmul(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn matmul(
+        a: &dyn ArrayProtocol,
+        b: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
@@ -107,20 +109,20 @@ array_function_dispatch!(
             // Try with Ix2 dimension (static dimension size)
             if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
             ) {
                 // Extract arrays and compute matrix multiplication manually
                 // to avoid complex borrow/trait inference issues with dot()
                 let a_array_owned = a_array.as_array().clone();
                 let b_array_owned = b_array.as_array().clone();
-                
+
                 // Manual implementation of matrix multiplication
                 let (m, k) = a_array_owned.dim();
                 let (_, n) = b_array_owned.dim();
-                
+
                 // Create result array
                 let mut result = ndarray::Array::<f64, _>::zeros((m, n));
-                
+
                 // Compute the matrix multiplication
                 for i in 0..m {
                     for j in 0..n {
@@ -136,29 +138,30 @@ array_function_dispatch!(
             // Try with IxDyn dimension (dynamic dimension size used in tests)
             else if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
             ) {
                 // Extract arrays and compute matrix multiplication with dynamic dimensions manually
                 // to avoid complex borrow/trait inference issues with dot()
                 let a_array_owned = a_array.as_array().to_owned();
                 let b_array_owned = b_array.as_array().to_owned();
-                
+
                 // Manual implementation of matrix multiplication
                 let a_dim = a_array_owned.shape();
                 let b_dim = b_array_owned.shape();
-                
+
                 if a_dim.len() != 2 || b_dim.len() != 2 || a_dim[1] != b_dim[0] {
-                    return Err(OperationError::ShapeMismatch(
-                        format!("Invalid shapes for matmul: {:?} and {:?}", a_dim, b_dim)
-                    ));
+                    return Err(OperationError::ShapeMismatch(format!(
+                        "Invalid shapes for matmul: {:?} and {:?}",
+                        a_dim, b_dim
+                    )));
                 }
-                
+
                 let (m, k) = (a_dim[0], a_dim[1]);
                 let n = b_dim[1];
-                
+
                 // Create result array
                 let mut result = ndarray::Array::<f64, _>::zeros((m, n).into_dimension());
-                
+
                 // Compute the matrix multiplication
                 for i in 0..m {
                     for j in 0..n {
@@ -172,14 +175,14 @@ array_function_dispatch!(
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "matmul not implemented for these array types".to_string()
+                    "matmul not implemented for these array types".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::matmul"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -191,7 +194,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -200,7 +203,10 @@ array_function_dispatch!(
 
 // Element-wise addition operation
 array_function_dispatch!(
-    fn add(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn add(
+        a: &dyn ArrayProtocol,
+        b: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
@@ -211,7 +217,7 @@ array_function_dispatch!(
             // Try with Ix2 dimension first (most common case)
             if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
             ) {
                 let result = a_array.as_array() + b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -219,20 +225,20 @@ array_function_dispatch!(
             // Try with IxDyn dimension (used in tests)
             else if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
             ) {
                 let result = a_array.as_array() + b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "add not implemented for these array types".to_string()
+                    "add not implemented for these array types".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::add"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -244,7 +250,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -253,7 +259,10 @@ array_function_dispatch!(
 
 // Element-wise subtraction operation
 array_function_dispatch!(
-    fn subtract(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn subtract(
+        a: &dyn ArrayProtocol,
+        b: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
@@ -264,7 +273,7 @@ array_function_dispatch!(
             // Try with Ix2 dimension first (most common case)
             if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
             ) {
                 let result = a_array.as_array() - b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -272,20 +281,20 @@ array_function_dispatch!(
             // Try with IxDyn dimension (used in tests)
             else if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
             ) {
                 let result = a_array.as_array() - b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "subtract not implemented for these array types".to_string()
+                    "subtract not implemented for these array types".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::subtract"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -297,7 +306,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -306,7 +315,10 @@ array_function_dispatch!(
 
 // Element-wise multiplication operation
 array_function_dispatch!(
-    fn multiply(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn multiply(
+        a: &dyn ArrayProtocol,
+        b: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
@@ -317,7 +329,7 @@ array_function_dispatch!(
             // Try with Ix2 dimension first (most common case)
             if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>(),
             ) {
                 let result = a_array.as_array() * b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -325,20 +337,20 @@ array_function_dispatch!(
             // Try with IxDyn dimension (used in tests)
             else if let (Some(a_array), Some(b_array)) = (
                 a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+                b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
             ) {
                 let result = a_array.as_array() * b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "multiply not implemented for these array types".to_string()
+                    "multiply not implemented for these array types".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::multiply"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -350,7 +362,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -372,7 +384,7 @@ array_function_dispatch!(
                     Some(ax) => {
                         let result = a_array.as_array().sum_axis(ndarray::Axis(ax));
                         return Ok(Box::new(NdarrayWrapper::new(result)));
-                    },
+                    }
                     None => {
                         let result = a_array.as_array().sum();
                         return Ok(Box::new(result));
@@ -385,7 +397,7 @@ array_function_dispatch!(
                     Some(ax) => {
                         let result = a_array.as_array().sum_axis(ndarray::Axis(ax));
                         return Ok(Box::new(NdarrayWrapper::new(result)));
-                    },
+                    }
                     None => {
                         let result = a_array.as_array().sum();
                         return Ok(Box::new(result));
@@ -393,7 +405,7 @@ array_function_dispatch!(
                 }
             } else {
                 return Err(OperationError::NotImplemented(
-                    "sum not implemented for this array type".to_string()
+                    "sum not implemented for this array type".to_string(),
                 ));
             }
         }
@@ -405,7 +417,7 @@ array_function_dispatch!(
         }
 
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::sum"),
             &[TypeId::of::<Box<dyn Any>>()],
@@ -437,33 +449,34 @@ array_function_dispatch!(
                 // For dynamic dimension, we need to check if it's a 2D array
                 let a_dim = a_array.as_array().shape();
                 if a_dim.len() != 2 {
-                    return Err(OperationError::ShapeMismatch(
-                        format!("Transpose requires a 2D array, got shape: {:?}", a_dim)
-                    ));
+                    return Err(OperationError::ShapeMismatch(format!(
+                        "Transpose requires a 2D array, got shape: {:?}",
+                        a_dim
+                    )));
                 }
-                
+
                 // Create a transposed array
                 let (m, n) = (a_dim[0], a_dim[1]);
                 let mut result = ndarray::Array::<f64, _>::zeros((n, m).into_dimension());
-                
+
                 // Fill the transposed array
                 for i in 0..m {
                     for j in 0..n {
                         result[[j, i]] = a_array.as_array()[[i, j]];
                     }
                 }
-                
+
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "transpose not implemented for this array type".to_string()
+                    "transpose not implemented for this array type".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::transpose"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -475,7 +488,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -483,7 +496,10 @@ array_function_dispatch!(
 );
 
 // Element-wise application of a function implementation
-pub fn apply_elementwise<F>(a: &dyn ArrayProtocol, f: F) -> Result<Box<dyn ArrayProtocol>, OperationError> 
+pub fn apply_elementwise<F>(
+    a: &dyn ArrayProtocol,
+    f: F,
+) -> Result<Box<dyn ArrayProtocol>, OperationError>
 where
     F: Fn(f64) -> f64 + 'static,
 {
@@ -498,7 +514,7 @@ where
             return Ok(Box::new(NdarrayWrapper::new(result)));
         } else {
             return Err(OperationError::NotImplemented(
-                "apply_elementwise not implemented for this array type".to_string()
+                "apply_elementwise not implemented for this array type".to_string(),
             ));
         }
     }
@@ -511,23 +527,29 @@ where
         return Ok(Box::new(NdarrayWrapper::new(result)));
     } else {
         return Err(OperationError::NotImplemented(
-            "apply_elementwise not implemented for this array type".to_string()
+            "apply_elementwise not implemented for this array type".to_string(),
         ));
     }
 }
 
 // Concatenate operation
 array_function_dispatch!(
-    fn concatenate(arrays: &[&dyn ArrayProtocol], axis: usize) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn concatenate(
+        arrays: &[&dyn ArrayProtocol],
+        axis: usize,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         if arrays.is_empty() {
-            return Err(OperationError::Other("No arrays provided for concatenation".to_string()));
+            return Err(OperationError::Other(
+                "No arrays provided for concatenation".to_string(),
+            ));
         }
 
         // Convert each array to Box<dyn Any>
-        let boxed_arrays: Vec<Box<dyn Any>> = arrays.iter()
+        let boxed_arrays: Vec<Box<dyn Any>> = arrays
+            .iter()
             .map(|&a| Box::new(a.box_clone()) as Box<dyn Any>)
             .collect();
-        
+
         let implementing_args = get_implementing_args(&boxed_arrays);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
@@ -538,29 +560,35 @@ array_function_dispatch!(
                     ndarray_arrays.push(a.as_array().view());
                 } else {
                     return Err(OperationError::TypeMismatch(
-                        "All arrays must be NdarrayWrapper<f64, Ix2>".to_string()
+                        "All arrays must be NdarrayWrapper<f64, Ix2>".to_string(),
                     ));
                 }
             }
 
             let result = match ndarray::stack(ndarray::Axis(axis), &ndarray_arrays) {
                 Ok(arr) => arr,
-                Err(e) => return Err(OperationError::Other(format!("Concatenation failed: {}", e))),
+                Err(e) => {
+                    return Err(OperationError::Other(format!(
+                        "Concatenation failed: {}",
+                        e
+                    )))
+                }
             };
 
             return Ok(Box::new(NdarrayWrapper::new(result)));
         }
 
         // Delegate to the implementation
-        let array_boxed_clones: Vec<Box<dyn Any>> = arrays.iter()
+        let array_boxed_clones: Vec<Box<dyn Any>> = arrays
+            .iter()
             .map(|&a| Box::new(a.box_clone()) as Box<dyn Any>)
             .collect();
-            
+
         let mut kwargs = HashMap::new();
         kwargs.insert("axis".to_string(), Box::new(axis) as Box<dyn Any>);
 
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::concatenate"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -572,7 +600,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -581,7 +609,10 @@ array_function_dispatch!(
 
 // Reshape operation
 array_function_dispatch!(
-    fn reshape(a: &dyn ArrayProtocol, shape: &[usize]) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn reshape(
+        a: &dyn ArrayProtocol,
+        shape: &[usize],
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
@@ -592,9 +623,12 @@ array_function_dispatch!(
             if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
                 let result = match a_array.as_array().clone().into_shape_with_order(shape) {
                     Ok(arr) => arr,
-                    Err(e) => return Err(OperationError::ShapeMismatch(
-                        format!("Reshape failed: {}", e)
-                    )),
+                    Err(e) => {
+                        return Err(OperationError::ShapeMismatch(format!(
+                            "Reshape failed: {}",
+                            e
+                        )))
+                    }
                 };
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             }
@@ -602,24 +636,30 @@ array_function_dispatch!(
             else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
                 let result = match a_array.as_array().clone().into_shape_with_order(shape) {
                     Ok(arr) => arr,
-                    Err(e) => return Err(OperationError::ShapeMismatch(
-                        format!("Reshape failed: {}", e)
-                    )),
+                    Err(e) => {
+                        return Err(OperationError::ShapeMismatch(format!(
+                            "Reshape failed: {}",
+                            e
+                        )))
+                    }
                 };
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "reshape not implemented for this array type".to_string()
+                    "reshape not implemented for this array type".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let mut kwargs = HashMap::new();
-        kwargs.insert("shape".to_string(), Box::new(shape.to_vec()) as Box<dyn Any>);
+        kwargs.insert(
+            "shape".to_string(),
+            Box::new(shape.to_vec()) as Box<dyn Any>,
+        );
 
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::reshape"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -631,7 +671,7 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
@@ -642,7 +682,16 @@ array_function_dispatch!(
 
 // SVD decomposition operation
 array_function_dispatch!(
-    fn svd(a: &dyn ArrayProtocol) -> Result<(Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>), OperationError> {
+    fn svd(
+        a: &dyn ArrayProtocol,
+    ) -> Result<
+        (
+            Box<dyn ArrayProtocol>,
+            Box<dyn ArrayProtocol>,
+            Box<dyn ArrayProtocol>,
+        ),
+        OperationError,
+    > {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
@@ -656,7 +705,7 @@ array_function_dispatch!(
                 let u = Array::<f64, _>::eye(m);
                 let s = Array::<f64, _>::ones(Ix1(std::cmp::min(m, n)));
                 let vt = Array::<f64, _>::eye(n);
-                
+
                 return Ok((
                     Box::new(NdarrayWrapper::new(u)),
                     Box::new(NdarrayWrapper::new(s)),
@@ -664,26 +713,34 @@ array_function_dispatch!(
                 ));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "svd not implemented for this array type".to_string()
+                    "svd not implemented for this array type".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::svd"),
-            &[TypeId::of::<(Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>)>()],
+            &[TypeId::of::<(
+                Box<dyn ArrayProtocol>,
+                Box<dyn ArrayProtocol>,
+                Box<dyn ArrayProtocol>,
+            )>()],
             &[Box::new(a.box_clone())],
             &HashMap::new(),
         )?;
 
         // Try to downcast the result
-        match result.downcast::<(Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>)>() {
+        match result.downcast::<(
+            Box<dyn ArrayProtocol>,
+            Box<dyn ArrayProtocol>,
+            Box<dyn ArrayProtocol>,
+        )>() {
             Ok(tuple) => Ok(*tuple),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to SVD tuple".to_string()
+                "Failed to downcast result to SVD tuple".to_string(),
             )),
         }
     },
@@ -705,23 +762,23 @@ array_function_dispatch!(
                 let (m, n) = a_array.as_array().dim();
                 if m != n {
                     return Err(OperationError::ShapeMismatch(
-                        "Matrix must be square for inversion".to_string()
+                        "Matrix must be square for inversion".to_string(),
                     ));
                 }
-                
+
                 // Placeholder: just return the identity matrix
                 let result = Array::<f64, _>::eye(m);
                 return Ok(Box::new(NdarrayWrapper::new(result)));
             } else {
                 return Err(OperationError::NotImplemented(
-                    "inverse not implemented for this array type".to_string()
+                    "inverse not implemented for this array type".to_string(),
                 ));
             }
         }
 
         // Delegate to the implementation
         let array_ref = implementing_args[0].1;
-        
+
         let result = array_ref.array_function(
             &ArrayFunction::new("scirs2::array_protocol::operations::inverse"),
             &[TypeId::of::<Box<dyn ArrayProtocol>>()],
@@ -733,13 +790,12 @@ array_function_dispatch!(
         match result.downcast::<Box<dyn ArrayProtocol>>() {
             Ok(array) => Ok(*array),
             Err(_) => Err(OperationError::Other(
-                "Failed to downcast result to ArrayProtocol".to_string()
+                "Failed to downcast result to ArrayProtocol".to_string(),
             )),
         }
     },
     "scirs2::array_protocol::operations::inverse"
 );
-
 
 #[cfg(test)]
 mod tests {
@@ -750,7 +806,7 @@ mod tests {
     #[test]
     fn test_operations_with_ndarray() {
         use ndarray::array;
-        
+
         // Initialize the array protocol system
         array_protocol::init();
 
@@ -767,7 +823,10 @@ mod tests {
             if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, _>>() {
                 assert_eq!(result_array.as_array(), &a.dot(&b));
             } else {
-                assert!(false, "Matrix multiplication result is not the expected type");
+                assert!(
+                    false,
+                    "Matrix multiplication result is not the expected type"
+                );
             }
         } else {
             // Skip the test if the operation is not implemented
@@ -831,7 +890,7 @@ mod tests {
         } else {
             println!("Skipping reshape test - operation not implemented");
         }
-        
+
         // Test passed if we reach here without panicking
         println!("All operations tested or skipped successfully");
     }

@@ -86,17 +86,18 @@ impl<F: Float + Debug + ScalarOperand> Callback<F> for TensorBoardLogger<F> {
                     // writer.add_scalar("validation/loss", val_loss, epoch);
                 }
 
-                // Log custom metrics
-                for (name, value) in &context.metrics {
-                    if let Some(v) = value {
-                        println!(
-                            "TensorBoard: Logging epoch {} metric {}: {:.6?}",
-                            epoch + 1,
-                            name,
-                            v
-                        );
-                        // writer.add_scalar(&format!("metrics/{}", name), *v, epoch);
-                    }
+                // Log metrics if available
+                if !context.metrics.is_empty() {
+                    println!(
+                        "TensorBoard: Logging epoch {} metrics: {:.6?}",
+                        epoch + 1,
+                        context.metrics
+                    );
+                    // In a real implementation, we'd log each metric with a name
+                    // For now just log the raw values
+                    // for (i, metric) in context.metrics.iter().enumerate() {
+                    //     writer.add_scalar(&format!("metrics/metric_{}", i), *metric, epoch);
+                    // }
                 }
 
                 // Log model parameter histograms

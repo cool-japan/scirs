@@ -225,15 +225,9 @@ impl From<crate::array_protocol::OperationError> for CoreError {
             OperationError::NotImplemented(msg) => {
                 CoreError::NotImplementedError(ErrorContext::new(msg))
             }
-            OperationError::ShapeMismatch(msg) => {
-                CoreError::ShapeError(ErrorContext::new(msg))
-            }
-            OperationError::TypeMismatch(msg) => {
-                CoreError::TypeError(ErrorContext::new(msg))
-            }
-            OperationError::Other(msg) => {
-                CoreError::ComputationError(ErrorContext::new(msg))
-            }
+            OperationError::ShapeMismatch(msg) => CoreError::ShapeError(ErrorContext::new(msg)),
+            OperationError::TypeMismatch(msg) => CoreError::TypeError(ErrorContext::new(msg)),
+            OperationError::Other(msg) => CoreError::ComputationError(ErrorContext::new(msg)),
         }
     }
 }

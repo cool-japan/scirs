@@ -20,6 +20,10 @@ pub enum SpecialError {
     /// Not implemented error
     #[error("Not implemented: {0}")]
     NotImplementedError(String),
+
+    /// Convergence error (algorithm did not converge)
+    #[error("Convergence error: {0}")]
+    ConvergenceError(String),
 }
 
 /// Result type for special functions operations

@@ -150,6 +150,7 @@ pub fn save_model<F: Float + Debug + ScalarOperand + Send + Sync + 'static, P: A
     format: SerializationFormat,
 ) -> Result<()> {
     let serialized = serialize_model(model)?;
+
     let bytes = match format {
         SerializationFormat::JSON => serde_json::to_vec_pretty(&serialized)
             .map_err(|e| NeuralError::SerializationError(e.to_string()))?,
@@ -209,8 +210,14 @@ fn serialize_model<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
             });
             layers.push(config);
 
-            // Extract parameters
-            let params = extract_parameters(dense.get_parameters())?;
+            // Get parameters (weights and biases)
+            let layer_params = dense.get_parameters();
+
+            // The Dense layer stores weights with shape [input_dim, output_dim]
+            // We maintain the same shape when serializing
+
+            // Extract parameters - weights and biases
+            let params = extract_parameters(layer_params)?;
             parameters.push(params);
         } else if let Some(conv) = layer.as_any().downcast_ref::<Conv2D<F>>() {
             let config = LayerConfig::Conv2D(Conv2DConfig {
@@ -289,7 +296,7 @@ fn extract_parameters<F: Float + Debug + ScalarOperand + Send + Sync>(
 ) -> Result<Vec<Vec<f64>>> {
     let mut result = Vec::new();
 
-    for param in params {
+    for param in params.iter() {
         let f64_vec: Vec<f64> = param
             .iter()
             .map(|&x| {
@@ -368,10 +375,21 @@ fn deserialize_model<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
             bound_layers.push(Box::new(new_bn));
         } else if let Some(ln) = layer_ref.as_any().downcast_ref::<LayerNorm<F>>() {
             bound_layers.push(Box::new(ln.clone()));
+        } else if let Some(dropout) = layer_ref.as_any().downcast_ref::<Dropout<F>>() {
+            bound_layers.push(Box::new(dropout.clone()));
+        } else if let Some(maxpool) = layer_ref.as_any().downcast_ref::<MaxPool2D<F>>() {
+            // Create a new MaxPool2D instead of cloning
+            let new_maxpool = MaxPool2D::new(
+                (maxpool.kernel_size(), maxpool.kernel_size()),
+                (maxpool.stride(), maxpool.stride()),
+                Some((maxpool.padding(), maxpool.padding())),
+            )?;
+            bound_layers.push(Box::new(new_maxpool));
         } else {
-            return Err(NeuralError::DeserializationError(
-                "Unsupported layer type for deserialization".to_string(),
-            ));
+            return Err(NeuralError::DeserializationError(format!(
+                "Unsupported layer type for deserialization: {:?}",
+                std::any::type_name::<F>()
+            )));
         }
     }
 
@@ -393,13 +411,34 @@ fn create_dense_layer<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
 
     // Load parameters if available
     if params.len() >= 2 {
-        let weights_shape = [config.output_dim, config.input_dim];
+        // We need to calculate the expected weights shape based on the config
+        let weights_shape = [config.input_dim, config.output_dim];
         let bias_shape = [config.output_dim];
 
-        let weights_array = array_from_vec::<F>(&params[0], &weights_shape)?;
-        let bias_array = array_from_vec::<F>(&params[1], &bias_shape)?;
+        // Check if the array has the correct number of elements
+        if params[0].len() == config.output_dim * config.input_dim {
+            // We have the right number of elements, proceed with caution
+            let weights_array = match array_from_vec::<F>(&params[0], &weights_shape) {
+                Ok(arr) => arr,
+                Err(_) => {
+                    // If we get an error with the expected shape, try the transposed shape
+                    let transposed_shape = [config.output_dim, config.input_dim];
+                    let transposed_arr = array_from_vec::<F>(&params[0], &transposed_shape)?;
+                    // Transpose the array to get the correct shape
+                    transposed_arr.t().to_owned().into_dyn()
+                }
+            };
 
-        layer.set_parameters(vec![weights_array, bias_array])?;
+            let bias_array = array_from_vec::<F>(&params[1], &bias_shape)?;
+
+            layer.set_parameters(vec![weights_array, bias_array])?;
+        } else {
+            return Err(NeuralError::DeserializationError(format!(
+                "Weight vector length ({}) doesn't match expected shape size ({})",
+                params[0].len(),
+                config.input_dim * config.output_dim
+            )));
+        }
     }
 
     Ok(layer)
@@ -436,6 +475,7 @@ fn create_conv2d_layer<F: Float + Debug + ScalarOperand + Send + Sync + 'static>
 
     // Load parameters if available
     if params.len() >= 2 {
+        // Ensure the weight shape matches what Conv2D expects
         let weights_shape = [
             config.out_channels,
             config.in_channels,
@@ -535,7 +575,7 @@ fn array_from_vec<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
         })
         .collect::<Result<Vec<F>>>()?;
 
-    let shape_ix = ndarray::IxDyn(&shape);
+    let shape_ix = ndarray::IxDyn(shape);
     Ok(Array::from_shape_vec(shape_ix, f_vec)?)
 }
 

@@ -1,18 +1,58 @@
 //! Morphological operations on n-dimensional arrays
 //!
 //! This module provides functions for performing morphological operations on n-dimensional
-//! arrays, such as erosion, dilation, opening, closing, and more.
+//! arrays, such as erosion, dilation, opening, closing, gradient, tophat and more.
+//!
+//! Morphological operations are nonlinear operations that process images based on shapes.
+//! They can be used for many purposes: removing noise, extracting features, detecting edges, etc.
+//!
+//! # Usage Recommendations
+//!
+//! For best results, use the following guidelines:
+//!
+//! 1. For 1D and 2D arrays, use the specific implementations:
+//!    - For 1D arrays, the generic `binary_*` functions will automatically use optimized 1D implementations
+//!    - For 2D arrays, prefer the functions in the `simple_morph` module, like `binary_erosion_2d` and `grey_dilation_2d`
+//!
+//! 2. For n-dimensional arrays of arbitrary dimension:
+//!    - Use the generic functions (`binary_erosion`, `grey_dilation`, etc.), but be aware of limitations
+//!    - Convert your arrays to `IxDyn` dimension type before passing to these functions
+//!    - Some operations for dimensions greater than 2 are limited in functionality
+//!
+//! # Example
+//!
+//! ```
+//! use ndarray::{Array2, array};
+//! use scirs2_ndimage::morphology::simple_morph::binary_erosion_2d;
+//!
+//! // Create a binary image
+//! let input = array![[false, true, true],
+//!                    [false, true, true],
+//!                    [false, false, false]];
+//!
+//! // Apply binary erosion
+//! let result = binary_erosion_2d(&input, None, None, None, None).unwrap();
+//! assert_eq!(result[[1, 1]], false); // Corner pixels are eroded
+//! ```
 
 use std::fmt::Debug;
 
-mod binary;
 mod connected;
-mod grayscale;
+mod distance_transform;
+pub mod simple_morph;
 mod structuring;
 mod utils;
 
+// These modules have issues, not exporting directly
+mod binary;
+mod binary_fix;
+mod grayscale;
+mod grayscale_fix;
+
+// Public re-exports
 pub use binary::*;
 pub use connected::*;
+pub use distance_transform::*;
 pub use grayscale::*;
 pub use structuring::*;
 pub use utils::*;

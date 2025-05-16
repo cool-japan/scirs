@@ -107,10 +107,8 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
     /// Called at the end of an epoch
     pub fn on_epoch_end(&mut self, epoch: usize, metrics: &HashMap<String, F>) -> Result<bool> {
         let mut _stop_training = false;
-        let metrics_vec = metrics
-            .iter()
-            .map(|(k, v)| (k.clone(), Some(*v)))
-            .collect::<Vec<_>>();
+        // Extract just the values from metrics
+        let metrics_vec = metrics.values().cloned().collect::<Vec<_>>();
 
         let mut context = CallbackContext {
             epoch,
@@ -157,10 +155,8 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
 
     /// Called at the end of a batch
     pub fn on_batch_end(&mut self, batch: usize, metrics: &HashMap<String, F>) -> Result<()> {
-        let metrics_vec = metrics
-            .iter()
-            .map(|(k, v)| (k.clone(), Some(*v)))
-            .collect::<Vec<_>>();
+        // Extract just the values from metrics
+        let metrics_vec = metrics.values().cloned().collect::<Vec<_>>();
 
         let mut context = CallbackContext {
             epoch: 0,

@@ -30,6 +30,7 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod metrics;
 pub mod optimizers;
 pub mod regularizers;
 pub mod schedulers;
@@ -39,3 +40,5 @@ pub mod utils;
 pub use optimizers::*;
 pub use regularizers::*;
 pub use schedulers::*;
+#[cfg(feature = "metrics_integration")]
+pub use metrics::*;

@@ -129,8 +129,10 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
         let evaluator = Evaluator::new(eval_config)?;
 
         // Create early stopping state if needed
-        let early_stopping = if let Some(es_config) = &config.early_stopping {
-            Some(EarlyStoppingState {
+        let early_stopping = config
+            .early_stopping
+            .as_ref()
+            .map(|es_config| EarlyStoppingState {
                 config: es_config.clone(),
                 best_value: match es_config.mode {
                     EarlyStoppingMode::Min => F::infinity(),
@@ -139,10 +141,7 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
                 wait: 0,
                 best_weights: None,
                 stopped_epoch: None,
-            })
-        } else {
-            None
-        };
+            });
 
         Ok(Self {
             config,

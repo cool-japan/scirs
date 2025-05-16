@@ -18,6 +18,9 @@ use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+/// Type alias for CLIP output (image embeddings, text embeddings, logit scale)
+type ClipOutput<F> = (Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>);
+
 /// Configuration for the text encoder in CLIP
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CLIPTextConfig {
@@ -356,7 +359,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> CLIP<F> {
         &self,
         image_input: &Array<F, IxDyn>,
         text_input: &Array<F, IxDyn>,
-    ) -> Result<(Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>)> {
+    ) -> Result<ClipOutput<F>> {
         // Get image and text embeddings
         let image_features = self.vision_encoder.forward(image_input)?;
         let text_features = self.text_encoder.forward(text_input)?;

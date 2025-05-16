@@ -1,189 +1,187 @@
-use ndarray::{array, ArrayView1};
+use ndarray::{array, Array1, ArrayView1};
+use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
-use std::f64::consts::PI;
+use std::time::Instant;
 
-fn main() {
-    println!("Improved BDF Solver Example");
-    println!("---------------------------");
+// Van der Pol oscillator - stiff when mu is large
+// dy/dt = [y1, mu * (1 - y0^2) * y1 - y0]
+fn van_der_pol(mu: f64) -> impl Fn(f64, ArrayView1<f64>) -> Array1<f64> {
+    move |_t: f64, y: ArrayView1<f64>| array![y[1], mu * (1.0 - y[0].powi(2)) * y[1] - y[0]]
+}
 
-    // Example 1: Simple Exponential Decay
-    println!("Example 1: Simple Exponential Decay (y' = -y, y(0) = 1)");
+// Robertson chemical reaction system - a classic stiff ODE system
+// dy/dt = [-0.04*y0 + 1e4*y1*y2, 0.04*y0 - 1e4*y1*y2 - 3e7*y1^2, 3e7*y1^2]
+fn robertson(_t: f64, y: ArrayView1<f64>) -> Array1<f64> {
+    array![
+        -0.04 * y[0] + 1.0e4 * y[1] * y[2],
+        0.04 * y[0] - 1.0e4 * y[1] * y[2] - 3.0e7 * y[1].powi(2),
+        3.0e7 * y[1].powi(2)
+    ]
+}
 
-    let f = |_t: f64, y: ArrayView1<f64>| array![-y[0]];
+// HIRES problem (High Irradiance RESponse) - stiff problem from chemical kinetics
+fn hires(_t: f64, y: ArrayView1<f64>) -> Array1<f64> {
+    let mut dy = Array1::<f64>::zeros(8);
 
-    // Solve with BDF method (use more conservative settings)
-    let options = ODEOptions {
-        method: ODEMethod::Bdf,
-        bdf_order: 1, // BDF1 method (more stable)
-        rtol: 1e-3,   // Less strict tolerance
-        atol: 1e-6,
-        max_steps: 200,       // More steps allowed
-        h0: Some(1e-3),       // Smaller initial step
-        min_step: Some(1e-6), // Smaller minimum step
-        ..Default::default()
-    };
+    dy[0] = -1.71 * y[0] + 0.43 * y[1] + 8.32 * y[2] + 0.0007;
+    dy[1] = 1.71 * y[0] - 8.75 * y[1];
+    dy[2] = -10.03 * y[2] + 0.43 * y[3] + 0.035 * y[4];
+    dy[3] = 8.32 * y[1] + 1.71 * y[2] - 1.12 * y[3];
+    dy[4] = -1.745 * y[4] + 0.43 * y[5] + 0.43 * y[6];
+    dy[5] = -280.0 * y[5] * y[7] + 0.69 * y[3] + 1.71 * y[4] - 0.43 * y[5] + 0.69 * y[6];
+    dy[6] = 280.0 * y[5] * y[7] - 1.81 * y[6];
+    dy[7] = -280.0 * y[5] * y[7] + 1.81 * y[6];
 
-    match solve_ivp(f, [0.0, 2.0], array![1.0], Some(options)) {
-        Ok(result) => {
-            println!("Time points: {:?}", result.t);
-            println!("Solution values:");
-            for i in 0..result.t.len() {
-                let t = result.t[i];
-                let y = result.y[i][0];
-                let exact = (-t).exp();
-                let error = (y - exact).abs();
-                println!(
-                    "  t = {:.6}, y = {:.6}, exact = {:.6}, error = {:.6e}",
-                    t, y, exact, error
-                );
-            }
+    dy
+}
 
-            println!("\nStatistics:");
-            println!("  Number of steps: {}", result.n_steps);
-            println!("  Number of function evaluations: {}", result.n_eval);
-            println!("  Number of accepted steps: {}", result.n_accepted);
-            println!("  Number of rejected steps: {}", result.n_rejected);
-            println!(
-                "  Final step size: {:.6e}",
-                result.final_step.unwrap_or(0.0)
-            );
-            println!("  Success: {}", result.success);
-            if let Some(msg) = &result.message {
-                println!("  Message: {}", msg);
-            }
+// Solve a problem with both standard BDF and enhanced BDF, then compare results
+fn compare_methods<F, Func>(
+    name: &str,
+    f: Func,
+    t_span: [f64; 2],
+    y0: Array1<f64>,
+    rtol: f64,
+    atol: f64,
+) -> IntegrateResult<()>
+where
+    F: Fn(f64, ArrayView1<f64>) -> Array1<f64>,
+    Func: Fn(f64, ArrayView1<f64>) -> Array1<f64> + Copy,
+{
+    println!("\n=== {} ===", name);
 
-            // Example 2: Van der Pol Oscillator (Stiff System)
-            println!("\nExample 2: Van der Pol Oscillator (Stiff System)");
+    // Standard BDF
+    let start = Instant::now();
+    let result_std = solve_ivp(
+        f,
+        t_span,
+        y0.clone(),
+        Some(ODEOptions {
+            method: ODEMethod::Bdf,
+            rtol,
+            atol,
+            ..Default::default()
+        }),
+    )?;
+    let std_time = start.elapsed();
 
-            let mu = 1.0; // Lower stiffness parameter for example (original was 10.0)
-            let van_der_pol =
-                |_t: f64, y: ArrayView1<f64>| array![y[1], mu * (1.0 - y[0].powi(2)) * y[1] - y[0]];
+    println!(
+        "Standard BDF: solved in {:.3} ms, {} steps ({} accepted, {} rejected), {} Jacobians",
+        std_time.as_secs_f64() * 1000.0,
+        result_std.n_steps,
+        result_std.n_accepted,
+        result_std.n_rejected,
+        result_std.n_jac
+    );
 
-            // Solve with BDF method (good for stiff problems)
-            let options = ODEOptions {
-                method: ODEMethod::Bdf,
-                bdf_order: 1, // BDF1 method (more stable)
-                rtol: 1e-3,   // Less strict tolerances
-                atol: 1e-6,
-                max_steps: 500,       // Reasonable number of steps
-                h0: Some(1e-3),       // Small initial step
-                min_step: Some(1e-6), // Smaller minimum step
-                ..Default::default()
-            };
+    // Enhanced BDF
+    let start = Instant::now();
+    let result_enh = solve_ivp(
+        f,
+        t_span,
+        y0,
+        Some(ODEOptions {
+            method: ODEMethod::EnhancedBDF,
+            rtol,
+            atol,
+            ..Default::default()
+        }),
+    )?;
+    let enh_time = start.elapsed();
 
-            // Initial condition [2, 0]
-            match solve_ivp(van_der_pol, [0.0, 10.0], array![2.0, 0.0], Some(options)) {
-                Ok(result) => {
-                    println!("Solving over t = [0, 10] with initial condition [2, 0]");
-                    println!("Number of time points: {}", result.t.len());
-                    println!(
-                        "Final state: [{:.6}, {:.6}]",
-                        result.y.last().unwrap()[0],
-                        result.y.last().unwrap()[1]
-                    );
+    println!(
+        "Enhanced BDF: solved in {:.3} ms, {} steps ({} accepted, {} rejected), {} Jacobians",
+        enh_time.as_secs_f64() * 1000.0,
+        result_enh.n_steps,
+        result_enh.n_accepted,
+        result_enh.n_rejected,
+        result_enh.n_jac
+    );
 
-                    println!("\nStatistics:");
-                    println!("  Number of steps: {}", result.n_steps);
-                    println!("  Number of function evaluations: {}", result.n_eval);
-                    println!("  Number of accepted steps: {}", result.n_accepted);
-                    println!("  Number of rejected steps: {}", result.n_rejected);
-                    println!(
-                        "  Final step size: {:.6e}",
-                        result.final_step.unwrap_or(0.0)
-                    );
-                    println!("  Success: {}", result.success);
-                    if let Some(msg) = &result.message {
-                        println!("  Message: {}", msg);
-                    }
+    // Calculate relative performance
+    let speedup = std_time.as_secs_f64() / enh_time.as_secs_f64();
+    let step_reduction =
+        (result_std.n_steps as f64 - result_enh.n_steps as f64) / result_std.n_steps as f64 * 100.0;
+    let jac_reduction =
+        (result_std.n_jac as f64 - result_enh.n_jac as f64) / result_std.n_jac as f64 * 100.0;
 
-                    // Example 3: Harmonic Oscillator
-                    println!("\nExample 3: Harmonic Oscillator");
+    println!(
+        "Performance: {:.2}x speedup, {:.1}% fewer steps, {:.1}% fewer Jacobian evaluations",
+        speedup, step_reduction, jac_reduction
+    );
 
-                    let harmonic = |_t: f64, y: ArrayView1<f64>| array![y[1], -y[0]];
-
-                    // Initial condition [1, 0] (cosine solution)
-                    let options = ODEOptions {
-                        method: ODEMethod::RK4, // Use RK4 instead of BDF for stability
-                        h0: Some(0.1),          // Fixed step size
-                        ..Default::default()
-                    };
-
-                    match solve_ivp(harmonic, [0.0, 2.0 * PI], array![1.0, 0.0], Some(options)) {
-                        Ok(result) => {
-                            println!("Solving over t = [0, 2π] with initial condition [1, 0]");
-                            println!("Solution should complete 1 oscillation and return to [1, 0]");
-
-                            // Check specific points (should follow cos/sin)
-                            let check_points = vec![0.0, PI / 2.0, PI, 3.0 * PI / 2.0, 2.0 * PI];
-
-                            println!("\nChecking solution at key points:");
-                            println!(
-                                "{:>10} {:>15} {:>15} {:>15} {:>15}",
-                                "t", "y[0]", "exact", "y[1]", "exact"
-                            );
-                            println!(
-                                "{:->10} {:->15} {:->15} {:->15} {:->15}",
-                                "", "", "", "", ""
-                            );
-
-                            for &t in &check_points {
-                                // Find closest time point
-                                let idx = result
-                                    .t
-                                    .iter()
-                                    .enumerate()
-                                    .min_by(|(_, &a), (_, &b)| {
-                                        (a - t).abs().partial_cmp(&(b - t).abs()).unwrap()
-                                    })
-                                    .map(|(idx, _)| idx)
-                                    .unwrap_or(0);
-
-                                let y0 = result.y[idx][0];
-                                let y1 = result.y[idx][1];
-                                let exact0 = t.cos();
-                                let exact1 = -t.sin();
-
-                                println!(
-                                    "{:10.6} {:15.6} {:15.6} {:15.6} {:15.6}",
-                                    result.t[idx], y0, exact0, y1, exact1
-                                );
-                            }
-
-                            println!("\nStatistics:");
-                            println!("  Number of steps: {}", result.n_steps);
-                            println!("  Number of function evaluations: {}", result.n_eval);
-                            println!("  Number of accepted steps: {}", result.n_accepted);
-                            println!("  Number of rejected steps: {}", result.n_rejected);
-                            println!(
-                                "  Final step size: {:.6e}",
-                                result.final_step.unwrap_or(0.0)
-                            );
-                            println!("  Success: {}", result.success);
-                            if let Some(msg) = &result.message {
-                                println!("  Message: {}", msg);
-                            }
-
-                            // Check final state (should be close to [1, 0] after 1 full cycle)
-                            let final_y = result.y.last().unwrap();
-                            println!("\nFinal state: [{:.6}, {:.6}]", final_y[0], final_y[1]);
-                            println!(
-                                "Error from exact: [{:.6e}, {:.6e}]",
-                                (final_y[0] - 1.0).abs(),
-                                (final_y[1] - 0.0).abs()
-                            );
-                        }
-                        Err(e) => {
-                            println!("Error solving harmonic oscillator: {}", e);
-                        }
-                    }
-                }
-                Err(e) => {
-                    println!("Error solving Van der Pol oscillator: {}", e);
-                }
-            }
-        }
-        Err(e) => {
-            println!("Error solving exponential decay: {}", e);
-        }
+    // Compare last values to ensure accuracy
+    if !result_std.success || !result_enh.success {
+        println!("WARNING: One or more solvers did not report success!");
     }
+
+    let last_y_std = result_std.y.last().unwrap();
+    let last_y_enh = result_enh.y.last().unwrap();
+
+    let max_abs_diff = last_y_std
+        .iter()
+        .zip(last_y_enh.iter())
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0, |acc, x| acc.max(x));
+
+    println!(
+        "Solution difference: {:.2e} (maximum absolute)",
+        max_abs_diff
+    );
+
+    Ok(())
+}
+
+fn main() -> IntegrateResult<()> {
+    println!("Comparing standard BDF vs. Enhanced BDF methods");
+    println!("===============================================\n");
+
+    // Test 1: Van der Pol with moderate stiffness (mu=10)
+    compare_methods(
+        "Van der Pol (mu=10)",
+        van_der_pol(10.0),
+        [0.0, 30.0],
+        array![2.0, 0.0],
+        1e-6,
+        1e-8,
+    )?;
+
+    // Test 2: Van der Pol with high stiffness (mu=1000)
+    compare_methods(
+        "Van der Pol (mu=1000, very stiff)",
+        van_der_pol(1000.0),
+        [0.0, 3000.0],
+        array![2.0, 0.0],
+        1e-6,
+        1e-8,
+    )?;
+
+    // Test 3: Robertson chemical system
+    compare_methods(
+        "Robertson chemical system",
+        robertson,
+        [0.0, 1e11],
+        array![1.0, 0.0, 0.0],
+        1e-4,
+        1e-8,
+    )?;
+
+    // Test 4: HIRES problem
+    compare_methods(
+        "HIRES (High Irradiance RESponse)",
+        hires,
+        [0.0, 321.8122],
+        array![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0026],
+        1e-4,
+        1e-8,
+    )?;
+
+    println!("\nAll tests completed successfully.");
+    println!("\nNote on performance metrics:");
+    println!("1. Enhanced BDF uses intelligent Jacobian strategy selection based on problem size");
+    println!("2. For large systems, Jacobian reuse (modified Newton) provides significant speedup");
+    println!("3. Better error estimation allows for larger step sizes with the same accuracy");
+    println!("4. Adaptive order selection further improves efficiency for smooth regions");
+
+    Ok(())
 }

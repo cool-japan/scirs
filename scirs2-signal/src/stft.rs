@@ -1,0 +1,1534 @@
+//! Short-Time Fourier Transform (STFT) implementation.
+//!
+//! This module provides a parametrized discrete Short-time Fourier transform (STFT)
+//! and its inverse (ISTFT), similar to SciPy's ShortTimeFFT class.
+
+use crate::error::{SignalError, SignalResult};
+use crate::utils;
+use crate::window;
+use ndarray::{Array, Array1, Array2, ArrayView1, Axis};
+use num_complex::Complex64;
+use num_traits::{Float, NumCast};
+use std::fmt::Debug;
+
+/// FFT mode options for STFT
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FftMode {
+    /// Two-sided spectrum with negative frequencies preceding positive frequencies
+    TwoSided,
+    /// Two-sided spectrum with negative frequencies following positive frequencies
+    Centered,
+    /// One-sided spectrum (positive frequencies only)
+    OneSided,
+    /// One-sided spectrum with doubled amplitudes for energy conservation
+    OneSided2X,
+}
+
+impl Default for FftMode {
+    fn default() -> Self {
+        FftMode::OneSided
+    }
+}
+
+impl std::str::FromStr for FftMode {
+    type Err = SignalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "twosided" => Ok(FftMode::TwoSided),
+            "centered" => Ok(FftMode::Centered),
+            "onesided" => Ok(FftMode::OneSided),
+            "onesided2x" => Ok(FftMode::OneSided2X),
+            _ => Err(SignalError::ValueError(format!(
+                "Invalid FFT mode: '{}'. Valid options are: 'twosided', 'centered', 'onesided', 'onesided2x'",
+                s
+            ))),
+        }
+    }
+}
+
+/// Scaling options for STFT
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScalingMode {
+    /// No scaling (raw FFT values)
+    None,
+    /// Scale for magnitude spectrum
+    Magnitude,
+    /// Scale for power spectral density
+    Psd,
+}
+
+impl Default for ScalingMode {
+    fn default() -> Self {
+        ScalingMode::None
+    }
+}
+
+impl std::str::FromStr for ScalingMode {
+    type Err = SignalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "none" => Ok(ScalingMode::None),
+            "magnitude" => Ok(ScalingMode::Magnitude),
+            "psd" => Ok(ScalingMode::Psd),
+            _ => Err(SignalError::ValueError(format!(
+                "Invalid scaling mode: '{}'. Valid options are: 'none', 'magnitude', 'psd'",
+                s
+            ))),
+        }
+    }
+}
+
+/// A parametrized discrete Short-time Fourier transform (STFT)
+/// and its inverse (ISTFT).
+///
+/// The STFT calculates sequential FFTs by sliding a window over an input signal
+/// by hop increments. It can be used to quantify the change of the spectrum over time.
+///
+/// # Example
+///
+/// ```rust
+/// use scirs2_signal::stft::ShortTimeFft;
+/// use scirs2_signal::window;
+/// use ndarray::Array1;
+/// use std::f64::consts::PI;
+///
+/// // Create a signal with varying frequency
+/// let fs = 1000.0; // 1 kHz sampling rate
+/// let duration = 1.0; // 1 second
+/// let n = (fs * duration) as usize;
+/// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
+///
+/// // Chirp signal: frequency sweeping from 100 Hz to 300 Hz
+/// let signal: Vec<f64> = t.iter()
+///     .map(|&t| (2.0 * PI * (100.0 + 200.0 * t / duration) * t).sin())
+///     .collect();
+///
+/// // Create a hann window and initialize STFT
+/// let window_length = 256;
+/// let hop_size = 64;
+/// let hann_window = window::hann(window_length, true).unwrap();
+///
+/// let stft = ShortTimeFft::new(
+///     &hann_window,
+///     hop_size,
+///     fs,
+///     None, // default FFT mode (onesided)
+///     None, // default mfft (window length)
+///     None, // calculate dual window as needed
+///     Some("magnitude"), // scale for magnitude spectrum
+///     None, // no phase shift
+/// ).unwrap();
+///
+/// // Compute STFT
+/// let stft_result = stft.stft(&signal);
+///
+/// // The result is a complex-valued 2D array with:
+/// // - Rows representing frequency bins
+/// // - Columns representing time frames
+/// ```
+#[derive(Debug, Clone)]
+pub struct ShortTimeFft {
+    /// Window function
+    pub win: Array1<f64>,
+
+    /// Hop size (samples between consecutive frames)
+    pub hop: usize,
+
+    /// Sampling frequency
+    pub fs: f64,
+
+    /// FFT mode
+    pub fft_mode: FftMode,
+
+    /// FFT length
+    pub mfft: usize,
+
+    /// Dual window for inverse STFT
+    pub dual_win: Option<Array1<f64>>,
+
+    /// Scaling mode
+    pub scaling: ScalingMode,
+
+    /// Phase shift
+    pub phase_shift: Option<isize>,
+
+    /// Window length
+    pub m_num: usize,
+
+    /// Center index of window
+    pub m_num_mid: usize,
+}
+
+impl ShortTimeFft {
+    /// Create a new ShortTimeFft instance
+    ///
+    /// # Arguments
+    ///
+    /// * `win` - Window function
+    /// * `hop` - Hop size (samples between consecutive frames)
+    /// * `fs` - Sampling frequency
+    /// * `fft_mode` - FFT mode (default: "onesided")
+    /// * `mfft` - FFT length (default: window length)
+    /// * `dual_win` - Dual window for inverse STFT (default: None, calculated when needed)
+    /// * `scale_to` - Scaling mode (default: None)
+    /// * `phase_shift` - Phase shift (default: None)
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a new ShortTimeFft instance
+    pub fn new(
+        win: &[f64],
+        hop: usize,
+        fs: f64,
+        fft_mode: Option<&str>,
+        mfft: Option<usize>,
+        dual_win: Option<&[f64]>,
+        scale_to: Option<&str>,
+        phase_shift: Option<isize>,
+    ) -> SignalResult<Self> {
+        // Validate input parameters
+        if win.is_empty() {
+            return Err(SignalError::ValueError(
+                "Window cannot be empty".to_string(),
+            ));
+        }
+
+        if hop == 0 {
+            return Err(SignalError::ValueError(
+                "Hop size must be greater than 0".to_string(),
+            ));
+        }
+
+        if fs <= 0.0 {
+            return Err(SignalError::ValueError(
+                "Sampling frequency must be positive".to_string(),
+            ));
+        }
+
+        // Parse FFT mode
+        let fft_mode_val = match fft_mode {
+            Some(mode) => mode.parse::<FftMode>()?,
+            None => FftMode::default(),
+        };
+
+        // Default mfft to window length
+        let mfft_val = mfft.unwrap_or(win.len());
+
+        // Validate mfft
+        if mfft_val < win.len() {
+            return Err(SignalError::ValueError(
+                "FFT length must be at least as large as window length".to_string(),
+            ));
+        }
+
+        // Parse scaling mode
+        let scaling_val = match scale_to {
+            Some(mode) => mode.parse::<ScalingMode>()?,
+            None => ScalingMode::default(),
+        };
+
+        // Convert window to Array1
+        let win_array = Array1::from_vec(win.to_vec());
+
+        // Convert dual window to Array1 if provided
+        let dual_win_array = if let Some(dw) = dual_win {
+            if dw.len() != win.len() {
+                return Err(SignalError::ValueError(
+                    "Dual window must have the same length as window".to_string(),
+                ));
+            }
+            Some(Array1::from_vec(dw.to_vec()))
+        } else {
+            None
+        };
+
+        // Window length and midpoint
+        let m_num = win.len();
+        let m_num_mid = m_num / 2;
+
+        Ok(ShortTimeFft {
+            win: win_array,
+            hop,
+            fs,
+            fft_mode: fft_mode_val,
+            mfft: mfft_val,
+            dual_win: dual_win_array,
+            scaling: scaling_val,
+            phase_shift,
+            m_num,
+            m_num_mid,
+        })
+    }
+
+    /// Create a ShortTimeFft instance from a named window
+    ///
+    /// # Arguments
+    ///
+    /// * `window_type` - Window type (e.g., "hann", "hamming")
+    /// * `fs` - Sampling frequency
+    /// * `nperseg` - Window length
+    /// * `noverlap` - Number of overlapping samples
+    /// * `fft_mode` - FFT mode (default: "onesided")
+    /// * `mfft` - FFT length (default: window length)
+    /// * `scale_to` - Scaling mode (default: None)
+    /// * `phase_shift` - Phase shift (default: None)
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a new ShortTimeFft instance
+    pub fn from_window(
+        window_type: &str,
+        fs: f64,
+        nperseg: usize,
+        noverlap: usize,
+        fft_mode: Option<&str>,
+        mfft: Option<usize>,
+        scale_to: Option<&str>,
+        phase_shift: Option<isize>,
+    ) -> SignalResult<Self> {
+        // Validate noverlap
+        if noverlap >= nperseg {
+            return Err(SignalError::ValueError(
+                "noverlap must be less than nperseg".to_string(),
+            ));
+        }
+
+        // Create window
+        let win = window::get_window(window_type, nperseg, false)?;
+
+        // Calculate hop size
+        let hop = nperseg - noverlap;
+
+        // Create ShortTimeFft
+        Self::new(&win, hop, fs, fft_mode, mfft, None, scale_to, phase_shift)
+    }
+
+    /// Create a ShortTimeFft instance where the window equals its dual
+    ///
+    /// # Arguments
+    ///
+    /// * `win` - Window function
+    /// * `hop` - Hop size (samples between consecutive frames)
+    /// * `fs` - Sampling frequency
+    /// * `fft_mode` - FFT mode (default: "onesided")
+    /// * `mfft` - FFT length (default: window length)
+    /// * `scale_to` - Scaling mode (default: None)
+    /// * `phase_shift` - Phase shift (default: None)
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a new ShortTimeFft instance
+    pub fn from_win_equals_dual(
+        win: &[f64],
+        hop: usize,
+        fs: f64,
+        fft_mode: Option<&str>,
+        mfft: Option<usize>,
+        scale_to: Option<&str>,
+        phase_shift: Option<isize>,
+    ) -> SignalResult<Self> {
+        // Validate window
+        if win.is_empty() {
+            return Err(SignalError::ValueError(
+                "Window cannot be empty".to_string(),
+            ));
+        }
+
+        // Create a window that equals its dual
+        let mut w = Array1::from_vec(win.to_vec());
+        let mut dd = Array1::zeros(win.len());
+
+        // Calculate DD(k) = ∑_j w(j) w(j-k)
+        for k in 0..win.len() {
+            for j in 0..win.len() {
+                let idx = (j + win.len() - k) % win.len();
+                dd[k] += win[j] * win[idx];
+            }
+        }
+
+        // Ensure no division by zero
+        let epsilon = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val| val.max(max));
+        for val in dd.iter() {
+            if val.abs() < epsilon {
+                return Err(SignalError::ValueError(
+                    "Cannot create window equal to its dual: window not invertible".to_string(),
+                ));
+            }
+        }
+
+        // Create self-dual window
+        for (w_i, &dd_i) in w.iter_mut().zip(dd.iter()) {
+            *w_i = (*w_i / dd_i.sqrt());
+        }
+
+        // Create ShortTimeFft
+        let instance = Self::new(
+            w.as_slice(),
+            hop,
+            fs,
+            fft_mode,
+            mfft,
+            Some(w.as_slice()),
+            scale_to,
+            phase_shift,
+        )?;
+
+        Ok(instance)
+    }
+
+    /// Create a ShortTimeFft instance from a dual window
+    ///
+    /// # Arguments
+    ///
+    /// * `dual_win` - Dual window function
+    /// * `hop` - Hop size (samples between consecutive frames)
+    /// * `fs` - Sampling frequency
+    /// * `fft_mode` - FFT mode (default: "onesided")
+    /// * `mfft` - FFT length (default: window length)
+    /// * `scale_to` - Scaling mode (default: None)
+    /// * `phase_shift` - Phase shift (default: None)
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a new ShortTimeFft instance
+    pub fn from_dual(
+        dual_win: &[f64],
+        hop: usize,
+        fs: f64,
+        fft_mode: Option<&str>,
+        mfft: Option<usize>,
+        scale_to: Option<&str>,
+        phase_shift: Option<isize>,
+    ) -> SignalResult<Self> {
+        // Create canonical window from dual
+        let win = Self::calc_dual_canonical_window(dual_win, hop)?;
+
+        // Create ShortTimeFft
+        let instance = Self::new(
+            win.as_slice(),
+            hop,
+            fs,
+            fft_mode,
+            mfft,
+            Some(dual_win),
+            scale_to,
+            phase_shift,
+        )?;
+
+        Ok(instance)
+    }
+
+    /// Calculate the canonical dual window
+    ///
+    /// # Arguments
+    ///
+    /// * `win` - Window function
+    /// * `hop` - Hop size
+    ///
+    /// # Returns
+    ///
+    /// * Dual window as Array1<f64>
+    fn calc_dual_canonical_window(win: &[f64], hop: usize) -> SignalResult<Array1<f64>> {
+        if hop > win.len() {
+            return Err(SignalError::ValueError(format!(
+                "Hop size {} is larger than window length {} => STFT not invertible!",
+                hop,
+                win.len()
+            )));
+        }
+
+        // Create squared window values
+        let w2: Vec<f64> = win.iter().map(|&w| w * w).collect();
+        let mut dd = w2.clone();
+
+        // Calculate sum of shifted windows
+        for k in (hop..win.len()).step_by(hop) {
+            for i in k..win.len() {
+                dd[i] += w2[i - k];
+            }
+            for i in 0..(win.len() - k) {
+                dd[i] += w2[i + k];
+            }
+        }
+
+        // Check DD > 0
+        let relative_resolution = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val| val.max(max));
+        if !dd.iter().all(|&v| v >= relative_resolution) {
+            return Err(SignalError::ValueError(
+                "Short-time Fourier Transform not invertible!".to_string(),
+            ));
+        }
+
+        // Calculate dual window
+        let dual_win = Array1::from_vec(win.iter().zip(dd.iter()).map(|(&w, &d)| w / d).collect());
+
+        Ok(dual_win)
+    }
+
+    /// Check if the STFT is invertible
+    ///
+    /// # Returns
+    ///
+    /// * true if invertible, false otherwise
+    pub fn invertible(&self) -> bool {
+        // Calculate dual window if not already present
+        if self.dual_win.is_none() {
+            self.calc_dual_canonical_window().is_ok()
+        } else {
+            true
+        }
+    }
+
+    /// Calculate the dual canonical window if not already present
+    ///
+    /// # Returns
+    ///
+    /// * Result containing dual window as Array1<f64>
+    pub fn calc_dual_canonical_window(&self) -> SignalResult<Array1<f64>> {
+        if let Some(ref dual) = self.dual_win {
+            return Ok(dual.clone());
+        }
+
+        Self::calc_dual_canonical_window(self.win.as_slice(), self.hop)
+    }
+
+    /// Returns the sampling interval
+    ///
+    /// # Returns
+    ///
+    /// * Sampling interval (1/fs)
+    pub fn t(&self) -> f64 {
+        1.0 / self.fs
+    }
+
+    /// Returns the time increment
+    ///
+    /// # Returns
+    ///
+    /// * Time increment (hop * T)
+    pub fn delta_t(&self) -> f64 {
+        self.t() * self.hop as f64
+    }
+
+    /// Returns the frequency increment
+    ///
+    /// # Returns
+    ///
+    /// * Frequency increment (1 / (mfft * T))
+    pub fn delta_f(&self) -> f64 {
+        1.0 / (self.mfft as f64 * self.t())
+    }
+
+    /// Returns the minimum slice index
+    ///
+    /// # Returns
+    ///
+    /// * Minimum slice index
+    pub fn p_min(&self) -> isize {
+        -((self.m_num - self.m_num_mid) as isize / self.hop as isize)
+    }
+
+    /// Returns the maximum slice index
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples in the input signal
+    ///
+    /// # Returns
+    ///
+    /// * Maximum slice index
+    pub fn p_max(&self, n: usize) -> isize {
+        ((n + self.m_num_mid) as isize - 1) / self.hop as isize + 1
+    }
+
+    /// Returns the number of slices
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples in the input signal
+    ///
+    /// # Returns
+    ///
+    /// * Number of slices
+    pub fn p_num(&self, n: usize) -> usize {
+        (self.p_max(n) - self.p_min()) as usize
+    }
+
+    /// Returns the minimum sample index
+    ///
+    /// # Returns
+    ///
+    /// * Minimum sample index
+    pub fn k_min(&self) -> isize {
+        -(self.m_num_mid as isize)
+    }
+
+    /// Returns the maximum sample index
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples in the input signal
+    ///
+    /// # Returns
+    ///
+    /// * Maximum sample index
+    pub fn k_max(&self, n: usize) -> isize {
+        n as isize + (self.m_num - self.m_num_mid) as isize
+    }
+
+    /// Returns true if FFT mode is one-sided
+    ///
+    /// # Returns
+    ///
+    /// * true if one-sided, false otherwise
+    pub fn onesided_fft(&self) -> bool {
+        matches!(self.fft_mode, FftMode::OneSided | FftMode::OneSided2X)
+    }
+
+    /// Returns the number of frequency points
+    ///
+    /// # Returns
+    ///
+    /// * Number of frequency points
+    pub fn f_pts(&self) -> usize {
+        if self.onesided_fft() {
+            self.mfft / 2 + 1
+        } else {
+            self.mfft
+        }
+    }
+
+    /// Returns the frequency vector
+    ///
+    /// # Returns
+    ///
+    /// * Frequency vector
+    pub fn f(&self) -> Array1<f64> {
+        match self.fft_mode {
+            FftMode::OneSided | FftMode::OneSided2X => {
+                // Calculate rfftfreq
+                let mut f = Array1::zeros(self.f_pts());
+                for i in 0..f.len() {
+                    f[i] = i as f64 * self.delta_f();
+                }
+                f
+            }
+            FftMode::TwoSided => {
+                // Calculate fftfreq
+                let mut f = Array1::zeros(self.mfft);
+                for i in 0..self.mfft {
+                    if i <= self.mfft / 2 {
+                        f[i] = i as f64 * self.delta_f();
+                    } else {
+                        f[i] = (i as f64 - self.mfft as f64) * self.delta_f();
+                    }
+                }
+                f
+            }
+            FftMode::Centered => {
+                // Calculate fftshift(fftfreq)
+                let mut f = Array1::zeros(self.mfft);
+                let half = self.mfft / 2;
+                for i in 0..self.mfft {
+                    if i < half {
+                        f[i] = (i as f64 - self.mfft as f64) * self.delta_f();
+                    } else {
+                        f[i] = (i as f64 - half as f64) * self.delta_f();
+                    }
+                }
+                f
+            }
+        }
+    }
+
+    /// Returns the time vector
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples in the input signal
+    ///
+    /// # Returns
+    ///
+    /// * Time vector
+    pub fn t_vec(&self, n: usize) -> Array1<f64> {
+        let p_min = self.p_min();
+        let p_max = self.p_max(n);
+        let mut t = Array1::zeros((p_max - p_min) as usize);
+
+        for (i, p) in (p_min..p_max).enumerate() {
+            t[i] = p as f64 * self.delta_t();
+        }
+
+        t
+    }
+
+    /// Compute the extent for plotting
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of samples in the input signal
+    /// * `axes_seq` - Axis sequence ("tf" or "ft")
+    /// * `center_bins` - Whether to center bins
+    ///
+    /// # Returns
+    ///
+    /// * Tuple of (t0, t1, f0, f1) or (f0, f1, t0, t1)
+    pub fn extent(
+        &self,
+        n: usize,
+        axes_seq: &str,
+        center_bins: bool,
+    ) -> SignalResult<(f64, f64, f64, f64)> {
+        if !["tf", "ft"].contains(&axes_seq) {
+            return Err(SignalError::ValueError(
+                "axes_seq must be 'tf' or 'ft'".to_string(),
+            ));
+        }
+
+        // Get frequency bounds
+        let (q0, q1) = if self.onesided_fft() {
+            (0, self.f_pts())
+        } else if self.fft_mode == FftMode::Centered {
+            let half = self.mfft / 2;
+            (-(half as isize), (self.mfft - half) as isize)
+        } else {
+            return Err(SignalError::ValueError(
+                "Unsupported FFT mode for extent calculation".to_string(),
+            ));
+        };
+
+        // Get time bounds
+        let p0 = self.p_min();
+        let p1 = self.p_max(n);
+
+        // Apply bin centering if requested
+        let (t0, t1, f0, f1) = if center_bins {
+            (
+                self.delta_t() * (p0 as f64 - 0.5),
+                self.delta_t() * (p1 as f64 - 0.5),
+                self.delta_f() * (q0 as f64 - 0.5),
+                self.delta_f() * (q1 as f64 - 0.5),
+            )
+        } else {
+            (
+                self.delta_t() * p0 as f64,
+                self.delta_t() * p1 as f64,
+                self.delta_f() * q0 as f64,
+                self.delta_f() * q1 as f64,
+            )
+        };
+
+        // Return in the requested axis order
+        if axes_seq == "tf" {
+            Ok((t0, t1, f0, f1))
+        } else {
+            Ok((f0, f1, t0, t1))
+        }
+    }
+
+    /// Perform the Short-Time Fourier Transform
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - Input signal
+    /// * `padding` - Padding mode (optional)
+    ///
+    /// # Returns
+    ///
+    /// * Complex-valued STFT matrix
+    pub fn stft<T>(&self, x: &[T]) -> SignalResult<Array2<Complex64>>
+    where
+        T: Float + NumCast + Debug,
+    {
+        if x.is_empty() {
+            return Err(SignalError::ValueError("Input signal is empty".to_string()));
+        }
+
+        // Convert input to f64
+        let x_f64: Vec<f64> = x
+            .iter()
+            .map(|&val| {
+                NumCast::from(val).ok_or_else(|| {
+                    SignalError::ValueError(format!("Could not convert {:?} to f64", val))
+                })
+            })
+            .collect::<SignalResult<Vec<_>>>()?;
+
+        // Create padded signal with zeros
+        let k_min = self.k_min();
+        let k_max = self.k_max(x.len());
+        let signal_len = (k_max - k_min) as usize;
+
+        let mut padded_signal = Array1::zeros(signal_len);
+
+        // Copy input signal to padded signal
+        for (i, &val) in x_f64.iter().enumerate() {
+            let idx = (i as isize - k_min) as usize;
+            if idx < signal_len {
+                padded_signal[idx] = val;
+            }
+        }
+
+        // Calculate number of time frames
+        let p_min = self.p_min();
+        let p_max = self.p_max(x.len());
+        let p_num = (p_max - p_min) as usize;
+
+        // Initialize STFT matrix
+        let f_pts = self.f_pts();
+        let mut stft_matrix = Array2::zeros((f_pts, p_num));
+
+        // Apply window and FFT for each frame
+        for (p_idx, p) in (p_min..p_max).enumerate() {
+            // Get start index for this frame
+            let start = (p * self.hop as isize - k_min) as usize;
+
+            // Extract frame
+            let mut frame = Array1::zeros(self.mfft);
+            for i in 0..self.m_num {
+                if start + i < signal_len {
+                    frame[i] = padded_signal[start + i] * self.win[i];
+                }
+            }
+
+            // Apply FFT
+            let frame_spectrum = self.fft(&frame)?;
+
+            // Add to STFT matrix
+            for (q, &val) in frame_spectrum.iter().enumerate() {
+                if q < f_pts {
+                    stft_matrix[[q, p_idx]] = val;
+                }
+            }
+        }
+
+        // Apply scaling if needed
+        if self.scaling != ScalingMode::None {
+            let scale_factor = match self.scaling {
+                ScalingMode::Magnitude => 1.0 / (self.win.map(|x| x * x).sum() as f64).sqrt(),
+                ScalingMode::Psd => 1.0 / self.win.map(|x| x * x).sum() as f64,
+                _ => 1.0,
+            };
+
+            stft_matrix.mapv_inplace(|x| x * scale_factor);
+        }
+
+        Ok(stft_matrix)
+    }
+
+    /// Perform the inverse Short-Time Fourier Transform
+    ///
+    /// # Arguments
+    ///
+    /// * `X` - STFT matrix
+    /// * `k0` - Start sample (optional)
+    /// * `k1` - End sample (optional)
+    ///
+    /// # Returns
+    ///
+    /// * Reconstructed signal
+    pub fn istft(
+        &self,
+        X: &Array2<Complex64>,
+        k0: Option<usize>,
+        k1: Option<usize>,
+    ) -> SignalResult<Vec<f64>> {
+        if X.is_empty() {
+            return Err(SignalError::ValueError("STFT matrix is empty".to_string()));
+        }
+
+        // Ensure the STFT is invertible
+        let dual_window = self.calc_dual_canonical_window()?;
+
+        // Get dimensions
+        let f_pts = X.shape()[0];
+        let p_num = X.shape()[1];
+
+        if f_pts != self.f_pts() {
+            return Err(SignalError::ValueError(format!(
+                "STFT matrix has {} frequency points, expected {}",
+                f_pts,
+                self.f_pts()
+            )));
+        }
+
+        // Calculate signal boundaries
+        let p_min = self.p_min();
+        let k_min = self.k_min();
+        let k_max = if let Some(k1_val) = k1 {
+            k1_val as isize
+        } else {
+            k_min + (p_min + p_num as isize) * self.hop as isize + self.m_num as isize
+        };
+
+        let k0_val = k0.map(|k| k as isize).unwrap_or(k_min);
+
+        if k0_val >= k_max {
+            return Err(SignalError::ValueError(format!(
+                "k0 ({}) must be less than k_max ({})",
+                k0_val, k_max
+            )));
+        }
+
+        // Initialize output signal
+        let signal_len = (k_max - k0_val) as usize;
+        let mut output = Array1::zeros(signal_len);
+        let mut weight = Array1::zeros(signal_len);
+
+        // Process each frame
+        for (p_idx, p) in (p_min..(p_min + p_num as isize)).enumerate() {
+            // Inverse FFT for this frame
+            let frame_spectrum = self.get_stft_frame(X, p_idx)?;
+            let frame = self.ifft(&frame_spectrum)?;
+
+            // Add to output with dual window
+            let start = (p * self.hop as isize - k0_val) as isize;
+
+            for i in 0..self.m_num {
+                let idx = start as usize + i;
+                if idx < signal_len {
+                    output[idx] += frame[i] * dual_window[i];
+                    weight[idx] += dual_window[i] * dual_window[i];
+                }
+            }
+        }
+
+        // Normalize by weight
+        for i in 0..signal_len {
+            if weight[i] > 1e-10 {
+                output[i] /= weight[i];
+            }
+        }
+
+        Ok(output.to_vec())
+    }
+
+    /// Extract a frame from the STFT matrix
+    ///
+    /// # Arguments
+    ///
+    /// * `X` - STFT matrix
+    /// * `p_idx` - Frame index
+    ///
+    /// # Returns
+    ///
+    /// * Frame spectrum
+    fn get_stft_frame(
+        &self,
+        X: &Array2<Complex64>,
+        p_idx: usize,
+    ) -> SignalResult<Array1<Complex64>> {
+        let f_pts = X.shape()[0];
+        let p_num = X.shape()[1];
+
+        if p_idx >= p_num {
+            return Err(SignalError::ValueError(format!(
+                "Frame index {} is out of bounds (0..{})",
+                p_idx, p_num
+            )));
+        }
+
+        // Extract frame spectrum
+        let frame_slice = X.slice(s![.., p_idx]);
+
+        // Convert to full spectrum based on FFT mode
+        let mut frame_spectrum = Array1::zeros(self.mfft);
+
+        match self.fft_mode {
+            FftMode::OneSided | FftMode::OneSided2X => {
+                // For one-sided FFT, reconstruct the negative frequencies
+                let last_idx = f_pts.min(self.mfft);
+
+                // Copy positive frequencies
+                for i in 0..last_idx {
+                    frame_spectrum[i] = frame_slice[i];
+                }
+
+                // Reconstruct negative frequencies (except DC and Nyquist)
+                if self.mfft % 2 == 0 {
+                    // Even FFT length
+                    for i in 1..(self.mfft / 2) {
+                        frame_spectrum[self.mfft - i] = frame_slice[i].conj();
+                    }
+                } else {
+                    // Odd FFT length
+                    for i in 1..(self.mfft / 2 + 1) {
+                        frame_spectrum[self.mfft - i] = frame_slice[i].conj();
+                    }
+                }
+
+                // Scale if using OneSided2X
+                if self.fft_mode == FftMode::OneSided2X {
+                    let factor = if self.scaling == ScalingMode::Psd {
+                        Complex64::new(2.0_f64.sqrt(), 0.0)
+                    } else {
+                        Complex64::new(2.0, 0.0)
+                    };
+
+                    // Scale all frequencies except DC and Nyquist
+                    let nyquist_idx = if self.mfft % 2 == 0 { self.mfft / 2 } else { 0 };
+                    for i in 1..f_pts {
+                        if i != nyquist_idx {
+                            frame_spectrum[i] /= factor;
+                        }
+                    }
+                }
+            }
+            FftMode::TwoSided => {
+                // Two-sided FFT (already in correct order)
+                for i in 0..f_pts.min(self.mfft) {
+                    frame_spectrum[i] = frame_slice[i];
+                }
+            }
+            FftMode::Centered => {
+                // Centered FFT (need to perform ifftshift)
+                let half = self.mfft / 2;
+                for i in 0..f_pts.min(self.mfft) {
+                    if i < half {
+                        frame_spectrum[i + self.mfft - half] = frame_slice[i];
+                    } else {
+                        frame_spectrum[i - half] = frame_slice[i];
+                    }
+                }
+            }
+        };
+
+        Ok(frame_spectrum)
+    }
+
+    /// Perform FFT on a frame
+    ///
+    /// # Arguments
+    ///
+    /// * `frame` - Input frame
+    ///
+    /// # Returns
+    ///
+    /// * FFT result
+    fn fft(&self, frame: &Array1<f64>) -> SignalResult<Array1<Complex64>> {
+        // Convert to complex
+        let complex_frame: Vec<Complex64> = frame.iter().map(|&x| Complex64::new(x, 0.0)).collect();
+
+        // Perform FFT
+        let fft_result = match self.fft_mode {
+            FftMode::OneSided | FftMode::OneSided2X => {
+                // Real FFT
+                let mut output = Vec::new();
+                let n = complex_frame.len();
+
+                // DC component
+                let dc = complex_frame.iter().sum();
+                output.push(dc);
+
+                // Positive frequencies
+                for k in 1..(n / 2 + 1) {
+                    let mut sum = Complex64::new(0.0, 0.0);
+                    for j in 0..n {
+                        let angle = -2.0 * std::f64::consts::PI * (j * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += complex_frame[j] * c;
+                    }
+                    output.push(sum);
+                }
+
+                Array1::from(output)
+            }
+            FftMode::TwoSided => {
+                // Standard FFT
+                let mut output = Vec::with_capacity(complex_frame.len());
+                let n = complex_frame.len();
+
+                for k in 0..n {
+                    let mut sum = Complex64::new(0.0, 0.0);
+                    for j in 0..n {
+                        let angle = -2.0 * std::f64::consts::PI * (j * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += complex_frame[j] * c;
+                    }
+                    output.push(sum);
+                }
+
+                Array1::from(output)
+            }
+            FftMode::Centered => {
+                // FFT with fftshift
+                let mut output = Vec::with_capacity(complex_frame.len());
+                let n = complex_frame.len();
+
+                for k in 0..n {
+                    let mut sum = Complex64::new(0.0, 0.0);
+                    for j in 0..n {
+                        let angle = -2.0 * std::f64::consts::PI * (j * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += complex_frame[j] * c;
+                    }
+                    output.push(sum);
+                }
+
+                // Apply fftshift
+                let half = n / 2;
+                let mut shifted = vec![Complex64::new(0.0, 0.0); n];
+                for i in 0..n {
+                    if i < half {
+                        shifted[i + n - half] = output[i];
+                    } else {
+                        shifted[i - half] = output[i];
+                    }
+                }
+
+                Array1::from(shifted)
+            }
+        };
+
+        // Apply phase shift if requested
+        if let Some(phase_shift) = self.phase_shift {
+            let mut result = fft_result.clone();
+            let phase_factor = phase_shift as f64 / self.mfft as f64;
+
+            for (i, val) in result.iter_mut().enumerate() {
+                let angle = 2.0 * std::f64::consts::PI * i as f64 * phase_factor;
+                let phase = Complex64::new(angle.cos(), angle.sin());
+                *val *= phase;
+            }
+
+            Ok(result)
+        } else {
+            Ok(fft_result)
+        }
+    }
+
+    /// Perform IFFT on a spectrum
+    ///
+    /// # Arguments
+    ///
+    /// * `spectrum` - Input spectrum
+    ///
+    /// # Returns
+    ///
+    /// * IFFT result
+    fn ifft(&self, spectrum: &Array1<Complex64>) -> SignalResult<Array1<f64>> {
+        // Perform IFFT
+        let ifft_result = match self.fft_mode {
+            FftMode::OneSided | FftMode::OneSided2X => {
+                // Real IFFT
+                let n = self.mfft;
+                let mut output = vec![0.0; n];
+
+                for i in 0..n {
+                    let mut sum = Complex64::new(0.0, 0.0);
+
+                    // DC component
+                    sum += spectrum[0];
+
+                    // Positive frequencies
+                    for k in 1..(n / 2 + 1).min(spectrum.len()) {
+                        let angle = 2.0 * std::f64::consts::PI * (i * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += spectrum[k] * c;
+                    }
+
+                    // Apply normalization
+                    sum /= Complex64::new(n as f64, 0.0);
+
+                    // Real signal should have zero imaginary part after IFFT
+                    output[i] = sum.re;
+                }
+
+                Array1::from(output)
+            }
+            FftMode::TwoSided => {
+                // Standard IFFT
+                let n = self.mfft;
+                let mut output = vec![0.0; n];
+
+                for i in 0..n {
+                    let mut sum = Complex64::new(0.0, 0.0);
+
+                    for k in 0..n.min(spectrum.len()) {
+                        let angle = 2.0 * std::f64::consts::PI * (i * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += spectrum[k] * c;
+                    }
+
+                    // Apply normalization
+                    sum /= Complex64::new(n as f64, 0.0);
+
+                    // Real signal should have zero imaginary part after IFFT
+                    output[i] = sum.re;
+                }
+
+                Array1::from(output)
+            }
+            FftMode::Centered => {
+                // IFFT with ifftshift
+                let n = self.mfft;
+
+                // Apply ifftshift
+                let half = n / 2;
+                let mut unshifted = vec![Complex64::new(0.0, 0.0); n];
+                for i in 0..n.min(spectrum.len()) {
+                    if i < n - half {
+                        unshifted[i + half] = spectrum[i];
+                    } else {
+                        unshifted[i - (n - half)] = spectrum[i];
+                    }
+                }
+
+                // Perform IFFT
+                let mut output = vec![0.0; n];
+
+                for i in 0..n {
+                    let mut sum = Complex64::new(0.0, 0.0);
+
+                    for k in 0..n {
+                        let angle = 2.0 * std::f64::consts::PI * (i * k) as f64 / n as f64;
+                        let c = Complex64::new(angle.cos(), angle.sin());
+                        sum += unshifted[k] * c;
+                    }
+
+                    // Apply normalization
+                    sum /= Complex64::new(n as f64, 0.0);
+
+                    // Real signal should have zero imaginary part after IFFT
+                    output[i] = sum.re;
+                }
+
+                Array1::from(output)
+            }
+        };
+
+        // Return real part for window length
+        Ok(ifft_result.slice(s![..self.m_num]).to_owned())
+    }
+
+    /// Compute the spectrogram (magnitude squared of STFT)
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - Input signal
+    ///
+    /// # Returns
+    ///
+    /// * Power spectrogram
+    pub fn spectrogram<T>(&self, x: &[T]) -> SignalResult<Array2<f64>>
+    where
+        T: Float + NumCast + Debug,
+    {
+        let stft_result = self.stft(x)?;
+        let spectrogram = stft_result.mapv(|c| c.norm_sqr());
+        Ok(spectrogram)
+    }
+
+    /// Check if two points (p0, q0) and (p1, q1) are lower and upper border points
+    ///
+    /// # Returns
+    ///
+    /// * Tuple of (p0, q0) for lower border and (p1, q1) for upper border
+    pub fn border_points(&self, n: usize) -> ((isize, isize), (isize, isize)) {
+        let lower_end = (
+            ((self.m_num - self.m_num_mid) as isize + self.hop as isize - 1) / self.hop as isize,
+            self.m_num_mid as isize / self.hop as isize + 1,
+        );
+
+        let upper_begin = (
+            (n as isize - self.m_num_mid as isize) / self.hop as isize,
+            (n as isize + self.m_num - self.m_num_mid as isize - 1) / self.hop as isize + 1,
+        );
+
+        (lower_end, upper_begin)
+    }
+}
+
+/// Find the closest STFT dual window to a desired window
+///
+/// # Arguments
+///
+/// * `win` - Window function
+/// * `hop` - Hop size
+/// * `desired_dual` - Desired dual window
+/// * `scaled` - Whether to scale the window
+///
+/// # Returns
+///
+/// * Tuple of (dual window, scaling factor)
+pub fn closest_stft_dual_window(
+    win: &[f64],
+    hop: usize,
+    desired_dual: Option<&[f64]>,
+    scaled: bool,
+) -> SignalResult<(Vec<f64>, f64)> {
+    // Validate inputs
+    if win.is_empty() {
+        return Err(SignalError::ValueError(
+            "Window cannot be empty".to_string(),
+        ));
+    }
+
+    let desired = if let Some(d) = desired_dual {
+        if d.len() != win.len() {
+            return Err(SignalError::ValueError(
+                "Desired dual window must have the same length as window".to_string(),
+            ));
+        }
+        Array1::from_vec(d.to_vec())
+    } else {
+        // Default to rectangular window
+        Array1::ones(win.len())
+    };
+
+    if hop < 1 || hop > win.len() {
+        return Err(SignalError::ValueError(format!(
+            "Hop size must be between 1 and {}, got {}",
+            win.len(),
+            hop
+        )));
+    }
+
+    // Calculate the canonical dual window
+    let w_d = ShortTimeFft::calc_dual_canonical_window(win, hop)?;
+
+    // Calculate correlations
+    let win_array = Array1::from_vec(win.to_vec());
+    let wdd = &win_array * &desired;
+
+    let mut q_d = wdd.clone();
+    for k in (hop..win.len()).step_by(hop) {
+        for i in k..win.len() {
+            q_d[i] += wdd[i - k];
+        }
+        for i in 0..(win.len() - k) {
+            q_d[i] += wdd[i + k];
+        }
+    }
+
+    q_d = &w_d * &q_d;
+
+    if !scaled {
+        let result = &w_d + &desired - &q_d;
+        return Ok((result.to_vec(), 1.0));
+    }
+
+    // Calculate scaling factor
+    let numerator = (q_d.iter().map(|&x| x * x).sum::<f64>()).sqrt();
+    let denominator = (q_d.iter().map(|&x| x * x).sum::<f64>());
+
+    if !(numerator > 0.0 && denominator > std::f64::EPSILON) {
+        return Err(SignalError::ValueError(
+            "Unable to calculate scaled closest dual window due to numerically unstable scaling factor!".to_string(),
+        ));
+    }
+
+    let alpha = numerator / denominator;
+    let result = &w_d + (alpha * (&desired - &q_d));
+
+    Ok((result.to_vec(), alpha))
+}
+
+/// Create a STFT window that satisfies the COLA condition
+///
+/// # Arguments
+///
+/// * `m` - Window length
+/// * `hop` - Hop size
+///
+/// # Returns
+///
+/// * COLA window
+pub fn create_cola_window(m: usize, hop: usize) -> SignalResult<Vec<f64>> {
+    // Create initial rectangular window
+    let rect_win = vec![1.0; m];
+
+    // Find closest STFT dual window
+    let (cola_win, _) = closest_stft_dual_window(&rect_win, hop, None, true)?;
+
+    Ok(cola_win)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use std::f64::consts::PI;
+
+    #[test]
+    fn test_stft_creation() {
+        // Create a Hann window
+        let window = window::hann(256, true).unwrap();
+
+        // Create ShortTimeFft
+        let stft = ShortTimeFft::new(
+            &window,
+            64,
+            1000.0,
+            Some("onesided"),
+            None,
+            None,
+            Some("magnitude"),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(stft.hop, 64);
+        assert_eq!(stft.fs, 1000.0);
+        assert_eq!(stft.m_num, 256);
+        assert_eq!(stft.mfft, 256);
+        assert_eq!(stft.m_num_mid, 128);
+        assert!(matches!(stft.fft_mode, FftMode::OneSided));
+        assert!(matches!(stft.scaling, ScalingMode::Magnitude));
+    }
+
+    #[test]
+    fn test_stft_from_window() {
+        // Create ShortTimeFft from a named window
+        let stft =
+            ShortTimeFft::from_window("hamming", 1000.0, 256, 192, None, Some(512), None, None)
+                .unwrap();
+
+        assert_eq!(stft.hop, 64);
+        assert_eq!(stft.fs, 1000.0);
+        assert_eq!(stft.m_num, 256);
+        assert_eq!(stft.mfft, 512);
+        assert_eq!(stft.m_num_mid, 128);
+        assert!(matches!(stft.fft_mode, FftMode::OneSided));
+    }
+
+    #[test]
+    fn test_simple_signal_stft() {
+        // Create a simple sine wave
+        let fs = 1000.0;
+        let duration = 1.0;
+        let n = (fs * duration) as usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
+        let signal: Vec<f64> = t.iter().map(|&t| (2.0 * PI * 100.0 * t).sin()).collect();
+
+        // Create a hann window and initialize STFT
+        let window_length = 256;
+        let hop_size = 64;
+        let hann_window = window::hann(window_length, true).unwrap();
+
+        let stft = ShortTimeFft::new(
+            &hann_window,
+            hop_size,
+            fs,
+            None,
+            None,
+            None,
+            Some("magnitude"),
+            None,
+        )
+        .unwrap();
+
+        // Compute STFT
+        let stft_result = stft.stft(&signal).unwrap();
+
+        // Check dimensions
+        assert_eq!(stft_result.shape()[0], stft.f_pts());
+
+        // Since our signal is a 100 Hz sine wave, we should see peaks around 100 Hz
+        let freq_bin_100hz = (100.0 / stft.delta_f()).round() as usize;
+
+        // Check magnitude at 100 Hz bin for a few frames
+        for p in 0..5 {
+            if p < stft_result.shape()[1] {
+                let frame_100hz_mag = stft_result[[freq_bin_100hz, p]].norm();
+                // Should have significant energy at 100 Hz
+                assert!(frame_100hz_mag > 0.1);
+            }
+        }
+    }
+
+    #[test]
+    fn test_stft_istft_reconstruction() {
+        // Create a simple signal
+        let fs = 1000.0;
+        let duration = 0.5;
+        let n = (fs * duration) as usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
+        let signal: Vec<f64> = t.iter().map(|&t| (2.0 * PI * 100.0 * t).sin()).collect();
+
+        // Create a window that equals its dual
+        let window_length = 128;
+        let hop_size = 32;
+        let window = create_cola_window(window_length, hop_size).unwrap();
+
+        let stft =
+            ShortTimeFft::from_win_equals_dual(&window, hop_size, fs, None, None, None, None)
+                .unwrap();
+
+        // Compute STFT
+        let stft_result = stft.stft(&signal).unwrap();
+
+        // Reconstruct signal
+        let reconstructed = stft.istft(&stft_result, None, Some(n)).unwrap();
+
+        // Check reconstruction quality
+        assert_eq!(reconstructed.len(), n);
+
+        // Skip edges affected by windowing
+        let start = window_length / 2;
+        let end = n - window_length / 2;
+
+        for i in start..end {
+            assert_relative_eq!(reconstructed[i], signal[i], epsilon = 0.01);
+        }
+    }
+
+    #[test]
+    fn test_spectrogram() {
+        // Create a simple signal
+        let fs = 1000.0;
+        let duration = 0.3;
+        let n = (fs * duration) as usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
+
+        // Create a signal with two frequencies
+        let signal: Vec<f64> = t
+            .iter()
+            .map(|&t| 0.5 * (2.0 * PI * 100.0 * t).sin() + 0.3 * (2.0 * PI * 250.0 * t).sin())
+            .collect();
+
+        // Create a hann window and initialize STFT
+        let window_length = 128;
+        let hop_size = 32;
+        let hann_window = window::hann(window_length, true).unwrap();
+
+        let stft = ShortTimeFft::new(
+            &hann_window,
+            hop_size,
+            fs,
+            None,
+            None,
+            None,
+            Some("psd"),
+            None,
+        )
+        .unwrap();
+
+        // Compute spectrogram
+        let spec_result = stft.spectrogram(&signal).unwrap();
+
+        // Check dimensions
+        assert_eq!(spec_result.shape()[0], stft.f_pts());
+
+        // Calculate frequency bins
+        let freq_bin_100hz = (100.0 / stft.delta_f()).round() as usize;
+        let freq_bin_250hz = (250.0 / stft.delta_f()).round() as usize;
+
+        // Check that the spectrogram has peaks at both frequencies
+        for p in 1..5 {
+            if p < spec_result.shape()[1] {
+                let power_100hz = spec_result[[freq_bin_100hz, p]];
+                let power_250hz = spec_result[[freq_bin_250hz, p]];
+
+                // Power at 100 Hz should be greater than at 250 Hz (since amplitude is higher)
+                assert!(power_100hz > power_250hz);
+
+                // Both should be significantly above noise floor
+                assert!(power_100hz > 0.01);
+                assert!(power_250hz > 0.005);
+            }
+        }
+    }
+}

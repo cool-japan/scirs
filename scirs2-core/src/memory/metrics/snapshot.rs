@@ -723,7 +723,9 @@ mod tests {
     #[test]
     fn test_snapshot_creation() {
         // Use unwrap_or_else to make sure we can continue even with a poisoned mutex
-        let _lock = TEST_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _lock = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         println!("test_snapshot_creation started");
 
         // First make sure all global state is clean
@@ -822,7 +824,9 @@ mod tests {
     #[test]
     fn test_snapshot_manager() {
         // Use unwrap_or_else for better error handling
-        let _lock = TEST_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _lock = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         println!("test_snapshot_manager started");
 
         // Reset metrics and snapshots - do this BEFORE creating anything
@@ -908,7 +912,11 @@ mod tests {
         // Get a snapshot by ID
         let retrieved = manager.get_snapshot("s1");
         assert!(retrieved.is_some(), "Snapshot 's1' should exist");
-        assert_eq!(retrieved.unwrap().id, "s1", "Retrieved snapshot should have ID 's1'");
+        assert_eq!(
+            retrieved.unwrap().id,
+            "s1",
+            "Retrieved snapshot should have ID 's1'"
+        );
 
         // Clear snapshots
         manager.clear();
@@ -982,7 +990,8 @@ mod tests {
         );
 
         // Verify exactly 1024 bytes are allocated
-        assert_eq!(after_alloc_report.total_current_usage, 1024,
+        assert_eq!(
+            after_alloc_report.total_current_usage, 1024,
             "Expected 1024 bytes allocated but found {} bytes",
             after_alloc_report.total_current_usage
         );
@@ -1095,7 +1104,9 @@ mod tests {
     #[test]
     fn test_leak_detection() {
         // Use unwrap_or_else for better error handling
-        let _lock = TEST_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _lock = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         println!("test_leak_detection started");
 
         // Ensure we have a clean state to start with

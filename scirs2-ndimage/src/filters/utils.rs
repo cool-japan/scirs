@@ -101,7 +101,13 @@ where
                 // Pad right side
                 let offset = start + input_len;
                 for i in 0..pad_width[0].1 {
-                    let src_idx = input_len - 2 - i;
+                    // Use saturating_sub to avoid overflow
+                    let src_idx = if input_len > 1 {
+                        input_len.saturating_sub(2).saturating_sub(i)
+                    } else {
+                        0 // For single element arrays, just repeat the element
+                    };
+
                     if src_idx < input_len {
                         output_array1[offset + i] = input_array1[src_idx];
                     }

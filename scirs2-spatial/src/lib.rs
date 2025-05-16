@@ -13,6 +13,7 @@
 //! * Set-based distances (Hausdorff, Wasserstein)
 //! * Polygon operations
 //! * Spatial transformations
+//! * Path planning algorithms
 //!
 //! ## Features
 //!
@@ -25,6 +26,7 @@
 //! * Advanced query capabilities (k-nearest neighbors, radius search)
 //! * Set-based distances (Hausdorff, Wasserstein)
 //! * Polygon operations (point-in-polygon, area, centroid)
+//! * Path planning algorithms (A*, RRT, visibility graphs)
 //!
 //! ## Examples
 //!
@@ -177,6 +179,79 @@
 //! let (idx_radius, dist_radius) = ball_tree.query_radius(&[0.5, 0.5], 0.7, true).unwrap();
 //! println!("Found {} points within radius 0.7", idx_radius.len());
 //! ```
+//!
+//! ### A* Pathfinding
+//!
+//! ```
+//! use scirs2_spatial::pathplanning::GridAStarPlanner;
+//!
+//! // Create a grid with some obstacles (true = obstacle, false = free space)
+//! let grid = vec![
+//!     vec![false, false, false, false, false],
+//!     vec![false, false, false, false, false],
+//!     vec![false, true, true, true, false],  // A wall of obstacles
+//!     vec![false, false, false, false, false],
+//!     vec![false, false, false, false, false],
+//! ];
+//!
+//! // Create an A* planner with the grid
+//! let planner = GridAStarPlanner::new(grid, false);
+//!
+//! // Find a path from top-left to bottom-right
+//! let start = [0, 0];
+//! let goal = [4, 4];
+//!
+//! let path = planner.find_path(start, goal).unwrap().unwrap();
+//!
+//! println!("Found a path with {} steps:", path.len() - 1);
+//! for (i, pos) in path.nodes.iter().enumerate() {
+//!     println!("  Step {}: {:?}", i, pos);
+//! }
+//! ```
+//!
+//! ### RRT Pathfinding
+//!
+//! ```
+//! use scirs2_spatial::pathplanning::{RRTConfig, RRT2DPlanner};
+//!
+//! // Create a configuration for RRT
+//! let config = RRTConfig {
+//!     max_iterations: 1000,
+//!     step_size: 0.3,
+//!     goal_bias: 0.1,
+//!     seed: Some(42),
+//!     use_rrt_star: false,
+//!     neighborhood_radius: None,
+//!     bidirectional: false,
+//! };
+//!
+//! // Define obstacles as polygons
+//! let obstacles = vec![
+//!     // Rectangle obstacle
+//!     vec![[3.0, 2.0], [3.0, 4.0], [4.0, 4.0], [4.0, 2.0]],
+//! ];
+//!
+//! // Create RRT planner
+//! let mut planner = RRT2DPlanner::new(
+//!     config,
+//!     obstacles,
+//!     [0.0, 0.0],   // Min bounds
+//!     [10.0, 10.0], // Max bounds
+//!     0.1,          // Collision checking step size
+//! ).unwrap();
+//!
+//! // Find a path from start to goal
+//! let start = [1.0, 3.0];
+//! let goal = [8.0, 3.0];
+//! let goal_threshold = 0.5;
+//!
+//! let path = planner.find_path(start, goal, goal_threshold).unwrap().unwrap();
+//!
+//! println!("Found a path with {} segments:", path.len() - 1);
+//! for (i, pos) in path.nodes.iter().enumerate() {
+//!     println!("  Point {}: [{:.2}, {:.2}]", i, pos[0], pos[1]);
+//! }
+//! ```
 
 // Export error types
 pub mod error;
@@ -230,6 +305,14 @@ pub use delaunay::Delaunay;
 pub mod voronoi;
 pub use voronoi::{voronoi, Voronoi};
 
+// Spherical Voronoi diagrams
+pub mod spherical_voronoi;
+pub use spherical_voronoi::SphericalVoronoi;
+
+// Procrustes analysis
+pub mod procrustes;
+pub use procrustes::{procrustes, procrustes_extended, ProcrustesParams};
+
 // Convex hull computation
 pub mod convex_hull;
 pub use convex_hull::{convex_hull, ConvexHull};
@@ -245,6 +328,41 @@ pub mod polygon;
 pub use polygon::{
     convex_hull_graham, is_simple_polygon, point_in_polygon, point_on_boundary, polygon_area,
     polygon_centroid, polygon_contains_polygon,
+};
+
+// R-tree for efficient spatial indexing
+pub mod rtree;
+pub use rtree::{RTree, Rectangle as RTreeRectangle};
+
+// Octree for 3D spatial searches
+pub mod octree;
+pub use octree::{BoundingBox, Octree};
+
+// Quadtree for 2D spatial searches
+pub mod quadtree;
+pub use quadtree::{BoundingBox2D, Quadtree};
+
+// Spatial interpolation methods
+pub mod interpolate;
+pub use interpolate::{IDWInterpolator, NaturalNeighborInterpolator, RBFInterpolator, RBFKernel};
+
+// Path planning algorithms
+pub mod pathplanning;
+pub use pathplanning::astar::{AStarPlanner, ContinuousAStarPlanner, GridAStarPlanner, Node, Path};
+pub use pathplanning::rrt::{RRT2DPlanner, RRTConfig, RRTPlanner};
+
+// Spatial transformations
+pub mod transform;
+
+// Collision detection
+pub mod collision;
+pub use collision::{
+    box2d_box2d_collision, box3d_box3d_collision, circle_box2d_collision, circle_circle_collision,
+    continuous_sphere_sphere_collision, point_box2d_collision, point_box3d_collision,
+    point_circle_collision, point_sphere_collision, point_triangle2d_collision,
+    ray_box3d_collision, ray_sphere_collision, ray_triangle3d_collision, sphere_box3d_collision,
+    sphere_sphere_collision, Box2D, Box3D, Circle, LineSegment2D, LineSegment3D, Sphere,
+    Triangle2D, Triangle3D,
 };
 
 // Utility functions

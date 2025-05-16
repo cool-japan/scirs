@@ -19,15 +19,15 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{RwLock, LazyLock};
+use std::sync::{LazyLock, RwLock};
 
 use ndarray::{Array, Dimension};
 use num_traits::Float;
 
-use crate::array_protocol::{
-    ArrayFunction, ArrayProtocol, NdarrayWrapper, NotImplemented, GPUArray,
-};
 use crate::array_protocol::gpu_impl::GPUNdarray;
+use crate::array_protocol::{
+    ArrayFunction, ArrayProtocol, GPUArray, NdarrayWrapper, NotImplemented,
+};
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Precision levels for array operations.
@@ -35,13 +35,13 @@ use crate::error::{CoreError, CoreResult, ErrorContext};
 pub enum Precision {
     /// Half-precision floating point (16-bit)
     Half,
-    
+
     /// Single-precision floating point (32-bit)
     Single,
-    
+
     /// Double-precision floating point (64-bit)
     Double,
-    
+
     /// Mixed precision (e.g., store in 16/32-bit, compute in 64-bit)
     Mixed,
 }
@@ -62,16 +62,16 @@ impl fmt::Display for Precision {
 pub struct MixedPrecisionConfig {
     /// Storage precision for arrays.
     pub storage_precision: Precision,
-    
+
     /// Computation precision for operations.
     pub compute_precision: Precision,
-    
+
     /// Automatic precision selection based on array size and operation.
     pub auto_precision: bool,
-    
+
     /// Threshold for automatic downcast to lower precision.
     pub downcast_threshold: usize,
-    
+
     /// Always use double precision for intermediate results.
     pub double_precision_accumulation: bool,
 }
@@ -108,7 +108,10 @@ pub fn set_mixed_precision_config(config: MixedPrecisionConfig) {
 
 /// Get the current mixed-precision configuration.
 pub fn get_mixed_precision_config() -> MixedPrecisionConfig {
-    MIXED_PRECISION_CONFIG.read().map(|c| c.clone()).unwrap_or_default()
+    MIXED_PRECISION_CONFIG
+        .read()
+        .map(|c| c.clone())
+        .unwrap_or_default()
 }
 
 /// Determine the optimal precision for an array based on its size.
@@ -119,7 +122,7 @@ where
 {
     let config = get_mixed_precision_config();
     let size = array.len();
-    
+
     if config.auto_precision {
         if size >= config.downcast_threshold {
             Precision::Single
@@ -168,7 +171,7 @@ where
         Self {
             array,
             storage_precision: precision,
-            compute_precision: precision
+            compute_precision: precision,
         }
     }
 
@@ -184,10 +187,10 @@ where
         Self {
             array,
             storage_precision,
-            compute_precision
+            compute_precision,
         }
     }
-    
+
     /// Get the array at the specified precision.
     ///
     /// This is a placeholder implementation. In a real implementation,
@@ -199,15 +202,15 @@ where
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would handle proper type conversion.
         Err(CoreError::NotImplementedError(ErrorContext::new(
-            "Precision conversion not fully implemented yet"
+            "Precision conversion not fully implemented yet",
         )))
     }
-    
+
     /// Get the current storage precision.
     pub fn storage_precision(&self) -> Precision {
         self.storage_precision
     }
-    
+
     /// Get the underlying array.
     pub fn array(&self) -> &Array<T, D> {
         &self.array
@@ -218,10 +221,10 @@ where
 pub trait MixedPrecisionSupport: ArrayProtocol {
     /// Convert the array to the specified precision.
     fn to_precision(&self, precision: Precision) -> CoreResult<Box<dyn MixedPrecisionSupport>>;
-    
+
     /// Get the current precision of the array.
     fn precision(&self) -> Precision;
-    
+
     /// Check if the array supports the specified precision.
     fn supports_precision(&self, precision: Precision) -> bool;
 }
@@ -240,7 +243,10 @@ where
         kwargs: &HashMap<String, Box<dyn Any>>,
     ) -> Result<Box<dyn Any>, NotImplemented> {
         // If the function supports mixed precision, delegate to the appropriate implementation
-        if let Some(precision) = kwargs.get("precision").and_then(|p| p.downcast_ref::<Precision>()) {
+        if let Some(precision) = kwargs
+            .get("precision")
+            .and_then(|p| p.downcast_ref::<Precision>())
+        {
             match func.name {
                 "scirs2::array_protocol::operations::matmul" => {
                     // For matrix multiplication, use the appropriate precision
@@ -249,24 +255,24 @@ where
                             // Convert to f32 for computation (simplified)
                             let wrapped = NdarrayWrapper::new(self.array.clone());
                             return Ok(Box::new(wrapped));
-                        },
+                        }
                         Precision::Double => {
                             // Use f64 for computation
                             let wrapped = NdarrayWrapper::new(self.array.clone());
                             return Ok(Box::new(wrapped));
-                        },
+                        }
                         _ => return Err(NotImplemented),
                     }
-                },
+                }
                 _ => return Err(NotImplemented),
             }
         }
-        
+
         // Delegate to the standard implementation
         let wrapped = NdarrayWrapper::new(self.array.clone());
         wrapped.array_function(func, types, args, kwargs)
     }
-    
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -297,25 +303,27 @@ where
                 let array_f32 = self.array.clone();
                 let new_array = MixedPrecisionArray::with_compute_precision(array_f32, precision);
                 Ok(Box::new(new_array))
-            },
+            }
             Precision::Double => {
                 // Convert to f64 (simplified)
                 let array_f64 = self.array.clone();
                 let new_array = MixedPrecisionArray::with_compute_precision(array_f64, precision);
                 Ok(Box::new(new_array))
-            },
+            }
             Precision::Mixed => {
                 // For mixed precision, use storage precision of the current array and double compute precision
                 let array_mixed = self.array.clone();
-                let new_array = MixedPrecisionArray::with_compute_precision(array_mixed, Precision::Double);
+                let new_array =
+                    MixedPrecisionArray::with_compute_precision(array_mixed, Precision::Double);
                 Ok(Box::new(new_array))
-            },
-            _ => Err(CoreError::NotImplementedError(ErrorContext::new(
-                format!("Conversion to {} precision not implemented", precision)
-            ))),
+            }
+            _ => Err(CoreError::NotImplementedError(ErrorContext::new(format!(
+                "Conversion to {} precision not implemented",
+                precision
+            )))),
         }
     }
-    
+
     fn precision(&self) -> Precision {
         // If storage and compute precision differ, return Mixed
         if self.storage_precision != self.compute_precision {
@@ -324,7 +332,7 @@ where
             self.storage_precision
         }
     }
-    
+
     fn supports_precision(&self, _precision: Precision) -> bool {
         match _precision {
             Precision::Single | Precision::Double => true,
@@ -336,14 +344,14 @@ where
 /// Implement MixedPrecisionSupport for GPUNdarray.
 impl<T, D> MixedPrecisionSupport for GPUNdarray<T, D>
 where
-    T: Clone + Float + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output=T>,
+    T: Clone + Float + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T>,
     D: Dimension + Send + Sync + 'static + ndarray::RemoveAxis,
 {
     fn to_precision(&self, precision: Precision) -> CoreResult<Box<dyn MixedPrecisionSupport>> {
         // For GPUs, creating a new array with mixed precision enabled
         let mut config = self.config().clone();
         config.mixed_precision = precision == Precision::Mixed;
-        
+
         if let Ok(cpu_array) = self.to_cpu() {
             // Use as_any() to downcast the ArrayProtocol trait object
             if let Some(ndarray) = cpu_array.as_any().downcast_ref::<NdarrayWrapper<T, D>>() {
@@ -351,12 +359,13 @@ where
                 return Ok(Box::new(new_gpu_array));
             }
         }
-        
-        Err(CoreError::NotImplementedError(ErrorContext::new(
-            format!("Conversion to {} precision not implemented for GPU arrays", precision)
-        )))
+
+        Err(CoreError::NotImplementedError(ErrorContext::new(format!(
+            "Conversion to {} precision not implemented for GPU arrays",
+            precision
+        ))))
     }
-    
+
     fn precision(&self) -> Precision {
         if self.config().mixed_precision {
             Precision::Mixed
@@ -368,7 +377,7 @@ where
             }
         }
     }
-    
+
     fn supports_precision(&self, _precision: Precision) -> bool {
         // Most GPUs support all precision levels
         true
@@ -391,9 +400,10 @@ where
     // Check if all arrays support the requested precision
     for array in arrays {
         if !array.supports_precision(precision) {
-            return Err(CoreError::InvalidArgument(ErrorContext::new(
-                format!("One or more arrays do not support {} precision", precision)
-            )));
+            return Err(CoreError::InvalidArgument(ErrorContext::new(format!(
+                "One or more arrays do not support {} precision",
+                precision
+            ))));
         }
     }
 
@@ -419,24 +429,22 @@ where
 pub mod ops {
     use super::*;
     use crate::array_protocol::operations as array_ops;
-    
+
     /// Matrix multiplication with specified precision.
     pub fn matmul(
         a: &dyn MixedPrecisionSupport,
         b: &dyn MixedPrecisionSupport,
         precision: Precision,
     ) -> CoreResult<Box<dyn ArrayProtocol>> {
-        execute_with_precision(
-            &[a, b],
-            precision,
-            |arrays| {
-                // Convert OperationError to CoreError
-                match array_ops::matmul(arrays[0], arrays[1]) {
-                    Ok(result) => Ok(result),
-                    Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(e.to_string())))
-                }
-            },
-        )
+        execute_with_precision(&[a, b], precision, |arrays| {
+            // Convert OperationError to CoreError
+            match array_ops::matmul(arrays[0], arrays[1]) {
+                Ok(result) => Ok(result),
+                Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(
+                    e.to_string(),
+                ))),
+            }
+        })
     }
 
     /// Element-wise addition with specified precision.
@@ -445,17 +453,15 @@ pub mod ops {
         b: &dyn MixedPrecisionSupport,
         precision: Precision,
     ) -> CoreResult<Box<dyn ArrayProtocol>> {
-        execute_with_precision(
-            &[a, b],
-            precision,
-            |arrays| {
-                // Convert OperationError to CoreError
-                match array_ops::add(arrays[0], arrays[1]) {
-                    Ok(result) => Ok(result),
-                    Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(e.to_string())))
-                }
-            },
-        )
+        execute_with_precision(&[a, b], precision, |arrays| {
+            // Convert OperationError to CoreError
+            match array_ops::add(arrays[0], arrays[1]) {
+                Ok(result) => Ok(result),
+                Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(
+                    e.to_string(),
+                ))),
+            }
+        })
     }
 
     /// Element-wise multiplication with specified precision.
@@ -464,17 +470,15 @@ pub mod ops {
         b: &dyn MixedPrecisionSupport,
         precision: Precision,
     ) -> CoreResult<Box<dyn ArrayProtocol>> {
-        execute_with_precision(
-            &[a, b],
-            precision,
-            |arrays| {
-                // Convert OperationError to CoreError
-                match array_ops::multiply(arrays[0], arrays[1]) {
-                    Ok(result) => Ok(result),
-                    Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(e.to_string())))
-                }
-            },
-        )
+        execute_with_precision(&[a, b], precision, |arrays| {
+            // Convert OperationError to CoreError
+            match array_ops::multiply(arrays[0], arrays[1]) {
+                Ok(result) => Ok(result),
+                Err(e) => Err(CoreError::NotImplementedError(ErrorContext::new(
+                    e.to_string(),
+                ))),
+            }
+        })
     }
 }
 
@@ -482,31 +486,33 @@ pub mod ops {
 mod tests {
     use super::*;
     use ndarray::arr2;
-    
+
     #[test]
     fn test_mixed_precision_array() {
         // Create a mixed-precision array
         let array = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
         let mixed_array = MixedPrecisionArray::new(array.clone());
-        
+
         // Check the storage precision (should be double for f64 arrays)
         assert_eq!(mixed_array.storage_precision(), Precision::Double);
-        
+
         // Test the ArrayProtocol implementation
         let array_protocol: &dyn ArrayProtocol = &mixed_array;
         // The array is of type MixedPrecisionArray<f64, Ix2> (not IxDyn)
-        assert!(array_protocol.as_any().is::<MixedPrecisionArray<f64, ndarray::Ix2>>());
+        assert!(array_protocol
+            .as_any()
+            .is::<MixedPrecisionArray<f64, ndarray::Ix2>>());
     }
-    
+
     #[test]
     fn test_mixed_precision_support() {
         // Initialize the array protocol
         crate::array_protocol::init();
-        
+
         // Create a mixed-precision array
         let array = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
         let mixed_array = MixedPrecisionArray::new(array.clone());
-        
+
         // Test MixedPrecisionSupport implementation
         let mixed_support: &dyn MixedPrecisionSupport = &mixed_array;
         assert_eq!(mixed_support.precision(), Precision::Double);

@@ -18,6 +18,19 @@
 //! * Signal detrending and trend analysis
 //! * Hilbert transform and analytic signal analysis
 //! * Multi-resolution analysis with wavelets (CWT, DWT, DWT2D, SWT, SWT2D, WPT)
+//! * Time-frequency analysis with Wigner-Ville distribution, reassigned spectrograms, and synchrosqueezed wavelets
+//! * Parametric spectral estimation (AR, ARMA models)
+//! * Higher-order spectral analysis (bispectrum, bicoherence, trispectrum)
+//! * Signal denoising techniques (Wiener, Non-Local Means, Total Variation, Median, Kalman)
+//! * Signal deconvolution (Wiener, Richardson-Lucy, Tikhonov, Total Variation, Blind)
+//! * Blind source separation (ICA, PCA, NMF, Sparse Component Analysis)
+//! * Missing data interpolation (Linear, Cubic Spline, Gaussian Process, Kriging, RBF, Spectral)
+//! * Sparse signal recovery (OMP, MP, CoSaMP, ISTA, FISTA, Basis Pursuit)
+//! * Compressed sensing and missing data reconstruction
+//! * Advanced filtering (median filtering for impulse noise removal)
+//! * State estimation (Kalman filtering, Extended Kalman, Unscented Kalman)
+//! * Synchrosqueezed Wavelet Transform (SSWT) for improved time-frequency analysis
+//! * Window functions (Hamming, Hann, Blackman, etc.) for spectral analysis
 //!
 //! ## Examples
 //!
@@ -41,34 +54,116 @@ pub mod error;
 pub use error::{SignalError, SignalResult};
 
 // Signal processing module structure
+pub mod bss;
 pub mod convolve;
+pub mod cqt;
 pub mod czt;
+pub mod deconvolution;
 pub mod denoise;
 pub mod detrend;
 pub mod dwt;
 pub mod dwt2d;
 pub mod dwt2d_image;
 pub mod filter;
+pub mod higher_order;
+pub mod interpolate;
+pub mod kalman;
+pub mod lombscargle;
 pub mod lti;
 pub mod lti_response;
+pub mod median;
+pub mod nlm;
+pub mod parametric;
 pub mod peak;
+pub mod reassigned;
 pub mod resample;
 pub mod savgol;
+pub mod sparse;
 pub mod spectral;
+pub mod spline;
+pub mod sswt;
+pub mod stft;
 pub mod swt;
 pub mod swt2d;
+pub mod tv;
 pub mod waveforms;
 pub mod wavelet_vis;
 pub mod wavelets;
+pub mod wiener;
+pub mod window;
 pub mod wpt;
 pub mod wpt2d;
+pub mod wvd;
 
 // Re-export commonly used functions
+pub use bss::{
+    calculate_correlation_matrix, calculate_mutual_information, estimate_source_count, ica,
+    joint_bss, joint_diagonalization, kernel_ica, multivariate_emd, nmf, pca, sort_components,
+    sparse_component_analysis, BssConfig, IcaMethod, NonlinearityFunction,
+};
 pub use convolve::{convolve, correlate, deconvolve};
+pub use cqt::{
+    chromagram, constant_q_transform, cqt_magnitude, inverse_constant_q_transform, CqtConfig,
+};
+pub use deconvolution::{
+    blind_deconvolution_1d, blind_deconvolution_2d, clean_deconvolution_1d, mem_deconvolution_1d,
+    optimal_deconvolution_1d, richardson_lucy_deconvolution_1d, richardson_lucy_deconvolution_2d,
+    richardson_lucy_deconvolution_color, tikhonov_deconvolution_1d, tv_deconvolution_2d,
+    wiener_deconvolution_1d, wiener_deconvolution_2d, wiener_deconvolution_color,
+    DeconvolutionConfig, DeconvolutionMethod,
+};
 pub use filter::{bessel, butter, cheby1, cheby2, ellip, filtfilt, firwin, lfilter};
+pub use higher_order::{
+    biamplitude, bicoherence, bispectrum, cumulative_bispectrum, detect_phase_coupling,
+    skewness_spectrum, trispectrum, BispecEstimator, HigherOrderConfig,
+};
+pub use interpolate::{
+    auto_interpolate, cubic_hermite_interpolate, cubic_spline_interpolate,
+    gaussian_process_interpolate, interpolate, interpolate_2d, kriging_interpolate,
+    linear_interpolate, minimum_energy_interpolate, nearest_neighbor_interpolate, rbf_functions,
+    rbf_interpolate, sinc_interpolate, spectral_interpolate, variogram_models, InterpolationConfig,
+    InterpolationMethod,
+};
+pub use kalman::{
+    adaptive_kalman_filter, ensemble_kalman_filter, extended_kalman_filter, kalman_denoise_1d,
+    kalman_denoise_2d, kalman_denoise_color, kalman_filter, kalman_smooth, robust_kalman_filter,
+    unscented_kalman_filter, KalmanConfig,
+};
+pub use lombscargle::{
+    find_peaks as find_ls_peaks, lombscargle, significance_levels, AutoFreqMethod,
+};
+pub use median::{
+    hybrid_median_filter_2d, median_filter_1d, median_filter_2d, median_filter_color,
+    rank_filter_1d, EdgeMode, MedianConfig,
+};
+pub use nlm::{
+    nlm_block_matching_2d, nlm_color_image, nlm_denoise_1d, nlm_denoise_2d, nlm_multiscale_2d,
+    NlmConfig,
+};
+pub use parametric::{
+    ar_spectrum, arma_spectrum, estimate_ar, estimate_arma, select_ar_order, ARMethod,
+    OrderSelection,
+};
 pub use peak::{find_peaks, peak_prominences, peak_widths};
-pub use spectral::{periodogram, spectrogram, stft, welch};
+pub use reassigned::{reassigned_spectrogram, smoothed_reassigned_spectrogram, ReassignedConfig};
+pub use sparse::{
+    basis_pursuit, compressed_sensing_recover, cosamp, estimate_rip_constant, fista, iht,
+    image_inpainting, ista, lasso, matrix_coherence, measure_sparsity, mp, omp,
+    random_sensing_matrix, recover_missing_samples, smooth_l0, sparse_denoise, subspace_pursuit,
+    SparseRecoveryConfig, SparseRecoveryMethod, SparseTransform,
+};
+pub use spectral::{periodogram, spectrogram, stft as spectral_stft, welch};
+pub use stft::{closest_stft_dual_window, create_cola_window, ShortTimeFft};
+pub use tv::{
+    tv_bregman_1d, tv_bregman_2d, tv_denoise_1d, tv_denoise_2d, tv_denoise_color, tv_inpaint,
+    TvConfig, TvVariant,
+};
 pub use waveforms::{chirp, gausspulse, sawtooth, square};
+pub use wiener::{
+    iterative_wiener_filter, kalman_wiener_filter, psd_wiener_filter, spectral_subtraction,
+    wiener_filter, wiener_filter_2d, wiener_filter_freq, wiener_filter_time, WienerConfig,
+};
+pub use wvd::{cross_wigner_ville, smoothed_pseudo_wigner_ville, wigner_ville, WvdConfig};
 
 // Savitzky-Golay filtering
 pub use savgol::{savgol_coeffs, savgol_filter};
@@ -119,6 +214,24 @@ pub use measurements::{peak_to_peak, peak_to_rms, rms, snr, thd};
 
 // Utility functions for signal processing
 pub mod utils;
+
+// Window functions
+pub use window::{
+    barthann, bartlett, blackman, blackmanharris, bohman, boxcar, cosine, exponential, flattop,
+    get_window, hamming, hann, nuttall, parzen, triang, tukey,
+};
+
+// B-spline functions
+pub use spline::{
+    bspline_basis, bspline_coefficients, bspline_derivative, bspline_evaluate, bspline_filter,
+    bspline_smooth, SplineOrder,
+};
+
+// Synchrosqueezed wavelet transform functions
+pub use sswt::{
+    extract_ridges, frequency_bins, log_scales, reconstruct_from_ridge, synchrosqueezed_cwt,
+    SynchroCwtConfig, SynchroCwtResult,
+};
 
 #[cfg(test)]
 mod tests {

@@ -186,7 +186,7 @@ struct DebugAugmentationWrapper<'a, F: Float + Debug + ScalarOperand> {
     inner: &'a dyn Augmentation<F>,
 }
 
-impl<'a, F: Float + Debug + ScalarOperand> Debug for DebugAugmentationWrapper<'a, F> {
+impl<F: Float + Debug + ScalarOperand> Debug for DebugAugmentationWrapper<'_, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Augmentation({})", self.inner.description())
     }

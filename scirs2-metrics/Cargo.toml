@@ -12,6 +12,10 @@ categories = ["science", "mathematics", "algorithms"]
 [dependencies]
 # Core dependencies
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
+# Optional dependencies for integration with other modules
+# Optional dependencies temporarily commented out to avoid circular dependency
+# scirs2-neural = { path = "../scirs2-neural", version = "0.1.0-alpha.3", optional = true, default-features = false, features = ["core"] }
+# scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.3", optional = true, default-features = false }
 # Temporarily removed for publishing
 # # # scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.3" }
 # # # scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
@@ -21,11 +25,33 @@ num-complex = "0.4.6"
 thiserror = "2.0.12"
 approx = "0.5.1"
 rand = "0.9.0"
+rand_distr = "0.4.3"
+rayon = "1.9.0"
+parking_lot = "0.12.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+ciborium = "0.2"  # CBOR serialization
+chrono = { version = "0.4", features = ["serde"] }
+
+# Visualization dependencies (optional)
+plotters = { version = "0.3.5", optional = true }
+plotly = { version = "0.8.4", optional = true }
 
 # Future dependency for PandRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
 
 [features]
 default = []
+# Integration with other scirs2 modules
+# Integration features 
+neural_common = [] # Common neural functionality without dependency on scirs2-neural
+# The following features are temporarily commented out to break circular dependencies
+# neural_integration = ["dep:scirs2-neural", "neural_common"]
+# optim_integration = ["dep:scirs2-optim"]
+# Visualization backends
+plotters_backend = ["dep:plotters"]
+plotly_backend = ["dep:plotly"]
 # Enable external ML library wrappers
 # pandrs = ["dep:pandrs_wrapper"]

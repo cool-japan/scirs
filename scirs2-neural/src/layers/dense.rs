@@ -240,6 +240,24 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
         self
     }
 
+    fn layer_type(&self) -> &str {
+        "Dense"
+    }
+
+    fn parameter_count(&self) -> usize {
+        // Count weights and biases
+        self.weights.len() + self.biases.len()
+    }
+
+    fn layer_description(&self) -> String {
+        format!(
+            "type:Dense, input_dim:{}, output_dim:{}, activation:{}",
+            self.input_dim,
+            self.output_dim,
+            self.activation_name().unwrap_or("None")
+        )
+    }
+
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         // Check if input shape matches expected shape
         if input.ndim() < 1 {
@@ -345,10 +363,10 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for Dense<F> {
         };
 
         // Use provided input parameter, but fall back to saved input if needed
-        let input_to_use = if saved_input.is_none() {
-            input
+        let input_to_use = if let Some(ref saved) = saved_input {
+            saved
         } else {
-            saved_input.as_ref().unwrap()
+            input
         };
 
         // If activation is present, first compute gradient through the activation

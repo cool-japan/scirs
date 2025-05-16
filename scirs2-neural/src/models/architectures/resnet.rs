@@ -13,6 +13,9 @@ use num_traits::Float;
 use rand::SeedableRng;
 use std::fmt::Debug;
 
+/// Type alias for average pooling function
+type AvgPoolFn<F> = Box<dyn Fn(&Array<F, IxDyn>) -> Result<Array<F, IxDyn>> + Send + Sync>;
+
 /// ResNet block configuration
 #[derive(Debug, Clone)]
 pub enum ResNetBlock {
@@ -579,7 +582,7 @@ pub struct ResNet<F: Float + Debug + ScalarOperand + Send + Sync> {
     /// ResNet layers
     layers: Vec<Box<dyn Layer<F> + Send + Sync>>,
     /// Global average pooling
-    avg_pool: Box<dyn Fn(&Array<F, IxDyn>) -> Result<Array<F, IxDyn>> + Send + Sync>,
+    avg_pool: AvgPoolFn<F>,
     /// Fully connected layer
     fc: Dense<F>,
     /// Dropout layer

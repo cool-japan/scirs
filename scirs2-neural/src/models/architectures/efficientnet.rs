@@ -69,105 +69,99 @@ pub struct EfficientNetConfig {
 impl EfficientNetConfig {
     /// Create EfficientNet-B0 configuration
     pub fn efficientnet_b0(input_channels: usize, num_classes: usize) -> Self {
-        let mut stages = Vec::new();
-
-        // Stage 1: MBConv1, 16 channels, 1 block
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 32,
-                output_channels: 16,
-                kernel_size: 3,
-                stride: 1,
-                expand_ratio: 1,
-                use_se: true,
-                drop_connect_rate: 0.2,
+        let stages = vec![
+            // Stage 1: MBConv1, 16 channels, 1 block
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 32,
+                    output_channels: 16,
+                    kernel_size: 3,
+                    stride: 1,
+                    expand_ratio: 1,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 1,
             },
-            num_blocks: 1,
-        });
-
-        // Stage 2: MBConv6, 24 channels, 2 blocks
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 16,
-                output_channels: 24,
-                kernel_size: 3,
-                stride: 2,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 2: MBConv6, 24 channels, 2 blocks
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 16,
+                    output_channels: 24,
+                    kernel_size: 3,
+                    stride: 2,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 2,
             },
-            num_blocks: 2,
-        });
-
-        // Stage 3: MBConv6, 40 channels, 2 blocks
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 24,
-                output_channels: 40,
-                kernel_size: 5,
-                stride: 2,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 3: MBConv6, 40 channels, 2 blocks
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 24,
+                    output_channels: 40,
+                    kernel_size: 5,
+                    stride: 2,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 2,
             },
-            num_blocks: 2,
-        });
-
-        // Stage 4: MBConv6, 80 channels, 3 blocks
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 40,
-                output_channels: 80,
-                kernel_size: 3,
-                stride: 2,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 4: MBConv6, 80 channels, 3 blocks
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 40,
+                    output_channels: 80,
+                    kernel_size: 3,
+                    stride: 2,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 3,
             },
-            num_blocks: 3,
-        });
-
-        // Stage 5: MBConv6, 112 channels, 3 blocks
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 80,
-                output_channels: 112,
-                kernel_size: 5,
-                stride: 1,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 5: MBConv6, 112 channels, 3 blocks
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 80,
+                    output_channels: 112,
+                    kernel_size: 5,
+                    stride: 1,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 3,
             },
-            num_blocks: 3,
-        });
-
-        // Stage 6: MBConv6, 192 channels, 4 blocks
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 112,
-                output_channels: 192,
-                kernel_size: 5,
-                stride: 2,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 6: MBConv6, 192 channels, 4 blocks
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 112,
+                    output_channels: 192,
+                    kernel_size: 5,
+                    stride: 2,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 4,
             },
-            num_blocks: 4,
-        });
-
-        // Stage 7: MBConv6, 320 channels, 1 block
-        stages.push(EfficientNetStage {
-            mbconv_config: MBConvConfig {
-                input_channels: 192,
-                output_channels: 320,
-                kernel_size: 3,
-                stride: 1,
-                expand_ratio: 6,
-                use_se: true,
-                drop_connect_rate: 0.2,
+            // Stage 7: MBConv6, 320 channels, 1 block
+            EfficientNetStage {
+                mbconv_config: MBConvConfig {
+                    input_channels: 192,
+                    output_channels: 320,
+                    kernel_size: 3,
+                    stride: 1,
+                    expand_ratio: 6,
+                    use_se: true,
+                    drop_connect_rate: 0.2,
+                },
+                num_blocks: 1,
             },
-            num_blocks: 1,
-        });
+        ];
 
         Self {
             width_coefficient: 1.0,
@@ -254,7 +248,7 @@ impl EfficientNetConfig {
     pub fn scale_channels(&self, channels: usize) -> usize {
         let scaled = (channels as f64 * self.width_coefficient).round();
         // Ensure divisibility by 8
-        ((scaled as usize) + 7) / 8 * 8
+        (scaled as usize).div_ceil(8) * 8
     }
 
     /// Scale depth based on depth coefficient

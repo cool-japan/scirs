@@ -10,16 +10,33 @@ use num_traits::Float;
 use rand::Rng;
 use std::fmt::Debug;
 
+/// Terminal color utilities for visualization
+pub mod colors;
 pub mod datasets;
+/// Evaluation utilities and visualizations for model performance
+pub mod evaluation;
 pub mod initializers;
 pub mod metrics;
+/// Model architecture visualization utilities
+pub mod model_viz;
 pub mod positional_encoding;
+/// Visualization utilities for neural networks
+pub mod visualization;
 
+pub use colors::{
+    color_legend, colored_metric_cell, colorize, colorize_and_style, colorize_bg, gradient_color,
+    stylize, Color, ColorOptions, Style,
+};
+pub use evaluation::{ConfusionMatrix, FeatureImportance, LearningCurve, ROCCurve};
 pub use initializers::*;
 pub use metrics::*;
+pub use model_viz::{sequential_model_dataflow, sequential_model_summary, ModelVizOptions};
 pub use positional_encoding::{
     LearnedPositionalEncoding, PositionalEncoding, PositionalEncodingFactory,
     PositionalEncodingType, RelativePositionalEncoding, SinusoidalPositionalEncoding,
+};
+pub use visualization::{
+    analyze_training_history, ascii_plot, export_history_to_csv, LearningRateSchedule, PlotOptions,
 };
 
 /// Generate a random vector or matrix with values from a normal distribution

@@ -15,22 +15,22 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use crate::error::{CoreError, CoreResult, ErrorContext};
 use super::compressed_memmap::CompressedMemMappedArray;
 use super::memmap::MemoryMappedArray;
+use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Types of access patterns that can be detected and prefetched.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessPattern {
     /// Sequential access (consecutive blocks)
     Sequential,
-    
+
     /// Strided access (blocks with a fixed stride)
     Strided(usize),
-    
+
     /// Random access (no discernable pattern)
     Random,
-    
+
     /// Custom pattern defined by a specific sequence of offsets
     Custom,
 }
@@ -40,19 +40,19 @@ pub enum AccessPattern {
 pub struct PrefetchConfig {
     /// Whether prefetching is enabled
     pub enabled: bool,
-    
+
     /// Number of blocks to prefetch ahead of the current access
     pub prefetch_count: usize,
-    
+
     /// Maximum number of blocks to keep in the prefetch history
     pub history_size: usize,
-    
+
     /// Minimum number of accesses needed to detect a pattern
     pub min_pattern_length: usize,
-    
+
     /// Whether to prefetch in a background thread
     pub async_prefetch: bool,
-    
+
     /// Timeout for prefetch operations (to avoid blocking too long)
     pub prefetch_timeout: Duration,
 }
@@ -83,43 +83,43 @@ impl PrefetchConfigBuilder {
             config: PrefetchConfig::default(),
         }
     }
-    
+
     /// Enable or disable prefetching.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.config.enabled = enabled;
         self
     }
-    
+
     /// Set the number of blocks to prefetch ahead of the current access.
     pub fn prefetch_count(mut self, count: usize) -> Self {
         self.config.prefetch_count = count;
         self
     }
-    
+
     /// Set the maximum number of blocks to keep in the prefetch history.
     pub fn history_size(mut self, size: usize) -> Self {
         self.config.history_size = size;
         self
     }
-    
+
     /// Set the minimum number of accesses needed to detect a pattern.
     pub fn min_pattern_length(mut self, length: usize) -> Self {
         self.config.min_pattern_length = length;
         self
     }
-    
+
     /// Enable or disable asynchronous prefetching.
     pub fn async_prefetch(mut self, async_prefetch: bool) -> Self {
         self.config.async_prefetch = async_prefetch;
         self
     }
-    
+
     /// Set the timeout for prefetch operations.
     pub fn prefetch_timeout(mut self, timeout: Duration) -> Self {
         self.config.prefetch_timeout = timeout;
         self
     }
-    
+
     /// Build the prefetch configuration.
     pub fn build(self) -> PrefetchConfig {
         self.config
@@ -130,13 +130,13 @@ impl PrefetchConfigBuilder {
 pub trait AccessPatternTracker {
     /// Record an access to a block.
     fn record_access(&mut self, block_idx: usize);
-    
+
     /// Predict which blocks will be accessed next.
     fn predict_next_blocks(&self, count: usize) -> Vec<usize>;
-    
+
     /// Get the current detected access pattern.
     fn current_pattern(&self) -> AccessPattern;
-    
+
     /// Clear the access history.
     fn clear_history(&mut self);
 }
@@ -146,16 +146,16 @@ pub trait AccessPatternTracker {
 pub struct BlockAccessTracker {
     /// Configuration for the tracker
     config: PrefetchConfig,
-    
+
     /// History of accessed blocks
     history: VecDeque<usize>,
-    
+
     /// The currently detected pattern
     current_pattern: AccessPattern,
-    
+
     /// For strided patterns, the stride value
     stride: Option<usize>,
-    
+
     /// Last time the pattern was updated
     last_update: Instant,
 }
@@ -171,7 +171,7 @@ impl BlockAccessTracker {
             last_update: Instant::now(),
         }
     }
-    
+
     /// Detect the access pattern based on the history.
     fn detect_pattern(&mut self) {
         if self.history.len() < self.config.min_pattern_length {
@@ -179,11 +179,11 @@ impl BlockAccessTracker {
             self.current_pattern = AccessPattern::Random;
             return;
         }
-        
+
         // Check for sequential access
         let mut is_sequential = true;
         let mut prev = *self.history.get(0).unwrap();
-        
+
         for &block_idx in self.history.iter().skip(1) {
             if block_idx != prev + 1 {
                 is_sequential = false;
@@ -191,17 +191,17 @@ impl BlockAccessTracker {
             }
             prev = block_idx;
         }
-        
+
         if is_sequential {
             self.current_pattern = AccessPattern::Sequential;
             return;
         }
-        
+
         // Check for strided access
         let mut is_strided = true;
         let stride = self.history.get(1).unwrap() - self.history.get(0).unwrap();
         prev = *self.history.get(0).unwrap();
-        
+
         for &block_idx in self.history.iter().skip(1) {
             if block_idx != prev + stride {
                 is_strided = false;
@@ -209,13 +209,13 @@ impl BlockAccessTracker {
             }
             prev = block_idx;
         }
-        
+
         if is_strided {
             self.current_pattern = AccessPattern::Strided(stride);
             self.stride = Some(stride);
             return;
         }
-        
+
         // If no pattern detected, mark as random
         self.current_pattern = AccessPattern::Random;
     }
@@ -225,28 +225,28 @@ impl AccessPatternTracker for BlockAccessTracker {
     fn record_access(&mut self, block_idx: usize) {
         // Add to history and remove oldest if needed
         self.history.push_back(block_idx);
-        
+
         if self.history.len() > self.config.history_size {
             self.history.pop_front();
         }
-        
+
         // Update pattern if we have enough history
         if self.history.len() >= self.config.min_pattern_length {
             self.detect_pattern();
         }
-        
+
         // Update timestamp
         self.last_update = Instant::now();
     }
-    
+
     fn predict_next_blocks(&self, count: usize) -> Vec<usize> {
         if self.history.is_empty() {
             return Vec::new();
         }
-        
+
         let mut predictions = Vec::with_capacity(count);
         let latest = *self.history.back().unwrap();
-        
+
         match self.current_pattern {
             AccessPattern::Sequential => {
                 // For sequential access, predict the next 'count' blocks
@@ -267,7 +267,7 @@ impl AccessPatternTracker for BlockAccessTracker {
                     predictions.push(latest - 1);
                 }
                 predictions.push(latest + 1);
-                
+
                 // Fill remaining predictions with adjacent blocks
                 let mut offset = 2;
                 while predictions.len() < count {
@@ -277,19 +277,19 @@ impl AccessPatternTracker for BlockAccessTracker {
                     predictions.push(latest + offset);
                     offset += 1;
                 }
-                
+
                 // Trim to requested count
                 predictions.truncate(count);
             }
         }
-        
+
         predictions
     }
-    
+
     fn current_pattern(&self) -> AccessPattern {
         self.current_pattern
     }
-    
+
     fn clear_history(&mut self) {
         self.history.clear();
         self.current_pattern = AccessPattern::Random;
@@ -302,16 +302,16 @@ impl AccessPatternTracker for BlockAccessTracker {
 pub struct PrefetchingState {
     /// Configuration for prefetching
     config: PrefetchConfig,
-    
+
     /// Access pattern tracker
     tracker: Box<dyn AccessPatternTracker + Send + Sync>,
-    
+
     /// Set of blocks that are currently being prefetched
     prefetching: HashSet<usize>,
-    
+
     /// Set of blocks that have been prefetched and are available in the cache
     prefetched: HashSet<usize>,
-    
+
     /// Statistics about prefetching
     stats: PrefetchStats,
 }
@@ -321,13 +321,13 @@ pub struct PrefetchingState {
 pub struct PrefetchStats {
     /// Total number of prefetch operations performed
     pub prefetch_count: usize,
-    
+
     /// Number of cache hits on prefetched blocks
     pub prefetch_hits: usize,
-    
+
     /// Number of accesses to blocks that were not prefetched
     pub prefetch_misses: usize,
-    
+
     /// Hit rate (hits / (hits + misses))
     pub hit_rate: f64,
 }
@@ -343,11 +343,11 @@ impl PrefetchingState {
             stats: PrefetchStats::default(),
         }
     }
-    
+
     /// Record an access to a block.
     pub fn record_access(&mut self, block_idx: usize) {
         self.tracker.record_access(block_idx);
-        
+
         // Update stats if this was a prefetched block
         if self.prefetched.contains(&block_idx) {
             self.stats.prefetch_hits += 1;
@@ -355,23 +355,23 @@ impl PrefetchingState {
         } else {
             self.stats.prefetch_misses += 1;
         }
-        
+
         // Update hit rate
         let total = self.stats.prefetch_hits + self.stats.prefetch_misses;
         if total > 0 {
             self.stats.hit_rate = self.stats.prefetch_hits as f64 / total as f64;
         }
     }
-    
+
     /// Get the blocks that should be prefetched next.
     pub fn get_blocks_to_prefetch(&self) -> Vec<usize> {
         if !self.config.enabled {
             return Vec::new();
         }
-        
+
         // Predict next blocks
         let predicted = self.tracker.predict_next_blocks(self.config.prefetch_count);
-        
+
         // Filter out blocks that are already prefetched or being prefetched
         predicted
             .into_iter()
@@ -380,19 +380,19 @@ impl PrefetchingState {
             })
             .collect()
     }
-    
+
     /// Mark a block as being prefetched.
     pub fn mark_prefetching(&mut self, block_idx: usize) {
         self.prefetching.insert(block_idx);
     }
-    
+
     /// Mark a block as prefetched and available in the cache.
     pub fn mark_prefetched(&mut self, block_idx: usize) {
         self.prefetching.remove(&block_idx);
         self.prefetched.insert(block_idx);
         self.stats.prefetch_count += 1;
     }
-    
+
     /// Get the current prefetching statistics.
     pub fn stats(&self) -> PrefetchStats {
         self.stats.clone()
@@ -403,19 +403,19 @@ impl PrefetchingState {
 pub trait Prefetching {
     /// Enable prefetching with the given configuration.
     fn enable_prefetching(&mut self, config: PrefetchConfig) -> CoreResult<()>;
-    
+
     /// Disable prefetching.
     fn disable_prefetching(&mut self) -> CoreResult<()>;
-    
+
     /// Get the current prefetching statistics.
     fn prefetch_stats(&self) -> CoreResult<PrefetchStats>;
-    
+
     /// Prefetch a specific block.
     fn prefetch_block(&self, block_idx: usize) -> CoreResult<()>;
-    
+
     /// Prefetch multiple blocks.
     fn prefetch_blocks(&self, block_indices: &[usize]) -> CoreResult<()>;
-    
+
     /// Clear the prefetching state.
     fn clear_prefetch_state(&mut self) -> CoreResult<()>;
 }
@@ -466,14 +466,20 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     }
 
     /// Create a new prefetching compressed array with the given configuration.
-    pub fn new_with_config(array: CompressedMemMappedArray<A>, config: PrefetchConfig) -> CoreResult<Self> {
+    pub fn new_with_config(
+        array: CompressedMemMappedArray<A>,
+        config: PrefetchConfig,
+    ) -> CoreResult<Self> {
         let mut prefetching_array = Self::new(array);
         prefetching_array.enable_prefetching(config)?;
         Ok(prefetching_array)
     }
 
     /// Start the background prefetching thread.
-    fn start_prefetch_thread(&mut self, prefetch_state: Arc<Mutex<PrefetchingState>>) -> CoreResult<()> {
+    fn start_prefetch_thread(
+        &mut self,
+        prefetch_state: Arc<Mutex<PrefetchingState>>,
+    ) -> CoreResult<()> {
         // Create channel for sending prefetch commands
         let (sender, receiver) = std::sync::mpsc::channel();
         self.prefetch_sender = Some(sender);
@@ -590,11 +596,13 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     /// Request prefetching of a specific block through the background thread.
     fn request_prefetch(&self, block_idx: usize) -> CoreResult<()> {
         if let Some(sender) = &self.prefetch_sender {
-            sender.send(PrefetchCommand::Prefetch(block_idx)).map_err(|_| {
-                CoreError::ThreadError(ErrorContext::new(
-                    "Failed to send prefetch command".to_string(),
-                ))
-            })?;
+            sender
+                .send(PrefetchCommand::Prefetch(block_idx))
+                .map_err(|_| {
+                    CoreError::ThreadError(ErrorContext::new(
+                        "Failed to send prefetch command".to_string(),
+                    ))
+                })?;
         }
 
         Ok(())
@@ -616,8 +624,9 @@ impl<A: Clone + Copy + 'static> Prefetching for PrefetchingCompressedArray<A> {
             };
 
             if current_config.async_prefetch == config.async_prefetch
-               && current_config.prefetch_count == config.prefetch_count
-               && current_config.history_size == config.history_size {
+                && current_config.prefetch_count == config.prefetch_count
+                && current_config.history_size == config.history_size
+            {
                 // No significant changes, just update the config
                 let mut guard = self.prefetch_state.lock().map_err(|_| {
                     CoreError::MutexError(ErrorContext::new(
@@ -771,7 +780,10 @@ impl<A: Clone + Copy + 'static> CompressedMemMappedArray<A> {
     }
 
     /// Convert into a prefetching compressed array with the given configuration.
-    pub fn with_prefetching_config(self, config: PrefetchConfig) -> CoreResult<PrefetchingCompressedArray<A>> {
+    pub fn with_prefetching_config(
+        self,
+        config: PrefetchConfig,
+    ) -> CoreResult<PrefetchingCompressedArray<A>> {
         PrefetchingCompressedArray::new_with_config(self, config)
     }
 }
@@ -855,7 +867,10 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     }
 
     /// Slice the array with prefetching support.
-    pub fn slice(&self, ranges: &[(usize, usize)]) -> CoreResult<ndarray::Array<A, ndarray::IxDyn>> {
+    pub fn slice(
+        &self,
+        ranges: &[(usize, usize)],
+    ) -> CoreResult<ndarray::Array<A, ndarray::IxDyn>> {
         // Record accesses for the blocks that will be accessed
         if self.prefetching_enabled {
             // Determine which blocks will be accessed
@@ -980,80 +995,80 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_access_pattern_detection_sequential() {
         let config = PrefetchConfig {
             min_pattern_length: 4,
             ..Default::default()
         };
-        
+
         let mut tracker = BlockAccessTracker::new(config);
-        
+
         // Record sequential access
         for i in 0..10 {
             tracker.record_access(i);
         }
-        
+
         // Check that the pattern was detected correctly
         assert_eq!(tracker.current_pattern(), AccessPattern::Sequential);
-        
+
         // Check predictions
         let predictions = tracker.predict_next_blocks(3);
         assert_eq!(predictions, vec![10, 11, 12]);
     }
-    
+
     #[test]
     fn test_access_pattern_detection_strided() {
         let config = PrefetchConfig {
             min_pattern_length: 4,
             ..Default::default()
         };
-        
+
         let mut tracker = BlockAccessTracker::new(config);
-        
+
         // Record strided access with stride 3
         for i in (0..30).step_by(3) {
             tracker.record_access(i);
         }
-        
+
         // Check that the pattern was detected correctly
         assert_eq!(tracker.current_pattern(), AccessPattern::Strided(3));
-        
+
         // Check predictions
         let predictions = tracker.predict_next_blocks(3);
         assert_eq!(predictions, vec![30, 33, 36]);
     }
-    
+
     #[test]
     fn test_prefetching_state() {
         let config = PrefetchConfig {
             prefetch_count: 3,
             ..Default::default()
         };
-        
+
         let mut state = PrefetchingState::new(config);
-        
+
         // Record sequential access
         for i in 0..5 {
             state.record_access(i);
         }
-        
+
         // Get blocks to prefetch
         let to_prefetch = state.get_blocks_to_prefetch();
         assert_eq!(to_prefetch, vec![5, 6, 7]);
-        
+
         // Mark blocks as being prefetched
         for &block in &to_prefetch {
             state.mark_prefetching(block);
         }
-        
+
         // Mark block 5 as prefetched
         state.mark_prefetched(5);
-        
+
         // Access block 5 (should be a hit)
         state.record_access(5);
-        
+
         // Check stats
         let stats = state.stats();
         assert_eq!(stats.prefetch_hits, 1);

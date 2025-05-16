@@ -37,7 +37,7 @@ impl Swish {
     /// # Arguments
     ///
     /// * `beta` - Parameter controlling the shape of the Swish function.
-    ///  β = 1.0 gives the standard Swish-1 function.
+    ///   β = 1.0 gives the standard Swish-1 function.
     pub fn new(beta: f64) -> Self {
         Self { beta }
     }

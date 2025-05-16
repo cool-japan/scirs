@@ -33,9 +33,9 @@
 
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock, LazyLock};
-use std::marker::PhantomData;
 use std::fmt::{Debug, Display};
+use std::marker::PhantomData;
+use std::sync::{Arc, LazyLock, RwLock};
 
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
@@ -50,13 +50,13 @@ pub use crate::array_function_dispatch;
 
 // Public submodules
 pub mod auto_device;
+pub mod distributed_training;
+pub mod grad;
 pub mod mixed_precision;
 pub mod ml_ops;
 pub mod neural;
-pub mod grad;
-pub mod training;
-pub mod distributed_training;
 pub mod serialization;
+pub mod training;
 
 /// Trait for objects that can handle the array protocol.
 ///
@@ -128,7 +128,11 @@ pub struct ArrayFunction {
     pub name: &'static str,
 
     /// The function implementation
-    pub implementation: Arc<dyn Fn(&[Box<dyn Any>], &HashMap<String, Box<dyn Any>>) -> CoreResult<Box<dyn Any>> + Send + Sync>,
+    pub implementation: Arc<
+        dyn Fn(&[Box<dyn Any>], &HashMap<String, Box<dyn Any>>) -> CoreResult<Box<dyn Any>>
+            + Send
+            + Sync,
+    >,
 }
 
 impl Debug for ArrayFunction {
@@ -167,7 +171,6 @@ impl ArrayFunction {
         }
     }
 }
-
 
 /// Registry of all array functions.
 #[derive(Debug, Default)]
@@ -244,7 +247,10 @@ pub fn array_function_dispatch(
     }
 
     // Extract all unique types that implement ArrayProtocol
-    let unique_types: HashSet<TypeId> = implementing_args.iter().map(|(type_id, _)| *type_id).collect();
+    let unique_types: HashSet<TypeId> = implementing_args
+        .iter()
+        .map(|(type_id, _)| *type_id)
+        .collect();
     let types: Vec<TypeId> = unique_types.into_iter().collect();
 
     // Try dispatching to each implementation
@@ -281,13 +287,15 @@ where
 
     /// Register the function with the global registry.
     pub fn register(self) -> F {
-        let implementation = Arc::new(move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
-            // Implementation that converts generic arguments to specific types
-            // and calls the original function
-            // This is a simplified version - in practice, we would need more complex
-            // type conversion
-            unimplemented!("Type conversion in array_function_dispatch is not implemented yet")
-        });
+        let implementation = Arc::new(
+            move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
+                // Implementation that converts generic arguments to specific types
+                // and calls the original function
+                // This is a simplified version - in practice, we would need more complex
+                // type conversion
+                unimplemented!("Type conversion in array_function_dispatch is not implemented yet")
+            },
+        );
 
         let func = ArrayFunction {
             name: self.name,
@@ -380,7 +388,11 @@ pub struct JITFactoryRegistry {
 
 impl std::fmt::Debug for JITFactoryRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "JITFactoryRegistry {{ factories: {} }}", self.factories.len())
+        write!(
+            f,
+            "JITFactoryRegistry {{ factories: {} }}",
+            self.factories.len()
+        )
     }
 }
 
@@ -562,7 +574,11 @@ pub struct MockGPUArray<T: Clone + 'static> {
 impl<T: Clone + Send + Sync + 'static> MockGPUArray<T> {
     /// Create a new mock GPU array.
     pub fn new(data: Vec<T>, shape: Vec<usize>, device: String) -> Self {
-        Self { data, shape, device }
+        Self {
+            data,
+            shape,
+            device,
+        }
     }
 }
 
@@ -580,11 +596,8 @@ impl<T: Clone + Send + Sync + 'static> ArrayProtocol for MockGPUArray<T> {
                 // In a real implementation, this would use GPU computation
 
                 // For simplicity, we'll just return a dummy result
-                let result = MockGPUArray::new(
-                    self.data.clone(),
-                    self.shape.clone(),
-                    self.device.clone(),
-                );
+                let result =
+                    MockGPUArray::new(self.data.clone(), self.shape.clone(), self.device.clone());
                 Ok(Box::new(result))
             }
             _ => Err(NotImplemented),
@@ -651,13 +664,15 @@ where
 {
     /// Register this function with the array protocol system.
     pub fn register(self) -> F {
-        let implementation = Arc::new(move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
-            // This is a placeholder for actual implementation that would:
-            // 1. Convert generic args to specific types needed by the function
-            // 2. Call the function with the converted args
-            // 3. Return the result as a Box<dyn Any>
-            unimplemented!("Implementation for array protocol functions is not complete")
-        });
+        let implementation = Arc::new(
+            move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
+                // This is a placeholder for actual implementation that would:
+                // 1. Convert generic args to specific types needed by the function
+                // 2. Call the function with the converted args
+                // 3. Return the result as a Box<dyn Any>
+                unimplemented!("Implementation for array protocol functions is not complete")
+            },
+        );
 
         let array_func = ArrayFunction {
             name: self.name,
@@ -700,33 +715,29 @@ macro_rules! array_function_def {
 
 // Re-export distributed array implementation
 pub use self::distributed_impl::{
-    DistributedNdarray, DistributedConfig, DistributionStrategy, DistributedBackend,
-    ArrayChunk,
+    ArrayChunk, DistributedBackend, DistributedConfig, DistributedNdarray, DistributionStrategy,
 };
 
 // Re-export GPU array implementation
 pub use self::gpu_impl::{
-    GPUNdarray, GPUConfig, GPUBackend, GPUArrayBuilder, kernels as gpu_kernels,
+    kernels as gpu_kernels, GPUArrayBuilder, GPUBackend, GPUConfig, GPUNdarray,
 };
 
 // Re-export JIT compilation implementation
 pub use self::jit_impl::{
-    JITEnabledArray, JITManager, JITConfig, JITBackend, JITFunctionImpl,
-    LLVMFunctionFactory, CraneliftFunctionFactory,
+    CraneliftFunctionFactory, JITBackend, JITConfig, JITEnabledArray, JITFunctionImpl, JITManager,
+    LLVMFunctionFactory,
 };
 
 // Re-export array operations
 pub use self::operations::{
-    OperationError,
-    matmul, add, subtract, multiply, sum, transpose,
-    concatenate, reshape, svd, inverse,
-    apply_elementwise,
+    add, apply_elementwise, concatenate, inverse, matmul, multiply, reshape, subtract, sum, svd,
+    transpose, OperationError,
 };
 
 // Re-export ml_ops
 pub use self::ml_ops::{
-    conv2d, activation, max_pool2d, batch_norm,
-    cross_entropy, dropout, self_attention,
+    activation, batch_norm, conv2d, cross_entropy, dropout, max_pool2d, self_attention,
     ActivationFunc,
 };
 
@@ -772,7 +783,10 @@ pub mod traits {
     /// Trait for arrays that support automatic differentiation.
     pub trait DifferentiableArray: ArrayProtocol {
         /// Compute the gradient of this array with respect to some variables.
-        fn gradient(&self, variables: &[Box<dyn DifferentiableArray>]) -> Vec<Box<dyn DifferentiableArray>>;
+        fn gradient(
+            &self,
+            variables: &[Box<dyn DifferentiableArray>],
+        ) -> Vec<Box<dyn DifferentiableArray>>;
 
         /// Set whether to record operations for automatic differentiation.
         fn set_requires_grad(&mut self, requires_grad: bool);
@@ -804,9 +818,11 @@ mod tests {
     #[test]
     fn test_array_protocol_registry() {
         // Create a function and register it
-        let implementation = Arc::new(move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
-            Ok(Box::new(42.0) as Box<dyn Any>)
-        });
+        let implementation = Arc::new(
+            move |_args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
+                Ok(Box::new(42.0) as Box<dyn Any>)
+            },
+        );
 
         let func = ArrayFunction {
             name: "scirs2::test::test_func",
@@ -873,8 +889,8 @@ mod tests {
 mod examples {
     use super::*;
     use ndarray::Array2;
-    use std::collections::HashMap;
     use std::any::Any;
+    use std::collections::HashMap;
 
     /// Example: Create and use a distributed array.
     #[test]
@@ -1128,19 +1144,25 @@ mod examples {
                         tid if tid == std::any::TypeId::of::<f64>() => {
                             // For f64 arrays, cast to f64 slice
                             let f64_data = unsafe {
-                                std::slice::from_raw_parts(self.data.as_ptr() as *const f64, self.data.len())
+                                std::slice::from_raw_parts(
+                                    self.data.as_ptr() as *const f64,
+                                    self.data.len(),
+                                )
                             };
                             let sum = f64_data.iter().sum::<f64>();
                             Ok(Box::new(sum))
-                        },
+                        }
                         tid if tid == std::any::TypeId::of::<f32>() => {
                             // For f32 arrays, cast to f32 slice
                             let f32_data = unsafe {
-                                std::slice::from_raw_parts(self.data.as_ptr() as *const f32, self.data.len())
+                                std::slice::from_raw_parts(
+                                    self.data.as_ptr() as *const f32,
+                                    self.data.len(),
+                                )
                             };
                             let sum = f32_data.iter().sum::<f32>();
                             Ok(Box::new(sum))
-                        },
+                        }
                         _ => Err(NotImplemented),
                     }
                 } else {
@@ -1151,7 +1173,7 @@ mod examples {
             fn as_any(&self) -> &dyn Any {
                 self
             }
-            
+
             fn shape(&self) -> &[usize] {
                 &self.shape
             }
@@ -1188,7 +1210,7 @@ mod examples {
             &func,
             &[std::any::TypeId::of::<f64>()],
             &[],
-            &HashMap::new()
+            &HashMap::new(),
         );
 
         // Verify we get a result (the sum of 1+2+3+4 = 10)

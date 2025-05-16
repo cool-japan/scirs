@@ -14,6 +14,7 @@ categories = ["science", "mathematics", "algorithms"]
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
 scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
 scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.3" }
+scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.3", optional = true }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-rand = { workspace = true }
 num-traits = "0.2.19"
@@ -23,3 +24,8 @@ rand = "0.9.0"
 
 [dev-dependencies]
 plotters = "0.3.5"
+
+[features]
+default = []
+# Temporarily removed optim_integration to avoid circular dependency
+metrics_integration = ["dep:scirs2-metrics"] # "scirs2-metrics/optim_integration"

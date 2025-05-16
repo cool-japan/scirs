@@ -241,8 +241,8 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 }
 
                 // Fill in training indices
-                for fold_idx in 0..k {
-                    let val_indices = &folds[fold_idx].val_indices;
+                for fold in folds.iter_mut().take(k) {
+                    let val_indices = &fold.val_indices;
                     let mut train_indices = Vec::with_capacity(n_samples - val_indices.len());
 
                     for i in 0..n_samples {
@@ -251,7 +251,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                         }
                     }
 
-                    folds[fold_idx].train_indices = train_indices;
+                    fold.train_indices = train_indices;
                 }
 
                 Ok(folds)
@@ -315,9 +315,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                     let val_indices = indices[start..end].to_vec();
                     let mut train_indices = Vec::with_capacity(n_samples - p);
 
-                    for j in 0..n_samples {
+                    for (j, &idx) in indices.iter().enumerate().take(n_samples) {
                         if j < start || j >= end {
-                            train_indices.push(indices[j]);
+                            train_indices.push(idx);
                         }
                     }
 
@@ -432,8 +432,8 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 }
             }
 
-            impl<'a, F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Dataset<F>
-                for DatasetView<'a, F>
+            impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Dataset<F>
+                for DatasetView<'_, F>
             {
                 fn len(&self) -> usize {
                     self.indices.len()

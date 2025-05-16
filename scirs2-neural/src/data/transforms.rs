@@ -415,8 +415,8 @@ struct DebugTransformWrapper<'a, F: Float + Debug + ScalarOperand + FromPrimitiv
     inner: &'a (dyn Transform<F> + Send + Sync),
 }
 
-impl<'a, F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Debug
-    for DebugTransformWrapper<'a, F>
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Debug
+    for DebugTransformWrapper<'_, F>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Transform({})", self.inner.description())

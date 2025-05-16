@@ -16,7 +16,10 @@ pub mod segmentation;
 pub use self::error::*;
 
 // Feature detection module exports
-pub use self::features::{canny, fast_corners, harris_corners, laplacian_edges, sobel_edges};
+pub use self::features::{
+    canny, edge_detector, edge_detector_simple, fast_corners, gradient_edges, harris_corners,
+    laplacian_edges, sobel_edges, EdgeDetectionAlgorithm, EdgeDetectionConfig, GradientMethod,
+};
 
 // Filters module exports
 pub use self::filters::{

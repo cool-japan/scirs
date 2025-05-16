@@ -518,7 +518,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for GPTAttention<F
 }
 
 /// GPT MLP (feed-forward network)
-struct GPTMLP<F: Float + Debug + ScalarOperand + Send + Sync> {
+struct GptMlp<F: Float + Debug + ScalarOperand + Send + Sync> {
     /// First dense layer
     fc1: Dense<F>,
     /// Second dense layer
@@ -529,7 +529,7 @@ struct GPTMLP<F: Float + Debug + ScalarOperand + Send + Sync> {
     dropout: Dropout<F>,
 }
 
-impl<F: Float + Debug + ScalarOperand + Send + Sync> GPTMLP<F> {
+impl<F: Float + Debug + ScalarOperand + Send + Sync> GptMlp<F> {
     /// Create GPT MLP
     pub fn new(config: &GPTConfig) -> Result<Self> {
         // Dense layers
@@ -568,7 +568,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> GPTMLP<F> {
     }
 }
 
-impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for GPTMLP<F> {
+impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for GptMlp<F> {
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         // Apply first dense layer
         let hidden_states = self.fc1.forward(input)?;
@@ -617,7 +617,7 @@ struct GPTBlock<F: Float + Debug + ScalarOperand + Send + Sync> {
     /// Layer normalization for MLP
     ln_2: LayerNorm<F>,
     /// MLP
-    mlp: GPTMLP<F>,
+    mlp: GptMlp<F>,
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync> GPTBlock<F> {
@@ -631,7 +631,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> GPTBlock<F> {
 
         // Attention and MLP
         let attn = GPTAttention::new(config)?;
-        let mlp = GPTMLP::new(config)?;
+        let mlp = GptMlp::new(config)?;
 
         Ok(Self {
             ln_1,

@@ -383,7 +383,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for LayerNorm<F> {
 
         // Reshape back to the original shape
         let output = normalized
-            .into_shape_with_order(IxDyn(&input_shape))
+            .into_shape_with_order(IxDyn(input_shape))
             .map_err(|e| NeuralError::InferenceError(format!("Failed to reshape output: {}", e)))?;
 
         Ok(output)
@@ -469,7 +469,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> Layer<F> for LayerNorm<F> {
 
         // Reshape back to the original shape
         let output = grad_input
-            .into_shape_with_order(IxDyn(&input_shape))
+            .into_shape_with_order(IxDyn(input_shape))
             .map_err(|e| {
                 NeuralError::InferenceError(format!("Failed to reshape grad_input: {}", e))
             })?;
@@ -974,7 +974,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Batc
         // Reshape grad_output to match the cached reshaped input
         let reshaped_grad_output = grad_output
             .clone()
-            .into_shape_with_order(IxDyn(&x_norm.shape().to_vec()))
+            .into_shape_with_order(IxDyn(x_norm.shape()))
             .map_err(|e| {
                 NeuralError::InferenceError(format!("Failed to reshape grad_output: {}", e))
             })?;
@@ -1040,7 +1040,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Batc
 
         // Reshape back to the original input shape
         let dx_output = dx
-            .into_shape_with_order(IxDyn(&input_shape))
+            .into_shape_with_order(IxDyn(input_shape))
             .map_err(|e| NeuralError::InferenceError(format!("Failed to reshape dx: {}", e)))?;
 
         Ok(dx_output)

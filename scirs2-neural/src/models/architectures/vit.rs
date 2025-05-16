@@ -174,13 +174,13 @@ impl<F: Float + Debug + ScalarOperand + Clone + Send + Sync> TransformerEncoderB
 
         // MLP with GELU activation
         // Note: We're creating a simple 2-layer MLP with GELU activation
-        struct MLP<F: Float + Debug + ScalarOperand + Send + Sync> {
+        struct Mlp<F: Float + Debug + ScalarOperand + Send + Sync> {
             dense1: Dense<F>,
             dense2: Dense<F>,
             act_fn: Box<dyn Fn(F) -> F + Send + Sync>,
         }
 
-        impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for MLP<F> {
+        impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for Mlp<F> {
             fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
                 let mut x = self.dense1.forward(input)?;
 
@@ -221,7 +221,7 @@ impl<F: Float + Debug + ScalarOperand + Clone + Send + Sync> TransformerEncoderB
             x * F::from(0.5).unwrap() * (F::one() + (x + F::from(0.044715).unwrap() * x3).tanh())
         });
 
-        let mlp = Box::new(MLP {
+        let mlp = Box::new(Mlp {
             dense1: {
                 let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
                 Dense::new(dim, mlp_dim, None, &mut rng)?

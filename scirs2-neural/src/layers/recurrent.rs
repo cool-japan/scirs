@@ -12,6 +12,37 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
+/// Type alias for LSTM gate cache (input, forget, output, cell gates)
+type LstmGateCache<F> = RefCell<
+    Option<(
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+    )>,
+>;
+
+/// Type alias for LSTM forward step output (new hidden, new cell, gates)
+type LstmStepOutput<F> = (
+    Array<F, IxDyn>,
+    Array<F, IxDyn>,
+    (
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+        Array<F, IxDyn>,
+    ),
+);
+
+/// Type alias for GRU gate cache (reset, update, new gates)
+type GruGateCache<F> = RefCell<Option<(Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>)>>;
+
+/// Type alias for GRU forward output (output, gates)
+type GruForwardOutput<F> = (
+    Array<F, IxDyn>,
+    (Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>),
+);
+
 /// Activation function types for recurrent layers
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RecurrentActivation {
@@ -743,14 +774,7 @@ pub struct LSTM<F: Float + Debug> {
     cell_states_cache: RefCell<Option<Array<F, IxDyn>>>,
     /// Gate values cache for backward pass
     #[allow(dead_code)]
-    gate_cache: RefCell<
-        Option<(
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-        )>,
-    >,
+    gate_cache: LstmGateCache<F>,
 }
 
 impl<F: Float + Debug + ScalarOperand + 'static> LSTM<F> {
@@ -895,16 +919,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> LSTM<F> {
         x: &ArrayView<F, IxDyn>,
         h: &ArrayView<F, IxDyn>,
         c: &ArrayView<F, IxDyn>,
-    ) -> Result<(
-        Array<F, IxDyn>,
-        Array<F, IxDyn>,
-        (
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-            Array<F, IxDyn>,
-        ),
-    )> {
+    ) -> Result<LstmStepOutput<F>> {
         let x_shape = x.shape();
         let h_shape = h.shape();
         let c_shape = c.shape();
@@ -1312,7 +1327,7 @@ pub struct GRU<F: Float + Debug> {
     hidden_states_cache: RefCell<Option<Array<F, IxDyn>>>,
     /// Gate values cache for backward pass
     #[allow(dead_code)]
-    gate_cache: RefCell<Option<(Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>)>>,
+    gate_cache: GruGateCache<F>,
 }
 
 impl<F: Float + Debug + ScalarOperand + 'static> GRU<F> {
@@ -1433,10 +1448,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> GRU<F> {
         &self,
         x: &ArrayView<F, IxDyn>,
         h: &ArrayView<F, IxDyn>,
-    ) -> Result<(
-        Array<F, IxDyn>,
-        (Array<F, IxDyn>, Array<F, IxDyn>, Array<F, IxDyn>),
-    )> {
+    ) -> Result<GruForwardOutput<F>> {
         let x_shape = x.shape();
         let h_shape = h.shape();
         let batch_size = x_shape[0];
@@ -1687,7 +1699,7 @@ impl<F: Float + Debug + ScalarOperand + 'static> ParamLayer<F> for GRU<F> {
         }
 
         // Validate shapes
-        let expected_shapes = vec![
+        let expected_shapes = [
             self.weight_ir.shape(),
             self.weight_hr.shape(),
             self.bias_ir.shape(),

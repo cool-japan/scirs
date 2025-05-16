@@ -6,6 +6,9 @@ use num_traits::Float;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
+/// Type alias for checkpoint loading result
+type LoadResult<F> = Result<(usize, F, Option<Vec<(String, F)>>)>;
+
 /// Checkpoint storage for model state during training
 pub struct ModelCheckpoint<F: Float + Debug + ScalarOperand> {
     /// Directory to save checkpoints
@@ -116,7 +119,7 @@ impl<F: Float + Debug + ScalarOperand> ModelCheckpoint<F> {
         checkpoint_path: P,
         _model: &mut impl Debug,
         _optimizer: &mut impl Debug,
-    ) -> Result<(usize, F, Option<Vec<(String, F)>>)> {
+    ) -> LoadResult<F> {
         let path = checkpoint_path.as_ref();
         println!("Loading checkpoint from {}", path.display());
 

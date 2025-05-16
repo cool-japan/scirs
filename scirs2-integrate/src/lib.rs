@@ -146,17 +146,91 @@ pub use error::{IntegrateError, IntegrateResult};
 
 // Integration modules
 pub mod bvp;
+pub mod cubature;
+pub mod dae;
 pub mod gaussian;
+pub mod lebedev;
 pub mod monte_carlo;
+pub mod newton_cotes;
+
+// Use the new modular ODE implementation
 pub mod ode;
+
+// Symplectic integrators
+pub mod symplectic;
+
+// PDE solver module
+pub mod pde;
+
+// ODE module is now fully implemented in ode/
+
+pub mod qmc;
 pub mod quad;
+pub mod quad_vec;
 pub mod romberg;
+pub mod tanhsinh;
 pub mod utils;
 
 // Re-exports for convenience
 pub use bvp::{solve_bvp, solve_bvp_auto, BVPOptions, BVPResult};
-pub use ode::{solve_ivp, ODEMethod, ODEOptions, ODEResult};
+pub use cubature::{cubature, nquad, Bound, CubatureOptions, CubatureResult};
+pub use dae::{
+    bdf_implicit_dae, bdf_implicit_with_index_reduction, bdf_semi_explicit_dae,
+    bdf_with_index_reduction, create_block_ilu_preconditioner, create_block_jacobi_preconditioner,
+    krylov_bdf_implicit_dae, krylov_bdf_semi_explicit_dae, solve_higher_index_dae,
+    solve_implicit_dae, solve_ivp_dae, solve_semi_explicit_dae, DAEIndex, DAEOptions, DAEResult,
+    DAEStructure, DAEType, DummyDerivativeReducer, PantelidesReducer, ProjectionMethod,
+};
+pub use lebedev::{lebedev_integrate, lebedev_rule, LebedevOrder, LebedevRule};
+pub use newton_cotes::{newton_cotes, newton_cotes_integrate, NewtonCotesResult, NewtonCotesType};
+// Export ODE types from the new modular implementation
+pub use ode::{
+    solve_ivp, solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec,
+    MassMatrix, MassMatrixType, ODEMethod, ODEOptions, ODEOptionsWithEvents, ODEResult,
+    ODEResultWithEvents,
+};
+// Export PDE types
+pub use pde::elliptic::{EllipticOptions, EllipticResult, LaplaceSolver2D, PoissonSolver2D};
+pub use pde::finite_difference::{
+    first_derivative, first_derivative_matrix, second_derivative, second_derivative_matrix,
+    FiniteDifferenceScheme,
+};
+pub use pde::finite_element::{
+    BoundaryNodeInfo, ElementType, FEMOptions, FEMPoissonSolver, FEMResult, Point, Triangle,
+    TriangularMesh,
+};
+pub use pde::method_of_lines::{
+    MOL2DResult, MOL3DResult, MOLHyperbolicResult, MOLOptions, MOLParabolicSolver1D,
+    MOLParabolicSolver2D, MOLParabolicSolver3D, MOLResult, MOLWaveEquation1D,
+};
+pub use pde::spectral::spectral_element::{
+    QuadElement, SpectralElementMesh2D, SpectralElementOptions, SpectralElementPoisson2D,
+    SpectralElementResult,
+};
+pub use pde::spectral::{
+    chebyshev_inverse_transform, chebyshev_points, chebyshev_transform, legendre_diff2_matrix,
+    legendre_diff_matrix, legendre_inverse_transform, legendre_points, legendre_transform,
+    ChebyshevSpectralSolver1D, FourierSpectralSolver1D, LegendreSpectralSolver1D, SpectralBasis,
+    SpectralOptions, SpectralResult,
+};
+pub use pde::{
+    BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
+    PDESolution, PDESolverInfo, PDEType,
+};
+// Implicit solvers will be exposed in a future update
+// pub use pde::implicit::{
+//     ImplicitMethod, ImplicitOptions, ImplicitResult,
+//     CrankNicolson1D, BackwardEuler1D, ADI2D, ADIResult
+// };
+pub use qmc::{qmc_quad, Halton, QMCQuadResult, RandomGenerator, Sobol};
 pub use quad::{quad, simpson, trapezoid};
+pub use quad_vec::{quad_vec, NormType, QuadRule, QuadVecOptions, QuadVecResult};
+pub use symplectic::{
+    position_verlet, symplectic_euler, symplectic_euler_a, symplectic_euler_b, velocity_verlet,
+    CompositionMethod, GaussLegendre4, GaussLegendre6, HamiltonianFn, HamiltonianSystem,
+    SeparableHamiltonian, StormerVerlet, SymplecticIntegrator, SymplecticResult,
+};
+pub use tanhsinh::{nsum, tanhsinh, TanhSinhOptions, TanhSinhResult};
 
 #[cfg(test)]
 mod tests {

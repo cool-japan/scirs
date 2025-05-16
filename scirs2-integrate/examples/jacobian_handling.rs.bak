@@ -1,0 +1,295 @@
+use ndarray::{array, Array1, ArrayView1};
+use scirs2_integrate::{
+    ode::types::{ODEMethod, ODEOptions, ODEResult},
+    ode::utils::jacobian::{
+        JacobianManager, JacobianStrategy, JacobianStructure, 
+        NewtonParameters, newton_solve
+    }
+};
+use std::time::Instant;
+
+// Re-export the ODE solver to make this example work
+// In a real implementation, this function would be part of the library API
+fn solve_with_improved_jacobian<Func>(
+    f: Func,
+    t_span: [f64; 2],
+    y0: Array1<f64>,
+    options: ODEOptions<f64>,
+    strategy: JacobianStrategy,
+) -> scirs2_integrate::error::IntegrateResult<ODEResult<f64>>
+where
+    Func: Fn(f64, ArrayView1<f64>) -> Array1<f64>,
+{
+    // Create a simple BDF1 solver with improved Jacobian handling
+    let t_start = t_span[0];
+    let t_end = t_span[1];
+    let mut t = t_start;
+    let mut y = y0.clone();
+    let mut jac_manager = JacobianManager::with_strategy(
+        strategy, 
+        JacobianStructure::Dense
+    );
+    
+    // Initialize result storage
+    let mut t_values = vec![t_start];
+    let mut y_values = vec![y0.clone()];
+    
+    // Initialize counters
+    let mut func_evals = 0;
+    let mut jac_evals = 0;
+    let mut newton_iters = 0;
+    let mut steps = 0;
+    let mut rejected_steps = 0;
+    
+    // Step size control
+    let mut h = options.h0.unwrap_or(0.1);
+    let rtol = options.rtol;
+    let atol = options.atol;
+    
+    // Main integration loop
+    while t < t_end && steps < options.max_steps {
+        // Adjust step size for last step
+        if t + h > t_end {
+            h = t_end - t;
+        }
+        
+        // Save the current state for potential step rejection
+        let t_old = t;
+        let y_old = y.clone();
+        
+        // Prepare next step (BDF1 method: y_{n+1} - y_n = h * f(t_{n+1}, y_{n+1}))
+        let next_t = t + h;
+        
+        // Create the nonlinear system for BDF1
+        let bdf_system = |y_next: &Array1<f64>| {
+            func_evals += 1;
+            let f_eval = f(next_t, y_next.view());
+            y_next.clone() - &y_old - &(f_eval * h)
+        };
+        
+        // Set up Newton solver parameters
+        let newton_params = NewtonParameters {
+            max_iterations: 10,
+            abs_tolerance: rtol * 0.1,
+            rel_tolerance: rtol,
+            jacobian_update_freq: match strategy {
+                JacobianStrategy::FiniteDifference => 1,  // Update every iteration
+                JacobianStrategy::BroydenUpdate => 1,     // Update every iteration with Broyden
+                JacobianStrategy::ModifiedNewton => 5,    // Update less frequently
+                _ => 3,                                   // Default update frequency
+            },
+            damping_factor: 1.0,
+            min_damping: 0.1,
+            reuse_jacobian: true,
+            force_jacobian_init: steps == 0, // Force on first step
+        };
+        
+        // Solve the nonlinear system using Newton's method
+        let newton_result = newton_solve(
+            bdf_system, 
+            y_old.clone(), 
+            &mut jac_manager,
+            newton_params
+        );
+        
+        match newton_result {
+            Ok(result) => {
+                // Update counters
+                func_evals += result.func_evals;
+                jac_evals += result.jac_evals;
+                newton_iters += result.iterations;
+                
+                // Update state
+                y = result.solution;
+                t = next_t;
+                
+                // Store results
+                t_values.push(t);
+                y_values.push(y.clone());
+                
+                // Adjust step size based on convergence
+                if result.iterations <= 2 {
+                    // Converged quickly, increase step size
+                    h = h * 1.2;
+                } else if result.iterations >= 8 {
+                    // Converged slowly, reduce step size
+                    h = h * 0.8;
+                }
+                
+                steps += 1;
+            },
+            Err(_) => {
+                // Newton's method failed to converge, reduce step size and retry
+                h = h * 0.5;
+                rejected_steps += 1;
+                
+                // Check if step size is too small
+                if h < 1e-10 {
+                    return Err(scirs2_integrate::error::IntegrateError::ConvergenceError(
+                        "Step size too small after rejection".to_string()
+                    ));
+                }
+                
+                // Restore old state
+                t = t_old;
+                y = y_old;
+            }
+        }
+    }
+    
+    // Return results
+    Ok(ODEResult {
+        t: t_values,
+        y: y_values,
+        success: t >= t_end,
+        message: Some(format!("Jacobian strategy: {:?}", strategy)),
+        n_eval: func_evals,
+        n_steps: steps,
+        n_accepted: steps,
+        n_rejected: rejected_steps,
+        n_lu: newton_iters,
+        n_jac: jac_evals,
+        method: ODEMethod::Bdf,
+    })
+}
+
+fn main() {
+    println!("Jacobian Handling Example");
+    println!("------------------------");
+    println!("This example demonstrates different Jacobian handling techniques");
+    println!("and their impact on implicit ODE solver performance.");
+    println!("");
+    
+    // Define a simple test problem
+    println!("Problem: Robertson chemical reaction system");
+    println!("A highly stiff ODE system with 3 equations:");
+    println!("  dyÅ/dt = -0.04yÅ + 10tyÇyÉ");
+    println!("  dyÇ/dt = 0.04yÅ - 10tyÇyÉ - 3◊10wyÇ≤");
+    println!("  dyÉ/dt = 3◊10wyÇ≤");
+    println!("Initial conditions: y(0) = [1, 0, 0]");
+    println!("");
+    
+    // Define the Robertson problem
+    let robertson = |_t: f64, y: ArrayView1<f64>| {
+        let y1 = y[0];
+        let y2 = y[1];
+        let y3 = y[2];
+        
+        array![
+            -0.04 * y1 + 1.0e4 * y2 * y3,
+            0.04 * y1 - 1.0e4 * y2 * y3 - 3.0e7 * y2 * y2,
+            3.0e7 * y2 * y2
+        ]
+    };
+    
+    // Initial conditions
+    let y0 = array![1.0, 0.0, 0.0];
+    
+    // Common solver options
+    let options = ODEOptions {
+        rtol: 1e-4,
+        atol: 1e-6,
+        max_steps: 1000,
+        h0: Some(1e-6), // Small initial step due to stiffness
+        ..Default::default()
+    };
+    
+    // Test different Jacobian strategies
+    let strategies = [
+        JacobianStrategy::FiniteDifference,
+        JacobianStrategy::BroydenUpdate,
+        JacobianStrategy::ModifiedNewton,
+    ];
+    
+    // Store results for comparison
+    let mut times = Vec::new();
+    let mut results = Vec::new();
+    
+    for &strategy in &strategies {
+        println!("Solving with {:?} strategy...", strategy);
+        
+        let start = Instant::now();
+        let result = solve_with_improved_jacobian(
+            robertson.clone(),
+            [0.0, 100.0],
+            y0.clone(),
+            options.clone(),
+            strategy
+        );
+        let duration = start.elapsed();
+        
+        match result {
+            Ok(res) => {
+                println!("  Success: integrated to t = {}", res.t.last().unwrap());
+                println!("  Steps: {}, Function evals: {}", res.n_steps, res.n_eval);
+                println!("  Jacobian evals: {}, Newton iterations: {}", res.n_jac, res.n_lu);
+                println!("  Time: {:.2} ms", duration.as_secs_f64() * 1000.0);
+                println!("  Final state: [{:.6e}, {:.6e}, {:.6e}]", 
+                    res.y.last().unwrap()[0],
+                    res.y.last().unwrap()[1],
+                    res.y.last().unwrap()[2]
+                );
+                
+                // Store results for comparison
+                times.push(duration.as_secs_f64() * 1000.0);
+                results.push(res);
+            },
+            Err(e) => {
+                println!("  Failed: {}", e);
+                times.push(f64::INFINITY);
+                
+                // Create a dummy result for comparison table
+                let dummy = ODEResult {
+                    t: vec![0.0],
+                    y: vec![y0.clone()],
+                    success: false,
+                    message: Some(format!("Failed with {:?}", strategy)),
+                    n_eval: 0,
+                    n_steps: 0,
+                    n_accepted: 0,
+                    n_rejected: 0,
+                    n_lu: 0,
+                    n_jac: 0,
+                    method: ODEMethod::Bdf,
+                };
+                results.push(dummy);
+            }
+        }
+        println!("");
+    }
+    
+    // Print comparison table
+    println!("Performance Comparison:");
+    println!("------------------------------------------------");
+    println!("Strategy               | Time (ms) | Jac Evals | Func Evals");
+    println!("------------------------------------------------");
+    for i in 0..strategies.len() {
+        println!("{:<22} | {:<9.2} | {:<9} | {:<10}", 
+            format!("{:?}", strategies[i]),
+            times[i],
+            results[i].n_jac,
+            results[i].n_eval
+        );
+    }
+    println!("------------------------------------------------");
+    
+    // Print observations and recommendations
+    println!("\nObservations:");
+    println!("1. The FiniteDifference strategy computes a new Jacobian for every Newton iteration");
+    println!("   - Most accurate, but requires many function evaluations");
+    println!("   - Good for rapidly changing or highly nonlinear problems");
+    println!("");
+    println!("2. The BroydenUpdate strategy updates the Jacobian without new evaluations");
+    println!("   - Uses rank-1 updates to approximate changes in the Jacobian");
+    println!("   - Requires fewer function evaluations but may need more iterations");
+    println!("");
+    println!("3. The ModifiedNewton strategy reuses the same Jacobian for multiple steps");
+    println!("   - Fewest Jacobian evaluations, best for slowly changing problems");
+    println!("   - May require more iterations or smaller step sizes for convergence");
+    println!("");
+    println!("Recommendations:");
+    println!("- For small systems (n d 5), FiniteDifference is simple and effective");
+    println!("- For medium systems (5 < n d 100), BroydenUpdate offers good performance");
+    println!("- For large systems (n > 100), ModifiedNewton can be most efficient");
+    println!("- For systems with special structure, use specialized Jacobian techniques");
+}

@@ -47,6 +47,7 @@ impl<F: Float + Debug + ScalarOperand, T: Optimizer<F> + ?Sized> OptimizerExt<F>
 mod adagrad;
 mod adam;
 mod adamw;
+mod lr_scheduler_wrapper;
 mod radam;
 mod rmsprop;
 mod sgd;
@@ -54,6 +55,7 @@ mod sgd;
 pub use adagrad::Adagrad;
 pub use adam::Adam;
 pub use adamw::AdamW;
+pub use lr_scheduler_wrapper::{with_cosine_annealing, with_step_decay, LRSchedulerOptimizer};
 pub use radam::RAdam;
 pub use rmsprop::RMSprop;
 pub use sgd::SGD;

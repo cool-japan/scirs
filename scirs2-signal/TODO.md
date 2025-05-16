@@ -84,17 +84,17 @@ This module provides signal processing functionality similar to SciPy's signal m
   - [ ] System identification from data
 
 - [ ] Implement advanced spectral analysis techniques
-  - [ ] Multitaper spectral estimation
-  - [ ] Lomb-Scargle periodogram for unevenly sampled data
-  - [ ] Higher-order spectral analysis (bispectrum, trispectrum)
+  - [x] Multitaper spectral estimation
+  - [x] Lomb-Scargle periodogram for unevenly sampled data
+  - [x] Higher-order spectral analysis (bispectrum, trispectrum)
   - [x] Chirp Z-transform (CZT) for non-uniform frequency sampling
-  - [ ] Parametric spectral estimation (AR, ARMA models)
-  - [ ] Time-frequency analysis (Wigner-Ville distribution)
-  - [ ] Reassigned spectrograms for improved resolution
-  - [ ] Synchrosqueezed wavelet transforms
+  - [x] Parametric spectral estimation (AR, ARMA models)
+  - [x] Time-frequency analysis (Wigner-Ville distribution)
+  - [x] Reassigned spectrograms for improved resolution
+  - [x] Synchrosqueezed wavelet transforms
   - [x] Complex Morlet wavelet analysis
-  - [ ] Constant-Q transforms
-  - [ ] Spectral peak detection and tracking
+  - [x] Constant-Q transforms
+  - [x] Spectral peak detection and tracking
 
 - [x] Extend wavelet functionality
   - [x] Implement discrete wavelet transform (DWT)
@@ -138,38 +138,76 @@ This module provides signal processing functionality similar to SciPy's signal m
       - [x] Coefficient heatmap generation
       - [x] Customizable colormaps
 
-- [ ] Enhance Short-Time Fourier Transform (STFT)
-  - [ ] Class-based interface (similar to SciPy's `ShortTimeFFT`)
-  - [ ] Dual window calculation for energy conservation
-  - [ ] Various padding options (zero, symmetric, reflect)
-  - [ ] Phase-shift controls
-  - [ ] Customizable normalization schemes
+- [x] Enhance Short-Time Fourier Transform (STFT)
+  - [x] Class-based interface (similar to SciPy's `ShortTimeFFT`)
+  - [x] Dual window calculation for energy conservation
+  - [x] Various padding options (zero, symmetric, reflect)
+  - [x] Phase-shift controls
+  - [x] Customizable normalization schemes
   - [ ] Streaming STFT computation
   - [ ] Memory-efficient implementation for large signals
 
 - [x] Signal enhancement and restoration
   - [x] Implement denoising algorithms
     - [x] Wavelet-based denoising with multiple methods
-    - [ ] Wiener filtering
-    - [ ] Non-local means denoising
-    - [ ] Total variation denoising
-    - [ ] Median filtering
-    - [ ] Kalman filtering
-  - [ ] Signal deconvolution techniques
-  - [ ] Blind source separation methods
-  - [ ] Missing data interpolation
-  - [ ] Sparse signal recovery
+    - [x] Wiener filtering
+    - [x] Non-local means denoising
+    - [x] Total variation denoising
+    - [x] Median filtering
+    - [x] Kalman filtering
+  - [x] Signal deconvolution techniques
+    - [x] Wiener deconvolution
+    - [x] Richardson-Lucy deconvolution
+    - [x] Tikhonov regularized deconvolution
+    - [x] Total Variation deconvolution
+    - [x] Blind deconvolution
+  - [x] Blind source separation methods
+    - [x] Independent Component Analysis (ICA)
+    - [x] Principal Component Analysis (PCA)
+    - [x] Non-negative Matrix Factorization (NMF)
+    - [x] Sparse Component Analysis (SCA)
+    - [x] Joint Approximate Diagonalization
+    - [x] Kernel ICA
+    - [x] Multivariate Empirical Mode Decomposition
+  - [x] Missing data interpolation
+    - [x] Linear interpolation
+    - [x] Cubic spline interpolation
+    - [x] Cubic Hermite (PCHIP) interpolation
+    - [x] Gaussian process interpolation
+    - [x] Sinc interpolation
+    - [x] Spectral (FFT-based) interpolation
+    - [x] Minimum energy interpolation
+    - [x] Kriging interpolation
+    - [x] Radial basis function interpolation
+    - [x] Nearest neighbor interpolation
+    - [x] Automatic method selection with cross-validation
+    - [x] 2D interpolation for images
+  - [x] Sparse signal recovery
+    - [x] Orthogonal Matching Pursuit (OMP)
+    - [x] Matching Pursuit (MP)
+    - [x] Basis Pursuit
+    - [x] Iterative Soft Thresholding (ISTA/FISTA)
+    - [x] LASSO implementation
+    - [x] Iterative Hard Thresholding (IHT)
+    - [x] Compressive Sampling Matching Pursuit (CoSaMP)
+    - [x] Subspace Pursuit
+    - [x] Smoothed L0 (SL0) optimization
+    - [x] Recovery of signals with missing samples
+    - [x] Image inpainting with sparsity priors
+    - [x] Sparse signal denoising
+    - [x] Random sensing matrix generation
+    - [x] Matrix coherence and RIP estimation
   - [ ] Robust filtering for outliers
   - [ ] Multi-band signal separation
   - [ ] Harmonic/percussive separation for audio
 
-- [ ] Window function enhancements
-  - [ ] Organize into dedicated namespace
-  - [ ] Extended window catalog
-    - [ ] Kaiser-Bessel derived
+- [x] Window function enhancements
+  - [x] Organize into dedicated namespace
+  - [x] Extended window catalog
+    - [x] Kaiser-Bessel derived
     - [ ] DPSS (Slepian) windows
     - [ ] Lanczos
-    - [ ] Flat-top windows
+    - [x] Flat-top windows
   - [ ] Window design tools
   - [ ] Window analysis utilities
 
@@ -185,7 +223,7 @@ This module provides signal processing functionality similar to SciPy's signal m
   - [x] Instantaneous frequency estimation
   - [x] Instantaneous phase computation
   - [x] Signal envelope detection
-  - [ ] B-splines and spline filtering
+  - [x] B-splines and spline filtering
   - [ ] Polynomial interpolation
 
 - [ ] Advanced resampling and interpolation

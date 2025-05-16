@@ -478,7 +478,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> ConvNeXt<F> {
             let mut head_seq = Sequential::new();
             let mut rng = SmallRng::seed_from_u64(42);
             head_seq.add(LayerNorm2D::<F>::new::<SmallRng>(
-                config.dims.last().unwrap().clone(),
+                *config.dims.last().unwrap(),
                 1e-6,
                 Some("head_norm"),
             )?);
@@ -489,7 +489,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> ConvNeXt<F> {
             }
 
             head_seq.add(Dense::<F>::new(
-                config.dims.last().unwrap().clone(),
+                *config.dims.last().unwrap(),
                 config.num_classes,
                 Some("relu"),
                 &mut rng,

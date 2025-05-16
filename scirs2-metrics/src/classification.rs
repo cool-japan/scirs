@@ -22,8 +22,27 @@
 //! let mcc = matthews_corrcoef(&y_true, &y_pred).unwrap();
 //! let bal_acc = balanced_accuracy_score(&y_true, &y_pred).unwrap();
 //! ```
+//!
+//! ## One-vs-One Metrics
+//!
+//! One-vs-One metrics are useful for evaluating multi-class classification problems by
+//! considering each pair of classes separately.
+//!
+//! ```
+//! use ndarray::array;
+//! use scirs2_metrics::classification::one_vs_one::{one_vs_one_accuracy, one_vs_one_f1_score};
+//!
+//! let y_true = array![0, 1, 2, 0, 1, 2];
+//! let y_pred = array![0, 2, 1, 0, 0, 2];
+//!
+//! let ovo_acc = one_vs_one_accuracy(&y_true, &y_pred).unwrap();
+//! let f1_scores = one_vs_one_f1_score(&y_true, &y_pred).unwrap();
+//! ```
 
 pub mod advanced;
+pub mod curves;
+pub mod one_vs_one;
+pub mod threshold;
 
 use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
 use num_traits::NumCast;
@@ -357,6 +376,8 @@ where
 /// The F1 score is the harmonic mean of precision and recall:
 /// `F1 = 2 * (precision * recall) / (precision + recall)`
 ///
+/// This is a special case of the F-beta score with beta=1.
+///
 /// # Arguments
 ///
 /// * `y_true` - Ground truth (correct) binary labels
@@ -390,6 +411,66 @@ where
     D1: Dimension,
     D2: Dimension,
 {
+    // F1 score is a special case of fbeta_score with beta = 1.0
+    fbeta_score(y_true, y_pred, pos_label, 1.0)
+}
+
+/// Calculates the F-beta score for binary classification
+///
+/// The F-beta score is the weighted harmonic mean of precision and recall:
+/// `F-beta = (1 + beta^2) * (precision * recall) / ((beta^2 * precision) + recall)`
+///
+/// The beta parameter determines the weight of recall in the combined score:
+/// - beta < 1 gives more weight to precision
+/// - beta > 1 gives more weight to recall
+/// - beta = 1 gives equal weight to precision and recall (F1 score)
+///
+/// # Arguments
+///
+/// * `y_true` - Ground truth (correct) binary labels
+/// * `y_pred` - Predicted binary labels, as returned by a classifier
+/// * `pos_label` - The label to report as positive class
+/// * `beta` - The weight of recall relative to precision (must be positive)
+///
+/// # Returns
+///
+/// * The F-beta score (float between 0.0 and 1.0)
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_metrics::classification::fbeta_score;
+///
+/// let y_true = array![0, 1, 0, 0, 1, 1];
+/// let y_pred = array![0, 0, 1, 0, 1, 1];
+///
+/// // F0.5 score (weighs precision higher than recall)
+/// let f_half = fbeta_score(&y_true, &y_pred, 1, 0.5).unwrap();
+///
+/// // F2 score (weighs recall higher than precision)
+/// let f_two = fbeta_score(&y_true, &y_pred, 1, 2.0).unwrap();
+/// ```
+pub fn fbeta_score<T, S1, S2, D1, D2>(
+    y_true: &ArrayBase<S1, D1>,
+    y_pred: &ArrayBase<S2, D2>,
+    pos_label: T,
+    beta: f64,
+) -> Result<f64>
+where
+    T: PartialEq + NumCast + Clone,
+    S1: Data<Elem = T>,
+    S2: Data<Elem = T>,
+    D1: Dimension,
+    D2: Dimension,
+{
+    if beta <= 0.0 {
+        return Err(MetricsError::InvalidInput(format!(
+            "beta must be positive, got {}",
+            beta
+        )));
+    }
+
     let precision = precision_score(y_true, y_pred, pos_label.clone())?;
     let recall = recall_score(y_true, y_pred, pos_label)?;
 
@@ -397,7 +478,8 @@ where
         return Ok(0.0);
     }
 
-    Ok(2.0 * precision * recall / (precision + recall))
+    let beta_squared = beta * beta;
+    Ok((1.0 + beta_squared) * precision * recall / ((beta_squared * precision) + recall))
 }
 
 /// Calculate binary log loss, also known as binary cross-entropy
@@ -581,6 +663,180 @@ where
     Ok(auc)
 }
 
+/// Computes the lift chart values for binary classification
+///
+/// The lift chart shows how much better a model performs compared to a random model.
+/// It is particularly useful in marketing and customer targeting applications.
+///
+/// # Arguments
+///
+/// * `y_true` - Ground truth binary labels (0 or 1)
+/// * `y_score` - Predicted probabilities for the positive class
+/// * `n_bins` - Number of bins for the lift chart
+///
+/// # Returns
+///
+/// * A tuple containing three arrays:
+///   * `percentiles` - The percentiles used (0-100)
+///   * `lift_values` - The lift values for each percentile
+///   * `cum_gains` - Cumulative gains values (for gain chart)
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_metrics::classification::lift_chart;
+///
+/// let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
+/// let y_score = array![0.1, 0.2, 0.7, 0.3, 0.8, 0.9, 0.4, 0.6, 0.2, 0.5];
+///
+/// let (percentiles, lift_values, cum_gains) = lift_chart(&y_true, &y_score, 10).unwrap();
+/// ```
+pub fn lift_chart<S1, S2, D1, D2>(
+    y_true: &ArrayBase<S1, D1>,
+    y_score: &ArrayBase<S2, D2>,
+    n_bins: usize,
+) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>)>
+where
+    S1: Data<Elem = u32>,
+    S2: Data<Elem = f64>,
+    D1: Dimension,
+    D2: Dimension,
+{
+    // Check that arrays have the same shape
+    if y_true.shape() != y_score.shape() {
+        return Err(MetricsError::InvalidInput(format!(
+            "y_true and y_score have different shapes: {:?} vs {:?}",
+            y_true.shape(),
+            y_score.shape()
+        )));
+    }
+
+    let n_samples = y_true.len();
+    if n_samples == 0 {
+        return Err(MetricsError::InvalidInput(
+            "Empty arrays provided".to_string(),
+        ));
+    }
+
+    // Validate y_true contains only binary values
+    for yt in y_true.iter() {
+        if *yt != 0 && *yt != 1 {
+            return Err(MetricsError::InvalidInput(
+                "y_true must contain only binary values (0 or 1)".to_string(),
+            ));
+        }
+    }
+
+    // Validate n_bins
+    if n_bins < 1 {
+        return Err(MetricsError::InvalidInput(
+            "n_bins must be at least 1".to_string(),
+        ));
+    }
+
+    // Compute the overall positive rate (baseline)
+    let n_positives = y_true.iter().filter(|&&y| y == 1).count();
+    if n_positives == 0 || n_positives == n_samples {
+        return Err(MetricsError::InvalidInput(
+            "y_true must contain both positive and negative samples".to_string(),
+        ));
+    }
+    let baseline_rate = n_positives as f64 / n_samples as f64;
+
+    // Pair scores with true labels and sort by scores in descending order
+    let mut paired_data: Vec<(f64, u32)> = y_score
+        .iter()
+        .zip(y_true.iter())
+        .map(|(&score, &label)| (score, label))
+        .collect();
+    paired_data.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Calculate percentiles, lift values, and cumulative gains
+    let bin_size = n_samples / n_bins;
+    let mut percentiles = Vec::with_capacity(n_bins);
+    let mut lift_values = Vec::with_capacity(n_bins);
+    let mut cum_gains = Vec::with_capacity(n_bins);
+
+    for i in 0..n_bins {
+        // Calculate percentile
+        let percentile = (i + 1) as f64 * 100.0 / n_bins as f64;
+
+        // Calculate number of samples to consider (based on percentile)
+        let n_considered = if i == n_bins - 1 {
+            // Include all samples in the last bin
+            n_samples
+        } else {
+            (i + 1) * bin_size
+        };
+
+        // Count positives in this subset
+        let positives_in_bin = paired_data[0..n_considered]
+            .iter()
+            .filter(|(_, label)| *label == 1)
+            .count();
+
+        // Calculate lift and cumulative gain
+        let bin_rate = positives_in_bin as f64 / n_considered as f64;
+        let lift = bin_rate / baseline_rate;
+        let cum_gain = positives_in_bin as f64 / n_positives as f64;
+
+        percentiles.push(percentile);
+        lift_values.push(lift);
+        cum_gains.push(cum_gain);
+    }
+
+    Ok((
+        Array1::from(percentiles),
+        Array1::from(lift_values),
+        Array1::from(cum_gains),
+    ))
+}
+
+/// Computes the gain chart values for binary classification
+///
+/// The gain chart (or cumulative gains chart) shows the percentage of positive
+/// outcomes captured at each percentile when observations are ranked by predicted probability.
+///
+/// # Arguments
+///
+/// * `y_true` - Ground truth binary labels (0 or 1)
+/// * `y_score` - Predicted probabilities for the positive class
+/// * `n_bins` - Number of bins for the gain chart
+///
+/// # Returns
+///
+/// * A tuple containing two arrays:
+///   * `percentiles` - The percentiles used (0-100)
+///   * `cum_gains` - Cumulative gains values at each percentile
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_metrics::classification::gain_chart;
+///
+/// let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
+/// let y_score = array![0.1, 0.2, 0.7, 0.3, 0.8, 0.9, 0.4, 0.6, 0.2, 0.5];
+///
+/// let (percentiles, cum_gains) = gain_chart(&y_true, &y_score, 10).unwrap();
+/// ```
+pub fn gain_chart<S1, S2, D1, D2>(
+    y_true: &ArrayBase<S1, D1>,
+    y_score: &ArrayBase<S2, D2>,
+    n_bins: usize,
+) -> Result<(Array1<f64>, Array1<f64>)>
+where
+    S1: Data<Elem = u32>,
+    S2: Data<Elem = f64>,
+    D1: Dimension,
+    D2: Dimension,
+{
+    // Reuse lift_chart function to get the data
+    let (percentiles, _, cum_gains) = lift_chart(y_true, y_score, n_bins)?;
+    Ok((percentiles, cum_gains))
+}
+
 /// Generates a text report showing the main classification metrics
 ///
 /// # Arguments
@@ -738,6 +994,61 @@ mod tests {
     }
 
     #[test]
+    fn test_fbeta_score() {
+        let y_true = array![0, 1, 0, 0, 1, 1];
+        let y_pred = array![0, 0, 1, 0, 1, 1];
+
+        // F1 score (beta = 1.0)
+        let f1 = fbeta_score(&y_true, &y_pred, 1, 1.0).unwrap();
+        assert_abs_diff_eq!(f1, 2.0 / 3.0, epsilon = 1e-10);
+
+        // F0.5 score (weighs precision higher than recall)
+        let f_half = fbeta_score(&y_true, &y_pred, 1, 0.5).unwrap();
+        // With beta=0.5, beta²=0.25
+        // F0.5 = (1+0.25) * 2/3 * 2/3 / (0.25*2/3 + 2/3) = 1.25 * 4/9 / (1/6 + 2/3) = 5/9 / 5/6 = 5/9 * 6/5 = 30/45 = 2/3
+        assert_abs_diff_eq!(f_half, 2.0 / 3.0, epsilon = 1e-10);
+
+        // F2 score (weighs recall higher than precision)
+        let f_two = fbeta_score(&y_true, &y_pred, 1, 2.0).unwrap();
+        // With beta=2.0, beta²=4.0
+        // F2 = (1+4) * 2/3 * 2/3 / (4*2/3 + 2/3) = 5 * 4/9 / (8/3 + 2/3) = 20/9 / 10/3 = 20/9 * 3/10 = 60/90 = 2/3
+        assert_abs_diff_eq!(f_two, 2.0 / 3.0, epsilon = 1e-10);
+
+        // This example has equal precision and recall, so all F-beta scores are the same
+        // Let's try a more interesting example with different precision and recall
+        let y_true = array![1, 1, 1, 1, 1, 0, 0, 0, 0, 0];
+        let y_pred = array![1, 1, 1, 0, 0, 0, 0, 0, 1, 1];
+        // precision = 3/5 = 0.6, recall = 3/5 = 0.6
+
+        // F1 score (beta = 1.0)
+        let f1 = fbeta_score(&y_true, &y_pred, 1, 1.0).unwrap();
+        assert_abs_diff_eq!(f1, 0.6, epsilon = 1e-10);
+
+        // F0.5 score (weighs precision higher than recall)
+        let f_half = fbeta_score(&y_true, &y_pred, 1, 0.5).unwrap();
+        // With beta=0.5, beta²=0.25
+        // F0.5 = (1+0.25) * 0.6 * 0.6 / (0.25*0.6 + 0.6) = 1.25 * 0.36 / (0.15 + 0.6) = 0.45 / 0.75 = 0.6
+        assert_abs_diff_eq!(f_half, 0.6, epsilon = 1e-10);
+
+        // F2 score (weighs recall higher than precision)
+        let f_two = fbeta_score(&y_true, &y_pred, 1, 2.0).unwrap();
+        // With beta=2.0, beta²=4.0
+        // F2 = (1+4) * 0.6 * 0.6 / (4*0.6 + 0.6) = 5 * 0.36 / (2.4 + 0.6) = 1.8 / 3.0 = 0.6
+        assert_abs_diff_eq!(f_two, 0.6, epsilon = 1e-10);
+
+        // Let's try one more with different precision and recall
+        let y_true = array![1, 1, 1, 1, 0, 0, 0, 0];
+        let y_pred = array![1, 1, 0, 0, 0, 0, 1, 1];
+        // precision = 2/4 = 0.5, recall = 2/4 = 0.5
+
+        // F0.5 score (weighs precision higher than recall)
+        let f_half = fbeta_score(&y_true, &y_pred, 1, 0.5).unwrap();
+        // With beta=0.5, beta²=0.25
+        // F0.5 = (1+0.25) * 0.5 * 0.5 / (0.25*0.5 + 0.5) = 1.25 * 0.25 / (0.125 + 0.5) = 0.3125 / 0.625 = 0.5
+        assert_abs_diff_eq!(f_half, 0.5, epsilon = 1e-10);
+    }
+
+    #[test]
     fn test_log_loss() {
         let y_true = array![0, 1, 1, 0];
         let y_prob = array![0.1, 0.9, 0.8, 0.3];
@@ -762,5 +1073,55 @@ mod tests {
         let y_score = array![0.5, 0.5, 0.5, 0.5];
         let auc = roc_auc_score(&y_true, &y_score).unwrap();
         assert_abs_diff_eq!(auc, 0.5, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_lift_chart() {
+        let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
+        let y_score = array![0.1, 0.2, 0.7, 0.3, 0.8, 0.9, 0.4, 0.6, 0.2, 0.5];
+
+        // Test with 5 bins
+        let (percentiles, lift_values, cum_gains) = lift_chart(&y_true, &y_score, 5).unwrap();
+
+        // Verify dimensions
+        assert_eq!(percentiles.len(), 5);
+        assert_eq!(lift_values.len(), 5);
+        assert_eq!(cum_gains.len(), 5);
+
+        // Verify percentiles
+        assert_abs_diff_eq!(percentiles[0], 20.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(percentiles[4], 100.0, epsilon = 1e-10);
+
+        // The first 20% contains the highest scored cases, which should be mostly positive
+        // This should give a lift value higher than 1
+        assert!(lift_values[0] > 1.0);
+
+        // The cumulative gains at 100% should be 1.0 (all positives)
+        assert_abs_diff_eq!(cum_gains[4], 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_gain_chart() {
+        let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
+        let y_score = array![0.1, 0.2, 0.7, 0.3, 0.8, 0.9, 0.4, 0.6, 0.2, 0.5];
+
+        // Test with 5 bins
+        let (percentiles, cum_gains) = gain_chart(&y_true, &y_score, 5).unwrap();
+
+        // Verify dimensions
+        assert_eq!(percentiles.len(), 5);
+        assert_eq!(cum_gains.len(), 5);
+
+        // Verify percentiles
+        assert_abs_diff_eq!(percentiles[0], 20.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(percentiles[4], 100.0, epsilon = 1e-10);
+
+        // Cumulative gains should be non-decreasing
+        for i in 1..cum_gains.len() {
+            assert!(cum_gains[i] >= cum_gains[i - 1]);
+        }
+
+        // The cumulative gains at 100% should be 1.0 (all positives)
+        assert_abs_diff_eq!(cum_gains[4], 1.0, epsilon = 1e-10);
     }
 }

@@ -140,6 +140,7 @@ impl<F: Float + Debug + ScalarOperand + Clone + Send + Sync + 'static> Conv2D<F>
     /// # Returns
     ///
     /// * A new 2D convolutional layer
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_options<R: Rng>(
         in_channels: usize,
         out_channels: usize,
@@ -683,6 +684,36 @@ impl<F: Float + Debug + ScalarOperand + Clone + Send + Sync + 'static> Layer<F> 
 
         Ok(())
     }
+
+    fn layer_type(&self) -> &str {
+        "Conv2D"
+    }
+
+    fn parameter_count(&self) -> usize {
+        // Number of weights + bias parameters
+        let weights_count =
+            self.in_channels * self.out_channels * self.kernel_size.0 * self.kernel_size.1;
+        let bias_count = if self.use_bias { self.out_channels } else { 0 };
+        weights_count + bias_count
+    }
+
+    fn layer_description(&self) -> String {
+        let padding_str = match self.padding {
+            PaddingMode::Valid => "valid",
+            PaddingMode::Same => "same",
+            PaddingMode::Custom(p) => return format!(
+                "type:Conv2D, in_channels:{}, out_channels:{}, kernel_size:({},{}), stride:({},{}), padding:{}, bias:{}",
+                self.in_channels, self.out_channels, self.kernel_size.0, self.kernel_size.1,
+                self.stride.0, self.stride.1, p, self.use_bias
+            ),
+        };
+
+        format!(
+            "type:Conv2D, in_channels:{}, out_channels:{}, kernel_size:({},{}), stride:({},{}), padding:{}, bias:{}",
+            self.in_channels, self.out_channels, self.kernel_size.0, self.kernel_size.1,
+            self.stride.0, self.stride.1, padding_str, self.use_bias
+        )
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + Clone + Send + Sync + 'static> ParamLayer<F> for Conv2D<F> {
@@ -958,6 +989,22 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Glob
         // GlobalAvgPool2D has no learnable parameters
         Ok(())
     }
+
+    fn layer_type(&self) -> &str {
+        "GlobalAvgPool2D"
+    }
+
+    fn parameter_count(&self) -> usize {
+        // GlobalAvgPool2D has no parameters
+        0
+    }
+
+    fn layer_description(&self) -> String {
+        format!(
+            "type:GlobalAvgPool2D, name:{}",
+            self.name.as_ref().map_or("None", |s| s)
+        )
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> MaxPool2D<F> {
@@ -1211,6 +1258,32 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for MaxP
     fn update(&mut self, _learning_rate: F) -> Result<()> {
         // MaxPool2D has no learnable parameters, so update is a no-op
         Ok(())
+    }
+
+    fn layer_type(&self) -> &str {
+        "MaxPool2D"
+    }
+
+    fn parameter_count(&self) -> usize {
+        // MaxPool2D has no parameters
+        0
+    }
+
+    fn layer_description(&self) -> String {
+        let padding_str = match &self.padding {
+            None => "none",
+            Some(p) => {
+                return format!(
+                    "type:MaxPool2D, pool_size:({},{}), stride:({},{}), padding:({},{})",
+                    self.pool_size.0, self.pool_size.1, self.stride.0, self.stride.1, p.0, p.1
+                )
+            }
+        };
+
+        format!(
+            "type:MaxPool2D, pool_size:({},{}), stride:({},{}), padding:{}",
+            self.pool_size.0, self.pool_size.1, self.stride.0, self.stride.1, padding_str
+        )
     }
 }
 

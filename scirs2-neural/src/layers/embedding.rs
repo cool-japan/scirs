@@ -365,7 +365,7 @@ impl<F: Float + Debug + ScalarOperand> Layer<F> for Embedding<F> {
 
         // Handle frequency-based scaling
         if let Some(counter) = &self.freq_counter {
-            for i in 0..self.config.num_embeddings {
+            for (i, &count) in counter.iter().enumerate().take(self.config.num_embeddings) {
                 // Skip padding indices
                 if let Some(padding_idx) = self.config.padding_idx {
                     if i == padding_idx {
@@ -373,8 +373,8 @@ impl<F: Float + Debug + ScalarOperand> Layer<F> for Embedding<F> {
                     }
                 }
 
-                let scale = if counter[i] > 0 {
-                    F::from(1.0 / counter[i] as f64).unwrap()
+                let scale = if count > 0 {
+                    F::from(1.0 / count as f64).unwrap()
                 } else {
                     F::one()
                 };
@@ -907,7 +907,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for PatchEmbedding
         let patch_dim = patches.shape()[2];
 
         // Validate grad_output shape
-        if grad_output.shape() != &[batch_size, num_patches, self.embedding_dim] {
+        if grad_output.shape() != [batch_size, num_patches, self.embedding_dim] {
             return Err(Error::InvalidArchitecture(format!(
                 "Expected grad_output shape [{}, {}, {}], but got {:?}",
                 batch_size,

@@ -40,6 +40,10 @@ pub enum NdimageError {
     #[error("Morphology error: {0}")]
     MorphologyError(String),
 
+    /// Not implemented error
+    #[error("Not implemented: {0}")]
+    NotImplementedError(String),
+
     /// Core error (propagated from scirs2-core)
     #[error("{0}")]
     CoreError(#[from] CoreError),

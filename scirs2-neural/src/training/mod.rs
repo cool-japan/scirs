@@ -122,7 +122,7 @@ impl<F: Float + Debug + ScalarOperand> TrainingSession<F> {
     pub fn add_metric(&mut self, name: &str, value: F) {
         self.history
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(value);
     }
 
@@ -167,11 +167,10 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
     {
         let session = TrainingSession::new(config.clone());
 
-        let gradient_accumulator = if let Some(ref ga_config) = config.gradient_accumulation {
-            Some(GradientAccumulator::new(ga_config.clone()))
-        } else {
-            None
-        };
+        let gradient_accumulator = config
+            .gradient_accumulation
+            .as_ref()
+            .map(|ga_config| GradientAccumulator::new(ga_config.clone()));
 
         let mixed_precision = None; // Initialize later if needed
 
@@ -220,7 +219,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             self.callback_manager.on_epoch_begin(epoch)?;
 
             // Create data loader with cloned dataset
-            let mut data_loader = DataLoader::new(
+            let data_loader = DataLoader::new(
                 dataset.clone(),
                 self.config.batch_size,
                 true,
@@ -238,7 +237,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             epoch_metrics.insert("loss".to_string(), F::zero());
 
             // Process batches
-            while let Some(batch_result) = data_loader.next() {
+            for batch_result in data_loader {
                 let batch_idx = batch_count;
                 let (inputs, targets) = batch_result?;
                 // Call on_batch_begin for callbacks

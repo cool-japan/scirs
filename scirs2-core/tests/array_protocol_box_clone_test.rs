@@ -11,10 +11,10 @@
 //
 
 use ndarray::Array2;
+use scirs2_core::array_protocol::{ArrayProtocol, NdarrayWrapper, NotImplemented};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use scirs2_core::array_protocol::{ArrayProtocol, NdarrayWrapper, NotImplemented};
 
 // Tests for the box_clone functionality in the ArrayProtocol trait.
 //
@@ -24,8 +24,8 @@ use scirs2_core::array_protocol::{ArrayProtocol, NdarrayWrapper, NotImplemented}
 /// A simplified mock distributed array for testing box_clone
 #[derive(Debug, Clone)]
 struct MockDistributedArray {
-    _data: Vec<f64>,  // Prefixed with underscore to indicate it's unused
-    shape: Vec<usize>
+    _data: Vec<f64>, // Prefixed with underscore to indicate it's unused
+    shape: Vec<usize>,
 }
 
 impl MockDistributedArray {
@@ -61,14 +61,18 @@ impl ArrayProtocol for MockDistributedArray {
 /// A simplified mock GPU array for testing box_clone
 #[derive(Debug, Clone)]
 struct MockGPUArray {
-    _data: Vec<f64>,  // Prefixed with underscore to indicate it's unused
+    _data: Vec<f64>, // Prefixed with underscore to indicate it's unused
     shape: Vec<usize>,
-    _device: String  // Prefixed with underscore to indicate it's unused
+    _device: String, // Prefixed with underscore to indicate it's unused
 }
 
 impl MockGPUArray {
     fn new(data: Vec<f64>, shape: Vec<usize>, device: String) -> Self {
-        Self { _data: data, shape, _device: device }
+        Self {
+            _data: data,
+            shape,
+            _device: device,
+        }
     }
 }
 
@@ -100,14 +104,14 @@ impl ArrayProtocol for MockGPUArray {
 #[derive(Debug, Clone)]
 struct JITEnabledArray<T, A: Clone> {
     inner: A,
-    _phantom: PhantomData<T>
+    _phantom: PhantomData<T>,
 }
 
 impl<T, A: Clone> JITEnabledArray<T, A> {
     fn new(inner: A) -> Self {
         Self {
             inner,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
@@ -115,7 +119,7 @@ impl<T, A: Clone> JITEnabledArray<T, A> {
 impl<T, A> ArrayProtocol for JITEnabledArray<T, A>
 where
     T: Clone + Send + Sync + 'static,
-    A: ArrayProtocol + Clone + Send + Sync + 'static
+    A: ArrayProtocol + Clone + Send + Sync + 'static,
 {
     fn array_function(
         &self,
@@ -138,7 +142,7 @@ where
     fn box_clone(&self) -> Box<dyn ArrayProtocol> {
         Box::new(JITEnabledArray {
             inner: self.inner.clone(),
-            _phantom: PhantomData::<T>
+            _phantom: PhantomData::<T>,
         })
     }
 }
@@ -189,7 +193,9 @@ fn test_ndarray_wrapper_box_clone() {
     assert_eq!(cloned.shape(), &[3, 3]);
 
     // Try to downcast the clone to the original type
-    let unwrapped = cloned.as_any().downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>();
+    let unwrapped = cloned
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>();
     assert!(unwrapped.is_some());
 }
 
@@ -253,7 +259,9 @@ fn test_jit_array_box_clone() {
     assert_eq!(cloned.shape(), &[10, 5]);
 
     // Try to downcast the clone to the original type
-    let unwrapped = cloned.as_any().downcast_ref::<JITEnabledArray<f64, NdarrayWrapper<f64, ndarray::Ix2>>>();
+    let unwrapped = cloned
+        .as_any()
+        .downcast_ref::<JITEnabledArray<f64, NdarrayWrapper<f64, ndarray::Ix2>>>();
     assert!(unwrapped.is_some());
 }
 

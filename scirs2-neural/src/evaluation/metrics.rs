@@ -18,6 +18,14 @@ pub struct LossMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Display
     num_batches: usize,
 }
 
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for LossMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> LossMetric<F> {
     /// Create a new loss metric
     pub fn new() -> Self {
@@ -71,6 +79,14 @@ pub struct AccuracyMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Dis
     total: usize,
     /// Phantom data for float type
     _phantom: PhantomData<F>,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for AccuracyMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> AccuracyMetric<F> {
@@ -212,6 +228,14 @@ pub struct PrecisionMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Di
     fp: usize,
     /// Current threshold
     threshold: F,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for PrecisionMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> PrecisionMetric<F> {
@@ -398,6 +422,14 @@ pub struct RecallMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Displ
     threshold: F,
 }
 
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for RecallMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> RecallMetric<F> {
     /// Create a new recall metric
     pub fn new() -> Self {
@@ -580,6 +612,14 @@ pub struct F1ScoreMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Disp
     recall: RecallMetric<F>,
 }
 
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for F1ScoreMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> F1ScoreMetric<F> {
     /// Create a new F1 score metric
     pub fn new() -> Self {
@@ -642,6 +682,14 @@ pub struct MeanSquaredErrorMetric<
     sum_squared_error: F,
     /// Number of samples
     count: usize,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for MeanSquaredErrorMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync>
@@ -715,6 +763,14 @@ pub struct MeanAbsoluteErrorMetric<
     sum_absolute_error: F,
     /// Number of samples
     count: usize,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for MeanAbsoluteErrorMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync>
@@ -793,6 +849,14 @@ pub struct RSquaredMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Dis
     mean: F,
     /// First update flag
     first_update: bool,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for RSquaredMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> RSquaredMetric<F> {
@@ -883,6 +947,14 @@ pub struct AUCMetric<F: Float + Debug + ScalarOperand + FromPrimitive + Display 
     labels: Vec<F>,
 }
 
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> Default
+    for AUCMetric<F>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> AUCMetric<F> {
     /// Create a new AUC metric
     pub fn new() -> Self {
@@ -933,10 +1005,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> A
         let num_neg = F::from(num_neg).unwrap();
 
         // Calculate AUC
-        let auc = (sum_ranks - (pos_count * (pos_count + F::one())) / F::from(2.0).unwrap())
-            / (num_pos * num_neg);
 
-        auc
+        (sum_ranks - (pos_count * (pos_count + F::one())) / F::from(2.0).unwrap())
+            / (num_pos * num_neg)
     }
 }
 
@@ -957,10 +1028,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> M
                 probs.push(predictions[[i, 1]]);
             }
             probs
-        } else if predictions.ndim() == 2 && predictions.shape()[1] == 1 {
-            // Binary with single output
-            predictions.iter().cloned().collect()
-        } else if predictions.ndim() == 1 {
+        } else if (predictions.ndim() == 2 && predictions.shape()[1] == 1)
+            || predictions.ndim() == 1
+        {
             // Binary with single output
             predictions.iter().cloned().collect()
         } else {
@@ -976,10 +1046,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + Send + Sync> M
                 labs.push(targets[[i, 1]]);
             }
             labs
-        } else if targets.ndim() == 2 && targets.shape()[1] == 1 {
-            // Binary with single output
-            targets.iter().cloned().collect()
-        } else if targets.ndim() == 1 {
+        } else if (targets.ndim() == 2 && targets.shape()[1] == 1) || targets.ndim() == 1 {
             // Binary with single output
             targets.iter().cloned().collect()
         } else {

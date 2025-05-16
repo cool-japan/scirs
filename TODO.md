@@ -169,6 +169,13 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] Voronoi diagrams
   - [x] Spatial indexing structures
 - [x] Fix Clippy warnings across modules
+  - [x] Address excessive precision warnings in constants
+  - [x] Fix manual implementation of assign operations
+  - [x] Remove unneeded return statements
+  - [x] Fix manual implementation of range contains
+  - [x] Update legacy numeric constants usage
+  - [x] Eliminate unnecessary casts
+  - [x] Fix let-and-return patterns
 - [x] Update rand crate usage to 0.9.0 API
 
 ## Phase 4: Advanced Modules
@@ -235,10 +242,14 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] Dimensionality reduction
 
 - [x] Metrics and Evaluation ([`scirs2-metrics`](./scirs2-metrics/TODO.md))
-  - [x] Classification metrics
-  - [x] Regression metrics
-  - [x] Clustering metrics
-  - [x] Model evaluation utilities
+  - [x] Classification metrics with curve analysis
+  - [x] Regression metrics with error distribution analysis
+  - [x] Clustering metrics (distance, density, validation)
+  - [x] Model evaluation utilities and workflows
+  - [x] Fairness and bias detection metrics
+  - [x] Ranking and anomaly detection metrics
+  - [x] Neural network integration
+  - [x] Visualization and serialization utilities
 
 - [x] Text Processing ([`scirs2-text`](./scirs2-text/TODO.md))
   - [x] Tokenization utilities

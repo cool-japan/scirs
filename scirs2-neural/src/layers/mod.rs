@@ -58,6 +58,21 @@ pub trait Layer<F: Float + Debug + ScalarOperand> {
     fn is_training(&self) -> bool {
         true // Default implementation: always in training mode
     }
+
+    /// Get the type of the layer (e.g., "Dense", "Conv2D")
+    fn layer_type(&self) -> &str {
+        "Unknown"
+    }
+
+    /// Get the number of trainable parameters in this layer
+    fn parameter_count(&self) -> usize {
+        0
+    }
+
+    /// Get a detailed description of this layer
+    fn layer_description(&self) -> String {
+        format!("type:{}", self.layer_type())
+    }
 }
 
 /// Trait for layers with parameters (weights, biases)
@@ -140,6 +155,12 @@ impl<F: Float + Debug + ScalarOperand + 'static> Clone for Sequential<F> {
             layers: Vec::new(),
             training: self.training,
         }
+    }
+}
+
+impl<F: Float + Debug + ScalarOperand> Default for Sequential<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

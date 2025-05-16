@@ -528,7 +528,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Debug for FeatureFusion<F> 
             .field("aligners", &self.aligners)
             .field(
                 "fusion_module",
-                &format!("<Box<dyn Layer<F> + Send + Sync>>"),
+                &"<Box<dyn Layer<F> + Send + Sync>>".to_string(),
             )
             .field("post_fusion", &self.post_fusion)
             .field("classifier", &self.classifier)
@@ -542,18 +542,17 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Clone for FeatureFusion<F> 
     fn clone(&self) -> Self {
         // We can't clone the dyn Layer directly, so we create a new FeatureFusion
         // without the fusion_module
-        let new_fusion = Self {
+
+        // We would need to implement custom clone logic for fusion_module
+        // based on its actual type if needed, but for now we leave it as None
+
+        Self {
             aligners: self.aligners.clone(),
             fusion_module: None, // Can't clone the trait object
             post_fusion: self.post_fusion.clone(),
             classifier: self.classifier.clone(),
             config: self.config.clone(),
-        };
-
-        // We would need to implement custom clone logic for fusion_module
-        // based on its actual type if needed, but for now we leave it as None
-
-        new_fusion
+        }
     }
 }
 

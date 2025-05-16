@@ -23,6 +23,12 @@ rand_distr = "0.5.1"
 rand_core = "0.9.3"
 libc = "0.2"
 libm = "0.2"
+sobol = "1.0.2"
+halton = "0.2.1"
+
+# Optional dependencies
+scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.3", optional = true }
+rayon = { version = "1.10.0", optional = true }
 
 [dev-dependencies]
 approx = "0.5.1"
@@ -35,4 +41,8 @@ harness = false
 [features]
 default = []
 simd = ["scirs2-core/simd"]
-parallel = ["scirs2-core/parallel"]
+parallel = ["scirs2-core/parallel", "rayon"]
+autodiff = ["scirs2-autograd"]
+symplectic = []  # Feature flag for symplectic integrators
+parallel_jacobian = ["rayon"]  # Feature flag for parallel Jacobian computation
+new_ode = []  # Feature flag for new ODE module structure

@@ -4,7 +4,7 @@
 //! of ordinary differential equations.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use crate::ode::{ODEMethod, ODEOptions};
+use crate::ode::types::{ODEMethod, ODEOptions};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
@@ -24,7 +24,7 @@ pub struct BVPOptions<F: Float> {
     pub fixed_mesh: bool,
 }
 
-impl<F: Float + FromPrimitive> Default for BVPOptions<F> {
+impl<F: Float + FromPrimitive + Debug> Default for BVPOptions<F> {
     fn default() -> Self {
         Self {
             max_iter: 50,

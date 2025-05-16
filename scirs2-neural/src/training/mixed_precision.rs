@@ -92,7 +92,7 @@ impl<
     }
 
     /// Initialize the manager with a model
-    pub fn initialize<L: Layer<F> + Clone + Send + Sync + 'static + ?Sized>(
+    pub fn initialize<L: Layer<F> + Clone + Send + Sync + 'static>(
         &mut self,
         model: &L,
     ) -> Result<()> {
@@ -338,6 +338,7 @@ impl<
     }
 
     /// Train for one epoch with mixed precision
+    #[allow(clippy::too_many_arguments)]
     pub fn train_epoch<
         LM: Layer<LF> + ?Sized,
         HM: Layer<F> + ?Sized,
@@ -354,13 +355,13 @@ impl<
         shuffle: bool,
     ) -> Result<(F, usize)> {
         // Create data loader
-        let mut data_loader = DataLoader::new(dataset.clone(), batch_size, shuffle, false);
+        let data_loader = DataLoader::new(dataset.clone(), batch_size, shuffle, false);
 
         let mut total_loss = F::zero();
         let mut batch_count = 0;
 
         // Train on batches
-        while let Some(batch_result) = data_loader.next() {
+        for batch_result in data_loader {
             let (inputs, targets) = batch_result?;
             // Train step with mixed precision
             let loss = self.train_step(
@@ -557,7 +558,7 @@ impl<
     }
 
     /// Initialize the mixed precision manager
-    pub fn initialize<L: Layer<F> + Clone + Send + Sync + 'static + ?Sized>(
+    pub fn initialize<L: Layer<F> + Clone + Send + Sync + 'static>(
         &mut self,
         model: &L,
     ) -> Result<()> {

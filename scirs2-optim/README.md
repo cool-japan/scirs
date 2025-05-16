@@ -22,11 +22,14 @@ Add the following to your `Cargo.toml`:
 scirs2-optim = "0.1.0-alpha.3"
 ```
 
-To enable optimizations:
+To enable optimizations or integration with other modules:
 
 ```toml
 [dependencies]
 scirs2-optim = { version = "0.1.0-alpha.3", features = ["parallel"] }
+
+# For integration with scirs2-metrics
+scirs2-optim = { version = "0.1.0-alpha.3", features = ["metrics_integration"] }
 ```
 
 ## Usage
@@ -169,6 +172,87 @@ use scirs2_optim::schedulers::{
 ```
 
 ## Advanced Features
+
+### Integration with Metrics
+
+The `metrics_integration` feature provides integration with `scirs2-metrics` for metric-based optimization:
+
+```rust
+use scirs2_optim::metrics::{MetricOptimizer, MetricScheduler, MetricBasedReduceOnPlateau};
+use scirs2_optim::optimizers::{SGD, Optimizer};
+
+// Create an SGD optimizer guided by metrics
+let mut optimizer = MetricOptimizer::new(
+    SGD::new(0.01), 
+    "accuracy",  // Metric to optimize
+    true        // Maximize
+);
+
+// Create a metric-guided learning rate scheduler
+let mut scheduler = MetricBasedReduceOnPlateau::new(
+    0.1,        // Initial learning rate
+    0.5,        // Factor to reduce learning rate (0.5 = halve it)
+    3,          // Patience - number of epochs with no improvement
+    0.001,      // Minimum learning rate
+    "val_loss", // Metric name to monitor
+    false,      // Maximize? No, we want to minimize loss
+);
+
+// During training loop:
+for epoch in 0..num_epochs {
+    // Train model for one epoch...
+    let train_metrics = train_epoch(&model, &train_data);
+    
+    // Evaluate on validation set
+    let val_metrics = evaluate(&model, &val_data);
+    
+    // Update optimizer with metric value
+    optimizer.update_metric(train_metrics.accuracy);
+    
+    // Update scheduler with validation loss
+    let new_lr = scheduler.step_with_metric(val_metrics.loss);
+    
+    // Apply scheduler to optimizer
+    scheduler.apply_to(&mut optimizer);
+    
+    // Print current learning rate
+    println!("Epoch {}: LR = {}", epoch, new_lr);
+}
+```
+
+For more advanced hyperparameter tuning, the integration also supports random search:
+
+```rust
+use scirs2_metrics::integration::optim::{HyperParameterTuner, HyperParameter};
+
+// Define hyperparameters to tune
+let params = vec![
+    HyperParameter::new("learning_rate", 0.01, 0.001, 0.1),
+    HyperParameter::new("weight_decay", 0.0001, 0.0, 0.001),
+    HyperParameter::discrete("batch_size", 32.0, 16.0, 128.0, 16.0),
+];
+
+// Create hyperparameter tuner
+let mut tuner = HyperParameterTuner::new(
+    params,
+    "validation_accuracy",  // Metric to optimize
+    true,                   // Maximize
+    30                      // Number of trials
+);
+
+// Run random search
+let result = tuner.random_search(|params| {
+    // Train model with these parameters
+    let model_result = train_model_with_params(params)?;
+    Ok(model_result.val_accuracy)
+})?;
+
+// Get best parameters
+println!("Best hyperparameters:");
+for (name, value) in result.best_params() {
+    println!("  {}: {}", name, value);
+}
+```
 
 ### Combining Optimizers and Regularizers
 

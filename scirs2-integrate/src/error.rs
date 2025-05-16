@@ -20,6 +20,18 @@ pub enum IntegrateError {
     /// Not implemented error
     #[error("Not implemented: {0}")]
     NotImplementedError(String),
+
+    /// Linear system solver error
+    #[error("Linear solve error: {0}")]
+    LinearSolveError(String),
+
+    /// Dimension mismatch error
+    #[error("Dimension mismatch: {0}")]
+    DimensionMismatch(String),
+
+    /// Method switching error
+    #[error("Method switching error: {0}")]
+    MethodSwitchingError(String),
 }
 
 /// Result type for integration operations

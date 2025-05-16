@@ -36,23 +36,23 @@ This module provides special functions similar to SciPy's special module.
 ## Future Tasks
 
 - [x] Fix Clippy warning for needless_range_loop in orthogonal.rs
-- [ ] Add more special functions
+- [x] Add more special functions
   - [x] Airy functions
   - [x] Elliptic integrals and functions
   - [x] Hypergeometric functions
   - [x] Spherical harmonics
   - [x] Mathieu functions
   - [x] Zeta functions
-  - [ ] Kelvin functions
-  - [ ] Parabolic cylinder functions
-  - [ ] Spheroidal wave functions
-  - [ ] Wright Omega function
-  - [ ] Lambert W function
-  - [ ] Struve functions
-  - [ ] Coulomb functions
-  - [ ] Fresnel integrals
-  - [ ] Wright Bessel functions
-  - [ ] Logarithmic integral
+  - [x] Kelvin functions
+  - [x] Parabolic cylinder functions
+  - [x] Lambert W function
+  - [x] Struve functions
+  - [x] Fresnel integrals
+  - [x] Spheroidal wave functions
+  - [x] Wright Omega function
+  - [x] Coulomb functions
+  - [x] Wright Bessel functions
+  - [x] Logarithmic integral
 - [ ] Enhance numerical precision
   - [ ] Improved algorithms for edge cases
   - [ ] Better handling of overflow and underflow
@@ -65,6 +65,12 @@ This module provides special functions similar to SciPy's special module.
   - [ ] Parallelization of array operations
   - [ ] SIMD optimizations for vector operations
   - [ ] Function-specific optimizations similar to SciPy's specialized implementations
+- [x] Fix build issues
+  - [x] Fix parameter mismatches in gamma function calls
+  - [x] Remove unused variables and imports
+  - [x] Fix function interface consistency issues
+  - [x] Ensure proper typing throughout codebase
+  - [x] Fix Clippy warnings in fresnel.rs (assign-op-pattern, needless-return)
 - [ ] Add comprehensive testing infrastructure
   - [ ] Test data for validation against known values
   - [ ] Property-based testing for mathematical identities
@@ -76,6 +82,10 @@ This module provides special functions similar to SciPy's special module.
 
 - [ ] Add more examples and documentation
   - [ ] Tutorial for common special function applications
+  - [x] Logarithmic integral example
+  - [x] Wright bessel functions example
+  - [x] Spheroidal wave functions example
+  - [x] Coulomb functions example 
   - [ ] Visual examples showing function behavior
   - [ ] Mathematical background for each function category
   - [ ] Numerical behavior documentation for edge cases

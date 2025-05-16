@@ -20,16 +20,15 @@ use std::any::Any;
 use ndarray::{Array, Ix1};
 use rand::Rng;
 
-use crate::array_protocol::{
-    ArrayProtocol, NdarrayWrapper,
-};
 use crate::array_protocol::ml_ops::ActivationFunc;
 use crate::array_protocol::operations::OperationError;
+use crate::array_protocol::{ArrayProtocol, NdarrayWrapper};
 
 /// Trait for neural network layers.
 pub trait Layer: Any + Send + Sync {
     /// Forward pass through the layer.
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError>;
+    fn forward(&self, inputs: &dyn ArrayProtocol)
+        -> Result<Box<dyn ArrayProtocol>, OperationError>;
 
     /// Get the layer's parameters.
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>>;
@@ -54,16 +53,16 @@ pub trait Layer: Any + Send + Sync {
 pub struct Linear {
     /// The layer's name.
     name: String,
-    
+
     /// Weight matrix.
     weights: Box<dyn ArrayProtocol>,
-    
+
     /// Bias vector.
     bias: Option<Box<dyn ArrayProtocol>>,
-    
+
     /// Activation function.
     activation: Option<ActivationFunc>,
-    
+
     /// Training mode flag.
     training: bool,
 }
@@ -84,7 +83,7 @@ impl Linear {
             training: true,
         }
     }
-    
+
     /// Create a new linear layer with randomly initialized weights.
     pub fn with_shape(
         name: &str,
@@ -99,7 +98,7 @@ impl Linear {
         let weights = Array::from_shape_fn((out_features, in_features), |_| {
             (rng.random::<f64>() * 2.0 - 1.0) * scale
         });
-        
+
         // Create bias if needed
         let bias = if with_bias {
             let bias: Array<f64, Ix1> = Array::zeros(out_features);
@@ -107,7 +106,7 @@ impl Linear {
         } else {
             None
         };
-        
+
         Self {
             name: name.to_string(),
             weights: Box::new(NdarrayWrapper::new(weights)),
@@ -119,7 +118,10 @@ impl Linear {
 }
 
 impl Layer for Linear {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Perform matrix multiplication: y = Wx
         let mut result = crate::array_protocol::matmul(self.weights.as_ref(), inputs)?;
 
@@ -173,22 +175,22 @@ impl Layer for Linear {
 pub struct Conv2D {
     /// The layer's name.
     name: String,
-    
+
     /// Filters tensor.
     filters: Box<dyn ArrayProtocol>,
-    
+
     /// Bias vector.
     bias: Option<Box<dyn ArrayProtocol>>,
-    
+
     /// Stride for the convolution.
     stride: (usize, usize),
-    
+
     /// Padding for the convolution.
     padding: (usize, usize),
-    
+
     /// Activation function.
     activation: Option<ActivationFunc>,
-    
+
     /// Training mode flag.
     training: bool,
 }
@@ -213,7 +215,7 @@ impl Conv2D {
             training: true,
         }
     }
-    
+
     /// Create a new convolutional layer with randomly initialized weights.
     pub fn with_shape(
         name: &str,
@@ -230,10 +232,11 @@ impl Conv2D {
         let fan_in = filter_height * filter_width * in_channels;
         let scale = (2.0 / fan_in as f64).sqrt();
         let mut rng = rand::rng();
-        let filters = Array::from_shape_fn((filter_height, filter_width, in_channels, out_channels), |_| {
-            (rng.random::<f64>() * 2.0 - 1.0) * scale
-        });
-        
+        let filters = Array::from_shape_fn(
+            (filter_height, filter_width, in_channels, out_channels),
+            |_| (rng.random::<f64>() * 2.0 - 1.0) * scale,
+        );
+
         // Create bias if needed
         let bias = if with_bias {
             let bias: Array<f64, Ix1> = Array::zeros(out_channels);
@@ -241,7 +244,7 @@ impl Conv2D {
         } else {
             None
         };
-        
+
         Self {
             name: name.to_string(),
             filters: Box::new(NdarrayWrapper::new(filters)),
@@ -255,9 +258,17 @@ impl Conv2D {
 }
 
 impl Layer for Conv2D {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Perform convolution
-        let mut result = crate::array_protocol::ml_ops::conv2d(inputs, self.filters.as_ref(), self.stride, self.padding)?;
+        let mut result = crate::array_protocol::ml_ops::conv2d(
+            inputs,
+            self.filters.as_ref(),
+            self.stride,
+            self.padding,
+        )?;
 
         // Add bias if present
         if let Some(bias) = &self.bias {
@@ -305,16 +316,16 @@ impl Layer for Conv2D {
 pub struct MaxPool2D {
     /// The layer's name.
     name: String,
-    
+
     /// Kernel size.
     kernel_size: (usize, usize),
-    
+
     /// Stride.
     stride: (usize, usize),
-    
+
     /// Padding.
     padding: (usize, usize),
-    
+
     /// Training mode flag.
     training: bool,
 }
@@ -328,7 +339,7 @@ impl MaxPool2D {
         padding: (usize, usize),
     ) -> Self {
         let stride = stride.unwrap_or(kernel_size);
-        
+
         Self {
             name: name.to_string(),
             kernel_size,
@@ -340,8 +351,16 @@ impl MaxPool2D {
 }
 
 impl Layer for MaxPool2D {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
-        crate::array_protocol::ml_ops::max_pool2d(inputs, self.kernel_size, self.stride, self.padding)
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+        crate::array_protocol::ml_ops::max_pool2d(
+            inputs,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
     }
 
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
@@ -415,7 +434,7 @@ impl BatchNorm {
             training: true,
         }
     }
-    
+
     /// Create a new batch normalization layer with initialized parameters.
     pub fn with_shape(
         name: &str,
@@ -428,7 +447,7 @@ impl BatchNorm {
         let offset: Array<f64, Ix1> = Array::zeros(num_features);
         let running_mean: Array<f64, Ix1> = Array::zeros(num_features);
         let running_var: Array<f64, Ix1> = Array::ones(num_features);
-        
+
         Self {
             name: name.to_string(),
             scale: Box::new(NdarrayWrapper::new(scale)),
@@ -442,7 +461,10 @@ impl BatchNorm {
 }
 
 impl Layer for BatchNorm {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         crate::array_protocol::ml_ops::batch_norm(
             inputs,
             self.scale.as_ref(),
@@ -482,24 +504,20 @@ impl Layer for BatchNorm {
 pub struct Dropout {
     /// The layer's name.
     name: String,
-    
+
     /// Dropout rate.
     rate: f64,
-    
+
     /// Optional seed for reproducibility.
     seed: Option<u64>,
-    
+
     /// Training mode flag.
     training: bool,
 }
 
 impl Dropout {
     /// Create a new dropout layer.
-    pub fn new(
-        name: &str,
-        rate: f64,
-        seed: Option<u64>,
-    ) -> Self {
+    pub fn new(name: &str, rate: f64, seed: Option<u64>) -> Self {
         Self {
             name: name.to_string(),
             rate,
@@ -510,7 +528,10 @@ impl Dropout {
 }
 
 impl Layer for Dropout {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         crate::array_protocol::ml_ops::dropout(inputs, self.rate, self.training, self.seed)
     }
 
@@ -544,25 +565,25 @@ impl Layer for Dropout {
 pub struct MultiHeadAttention {
     /// The layer's name.
     name: String,
-    
+
     /// Query projection.
     wq: Box<dyn ArrayProtocol>,
-    
+
     /// Key projection.
     wk: Box<dyn ArrayProtocol>,
-    
+
     /// Value projection.
     wv: Box<dyn ArrayProtocol>,
-    
+
     /// Output projection.
     wo: Box<dyn ArrayProtocol>,
-    
+
     /// Number of attention heads.
     num_heads: usize,
-    
+
     /// Model dimension.
     d_model: usize,
-    
+
     /// Training mode flag.
     training: bool,
 }
@@ -589,16 +610,15 @@ impl MultiHeadAttention {
             training: true,
         }
     }
-    
+
     /// Create a new multi-head attention layer with randomly initialized weights.
-    pub fn with_shape(
-        name: &str,
-        d_model: usize,
-        num_heads: usize,
-    ) -> Self {
+    pub fn with_shape(name: &str, d_model: usize, num_heads: usize) -> Self {
         // Check if d_model is divisible by num_heads
-        assert!(d_model % num_heads == 0, "d_model must be divisible by num_heads");
-        
+        assert!(
+            d_model % num_heads == 0,
+            "d_model must be divisible by num_heads"
+        );
+
         // Initialize parameters
         let scale = (1.0 / d_model as f64).sqrt();
         let mut rng = rand::rng();
@@ -618,7 +638,7 @@ impl MultiHeadAttention {
         let wo = Array::from_shape_fn((d_model, d_model), |_| {
             (rng.random::<f64>() * 2.0 - 1.0) * scale
         });
-        
+
         Self {
             name: name.to_string(),
             wq: Box::new(NdarrayWrapper::new(wq)),
@@ -633,7 +653,10 @@ impl MultiHeadAttention {
 }
 
 impl Layer for MultiHeadAttention {
-    fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // For a real implementation, this would:
         // 1. Project inputs to queries, keys, and values
         // 2. Reshape for multi-head attention
@@ -694,10 +717,10 @@ impl Layer for MultiHeadAttention {
 pub struct Sequential {
     /// The model's name.
     name: String,
-    
+
     /// The layers in the model.
     layers: Vec<Box<dyn Layer>>,
-    
+
     /// Training mode flag.
     training: bool,
 }
@@ -711,14 +734,17 @@ impl Sequential {
             training: true,
         }
     }
-    
+
     /// Add a layer to the model.
     pub fn add_layer(&mut self, layer: Box<dyn Layer>) {
         self.layers.push(layer);
     }
-    
+
     /// Forward pass through the model.
-    pub fn forward(&self, inputs: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    pub fn forward(
+        &self,
+        inputs: &dyn ArrayProtocol,
+    ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Clone the input to a Box
         let mut x: Box<dyn ArrayProtocol> = inputs.box_clone();
 
@@ -731,41 +757,41 @@ impl Sequential {
 
         Ok(x)
     }
-    
+
     /// Get all parameters in the model.
     pub fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
         let mut params = Vec::new();
-        
+
         for layer in &self.layers {
             params.extend(layer.parameters());
         }
-        
+
         params
     }
-    
+
     /// Set the model to training mode.
     pub fn train(&mut self) {
         self.training = true;
-        
+
         for layer in &mut self.layers {
             layer.train();
         }
     }
-    
+
     /// Set the model to evaluation mode.
     pub fn eval(&mut self) {
         self.training = false;
-        
+
         for layer in &mut self.layers {
             layer.eval();
         }
     }
-    
+
     /// Get the model's name.
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     /// Get the layers in the model.
     pub fn layers(&self) -> &[Box<dyn Layer>] {
         &self.layers
@@ -775,79 +801,82 @@ impl Sequential {
 /// Example function to create a simple CNN model.
 pub fn create_simple_cnn(input_shape: (usize, usize, usize), num_classes: usize) -> Sequential {
     let (height, width, channels) = input_shape;
-    
+
     let mut model = Sequential::new("SimpleCNN", Vec::new());
-    
+
     // First convolutional block
     model.add_layer(Box::new(Conv2D::with_shape(
         "conv1",
-        3, 3,           // Filter size
-        channels, 32,   // In/out channels
-        (1, 1),         // Stride
-        (1, 1),         // Padding
-        true,           // With bias
+        3,
+        3, // Filter size
+        channels,
+        32,     // In/out channels
+        (1, 1), // Stride
+        (1, 1), // Padding
+        true,   // With bias
         Some(ActivationFunc::ReLU),
     )));
-    
+
     model.add_layer(Box::new(MaxPool2D::new(
         "pool1",
-        (2, 2),         // Kernel size
-        None,           // Stride (default to kernel size)
-        (0, 0),         // Padding
+        (2, 2), // Kernel size
+        None,   // Stride (default to kernel size)
+        (0, 0), // Padding
     )));
-    
+
     // Second convolutional block
     model.add_layer(Box::new(Conv2D::with_shape(
         "conv2",
-        3, 3,           // Filter size
-        32, 64,         // In/out channels
-        (1, 1),         // Stride
-        (1, 1),         // Padding
-        true,           // With bias
+        3,
+        3, // Filter size
+        32,
+        64,     // In/out channels
+        (1, 1), // Stride
+        (1, 1), // Padding
+        true,   // With bias
         Some(ActivationFunc::ReLU),
     )));
-    
+
     model.add_layer(Box::new(MaxPool2D::new(
         "pool2",
-        (2, 2),         // Kernel size
-        None,           // Stride (default to kernel size)
-        (0, 0),         // Padding
+        (2, 2), // Kernel size
+        None,   // Stride (default to kernel size)
+        (0, 0), // Padding
     )));
-    
+
     // Flatten layer (implemented as a Linear layer with reshape)
-    
+
     // Fully connected layers
     model.add_layer(Box::new(Linear::with_shape(
         "fc1",
-        64 * (height / 4) * (width / 4),  // Input features
-        128,                               // Output features
-        true,                             // With bias
+        64 * (height / 4) * (width / 4), // Input features
+        128,                             // Output features
+        true,                            // With bias
         Some(ActivationFunc::ReLU),
     )));
-    
+
     model.add_layer(Box::new(Dropout::new(
-        "dropout",
-        0.5,            // Dropout rate
-        None,           // No fixed seed
+        "dropout", 0.5,  // Dropout rate
+        None, // No fixed seed
     )));
-    
+
     model.add_layer(Box::new(Linear::with_shape(
         "fc2",
-        128,            // Input features
-        num_classes,    // Output features
-        true,           // With bias
-        None,           // No activation (will be applied in loss function)
+        128,         // Input features
+        num_classes, // Output features
+        true,        // With bias
+        None,        // No activation (will be applied in loss function)
     )));
-    
+
     model
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
     use crate::array_protocol::{self, NdarrayWrapper};
-    
+    use ndarray::Array2;
+
     #[test]
     #[ignore = "Needs proper array operation implementation"]
     fn test_linear_layer() {
@@ -878,7 +907,7 @@ mod tests {
         assert_eq!(layer.name(), "linear");
         assert!(layer.is_training());
     }
-    
+
     #[test]
     #[ignore = "Needs proper array operation implementation"]
     fn test_sequential_model() {
@@ -891,17 +920,17 @@ mod tests {
         // Add linear layers
         model.add_layer(Box::new(Linear::with_shape(
             "fc1",
-            3,              // Input features
-            2,              // Output features
-            true,           // With bias
+            3,    // Input features
+            2,    // Output features
+            true, // With bias
             Some(ActivationFunc::ReLU),
         )));
 
         model.add_layer(Box::new(Linear::with_shape(
             "fc2",
-            2,              // Input features
-            1,              // Output features
-            true,           // With bias
+            2,    // Input features
+            1,    // Output features
+            true, // With bias
             Some(ActivationFunc::Sigmoid),
         )));
 
@@ -910,7 +939,7 @@ mod tests {
         assert_eq!(model.layers().len(), 2);
         assert!(model.training);
     }
-    
+
     #[test]
     fn test_simple_cnn_creation() {
         // Initialize the array protocol system

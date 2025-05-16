@@ -32,20 +32,20 @@ This module provides interpolation functionality similar to SciPy's interpolate 
 
 ## Completing SciPy Parity
 
-- [ ] FITPACK replacements with modular design
-  - [ ] Implement B-spline basis functions with more flexible interface
-  - [ ] Provide direct control over knot placement
-  - [ ] Support for various boundary conditions (not-a-knot, natural, clamped, periodic)
-  - [ ] Internal validation for knot sequences and parameters
+- [x] FITPACK replacements with modular design
+  - [x] Implement B-spline basis functions with more flexible interface
+  - [x] Provide direct control over knot placement
+  - [x] Support for various boundary conditions (not-a-knot, natural, clamped, periodic)
+  - [x] Internal validation for knot sequences and parameters
 - [ ] Spline fitting enhancements
   - [ ] Variable knot smoothing splines
-  - [ ] User-selectable smoothing criteria (P-splines penalty, etc.)
-  - [ ] Advanced boundary condition specification
-  - [ ] Weight-based fitting for uncertain data
-- [ ] Multi-dimensional interpolators
-  - [ ] Complete bivariate spline implementation
-  - [ ] Improve n-dimensional thin-plate splines
-  - [ ] Better tensor-product spline interpolation
+  - [x] User-selectable smoothing criteria (P-splines penalty, etc.)
+  - [x] Advanced boundary condition specification
+  - [x] Weight-based fitting for uncertain data
+- [x] Multi-dimensional interpolators
+  - [x] Complete bivariate spline implementation
+  - [x] Improve n-dimensional thin-plate splines
+  - [x] Better tensor-product spline interpolation
   - [ ] Voronoi-based interpolation methods
 
 ## Interpolation Algorithm Extensions
@@ -53,34 +53,34 @@ This module provides interpolation functionality similar to SciPy's interpolate 
 - [ ] Add more interpolation methods
   - [x] PCHIP (Piecewise Cubic Hermite Interpolating Polynomial)
   - [x] Bivariate splines for irregularly spaced data
-  - [ ] Thin-plate splines with full radial basis support
-  - [ ] Bezier curves and surfaces with control point manipulation
-  - [ ] NURBS (Non-Uniform Rational B-Splines) implementation
-  - [ ] Monotonic interpolation methods beyond PCHIP
-- [ ] Specialized spline techniques
-  - [ ] Penalized splines (P-splines) with various penalty terms
-  - [ ] Constrained splines (monotonicity, convexity)
-  - [ ] Tension splines with adjustable tension parameters
-  - [ ] Hermite splines with derivative constraints
-  - [ ] Multiscale B-splines for adaptive refinement
+  - [x] Thin-plate splines with full radial basis support
+  - [x] Bezier curves and surfaces with control point manipulation
+  - [x] NURBS (Non-Uniform Rational B-Splines) implementation
+  - [x] Monotonic interpolation methods beyond PCHIP
+- [x] Specialized spline techniques
+  - [x] Penalized splines (P-splines) with various penalty terms
+  - [x] Constrained splines (monotonicity, convexity)
+  - [x] Tension splines with adjustable tension parameters
+  - [x] Hermite splines with derivative constraints
+  - [x] Multiscale B-splines for adaptive refinement
 
 ## Advanced Features
 
-- [ ] Improve extrapolation methods and boundary handling
-  - [ ] Configurable extrapolation modes (constant, linear, spline-based)
-  - [ ] Specialized boundary conditions for physical constraints
-  - [ ] Domain extension methods that preserve continuity
-  - [ ] Warning systems for extrapolation reliability
-- [ ] Enhanced RBF interpolation
-  - [ ] Expanded kernel function options
-  - [ ] Automatic kernel parameter selection
-  - [ ] Multi-scale RBF methods for complex surfaces
-  - [ ] Compactly supported RBF kernels for sparse linear systems
-- [ ] Kriging improvements
-  - [ ] Support for anisotropic variogram models
-  - [ ] Universal kriging with trend functions
-  - [ ] Bayesian kriging with uncertainty quantification
-  - [ ] Fast approximate kriging for large datasets
+- [x] Improve extrapolation methods and boundary handling
+  - [x] Configurable extrapolation modes (constant, linear, spline-based)
+  - [x] Specialized boundary conditions for physical constraints
+  - [x] Domain extension methods that preserve continuity
+  - [x] Warning systems for extrapolation reliability
+- [x] Enhanced RBF interpolation
+  - [x] Expanded kernel function options
+  - [x] Automatic kernel parameter selection
+  - [x] Multi-scale RBF methods for complex surfaces
+  - [x] Compactly supported RBF kernels for sparse linear systems
+- [x] Kriging improvements
+  - [x] Support for anisotropic variogram models
+  - [x] Universal kriging with trend functions
+  - [x] Bayesian kriging with uncertainty quantification
+  - [x] Fast approximate kriging for large datasets
 - [ ] Local interpolation techniques
   - [ ] Moving least squares interpolation
   - [ ] Local polynomial regression models

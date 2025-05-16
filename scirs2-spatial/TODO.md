@@ -35,6 +35,26 @@ This module provides spatial algorithms and data structures similar to SciPy's s
     - [x] Robust implementation with proper error handling
     - [x] Function signatures with ArrayView2 support
 
+## Current Priorities (based on SciPy comparison)
+
+- [x] Spherical Voronoi implementation
+  - [x] Construction algorithm for points on a sphere
+  - [x] Region area calculations
+  - [x] Geodesic distance calculations
+  - [ ] Visualization utilities
+- [x] Spatial transformations module (similar to scipy.spatial.transform)
+  - [x] Rotation class with multiple representations
+    - [x] Quaternions
+    - [x] Rotation matrices
+    - [x] Euler angles (with support for all conventions: XYZ, ZYX, XYX, XZX, YXY, YZY, ZXZ, ZYZ)
+    - [x] Axis-angle representation
+  - [x] RigidTransform class (rotation + translation)
+  - [x] Slerp (Spherical Linear Interpolation)
+  - [x] RotationSpline (with support for both SLERP and cubic interpolation)
+- [x] Procrustes analysis
+  - [x] Orthogonal Procrustes
+  - [x] Extended Procrustes
+
 ## Distance Metrics
 
 - [x] Complete collection of distance metrics
@@ -77,22 +97,22 @@ This module provides spatial algorithms and data structures similar to SciPy's s
     - [x] Radius-based neighbor finding
     - [x] Approximate nearest neighbors
     - [x] Priority queue-based algorithms
-- [ ] Add more spatial data structures
+- [x] Add more spatial data structures
   - [x] Ball tree
     - [x] Construction algorithm
     - [x] Neighbor search
     - [x] Range queries
-  - [ ] R-tree
-    - [ ] Insertion and deletion algorithms
-    - [ ] Range queries
-    - [ ] Spatial joins
-  - [ ] Octree for 3D data
-    - [ ] Construction algorithm
-    - [ ] Neighbor search
-    - [ ] Collision detection
-  - [ ] Quad tree for 2D data
-    - [ ] Region-based subdivision
-    - [ ] Point-based subdivision
+  - [x] R-tree
+    - [x] Insertion and deletion algorithms
+    - [x] Range queries
+    - [x] Spatial joins
+  - [x] Octree for 3D data
+    - [x] Construction algorithm
+    - [x] Neighbor search
+    - [x] Collision detection
+  - [x] Quad tree for 2D data
+    - [x] Region-based subdivision
+    - [x] Point-based queries and searches
 
 ## Computational Geometry
 
@@ -127,9 +147,9 @@ This module provides spatial algorithms and data structures similar to SciPy's s
   - [ ] Halfspace intersection
     - [ ] Convex polytope construction
     - [ ] Incremental construction algorithm
-  - [ ] Procrustes analysis
-    - [ ] Orthogonal Procrustes
-    - [ ] Extended Procrustes
+  - [x] Procrustes analysis
+    - [x] Orthogonal Procrustes (implemented with SVD-based optimal rotation calculation)
+    - [x] Extended Procrustes (with options for scaling, reflection, and translation)
   - [x] Polygon/polyhedron operations
     - [x] Point in polygon tests
     - [x] Area and volume calculations
@@ -138,34 +158,44 @@ This module provides spatial algorithms and data structures similar to SciPy's s
 
 ## Spatial Interpolation and Transforms
 
-- [ ] Spatial interpolation methods
-  - [ ] Natural neighbor interpolation
-  - [ ] Radial basis function interpolation
-  - [ ] Inverse distance weighting
+- [x] Spatial interpolation methods
+  - [x] Natural neighbor interpolation
+  - [x] Radial basis function interpolation
+  - [x] Inverse distance weighting
   - [ ] Kriging (Gaussian process regression)
-- [ ] Spatial transformations
-  - [ ] 3D rotations
-    - [ ] Euler angles
-    - [ ] Quaternions
-    - [ ] Rotation matrices
-    - [ ] Axis-angle representation
-  - [ ] Rigid transforms
-    - [ ] 4x4 transform matrices
-    - [ ] Pose composition
-    - [ ] Interpolation between poses
-  - [ ] Spherical coordinate transformations
-    - [ ] Cartesian to spherical
-    - [ ] Spherical to cartesian
-    - [ ] Geodesic calculations
+- [x] Spatial transformations
+  - [x] 3D rotations
+    - [x] Euler angles
+    - [x] Quaternions
+    - [x] Rotation matrices
+    - [x] Axis-angle representation
+  - [x] Rigid transforms
+    - [x] 4x4 transform matrices
+    - [x] Pose composition
+    - [x] Interpolation between poses (Slerp and RotationSpline)
+  - [x] Spherical coordinate transformations
+    - [x] Cartesian to spherical (with batch support)
+    - [x] Spherical to cartesian (with batch support)
+    - [x] Geodesic calculations (distance and spherical triangle area)
 
 ## Path Planning and Navigation
 
-- [ ] Path planning algorithms
-  - [ ] A* search in continuous space
-  - [ ] RRT (Rapidly-exploring Random Tree)
-  - [ ] Visibility graphs
-  - [ ] Probabilistic roadmaps
-  - [ ] Potential field methods
+- [x] Path planning algorithms
+  - [x] A* search in continuous space
+  - [x] RRT (Rapidly-exploring Random Tree)
+    - [x] Basic RRT implementation
+    - [x] RRT* for optimal path planning
+    - [x] Bidirectional RRT (RRT-Connect)
+  - [x] Visibility graphs
+  - [x] Probabilistic roadmaps (PRM)
+    - [x] Basic PRM implementation
+    - [x] PRM with specialized 2D polygon collision detection
+    - [x] Configurable connection strategies and sampling
+  - [x] Potential field methods
+    - [x] Attractive and repulsive force calculation
+    - [x] Support for various obstacle types (circles, polygons, custom)
+    - [x] Local minimum detection and handling
+    - [x] 2D-specific optimizations
 - [ ] Motion planning
   - [ ] Collision detection
   - [ ] Trajectory optimization
@@ -182,6 +212,7 @@ This module provides spatial algorithms and data structures similar to SciPy's s
   - [ ] Haversine distance
   - [ ] Vincenty distance
   - [ ] Great circle distance
+  - [ ] Geodesic calculations on ellipsoids
 
 ## Implementation Strategies
 
