@@ -24,6 +24,9 @@ use std::sync::{Arc, RwLock, LazyLock};
 use crate::error::{CoreError, CoreResult, ErrorContext};
 use crate::array_protocol::{JITFunction, JITFunctionFactory, JITArray, ArrayProtocol};
 
+/// Type alias for a JIT function signature
+type JITFunctionType = Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync>;
+
 /// JIT compilation backends
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JITBackend {
@@ -83,7 +86,7 @@ pub struct JITFunctionImpl {
     source: String,
     
     /// The compiled function
-    function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync>,
+    function: JITFunctionType,
     
     /// Information about the compilation
     compile_info: HashMap<String, String>,
@@ -102,7 +105,7 @@ impl JITFunctionImpl {
     /// Create a new JIT function.
     pub fn new(
         source: String,
-        function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync>,
+        function: JITFunctionType,
         compile_info: HashMap<String, String>,
     ) -> Self {
         Self {
@@ -133,7 +136,7 @@ impl JITFunction for JITFunctionImpl {
 
         // Create a dummy function that returns a constant value
         // In a real implementation, this would properly clone the behavior
-        let cloned_function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync> =
+        let cloned_function: JITFunctionType =
             Box::new(move |_args| {
                 // Return a dummy result (42.0) as an example
                 Ok(Box::new(42.0))

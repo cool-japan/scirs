@@ -160,11 +160,11 @@ This module provides sparse matrix functionality similar to SciPy's sparse modul
 - [x] `construct.rs` - Matrix construction utilities
 - [x] `combine.rs` - Functions for combining sparse matrices
 - [x] `io.rs` - Serialization/deserialization utilities
-- [ ] `linalg/mod.rs` - Linear algebra operations
-- [ ] `linalg/iterative.rs` - Iterative solvers
+- [x] `linalg/mod.rs` - Linear algebra operations
+- [x] `linalg/iterative.rs` - Iterative solvers
 - [ ] `linalg/eigen.rs` - Eigenvalue problems
-- [ ] `linalg/matfuncs.rs` - Matrix functions
-- [ ] `linalg/interface.rs` - LinearOperator interface
+- [x] `linalg/matfuncs.rs` - Matrix functions
+- [x] `linalg/interface.rs` - LinearOperator interface
 - [ ] `csgraph/mod.rs` - Graph algorithms module
 - [ ] `csgraph/traversal.rs` - Graph traversal algorithms
 - [ ] `csgraph/shortest_path.rs` - Shortest path algorithms
@@ -211,17 +211,17 @@ This module provides sparse matrix functionality similar to SciPy's sparse modul
   - [x] Triangular matrix extraction
 
 #### Planned Implementations
-- [ ] Linear Operators - Abstract representation of linear operations
-  - [ ] Base LinearOperator trait with common operations
-    - [ ] Core matvec/matmat methods for matrix-vector and matrix-matrix products
-    - [ ] Optional rmatvec/rmatmat methods for adjoint operations
-    - [ ] Shape and dtype properties with validation
-    - [ ] Support for operator composition (add, multiply, transpose)
-  - [ ] Concrete implementations for different operator types
-    - [ ] MatrixLinearOperator for wrapping sparse/dense matrices
-    - [ ] IdentityOperator for efficient identity operations
-    - [ ] ScaledIdentityOperator for scalar-multiplied identity
-    - [ ] DiagonalOperator for efficient diagonal matrices
+- [x] Linear Operators - Abstract representation of linear operations
+  - [x] Base LinearOperator trait with common operations
+    - [x] Core matvec/matmat methods for matrix-vector and matrix-matrix products
+    - [x] Optional rmatvec/rmatmat methods for adjoint operations
+    - [x] Shape and dtype properties with validation
+    - [x] Support for operator composition (add, multiply, transpose)
+  - [x] Concrete implementations for different operator types
+    - [x] MatrixLinearOperator for wrapping sparse/dense matrices
+    - [x] IdentityOperator for efficient identity operations
+    - [x] ScaledIdentityOperator for scalar-multiplied identity
+    - [x] DiagonalOperator for efficient diagonal matrices
     - [ ] BlockDiagonalOperator for block diagonal matrices
   - [ ] Composition of operators
     - [ ] Addition of compatible operators
@@ -236,39 +236,39 @@ This module provides sparse matrix functionality similar to SciPy's sparse modul
 
 - [ ] Iterative Solvers - Matrix-free algorithms for large systems
   - [ ] Krylov subspace methods
-    - [ ] Conjugate Gradient (CG) for symmetric positive definite systems
-    - [ ] BiConjugate Gradient (BiCG) for non-symmetric systems
-    - [ ] BiConjugate Gradient Stabilized (BiCGSTAB)
-    - [ ] Conjugate Gradient Squared (CGS)
-    - [ ] Generalized Minimal Residual (GMRES) with restarts
-    - [ ] Quasi-Minimal Residual (QMR)
-    - [ ] Minimal Residual (MINRES) for symmetric indefinite systems
-  - [ ] Preconditioning techniques
-    - [ ] Interface for custom preconditioners
-    - [ ] Simple preconditioners (Jacobi, SSOR)
-    - [ ] Incomplete factorization preconditioners (ILU, IC)
-    - [ ] Support for left and right preconditioning
-  - [ ] Convergence monitoring and error handling
-    - [ ] Residual-based convergence criteria
-    - [ ] Absolute and relative tolerance support
-    - [ ] Iteration limits and early stopping
-    - [ ] Breakdown detection and handling
-    - [ ] Informative error reporting
-  - [ ] Advanced solver features
-    - [ ] Matrix-free implementations using LinearOperator
+    - [x] Conjugate Gradient (CG) for symmetric positive definite systems
+    - [x] BiConjugate Gradient (BiCG) for non-symmetric systems
+    - [x] BiConjugate Gradient Stabilized (BiCGSTAB)
+    - [x] Conjugate Gradient Squared (CGS)
+    - [x] Generalized Minimal Residual (GMRES) with restarts
+    - [ ] Quasi-Minimal Residual (QMR) (stub - needs proper implementation)
+    - [x] Minimal Residual (MINRES) for symmetric indefinite systems
+  - [x] Preconditioning techniques
+    - [x] Interface for custom preconditioners
+    - [x] Simple preconditioners (Jacobi, SSOR)
+    - [x] Incomplete factorization preconditioners (ILU, IC)
+    - [x] Support for left and right preconditioning
+  - [x] Convergence monitoring and error handling
+    - [x] Residual-based convergence criteria
+    - [x] Absolute and relative tolerance support
+    - [x] Iteration limits and early stopping
+    - [x] Breakdown detection and handling
+    - [x] Informative error reporting
+  - [x] Advanced solver features
+    - [x] Matrix-free implementations using LinearOperator
     - [ ] Support for complex-valued systems
     - [ ] Optimized implementations for specific formats
     - [ ] Performance benchmarking infrastructure
 
-- [ ] Matrix Functions - Exponential, powers, and other matrix functions
+- [x] Matrix Functions - Exponential, powers, and other matrix functions
   - [ ] Matrix exponential (expm)
     - [ ] Padé approximation implementation
     - [ ] Scaling and squaring approach
     - [ ] Specialized algorithms for structured matrices
     - [ ] Memory-efficient implementations
-  - [ ] Matrix exponential multiplication (expm_multiply)
-    - [ ] Action of matrix exponential on vectors
-    - [ ] Krylov subspace approximation
+  - [x] Matrix exponential multiplication (expm_multiply)
+    - [x] Action of matrix exponential on vectors
+    - [x] Krylov subspace approximation
     - [ ] Time-stepping schemes
     - [ ] Error control mechanisms
   - [ ] Matrix power for integer exponents
@@ -452,26 +452,26 @@ This module provides sparse matrix functionality similar to SciPy's sparse modul
     - [ ] Lanczos algorithm
     - [ ] Arnoldi iteration
     - [ ] LOBPCG (Locally Optimal Block Preconditioned Conjugate Gradient)
-  - [ ] Iterative solvers for linear systems
-    - [ ] Conjugate Gradient (CG)
-    - [ ] BiConjugate Gradient (BiCG)
-    - [ ] BiConjugate Gradient Stabilized (BiCGSTAB)
-    - [ ] Conjugate Gradient Squared (CGS) 
-    - [ ] Generalized Minimal Residual (GMRES)
-    - [ ] Loose GMRES (LGMRES)
-    - [ ] Minimal Residual (MINRES)
-    - [ ] Quasi-Minimal Residual (QMR)
+  - [x] Iterative solvers for linear systems
+    - [x] Conjugate Gradient (CG)
+    - [x] BiConjugate Gradient (BiCG)
+    - [x] BiConjugate Gradient Stabilized (BiCGSTAB)
+    - [x] Conjugate Gradient Squared (CGS) 
+    - [x] Generalized Minimal Residual (GMRES)
+    - [x] Loose GMRES (LGMRES)
+    - [x] Minimal Residual (MINRES)
+    - [ ] Quasi-Minimal Residual (QMR) (stub - needs proper implementation)
     - [ ] GCROT(m,k) algorithm
     - [ ] Transpose-Free Quasi-Minimal Residual (TFQMR)
   - [ ] Iterative solvers for least-squares problems
     - [ ] Least-Squares QR (LSQR)
     - [ ] Least-Squares Minimal Residual (LSMR)
   - [ ] Preconditioning techniques
-    - [ ] Jacobi preconditioner
-    - [ ] Successive Over-Relaxation (SOR)
-    - [ ] Incomplete Cholesky (IC)
-    - [ ] Incomplete LU (ILU)
-    - [ ] Sparse Approximate Inverse (SPAI)
+    - [x] Jacobi preconditioner
+    - [x] Successive Over-Relaxation (SOR)
+    - [x] Incomplete Cholesky (IC)
+    - [x] Incomplete LU (ILU)
+    - [x] Sparse Approximate Inverse (SPAI)
     - [ ] Algebraic Multigrid (AMG) preconditioners
   - [ ] Special sparse arrays with structure
     - [ ] Laplacian matrices on rectangular grids

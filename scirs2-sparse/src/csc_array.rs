@@ -471,17 +471,17 @@ where
             if self.has_sorted_indices && self.indices[idx] > i {
                 // Insert here - this would require restructuring indices and data
                 // Not implemented in this placeholder
-                return Err(SparseError::NotImplemented {
-                    feature: "Inserting new elements in CSC format".to_string(),
-                });
+                return Err(SparseError::NotImplemented(
+                    "Inserting new elements in CSC format".to_string(),
+                ));
             }
         }
 
         // Element not found, would need to insert
         // This would require restructuring indices and data
-        Err(SparseError::NotImplemented {
-            feature: "Inserting new elements in CSC format".to_string(),
-        })
+        Err(SparseError::NotImplemented(
+            "Inserting new elements in CSC format".to_string(),
+        ))
     }
 
     fn eliminate_zeros(&mut self) {

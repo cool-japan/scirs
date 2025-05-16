@@ -228,21 +228,21 @@ where
     }
 
     fn to_lil(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented {
-            feature: "Conversion to LIL array".to_string(),
-        })
+        Err(SparseError::NotImplemented(
+            "Conversion to LIL array".to_string(),
+        ))
     }
 
     fn to_dia(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented {
-            feature: "Conversion to DIA array".to_string(),
-        })
+        Err(SparseError::NotImplemented(
+            "Conversion to DIA array".to_string(),
+        ))
     }
 
     fn to_bsr(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented {
-            feature: "Conversion to BSR array".to_string(),
-        })
+        Err(SparseError::NotImplemented(
+            "Conversion to BSR array".to_string(),
+        ))
     }
 
     fn add(&self, other: &dyn SparseArray<T>) -> SparseResult<Box<dyn SparseArray<T>>> {

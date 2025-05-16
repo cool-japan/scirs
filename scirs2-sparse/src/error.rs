@@ -35,8 +35,8 @@ pub enum SparseError {
     InconsistentData { reason: String },
 
     /// Not implemented error
-    #[error("Feature not implemented: {feature}")]
-    NotImplemented { feature: String },
+    #[error("Feature not implemented: {0}")]
+    NotImplemented(String),
 
     /// Singular matrix error
     #[error("Singular matrix error: {0}")]
@@ -49,6 +49,17 @@ pub enum SparseError {
     /// Conversion error
     #[error("Conversion error: {0}")]
     ConversionError(String),
+
+    /// Operation not supported error
+    #[error("Operation not supported: {0}")]
+    OperationNotSupported(String),
+
+    /// Shape mismatch error
+    #[error("Shape mismatch: expected {expected:?}, found {found:?}")]
+    ShapeMismatch {
+        expected: (usize, usize),
+        found: (usize, usize),
+    },
 }
 
 /// Result type for sparse matrix/array operations

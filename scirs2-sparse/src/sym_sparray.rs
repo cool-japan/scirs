@@ -306,9 +306,9 @@ where
     }
 
     fn set(&mut self, _i: usize, _j: usize, _value: T) -> SparseResult<()> {
-        Err(SparseError::NotImplemented { 
-            feature: "Setting individual elements in SymCsrArray is not supported. Convert to another format first.".to_string() 
-        })
+        Err(SparseError::NotImplemented(
+            "Setting individual elements in SymCsrArray is not supported. Convert to another format first.".to_string()
+        ))
     }
 
     fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {
@@ -678,9 +678,9 @@ where
     }
 
     fn set(&mut self, _i: usize, _j: usize, _value: T) -> SparseResult<()> {
-        Err(SparseError::NotImplemented { 
-            feature: "Setting individual elements in SymCooArray is not supported. Convert to another format first.".to_string() 
-        })
+        Err(SparseError::NotImplemented(
+            "Setting individual elements in SymCooArray is not supported. Convert to another format first.".to_string()
+        ))
     }
 
     fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {

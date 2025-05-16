@@ -367,18 +367,15 @@ where
                 let block = &self.data[k];
 
                 // For each element in the block
-                for i in 0..r {
+                for (i, block_row_data) in block.iter().enumerate().take(r) {
                     let row = block_row * r + i;
                     if row < self.rows {
-                        for j in 0..c {
+                        for (j, &value) in block_row_data.iter().enumerate().take(c) {
                             let col = block_col * c + j;
-                            if col < self.cols {
-                                let value = block[i][j];
-                                if !value.is_zero() {
-                                    row_indices.push(row);
-                                    col_indices.push(col);
-                                    values.push(value);
-                                }
+                            if col < self.cols && !value.is_zero() {
+                                row_indices.push(row);
+                                col_indices.push(col);
+                                values.push(value);
                             }
                         }
                     }

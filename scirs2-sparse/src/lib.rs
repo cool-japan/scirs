@@ -131,7 +131,50 @@ pub mod utils;
 
 // Linear algebra with sparse matrices
 pub mod linalg;
-pub use linalg::{expm, inv, matrix_power, spsolve};
+// Re-export the main functions from the reorganized linalg module
+pub use linalg::{
+    // Functions from solvers
+    add,
+    // Functions from iterative
+    bicg,
+    bicgstab,
+    cg,
+    diag_matrix,
+    expm,
+    // Functions from matfuncs
+    expm_multiply,
+    eye,
+    gmres,
+    inv,
+    matmul,
+    matrix_power,
+    multiply,
+    norm,
+    onenormest,
+    sparse_direct_solve,
+    sparse_lstsq,
+    spsolve,
+    // Interfaces
+    AsLinearOperator,
+    // Types from iterative
+    BiCGOptions,
+    BiCGSTABOptions,
+    BiCGSTABResult,
+    CGOptions,
+    CGSOptions,
+    CGSResult,
+    // Operator types
+    DiagonalOperator,
+    GMRESOptions,
+    // Preconditioners
+    ILU0Preconditioner,
+    IdentityOperator,
+    IterationResult,
+    JacobiPreconditioner,
+    LinearOperator,
+    SSORPreconditioner,
+    ScaledIdentityOperator,
+};
 
 // Format conversions
 pub mod convert;

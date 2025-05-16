@@ -139,6 +139,9 @@ pub mod tensor_contraction;
 #[cfg(feature = "autograd")]
 pub mod autograd;
 
+// SciPy-compatible API wrappers
+pub mod compat;
+
 // Accelerated implementations using BLAS/LAPACK
 pub mod blas_accelerated;
 pub mod lapack_accelerated;
