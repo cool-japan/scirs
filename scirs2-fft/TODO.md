@@ -42,64 +42,64 @@ This module provides Fast Fourier Transform functionality similar to SciPy's fft
 
 ## Enhanced FFT API and Interoperability
 
-- [ ] Implement array interoperability features
-  - [ ] Support for various array-like objects
-  - [ ] Backend system similar to SciPy's backend model
-  - [ ] Pluggable FFT implementations
-- [ ] Enhance worker management for parallelization
-  - [ ] Thread pool configuration
-  - [ ] Worker count control similar to SciPy's `set_workers`/`get_workers`
-  - [ ] Thread safety guarantees for all operations
-- [ ] Add context managers for FFT settings
-  - [ ] Backend selection context
-  - [ ] Worker count context
-  - [ ] Plan caching control
+- [x] Implement array interoperability features
+  - [x] Support for various array-like objects
+  - [x] Backend system similar to SciPy's backend model
+  - [x] Pluggable FFT implementations
+- [x] Enhance worker management for parallelization
+  - [x] Thread pool configuration
+  - [x] Worker count control similar to SciPy's `set_workers`/`get_workers`
+  - [x] Thread safety guarantees for all operations
+- [x] Add context managers for FFT settings
+  - [x] Backend selection context
+  - [x] Worker count context
+  - [x] Plan caching control
 
 ## Fast Hankel Transform
 
-- [ ] Implement Fast Hankel Transform (FHT)
-  - [ ] Forward transform (fht)
-  - [ ] Inverse transform (ifht)
-  - [ ] Optimal offset calculation (fhtoffset)
-  - [ ] Support for biased transforms
-  - [ ] Comprehensive examples with visualizations
+- [x] Implement Fast Hankel Transform (FHT)
+  - [x] Forward transform (fht)
+  - [x] Inverse transform (ifht)
+  - [x] Optimal offset calculation (fhtoffset)
+  - [x] Support for biased transforms
+  - [x] Comprehensive examples with visualizations
 
 ## Multidimensional Transform Enhancements
 
-- [ ] Improve N-dimensional transforms
-  - [ ] Optimized memory access patterns
-  - [ ] Advanced chunking strategies for large arrays
-  - [ ] Axis-specific operations with optional normalization
+- [x] Improve N-dimensional transforms
+  - [x] Optimized memory access patterns
+  - [x] Advanced chunking strategies for large arrays
+  - [x] Axis-specific operations with optional normalization
   - [ ] Advanced striding support
 
 ## Plan Caching and Optimization
 
-- [ ] Implement advanced planning strategies
-  - [ ] Plan caching mechanism for repeated transforms
+- [x] Implement advanced planning strategies
+  - [x] Plan caching mechanism for repeated transforms
   - [ ] Auto-tuning for hardware-specific optimizations
   - [ ] Plan serialization for reuse across runs
-  - [ ] Plan sharing across threads
-- [ ] Add `next_fast_len` and `prev_fast_len` helpers
-  - [ ] Optimal sizing for FFT speed
-  - [ ] Support for SIMD-friendly sizes
-  - [ ] Automatic padding strategies
+  - [x] Plan sharing across threads
+- [x] Add `next_fast_len` and `prev_fast_len` helpers
+  - [x] Optimal sizing for FFT speed
+  - [x] Support for SIMD-friendly sizes
+  - [x] Automatic padding strategies
 
 ## Extended Transform Types
 
-- [ ] Implement additional transform variants
-  - [ ] Higher-order DCT types (V-VIII)
-  - [ ] Higher-order DST types (V-VIII)
-  - [ ] Hartley transform
-  - [ ] Modified DCT/DST (MDCT/MDST)
-  - [ ] Z-transform for non-uniform frequency spacing
+- [x] Implement additional transform variants
+  - [x] Higher-order DCT types (V-VIII)
+  - [x] Higher-order DST types (V-VIII)
+  - [x] Hartley transform
+  - [x] Modified DCT/DST (MDCT/MDST)
+  - [x] Z-transform for non-uniform frequency spacing (CZT - Chirp Z-Transform)
 
 ## Custom Window Functions
 
-- [ ] Extend window function support
-  - [ ] Comprehensive window catalog matching SciPy
-  - [ ] Window design tools and generators
-  - [ ] Window visualization utilities
-  - [ ] Window properties analysis (energy, bandwidth)
+- [x] Extend window function support
+  - [x] Comprehensive window catalog matching SciPy
+  - [x] Window design tools and generators
+  - [x] Window visualization utilities
+  - [x] Window properties analysis (energy, bandwidth)
 
 ## Long-term Goals
 
