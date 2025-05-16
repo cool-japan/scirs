@@ -4,6 +4,9 @@
 //! and its inverse (IFFT).
 
 use crate::error::{FFTError, FFTResult};
+use crate::plan_cache::get_global_cache;
+//use crate::backend::get_backend_manager;
+//use crate::worker_pool::get_global_pool;
 use ndarray::{Array, Array2, ArrayView, ArrayView2, Axis, IxDyn};
 use num_complex::Complex64;
 use num_traits::{NumCast, Zero};
@@ -74,9 +77,10 @@ where
         }
     }
 
-    // Set up rustfft for computation
+    // Set up rustfft for computation - use cached plan
     let mut planner = FftPlanner::new();
-    let fft = planner.plan_fft_forward(n_val);
+    let plan_cache = get_global_cache();
+    let fft = plan_cache.get_or_create_plan(n_val, true, &mut planner);
 
     // Convert to rustfft's Complex type
     let mut buffer: Vec<rustComplex<f64>> = complex_input
@@ -168,9 +172,10 @@ where
         }
     }
 
-    // Set up rustfft for computation
+    // Set up rustfft for computation - use cached plan
     let mut planner = FftPlanner::new();
-    let fft = planner.plan_fft_inverse(n_val);
+    let plan_cache = get_global_cache();
+    let fft = plan_cache.get_or_create_plan(n_val, false, &mut planner);
 
     // Convert to rustfft's Complex type
     let mut buffer: Vec<rustComplex<f64>> = complex_input
@@ -429,12 +434,9 @@ fn compute_2d_fft_fast(
 ) -> FFTResult<Array2<Complex64>> {
     let mut result = input.clone();
 
-    // Prepare FFT plans for rows and columns
-    let row_fft = if forward {
-        planner.plan_fft_forward(n_cols)
-    } else {
-        planner.plan_fft_inverse(n_cols)
-    };
+    // Prepare FFT plans for rows and columns using cache
+    let plan_cache = get_global_cache();
+    let row_fft = plan_cache.get_or_create_plan(n_cols, forward, planner);
 
     // Process rows
     for r in 0..n_rows {
@@ -454,12 +456,8 @@ fn compute_2d_fft_fast(
         }
     }
 
-    // Prepare column FFT plan
-    let col_fft = if forward {
-        planner.plan_fft_forward(n_rows)
-    } else {
-        planner.plan_fft_inverse(n_rows)
-    };
+    // Prepare column FFT plan using cache
+    let col_fft = plan_cache.get_or_create_plan(n_rows, forward, planner);
 
     // Process columns
     for c in 0..n_cols {
@@ -1143,10 +1141,14 @@ where
                         .collect();
 
                     // Resize if needed
-                    if buffer.len() < axis_len {
-                        buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
-                    } else if buffer.len() > axis_len {
-                        buffer.truncate(axis_len);
+                    match buffer.len().cmp(&axis_len) {
+                        std::cmp::Ordering::Less => {
+                            buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
+                        }
+                        std::cmp::Ordering::Greater => {
+                            buffer.truncate(axis_len);
+                        }
+                        std::cmp::Ordering::Equal => {}
                     }
 
                     // Process the FFT
@@ -1431,10 +1433,14 @@ where
                         .collect();
 
                     // Resize if needed
-                    if buffer.len() < axis_len {
-                        buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
-                    } else if buffer.len() > axis_len {
-                        buffer.truncate(axis_len);
+                    match buffer.len().cmp(&axis_len) {
+                        std::cmp::Ordering::Less => {
+                            buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
+                        }
+                        std::cmp::Ordering::Greater => {
+                            buffer.truncate(axis_len);
+                        }
+                        std::cmp::Ordering::Equal => {}
                     }
 
                     // Process the IFFT

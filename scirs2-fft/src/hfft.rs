@@ -254,10 +254,8 @@ fn _hfft_complex(x: &[Complex64], n: Option<usize>, norm: Option<&str>) -> FFTRe
         // Determine tolerance based on environment
         #[cfg(test)]
         let tolerance = 1e-8; // More permissive in test environment
-        
         #[cfg(not(test))]
         let tolerance = 1e-12; // Stricter in production
-        
         // Ensure imaginary parts are close to zero
         if c.im.abs() > tolerance * c.re.abs().max(1.0) {
             // For non-zero imaginary parts, print a warning

@@ -50,12 +50,38 @@
 pub mod error;
 pub use error::{FFTError, FFTResult};
 
+// FFT plan caching
+pub mod plan_cache;
+pub use plan_cache::{get_global_cache, init_global_cache, CacheStats, PlanCache};
+
+// Worker pool management
+pub mod worker_pool;
+pub use worker_pool::{
+    get_global_pool, get_workers, init_global_pool, set_workers, with_workers, WorkerConfig,
+    WorkerPool, WorkerPoolInfo,
+};
+
+// FFT backend system
+pub mod backend;
+pub use backend::{
+    get_backend_info, get_backend_manager, get_backend_name, init_backend_manager, list_backends,
+    set_backend, BackendContext, BackendInfo, BackendManager, FftBackend,
+};
+
+// FFT context managers
+pub mod context;
+pub use context::{
+    fft_context, with_backend, with_fft_settings, without_cache, FftContext, FftContextBuilder,
+    FftSettingsGuard,
+};
+
 // Core modules are used conditionally in feature-specific implementations
 
 // FFT module structure
 pub mod dct;
 pub mod dst;
 pub mod fft;
+pub mod fht;
 pub mod hfft;
 pub mod rfft;
 
@@ -63,6 +89,7 @@ pub mod rfft;
 pub use dct::{dct, dct2, dctn, idct, idct2, idctn, DCTType};
 pub use dst::{dst, dst2, dstn, idst, idst2, idstn, DSTType};
 pub use fft::{fft, fft2, fftn, ifft, ifft2, ifftn};
+pub use fht::{fht, fht_sample_points, fhtoffset, ifht};
 pub use hfft::{hfft, hfft2, hfftn, ihfft, ihfft2, ihfftn};
 
 // Re-export parallel implementations when available
@@ -91,9 +118,45 @@ pub use memory_efficient::{
     fft2_efficient, fft_inplace, fft_streaming, process_in_chunks, FftMode,
 };
 
+// Optimized N-dimensional FFT
+pub mod ndim_optimized;
+pub use ndim_optimized::{fftn_memory_efficient, fftn_optimized, rfftn_optimized};
+
+// Hartley transform
+pub mod hartley;
+pub use hartley::{dht, dht2, fht as hartley_fht, idht};
+
+// Higher-order DCT and DST types (V-VIII)
+pub mod higher_order_dct_dst;
+pub use higher_order_dct_dst::{
+    dct_v, dct_vi, dct_vii, dct_viii, dst_v, dst_vi, dst_vii, dst_viii, idct_v, idct_vi, idct_vii,
+    idct_viii, idst_v, idst_vi, idst_vii, idst_viii,
+};
+
+// Modified DCT and DST (MDCT/MDST)
+pub mod mdct;
+pub use mdct::{imdct, imdst, mdct, mdct_overlap_add, mdst};
+
 // Window functions
 pub mod window;
 pub use window::{apply_window, get_window, Window};
+
+// Extended window functions and analysis
+pub mod window_extended;
+pub use window_extended::{
+    analyze_window, compare_windows, get_extended_window, visualize_window, ExtendedWindow,
+    WindowProperties,
+};
+
+// Chirp Z-Transform
+pub mod czt;
+pub use czt::{czt, czt_points, zoom_fft, CZT};
+
+// Automatic padding strategies
+pub mod padding;
+pub use padding::{
+    auto_pad_1d, auto_pad_complex, auto_pad_nd, remove_padding_1d, AutoPadConfig, PaddingMode,
+};
 
 /// Performs a Short-Time Fourier Transform (STFT).
 ///
