@@ -22,6 +22,10 @@ pub enum ClusteringError {
     #[error("Hierarchical clustering error: {0}")]
     HierarchyError(String),
 
+    /// Empty cluster error
+    #[error("Empty cluster error: {0}")]
+    EmptyCluster(String),
+
     /// Invalid state error
     #[error("Invalid state: {0}")]
     InvalidState(String),

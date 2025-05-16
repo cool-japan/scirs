@@ -13,7 +13,7 @@ fn test_auc_doctest() {
 
     // Calculate AUC score
     let auc = anomaly_auc_score(&y_true, &y_score).unwrap();
-    assert!(auc >= 0.0 && auc <= 1.0);
+    assert!((0.0..=1.0).contains(&auc));
 }
 
 #[test]
@@ -54,16 +54,16 @@ fn test_precision_recall_with_tolerance_doctest() {
 
     // With a tolerance of 1, predictions at positions 2 and 8 are considered correct
     let (precision, recall, f1) = precision_recall_with_tolerance(&y_true, &y_pred, 1).unwrap();
-    assert!(precision >= 0.0 && precision <= 1.0);
-    assert!(recall >= 0.0 && recall <= 1.0);
-    assert!(f1 >= 0.0 && f1 <= 1.0);
+    assert!((0.0..=1.0).contains(&precision));
+    assert!((0.0..=1.0).contains(&recall));
+    assert!((0.0..=1.0).contains(&f1));
 
     // With a tolerance of 0, only exact matches are considered
     let (precision_strict, recall_strict, f1_strict) =
         precision_recall_with_tolerance(&y_true, &y_pred, 0).unwrap();
-    assert!(precision_strict >= 0.0 && precision_strict <= 1.0);
-    assert!(recall_strict >= 0.0 && recall_strict <= 1.0);
-    assert!(f1_strict >= 0.0 && f1_strict <= 1.0);
+    assert!((0.0..=1.0).contains(&precision_strict));
+    assert!((0.0..=1.0).contains(&recall_strict));
+    assert!((0.0..=1.0).contains(&f1_strict));
 }
 
 #[test]
@@ -76,9 +76,9 @@ fn test_point_adjusted_precision_recall_doctest() {
     // Point-adjusted evaluation considers both anomaly sequences correctly detected
     let (pa_precision, pa_recall, pa_f1) =
         point_adjusted_precision_recall(&y_true, &y_pred).unwrap();
-    assert!(pa_precision >= 0.0 && pa_precision <= 1.0);
-    assert!(pa_recall >= 0.0 && pa_recall <= 1.0);
-    assert!(pa_f1 >= 0.0 && pa_f1 <= 1.0);
+    assert!((0.0..=1.0).contains(&pa_precision));
+    assert!((0.0..=1.0).contains(&pa_recall));
+    assert!((0.0..=1.0).contains(&pa_f1));
 }
 
 #[test]
@@ -98,9 +98,9 @@ fn test_nab_score_doctest() {
 
     // Calculate NAB score with default parameters
     let score = nab_score(&y_true, &y_pred, None, None, None).unwrap();
-    assert!(score >= 0.0 && score <= 100.0);
+    assert!((0.0..=100.0).contains(&score));
 
     // Calculate NAB score with custom parameters
     let custom_score = nab_score(&y_true, &y_pred, Some(5), Some(2.0), Some(-1.0)).unwrap();
-    assert!(custom_score >= 0.0 && custom_score <= 100.0);
+    assert!((0.0..=100.0).contains(&custom_score));
 }

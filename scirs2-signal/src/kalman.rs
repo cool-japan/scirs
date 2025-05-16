@@ -6,8 +6,11 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::utils;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
-use ndarray_linalg::{Inverse, UPLO};
+use ndarray::{s, Array1, Array2, Array3, ArrayView1, Axis};
+use ndarray_linalg::{UPLO};
+use scirs2_linalg::{inv, cholesky};
+use rand::thread_rng;
+use rand_distr::{Distribution, Normal};
 
 /// Configuration for Kalman filter
 #[derive(Debug, Clone)]
@@ -152,11 +155,12 @@ pub fn kalman_filter(
 
         // Update step
         let z_pred = h.dot(&x_pred);
-        let innovation = z.slice(s![i]) - z_pred;
+        let z_value = z.slice(s![i]).to_owned();
+        let innovation = &z_value - &z_pred;
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &adaptive_r;
 
         // Kalman gain
-        let k = match innovation_cov.inv() {
+        let k = match inv(&innovation_cov.view()) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -206,7 +210,9 @@ pub fn kalman_filter(
                 // This is a simplified approach - in practice, estimating Q is more complex
                 // than estimating R and might require more sophisticated techniques
                 let pred_err = &x - &x_pred;
-                let q_update = pred_err.outer(&pred_err);
+                let pred_err_col = pred_err.clone().into_shape((pred_err.len(), 1)).unwrap();
+                let pred_err_row = pred_err.clone().into_shape((1, pred_err.len())).unwrap();
+                let q_update = pred_err_col.dot(&pred_err_row);
                 adaptive_q = &adaptive_q * (1.0 - config.forgetting_factor)
                     + &q_update * config.forgetting_factor;
             }
@@ -309,7 +315,7 @@ where
         let innovation_cov = h_jac.dot(&p_pred).dot(&h_jac.t()) + &r;
 
         // Kalman gain
-        let k = match innovation_cov.inv() {
+        let k = match inv(&innovation_cov.view()) {
             Ok(inn_cov_inv) => p_pred.dot(&h_jac.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -445,7 +451,9 @@ where
         let mut p_pred = Array2::zeros((n_states, n_states));
         for j in 0..predicted_sigmas.len() {
             let diff = &predicted_sigmas[j] - &x_pred;
-            p_pred = &p_pred + &(weights_cov[j] * diff.outer(&diff));
+            let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
+            let diff_row = diff.clone().into_shape((1, diff.len())).unwrap();
+            p_pred = &p_pred + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         p_pred = &p_pred + &q;
 
@@ -465,7 +473,9 @@ where
         let mut s = Array2::zeros((n_measurements, n_measurements));
         for j in 0..measurement_sigmas.len() {
             let diff = &measurement_sigmas[j] - &z_pred;
-            s = &s + &(weights_cov[j] * diff.outer(&diff));
+            let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
+            let diff_row = diff.clone().into_shape((1, diff.len())).unwrap();
+            s = &s + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         s = &s + &r;
 
@@ -474,11 +484,13 @@ where
         for j in 0..predicted_sigmas.len() {
             let diff_x = &predicted_sigmas[j] - &x_pred;
             let diff_z = &measurement_sigmas[j] - &z_pred;
-            c = &c + &(weights_cov[j] * diff_x.outer(&diff_z));
+            let diff_x_col = diff_x.clone().into_shape((diff_x.len(), 1)).unwrap();
+            let diff_z_row = diff_z.clone().into_shape((1, diff_z.len())).unwrap();
+            c = &c + &(weights_cov[j] * diff_x_col.dot(&diff_z_row));
         }
 
         // Kalman gain
-        let k = match s.inv() {
+        let k = match inv(&s.view()) {
             Ok(s_inv) => c.dot(&s_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -524,7 +536,7 @@ fn generate_sigma_points(
     sigma_points.push(x.clone());
 
     // Calculate square root of covariance matrix using Cholesky decomposition
-    let sqrt_p = match p.cholesky(UPLO::Lower) {
+    let sqrt_p = match cholesky(&p.view(), UPLO::Lower) {
         Ok(l) => l,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -577,7 +589,7 @@ where
 {
     use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::RandomExt;
-    use rand::thread_rng;
+    use rand::rng;
 
     let n_samples = z.shape()[0];
     let n_states = initial_x.len();
@@ -602,10 +614,14 @@ where
 
     for _ in 0..n_ensemble {
         // Generate random perturbation based on initial covariance
-        let perturbation = Array1::random_using(n_states, Normal::new(0.0, 1.0).unwrap(), &mut rng);
+        let normal = Normal::new(0.0, 1.0).unwrap();
+        let mut perturbation = Array1::zeros(n_states);
+        for j in 0..n_states {
+            perturbation[j] = normal.sample(&mut rng);
+        }
 
         // Apply Cholesky decomposition to ensure correct covariance structure
-        let sqrt_p = match initial_p.cholesky(UPLO::Lower) {
+        let sqrt_p = match cholesky(&initial_p.view(), UPLO::Lower) {
             Ok(l) => l,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -669,8 +685,12 @@ where
             let x_diff = &ensemble[j] - &x_mean;
             let z_diff = &measured_ensemble[j] - &z_mean;
 
-            pxz = &pxz + &x_diff.outer(&z_diff);
-            pzz = &pzz + &z_diff.outer(&z_diff);
+            let x_diff_col = x_diff.clone().into_shape((x_diff.len(), 1)).unwrap();
+            let z_diff_row = z_diff.clone().into_shape((1, z_diff.len())).unwrap();
+            pxz = &pxz + &x_diff_col.dot(&z_diff_row);
+            let z_diff_col = z_diff.clone().into_shape((z_diff.len(), 1)).unwrap();
+            let z_diff_row = z_diff.clone().into_shape((1, z_diff.len())).unwrap();
+            pzz = &pzz + &z_diff_col.dot(&z_diff_row);
         }
 
         pxz /= (n_ensemble - 1) as f64;
@@ -678,7 +698,7 @@ where
         pzz = &pzz + &r;
 
         // Kalman gain
-        let k = match pzz.inv() {
+        let k = match inv(&pzz.view()) {
             Ok(pzz_inv) => pxz.dot(&pzz_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -691,11 +711,14 @@ where
         for j in 0..n_ensemble {
             // Generate perturbed observation
             let perturbed_z = &z.slice(s![i, ..]).to_owned()
-                + &Array1::random_using(
-                    n_measurements,
-                    Normal::new(0.0, config.measurement_noise_scale.sqrt()).unwrap(),
-                    &mut rng,
-                );
+                + &{
+                    let normal = Normal::new(0.0, config.measurement_noise_scale.sqrt()).unwrap();
+                    let mut noise = Array1::zeros(n_measurements);
+                    for k in 0..n_measurements {
+                        noise[k] = normal.sample(&mut rng);
+                    }
+                    noise
+                };
 
             // Update ensemble member
             let innovation = &perturbed_z - &measured_ensemble[j];
@@ -737,8 +760,14 @@ pub fn kalman_denoise_1d(
     let n = signal.len();
 
     // Define a simple constant-velocity model
-    let f = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 0.0, 1.0])?;
-    let h = Array2::from_shape_vec((1, 2), vec![1.0, 0.0])?;
+    let f = match Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 0.0, 1.0]) {
+        Ok(arr) => arr,
+        Err(e) => return Err(SignalError::InvalidInput(format!("Invalid shape: {}", e))),
+    };
+    let h = match Array2::from_shape_vec((1, 2), vec![1.0, 0.0]) {
+        Ok(arr) => arr,
+        Err(e) => return Err(SignalError::InvalidInput(format!("Invalid shape: {}", e))),
+    };
 
     // Configuration
     let mut config = KalmanConfig::default();
@@ -1005,7 +1034,7 @@ fn kalman_filter_vector_measurement(
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Kalman gain
-        let k = match innovation_cov.inv() {
+        let k = match inv(&innovation_cov.view()) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1146,11 +1175,12 @@ pub fn kalman_smooth(
 
         // Update
         let z_pred = h.dot(&x_pred);
-        let innovation = signal.slice(s![i]) - z_pred;
+        let signal_value = signal.slice(s![i]).to_owned();
+        let innovation = &signal_value - &z_pred;
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Kalman gain
-        let k = match innovation_cov.inv() {
+        let k = match inv(&innovation_cov.view()) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1170,7 +1200,7 @@ pub fn kalman_smooth(
         let p_pred = f.dot(&filtered_covs[i]).dot(&f.t()) + &q;
 
         // Smoother gain
-        let g = match p_pred.inv() {
+        let g = match inv(&p_pred.view()) {
             Ok(p_pred_inv) => filtered_covs[i].dot(&f.t()).dot(&p_pred_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1267,11 +1297,12 @@ pub fn robust_kalman_filter(
 
         // Calculate innovation and innovation covariance
         let z_pred = h.dot(&x_pred);
-        let innovation = signal.slice(s![i]) - z_pred;
+        let signal_value = signal.slice(s![i]).to_owned();
+        let innovation = &signal_value - &z_pred;
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Calculate normalized innovation squared
-        let s_inv = match innovation_cov.inv() {
+        let s_inv = match inv(&innovation_cov.view()) {
             Ok(inv) => inv,
             Err(_) => {
                 return Err(SignalError::Compute(

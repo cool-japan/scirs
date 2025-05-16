@@ -621,7 +621,7 @@ mod tests {
     #[test]
     fn test_edge_intersection() {
         let e1 = Edge::new(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0));
-        let e2 = Edge::new(Point2D::new(0.0, 1.0), Point2D::new(1.0, 0.0));
+        let _e2 = Edge::new(Point2D::new(0.0, 1.0), Point2D::new(1.0, 0.0));
         let e3 = Edge::new(Point2D::new(0.0, 0.0), Point2D::new(0.5, 0.5));
 
         // Intersecting diagonal edges
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn test_visibility_check() {
-        let mut graph = VisibilityGraph::new();
+        let graph = VisibilityGraph::new();
 
         // Create a square obstacle
         let obstacle = vec![

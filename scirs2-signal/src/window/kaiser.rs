@@ -4,8 +4,8 @@
 //! the trade-off between the main lobe width and side lobe level.
 
 use crate::error::SignalResult;
-use special::Bessel;
 use std::f64::consts::PI;
+use scirs2_special::i0;
 
 /// Kaiser window.
 ///
@@ -43,7 +43,7 @@ pub fn kaiser(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
     let mut w = Vec::with_capacity(n);
 
     // Calculate normalization factor (the Bessel function evaluated at beta)
-    let i0_beta = special::bessel::i0(beta);
+    let i0_beta = i0(beta);
 
     for i in 0..n {
         // Calculate terms inside the square root
@@ -52,7 +52,7 @@ pub fn kaiser(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
 
         // Compute the window value
         let w_val = if term > 0.0 {
-            special::bessel::i0(beta * term.sqrt()) / i0_beta
+            i0(beta * term.sqrt()) / i0_beta
         } else {
             0.0
         };

@@ -8,6 +8,17 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
+/// Enum for different types of linear solvers
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LinearSolverType {
+    /// Direct solver using LU decomposition
+    Direct,
+    /// Iterative solver (GMRES, etc.)
+    Iterative,
+    /// Automatic selection based on problem size
+    Auto,
+}
+
 /// Solve a linear system Ax = b using Gaussian elimination with partial pivoting
 ///
 /// # Arguments
@@ -144,4 +155,40 @@ where
         sum = sum + (*val) * (*val);
     }
     sum.sqrt()
+}
+
+/// Solve a linear system using automatic method selection
+pub fn auto_solve_linear_system<F>(
+    a: &ArrayView2<F>, 
+    b: &ArrayView1<F>,
+    solver_type: LinearSolverType,
+) -> IntegrateResult<Array1<F>>
+where
+    F: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign,
+{
+    match solver_type {
+        LinearSolverType::Direct => solve_linear_system(a, b),
+        LinearSolverType::Iterative => {
+            // For now, use direct solver as iterative is not implemented
+            solve_linear_system(a, b)
+        }
+        LinearSolverType::Auto => {
+            // Use direct solver for small problems, iterative for large
+            let n = a.shape()[0];
+            if n < 100 {
+                solve_linear_system(a, b)
+            } else {
+                // For now, use direct solver until iterative is implemented
+                solve_linear_system(a, b)
+            }
+        }
+    }
+}
+
+/// Solve a linear system using LU decomposition (alias for compatibility)
+pub fn solve_lu<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> IntegrateResult<Array1<F>>
+where
+    F: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign,
+{
+    solve_linear_system(a, b)
 }

@@ -37,11 +37,6 @@ macro_rules! array_function {
     (fn $name:ident($($arg:ident: $arg_ty:ty),*) -> $ret:ty $body:block, $func_name:expr) => {
         // Define the function
         fn $name($($arg: $arg_ty),*) -> $ret $body
-
-        // Define the register function without creating unused structs
-        fn register_fn() -> impl Fn($($arg_ty),*) -> $ret {
-            |$($arg),*| $name($($arg),*)
-        }
     };
 }
 use ndarray::{arr2, Array2};
@@ -212,8 +207,8 @@ fn test_array_function_dispatch() {
         "test::sum_array"
     );
 
-    // Create the function pointer
-    let registered_sum = register_fn();
+    // Use the function directly
+    let registered_sum = sum_array;
 
     // Create an array and test the function
     let array = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
@@ -266,10 +261,7 @@ fn test_array_interoperability() {
 
     // Define an operation that works with any array type
     array_function!(
-        fn dot_product(
-            a: &dyn ArrayProtocol,
-            b: &dyn ArrayProtocol,
-        ) -> Result<Box<dyn ArrayProtocol>, NotImplemented> {
+        fn dot_product(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> Result<Box<dyn ArrayProtocol>, NotImplemented> {
             // In a real implementation, this would dispatch to the appropriate implementation
             // based on the array types. For this test, we'll use a simplified implementation.
             let a_array = a
@@ -301,8 +293,7 @@ fn test_array_interoperability() {
         "test::dot_product"
     );
 
-    // Register the function
-    let dot = register_fn();
+    // The macro already defined the function above
 
     // Register a handler for the dot_product function in the global registry
     let dot_product_name = "test::dot_product";
@@ -333,7 +324,7 @@ fn test_array_interoperability() {
     let a_wrapped = NdarrayWrapper::new(cpu_array.clone());
     let b_wrapped = NdarrayWrapper::new(cpu_array.clone());
 
-    match dot(&a_wrapped, &b_wrapped) {
+    match dot_product(&a_wrapped, &b_wrapped) {
         Ok(_) => {
             // The test passes if the operation succeeds
             println!("Dot product operation succeeded");
@@ -342,7 +333,7 @@ fn test_array_interoperability() {
             // If we get an error, mark the test as skipped rather than failing
             println!("Skipping dot product test - operation failed: {}", e);
             // Add assert to make it pass even if the operation fails
-            assert!(true);
+            // Test passed
         }
     }
 }
@@ -718,8 +709,8 @@ fn test_custom_array_type() {
         "test::custom_sum"
     );
 
-    // Register the function
-    let sum_func = register_fn();
+    // Use the function directly
+    let sum_func = custom_sum;
 
     // Use the function with the custom array type
     let custom_array_ref: &dyn ArrayProtocol = &custom_array;

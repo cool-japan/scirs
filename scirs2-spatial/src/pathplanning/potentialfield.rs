@@ -47,7 +47,7 @@
 use ndarray::{Array1, ArrayView1};
 use std::f64;
 
-use crate::distance::EuclideanDistance;
+use crate::pathplanning::astar::euclidean_distance;
 use crate::error::{SpatialError, SpatialResult};
 use crate::pathplanning::astar::Path;
 
@@ -160,7 +160,7 @@ impl Obstacle {
     pub fn distance(&self, point: &ArrayView1<f64>) -> f64 {
         match self {
             Obstacle::Circle { center, radius } => {
-                let distance = euclidean_distance(*point, center.view());
+                let distance = euclidean_distance(point, &center.view()).unwrap_or(f64::MAX);
                 (distance - radius).max(0.0)
             }
             Obstacle::Polygon { vertices } => {
@@ -230,7 +230,7 @@ impl Obstacle {
                 // Just return distance to closest vertex for now
                 vertices
                     .iter()
-                    .map(|v| euclidean_distance(*point, v.view()))
+                    .map(|v| euclidean_distance(point, &v.view()).unwrap_or(f64::MAX))
                     .fold(f64::MAX, |a, b| a.min(b))
             }
             Obstacle::Custom { distance_fn } => distance_fn(point),
@@ -300,7 +300,7 @@ impl PotentialFieldPlanner {
 
     /// Calculate the attractive force towards the goal
     fn attractive_force(&self, position: &ArrayView1<f64>, goal: &ArrayView1<f64>) -> Array1<f64> {
-        let distance = euclidean_distance(*position, *goal);
+        let distance = euclidean_distance(position, goal).unwrap_or(0.0);
 
         let mut force = Array1::zeros(self.dimension);
 
@@ -334,7 +334,7 @@ impl PotentialFieldPlanner {
                     Obstacle::Circle { center, .. } => {
                         // Compute force direction (away from obstacle)
                         let mut direction = Array1::zeros(self.dimension);
-                        let total_distance = euclidean_distance(*position, center.view());
+                        let total_distance = euclidean_distance(position, &center.view()).unwrap_or(f64::MAX);
 
                         if total_distance < 1e-6 {
                             // Random direction if exactly at obstacle center (extremely rare)
@@ -591,7 +591,7 @@ impl PotentialFieldPlanner {
 
         for _ in 0..self.config.max_iterations {
             // Check if we've reached the goal
-            let goal_distance = euclidean_distance(current.view(), goal.view());
+            let goal_distance = euclidean_distance(&current.view(), &goal.view())?;
             if goal_distance < self.config.goal_threshold {
                 // Add goal and return
                 path.push(goal.clone());
@@ -632,7 +632,7 @@ impl PotentialFieldPlanner {
             }
 
             // Add step distance to total
-            let step_distance = euclidean_distance(current.view(), next.view());
+            let step_distance = euclidean_distance(&current.view(), &next.view())?;
             total_distance += step_distance;
 
             // Add to path if it's a significant step

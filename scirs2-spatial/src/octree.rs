@@ -538,7 +538,7 @@ impl Octree {
         let mut worst_dist = f64::INFINITY;
 
         // Add the root node to the queue
-        let root_ref = &self.root.as_ref().unwrap() as *const OctreeNode;
+        let root_ref = self.root.as_ref().unwrap() as *const OctreeNode;
         let root_dist = match self.root.as_ref().unwrap() {
             OctreeNode::Internal { bounds, .. } => bounds.squared_distance_to_point(query)?,
             OctreeNode::Leaf { bounds, .. } => bounds.squared_distance_to_point(query)?,
@@ -546,7 +546,7 @@ impl Octree {
 
         node_queue.push(DistanceNode {
             node: root_ref,
-            min_distance_sq: root_dist.unwrap_or(0.0), // Safe to unwrap because we've already checked query length
+            min_distance_sq: root_dist,
         });
 
         // Search until we've found all nearest neighbors or exhausted the tree
@@ -603,7 +603,7 @@ impl Octree {
 
                         node_queue.push(DistanceNode {
                             node: child_ref,
-                            min_distance_sq: min_dist.unwrap_or(0.0), // Safe to unwrap because we've already checked query length
+                            min_distance_sq: min_dist,
                         });
                     }
                 }
@@ -992,19 +992,19 @@ mod tests {
         // Test radius search with small radius
         let query = array![0.0, 0.0, 0.0];
         let radius = 0.5;
-        let (indices, distances) = octree.query_radius(&query.view(), radius).unwrap();
+        let (indices, _distances) = octree.query_radius(&query.view(), radius).unwrap();
 
         assert_eq!(indices.len(), 1);
         assert_eq!(indices[0], 0); // Only origin is within 0.5 units
 
         // Test with larger radius
         let radius = 1.5;
-        let (indices, distances) = octree.query_radius(&query.view(), radius).unwrap();
+        let (indices, _distances) = octree.query_radius(&query.view(), radius).unwrap();
 
         assert!(indices.len() >= 4); // Should find at least origin, (1,0,0), (0,1,0), (0,0,1)
 
         // Check all distances are within radius
-        for &dist in &distances {
+        for &dist in &_distances {
             assert!(dist <= radius * radius);
         }
 
@@ -1056,12 +1056,12 @@ mod tests {
         if !cfg!(debug_assertions) {
             // Create a larger random dataset
             let n_points = 10000;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             let mut points = Array2::zeros((n_points, 3));
             for i in 0..n_points {
                 for j in 0..3 {
-                    points[[i, j]] = rng.gen_range(-100.0..100.0);
+                    points[[i, j]] = rng.random_range(-100.0..100.0);
                 }
             }
 

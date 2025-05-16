@@ -528,7 +528,7 @@ pub fn significance_levels(
         "standard" => power.to_vec(),
         "model" => power
             .iter()
-            .map(|&p| -n_samples as f64 * (1.0 - p).ln())
+            .map(|&p| -(n_samples as f64) * (1.0 - p).ln())
             .collect(),
         "log" => power.iter().map(|&p| p.exp()).collect(),
         "psd" => power.iter().map(|&p| p * 2.0 / n_samples as f64).collect(),

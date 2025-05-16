@@ -205,7 +205,7 @@ where
     }
 }
 
-impl<'a, T, S> MetricVisualizer for ConfusionMatrixVisualizer<'a, T, S>
+impl<T, S> MetricVisualizer for ConfusionMatrixVisualizer<'_, T, S>
 where
     T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + num_traits::NumCast + 'static,
     S: Data<Elem = T>,

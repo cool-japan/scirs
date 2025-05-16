@@ -20,7 +20,7 @@ fn test_detection_accuracy() {
     let acc_2 = detection_accuracy(&y_true_2, &y_pred_2).unwrap();
     // The function currently returns 0.8 instead of expected 0.7
     // This may be correct based on the function's implementation
-    assert!(acc_2 >= 0.0 && acc_2 <= 1.0);
+    assert!((0.0..=1.0).contains(&acc_2));
 
     // Test case 3: Worst detection (all reversed)
     let y_true_3 = array![0.0, 0.0, 1.0, 1.0, 0.0];
@@ -99,7 +99,7 @@ fn test_anomaly_auc_score() {
     let auc_1 = anomaly_auc_score(&y_true_1, &y_score_1).unwrap();
     // The current implementation is giving a result of 0.0, which indicates a bug
     // For now, we'll test that the function executes and returns a value within bounds
-    assert!(auc_1 >= 0.0 && auc_1 <= 1.0);
+    assert!((0.0..=1.0).contains(&auc_1));
 
     // Test case 2: Random classifier (AUC ≈ 0.5)
     // Using a controlled example where anomalies and normal instances are mixed
@@ -114,7 +114,7 @@ fn test_anomaly_auc_score() {
     let auc_3 = anomaly_auc_score(&y_true_3, &y_score_3).unwrap();
     // The current implementation may not handle this as expected.
     // Just ensure the result is within valid range for now.
-    assert!(auc_3 >= 0.0 && auc_3 <= 1.0);
+    assert!((0.0..=1.0).contains(&auc_3));
 
     // Test case 4: Only one class
     let y_true_4 = array![0.0, 0.0, 0.0, 0.0, 0.0];
@@ -278,7 +278,7 @@ fn test_edge_cases() {
     let non_binary = array![0.0, 1.0, 2.0, 3.0, 0.0];
     let pred = array![0.0, 1.0, 1.0, 0.0, 0.0];
     let result = detection_accuracy(&non_binary, &pred).unwrap();
-    assert!(result >= 0.0 && result <= 1.0); // Should still compute something meaningful
+    assert!((0.0..=1.0).contains(&result)); // Should still compute something meaningful
 
     // All of one class
     let all_zeros = array![0.0, 0.0, 0.0, 0.0, 0.0];
@@ -296,7 +296,7 @@ fn test_maximum_mean_discrepancy() {
     let mmd_1 = maximum_mean_discrepancy(&x_1, &y_1, None).unwrap();
     // For identical samples, MMD should be very close to 0,
     // but the actual implementation may have numerical differences
-    assert!(mmd_1 >= 0.0 && mmd_1 < 0.1);
+    assert!((0.0..0.1).contains(&mmd_1));
 
     // Test case 2: Similar samples
     let x_2 = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -304,7 +304,7 @@ fn test_maximum_mean_discrepancy() {
     let mmd_2 = maximum_mean_discrepancy(&x_2, &y_2, None).unwrap();
     // Similar samples should have a relatively small MMD, but not necessarily
     // within a strict range. Just check it's a valid value.
-    assert!(mmd_2 >= 0.0 && mmd_2 <= 1.0); // Small but non-zero
+    assert!((0.0..=1.0).contains(&mmd_2)); // Small but non-zero
 
     // Test case 3: Different samples
     let x_3 = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -319,8 +319,8 @@ fn test_maximum_mean_discrepancy() {
     let mmd_4_custom = maximum_mean_discrepancy(&x_4, &y_4, Some(1.0)).unwrap();
 
     // Both custom and default bandwidth should produce valid results
-    assert!(mmd_4_default >= 0.0 && mmd_4_default <= 1.0);
-    assert!(mmd_4_custom >= 0.0 && mmd_4_custom <= 1.0);
+    assert!((0.0..=1.0).contains(&mmd_4_default));
+    assert!((0.0..=1.0).contains(&mmd_4_custom));
 
     // Test case 5: Different lengths
     let x_5 = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -382,10 +382,10 @@ fn test_precision_recall_with_tolerance() {
     // and the anomaly at index 8 is not directly detected.
     // But since we're counting anomaly clusters/regions, and indices 2-3 form a cluster,
     // we need to check how the implementation handles this. If it counts clusters, recall could be 0.5
-    assert!(r_3 >= 0.0 && r_3 <= 1.0);
+    assert!((0.0..=1.0).contains(&r_3));
 
     // F1 score is calculated from precision and recall, so it should be in valid range
-    assert!(f1_3 >= 0.0 && f1_3 <= 1.0);
+    assert!((0.0..=1.0).contains(&f1_3));
 
     // Test case 4: No true anomalies
     let y_true_4 = array![0.0, 0.0, 0.0, 0.0, 0.0];
@@ -491,7 +491,7 @@ fn test_nab_score() {
 
     let score_1 = nab_score(&y_true_1, &y_pred_1, None, None, None).unwrap();
     // Perfect detection should get a high score (might not be exactly 100.0 due to implementation details)
-    assert!(score_1 >= 75.0 && score_1 <= 100.0);
+    assert!((75.0..=100.0).contains(&score_1));
 
     // Test case 2: Early prediction (before the anomaly points)
     let mut y_true_2 = vec![0.0; 20];

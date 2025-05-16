@@ -141,7 +141,7 @@ where
         let mut count = 0;
 
         for &idx in cluster_indices {
-            cluster_knn_sum = cluster_knn_sum + all_knn_distances[idx].1;
+            cluster_knn_sum += all_knn_distances[idx].1;
             count += 1;
         }
 
@@ -272,7 +272,7 @@ where
             } else {
                 F::zero()
             };
-            intra_density_sum = intra_density_sum + intra_density;
+            intra_density_sum += intra_density;
         }
 
         // Calculate inter-cluster density (k-nearest neighbors from other clusters)
@@ -286,7 +286,7 @@ where
             } else {
                 F::zero()
             };
-            inter_density_sum = inter_density_sum + inter_density;
+            inter_density_sum += inter_density;
         }
     }
 
@@ -527,8 +527,8 @@ where
 
     for (i, &label) in unique_labels.iter().enumerate() {
         let weight = F::from(cluster_indices.get(&label).unwrap().len()).unwrap();
-        weighted_sum = weighted_sum + weight * cluster_validity[i];
-        weight_sum = weight_sum + weight;
+        weighted_sum += weight * cluster_validity[i];
+        weight_sum += weight;
     }
 
     let dbcv = if weight_sum > F::zero() {

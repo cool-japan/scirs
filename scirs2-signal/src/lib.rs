@@ -101,7 +101,7 @@ pub use bss::{
     joint_bss, joint_diagonalization, kernel_ica, multivariate_emd, nmf, pca, sort_components,
     sparse_component_analysis, BssConfig, IcaMethod, NonlinearityFunction,
 };
-pub use convolve::{convolve, correlate, deconvolve};
+pub use convolve::{convolve, convolve2d, correlate, deconvolve};
 pub use cqt::{
     chromagram, constant_q_transform, cqt_magnitude, inverse_constant_q_transform, CqtConfig,
 };

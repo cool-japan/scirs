@@ -47,9 +47,9 @@ default = []
 # Integration with other scirs2 modules
 # Integration features 
 neural_common = [] # Common neural functionality without dependency on scirs2-neural
+optim_integration = [] # Common optimization functionality without dependency on scirs2-optim
 # The following features are temporarily commented out to break circular dependencies
 # neural_integration = ["dep:scirs2-neural", "neural_common"]
-# optim_integration = ["dep:scirs2-optim"]
 # Visualization backends
 plotters_backend = ["dep:plotters"]
 plotly_backend = ["dep:plotly"]

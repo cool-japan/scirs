@@ -15,7 +15,7 @@
 //! - Spatial joins
 
 use crate::error::{SpatialError, SpatialResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use ndarray::{Array1, ArrayView1};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 
@@ -382,6 +382,16 @@ where
     level: usize,
 }
 
+impl<T: Clone> Default for Node<T> {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+            is_leaf: true,
+            level: 0,
+        }
+    }
+}
+
 impl<T: Clone> Node<T> {
     /// Create a new node
     fn new(is_leaf: bool, level: usize) -> Self {
@@ -647,7 +657,7 @@ impl<T: Clone> RTree<T> {
         let child = match &mut self.root.entries[subtree_index] {
             Entry::NonLeaf { child, .. } => child,
             _ => {
-                return Err(SpatialError::InternalError(
+                return Err(SpatialError::ComputationError(
                     "Expected a non-leaf entry".into(),
                 ))
             }
@@ -712,7 +722,7 @@ impl<T: Clone> RTree<T> {
         let child = match &mut node.entries[subtree_index] {
             Entry::NonLeaf { child, .. } => child,
             _ => {
-                return Err(SpatialError::InternalError(
+                return Err(SpatialError::ComputationError(
                     "Expected a non-leaf entry".into(),
                 ))
             }
@@ -934,8 +944,8 @@ impl<T: Clone> RTree<T> {
         let mbr = Rectangle::from_point(point);
 
         // Find the leaf node(s) containing the point
-        // Create a mutable reference to the root to avoid multiple mutable borrows
-        let mut root = std::mem::take(&mut self.root);
+        // Create a new empty root for swapping
+        let mut root = std::mem::replace(&mut self.root, Node::default());
         let result = self.delete_internal(&mbr, &mut root, data_predicate)?;
         self.root = root;
 
@@ -1054,7 +1064,7 @@ impl<T: Clone> RTree<T> {
         let child = match &parent.entries[child_index] {
             Entry::NonLeaf { child, .. } => child,
             _ => {
-                return Err(SpatialError::InternalError(
+                return Err(SpatialError::ComputationError(
                     "Expected a non-leaf entry".into(),
                 ))
             }
@@ -1097,7 +1107,7 @@ impl<T: Clone> RTree<T> {
         let sibling = match &parent.entries[best_sibling_index] {
             Entry::NonLeaf { child, .. } => child,
             _ => {
-                return Err(SpatialError::InternalError(
+                return Err(SpatialError::ComputationError(
                     "Expected a non-leaf entry".into(),
                 ))
             }

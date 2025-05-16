@@ -405,7 +405,7 @@ where
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
-                return Err(IntegrateError::GenericError(format!(
+                return Err(IntegrateError::ComputationError(format!(
                     "Failed to converge at t = {}. Step size too small.",
                     t_current
                 )));
@@ -834,7 +834,7 @@ where
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
-                return Err(IntegrateError::GenericError(format!(
+                return Err(IntegrateError::ComputationError(format!(
                     "Failed to converge at t = {}. Step size too small.",
                     t_current
                 )));
@@ -1281,7 +1281,7 @@ where
 
         // Check for singularity
         if a_copy[[k, k]].abs() < F::from_f64(1e-10).unwrap() {
-            return Err(IntegrateError::GenericError(format!(
+            return Err(IntegrateError::ComputationError(format!(
                 "Matrix is singular at row {}",
                 k
             )));
@@ -1299,7 +1299,7 @@ where
 
     // Check the last pivot
     if a_copy[[n - 1, n - 1]].abs() < F::from_f64(1e-10).unwrap() {
-        return Err(IntegrateError::GenericError(format!(
+        return Err(IntegrateError::ComputationError(format!(
             "Matrix is singular at the last row"
         )));
     }

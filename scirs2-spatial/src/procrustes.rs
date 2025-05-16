@@ -9,7 +9,7 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_linalg::matrix_factorization::svd;
+use scirs2_linalg::svd;
 
 /// Performs Procrustes analysis, a similarity test for two data sets.
 ///
@@ -156,7 +156,8 @@ fn orthogonal_procrustes(
     let product = a.t().dot(b);
 
     // Compute the SVD of the product
-    let (u, s, vt) = match svd(&product, true, true) {
+    let product_view = product.view();
+    let (u, s, vt) = match svd(&product_view, true) {
         Ok((u, s, vt)) => (u, s, vt),
         Err(e) => {
             return Err(SpatialError::ComputationError(format!(
@@ -166,7 +167,10 @@ fn orthogonal_procrustes(
         }
     };
 
-    Ok((u, s, vt))
+    // Create a diagonal matrix from s
+    let s_diag = Array2::from_diag(&s);
+    
+    Ok((u, s_diag, vt))
 }
 
 /// Computes the Frobenius norm of a matrix (square root of sum of squared elements).
@@ -361,7 +365,8 @@ fn determinant(mat: &Array2<f64>) -> f64 {
             + mat[[0, 2]] * (mat[[1, 0]] * mat[[2, 1]] - mat[[1, 1]] * mat[[2, 0]])
     } else {
         // For larger matrices, use a more general method
-        let (u, s, vt) = svd(mat, false, false).unwrap();
+        let mat_view = mat.view();
+        let (u, s, vt) = svd(&mat_view, false).unwrap();
         s.iter().product()
     }
 }
@@ -455,14 +460,14 @@ mod tests {
         let b = array![[14.0, -2.0], [14.0, -4.0], [14.0, -6.0], [12.0, -6.0]];
 
         // Test with all transformations enabled
-        let (transformed, _params, disparity) =
+        let (_transformed, _params, disparity) =
             procrustes_extended(&a.view(), &b.view(), true, true, true).unwrap();
 
         // Disparity should be nearly zero
         assert_relative_eq!(disparity, 0.0, epsilon = 1e-10);
 
         // Test with scaling disabled
-        let (transformed_no_scale, params_no_scale, _) =
+        let (_transformed_no_scale, params_no_scale, _) =
             procrustes_extended(&a.view(), &b.view(), false, true, true).unwrap();
 
         // Scale should be 1.0

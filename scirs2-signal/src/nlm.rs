@@ -473,7 +473,7 @@ pub fn nlm_block_matching_2d(
 
     // Initialize denoised image and weight accumulator
     let mut denoised = Array2::zeros((height, width));
-    let mut weight_sum = Array2::zeros((height, width));
+    let mut weight_sum = Array2::<f64>::zeros((height, width));
 
     // Determine step size for processing (subsampling the image)
     let step = config.step_size;
@@ -708,7 +708,7 @@ pub fn nlm_color_image(image: &Array3<f64>, config: &NlmConfig) -> SignalResult<
     // Compute estimated noise variance per channel
     let mut channel_sigma = Vec::with_capacity(channels);
     for c in 0..channels {
-        let channel = padded_image.index_axis(Axis(2), c);
+        let channel = padded_image.index_axis(Axis(2), c).to_owned();
         channel_sigma.push(estimate_noise_sigma_2d(&channel));
     }
 
@@ -779,15 +779,16 @@ pub fn nlm_color_image(image: &Array3<f64>, config: &NlmConfig) -> SignalResult<
 
                     for c in 0..channels {
                         // Extract patches from each channel
+                        let channel_view = padded_image.index_axis(Axis(2), c).to_owned();
                         let center_patch = extract_patch_2d(
-                            &padded_image.index_axis(Axis(2), c),
+                            &channel_view,
                             center_i,
                             center_j,
                             config.patch_size,
                         );
 
                         let search_patch = extract_patch_2d(
-                            &padded_image.index_axis(Axis(2), c),
+                            &channel_view,
                             si,
                             sj,
                             config.patch_size,
@@ -925,7 +926,7 @@ fn pad_color_image(image: &Array3<f64>, pad_size: usize) -> Array3<f64> {
 
     // Pad each channel separately
     for c in 0..channels {
-        let channel = image.index_axis(Axis(2), c);
+        let channel = image.index_axis(Axis(2), c).to_owned();
         let padded_channel = pad_image_2d(&channel, pad_size);
 
         for i in 0..padded_channel.dim().0 {

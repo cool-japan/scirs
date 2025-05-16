@@ -31,6 +31,9 @@ use crate::array_protocol::operations::multiply;
 use crate::array_protocol::{activation, ArrayProtocol, NdarrayWrapper};
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
+/// Type alias for batch data
+pub type BatchData = (Vec<Box<dyn ArrayProtocol>>, Vec<Box<dyn ArrayProtocol>>);
+
 /// Dataset trait for providing data samples.
 pub trait Dataset {
     /// Get the number of samples in the dataset.
@@ -217,9 +220,7 @@ impl DataLoader {
     }
 
     /// Get the next batch from the dataset.
-    pub fn next_batch(
-        &mut self,
-    ) -> Option<(Vec<Box<dyn ArrayProtocol>>, Vec<Box<dyn ArrayProtocol>>)> {
+    pub fn next_batch(&mut self) -> Option<BatchData> {
         if self.position >= self.dataset.len() {
             return None;
         }
@@ -248,7 +249,7 @@ impl DataLoader {
 
     /// Get the number of batches in the dataset.
     pub fn num_batches(&self) -> usize {
-        (self.dataset.len() + self.batch_size - 1) / self.batch_size
+        self.dataset.len().div_ceil(self.batch_size)
     }
 
     /// Get a reference to the dataset.
@@ -259,7 +260,7 @@ impl DataLoader {
 
 /// Iterator implementation for DataLoader.
 impl Iterator for DataLoader {
-    type Item = (Vec<Box<dyn ArrayProtocol>>, Vec<Box<dyn ArrayProtocol>>);
+    type Item = BatchData;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_batch()

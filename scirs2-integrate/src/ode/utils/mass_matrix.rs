@@ -47,7 +47,7 @@ where
         _ => {
             // Get the mass matrix at current time and state
             let matrix = mass.evaluate(t, y).ok_or_else(|| {
-                IntegrateError::GenericError("Failed to evaluate mass matrix".to_string())
+                IntegrateError::ComputationError("Failed to evaluate mass matrix".to_string())
             })?;
 
             // Solve the linear system M·x = b
@@ -73,7 +73,7 @@ where
 
     // Use our custom solver
     solve_linear_system(&matrix, &b).map_err(|err| {
-        IntegrateError::GenericError(format!("Failed to solve mass matrix system: {}", err))
+        IntegrateError::ComputationError(format!("Failed to solve mass matrix system: {}", err))
     })
 }
 
@@ -108,7 +108,7 @@ where
         _ => {
             // Get the mass matrix at current time and state
             let matrix = mass.evaluate(t, y).ok_or_else(|| {
-                IntegrateError::GenericError("Failed to evaluate mass matrix".to_string())
+                IntegrateError::ComputationError("Failed to evaluate mass matrix".to_string())
             })?;
 
             // Perform matrix-vector multiplication
@@ -164,7 +164,7 @@ impl<
         // Note: For a proper LU-based solver, we would need to implement one
         // For now, this is a simpler approach that still works
         solve_linear_system(&self.lu.view(), &b).map_err(|err| {
-            IntegrateError::GenericError(format!("Failed to solve with matrix: {}", err))
+            IntegrateError::ComputationError(format!("Failed to solve with matrix: {}", err))
         })
     }
 }
@@ -190,7 +190,7 @@ where
         _ => {
             // Evaluate the mass matrix and check dimensions
             let matrix = mass.evaluate(t, y).ok_or_else(|| {
-                IntegrateError::GenericError("Failed to evaluate mass matrix".to_string())
+                IntegrateError::ComputationError("Failed to evaluate mass matrix".to_string())
             })?;
 
             let (rows, cols) = matrix.dim();

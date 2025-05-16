@@ -17,6 +17,7 @@ use crate::error::{SpatialError, SpatialResult};
 use crate::voronoi::Voronoi;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
+use std::fmt;
 
 /// Natural Neighbor interpolator for scattered data
 ///
@@ -48,7 +49,6 @@ use std::collections::HashMap;
 /// // Should be close to 1.5 (average of the 4 corners)
 /// assert!((result - 1.5).abs() < 1e-10);
 /// ```
-#[derive(Debug, Clone)]
 pub struct NaturalNeighborInterpolator {
     /// Input points (N x D)
     points: Array2<f64>,
@@ -62,6 +62,34 @@ pub struct NaturalNeighborInterpolator {
     dim: usize,
     /// Number of input points
     n_points: usize,
+}
+
+impl Clone for NaturalNeighborInterpolator {
+    fn clone(&self) -> Self {
+        // We need to recreate the Delaunay and Voronoi structures
+        let delaunay = Delaunay::new(&self.points).unwrap();
+        let voronoi = Voronoi::new(&self.points.view(), false).unwrap();
+        
+        Self {
+            points: self.points.clone(),
+            values: self.values.clone(),
+            delaunay,
+            voronoi,
+            dim: self.dim,
+            n_points: self.n_points,
+        }
+    }
+}
+
+impl fmt::Debug for NaturalNeighborInterpolator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NaturalNeighborInterpolator")
+            .field("dim", &self.dim)
+            .field("n_points", &self.n_points)
+            .field("points_shape", &self.points.shape())
+            .field("values_len", &self.values.len())
+            .finish()
+    }
 }
 
 impl NaturalNeighborInterpolator {
@@ -109,10 +137,10 @@ impl NaturalNeighborInterpolator {
         }
 
         // Create Delaunay triangulation
-        let delaunay = Delaunay::new(points)?;
+        let delaunay = Delaunay::new(&points.to_owned())?;
 
         // Create Voronoi diagram
-        let voronoi = Voronoi::from_delaunay(&delaunay)?;
+        let voronoi = Voronoi::new(points, false)?;
 
         Ok(Self {
             points: points.to_owned(),
@@ -149,7 +177,7 @@ impl NaturalNeighborInterpolator {
         }
 
         // Find the simplex (triangle) containing the point
-        let simplex_idx = self.delaunay.find_simplex(point);
+        let simplex_idx = self.delaunay.find_simplex(point.as_slice().unwrap());
 
         if simplex_idx.is_none() {
             return Err(SpatialError::ValueError(
@@ -232,7 +260,7 @@ impl NaturalNeighborInterpolator {
         // into the Voronoi diagram.
 
         // First, find the triangle containing the query point
-        let simplex_idx = self.delaunay.find_simplex(point);
+        let simplex_idx = self.delaunay.find_simplex(point.as_slice().unwrap());
 
         if simplex_idx.is_none() {
             return Err(SpatialError::ValueError(
@@ -241,7 +269,7 @@ impl NaturalNeighborInterpolator {
         }
 
         let simplex_idx = simplex_idx.unwrap();
-        let simplex = self.delaunay.simplices().row(simplex_idx);
+        let simplex = &self.delaunay.simplices()[simplex_idx];
 
         // Get the neighboring points
         let mut neighbors = Vec::new();
@@ -250,10 +278,10 @@ impl NaturalNeighborInterpolator {
         }
 
         // For 2D, we can also add the neighbors of the simplex vertices
-        let simplex_neighbors = self.delaunay.neighbors().row(simplex_idx);
+        let simplex_neighbors = &self.delaunay.neighbors()[simplex_idx];
         for &neigh_idx in simplex_neighbors {
             if neigh_idx >= 0 {
-                let neigh_simplex = self.delaunay.simplices().row(neigh_idx as usize);
+                let neigh_simplex = &self.delaunay.simplices()[neigh_idx as usize];
                 for &idx in neigh_simplex {
                     if !neighbors.contains(&(idx as usize)) {
                         neighbors.push(idx as usize);
@@ -268,7 +296,7 @@ impl NaturalNeighborInterpolator {
 
         for &idx in &neighbors {
             // Get the Voronoi region of this point
-            let region = self.voronoi.regions()[idx];
+            let region = &self.voronoi.regions()[idx];
             let vertices = Self::get_voronoi_vertices(&self.voronoi, region)?;
 
             // Compute the original area of the region
@@ -293,7 +321,7 @@ impl NaturalNeighborInterpolator {
             }
         } else {
             // If the total area is zero, use barycentric coordinates
-            let mut bary_weights = self.barycentric_weights(point, simplex_idx)?;
+            let bary_weights = self.barycentric_weights(point, simplex_idx)?;
 
             // Convert from simplex indices to point indices
             let mut new_weights = HashMap::new();
@@ -326,7 +354,7 @@ impl NaturalNeighborInterpolator {
         point: &ArrayView1<f64>,
         simplex_idx: usize,
     ) -> SpatialResult<Vec<f64>> {
-        let simplex = self.delaunay.simplices().row(simplex_idx);
+        let simplex = &self.delaunay.simplices()[simplex_idx];
         let mut vertices = Vec::new();
 
         for &idx in simplex {
@@ -388,15 +416,26 @@ impl NaturalNeighborInterpolator {
     /// # Errors
     ///
     /// * If the region is empty
-    fn get_voronoi_vertices(voronoi: &Voronoi, region: &[usize]) -> SpatialResult<Array2<f64>> {
+    fn get_voronoi_vertices(voronoi: &Voronoi, region: &[i64]) -> SpatialResult<Array2<f64>> {
         if region.is_empty() {
             return Err(SpatialError::ValueError("Empty Voronoi region".to_string()));
         }
 
-        let mut vertices = Array2::zeros((region.len(), 2));
+        // Count valid vertices (ignoring -1)
+        let valid_count = region.iter().filter(|&&idx| idx >= 0).count();
+        
+        if valid_count == 0 {
+            return Err(SpatialError::ValueError("All vertices are at infinity".to_string()));
+        }
 
-        for (i, &idx) in region.iter().enumerate() {
-            vertices.row_mut(i).assign(&voronoi.vertices().row(idx));
+        let mut vertices = Array2::zeros((valid_count, 2));
+        let mut j = 0;
+
+        for &idx in region.iter() {
+            if idx >= 0 {
+                vertices.row_mut(j).assign(&voronoi.vertices().row(idx as usize));
+                j += 1;
+            }
         }
 
         Ok(vertices)

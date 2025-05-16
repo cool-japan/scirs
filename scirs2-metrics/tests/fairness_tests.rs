@@ -41,7 +41,7 @@ fn test_demographic_parity_difference() {
     let protected_6 = array![1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     // Values are thresholded at 0, so all non-zero values are considered positive
     let dp_diff_6 = demographic_parity_difference(&y_pred_6, &protected_6).unwrap();
-    assert!(dp_diff_6 >= 0.0 && dp_diff_6 <= 1.0);
+    assert!((0.0..=1.0).contains(&dp_diff_6));
 }
 
 #[test]

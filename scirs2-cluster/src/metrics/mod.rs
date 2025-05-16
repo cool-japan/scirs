@@ -3,7 +3,10 @@
 //! This module provides metrics for evaluating clustering algorithms performance:
 //! - Silhouette coefficient for measuring cluster cohesion and separation
 //! - Davies-Bouldin index for evaluating cluster separation
-//! - Future: Calinski-Harabasz index, etc.
+//! - Calinski-Harabasz index for measuring between-cluster vs within-cluster variance
+
+mod silhouette;
+pub use silhouette::{silhouette_samples, silhouette_score};
 
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};

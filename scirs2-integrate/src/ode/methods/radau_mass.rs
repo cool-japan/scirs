@@ -244,10 +244,10 @@ where
                     let jacobian_matrix = jacobian::finite_difference_jacobian(
                         &f,
                         t3,
-                        k3.view(),
+                        &k3,
                         &f3,
                         F::from_f64(1e-8).unwrap(),
-                    )?;
+                    );
                     jac_option = Some(jacobian_matrix);
                     compute_new_jacobian = false;
                     n_jac += 1;
@@ -352,10 +352,10 @@ where
                     let jacobian_matrix = jacobian::finite_difference_jacobian(
                         &f,
                         t3,
-                        k3.view(),
+                        &k3,
                         &f3,
                         F::from_f64(1e-8).unwrap(),
-                    )?;
+                    );
                     jac_option = Some(jacobian_matrix);
                     compute_new_jacobian = false;
                     n_jac += 1;

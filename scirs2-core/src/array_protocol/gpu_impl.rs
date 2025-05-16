@@ -305,6 +305,12 @@ pub struct GPUArrayBuilder {
     config: GPUConfig,
 }
 
+impl Default for GPUArrayBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GPUArrayBuilder {
     /// Create a new GPU array builder with default settings.
     pub fn new() -> Self {

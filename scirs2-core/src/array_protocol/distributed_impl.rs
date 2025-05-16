@@ -158,7 +158,7 @@ where
 
         let shape = array.shape().to_vec();
         let total_elements = array.len();
-        let _chunk_size = (total_elements + config.chunks - 1) / config.chunks;
+        let _chunk_size = total_elements.div_ceil(config.chunks);
 
         // Create the specified number of chunks (in a real implementation, these would be distributed)
         let mut chunks = Vec::new();

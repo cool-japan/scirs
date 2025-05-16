@@ -6,7 +6,7 @@
 use crate::error::{SignalError, SignalResult};
 use crate::utils;
 use crate::window;
-use ndarray::{Array, Array1, Array2, ArrayView1, Axis};
+use ndarray::{s, Array, Array1, Array2, ArrayView1, Axis};
 use num_complex::Complex64;
 use num_traits::{Float, NumCast};
 use std::fmt::Debug;
@@ -349,7 +349,7 @@ impl ShortTimeFft {
         }
 
         // Ensure no division by zero
-        let epsilon = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val| val.max(max));
+        let epsilon = std::f64::EPSILON * dd.iter().fold(0.0, |max, &val: &f64| val.max(max));
         for val in dd.iter() {
             if val.abs() < epsilon {
                 return Err(SignalError::ValueError(
@@ -365,12 +365,12 @@ impl ShortTimeFft {
 
         // Create ShortTimeFft
         let instance = Self::new(
-            w.as_slice(),
+            w.as_slice().expect("Failed to get slice"),
             hop,
             fs,
             fft_mode,
             mfft,
-            Some(w.as_slice()),
+            w.as_slice(),
             scale_to,
             phase_shift,
         )?;
@@ -403,11 +403,11 @@ impl ShortTimeFft {
         phase_shift: Option<isize>,
     ) -> SignalResult<Self> {
         // Create canonical window from dual
-        let win = Self::calc_dual_canonical_window(dual_win, hop)?;
+        let win = calc_dual_window_internal(dual_win, hop)?;
 
         // Create ShortTimeFft
         let instance = Self::new(
-            win.as_slice(),
+            win.as_slice().expect("Failed to get slice"),
             hop,
             fs,
             fft_mode,
@@ -430,7 +430,7 @@ impl ShortTimeFft {
     /// # Returns
     ///
     /// * Dual window as Array1<f64>
-    fn calc_dual_canonical_window(win: &[f64], hop: usize) -> SignalResult<Array1<f64>> {
+    fn calc_dual_window_internal(win: &[f64], hop: usize) -> SignalResult<Array1<f64>> {
         if hop > win.len() {
             return Err(SignalError::ValueError(format!(
                 "Hop size {} is larger than window length {} => STFT not invertible!",
@@ -491,7 +491,7 @@ impl ShortTimeFft {
             return Ok(dual.clone());
         }
 
-        Self::calc_dual_canonical_window(self.win.as_slice(), self.hop)
+        calc_dual_window_internal(self.win.as_slice().expect("Failed to get slice"), self.hop)
     }
 
     /// Returns the sampling interval
@@ -688,8 +688,8 @@ impl ShortTimeFft {
         }
 
         // Get frequency bounds
-        let (q0, q1) = if self.onesided_fft() {
-            (0, self.f_pts())
+        let (q0, q1): (isize, isize) = if self.onesided_fft() {
+            (0, self.f_pts() as isize)
         } else if self.fft_mode == FftMode::Centered {
             let half = self.mfft / 2;
             (-(half as isize), (self.mfft - half) as isize)
@@ -875,7 +875,7 @@ impl ShortTimeFft {
         // Initialize output signal
         let signal_len = (k_max - k0_val) as usize;
         let mut output = Array1::zeros(signal_len);
-        let mut weight = Array1::zeros(signal_len);
+        let mut weight = Array1::<f64>::zeros(signal_len);
 
         // Process each frame
         for (p_idx, p) in (p_min..(p_min + p_num as isize)).enumerate() {
@@ -1234,7 +1234,7 @@ impl ShortTimeFft {
 
         let upper_begin = (
             (n as isize - self.m_num_mid as isize) / self.hop as isize,
-            (n as isize + self.m_num - self.m_num_mid as isize - 1) / self.hop as isize + 1,
+            ((n as isize) + (self.m_num as isize) - (self.m_num_mid as isize) - 1) / (self.hop as isize) + 1,
         );
 
         (lower_end, upper_begin)
@@ -1287,7 +1287,7 @@ pub fn closest_stft_dual_window(
     }
 
     // Calculate the canonical dual window
-    let w_d = ShortTimeFft::calc_dual_canonical_window(win, hop)?;
+    let w_d = calc_dual_window_internal(win, hop)?;
 
     // Calculate correlations
     let win_array = Array1::from_vec(win.to_vec());

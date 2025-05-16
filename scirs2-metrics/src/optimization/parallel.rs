@@ -9,6 +9,9 @@ use std::sync::Arc;
 
 use crate::error::Result;
 
+/// Type alias for a metric function that can be executed in parallel
+pub type ParallelMetricFn<S1, S2, D1, D2> = dyn Fn(&ArrayBase<S1, D1>, &ArrayBase<S2, D2>) -> Result<f64> + Send + Sync;
+
 /// Configuration for parallel metrics computation
 ///
 /// This struct provides options for controlling parallel execution
@@ -115,9 +118,7 @@ where
 pub fn compute_metrics_batch<T, S1, S2, D1, D2>(
     y_true: &ArrayBase<S1, D1>,
     y_pred: &ArrayBase<S2, D2>,
-    metric_fns: &[Box<
-        dyn Fn(&ArrayBase<S1, D1>, &ArrayBase<S2, D2>) -> Result<f64> + Send + Sync,
-    >],
+    metric_fns: &[Box<ParallelMetricFn<S1, S2, D1, D2>>],
     config: &ParallelConfig,
 ) -> Result<Vec<f64>>
 where
@@ -298,7 +299,7 @@ mod tests {
             .with_num_threads(Some(4));
 
         assert_eq!(config.min_chunk_size, 500);
-        assert_eq!(config.parallel_enabled, true);
+        assert!(config.parallel_enabled);
         assert_eq!(config.num_threads, Some(4));
     }
 

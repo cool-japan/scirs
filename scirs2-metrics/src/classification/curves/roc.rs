@@ -29,10 +29,13 @@ use ndarray::{Array1, ArrayBase, Data, Dimension};
 ///
 /// let (fpr, tpr, thresholds) = roc_curve(&y_true, &y_score).unwrap();
 /// ```
+/// Type alias for ROC curve result
+pub type ROCCurveResult = (Array1<f64>, Array1<f64>, Array1<f64>);
+
 pub fn roc_curve<S1, S2, D1, D2>(
     y_true: &ArrayBase<S1, D1>,
     y_score: &ArrayBase<S2, D2>,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>), MetricsError>
+) -> Result<ROCCurveResult, MetricsError>
 where
     S1: Data,
     S2: Data,

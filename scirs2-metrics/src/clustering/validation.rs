@@ -175,7 +175,7 @@ where
     }
 
     // Setup RNG
-    let seed = random_seed.unwrap_or_else(|| rand::random::<u64>());
+    let seed = random_seed.unwrap_or_else(rand::random::<u64>);
     let mut rng = StdRng::seed_from_u64(seed);
 
     // Get unique clusters
@@ -222,9 +222,9 @@ where
         let mut counts = vec![0; unique_labels.len()];
 
         for i in 0..n_samples {
-            let label_idx = original_labels[i] as usize;
+            let label_idx = original_labels[i];
             for j in 0..x.ncols() {
-                centroids[[label_idx, j]] = centroids[[label_idx, j]] + x[[i, j]];
+                centroids[[label_idx, j]] += x[[i, j]];
             }
             counts[label_idx] += 1;
         }
@@ -233,7 +233,7 @@ where
         for i in 0..unique_labels.len() {
             if counts[i] > 0 {
                 for j in 0..x.ncols() {
-                    centroids[[i, j]] = centroids[[i, j]] / F::from(counts[i]).unwrap();
+                    centroids[[i, j]] /= F::from(counts[i]).unwrap();
                 }
             }
         }
@@ -249,7 +249,7 @@ where
                 let mut dist = F::zero();
                 for j in 0..x.ncols() {
                     let diff = perturbed_data[[i, j]] - centroids[[label_idx, j]];
-                    dist = dist + diff * diff;
+                    dist += diff * diff;
                 }
 
                 if dist < min_dist {
@@ -266,8 +266,8 @@ where
         let mut ari_input_pred = Vec::new();
 
         for i in 0..n_samples {
-            ari_input_true.push(original_labels[i] as usize);
-            ari_input_pred.push(perturbed_labels[i] as usize);
+            ari_input_true.push(original_labels[i]);
+            ari_input_pred.push(perturbed_labels[i]);
         }
 
         let ari_true = ndarray::Array1::from_vec(ari_input_true);
@@ -463,7 +463,7 @@ where
     }
 
     // Setup RNG
-    let seed = random_seed.unwrap_or_else(|| rand::random::<u64>());
+    let seed = random_seed.unwrap_or_else(rand::random::<u64>);
     let mut rng = StdRng::seed_from_u64(seed);
 
     // Get unique clusters
@@ -511,7 +511,7 @@ where
         // Add this point to the centroid
         let centroid = centroids.get_mut(&label).unwrap();
         for j in 0..x.ncols() {
-            centroid[j] = centroid[j] + x[[i, j]];
+            centroid[j] += x[[i, j]];
         }
 
         // Increment count
@@ -523,7 +523,7 @@ where
         let count = *counts.get(&label).unwrap();
         if count > 0 {
             for j in 0..centroid.len() {
-                centroid[j] = centroid[j] / F::from(count).unwrap();
+                centroid[j] /= F::from(count).unwrap();
             }
         }
     }
@@ -557,7 +557,7 @@ where
                 let mut dist = F::zero();
                 for j in 0..x.ncols() {
                     let diff = fold_data[[i, j]] - centroid[j];
-                    dist = dist + diff * diff;
+                    dist += diff * diff;
                 }
 
                 if dist < min_dist {

@@ -778,7 +778,7 @@ mod tests {
         let q = vec![0.25, 0.25, 0.5];
 
         // Manually compute JS divergence
-        let m = vec![0.375, 0.375, 0.25]; // (p + q) / 2
+        let m = [0.375, 0.375, 0.25]; // (p + q) / 2
 
         let kl_p_m_expected = p[0] * (p[0] / m[0]).ln() + p[1] * (p[1] / m[1]).ln();
         let kl_q_m_expected =

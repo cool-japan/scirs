@@ -96,92 +96,118 @@ pub mod grid;
 pub mod hermite;
 pub mod interp1d;
 pub mod interpnd;
+pub mod local;
 pub mod multiscale;
 pub mod nurbs;
+pub mod parallel;
 pub mod penalized;
+pub mod spatial;
 pub mod spline;
 pub mod tension;
 pub mod tensor;
 pub mod utils;
+pub mod voronoi;
 
 // Re-exports for convenience
 pub use advanced::akima::{make_akima_spline, AkimaSpline};
 pub use advanced::barycentric::{
     make_barycentric_interpolator, BarycentricInterpolator, BarycentricTriangulation,
 };
-pub use advanced::kriging::{make_kriging_interpolator, CovarianceFunction, KrigingInterpolator};
 pub use advanced::enhanced_kriging::{
-    AnisotropicCovariance, BayesianKrigingBuilder, BayesianPredictionResult,
-    EnhancedKriging, EnhancedKrigingBuilder, TrendFunction,
-    make_enhanced_kriging, make_universal_kriging, make_bayesian_kriging,
+    make_bayesian_kriging, make_enhanced_kriging, make_universal_kriging, AnisotropicCovariance,
+    BayesianKrigingBuilder, BayesianPredictionResult, EnhancedKriging, EnhancedKrigingBuilder,
+    TrendFunction,
+};
+pub use advanced::enhanced_rbf::{
+    make_accurate_rbf, make_auto_rbf, make_fast_rbf, EnhancedRBFInterpolator, EnhancedRBFKernel,
+    KernelType, KernelWidthStrategy,
 };
 pub use advanced::fast_kriging::{
+    make_fixed_rank_kriging, make_hodlr_kriging, make_local_kriging, make_tapered_kriging,
     FastKriging, FastKrigingBuilder, FastKrigingMethod, FastPredictionResult,
-    make_local_kriging, make_fixed_rank_kriging, make_hodlr_kriging, make_tapered_kriging,
 };
+pub use advanced::kriging::{make_kriging_interpolator, CovarianceFunction, KrigingInterpolator};
 pub use advanced::rbf::{RBFInterpolator, RBFKernel};
-pub use advanced::enhanced_rbf::{
-    EnhancedRBFInterpolator, EnhancedRBFKernel, KernelType, KernelWidthStrategy,
-    make_auto_rbf, make_accurate_rbf, make_fast_rbf,
-};
-pub use advanced::thinplate::{ThinPlateSpline, make_thinplate_interpolator};
-pub use bezier::{BezierCurve, BezierSurface, bernstein, compute_bernstein_all};
+pub use advanced::thinplate::{make_thinplate_interpolator, ThinPlateSpline};
+pub use bezier::{bernstein, compute_bernstein_all, BezierCurve, BezierSurface};
 pub use bivariate::{
     BivariateInterpolator, BivariateSpline, RectBivariateSpline, SmoothBivariateSpline,
     SmoothBivariateSplineBuilder,
 };
+pub use boundarymode::{
+    make_antisymmetric_boundary, make_linear_gradient_boundary, make_periodic_boundary,
+    make_symmetric_boundary, make_zero_gradient_boundary, make_zero_value_boundary, BoundaryMode,
+    BoundaryParameters, BoundaryResult,
+};
 pub use bspline::{
-    BSpline, ExtrapolateMode as BSplineExtrapolateMode,
-    generate_knots, make_interp_bspline, make_lsq_bspline,
+    generate_knots, make_interp_bspline, make_lsq_bspline, BSpline,
+    ExtrapolateMode as BSplineExtrapolateMode,
+};
+pub use constrained::{
+    ConstrainedSpline, Constraint, ConstraintRegion, ConstraintType, FittingMethod,
+};
+pub use extrapolation::{
+    make_cubic_extrapolator, make_exponential_extrapolator, make_linear_extrapolator,
+    make_periodic_extrapolator, make_reflection_extrapolator, ExtrapolationMethod,
+    ExtrapolationParameters, Extrapolator,
 };
 pub use grid::{
     create_regular_grid, map_grid_to_points, resample_grid_to_grid, resample_to_grid,
     GridTransformMethod,
 };
+pub use hermite::{
+    make_hermite_spline, make_hermite_spline_with_derivatives, make_natural_hermite_spline,
+    make_periodic_hermite_spline, make_quintic_hermite_spline, DerivativeSpec, HermiteSpline,
+};
 pub use interp1d::{
-    cubic_interpolate, linear_interpolate, nearest_interpolate, pchip_interpolate, Interp1d,
-    InterpolationMethod, PchipInterpolator,
+    cubic_interpolate,
+    hyman_interpolate,
+    linear_interpolate,
+    modified_akima_interpolate,
+    monotonic_interpolate,
+    nearest_interpolate,
+    pchip_interpolate,
+    steffen_interpolate,
+    Interp1d,
+    InterpolationMethod,
+    MonotonicInterpolator,
     // Monotonic interpolation methods
-    MonotonicMethod, MonotonicInterpolator, monotonic_interpolate,
-    hyman_interpolate, steffen_interpolate, modified_akima_interpolate,
+    MonotonicMethod,
+    PchipInterpolator,
 };
 pub use interpnd::{
     make_interp_nd, make_interp_scattered, map_coordinates, ExtrapolateMode, GridType,
     RegularGridInterpolator, ScatteredInterpolator,
 };
-pub use nurbs::{
-    NurbsCurve, NurbsSurface, make_nurbs_circle, make_nurbs_sphere,
+pub use local::mls::{MovingLeastSquares, PolynomialBasis, WeightFunction};
+pub use local::polynomial::{
+    make_loess, make_robust_loess, LocalPolynomialConfig, LocalPolynomialRegression,
+    RegressionResult,
 };
-pub use spline::{make_interp_spline, CubicSpline, BoundaryCondition};
+pub use multiscale::{make_adaptive_bspline, MultiscaleBSpline, RefinementCriterion};
+pub use nurbs::{make_nurbs_circle, make_nurbs_sphere, NurbsCurve, NurbsSurface};
+pub use parallel::{
+    make_parallel_loess, make_parallel_mls, make_parallel_robust_loess, ParallelConfig,
+    ParallelEvaluate, ParallelLocalPolynomialRegression, ParallelMovingLeastSquares,
+};
+pub use penalized::{cross_validate_lambda, pspline_with_custom_penalty, PSpline, PenaltyType};
+pub use spatial::balltree::BallTree;
+pub use spatial::kdtree::KdTree;
+pub use spline::{make_interp_spline, BoundaryCondition, CubicSpline};
+pub use tension::{make_tension_spline, TensionSpline};
 pub use tensor::{
     lagrange_tensor_interpolate, tensor_product_interpolate, LagrangeTensorInterpolator,
     TensorProductInterpolator,
 };
-pub use penalized::{
-    PSpline, PenaltyType, pspline_with_custom_penalty, cross_validate_lambda,
-};
-pub use constrained::{
-    ConstrainedSpline, Constraint, ConstraintType, ConstraintRegion, FittingMethod,
-};
-pub use tension::{
-    TensionSpline, make_tension_spline,
-};
-pub use hermite::{
-    HermiteSpline, DerivativeSpec, make_hermite_spline, make_hermite_spline_with_derivatives,
-    make_natural_hermite_spline, make_periodic_hermite_spline, make_quintic_hermite_spline,
-};
-pub use multiscale::{
-    MultiscaleBSpline, RefinementCriterion, make_adaptive_bspline,
-};
-pub use extrapolation::{
-    ExtrapolationMethod, ExtrapolationParameters, Extrapolator,
-    make_linear_extrapolator, make_periodic_extrapolator, make_reflection_extrapolator,
-    make_cubic_extrapolator, make_exponential_extrapolator,
-};
-pub use boundarymode::{
-    BoundaryMode, BoundaryParameters, BoundaryResult,
-    make_zero_gradient_boundary, make_zero_value_boundary, make_periodic_boundary,
-    make_symmetric_boundary, make_antisymmetric_boundary, make_linear_gradient_boundary,
+pub use voronoi::{
+    constant_value_extrapolation, inverse_distance_extrapolation, linear_gradient_extrapolation,
+    make_laplace_interpolator, make_natural_neighbor_interpolator,
+    make_parallel_laplace_interpolator, make_parallel_natural_neighbor_interpolator,
+    make_parallel_sibson_interpolator, make_sibson_interpolator, nearest_neighbor_extrapolation,
+    Extrapolation, ExtrapolationMethod as VoronoiExtrapolationMethod, ExtrapolationParams,
+    GradientEstimation, InterpolateWithGradient, InterpolateWithGradientResult,
+    InterpolationMethod as VoronoiInterpolationMethod, NaturalNeighborInterpolator,
+    ParallelConfig as VoronoiParallelConfig, ParallelNaturalNeighborInterpolator,
 };
 
 #[cfg(test)]

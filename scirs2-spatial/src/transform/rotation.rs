@@ -4,7 +4,7 @@
 //! including quaternions, rotation matrices, Euler angles, and axis-angle representations.
 
 use crate::error::{SpatialError, SpatialResult};
-use ndarray::{array, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{array, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::Float;
 use std::f64::consts::PI;
 use std::fmt;
@@ -102,6 +102,18 @@ impl EulerConvention {
 pub struct Rotation {
     /// Quaternion representation [w, x, y, z] where w is the scalar part
     quat: Array1<f64>,
+}
+
+// Helper function to create an array from values
+fn euler_array(x: f64, y: f64, z: f64) -> Array1<f64> {
+    array![x, y, z]
+}
+
+// Helper function to create a rotation from Euler angles
+fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResult<Rotation> {
+    let angles = euler_array(x, y, z);
+    let angles_view = angles.view();
+    Rotation::from_euler(&angles_view, convention)
 }
 
 impl Rotation {
@@ -420,7 +432,7 @@ impl Rotation {
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([0.0, 0.0, PI/2.0,"xyz").unwrap();
     /// let matrix = rot.as_matrix();
     /// // Should approximately be a 90 degree rotation around Z
     /// ```
@@ -596,7 +608,7 @@ impl Rotation {
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = Rotation::from_euler(&array![PI/2.0, 0.0, 0.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([PI/2.0, 0.0, 0.0,"xyz").unwrap();
     /// let rotvec = rot.as_rotvec();
     /// // Should be approximately [PI/2, 0, 0]
     /// ```
@@ -644,7 +656,7 @@ impl Rotation {
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     ///
-    /// let rot = Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([0.0, 0.0, 0.0,"xyz").unwrap();
     /// let quat = rot.as_quat();
     /// // Should be [1, 0, 0, 0] (identity rotation)
     /// ```
@@ -665,7 +677,7 @@ impl Rotation {
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = Rotation::from_euler(&array![0.0, 0.0, PI/4.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([0.0, 0.0, PI/4.0,"xyz").unwrap();
     /// let rot_inv = rot.inv();
     /// ```
     pub fn inv(&self) -> Rotation {
@@ -695,7 +707,7 @@ impl Rotation {
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([0.0, 0.0, PI/2.0,"xyz").unwrap();
     /// let vec = array![1.0, 0.0, 0.0];
     /// let rotated = rot.apply(&vec);
     /// // Should be approximately [0, 1, 0]
@@ -727,7 +739,7 @@ impl Rotation {
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap();
+    /// let rot = rotation_from_euler([0.0, 0.0, PI/2.0,"xyz").unwrap();
     /// let vecs = array![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
     /// let rotated = rot.apply_multiple(&vecs.view());
     /// // First row should be approximately [0, 1, 0]
@@ -760,8 +772,8 @@ impl Rotation {
     /// use std::f64::consts::PI;
     ///
     /// // Rotate 90 degrees around X, then 90 degrees around Y
-    /// let rot1 = Rotation::from_euler(&array![PI/2.0, 0.0, 0.0], "xyz").unwrap();
-    /// let rot2 = Rotation::from_euler(&array![0.0, PI/2.0, 0.0], "xyz").unwrap();
+    /// let rot1 = rotation_from_euler([PI/2.0, 0.0, 0.0,"xyz").unwrap();
+    /// let rot2 = rotation_from_euler([0.0, PI/2.0, 0.0,"xyz").unwrap();
     /// let combined = rot1.compose(&rot2);
     /// ```
     pub fn compose(&self, other: &Rotation) -> Rotation {
@@ -934,8 +946,8 @@ mod tests {
     #[test]
     fn test_rotation_compose() {
         // 90 degrees rotation around X, then 90 degrees around Y
-        let rot_x = Rotation::from_euler(&array![PI / 2.0, 0.0, 0.0], "xyz").unwrap();
-        let rot_y = Rotation::from_euler(&array![0.0, PI / 2.0, 0.0], "xyz").unwrap();
+        let rot_x = rotation_from_euler(PI / 2.0, 0.0, 0.0, "xyz").unwrap();
+        let rot_y = rotation_from_euler(0.0, PI / 2.0, 0.0, "xyz").unwrap();
 
         let composed = rot_x.compose(&rot_y);
 
@@ -951,7 +963,7 @@ mod tests {
     #[test]
     fn test_rotation_inv() {
         // 45 degrees rotation around Z axis
-        let rot = Rotation::from_euler(&array![0.0, 0.0, PI / 4.0], "xyz").unwrap();
+        let rot = rotation_from_euler(0.0, 0.0, PI / 4.0, "xyz").unwrap();
         let rot_inv = rot.inv();
 
         let vec = array![1.0, 0.0, 0.0];
@@ -973,7 +985,7 @@ mod tests {
         // Convert to matrix and back to Euler
         let matrix = rot.as_matrix();
         let rot_from_matrix = Rotation::from_matrix(&matrix.view()).unwrap();
-        let angles_back = rot_from_matrix.as_euler("xyz").unwrap();
+        let _angles_back = rot_from_matrix.as_euler("xyz").unwrap();
 
         // Allow for different but equivalent representations
         let vec = array![1.0, 2.0, 3.0];

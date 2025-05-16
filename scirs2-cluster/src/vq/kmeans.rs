@@ -2,11 +2,14 @@
 
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
-use rand::{rngs::ThreadRng, Rng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::fmt::Debug;
 
 use super::{euclidean_distance, vq};
 use crate::error::{ClusteringError, Result};
+
+// Re-export kmeans2 related types and functions
+pub use super::kmeans2::*;
 
 /// Options for K-means clustering
 #[derive(Debug, Clone)]
@@ -296,7 +299,7 @@ where
         )));
     }
 
-    let mut rng: ThreadRng = rand::rng();
+    let mut rng = rand::rng();
     let mut centroids = Array2::zeros((k, n_features));
     let mut selected_indices = Vec::with_capacity(k);
 
@@ -347,7 +350,7 @@ where
         )));
     }
 
-    let mut rng: ThreadRng = rand::rng();
+    let mut rng = rand::rng();
 
     let mut centroids = Array2::zeros((k, n_features));
 
@@ -453,7 +456,7 @@ where
         )));
     }
 
-    let mut rng: ThreadRng = rand::rng();
+    let mut rng = rand::rng();
 
     // Hyperparameters for K-means||
     let l = F::from(5.0).unwrap(); // Multiplication factor for oversampling

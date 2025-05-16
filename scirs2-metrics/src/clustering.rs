@@ -2455,7 +2455,7 @@ mod tests {
         // This specific clustering has NMI of 0.0 (no mutual information beyond random chance)
         // but we should check that the function works and returns a valid value
         let nmi = normalized_mutual_info_score(&labels_true, &labels_pred, "arithmetic").unwrap();
-        assert!(nmi >= 0.0 && nmi <= 1.0);
+        assert!((0.0..=1.0).contains(&nmi));
 
         // Random clustering (each sample in a different cluster)
         let labels_true = array![0, 0, 0, 0, 1, 1, 1, 1];
@@ -2463,7 +2463,7 @@ mod tests {
 
         // NMI value can vary but should be valid
         let nmi = normalized_mutual_info_score(&labels_true, &labels_pred, "arithmetic").unwrap();
-        assert!(nmi >= 0.0 && nmi <= 1.0);
+        assert!((0.0..=1.0).contains(&nmi));
 
         // Test with different label types
         let labels_true_str = array!["cat", "cat", "dog", "dog"];
@@ -2505,7 +2505,7 @@ mod tests {
         assert!(ami <= nmi);
 
         // AMI should be valid
-        assert!(ami >= 0.0 && ami <= 1.0);
+        assert!((0.0..=1.0).contains(&ami));
 
         // Special case: single cluster in true or pred
         let labels_true_single = array![0, 0, 0, 0];
@@ -2595,7 +2595,7 @@ mod tests {
         let score = fowlkes_mallows_score(&labels_true, &labels_pred).unwrap();
         // For random assignment, the score may vary depending on the implementation
         // Just verify that it's a valid score between 0 and 1
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
 
         // Special case: all samples in individual clusters
         let labels_individual_true = array![0, 1, 2, 3];
@@ -2764,7 +2764,7 @@ mod tests {
 
         // The optimal k should be close to 3 (the actual number of clusters)
         // But with only 2 references, there's some randomness, so we're a bit lenient
-        assert!(optimal_k >= 2 && optimal_k <= 4);
+        assert!((2..=4).contains(&optimal_k));
 
         // Test invalid inputs
         let empty_range: Vec<usize> = vec![];

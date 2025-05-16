@@ -31,7 +31,7 @@ use std::cmp;
 use crate::error::{SignalError, SignalResult};
 
 /// Edge handling mode for median filtering
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EdgeMode {
     /// Reflect the signal at boundaries
     Reflect,

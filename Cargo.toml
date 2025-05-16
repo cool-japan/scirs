@@ -26,7 +26,7 @@ members = [
     "scirs2-text",
     "scirs2-vision",
     "scirs2-series",
-    "scirs2-autograd", "wright_omega_demo",
+    "scirs2-autograd",
 ]
 resolver = "2"
 

@@ -30,11 +30,14 @@ use ndarray::{Array1, ArrayBase, Data, Dimension};
 ///
 /// let (prob_true, prob_pred, counts) = calibration_curve(&y_true, &y_prob, Some(5)).unwrap();
 /// ```
+/// Type alias for calibration curve result
+pub type CalibrationCurveResult = (Array1<f64>, Array1<f64>, Array1<usize>);
+
 pub fn calibration_curve<S1, S2, D1, D2>(
     y_true: &ArrayBase<S1, D1>,
     y_prob: &ArrayBase<S2, D2>,
     n_bins: Option<usize>,
-) -> Result<(Array1<f64>, Array1<f64>, Array1<usize>), MetricsError>
+) -> Result<CalibrationCurveResult, MetricsError>
 where
     S1: Data,
     S2: Data,

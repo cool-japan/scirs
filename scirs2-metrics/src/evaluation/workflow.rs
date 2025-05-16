@@ -10,6 +10,12 @@ use std::fmt::Debug;
 
 use crate::error::{MetricsError, Result};
 
+/// Type alias for preprocessor function
+pub type PreprocessorFn<X> = dyn Fn(&X) -> Result<X>;
+
+/// Type alias for trainer function
+pub type TrainerFn<X, Y> = dyn Fn(&X, &Y) -> Result<Box<dyn ModelEvaluator<X, Y>>>;
+
 /// ModelEvaluator trait for evaluating a single model on a dataset
 ///
 /// This trait defines the interface for model evaluation, which can be
@@ -43,6 +49,12 @@ pub struct EvaluationReport {
     pub metric_names: Vec<String>,
     /// Results as a 3D matrix (model × dataset × metric)
     results: HashMap<(String, String, String), f64>,
+}
+
+impl Default for EvaluationReport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EvaluationReport {
@@ -310,7 +322,7 @@ impl EvaluationReport {
                 report.push('\n');
             }
 
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report
@@ -445,6 +457,7 @@ impl<X, Y> BatchEvaluator<X, Y> {
 /// ).unwrap();
 /// # */
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn learning_curve<X, Y, F>(
     _model_evaluator: F,
     _x_train: &X,
@@ -517,9 +530,9 @@ pub struct PipelineEvaluator<X, Y> {
     /// Name of the pipeline
     name: String,
     /// Preprocessing function
-    preprocessor: Box<dyn Fn(&X) -> Result<X>>,
+    preprocessor: Box<PreprocessorFn<X>>,
     /// Model training function
-    trainer: Box<dyn Fn(&X, &Y) -> Result<Box<dyn ModelEvaluator<X, Y>>>>,
+    trainer: Box<TrainerFn<X, Y>>,
 }
 
 impl<X, Y> PipelineEvaluator<X, Y> {

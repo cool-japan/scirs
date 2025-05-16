@@ -136,7 +136,7 @@ fn tv_denoise_1d_chambolle(
     let n = signal.len();
 
     // Dual variable (related to gradient)
-    let mut p = Array1::zeros(n - 1);
+    let mut p = Array1::<f64>::zeros(n - 1);
 
     // Result initialization
     let mut denoised = signal.clone();
@@ -242,7 +242,7 @@ fn tv_denoise_1d_fista(
 
         // Compute new momentum factor
         let t_prev = t;
-        t = (1.0 + (1.0 + 4.0 * t_prev * t_prev).sqrt()) / 2.0;
+        t = (1.0 + f64::sqrt(1.0 + 4.0 * t_prev * t_prev)) / 2.0;
 
         // Update momentum variable
         let momentum = (t_prev - 1.0) / t;
@@ -466,7 +466,7 @@ fn tv_denoise_2d_chambolle(
                         let new_p1 = p1[[i, j]] + dp1;
                         let new_p2 = p2[[i, j]] + dp2;
 
-                        let norm = (new_p1 * new_p1 + new_p2 * new_p2).sqrt().max(1.0);
+                        let norm = f64::max((new_p1 * new_p1 + new_p2 * new_p2).sqrt(), 1.0);
 
                         p1[[i, j]] = new_p1 / norm;
                         p2[[i, j]] = new_p2 / norm;
@@ -540,7 +540,7 @@ fn tv_denoise_2d_fista(
 
         // Compute new momentum factor
         let t_prev = t;
-        t = (1.0 + (1.0 + 4.0 * t_prev * t_prev).sqrt()) / 2.0;
+        t = (1.0 + f64::sqrt(1.0 + 4.0 * t_prev * t_prev)) / 2.0;
 
         // Update momentum variable
         let momentum = (t_prev - 1.0) / t;
@@ -731,7 +731,7 @@ fn tv_denoise_color_vectorial(
     let mut prev_result = result.clone();
 
     // Dual variables
-    let mut p = Array3::zeros((height, width, 2 * channels));
+    let mut p = Array3::<f64>::zeros((height, width, 2 * channels));
 
     // Step size
     let mut step = config.initial_step;
@@ -742,7 +742,7 @@ fn tv_denoise_color_vectorial(
         prev_result.assign(&result);
 
         // Compute divergence of p
-        let mut div_p = Array3::zeros((height, width, channels));
+        let mut div_p = Array3::<f64>::zeros((height, width, channels));
 
         for c in 0..channels {
             // X-component index in the dual variable
@@ -825,7 +825,7 @@ fn tv_denoise_color_vectorial(
                             norm_squared += new_p * new_p;
                         }
 
-                        let norm = norm_squared.sqrt().max(1.0);
+                        let norm = f64::max(f64::sqrt(norm_squared), 1.0);
 
                         // Update with normalization
                         for pc in 0..(2 * channels) {
@@ -1105,7 +1105,7 @@ pub fn tv_inpaint(
                         let new_p1 = p1[[i, j]] + step * grad1[[i, j]];
                         let new_p2 = p2[[i, j]] + step * grad2[[i, j]];
 
-                        let norm = (new_p1 * new_p1 + new_p2 * new_p2).sqrt().max(1.0);
+                        let norm = f64::max((new_p1 * new_p1 + new_p2 * new_p2).sqrt(), 1.0);
 
                         p1[[i, j]] = new_p1 / norm;
                         p2[[i, j]] = new_p2 / norm;

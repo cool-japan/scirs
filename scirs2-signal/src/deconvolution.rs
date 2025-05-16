@@ -413,7 +413,7 @@ pub fn richardson_lucy_deconvolution_1d(
         prev_estimate.assign(&estimate);
 
         // Compute the predicted signal
-        let predicted = convolve::convolve(&estimate, &normalized_psf, "same")?;
+        let predicted = convolve::convolve(estimate.as_slice(), normalized_psf.as_slice(), "same")?;
 
         // Compute the correction factor
         let mut correction = Array1::zeros(pad_len);
@@ -423,7 +423,7 @@ pub fn richardson_lucy_deconvolution_1d(
         }
 
         // Apply the correction
-        let correction_blurred = convolve::convolve(&correction, &flipped_psf, "same")?;
+        let correction_blurred = convolve::convolve(correction.as_slice(), flipped_psf.as_slice(), "same")?;
         for i in 0..pad_len {
             estimate[i] *= correction_blurred[i];
         }
@@ -527,14 +527,14 @@ pub fn clean_deconvolution_1d(
     let mut residual = padded_signal.clone();
 
     // Normalize the PSF
-    let psf_max = padded_psf.iter().fold(0.0, |m, &x| m.max(x.abs()));
+    let psf_max = padded_psf.iter().fold(0.0, |m, &x| f64::max(m, x.abs()));
     let mut normalized_psf = padded_psf.clone();
     if psf_max > 0.0 {
         normalized_psf /= psf_max;
     }
 
     // Calculate initial peak value in the signal
-    let signal_peak = padded_signal.iter().fold(0.0, |m, &x| m.max(x.abs()));
+    let signal_peak = padded_signal.iter().fold(0.0, |m, &x| f64::max(m, x.abs()));
     let stop_threshold = signal_peak * threshold;
 
     // CLEAN iterative algorithm
@@ -564,10 +564,11 @@ pub fn clean_deconvolution_1d(
 
     // Convolve model with a restoring beam (Gaussian)
     let restoring_beam = create_gaussian_kernel((psf.len() / 2).max(3));
-    let restored = convolve::convolve(&model, &restoring_beam, "same")?;
+    let restored_vec = convolve::convolve(model.as_slice(), restoring_beam.as_slice(), "same")?;
+    let restored = Array1::from_vec(restored_vec);
 
     // Add residual back to the model
-    let result = &restored + &residual;
+    let result = restored + residual;
 
     // Extract final result
     let mut deconvolved = Array1::zeros(n);
@@ -660,7 +661,7 @@ pub fn mem_deconvolution_1d(
         prev_model.assign(&model);
 
         // Calculate model response
-        let response = convolve::convolve(&model, &normalized_psf, "same")?;
+        let response = convolve::convolve(model.as_slice(), normalized_psf.as_slice(), "same")?;
 
         // Calculate chi-squared
         let mut chi_squared = 0.0;
@@ -674,7 +675,7 @@ pub fn mem_deconvolution_1d(
         if chi_squared < target_chi_squared {
             lagrange_multiplier *= 0.9;
         } else {
-            lagrange_multiplier = (lagrange_multiplier * 1.1).max(1e-6);
+            lagrange_multiplier = f64::max(lagrange_multiplier * 1.1, 1e-6);
         }
 
         // Update the model using gradient descent on the entropy
@@ -804,7 +805,7 @@ pub fn blind_deconvolution_1d(
             richardson_lucy_deconvolution_1d(&padded_signal, &estimated_signal, Some(5), config)?;
 
         // Constrain PSF to its expected size
-        let mut centered_psf = Array1::zeros(pad_len);
+        let mut centered_psf = Array1::<f64>::zeros(pad_len);
         let start = (pad_len - psf_size) / 2;
         let mut psf_cropped = temp_psf.slice(s![start..start + psf_size]).to_owned();
 
@@ -1483,8 +1484,8 @@ fn gaussian_filter_1d(signal: &Array1<f64>, sigma: f64) -> Array1<f64> {
 
     let kernel = create_gaussian_kernel(kernel_size);
 
-    match convolve::convolve(signal, &kernel, "same") {
-        Ok(filtered) => filtered,
+    match convolve::convolve(signal.as_slice(), kernel.as_slice(), "same") {
+        Ok(filtered) => Array1::from_vec(filtered),
         Err(_) => signal.clone(),
     }
 }
@@ -1679,7 +1680,7 @@ pub fn estimate_regularization_param(
         }
 
         // Compute residual sum of squares (RSS)
-        let predicted = convolve::convolve(&solution, &padded_psf, "same")?;
+        let predicted = convolve::convolve(solution.as_slice(), padded_psf.as_slice(), "same")?;
         let mut rss = 0.0;
 
         for i in 0..n {

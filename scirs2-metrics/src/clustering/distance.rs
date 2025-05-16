@@ -247,7 +247,7 @@ where
                     _ => unreachable!(), // Already checked above
                 };
 
-                total_distance = total_distance + distance;
+                total_distance += distance;
                 count += 1;
             }
         }

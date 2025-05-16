@@ -167,6 +167,111 @@ where
     ))
 }
 
+/// Convolve two 2D arrays
+///
+/// # Arguments
+///
+/// * `a` - First input array
+/// * `v` - Second input array (kernel)
+/// * `mode` - Convolution mode ("full", "same", or "valid")
+///
+/// # Returns
+///
+/// * 2D convolution result
+pub fn convolve2d(
+    a: &ndarray::Array2<f64>,
+    v: &ndarray::Array2<f64>,
+    mode: &str,
+) -> SignalResult<ndarray::Array2<f64>> {
+    use ndarray::Array2;
+    
+    let (n_rows_a, n_cols_a) = a.dim();
+    let (n_rows_v, n_cols_v) = v.dim();
+    
+    let (n_rows_out, n_cols_out) = match mode {
+        "full" => (n_rows_a + n_rows_v - 1, n_cols_a + n_cols_v - 1),
+        "same" => (n_rows_a, n_cols_a),
+        "valid" => {
+            if n_rows_a < n_rows_v || n_cols_a < n_cols_v {
+                return Err(SignalError::ValueError(
+                    "Cannot use 'valid' mode when first array is smaller than second array".to_string(),
+                ));
+            }
+            (n_rows_a - n_rows_v + 1, n_cols_a - n_cols_v + 1)
+        }
+        _ => return Err(SignalError::ValueError(format!("Unknown mode: {}", mode))),
+    };
+    
+    let mut result = Array2::<f64>::zeros((n_rows_out, n_cols_out));
+    
+    // Perform the convolution
+    match mode {
+        "full" => {
+            for i in 0..n_rows_out {
+                for j in 0..n_cols_out {
+                    let mut sum = 0.0;
+                    
+                    for k in 0..n_rows_v {
+                        for l in 0..n_cols_v {
+                            let row_a = i as isize - k as isize;
+                            let col_a = j as isize - l as isize;
+                            
+                            if row_a >= 0 && row_a < n_rows_a as isize &&
+                               col_a >= 0 && col_a < n_cols_a as isize {
+                                sum += a[[row_a as usize, col_a as usize]] * v[[k, l]];
+                            }
+                        }
+                    }
+                    
+                    result[[i, j]] = sum;
+                }
+            }
+        }
+        "same" => {
+            let pad_rows = n_rows_v / 2;
+            let pad_cols = n_cols_v / 2;
+            
+            for i in 0..n_rows_a {
+                for j in 0..n_cols_a {
+                    let mut sum = 0.0;
+                    
+                    for k in 0..n_rows_v {
+                        for l in 0..n_cols_v {
+                            let row_a = i as isize + k as isize - pad_rows as isize;
+                            let col_a = j as isize + l as isize - pad_cols as isize;
+                            
+                            if row_a >= 0 && row_a < n_rows_a as isize &&
+                               col_a >= 0 && col_a < n_cols_a as isize {
+                                sum += a[[row_a as usize, col_a as usize]] * v[[k, l]];
+                            }
+                        }
+                    }
+                    
+                    result[[i, j]] = sum;
+                }
+            }
+        }
+        "valid" => {
+            for i in 0..n_rows_out {
+                for j in 0..n_cols_out {
+                    let mut sum = 0.0;
+                    
+                    for k in 0..n_rows_v {
+                        for l in 0..n_cols_v {
+                            sum += a[[i + k, j + l]] * v[[k, l]];
+                        }
+                    }
+                    
+                    result[[i, j]] = sum;
+                }
+            }
+        }
+        _ => return Err(SignalError::ValueError(format!("Unknown mode: {}", mode))),
+    }
+    
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,6 +14,12 @@ use super::PlottingBackend;
 /// A struct for rendering visualizations using plotters
 pub struct PlottersBackend;
 
+impl Default for PlottersBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlottersBackend {
     /// Create a new plotters backend
     pub fn new() -> Self {

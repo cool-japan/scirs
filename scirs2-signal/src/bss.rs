@@ -7,8 +7,10 @@
 use crate::error::{SignalError, SignalResult};
 use crate::utils;
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use ndarray_linalg::{Eigh, Solve, SVD, UPLO};
-use rand::{thread_rng, Rng};
+// Use scirs2-linalg for linear algebra operations
+use ndarray_linalg::SVD;
+use scirs2_linalg::{eigh, solve, solve_multiple};
+use rand::{Rng, rngs::StdRng, SeedableRng};
 use rand_distr::{Distribution, Normal};
 use std::f64::consts::PI;
 
@@ -117,7 +119,7 @@ pub fn pca(signals: &Array2<f64>, config: &BssConfig) -> SignalResult<(Array2<f6
     let cov = centered.dot(&centered.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
-    let (eigvals, eigvecs) = match cov.eigh(UPLO::Lower) {
+    let (eigvals, eigvecs) = match eigh(&cov.view()) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -164,7 +166,7 @@ pub fn pca(signals: &Array2<f64>, config: &BssConfig) -> SignalResult<(Array2<f6
     let sources = transform.t().dot(&centered);
 
     // Calculate the mixing matrix (transform)
-    let mixing = transform.clone();
+    let mixing = transform.to_owned();
 
     Ok((sources, mixing))
 }
@@ -229,7 +231,7 @@ pub fn ica(
 
     // Calculate mixing matrix
     // A = W^-1 * whitening_matrix^-1
-    let ica_mixing = match unmixing.solve(&Array2::eye(unmixing.dim().0)) {
+    let ica_mixing = match solve_multiple(&unmixing.view(), &Array2::eye(unmixing.dim().0).view()) {
         Ok(inv) => inv,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -238,7 +240,7 @@ pub fn ica(
         }
     };
 
-    let whitening_inv = match whitening_matrix.solve(&Array2::eye(whitening_matrix.dim().0)) {
+    let whitening_inv = match solve_multiple(&whitening_matrix.view(), &Array2::eye(whitening_matrix.dim().0).view()) {
         Ok(inv) => inv,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -270,7 +272,7 @@ fn whiten_signals(signals: &Array2<f64>) -> SignalResult<(Array2<f64>, Array2<f6
     let cov = signals.dot(&signals.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
-    let (eigvals, eigvecs) = match cov.eigh(UPLO::Lower) {
+    let (eigvals, eigvecs) = match eigh(&cov.view()) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -320,9 +322,9 @@ fn fast_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -335,15 +337,27 @@ fn fast_ica(
     }
 
     // Function to apply nonlinearity and its derivative
-    let (g, g_prime) = match nonlinearity {
-        NonlinearityFunction::Logistic => (|x: f64| x.tanh(), |x: f64| 1.0 - x.tanh().powi(2)),
-        NonlinearityFunction::Exponential => (
-            |x: f64| x * (-x * x / 2.0).exp(),
-            |x: f64| (-x * x / 2.0).exp() * (1.0 - x * x),
+    let (g, g_prime): (Box<dyn Fn(f64) -> f64>, Box<dyn Fn(f64) -> f64>) = match nonlinearity {
+        NonlinearityFunction::Logistic => (
+            Box::new(|x: f64| x.tanh()),
+            Box::new(|x: f64| 1.0 - x.tanh().powi(2)),
         ),
-        NonlinearityFunction::Cubic => (|x: f64| x.powi(3), |x: f64| 3.0 * x.powi(2)),
-        NonlinearityFunction::Tanh => (|x: f64| x.tanh(), |x: f64| 1.0 - x.tanh().powi(2)),
-        NonlinearityFunction::Cosh => (|x: f64| x.tanh(), |x: f64| 1.0 - x.tanh().powi(2)),
+        NonlinearityFunction::Exponential => (
+            Box::new(|x: f64| x * (-x * x / 2.0).exp()),
+            Box::new(|x: f64| (-x * x / 2.0).exp() * (1.0 - x * x)),
+        ),
+        NonlinearityFunction::Cubic => (
+            Box::new(|x: f64| x.powi(3)),
+            Box::new(|x: f64| 3.0 * x.powi(2)),
+        ),
+        NonlinearityFunction::Tanh => (
+            Box::new(|x: f64| x.tanh()),
+            Box::new(|x: f64| 1.0 - x.tanh().powi(2)),
+        ),
+        NonlinearityFunction::Cosh => (
+            Box::new(|x: f64| x.tanh()),
+            Box::new(|x: f64| 1.0 - x.tanh().powi(2)),
+        ),
     };
 
     // Apply FastICA algorithm (deflation approach)
@@ -354,7 +368,8 @@ fn fast_ica(
             let mut wp = w.slice_mut(s![p, ..]).to_owned();
 
             // Normalize the initial vector
-            let norm = (wp.dot(&wp)).sqrt();
+            let dot_product = wp.dot(&wp);
+            let norm = f64::sqrt(dot_product);
             if norm > 0.0 {
                 wp /= norm;
             }
@@ -455,7 +470,7 @@ fn fast_ica(
 
             // Decorrelate weights (symmetric decorrelation)
             let ww_t = w.dot(&w.t());
-            let (eigvals, eigvecs) = match ww_t.eigh(UPLO::Lower) {
+            let (eigvals, eigvecs) = match eigh(&ww_t.view()) {
                 Ok((vals, vecs)) => (vals, vecs),
                 Err(_) => {
                     return Err(SignalError::Compute(
@@ -523,9 +538,9 @@ fn infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -623,7 +638,7 @@ fn jade_ica(
 
     // Use PCA as initial guess
     let (pca_sources, pca_mixing) = pca(signals, config)?;
-    let pca_unmixing = match pca_mixing.solve(&Array2::eye(n_signals)) {
+    let pca_unmixing = match solve_multiple(&pca_mixing.view(), &Array2::eye(n_signals).view()) {
         Ok(inv) => inv.slice(s![0..n_components, ..]).to_owned(),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -763,9 +778,9 @@ fn extended_infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -893,9 +908,9 @@ pub fn nmf(
 
     // Initialize random W and H matrices
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     let mut w = Array2::zeros((n_signals, n_components));
@@ -1041,9 +1056,9 @@ pub fn sparse_component_analysis(
 
             // Regularized least squares
             let regularized =
-                &sourcest_sources + &(Array2::eye(n_components) * config.regularization);
+                &sourcest_sources + &(Array2::<f64>::eye(n_components) * config.regularization);
 
-            match regularized.solve(&sourcest_target) {
+            match solve(&regularized.view(), &sourcest_target.view()) {
                 Ok(solution) => {
                     for j in 0..n_components {
                         mixing[[i, j]] = solution[j];
@@ -1143,7 +1158,7 @@ pub fn joint_bss(
     }
 
     // Perform joint diagonalization on the covariance matrices
-    let (eigvals, eigvecs) = match joint_cov.eigh(UPLO::Lower) {
+    let (eigvals, eigvecs) = match eigh(&joint_cov.view()) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1172,7 +1187,7 @@ pub fn joint_bss(
         extracted_sources.push(sources);
 
         // Calculate mixing matrix (pseudoinverse of unmixing)
-        let (u, s, vt) = match unmixing.svd(true, true) {
+        let (u, s, vt) = match unmixing.svd() {
             Ok((u, s, vt)) => (u, s, vt),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1320,7 +1335,7 @@ pub fn joint_diagonalization(
     let sources = w.dot(&centered);
 
     // Calculate mixing matrix (pseudoinverse of w)
-    let (u, s, vt) = match w.svd(true, true) {
+    let (u, s, vt) = match w.svd() {
         Ok((u, s, vt)) => (u, s, vt),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1525,7 +1540,7 @@ pub fn estimate_source_count(signals: &Array2<f64>, threshold: f64) -> SignalRes
     let cov = centered.dot(&centered.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
-    let eigvals = match cov.eigh(UPLO::Lower) {
+    let eigvals = match eigh(&cov.view()) {
         Ok((vals, _)) => vals,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1600,9 +1615,9 @@ pub fn kernel_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     let normal = Normal::new(0.0, 1.0).unwrap();
@@ -1728,7 +1743,7 @@ pub fn kernel_ica(
 
         // Decorrelate using symmetric decorrelation
         let ww_t = w.dot(&w.t());
-        let (eigvals, eigvecs) = match ww_t.eigh(UPLO::Lower) {
+        let (eigvals, eigvecs) = match eigh(&ww_t.view()) {
             Ok((vals, vecs)) => (vals, vecs),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1762,7 +1777,7 @@ pub fn kernel_ica(
     let unmixing = w.dot(&pca_mixing.slice(s![.., 0..n_components]).t());
 
     // Calculate mixing matrix (pseudoinverse of unmixing)
-    let (u, s, vt) = match unmixing.svd(true, true) {
+    let (u, s, vt) = match unmixing.svd() {
         Ok((u, s, vt)) => (u, s, vt),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1808,9 +1823,9 @@ pub fn multivariate_emd(
     // Generate direction vectors on a hypersphere
     let mut directions = Vec::with_capacity(n_directions);
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64(seed)
+        rand::rngs::StdRng::from_seed([seed as u8; 32])
     } else {
-        rand::rngs::StdRng::from_entropy()
+        rand::rngs::StdRng::from_rng(rand::thread_rng()).unwrap()
     };
 
     for _ in 0..n_directions {

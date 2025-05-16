@@ -334,10 +334,7 @@ where
     }
 
     fn supports_precision(&self, _precision: Precision) -> bool {
-        match _precision {
-            Precision::Single | Precision::Double => true,
-            _ => false,
-        }
+        matches!(_precision, Precision::Single | Precision::Double)
     }
 }
 

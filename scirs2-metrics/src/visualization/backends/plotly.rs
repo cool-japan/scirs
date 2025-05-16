@@ -14,6 +14,12 @@ use super::PlottingBackend;
 /// A struct for rendering visualizations using plotly
 pub struct PlotlyBackend;
 
+impl Default for PlotlyBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlotlyBackend {
     /// Create a new plotly backend
     pub fn new() -> Self {

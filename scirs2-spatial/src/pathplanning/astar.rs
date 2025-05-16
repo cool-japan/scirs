@@ -12,7 +12,7 @@
 
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ndarray::ArrayView1;
@@ -46,7 +46,7 @@ impl<N> Path<N> {
 }
 
 /// A node in the search graph
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub struct Node<N: Clone + Eq + Hash> {
     /// The state represented by this node
     pub state: N,
@@ -80,6 +80,8 @@ impl<N: Clone + Eq + Hash> PartialEq for Node<N> {
         self.state == other.state
     }
 }
+
+impl<N: Clone + Eq + Hash> Eq for Node<N> {}
 
 // Custom ordering for the priority queue (min-heap based on f-value)
 impl<N: Clone + Eq + Hash> Ord for Node<N> {

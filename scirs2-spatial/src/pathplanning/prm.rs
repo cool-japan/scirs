@@ -59,15 +59,15 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::f64;
 
-use ndarray::{Array1, ArrayView1};
+use ndarray::Array1;
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
 
-use crate::distance::{Distance, EuclideanDistance};
+use crate::distance::EuclideanDistance;
 use crate::error::{SpatialError, SpatialResult};
 use crate::kdtree::KDTree;
-use crate::pathplanning::astar::Path;
+use crate::pathplanning::astar::{Path, euclidean_distance};
 
 /// Configuration for the PRM planner
 #[derive(Debug, Clone)]
@@ -222,7 +222,7 @@ pub struct PRMPlanner {
     /// Nodes in the roadmap
     nodes: Vec<PRMNode>,
     /// KD-tree for efficient nearest neighbor search
-    kdtree: Option<KDTree<f64>>,
+    kdtree: Option<KDTree<f64, EuclideanDistance<f64>>>,
     /// Random number generator
     rng: StdRng,
     /// Collision checker function
@@ -436,7 +436,7 @@ impl PRMPlanner {
             let node_config = &self.nodes[i].config;
 
             // Connect start to node if possible
-            let start_distance = euclidean_distance(start.view(), node_config.view());
+            let start_distance = euclidean_distance(&start.view(), &node_config.view())?;
             if start_distance <= self.config.connection_radius
                 && self.is_path_collision_free(start, node_config)
             {
@@ -445,7 +445,7 @@ impl PRMPlanner {
             }
 
             // Connect goal to node if possible
-            let goal_distance = euclidean_distance(goal.view(), node_config.view());
+            let goal_distance = euclidean_distance(&goal.view(), &node_config.view())?;
             if goal_distance <= self.config.connection_radius
                 && self.is_path_collision_free(goal, node_config)
             {
@@ -455,7 +455,7 @@ impl PRMPlanner {
         }
 
         // Also connect start and goal directly if possible
-        let start_goal_distance = euclidean_distance(start.view(), goal.view());
+        let start_goal_distance = euclidean_distance(&start.view(), &goal.view())?;
         if start_goal_distance <= self.config.connection_radius
             && self.is_path_collision_free(start, goal)
         {
@@ -511,9 +511,9 @@ impl PRMPlanner {
 
         // Use Euclidean distance as the heuristic
         let h_score = euclidean_distance(
-            self.nodes[start_id].config.view(),
-            self.nodes[goal_id].config.view(),
-        );
+            &self.nodes[start_id].config.view(),
+            &self.nodes[goal_id].config.view(),
+        ).unwrap_or(f64::MAX);
 
         open_set.push(SearchNode {
             id: start_id,
@@ -569,9 +569,9 @@ impl PRMPlanner {
 
                     // Calculate the heuristic (Euclidean distance to goal)
                     let h_score = euclidean_distance(
-                        self.nodes[neighbor_id].config.view(),
-                        self.nodes[goal_id].config.view(),
-                    );
+                        &self.nodes[neighbor_id].config.view(),
+                        &self.nodes[goal_id].config.view(),
+                    ).unwrap_or(f64::MAX);
 
                     let f_score = tentative_g_score + h_score;
 

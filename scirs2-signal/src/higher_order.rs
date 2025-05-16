@@ -42,12 +42,13 @@
 //! // Strong peaks at (f1, f2) indicate quadratic phase coupling between f1, f2, and f1+f2
 //! ```
 
-use ndarray::{s, Array, Array1, Array2};
+use ndarray::{s, Array1, Array2};
 use num_complex::{Complex64, ComplexFloat};
 use std::f64::consts::PI;
 
 use crate::error::{SignalError, SignalResult};
 use crate::window;
+use scirs2_fft;
 
 /// Method for bispectrum/bicoherence estimation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -426,18 +427,11 @@ fn apply_window(signal: &Array1<f64>, window_name: &str) -> SignalResult<Array1<
     let n = signal.len();
 
     // Get the window function
-    let win = match window::get_window(window_name, n)? {
-        window::Window::Array(w) => w,
-        _ => {
-            return Err(SignalError::ValueError(format!(
-                "Unsupported window type: {}",
-                window_name
-            )))
-        }
-    };
+    let win = window::get_window(window_name, n, true)?;
 
     // Apply the window
-    let windowed = signal * &win;
+    let win_arr = Array1::from(win);
+    let windowed = signal * &win_arr;
 
     Ok(windowed)
 }
@@ -579,7 +573,7 @@ fn compute_2d_fft(matrix: &Array2<f64>, nfft: usize) -> SignalResult<Array2<Comp
             row
         };
 
-        match scirs2_fft::fft_complex(&row_padded, None) {
+        match scirs2_fft::fft(&row_padded, None) {
             Ok(fft_result) => row_fft.push(fft_result),
             Err(_) => {
                 return Err(SignalError::ComputationError(
@@ -605,7 +599,7 @@ fn compute_2d_fft(matrix: &Array2<f64>, nfft: usize) -> SignalResult<Array2<Comp
             col
         };
 
-        match scirs2_fft::fft_complex(&col_padded, None) {
+        match scirs2_fft::fft(&col_padded, None) {
             Ok(fft_result) => {
                 for i in 0..(nfft / 2 + 1) {
                     result[[i, j]] = fft_result[i];

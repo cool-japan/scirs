@@ -272,12 +272,12 @@ impl RBFInterpolator {
             }
         } else {
             // Sample pairs for large datasets
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let mut seen_pairs = std::collections::HashSet::new();
 
             for _ in 0..max_pairs {
-                let i = rand::Rng::gen_range(&mut rng, 0..n_points);
-                let j = rand::Rng::gen_range(&mut rng, 0..n_points);
+                let i = rand::Rng::random_range(&mut rng, 0..n_points);
+                let j = rand::Rng::random_range(&mut rng, 0..n_points);
 
                 if i != j {
                     let pair = if i < j { (i, j) } else { (j, i) };

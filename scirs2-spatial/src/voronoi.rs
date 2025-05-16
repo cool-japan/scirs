@@ -48,6 +48,7 @@ use std::collections::HashMap;
 /// The Voronoi diagram of a set of points is a partition of space
 /// into regions, one for each input point, such that all points in
 /// a region are closer to that input point than to any other.
+#[derive(Debug, Clone)]
 pub struct Voronoi {
     /// Input points
     points: Array2<f64>,

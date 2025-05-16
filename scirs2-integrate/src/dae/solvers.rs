@@ -6,7 +6,7 @@ use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianStrategy;
 use crate::ode::{solve_ivp, MassMatrix, ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, Array2, ArrayView1, Axis, ScalarOperand};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -271,7 +271,7 @@ where
 
     // Use our custom solver to solve the system
     solve_linear_system(&matrix.view(), &b.view()).map_err(|err| {
-        IntegrateError::GenericError(format!("Failed to solve linear system: {}", err))
+        IntegrateError::ComputationError(format!("Failed to solve linear system: {}", err))
     })
 }
 
@@ -581,7 +581,7 @@ where
             let dy = match solve_matrix_system(jacobian_effective.view(), neg_residual.view()) {
                 Ok(sol) => sol,
                 Err(e) => {
-                    return Err(IntegrateError::GenericError(format!(
+                    return Err(IntegrateError::ComputationError(format!(
                         "Failed to solve Newton system at t = {}: {}",
                         t_new, e
                     )));
@@ -709,7 +709,7 @@ where
 
             // If step size got too small, the problem might be too stiff
             if h <= min_step {
-                return Err(IntegrateError::GenericError(
+                return Err(IntegrateError::ComputationError(
                     format!("Integration failed at t = {}. Step size got too small. The DAE might be too stiff or have index greater than 1.", t_current)
                 ));
             }
@@ -836,7 +836,7 @@ where
                 if let Err(e) =
                     projection.make_consistent(t_span[0], &mut x0_copy, &mut y0_copy, &g)
                 {
-                    return Err(IntegrateError::GenericError(format!(
+                    return Err(IntegrateError::ComputationError(format!(
                         "Failed to find consistent initial conditions for higher-index DAE: {}",
                         e
                     )));

@@ -649,15 +649,9 @@ where
     let dp = demographic_parity_difference(y_pred, protected_group)?;
 
     // Calculate equalized odds and equal opportunity if we have ground truth labels
-    let eod = match equalized_odds_difference(y_true, y_pred, protected_group) {
-        Ok(value) => value,
-        Err(_) => 1.0, // Default to worst value if calculation fails
-    };
+    let eod = equalized_odds_difference(y_true, y_pred, protected_group).unwrap_or(1.0);
 
-    let eo = match equal_opportunity_difference(y_true, y_pred, protected_group) {
-        Ok(value) => value,
-        Err(_) => 1.0, // Default to worst value if calculation fails
-    };
+    let eo = equal_opportunity_difference(y_true, y_pred, protected_group).unwrap_or(1.0);
 
     Ok(FairnessMetrics {
         demographic_parity: dp,

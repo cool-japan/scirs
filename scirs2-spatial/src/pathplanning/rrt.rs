@@ -281,7 +281,7 @@ impl RRTPlanner {
                 // Check if we've reached the goal
                 if euclidean_distance(&new_point.view(), &goal) <= goal_threshold {
                     // Extract the path
-                    return Ok(Some(self.extract_path(nodes, nodes.len() - 1)));
+                    return Ok(Some(self.extract_path(&nodes, nodes.len() - 1)));
                 }
             }
         }
@@ -369,7 +369,7 @@ impl RRTPlanner {
 
         // Extract the path if goal was reached
         if let Some(idx) = goal_idx {
-            Ok(Some(self.extract_path(nodes, idx)))
+            Ok(Some(self.extract_path(&nodes, idx)))
         } else {
             Ok(None)
         }
@@ -631,7 +631,7 @@ impl RRTPlanner {
     }
 
     /// Extract the path from the RRT tree
-    fn extract_path(&self, nodes: Vec<RRTNode>, goal_idx: usize) -> Path<Array1<f64>> {
+    fn extract_path(&self, nodes: &[RRTNode], goal_idx: usize) -> Path<Array1<f64>> {
         let mut path = Vec::new();
         let mut current_idx = Some(goal_idx);
         let cost = nodes[goal_idx].cost;

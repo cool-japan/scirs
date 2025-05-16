@@ -9,6 +9,10 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::{MetricsError, Result};
 
+/// Type alias for nested cross-validation result
+/// Represents outer train indices, outer test indices, and inner fold splits
+pub type NestedCVResult = Vec<(Vec<usize>, Vec<usize>, Vec<(Vec<usize>, Vec<usize>)>)>;
+
 /// K-fold cross-validator
 ///
 /// Provides train/test indices to split data in train/test sets. Split dataset into k
@@ -571,7 +575,7 @@ pub fn nested_cross_validation(
     inner_n_folds: usize,
     shuffle: bool,
     random_seed: Option<u64>,
-) -> Result<Vec<(Vec<usize>, Vec<usize>, Vec<(Vec<usize>, Vec<usize>)>)>> {
+) -> Result<NestedCVResult> {
     if n <= outer_n_folds {
         return Err(MetricsError::InvalidInput(format!(
             "Number of samples ({}) must be greater than outer_n_folds ({})",

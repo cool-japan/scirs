@@ -158,7 +158,7 @@ impl ChunkedMetrics {
         let mut state = metric.init_state();
 
         // Process data in chunks
-        for chunk_idx in 0..(y_true_vec.len() + self.chunk_size - 1) / self.chunk_size {
+        for chunk_idx in 0..y_true_vec.len().div_ceil(self.chunk_size) {
             let start = chunk_idx * self.chunk_size;
             let end = (start + self.chunk_size).min(y_true_vec.len());
 
@@ -200,7 +200,7 @@ impl ChunkedMetrics {
         // Process chunks
         let mut results = Vec::new();
 
-        for chunk_idx in 0..(data.len() + self.chunk_size - 1) / self.chunk_size {
+        for chunk_idx in 0..data.len().div_ceil(self.chunk_size) {
             let start = chunk_idx * self.chunk_size;
             let end = (start + self.chunk_size).min(data.len());
 
@@ -225,6 +225,15 @@ pub struct IncrementalMetrics<T, S> {
     count: usize,
     /// Marker for element type
     _marker: PhantomData<T>,
+}
+
+impl<T, S> Default for IncrementalMetrics<T, S>
+where
+    S: Default,
+ {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T, S> IncrementalMetrics<T, S>

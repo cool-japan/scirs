@@ -7,7 +7,8 @@ use crate::error::{SignalError, SignalResult};
 use crate::spline::{bspline_evaluate, SplineOrder};
 use crate::utils;
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use ndarray_linalg::{Solve, UPLO};
+use ndarray_linalg::UPLO;
+use scirs2_linalg::{solve, cholesky};
 use rustfft::{
     num_complex::{Complex, Complex64},
     FftPlanner,
@@ -256,7 +257,7 @@ pub fn cubic_spline_interpolate(
     }
 
     // Solve the system to get second derivatives at each point
-    let second_derivatives = match matrix.solve(&rhs) {
+    let second_derivatives = match solve(&matrix.view(), &rhs.view()) {
         Ok(solution) => solution,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -584,7 +585,7 @@ pub fn gaussian_process_interpolate(
     }
 
     // Compute the Cholesky decomposition of K_xx
-    let l = match k_xx.cholesky(UPLO::Lower) {
+    let l = match cholesky(&k_xx.view(), UPLO::Lower) {
         Ok(l) => l,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -899,7 +900,7 @@ pub fn minimum_energy_interpolate(
     }
 
     // Solve the system to get the unknown values
-    let y_unknown = match a_reg.solve(&b) {
+    let y_unknown = match solve(&a_reg.view(), &b.view()) {
         Ok(solution) => -solution, // Negative because of how we set up the system
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1006,7 +1007,7 @@ where
         rhs[n_valid] = 1.0;
 
         // Solve the Kriging system
-        let weights = match gamma.solve(&rhs) {
+        let weights = match solve(&gamma.view(), &rhs.view()) {
             Ok(w) => w,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1095,7 +1096,7 @@ where
 
     // Solve for RBF weights
     let y = Array1::from_vec(valid_values);
-    let weights = match phi.solve(&y) {
+    let weights = match solve(&phi.view(), &y.view()) {
         Ok(w) => w,
         Err(_) => {
             return Err(SignalError::Compute(

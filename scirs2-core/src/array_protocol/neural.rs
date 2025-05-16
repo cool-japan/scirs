@@ -217,6 +217,7 @@ impl Conv2D {
     }
 
     /// Create a new convolutional layer with randomly initialized weights.
+    #[allow(clippy::too_many_arguments)]
     pub fn with_shape(
         name: &str,
         filter_height: usize,
@@ -309,6 +310,89 @@ impl Layer for Conv2D {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+}
+
+/// Builder for creating Conv2D layers
+pub struct Conv2DBuilder {
+    name: String,
+    filter_height: usize,
+    filter_width: usize,
+    in_channels: usize,
+    out_channels: usize,
+    stride: (usize, usize),
+    padding: (usize, usize),
+    with_bias: bool,
+    activation: Option<ActivationFunc>,
+}
+
+impl Conv2DBuilder {
+    /// Create a new Conv2D builder
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            filter_height: 3,
+            filter_width: 3,
+            in_channels: 1,
+            out_channels: 1,
+            stride: (1, 1),
+            padding: (0, 0),
+            with_bias: true,
+            activation: None,
+        }
+    }
+
+    /// Set filter dimensions
+    pub fn filter_size(mut self, height: usize, width: usize) -> Self {
+        self.filter_height = height;
+        self.filter_width = width;
+        self
+    }
+
+    /// Set input and output channels
+    pub fn channels(mut self, input: usize, output: usize) -> Self {
+        self.in_channels = input;
+        self.out_channels = output;
+        self
+    }
+
+    /// Set stride
+    pub fn stride(mut self, stride: (usize, usize)) -> Self {
+        self.stride = stride;
+        self
+    }
+
+    /// Set padding
+    pub fn padding(mut self, padding: (usize, usize)) -> Self {
+        self.padding = padding;
+        self
+    }
+
+    /// Set whether to include bias
+    pub fn with_bias(mut self, with_bias: bool) -> Self {
+        self.with_bias = with_bias;
+        self
+    }
+
+    /// Set activation function
+    pub fn activation(mut self, activation: ActivationFunc) -> Self {
+        self.activation = Some(activation);
+        self
+    }
+
+    /// Build the Conv2D layer
+    pub fn build(self) -> Conv2D {
+        Conv2D::with_shape(
+            &self.name,
+            self.filter_height,
+            self.filter_width,
+            self.in_channels,
+            self.out_channels,
+            self.stride,
+            self.padding,
+            self.with_bias,
+            self.activation,
+        )
     }
 }
 

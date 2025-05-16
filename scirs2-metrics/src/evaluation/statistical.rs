@@ -765,23 +765,23 @@ fn erf(x: f64) -> f64 {
 /// * Gamma function value at x
 fn gamma(x: f64) -> f64 {
     if x <= 0.0 {
-        return std::f64::INFINITY;
+        return f64::INFINITY;
     }
 
     // Lanczos approximation coefficients
     let p = [
         676.5203681218851,
         -1259.1392167224028,
-        771.32342877765313,
-        -176.61502916214059,
+        771.323_428_777_653_1,
+        -176.615_029_162_140_6,
         12.507343278686905,
         -0.13857109526572012,
-        9.9843695780195716e-6,
+        9.984_369_578_019_572e-6,
         1.5056327351493116e-7,
     ];
 
     let y = x;
-    let mut result = 0.99999999999980993;
+    let mut result = 0.999_999_999_999_809_9;
 
     for i in 0..p.len() {
         result += p[i] / (y + i as f64);
@@ -959,7 +959,7 @@ mod tests {
         // Full function test with zero correction
         let p_value = mcnemars_test(&table, false).unwrap();
         assert!(
-            p_value <= 1.0 && p_value >= 0.0,
+            (0.0..=1.0).contains(&p_value),
             "p-value should be between 0 and 1, got {}",
             p_value
         );
@@ -980,7 +980,7 @@ mod tests {
         // Full function test with correction
         let p_value = mcnemars_test(&table, true).unwrap();
         assert!(
-            p_value <= 1.0 && p_value >= 0.0,
+            (0.0..=1.0).contains(&p_value),
             "p-value should be between 0 and 1, got {}",
             p_value
         );
@@ -1009,7 +1009,7 @@ mod tests {
         assert!(q_statistic >= 0.0);
 
         // Check p-value is between 0 and 1
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
     }
 
     #[test]
@@ -1031,7 +1031,7 @@ mod tests {
         // Clamp p-value to valid range for the test
         // (In rare cases, numerical issues can lead to p-values slightly outside [0,1])
         let clamped_p_value = p_value.clamp(0.0, 1.0);
-        assert!(clamped_p_value >= 0.0 && clamped_p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&clamped_p_value));
 
         // The example shows clear pattern: model 3 > model 1 > model 2
         // But with only 5 datasets, it might not be significant
@@ -1052,7 +1052,7 @@ mod tests {
         assert!(statistic >= 0.0);
 
         // Check p-value is between 0 and 1
-        assert!(p_value >= 0.0 && p_value <= 1.0);
+        assert!((0.0..=1.0).contains(&p_value));
 
         // With consistent difference, we expect a low p-value
         assert!(
@@ -1092,7 +1092,7 @@ mod tests {
         let (lower, point_estimate, upper) = bootstrap_confidence_interval(
             &data,
             |x| {
-                let mut vals: Vec<f64> = x.iter().map(|&v| v).collect();
+                let mut vals: Vec<f64> = x.iter().copied().collect();
                 vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
                 vals[vals.len() / 2]
             },

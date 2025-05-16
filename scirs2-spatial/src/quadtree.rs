@@ -507,7 +507,7 @@ impl Quadtree {
         let mut worst_dist = f64::INFINITY;
 
         // Add the root node to the queue
-        let root_ref = &self.root.as_ref().unwrap() as *const QuadtreeNode;
+        let root_ref = self.root.as_ref().unwrap() as *const QuadtreeNode;
         let root_dist = match self.root.as_ref().unwrap() {
             QuadtreeNode::Internal { bounds, .. } => bounds.squared_distance_to_point(query)?,
             QuadtreeNode::Leaf { bounds, .. } => bounds.squared_distance_to_point(query)?,
@@ -515,7 +515,7 @@ impl Quadtree {
 
         node_queue.push(DistanceNode {
             node: root_ref,
-            min_distance_sq: root_dist.unwrap_or(0.0), // Safe to unwrap because we've already checked query length
+            min_distance_sq: root_dist,
         });
 
         // Search until we've found all nearest neighbors or exhausted the tree
@@ -572,7 +572,7 @@ impl Quadtree {
 
                         node_queue.push(DistanceNode {
                             node: child_ref,
-                            min_distance_sq: min_dist.unwrap_or(0.0), // Safe to unwrap because we've already checked query length
+                            min_distance_sq: min_dist,
                         });
                     }
                 }
@@ -1045,19 +1045,19 @@ mod tests {
         // Test radius search with small radius
         let query = array![0.0, 0.0];
         let radius = 0.5;
-        let (indices, distances) = quadtree.query_radius(&query.view(), radius).unwrap();
+        let (indices, _distances) = quadtree.query_radius(&query.view(), radius).unwrap();
 
         assert_eq!(indices.len(), 1);
         assert_eq!(indices[0], 0); // Only origin is within 0.5 units
 
         // Test with larger radius
         let radius = 1.5;
-        let (indices, distances) = quadtree.query_radius(&query.view(), radius).unwrap();
+        let (indices, _distances) = quadtree.query_radius(&query.view(), radius).unwrap();
 
         assert!(indices.len() >= 4); // Should find at least origin, right, up, center
 
         // Check all distances are within radius
-        for &dist in &distances {
+        for &dist in &_distances {
             assert!(dist <= radius * radius);
         }
 

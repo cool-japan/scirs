@@ -10,7 +10,7 @@
 
 use crate::delaunay::Delaunay;
 use crate::error::{SpatialError, SpatialResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayBase, Dim};
 use num::traits::Float;
 use std::f64::consts::PI;
 use std::fmt;
@@ -311,7 +311,7 @@ impl SphericalVoronoi {
             Ok(areas)
         } else {
             // This shouldn't happen, but just in case
-            Err(SpatialError::InternalError(
+            Err(SpatialError::ComputationError(
                 "Failed to store calculated areas".into(),
             ))
         }
@@ -590,7 +590,8 @@ impl SphericalVoronoi {
 
         // For each simplex, compute the circumcenter, which becomes a Voronoi vertex
         // The circumcenter on a sphere is the center of the spherical cap
-        let mut vertices_set = std::collections::HashSet::new();
+        // We'll store vertices directly in a vector
+        let mut vertices_vec = Vec::new();
         let mut simplex_to_vertex = std::collections::HashMap::new();
         let mut all_circumcenters = Vec::with_capacity(simplices.len());
 
@@ -608,25 +609,22 @@ impl SphericalVoronoi {
             // Store the circumcenter
             all_circumcenters.push(circumcenter.clone());
 
-            // Convert to tuple for hashing
-            let tuple_vert: Vec<f64> = circumcenter.iter().cloned().collect();
+            // Convert to a string representation for hashing
+            let vertex_str = format!("{:.10},{:.10},{:.10}", circumcenter[0], circumcenter[1], circumcenter[2]);
 
             // Store the vertex if it's new
-            if vertices_set.insert(tuple_vert.clone()) {
-                simplex_to_vertex.insert(i, vertices_set.len() - 1);
-            } else {
-                // Find the existing vertex index
-                let existing_idx = vertices_set.iter().position(|v| v == &tuple_vert).unwrap();
-                simplex_to_vertex.insert(i, existing_idx);
+            if !simplex_to_vertex.contains_key(&i) {
+                vertices_vec.push(circumcenter.clone());
+                simplex_to_vertex.insert(i, vertices_vec.len() - 1);
             }
         }
 
-        // Create vertices array from the set
-        let n_vertices = vertices_set.len();
-        let mut vertices = Array2::zeros((n_vertices, dim));
-        for (i, vert) in vertices_set.iter().enumerate() {
-            for (j, &val) in vert.iter().enumerate() {
-                vertices[[i, j]] = val;
+        // Convert vector of vertices to Array2
+        let n_vertices = vertices_vec.len();
+        let mut vertices_array = Array2::zeros((n_vertices, dim));
+        for (i, vert) in vertices_vec.iter().enumerate() {
+            for j in 0..dim {
+                vertices_array[[i, j]] = vert[j];
             }
         }
 
@@ -653,7 +651,7 @@ impl SphericalVoronoi {
             }
         }
 
-        Ok((vertices, regions, circumcenters))
+        Ok((vertices_array, regions, circumcenters))
     }
 
     /// Calculates the circumcenter of a simplex on the sphere.
@@ -764,7 +762,8 @@ impl SphericalVoronoi {
         // Calculate angles for sorting
         let mut vertex_angles = Vec::with_capacity(n_verts);
 
-        for &vert_idx in region {
+        for vert_idx in region.iter() {
+            let vert_idx = *vert_idx;
             let vert_vec = self.vertices.row(vert_idx).to_owned() - &self.center;
             let vert_vec_norm = norm(&vert_vec);
             let vert_unit = vert_vec / vert_vec_norm;
@@ -802,13 +801,18 @@ impl SphericalVoronoi {
 
     /// Calculates the solid angle subtended by a triangle.
     fn calculate_solid_angle(vectors: &[ArrayView1<f64>; 3]) -> f64 {
+        // Create owned arrays from views to ensure proper operations
+        let a = vectors[0].to_owned();
+        let b = vectors[1].to_owned();
+        let c = vectors[2].to_owned();
+        
         // This implements the formula of Van Oosterom and Strackee
-        let numerator = determinant_3d(&vectors[0], &vectors[1], &vectors[2]);
+        let numerator = determinant_3d(&a.view(), &b.view(), &c.view());
 
         let denominator = 1.0
-            + dot(&vectors[0], &vectors[1])
-            + dot(&vectors[1], &vectors[2])
-            + dot(&vectors[2], &vectors[0]);
+            + dot(&a.view(), &b.view())
+            + dot(&b.view(), &c.view())
+            + dot(&c.view(), &a.view());
 
         2.0 * (numerator / denominator).atan()
     }
@@ -825,7 +829,11 @@ fn norm<T: Float>(v: &Array1<T>) -> T {
 }
 
 /// Computes the dot product of two vectors.
-fn dot<T: Float>(a: &Array1<T>, b: &Array1<T>) -> T {
+fn dot<T: Float, S1, S2>(a: &ArrayBase<S1, Dim<[usize; 1]>>, b: &ArrayBase<S2, Dim<[usize; 1]>>) -> T 
+where
+    S1: ndarray::Data<Elem = T>,
+    S2: ndarray::Data<Elem = T>,
+{
     a.iter()
         .zip(b.iter())
         .map(|(&x, &y)| x * y)
@@ -833,11 +841,17 @@ fn dot<T: Float>(a: &Array1<T>, b: &Array1<T>) -> T {
 }
 
 /// Computes the cross product of three vectors to give a normal vector.
-fn cross_product<T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>>(
-    a: &Array1<T>,
-    b: &Array1<T>,
-    c: &Array1<T>,
-) -> Array1<T> {
+fn cross_product<T, S1, S2, S3>(
+    a: &ArrayBase<S1, Dim<[usize; 1]>>,
+    b: &ArrayBase<S2, Dim<[usize; 1]>>,
+    c: &ArrayBase<S3, Dim<[usize; 1]>>,
+) -> Array1<T>
+where
+    T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>,
+    S1: ndarray::Data<Elem = T>,
+    S2: ndarray::Data<Elem = T>,
+    S3: ndarray::Data<Elem = T>,
+{
     let dim = a.len();
     assert_eq!(dim, b.len());
     assert_eq!(dim, c.len());
@@ -874,10 +888,15 @@ fn cross_product<T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T
 }
 
 /// Computes the cross product of two 3D vectors.
-fn cross_3d<T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>>(
-    a: &Array1<T>,
-    b: &Array1<T>,
-) -> Array1<T> {
+fn cross_3d<T, S1, S2>(
+    a: &ArrayBase<S1, Dim<[usize; 1]>>,
+    b: &ArrayBase<S2, Dim<[usize; 1]>>,
+) -> Array1<T>
+where
+    T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>,
+    S1: ndarray::Data<Elem = T>,
+    S2: ndarray::Data<Elem = T>,
+{
     assert_eq!(a.len(), 3);
     assert_eq!(b.len(), 3);
 
@@ -889,11 +908,17 @@ fn cross_3d<T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>>(
 }
 
 /// Computes the determinant of a 3x3 matrix formed by three 3D vectors.
-fn determinant_3d<T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>>(
-    a: &ArrayView1<T>,
-    b: &ArrayView1<T>,
-    c: &ArrayView1<T>,
-) -> T {
+fn determinant_3d<T, S1, S2, S3>(
+    a: &ArrayBase<S1, Dim<[usize; 1]>>,
+    b: &ArrayBase<S2, Dim<[usize; 1]>>,
+    c: &ArrayBase<S3, Dim<[usize; 1]>>,
+) -> T
+where
+    T: Float + std::ops::Sub<Output = T> + std::ops::Mul<Output = T>,
+    S1: ndarray::Data<Elem = T>,
+    S2: ndarray::Data<Elem = T>,
+    S3: ndarray::Data<Elem = T>,
+{
     assert_eq!(a.len(), 3);
     assert_eq!(b.len(), 3);
     assert_eq!(c.len(), 3);
@@ -962,7 +987,7 @@ mod tests {
         // Normalize the points to put them on the unit sphere
         let mut normalized_points = points.clone();
         for i in 0..normalized_points.nrows() {
-            let row = normalized_points.row_mut(i);
+            let mut row = normalized_points.row_mut(i);
             let norm = (row[0].powi(2) + row[1].powi(2) + row[2].powi(2)).sqrt();
             row[0] /= norm;
             row[1] /= norm;
@@ -1100,17 +1125,17 @@ mod tests {
 
         // Test a point near the north pole
         let near_north = array![0.1, 0.1, 0.99];
-        let (idx, dist) = sv.nearest_generator(&near_north.view()).unwrap();
+        let (idx, _dist) = sv.nearest_generator(&near_north.view()).unwrap();
         assert_eq!(idx, 0); // Should be closest to the north pole
 
         // Test a point near the south pole
         let near_south = array![0.1, 0.1, -0.99];
-        let (idx, dist) = sv.nearest_generator(&near_south.view()).unwrap();
+        let (idx, _dist) = sv.nearest_generator(&near_south.view()).unwrap();
         assert_eq!(idx, 1); // Should be closest to the south pole
 
         // Test points near the equator
         let near_east = array![0.99, 0.1, 0.1];
-        let (idx, dist) = sv.nearest_generator(&near_east.view()).unwrap();
+        let (idx, _dist) = sv.nearest_generator(&near_east.view()).unwrap();
         assert_eq!(idx, 2); // Should be closest to the point at (1,0,0)
 
         let near_north_east = array![0.7, 0.7, 0.2];

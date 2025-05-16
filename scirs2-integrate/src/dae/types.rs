@@ -82,6 +82,9 @@ pub struct DAEOptions<F: Float> {
 
     /// Tolerance for the nonlinear solver
     pub newton_tol: F,
+    
+    /// Maximum BDF order (optional, defaults to 5)
+    pub max_order: Option<usize>,
 }
 
 impl<F: Float + num_traits::FromPrimitive + Debug> Default for DAEOptions<F> {
@@ -98,6 +101,7 @@ impl<F: Float + num_traits::FromPrimitive + Debug> Default for DAEOptions<F> {
             min_step: None,
             max_newton_iterations: 10,
             newton_tol: F::from_f64(1e-8).unwrap(),
+            max_order: None,
         }
     }
 }

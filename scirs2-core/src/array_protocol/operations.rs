@@ -524,11 +524,11 @@ where
     // Here we'll just use the fallback implementation for simplicity
     if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
         let result = a_array.as_array().mapv(f);
-        return Ok(Box::new(NdarrayWrapper::new(result)));
+        Ok(Box::new(NdarrayWrapper::new(result)))
     } else {
-        return Err(OperationError::NotImplemented(
+        Err(OperationError::NotImplemented(
             "apply_elementwise not implemented for this array type".to_string(),
-        ));
+        ))
     }
 }
 
@@ -680,18 +680,12 @@ array_function_dispatch!(
 
 // Linear algebra operations
 
+// Type alias for SVD return type  
+type SVDResult = (Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>, Box<dyn ArrayProtocol>);
+
 // SVD decomposition operation
 array_function_dispatch!(
-    fn svd(
-        a: &dyn ArrayProtocol,
-    ) -> Result<
-        (
-            Box<dyn ArrayProtocol>,
-            Box<dyn ArrayProtocol>,
-            Box<dyn ArrayProtocol>,
-        ),
-        OperationError,
-    > {
+    fn svd(a: &dyn ArrayProtocol) -> Result<SVDResult, OperationError> {
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
@@ -823,10 +817,7 @@ mod tests {
             if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, _>>() {
                 assert_eq!(result_array.as_array(), &a.dot(&b));
             } else {
-                assert!(
-                    false,
-                    "Matrix multiplication result is not the expected type"
-                );
+                panic!("Matrix multiplication result is not the expected type");
             }
         } else {
             // Skip the test if the operation is not implemented
@@ -838,7 +829,7 @@ mod tests {
             if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, _>>() {
                 assert_eq!(result_array.as_array(), &(a.clone() + b.clone()));
             } else {
-                assert!(false, "Addition result is not the expected type");
+                panic!("Addition result is not the expected type");
             }
         } else {
             println!("Skipping addition test - operation not implemented");
@@ -849,7 +840,7 @@ mod tests {
             if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, _>>() {
                 assert_eq!(result_array.as_array(), &(a.clone() * b.clone()));
             } else {
-                assert!(false, "Multiplication result is not the expected type");
+                panic!("Multiplication result is not the expected type");
             }
         } else {
             println!("Skipping multiplication test - operation not implemented");
@@ -860,7 +851,7 @@ mod tests {
             if let Some(sum_value) = result.downcast_ref::<f64>() {
                 assert_eq!(*sum_value, a.sum());
             } else {
-                assert!(false, "Sum result is not the expected type");
+                panic!("Sum result is not the expected type");
             }
         } else {
             println!("Skipping sum test - operation not implemented");
@@ -871,7 +862,7 @@ mod tests {
             if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, _>>() {
                 assert_eq!(result_array.as_array(), &a.t().to_owned());
             } else {
-                assert!(false, "Transpose result is not the expected type");
+                panic!("Transpose result is not the expected type");
             }
         } else {
             println!("Skipping transpose test - operation not implemented");
@@ -885,7 +876,7 @@ mod tests {
                 let expected = c.clone().into_shape_with_order(6).unwrap();
                 assert_eq!(result_array.as_array(), &expected);
             } else {
-                assert!(false, "Reshape result is not the expected type");
+                panic!("Reshape result is not the expected type");
             }
         } else {
             println!("Skipping reshape test - operation not implemented");

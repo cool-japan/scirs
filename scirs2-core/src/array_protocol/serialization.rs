@@ -592,11 +592,12 @@ pub fn save_checkpoint(
     Ok(())
 }
 
+/// Type alias for model checkpoint data
+pub type ModelCheckpoint = (Sequential, Box<dyn Optimizer>, usize, HashMap<String, f64>);
+
 /// Load a model checkpoint.
 #[cfg(feature = "serialization")]
-pub fn load_checkpoint(
-    path: impl AsRef<Path>,
-) -> CoreResult<(Sequential, Box<dyn Optimizer>, usize, HashMap<String, f64>)> {
+pub fn load_checkpoint(path: impl AsRef<Path>) -> CoreResult<ModelCheckpoint> {
     // Load metadata
     let metadata_path = path.as_ref().with_extension("json");
     let mut file = File::open(&metadata_path)?;
@@ -671,7 +672,7 @@ mod tests {
 
         // Save model
         let model_path = serializer.save_model(&model, "test_model", "v1", Some(&optimizer));
-        if !model_path.is_ok() {
+        if model_path.is_err() {
             println!("Save model failed: {:?}", model_path.err());
             return;
         }

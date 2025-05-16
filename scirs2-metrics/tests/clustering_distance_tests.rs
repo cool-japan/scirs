@@ -20,7 +20,7 @@ mod cluster_distance_tests {
         let distances = inter_cluster_distances(&x, &labels, "euclidean").unwrap();
 
         // There should be at least one pair: (0, 1)
-        assert!(distances.len() >= 1);
+        assert!(!distances.is_empty());
 
         // Check that the distance is reasonable
         let dist_0_1 = distances.get(&(0, 1)).unwrap();
@@ -28,7 +28,7 @@ mod cluster_distance_tests {
 
         // Test Manhattan distance
         let distances = inter_cluster_distances(&x, &labels, "manhattan").unwrap();
-        assert!(distances.len() >= 1);
+        assert!(!distances.is_empty());
 
         // Manhattan distance is typically larger than Euclidean
         let dist_0_1 = distances.get(&(0, 1)).unwrap();

@@ -5,8 +5,19 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use crate::transform::Rotation;
-use ndarray::{Array1, ArrayView1};
+use ndarray::{array, Array1, ArrayView1};
 use std::f64::consts::PI;
+
+// Helper function to create an array from values
+fn euler_array(x: f64, y: f64, z: f64) -> Array1<f64> {
+    array![x, y, z]
+}
+
+fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResult<Rotation> {
+    let angles = euler_array(x, y, z);
+    let angles_view = angles.view();
+    Rotation::from_euler(&angles_view, convention)
+}
 
 /// Slerp represents a spherical linear interpolation between two rotations.
 ///
@@ -221,7 +232,7 @@ mod tests {
     #[test]
     fn test_slerp_identity() {
         let rot1 = Rotation::identity();
-        let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rot2 = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
 
         let slerp = Slerp::new(rot1.clone(), rot2.clone()).unwrap();
 
@@ -237,13 +248,14 @@ mod tests {
     #[test]
     fn test_slerp_halfway() {
         let rot1 = Rotation::identity();
-        let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap();
+        let angles = array![0.0, 0.0, PI];
+        let rot2 = Rotation::from_euler(&angles.view(), "xyz").unwrap();
 
         let slerp = Slerp::new(rot1, rot2).unwrap();
 
         // At t=0.5, should be a 90-degree rotation around Z
         let interp_half = slerp.interpolate(0.5);
-        let expected = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let expected = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
 
         // Apply both rotations to a point
         let point = array![1.0, 0.0, 0.0];
@@ -258,7 +270,8 @@ mod tests {
     #[test]
     fn test_slerp_at_values() {
         let rot1 = Rotation::identity();
-        let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap();
+        let angles = array![0.0, 0.0, PI];
+        let rot2 = Rotation::from_euler(&angles.view(), "xyz").unwrap();
 
         let slerp = Slerp::new(rot1, rot2).unwrap();
 
@@ -268,7 +281,7 @@ mod tests {
 
         for (t, angle) in values.iter().zip(expected_angles.iter()) {
             let interp = slerp.interpolate(*t);
-            let expected = Rotation::from_euler(&array![0.0, 0.0, *angle], "xyz").unwrap();
+            let expected = rotation_from_euler(0.0, 0.0, *angle, "xyz").unwrap();
 
             // Apply both rotations to a point
             let point = array![1.0, 0.0, 0.0];
@@ -298,7 +311,7 @@ mod tests {
         let rotated = interp.apply(&point.view());
 
         // We want the shortest path, so we should get a 45-degree rotation
-        let expected = Rotation::from_euler(&array![0.0, 0.0, PI / 4.0], "xyz").unwrap();
+        let expected = rotation_from_euler(0.0, 0.0, PI / 4.0, "xyz").unwrap();
         let expected_rotated = expected.apply(&point.view());
 
         assert_relative_eq!(rotated[0], expected_rotated[0], epsilon = 1e-10);
@@ -309,7 +322,8 @@ mod tests {
     #[test]
     fn test_slerp_times() {
         let rot1 = Rotation::identity();
-        let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap();
+        let angles = array![0.0, 0.0, PI];
+        let rot2 = Rotation::from_euler(&angles.view(), "xyz").unwrap();
 
         let slerp = Slerp::new(rot1, rot2).unwrap();
 
@@ -327,7 +341,8 @@ mod tests {
     #[test]
     fn test_slerp_boundary_values() {
         let rot1 = Rotation::identity();
-        let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap();
+        let angles = array![0.0, 0.0, PI];
+        let rot2 = Rotation::from_euler(&angles.view(), "xyz").unwrap();
 
         let slerp = Slerp::new(rot1, rot2).unwrap();
 

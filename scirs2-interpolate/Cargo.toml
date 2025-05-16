@@ -14,14 +14,24 @@ categories = ["science", "mathematics", "algorithms"]
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
 scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-ndarray-linalg = { workspace = true }
+ndarray-linalg = { workspace = true, optional = true }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
+rayon = { workspace = true }
+num_cpus = "1.16.0"
 
 [dev-dependencies]
 approx = "0.5.1"
 criterion = "0.5.1"
+plotters = "0.3.6"
+rand = "0.9.0"
 
 [features]
+# Default features
 default = []
+
+# Enable this feature if you have OpenBLAS installed and want to use linear algebra operations
+# Provides faster matrix operations, SVD, eigendecompositions, etc.
+# Requires OpenBLAS development package (libopenblas-dev or equivalent)
+linalg = ["ndarray-linalg"]

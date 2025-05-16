@@ -16,6 +16,8 @@ use std::fmt::Debug;
 
 use crate::error::{InterpolateError, InterpolateResult};
 
+pub mod bspline_eval;
+
 /// Trait for all bivariate spline interpolators
 pub trait BivariateInterpolator<F: Float + FromPrimitive + Debug + std::fmt::Display> {
     /// Evaluate the spline at points
@@ -244,57 +246,48 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BivariateSpline<F> {
 
     /// Evaluate the spline at a single point
     fn evaluate_single_point(&self, x: F, y: F, dx: usize, dy: usize) -> InterpolateResult<F> {
-        // This is a placeholder for the actual B-spline evaluation
-        // In a real implementation, we would use a rust port of FITPACK's bispev routine
-        // For now, we'll just implement a simple case for degree 1 (bilinear interpolation)
-
-        if self.kx != 1 || self.ky != 1 {
-            return Err(InterpolateError::NotImplementedError(
-                "Only bilinear interpolation (kx=1, ky=1) is currently implemented".to_string(),
-            ));
-        }
-
-        if dx > 0 || dy > 0 {
-            return Err(InterpolateError::NotImplementedError(
-                "Derivatives are not yet implemented".to_string(),
-            ));
-        }
-
-        // Find the location of x and y in the knot sequences
-        let (i, alpha_x) = self.find_interval(x, &self.tx)?;
-        let (j, alpha_y) = self.find_interval(y, &self.ty)?;
-
-        // Get the appropriate coefficients
-        let n_cols = self.ty.len() - self.ky - 1;
-
-        let idx = i * n_cols + j;
-
-        // Check if we have enough coefficients to avoid index out of bounds
-        if i >= self.tx.len() - self.kx - 1
-            || j >= n_cols
-            || idx >= self.c.len()
-            || idx + 1 >= self.c.len()
-            || idx + n_cols >= self.c.len()
-            || idx + n_cols + 1 >= self.c.len()
+        // Check if we're within the domain bounds
+        if x < self.tx[self.kx]
+            || x > self.tx[self.tx.len() - self.kx - 1]
+            || y < self.ty[self.ky]
+            || y > self.ty[self.ty.len() - self.ky - 1]
         {
-            return Err(InterpolateError::ComputationError(format!(
-                "Not enough coefficients for bilinear interpolation at ({:?}, {:?})",
+            return Err(InterpolateError::DomainError(format!(
+                "Point ({:?}, {:?}) is outside the domain of the spline",
                 x, y
             )));
         }
-        let c00 = self.c[idx];
-        let c01 = self.c[idx + 1];
-        let c10 = self.c[idx + n_cols];
-        let c11 = self.c[idx + n_cols + 1];
 
-        // Bilinear interpolation
-        let one = F::one();
-        let result = (one - alpha_x) * (one - alpha_y) * c00
-            + (one - alpha_x) * alpha_y * c01
-            + alpha_x * (one - alpha_y) * c10
-            + alpha_x * alpha_y * c11;
+        // Check if derivatives are within degree bounds
+        if dx > self.kx || dy > self.ky {
+            // Higher-order derivatives than the spline degree are all zero
+            return Ok(F::zero());
+        }
 
-        Ok(result)
+        // Use the B-spline evaluation routine from bspline_eval module
+        if dx == 0 && dy == 0 {
+            Ok(bspline_eval::evaluate_bispline(
+                x,
+                y,
+                &self.tx.view(),
+                &self.ty.view(),
+                &self.c.view(),
+                self.kx,
+                self.ky,
+            ))
+        } else {
+            Ok(bspline_eval::evaluate_bispline_derivative(
+                x,
+                y,
+                &self.tx.view(),
+                &self.ty.view(),
+                &self.c.view(),
+                self.kx,
+                self.ky,
+                dx,
+                dy,
+            ))
+        }
     }
 
     /// Find the interval containing x in the knot sequence
@@ -355,11 +348,38 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BivariateInterpolator
         self.evaluate_impl(x, y, dx, dy, grid)
     }
 
-    fn integral(&self, _xa: F, _xb: F, _ya: F, _yb: F) -> InterpolateResult<F> {
-        // This is a placeholder for the actual integral computation
-        // In a real implementation, we would use a rust port of FITPACK's dblint routine
-        Err(InterpolateError::NotImplementedError(
-            "Integral computation not yet implemented".to_string(),
+    fn integral(&self, xa: F, xb: F, ya: F, yb: F) -> InterpolateResult<F> {
+        // Check if the integration domain is within the spline's domain
+        let x_min = self.tx[self.kx];
+        let x_max = self.tx[self.tx.len() - self.kx - 1];
+        let y_min = self.ty[self.ky];
+        let y_max = self.ty[self.ty.len() - self.ky - 1];
+
+        if xa < x_min || xb > x_max || ya < y_min || yb > y_max {
+            return Err(InterpolateError::DomainError(format!(
+                "Integration domain [{:?}, {:?}] x [{:?}, {:?}] is outside the spline domain [{:?}, {:?}] x [{:?}, {:?}]",
+                xa, xb, ya, yb, x_min, x_max, y_min, y_max
+            )));
+        }
+
+        if xa > xb || ya > yb {
+            return Err(InterpolateError::ValueError(
+                "Integration bounds should satisfy xa <= xb and ya <= yb".to_string(),
+            ));
+        }
+
+        // Use the B-spline integration routine with 10 quadrature points
+        Ok(bspline_eval::integrate_bispline(
+            xa,
+            xb,
+            ya,
+            yb,
+            &self.tx.view(),
+            &self.ty.view(),
+            &self.c.view(),
+            self.kx,
+            self.ky,
+            Some(10),
         ))
     }
 }
@@ -464,27 +484,140 @@ impl<'a, F: Float + FromPrimitive + Debug + std::fmt::Display> SmoothBivariateSp
             ],
         };
 
-        // For now, we'll just implement a placeholder that creates a bilinear interpolation
-        // In a real implementation, we would use a port of FITPACK's surfit_smth routine
+        // Generate knots based on the data distribution
+        let x_min = self.x.iter().copied().fold(F::infinity(), F::min);
+        let x_max = self.x.iter().copied().fold(F::neg_infinity(), F::max);
+        let y_min = self.y.iter().copied().fold(F::infinity(), F::min);
+        let y_max = self.y.iter().copied().fold(F::neg_infinity(), F::max);
 
-        // Create knots (just a simple grid for now)
-        let tx = Array1::linspace(
-            self.x.iter().copied().fold(F::infinity(), F::min),
-            self.x.iter().copied().fold(F::neg_infinity(), F::max),
-            10,
-        );
-        let ty = Array1::linspace(
-            self.y.iter().copied().fold(F::infinity(), F::min),
-            self.y.iter().copied().fold(F::neg_infinity(), F::max),
-            10,
-        );
+        // Create a grid of interior knots
+        let n_interior_x = 8; // Number of interior knots in x direction
+        let n_interior_y = 8; // Number of interior knots in y direction
 
-        // Create coefficients (just zeros for now)
-        let num_coeffs = (tx.len() - 2) * (ty.len() - 2);
-        let c = Array1::<F>::zeros(num_coeffs);
+        // Generate knot sequences with appropriate multiplicities at endpoints
+        let mut tx = Vec::with_capacity(n_interior_x + 2 * (self.kx + 1));
+        let mut ty = Vec::with_capacity(n_interior_y + 2 * (self.ky + 1));
 
-        // Create the underlying spline
-        let spline = BivariateSpline::from_tck(tx, ty, c, 1, 1, None);
+        // Add repeated knots at beginning (multiplicity k+1)
+        for _ in 0..=self.kx {
+            tx.push(x_min);
+        }
+
+        // Add interior knots
+        if n_interior_x > 0 {
+            let dx = (x_max - x_min) / F::from_usize(n_interior_x + 1).unwrap();
+            for i in 1..=n_interior_x {
+                tx.push(x_min + F::from_usize(i).unwrap() * dx);
+            }
+        }
+
+        // Add repeated knots at end (multiplicity k+1)
+        for _ in 0..=self.kx {
+            tx.push(x_max);
+        }
+
+        // Similarly for y direction
+        for _ in 0..=self.ky {
+            ty.push(y_min);
+        }
+
+        if n_interior_y > 0 {
+            let dy = (y_max - y_min) / F::from_usize(n_interior_y + 1).unwrap();
+            for i in 1..=n_interior_y {
+                ty.push(y_min + F::from_usize(i).unwrap() * dy);
+            }
+        }
+
+        for _ in 0..=self.ky {
+            ty.push(y_max);
+        }
+
+        // Convert to ndarray
+        let tx = Array1::from(tx);
+        let ty = Array1::from(ty);
+
+        // In real implementation, we would use a full least-squares fitting algorithm here
+        // For now, we'll create coefficients that at least approximate the data
+
+        // Number of control points
+        let n_x = tx.len() - self.kx - 1;
+        let n_y = ty.len() - self.ky - 1;
+        let num_coeffs = n_x * n_y;
+
+        // Initialize coefficients
+        let mut c = Array1::<F>::zeros(num_coeffs);
+
+        // Simple approximation: for each data point, find the closest control point
+        // and update its coefficient
+        let mut weight_sum = Array1::<F>::zeros(num_coeffs);
+
+        for i in 0..self.x.len() {
+            // Find the knot span for this point
+            let span_x = bspline_eval::find_span(self.x[i], &tx.view(), self.kx);
+            let span_y = bspline_eval::find_span(self.y[i], &ty.view(), self.ky);
+
+            // Compute basis functions
+            let basis_x = bspline_eval::basis_funs(self.x[i], span_x, &tx.view(), self.kx);
+            let basis_y = bspline_eval::basis_funs(self.y[i], span_y, &ty.view(), self.ky);
+
+            // Apply smoothing by spreading the influence over multiple control points
+            for iu in 0..=self.kx {
+                let i_coef = span_x - self.kx + iu;
+                for jv in 0..=self.ky {
+                    let j_coef = span_y - self.ky + jv;
+                    let idx = i_coef * n_y + j_coef;
+
+                    if idx < num_coeffs {
+                        let weight = basis_x[iu] * basis_y[jv];
+                        let val = self.z[i];
+
+                        if let Some(w) = self.w {
+                            // Apply weights if provided
+                            let adjusted_weight = weight * w[i];
+                            c[idx] = c[idx] + adjusted_weight * val;
+                            weight_sum[idx] = weight_sum[idx] + adjusted_weight;
+                        } else {
+                            c[idx] = c[idx] + weight * val;
+                            weight_sum[idx] = weight_sum[idx] + weight;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Normalize coefficients by weight sum
+        for i in 0..num_coeffs {
+            if weight_sum[i] > F::epsilon() {
+                c[i] = c[i] / weight_sum[i];
+            }
+        }
+
+        // Apply smoothing if needed
+        if let Some(s) = self.s {
+            if s > F::zero() {
+                // Simple smoothing: average neighboring coefficients
+                let mut c_smoothed = c.clone();
+
+                for i in 1..n_x - 1 {
+                    for j in 1..n_y - 1 {
+                        let idx = i * n_y + j;
+                        let smoothing_factor = s / (F::one() + s);
+
+                        // Weighted average of neighboring coefficients
+                        let neighbors_sum = c[idx - n_y] + c[idx + n_y] + c[idx - 1] + c[idx + 1];
+                        let local_avg = neighbors_sum / F::from_f64(4.0).unwrap();
+
+                        c_smoothed[idx] =
+                            (F::one() - smoothing_factor) * c[idx] + smoothing_factor * local_avg;
+                    }
+                }
+
+                c = c_smoothed;
+            }
+        }
+
+        // Create the underlying spline with proper degree
+        let spline = BivariateSpline::from_tck(tx, ty, c, self.kx, self.ky, self.s);
 
         Ok(SmoothBivariateSpline { spline })
     }
@@ -547,7 +680,7 @@ pub struct RectBivariateSpline<F: Float + FromPrimitive + Debug + std::fmt::Disp
     spline: BivariateSpline<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug + std::fmt::Display> RectBivariateSpline<F> {
+impl<F: Float + FromPrimitive + Debug + std::fmt::Display + std::ops::AddAssign> RectBivariateSpline<F> {
     /// Create a new bivariate spline over a rectangular mesh
     ///
     /// # Arguments
@@ -563,8 +696,8 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> RectBivariateSpline<F
         y: &ArrayView1<F>,
         z: &ArrayView2<F>,
         bbox: Option<[F; 4]>,
-        _kx: usize,
-        _ky: usize,
+        kx: usize,
+        ky: usize,
         s: Option<F>,
     ) -> InterpolateResult<Self> {
         // Check input
@@ -605,30 +738,129 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> RectBivariateSpline<F
             None => [x[0], x[x.len() - 1], y[0], y[y.len() - 1]],
         };
 
-        // For now, we'll just implement a placeholder that creates a bilinear interpolation
-        // In a real implementation, we would use a port of FITPACK's regrid_smth routine
+        // We need to create a knot sequence appropriate for B-splines
+        // For a kth degree spline, we need k+1 repeated knots at the ends
 
-        // Create knots (just a simple grid for now)
-        let tx = x.to_owned();
-        let ty = y.to_owned();
+        // Generate knot sequences with appropriate multiplicities at endpoints
+        let mut tx_vec = Vec::with_capacity(x.len() + 2 * kx);
+        let mut ty_vec = Vec::with_capacity(y.len() + 2 * ky);
 
-        // For bilinear interpolation, we need coefficients
-        // Ensure we have enough coefficients for bilinear interpolation
-        let n_x_coefs = tx.len() - 2; // Number of cells in x direction
-        let n_y_coefs = ty.len() - 2; // Number of cells in y direction
-        let mut c = Array1::<F>::zeros((n_x_coefs + 1) * (n_y_coefs + 1));
+        // Add repeated knots at beginning (multiplicity k+1)
+        for _ in 0..=kx {
+            tx_vec.push(x[0]);
+        }
 
-        // Fill coefficients with actual data values
-        for i in 0..z.shape()[0] {
-            for j in 0..z.shape()[1] {
-                if i < c.len() / (n_y_coefs + 1) && j < n_y_coefs + 1 {
-                    c[i * (n_y_coefs + 1) + j] = z[[i, j]];
+        // Add interior knots (using the grid points)
+        for i in 1..x.len() - 1 {
+            tx_vec.push(x[i]);
+        }
+
+        // Add repeated knots at end (multiplicity k+1)
+        for _ in 0..=kx {
+            tx_vec.push(x[x.len() - 1]);
+        }
+
+        // Similarly for y direction
+        for _ in 0..=ky {
+            ty_vec.push(y[0]);
+        }
+
+        for i in 1..y.len() - 1 {
+            ty_vec.push(y[i]);
+        }
+
+        for _ in 0..=ky {
+            ty_vec.push(y[y.len() - 1]);
+        }
+
+        // Convert to ndarray
+        let tx = Array1::from(tx_vec);
+        let ty = Array1::from(ty_vec);
+
+        // Number of control points
+        let n_x = tx.len() - kx - 1;
+        let n_y = ty.len() - ky - 1;
+        let num_coeffs = n_x * n_y;
+
+        // Initialize coefficients
+        let mut c = Array1::<F>::zeros(num_coeffs);
+
+        // For a rectangular grid, we can use a more direct approach to determine coefficients
+        // For now, we'll use a simple approach where each control point approximates a data point
+        // In a full implementation, we'd set up and solve a linear system for interpolation or least squares
+
+        // Create a mapping from data points to B-spline coefficients
+        let mut weights = Array2::<F>::zeros((n_x, n_y));
+        let mut values = Array2::<F>::zeros((n_x, n_y));
+
+        // For each data point, find the corresponding knot span and add its contribution
+        for i in 0..x.len() {
+            let span_x = bspline_eval::find_span(x[i], &tx.view(), kx);
+            let basis_x = bspline_eval::basis_funs(x[i], span_x, &tx.view(), kx);
+
+            for j in 0..y.len() {
+                let span_y = bspline_eval::find_span(y[j], &ty.view(), ky);
+                let basis_y = bspline_eval::basis_funs(y[j], span_y, &ty.view(), ky);
+
+                // The data value at (i,j)
+                let z_val = z[[i, j]];
+
+                // Distribute the value to affected control points
+                for iu in 0..=kx {
+                    let i_coef = span_x - kx + iu;
+                    if i_coef >= n_x {
+                        continue;
+                    }
+
+                    for jv in 0..=ky {
+                        let j_coef = span_y - ky + jv;
+                        if j_coef >= n_y {
+                            continue;
+                        }
+
+                        let weight = basis_x[iu] * basis_y[jv];
+                        weights[(i_coef, j_coef)] += weight;
+                        values[(i_coef, j_coef)] += weight * z_val;
+                    }
                 }
             }
         }
 
-        // Create the underlying spline
-        let spline = BivariateSpline::from_tck(tx, ty, c, 1, 1, None);
+        // Compute final coefficients by normalizing
+        for i in 0..n_x {
+            for j in 0..n_y {
+                if weights[(i, j)] > F::epsilon() {
+                    c[i * n_y + j] = values[(i, j)] / weights[(i, j)];
+                }
+            }
+        }
+
+        // Apply smoothing if requested
+        if let Some(s) = s {
+            if s > F::zero() {
+                // Simple smoothing by averaging neighboring coefficients
+                let mut c_smoothed = c.clone();
+
+                for i in 1..n_x - 1 {
+                    for j in 1..n_y - 1 {
+                        let idx = i * n_y + j;
+                        let smoothing_factor = s / (F::one() + s);
+
+                        // Weighted average of neighboring coefficients
+                        let neighbors_sum = c[idx - n_y] + c[idx + n_y] + c[idx - 1] + c[idx + 1];
+                        let local_avg = neighbors_sum / F::from_f64(4.0).unwrap();
+
+                        c_smoothed[idx] =
+                            (F::one() - smoothing_factor) * c[idx] + smoothing_factor * local_avg;
+                    }
+                }
+
+                c = c_smoothed;
+            }
+        }
+
+        // Create the underlying spline with proper degree
+        let spline = BivariateSpline::from_tck(tx, ty, c, kx, ky, s);
 
         Ok(Self { spline })
     }

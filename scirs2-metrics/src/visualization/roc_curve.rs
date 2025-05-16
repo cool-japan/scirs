@@ -9,6 +9,9 @@ use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata
 use crate::classification::curves::roc_curve;
 use crate::error::{MetricsError, Result};
 
+/// Type alias for ROC curve computation result
+pub(crate) type ROCComputeResult = (Vec<f64>, Vec<f64>, Vec<f64>, Option<f64>);
+
 /// ROC curve visualizer
 ///
 /// This struct provides methods for visualizing ROC curves.
@@ -170,7 +173,7 @@ where
     /// # Returns
     ///
     /// * Result containing (fpr, tpr, thresholds, auc)
-    fn compute_roc(&self) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, Option<f64>)> {
+    fn compute_roc(&self) -> Result<ROCComputeResult> {
         if self.fpr.is_some() && self.tpr.is_some() {
             // Return pre-computed values
             return Ok((
@@ -214,7 +217,7 @@ where
     }
 }
 
-impl<'a, T, S> MetricVisualizer for ROCCurveVisualizer<'a, T, S>
+impl<T, S> MetricVisualizer for ROCCurveVisualizer<'_, T, S>
 where
     T: Clone + PartialOrd + 'static,
     S: Data<Elem = T>,

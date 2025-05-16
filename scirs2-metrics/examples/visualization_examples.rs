@@ -6,7 +6,7 @@
 use ndarray::{array, Array2};
 use scirs2_metrics::{
     classification::curves::{calibration_curve, precision_recall_curve, roc_curve},
-    classification::{accuracy_score, confusion_matrix, f1_score, precision_score, recall_score},
+    classification::confusion_matrix,
     visualization::{
         backends, helpers, ColorMap, PlotType, VisualizationData, VisualizationMetadata,
         VisualizationOptions,
@@ -260,7 +260,7 @@ fn main() {
     let metadata = VisualizationMetadata::line_plot("Sine Wave", "X", "sin(X)");
 
     // Create custom options
-    let options = VisualizationOptions::new()
+    let _options = VisualizationOptions::new()
         .with_width(1200)
         .with_height(800)
         .with_dpi(150)
@@ -270,12 +270,12 @@ fn main() {
         .with_color_palette("Set1");
 
     // Get the default backend
-    let backend = backends::default_backend();
+    let _backend = backends::default_backend();
 
     // Print what would be rendered
     println!(
-        "Would render a {:?} plot titled '{}' to {} with custom options",
-        metadata.plot_type, metadata.title, "sine_wave.png"
+        "Would render a {:?} plot titled '{}' to sine_wave.png with custom options",
+        metadata.plot_type, metadata.title
     );
 
     println!("\nAll visualization examples completed!");

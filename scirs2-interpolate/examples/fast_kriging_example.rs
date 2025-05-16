@@ -22,14 +22,13 @@
 ///
 /// Each method offers different trade-offs between computational efficiency and
 /// prediction accuracy, enabling kriging to scale to much larger datasets.
-
 use ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::RandomState;
-use scirs2_interpolate::advanced::fast_kriging::{
-    FastKriging, FastKrigingMethod, FastKrigingBuilder,
-    make_local_kriging, make_fixed_rank_kriging, make_hodlr_kriging, make_tapered_kriging
-};
 use scirs2_interpolate::advanced::enhanced_kriging::CovarianceFunction;
+use scirs2_interpolate::advanced::fast_kriging::{
+    make_fixed_rank_kriging, make_hodlr_kriging, make_local_kriging, make_tapered_kriging,
+    FastKriging, FastKrigingBuilder, FastKrigingMethod,
+};
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,11 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 4: Performance comparison on increasingly large datasets
     println!("\n4. Performance Scaling with Dataset Size");
     println!("-------------------------------------");
-    performance_scaling_example(
-        &small_dataset,
-        &medium_dataset,
-        &large_dataset
-    )?;
+    performance_scaling_example(&small_dataset, &medium_dataset, &large_dataset)?;
 
     // Example 5: Accuracy comparison between methods
     println!("\n5. Accuracy Comparison Between Methods");
@@ -84,51 +79,51 @@ fn hodlr_kriging_example(
     values: &Array1<f64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Comparing different leaf sizes for HODLR kriging...");
-    
+
     // Create test points for prediction
     let test_points = generate_prediction_grid(5, points.shape()[1]);
     println!("Generated {} test points", test_points.shape()[0]);
-    
+
     // Create HODLR kriging models with different leaf sizes
     let leaf_sizes = [16, 32, 64, 128];
-    
+
     println!("\nLeaf Size | Build Time (ms) | Prediction Time (ms) | Memory Usage");
     println!("----------|-----------------|---------------------|-------------");
-    
+
     for &leaf_size in &leaf_sizes {
         // Create model
         let start_time = Instant::now();
-        
+
         let kriging = make_hodlr_kriging(
             &points.view(),
             &values.view(),
             CovarianceFunction::Matern52,
             1.0,
-            leaf_size
+            leaf_size,
         )?;
-        
+
         let build_time = start_time.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Make predictions
         let pred_start = Instant::now();
         let predictions = kriging.predict(&test_points.view())?;
         let pred_time = pred_start.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Print results
-        println!("{:10} | {:16.2} | {:19.2} | O(n log n)", 
-            leaf_size, 
-            build_time,
-            pred_time
+        println!(
+            "{:10} | {:16.2} | {:19.2} | O(n log n)",
+            leaf_size, build_time, pred_time
         );
-        
+
         // Show sample prediction for first test point
-        println!("  Sample prediction at ({:.1}, {:.1}): {:.4}",
-            test_points[[0, 0]], 
+        println!(
+            "  Sample prediction at ({:.1}, {:.1}): {:.4}",
+            test_points[[0, 0]],
             test_points[[0, 1]],
             predictions.value[0]
         );
     }
-    
+
     // Explanation of the HODLR kriging approach
     println!("\nThe HODLR (Hierarchical Off-Diagonal Low-Rank) approach:");
     println!("- Divides points into a hierarchical tree structure");
@@ -138,7 +133,7 @@ fn hodlr_kriging_example(
     println!("- Smaller leaf size = more approximation but faster computation");
     println!("- Balances accuracy and computational efficiency");
     println!("- Good choice for very large datasets with millions of points");
-    
+
     Ok(())
 }
 
@@ -146,42 +141,44 @@ fn hodlr_kriging_example(
 fn generate_synthetic_data(
     n_points: usize,
     n_dims: usize,
-    noise_level: f64
+    noise_level: f64,
 ) -> Result<(Array2<f64>, Array1<f64>), Box<dyn std::error::Error>> {
     let mut rng = RandomState::new();
-    
+
     // Create points using Latin Hypercube Sampling for better space filling
     let mut points = Array2::zeros((n_points, n_dims));
-    
+
     // Simple LHS implementation
     for d in 0..n_dims {
-        let mut values: Vec<f64> = (0..n_points).map(|i| {
-            let bin_width = 1.0 / (n_points as f64);
-            let bin_min = i as f64 * bin_width;
-            bin_min + rng.uniform(0.0, bin_width)
-        }).collect();
-        
+        let mut values: Vec<f64> = (0..n_points)
+            .map(|i| {
+                let bin_width = 1.0 / (n_points as f64);
+                let bin_min = i as f64 * bin_width;
+                bin_min + rng.uniform(0.0, bin_width)
+            })
+            .collect();
+
         // Shuffle the dimension values
         for i in (1..values.len()).rev() {
             let j = rng.uniform_int(0, i as u64) as usize;
             values.swap(i, j);
         }
-        
+
         // Assign to points array
         for i in 0..n_points {
             points[[i, d]] = values[i] * 10.0; // Scale to [0, 10]
         }
     }
-    
+
     // Create values based on underlying pattern plus noise
     let mut values = Array1::zeros(n_points);
-    
+
     // Generate values with spatial pattern (2D example)
     for i in 0..n_points {
         if n_dims >= 2 {
             let x = points[[i, 0]];
             let y = points[[i, 1]];
-            
+
             // Pattern: f(x,y) = sin(x/2) + cos(y/3) + x*y/50
             values[i] = (x / 2.0).sin() + (y / 3.0).cos() + (x * y / 50.0);
         } else {
@@ -189,11 +186,11 @@ fn generate_synthetic_data(
             let x = points[[i, 0]];
             values[i] = (x / 2.0).sin();
         }
-        
+
         // Add noise
         values[i] += rng.normal(0.0, noise_level);
     }
-    
+
     Ok((points, values))
 }
 
@@ -210,7 +207,7 @@ fn generate_prediction_grid(n_grid: usize, n_dims: usize) -> Array2<f64> {
         }
         return grid_points;
     }
-    
+
     // For 1D, create a line
     if n_dims == 1 {
         let mut grid_points = Array2::zeros((n_grid, 1));
@@ -219,11 +216,11 @@ fn generate_prediction_grid(n_grid: usize, n_dims: usize) -> Array2<f64> {
         }
         return grid_points;
     }
-    
+
     // For 2D, create a regular grid
     let grid_size = n_grid * n_grid;
     let mut grid_points = Array2::zeros((grid_size, 2));
-    
+
     let mut idx = 0;
     for i in 0..n_grid {
         let x = 10.0 * (i as f64) / ((n_grid - 1) as f64);
@@ -234,7 +231,7 @@ fn generate_prediction_grid(n_grid: usize, n_dims: usize) -> Array2<f64> {
             idx += 1;
         }
     }
-    
+
     grid_points
 }
 
@@ -244,49 +241,51 @@ fn local_kriging_example(
     values: &Array1<f64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Comparing different neighborhood sizes for local kriging...");
-    
+
     // Create test points for prediction
     let test_points = generate_prediction_grid(5, points.shape()[1]);
     println!("Generated {} test points", test_points.shape()[0]);
-    
+
     // Create local kriging models with different neighborhood sizes
     let neighborhood_sizes = [10, 30, 50, 100];
-    
+
     println!("\nNeighborhood Size | Prediction Time (ms) | Memory Usage");
     println!("----------------|---------------------|-------------");
-    
+
     for &size in &neighborhood_sizes {
         // Create model
         let start_time = Instant::now();
-        
+
         let kriging = make_local_kriging(
             &points.view(),
             &values.view(),
             CovarianceFunction::Matern52,
             1.0,
-            size
+            size,
         )?;
-        
+
         // Make predictions
         let pred_start = Instant::now();
         let predictions = kriging.predict(&test_points.view())?;
         let pred_time = pred_start.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Print results
-        println!("{:16} | {:19.2} | O({})", 
-            size, 
+        println!(
+            "{:16} | {:19.2} | O({})",
+            size,
             pred_time,
             size * size * size
         );
-        
+
         // Show sample prediction for first test point
-        println!("  Sample prediction at ({:.1}, {:.1}): {:.4}",
-            test_points[[0, 0]], 
+        println!(
+            "  Sample prediction at ({:.1}, {:.1}): {:.4}",
+            test_points[[0, 0]],
             test_points[[0, 1]],
             predictions.value[0]
         );
     }
-    
+
     // Explanation of the local kriging approach
     println!("\nThe local kriging approach:");
     println!("- Uses only the K nearest neighbors for each prediction");
@@ -294,7 +293,7 @@ fn local_kriging_example(
     println!("- Makes each prediction independent (parallelization friendly)");
     println!("- Trades global optimality for computational efficiency");
     println!("- Larger neighborhoods = more accurate but slower predictions");
-    
+
     Ok(())
 }
 
@@ -304,52 +303,54 @@ fn fixed_rank_kriging_example(
     values: &Array1<f64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Comparing different ranks for fixed rank kriging...");
-    
+
     // Create test points for prediction
     let test_points = generate_prediction_grid(5, points.shape()[1]);
     println!("Generated {} test points", test_points.shape()[0]);
-    
+
     // Create fixed rank kriging models with different ranks
     let ranks = [10, 20, 50, 100];
-    
+
     println!("\nRank | Build Time (ms) | Prediction Time (ms) | Memory Usage");
     println!("-----|-----------------|---------------------|-------------");
-    
+
     for &rank in &ranks {
         // Create model
         let start_time = Instant::now();
-        
+
         let kriging = make_fixed_rank_kriging(
             &points.view(),
             &values.view(),
             CovarianceFunction::Matern52,
             1.0,
-            rank
+            rank,
         )?;
-        
+
         let build_time = start_time.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Make predictions
         let pred_start = Instant::now();
         let predictions = kriging.predict(&test_points.view())?;
         let pred_time = pred_start.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Print results
-        println!("{:5} | {:16.2} | {:19.2} | O({})", 
-            rank, 
+        println!(
+            "{:5} | {:16.2} | {:19.2} | O({})",
+            rank,
             build_time,
             pred_time,
             rank * rank
         );
-        
+
         // Show sample prediction for first test point
-        println!("  Sample prediction at ({:.1}, {:.1}): {:.4}",
-            test_points[[0, 0]], 
+        println!(
+            "  Sample prediction at ({:.1}, {:.1}): {:.4}",
+            test_points[[0, 0]],
             test_points[[0, 1]],
             predictions.value[0]
         );
     }
-    
+
     // Explanation of the fixed rank kriging approach
     println!("\nThe fixed rank kriging approach:");
     println!("- Approximates the covariance matrix K ≈ QΛQ^T with rank r << n");
@@ -357,7 +358,7 @@ fn fixed_rank_kriging_example(
     println!("- One-time upfront cost, fast predictions");
     println!("- Higher rank = better approximation but more memory and computation");
     println!("- Good choice when predicting at many locations");
-    
+
     Ok(())
 }
 
@@ -368,11 +369,11 @@ fn performance_scaling_example(
     large_dataset: &(Array2<f64>, Array1<f64>),
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Measuring performance scaling across dataset sizes...");
-    
+
     // Create fixed test points for prediction
     let test_points = generate_prediction_grid(3, small_dataset.0.shape()[1]);
     println!("Using {} test points", test_points.shape()[0]);
-    
+
     // Define methods to test
     let methods = [
         (FastKrigingMethod::Local, "Local (50 neighbors)"),
@@ -380,22 +381,22 @@ fn performance_scaling_example(
         (FastKrigingMethod::Tapering(2.0), "Tapering (range=2.0)"),
         (FastKrigingMethod::HODLR(64), "HODLR (leaf=64)"),
     ];
-    
+
     // Test datasets
     let datasets = [
         ("Small (n=100)", small_dataset),
         ("Medium (n=1000)", medium_dataset),
         ("Large (n=5000)", large_dataset),
     ];
-    
+
     println!("\nMethod | Dataset | Build Time (ms) | Predict Time (ms)");
     println!("-------|---------|-----------------|------------------");
-    
+
     for (method, method_name) in &methods {
         for (dataset_name, (points, values)) in &datasets {
             // Create model
             let start_time = Instant::now();
-            
+
             let kriging = FastKrigingBuilder::new()
                 .points(points.clone())
                 .values(values.clone())
@@ -403,32 +404,30 @@ fn performance_scaling_example(
                 .approximation_method(*method)
                 .max_neighbors(50) // Only relevant for Local method
                 .build()?;
-            
+
             let build_time = start_time.elapsed().as_micros() as f64 / 1000.0;
-            
+
             // Make predictions
             let pred_start = Instant::now();
             let predictions = kriging.predict(&test_points.view())?;
             let pred_time = pred_start.elapsed().as_micros() as f64 / 1000.0;
-            
+
             // Print results
-            println!("{:7} | {:9} | {:16.2} | {:16.2}", 
-                method_name, 
-                dataset_name,
-                build_time,
-                pred_time
+            println!(
+                "{:7} | {:9} | {:16.2} | {:16.2}",
+                method_name, dataset_name, build_time, pred_time
             );
         }
         println!("-------|---------|-----------------|------------------");
     }
-    
+
     // Explanation of scaling behavior
     println!("\nScaling behavior observations:");
     println!("- Local kriging: Build time is O(1), prediction scales with neighborhood size");
     println!("- Fixed rank: Build time scales with dataset size, prediction time is constant");
     println!("- Tapering: Both build and prediction scale better than full kriging");
     println!("- The optimal method depends on dataset size and prediction pattern");
-    
+
     Ok(())
 }
 
@@ -438,20 +437,23 @@ fn accuracy_comparison_example(
     values: &Array1<f64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Comparing accuracy of different approximation methods...");
-    
+
     // Use a subset of the data for training, hold out some for testing
     let n_points = points.shape()[0];
     let n_train = (n_points * 80) / 100; // Use 80% for training
-    
+
     let train_points = points.slice(ndarray::s![0..n_train, ..]).to_owned();
     let train_values = values.slice(ndarray::s![0..n_train]).to_owned();
-    
+
     let test_points = points.slice(ndarray::s![n_train.., ..]).to_owned();
     let test_values = values.slice(ndarray::s![n_train..]).to_owned();
-    
-    println!("Using {} points for training, {} points for testing",
-        train_points.shape()[0], test_points.shape()[0]);
-    
+
+    println!(
+        "Using {} points for training, {} points for testing",
+        train_points.shape()[0],
+        test_points.shape()[0]
+    );
+
     // Define methods to test
     let methods = [
         (FastKrigingMethod::Local, "Local (30 neighbors)"),
@@ -462,15 +464,15 @@ fn accuracy_comparison_example(
         (FastKrigingMethod::HODLR(32), "HODLR (leaf=32)"),
         (FastKrigingMethod::HODLR(128), "HODLR (leaf=128)"),
     ];
-    
+
     println!("\nMethod | Mean Sq. Error | Compute Time (ms)");
     println!("-------|----------------|------------------");
-    
+
     let mut i = 0;
     for &(method, method_name) in &methods {
         // Create model with appropriate parameters
         let start_time = Instant::now();
-        
+
         let kriging = if i == 0 {
             // Local with 30 neighbors
             FastKrigingBuilder::new()
@@ -498,11 +500,11 @@ fn accuracy_comparison_example(
                 .approximation_method(method)
                 .build()?
         };
-        
+
         // Make predictions on test set
         let predictions = kriging.predict(&test_points.view())?;
         let compute_time = start_time.elapsed().as_micros() as f64 / 1000.0;
-        
+
         // Calculate mean squared error
         let mut sum_sq_error = 0.0;
         for j in 0..test_values.len() {
@@ -510,17 +512,13 @@ fn accuracy_comparison_example(
             sum_sq_error += error * error;
         }
         let mse = sum_sq_error / test_values.len() as f64;
-        
+
         // Print results
-        println!("{:20} | {:16.6} | {:16.2}", 
-            method_name, 
-            mse,
-            compute_time
-        );
-        
+        println!("{:20} | {:16.6} | {:16.2}", method_name, mse, compute_time);
+
         i += 1;
     }
-    
+
     // Explanation of the accuracy comparison
     println!("\nAccuracy comparison observations:");
     println!("- Local kriging with more neighbors generally improves accuracy");
@@ -530,6 +528,6 @@ fn accuracy_comparison_example(
     println!("- Each method offers a different trade-off between speed and accuracy");
     println!("- The best method depends on your specific requirements");
     println!("- Consider combining methods for an optimal approach");
-    
+
     Ok(())
 }

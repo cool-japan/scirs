@@ -5,7 +5,20 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use crate::transform::{Rotation, Slerp};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{array, Array1, Array2, ArrayView1, ArrayView2};
+use std::f64::consts::PI;
+
+// Helper function to create an array from values
+fn euler_array(x: f64, y: f64, z: f64) -> Array1<f64> {
+    array![x, y, z]
+}
+
+// Helper function to create a rotation from Euler angles
+fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResult<Rotation> {
+    let angles = euler_array(x, y, z);
+    let angles_view = angles.view();
+    Rotation::from_euler(&angles_view, convention)
+}
 
 /// RotationSpline provides smooth interpolation between multiple rotations.
 ///
@@ -23,9 +36,9 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 ///
 /// // Create some rotations
 /// let rotations = vec![
-///     Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz").unwrap(),
-///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap(),
-///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+///     Rotation::identity(),
+///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
+///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
 /// ];
 ///
 /// // Create times at which these rotations occur
@@ -73,8 +86,8 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -140,8 +153,8 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let mut spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -324,8 +337,8 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -491,7 +504,7 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -543,8 +556,8 @@ impl RotationSpline {
     ///
     /// let key_rots = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0], "xyz").unwrap(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let key_times = vec![0.0, 1.0, 2.0];
     ///
@@ -598,7 +611,7 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -712,8 +725,8 @@ impl RotationSpline {
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
-    ///     Rotation::from_euler(&array![0.0, 0.0, 0.0], "xyz").unwrap(),
+    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::identity(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let mut spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -802,8 +815,8 @@ mod tests {
     fn test_rotation_spline_creation() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -818,8 +831,8 @@ mod tests {
     fn test_rotation_spline_interpolation_endpoints() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -845,8 +858,8 @@ mod tests {
     fn test_rotation_spline_interpolation_midpoints() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -860,7 +873,7 @@ mod tests {
         let test_point = array![1.0, 0.0, 0.0];
 
         // First midpoint: 45-degree rotation around Z
-        let expected_mid1 = Rotation::from_euler(&array![0.0, 0.0, PI / 4.0], "xyz").unwrap();
+        let expected_mid1 = rotation_from_euler(0.0, 0.0, PI / 4.0, "xyz").unwrap();
         let rotated_mid1 = interp_mid1.apply(&test_point.view());
         let expected_rotated_mid1 = expected_mid1.apply(&test_point.view());
 
@@ -869,7 +882,7 @@ mod tests {
         assert_relative_eq!(rotated_mid1[2], expected_rotated_mid1[2], epsilon = 1e-10);
 
         // Second midpoint: 135-degree rotation around Z
-        let expected_mid2 = Rotation::from_euler(&array![0.0, 0.0, 3.0 * PI / 4.0], "xyz").unwrap();
+        let expected_mid2 = rotation_from_euler(0.0, 0.0, 3.0 * PI / 4.0, "xyz").unwrap();
         let rotated_mid2 = interp_mid2.apply(&test_point.view());
         let expected_rotated_mid2 = expected_mid2.apply(&test_point.view());
 
@@ -882,7 +895,7 @@ mod tests {
     fn test_rotation_spline_sampling() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0];
 
@@ -964,8 +977,8 @@ mod tests {
     fn test_interpolation_types() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -993,7 +1006,7 @@ mod tests {
     fn test_angular_velocity() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0];
 
@@ -1024,8 +1037,8 @@ mod tests {
     fn test_cubic_interpolation() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -1063,11 +1076,11 @@ mod tests {
         // Test midpoints - cubic interpolation should be smoother than slerp
         // but still interpolate the key rotations
         let rot_05 = spline.interpolate(0.5);
-        let rot_15 = spline.interpolate(1.5);
+        let _rot_15 = spline.interpolate(1.5);
 
         // The point at t=0.5 should be close to a 45-degree rotation around Z
         let rotated_05 = rot_05.apply(&test_point.view());
-        let expected_05 = Rotation::from_euler(&array![0.0, 0.0, PI / 4.0], "xyz")
+        let expected_05 = rotation_from_euler(0.0, 0.0, PI / 4.0, "xyz")
             .unwrap()
             .apply(&test_point.view());
 
@@ -1080,8 +1093,8 @@ mod tests {
     fn test_angular_acceleration() {
         let rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![0.0, 0.0, PI], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -1097,14 +1110,20 @@ mod tests {
         spline.set_interpolation_type("cubic").unwrap();
 
         // Cubic should have non-zero acceleration
-        let accel_cubic = spline.angular_acceleration(0.5);
+        let _accel_cubic = spline.angular_acceleration(0.5);
 
         // For linear rotation sequence, acceleration might still be close to zero
         // Let's create a more complex rotation sequence
         let complex_rotations = vec![
             Rotation::identity(),
-            Rotation::from_euler(&array![PI / 2.0, 0.0, 0.0], "xyz").unwrap(),
-            Rotation::from_euler(&array![PI / 2.0, PI / 2.0, 0.0], "xyz").unwrap(),
+            {
+                let angles = array![PI / 2.0, 0.0, 0.0];
+                Rotation::from_euler(&angles.view(), "xyz").unwrap()
+            },
+            {
+                let angles = array![PI / 2.0, PI / 2.0, 0.0];
+                Rotation::from_euler(&angles.view(), "xyz").unwrap()
+            },
         ];
         let complex_times = vec![0.0, 1.0, 2.0];
 

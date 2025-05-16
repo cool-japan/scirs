@@ -66,12 +66,12 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
         let t_min = self
             .t
             .first()
-            .ok_or_else(|| IntegrateError::GenericError("Empty solution".to_string()))?;
+            .ok_or_else(|| IntegrateError::ComputationError("Empty solution".to_string()))?;
 
         let t_max = self
             .t
             .last()
-            .ok_or_else(|| IntegrateError::GenericError("Empty solution".to_string()))?;
+            .ok_or_else(|| IntegrateError::ComputationError("Empty solution".to_string()))?;
 
         if t < *t_min || t > *t_max {
             return Err(IntegrateError::ValueError(format!(
@@ -132,7 +132,7 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
     /// Create a dense sequence of solution values for plotting or analysis
     pub fn dense_output(&self, n_points: usize) -> IntegrateResult<(Vec<F>, Vec<Array1<F>>)> {
         if self.t.is_empty() {
-            return Err(IntegrateError::GenericError("Empty solution".to_string()));
+            return Err(IntegrateError::ComputationError("Empty solution".to_string()));
         }
 
         let t_min = *self.t.first().unwrap();
@@ -159,7 +159,7 @@ impl<F: Float + FromPrimitive + Debug> DenseSolution<F> {
     ) -> IntegrateResult<(Vec<F>, Vec<F>)> {
         // Make sure the component index is valid
         if self.y.is_empty() {
-            return Err(IntegrateError::GenericError("Empty solution".to_string()));
+            return Err(IntegrateError::ComputationError("Empty solution".to_string()));
         }
 
         let dim = self.y[0].len();
@@ -322,7 +322,7 @@ where
     Func: 'static + Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     if t.is_empty() || y.is_empty() {
-        return Err(IntegrateError::GenericError(
+        return Err(IntegrateError::ComputationError(
             "Empty solution cannot be converted to dense output".to_string(),
         ));
     }

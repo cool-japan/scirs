@@ -811,7 +811,7 @@ mod tests {
 
         // Final snapshot should show no memory usage
         let snapshot_final = MemorySnapshot::new("final", "After deallocation");
-        assert_eq!(snapshot_final.report.total_current_usage, 0, 
+        assert_eq!(snapshot_final.report.total_current_usage, 0,
             "Final snapshot after allocation and deallocation should have 0 memory usage but had {} bytes",
             snapshot_final.report.total_current_usage);
 

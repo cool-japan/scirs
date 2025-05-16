@@ -80,7 +80,7 @@ impl Default for WvdConfig {
 pub fn wigner_ville(signal: &Array1<f64>, config: WvdConfig) -> SignalResult<Array2<f64>> {
     // Convert to analytic signal if needed
     let analytic_signal = if config.analytic {
-        hilbert::hilbert(signal)?
+        Array1::from(hilbert::hilbert(signal.as_slice().unwrap())?)
     } else {
         signal.mapv(|x| Complex64::new(x, 0.0))
     };
@@ -136,13 +136,13 @@ pub fn cross_wigner_ville(
 
     // Convert to analytic signals if needed
     let analytic_signal1 = if config.analytic {
-        hilbert::hilbert(signal1)?
+        Array1::from(hilbert::hilbert(signal1.as_slice().unwrap())?)
     } else {
         signal1.mapv(|x| Complex64::new(x, 0.0))
     };
 
     let analytic_signal2 = if config.analytic {
-        hilbert::hilbert(signal2)?
+        Array1::from(hilbert::hilbert(signal2.as_slice().unwrap())?)
     } else {
         signal2.mapv(|x| Complex64::new(x, 0.0))
     };
@@ -202,7 +202,7 @@ pub fn smoothed_pseudo_wigner_ville(
 
     // Convert to analytic signal if needed
     let analytic_signal = if config.analytic {
-        hilbert::hilbert(signal)?
+        Array1::from(hilbert::hilbert(signal.as_slice().unwrap())?)
     } else {
         signal.mapv(|x| Complex64::new(x, 0.0))
     };
@@ -326,7 +326,7 @@ fn compute_cross_wvd(
 
         // Compute FFT of autocorrelation to get the spectrum at this time point
         let mut spectrum =
-            scirs2_fft::fft(acorr.as_slice().unwrap()).expect("FFT computation failed");
+            scirs2_fft::fft(acorr.as_slice().unwrap(), None).expect("FFT computation failed");
 
         // Store only the positive frequencies (the result is conjugate symmetric for real signals)
         let n_freqs = n_fft / 2 + 1;

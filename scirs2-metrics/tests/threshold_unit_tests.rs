@@ -21,11 +21,11 @@ mod tests {
 
         // Check precision and recall are in reasonable ranges
         for &p in precision.iter() {
-            assert!(p >= 0.0 && p <= 1.0);
+            assert!((0.0..=1.0).contains(&p));
         }
 
         for &r in recall.iter() {
-            assert!(r >= 0.0 && r <= 1.0);
+            assert!((0.0..=1.0).contains(&r));
         }
 
         // Check thresholds are sorted in descending order
@@ -70,7 +70,7 @@ mod tests {
         let ap = average_precision_score(&y_true, &y_prob, None, None).unwrap();
 
         // AP should be between 0 and 1
-        assert!(ap >= 0.0 && ap <= 1.0);
+        assert!((0.0..=1.0).contains(&ap));
 
         // Perfect predictions case
         let y_true_perfect = array![0.0, 0.0, 1.0, 1.0];
@@ -79,7 +79,7 @@ mod tests {
         let ap_perfect =
             average_precision_score(&y_true_perfect, &y_prob_perfect, None, None).unwrap();
         // Just make sure we get a valid AP score (between 0 and 1)
-        assert!(ap_perfect >= 0.0 && ap_perfect <= 1.0);
+        assert!((0.0..=1.0).contains(&ap_perfect));
 
         // Different predictions case
         let y_true_diff = array![0.0, 0.0, 1.0, 1.0];
@@ -87,7 +87,7 @@ mod tests {
 
         let ap_diff = average_precision_score(&y_true_diff, &y_prob_diff, None, None).unwrap();
         // Just make sure we get a valid AP score (between 0 and 1)
-        assert!(ap_diff >= 0.0 && ap_diff <= 1.0);
+        assert!((0.0..=1.0).contains(&ap_diff));
     }
 
     #[test]
@@ -134,7 +134,7 @@ mod tests {
             find_optimal_threshold(&y_true, &y_prob, None, accuracy_func, None).unwrap();
 
         // Optimal threshold should be a reasonable value
-        assert!(threshold >= 0.0 && threshold <= 1.0);
+        assert!((0.0..=1.0).contains(&threshold));
         // Best score should be high (good accuracy)
         assert!(score > 0.9);
     }
@@ -149,7 +149,7 @@ mod tests {
             find_optimal_threshold_g_means(&y_true, &y_prob, None, None).unwrap();
 
         // Optimal threshold should be a reasonable value
-        assert!(threshold >= 0.0 && threshold <= 1.0);
+        assert!((0.0..=1.0).contains(&threshold));
         // Best G-means score should be high
         assert!(score > 0.9);
 
@@ -161,7 +161,7 @@ mod tests {
             find_optimal_threshold_g_means(&y_true_imbal, &y_prob_imbal, None, None).unwrap();
 
         // Threshold should be a reasonable value
-        assert!(threshold_imbal >= 0.0 && threshold_imbal <= 1.0);
+        assert!((0.0..=1.0).contains(&threshold_imbal));
         // G-means should be positive
         assert!(score_imbal > 0.0);
     }

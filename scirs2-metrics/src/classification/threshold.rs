@@ -579,11 +579,11 @@ mod tests {
 
         // Check that precision and recall values are in reasonable ranges
         for &p in precision.iter() {
-            assert!(p >= 0.0 && p <= 1.0);
+            assert!((0.0..=1.0).contains(&p));
         }
 
         for &r in recall.iter() {
-            assert!(r >= 0.0 && r <= 1.0);
+            assert!((0.0..=1.0).contains(&r));
         }
     }
 
@@ -596,7 +596,7 @@ mod tests {
         let ap = average_precision_score(&y_true, &y_prob, None, None).unwrap();
 
         // AP should be between 0 and 1
-        assert!(ap >= 0.0 && ap <= 1.0);
+        assert!((0.0..=1.0).contains(&ap));
 
         // Perfect predictions case
         let y_true_perfect = array![0.0, 0.0, 1.0, 1.0];
@@ -605,7 +605,7 @@ mod tests {
         let ap_perfect =
             average_precision_score(&y_true_perfect, &y_prob_perfect, None, None).unwrap();
         // Just check that it's in the valid range; the exact value may vary by implementation
-        assert!(ap_perfect >= 0.0 && ap_perfect <= 1.0);
+        assert!((0.0..=1.0).contains(&ap_perfect));
     }
 
     #[test]
@@ -643,7 +643,7 @@ mod tests {
             find_optimal_threshold_g_means(&y_true, &y_prob, None, None).unwrap();
 
         // Threshold should be between the min and max probabilities
-        assert!(threshold >= 0.1 && threshold <= 0.9);
+        assert!((0.1..=0.9).contains(&threshold));
         // Perfect g-means should be 1.0
         assert_abs_diff_eq!(score, 1.0, epsilon = 1e-10);
     }

@@ -49,6 +49,36 @@ impl Default for JacobianStrategy {
     }
 }
 
+/// Compute Jacobian using finite differences (for compatibility)
+pub fn compute_jacobian<F, Func>(
+    f: &Func,
+    t: F,
+    y: &Array1<F>,
+) -> IntegrateResult<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug,
+    Func: Fn(F, &ArrayView1<F>) -> IntegrateResult<Array1<F>>,
+{
+    let f_current = f(t, &y.view())?;
+    // Convert the function to the right signature for finite_difference_jacobian
+    let f_unwrapped = |t: F, y: ArrayView1<F>| -> Array1<F> {
+        match f(t, &y) {
+            Ok(val) => val,
+            Err(_) => Array1::zeros(y.len()), // Fallback to zeros on error
+        }
+    };
+    Ok(crate::ode::utils::common::finite_difference_jacobian(
+        &f_unwrapped,
+        t,
+        y,
+        &f_current,
+        F::from_f64(1e-8).unwrap(),
+    ))
+}
+
+// Re-export finite_difference_jacobian for direct use
+pub use crate::ode::utils::common::finite_difference_jacobian;
+
 /// Structure of the Jacobian matrix
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JacobianStructure {

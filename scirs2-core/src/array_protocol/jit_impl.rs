@@ -77,13 +77,16 @@ impl Default for JITConfig {
     }
 }
 
+/// Type alias for the complex function type
+pub type JITFunctionType = dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync;
+
 /// A compiled JIT function
 pub struct JITFunctionImpl {
     /// The source code of the function
     source: String,
 
     /// The compiled function
-    function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync>,
+    function: Box<JITFunctionType>,
 
     /// Information about the compilation
     compile_info: HashMap<String, String>,
@@ -102,7 +105,7 @@ impl JITFunctionImpl {
     /// Create a new JIT function.
     pub fn new(
         source: String,
-        function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync>,
+        function: Box<JITFunctionType>,
         compile_info: HashMap<String, String>,
     ) -> Self {
         Self {
@@ -133,9 +136,7 @@ impl JITFunction for JITFunctionImpl {
 
         // Create a dummy function that returns a constant value
         // In a real implementation, this would properly clone the behavior
-        let cloned_function: Box<
-            dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync,
-        > = Box::new(move |_args| {
+        let cloned_function: Box<JITFunctionType> = Box::new(move |_args| {
             // Return a dummy result (42.0) as an example
             Ok(Box::new(42.0))
         });
@@ -180,11 +181,10 @@ impl LLVMFunctionFactory {
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
         let source = expression.to_string();
-        let function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync> =
-            Box::new(move |_args| {
-                // Mock function just returns a constant value
-                Ok(Box::new(42.0))
-            });
+        let function: Box<JITFunctionType> = Box::new(move |_args| {
+            // Mock function just returns a constant value
+            Ok(Box::new(42.0))
+        });
 
         // Create the JIT function
         let jit_function = JITFunctionImpl::new(source, function, compile_info);
@@ -257,11 +257,10 @@ impl CraneliftFunctionFactory {
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
         let source = expression.to_string();
-        let function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync> =
-            Box::new(move |_args| {
-                // Mock function just returns a constant value
-                Ok(Box::new(42.0))
-            });
+        let function: Box<JITFunctionType> = Box::new(move |_args| {
+            // Mock function just returns a constant value
+            Ok(Box::new(42.0))
+        });
 
         // Create the JIT function
         let jit_function = JITFunctionImpl::new(source, function, compile_info);
@@ -462,7 +461,10 @@ where
             let jit_manager = jit_manager.read().unwrap();
 
             // Get the factory
-            if let Some(_) = jit_manager.get_factory_for_array_type(TypeId::of::<A>()) {
+            if jit_manager
+                .get_factory_for_array_type(TypeId::of::<A>())
+                .is_some()
+            {
                 // Get the factory's info
                 info.insert("factory".to_string(), "JIT factory available".to_string());
             }

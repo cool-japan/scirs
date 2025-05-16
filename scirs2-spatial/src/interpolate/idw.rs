@@ -12,6 +12,7 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use crate::kdtree::KDTree;
+use crate::distance::EuclideanDistance;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Inverse Distance Weighting interpolator for scattered data
@@ -56,7 +57,7 @@ pub struct IDWInterpolator {
     /// Number of neighbors to use (None means use all points)
     n_neighbors: Option<usize>,
     /// KD-tree for fast nearest neighbor lookup
-    kdtree: KDTree,
+    kdtree: KDTree<f64, EuclideanDistance<f64>>,
 }
 
 impl IDWInterpolator {
@@ -118,7 +119,7 @@ impl IDWInterpolator {
         }
 
         // Build KD-tree for fast nearest neighbor lookups
-        let kdtree = KDTree::new(points)?;
+        let kdtree = KDTree::new(&points.to_owned())?;
 
         Ok(Self {
             points: points.to_owned(),

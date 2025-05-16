@@ -12,7 +12,7 @@ categories = ["science", "mathematics", "algorithms"]
 [dependencies]
 # Core dependencies
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
+ndarray = { version = "0.16.1", features = ["serde", "rayon", "blas"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
@@ -22,8 +22,12 @@ openblas-src = "0.10.11"
 rustfft = "6.2.0"
 scirs2-fft = { path = "../scirs2-fft", version = "0.1.0-alpha.3" }
 scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+scirs2-special = { path = "../scirs2-special", version = "0.1.0-alpha.3" }
 rand = "0.9.0"
+rand_distr = "0.5.0"
 plotly = "0.12.1"
+ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+ndarray-rand = "0.15.0"
 # Optional rayon dependency for parallel processing
 rayon = { version = "1.8.1", optional = true }
 

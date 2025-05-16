@@ -5,8 +5,20 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use crate::transform::Rotation;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use std::fmt;
+use ndarray::{array, Array1, Array2, ArrayView1, ArrayView2};
+use std::f64::consts::PI;
+
+// Helper function to create an array from values
+fn euler_array(x: f64, y: f64, z: f64) -> Array1<f64> {
+    array![x, y, z]
+}
+
+// Helper function to create a rotation from Euler angles
+fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResult<Rotation> {
+    let angles = euler_array(x, y, z);
+    let angles_view = angles.view();
+    Rotation::from_euler(&angles_view, convention)
+}
 
 /// RigidTransform represents a rigid transformation in 3D space.
 ///
@@ -504,7 +516,7 @@ mod tests {
     #[test]
     fn test_rigid_transform_rotation_only() {
         // 90 degrees rotation around Z axis
-        let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rotation = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
         let transform = RigidTransform::from_rotation(rotation);
 
         let point = array![1.0, 0.0, 0.0];
@@ -518,7 +530,7 @@ mod tests {
     #[test]
     fn test_rigid_transform_rotation_and_translation() {
         // 90 degrees rotation around Z axis and translation by [1, 2, 3]
-        let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rotation = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
         let translation = array![1.0, 2.0, 3.0];
         let transform =
             RigidTransform::from_rotation_and_translation(rotation, &translation.view()).unwrap();
@@ -554,7 +566,7 @@ mod tests {
     #[test]
     fn test_rigid_transform_as_matrix() {
         // Create a transform and verify its matrix representation
-        let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rotation = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
         let translation = array![1.0, 2.0, 3.0];
         let transform =
             RigidTransform::from_rotation_and_translation(rotation, &translation.view()).unwrap();
@@ -586,7 +598,7 @@ mod tests {
     #[test]
     fn test_rigid_transform_inverse() {
         // Create a transform and verify its inverse
-        let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rotation = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
         let translation = array![1.0, 2.0, 3.0];
         let transform =
             RigidTransform::from_rotation_and_translation(rotation, &translation.view()).unwrap();
@@ -608,13 +620,13 @@ mod tests {
     fn test_rigid_transform_composition() {
         // Create two transforms and compose them
         let t1 = RigidTransform::from_rotation_and_translation(
-            Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap(),
+            rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
             &array![1.0, 0.0, 0.0].view(),
         )
         .unwrap();
 
         let t2 = RigidTransform::from_rotation_and_translation(
-            Rotation::from_euler(&array![PI / 2.0, 0.0, 0.0], "xyz").unwrap(),
+            rotation_from_euler(PI / 2.0, 0.0, 0.0, "xyz").unwrap(),
             &array![0.0, 1.0, 0.0].view(),
         )
         .unwrap();
@@ -637,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_rigid_transform_multiple_points() {
-        let rotation = Rotation::from_euler(&array![0.0, 0.0, PI / 2.0], "xyz").unwrap();
+        let rotation = rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap();
         let translation = array![1.0, 2.0, 3.0];
         let transform =
             RigidTransform::from_rotation_and_translation(rotation, &translation.view()).unwrap();

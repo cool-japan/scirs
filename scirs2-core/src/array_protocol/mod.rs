@@ -121,6 +121,11 @@ impl Display for NotImplemented {
     }
 }
 
+/// Type alias for the complex function implementation type
+pub type ArrayFunctionImpl = dyn Fn(&[Box<dyn Any>], &HashMap<String, Box<dyn Any>>) -> CoreResult<Box<dyn Any>>
+    + Send
+    + Sync;
+
 /// A wrapper for functions that can be overridden by the array protocol.
 #[derive(Clone)]
 pub struct ArrayFunction {
@@ -128,11 +133,7 @@ pub struct ArrayFunction {
     pub name: &'static str,
 
     /// The function implementation
-    pub implementation: Arc<
-        dyn Fn(&[Box<dyn Any>], &HashMap<String, Box<dyn Any>>) -> CoreResult<Box<dyn Any>>
-            + Send
-            + Sync,
-    >,
+    pub implementation: Arc<ArrayFunctionImpl>,
 }
 
 impl Debug for ArrayFunction {
@@ -209,12 +210,12 @@ impl ArrayFunctionRegistry {
 /// Helper function to extract all arguments implementing the `ArrayProtocol` trait.
 ///
 /// This is similar to NumPy's `_get_implementing_args` function.
-pub fn get_implementing_args<'a>(args: &'a [Box<dyn Any>]) -> Vec<(TypeId, &'a dyn ArrayProtocol)> {
+pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayProtocol)> {
     let mut implementing_args = Vec::new();
 
     for arg in args {
         if let Some(array_protocol_obj) = arg.downcast_ref::<Box<dyn ArrayProtocol>>() {
-            let type_id = (*array_protocol_obj).type_id();
+            let type_id = (**array_protocol_obj).type_id();
             implementing_args.push((type_id, &**array_protocol_obj));
         }
     }

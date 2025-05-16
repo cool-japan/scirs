@@ -48,10 +48,10 @@ pub struct ReassignedConfig {
 impl Default for ReassignedConfig {
     fn default() -> Self {
         let window_size = 256;
-        let win = window::hann(window_size);
+        let win = window::hann(window_size, true).expect("Failed to create window");
 
         ReassignedConfig {
-            window: win.clone(),
+            window: Array1::from(win),
             time_window: None,
             freq_window: None,
             hop_size: window_size / 4,
@@ -215,19 +215,25 @@ fn compute_stft(
 ) -> SignalResult<Array2<Complex64>> {
     let stft_result = spectral::stft(
         signal.as_slice().unwrap(),
-        window.as_slice().unwrap(),
-        hop_size,
-        n_fft,
+        None, // fs
+        None, // window
+        Some(window.len()), // nperseg
+        Some(hop_size), // noverlap
+        Some(n_fft), // nfft
+        None, // detrend
+        None, // boundary
+        None, // padded
     )?;
 
-    // Reshape to match our expected format
-    let n_frames = stft_result.shape()[1];
+    // Extract the result
+    let (_f, _t, zxx) = stft_result;
+    let n_frames = zxx.len();
     let n_bins = n_fft / 2 + 1; // Only positive frequencies
 
     let mut stft = Array2::zeros((n_bins, n_frames));
-    for i in 0..n_bins {
-        for j in 0..n_frames {
-            stft[[i, j]] = stft_result[[i, j]];
+    for j in 0..n_frames {
+        for i in 0..zxx[j].len().min(n_bins) {
+            stft[[i, j]] = zxx[j][i];
         }
     }
 
@@ -518,7 +524,7 @@ mod tests {
 
         // Configure the reassigned spectrogram
         let mut config = ReassignedConfig::default();
-        config.window = window::hann(128);
+        config.window = Array1::from(window::hann(128, true).unwrap());
         config.hop_size = 32;
         config.fs = fs;
         config.return_spectrogram = true;
@@ -563,7 +569,7 @@ mod tests {
 
         // Configure the reassigned spectrogram
         let mut config = ReassignedConfig::default();
-        config.window = window::hann(64);
+        config.window = Array1::from(window::hann(64, true).unwrap());
         config.hop_size = 16;
         config.fs = fs;
 

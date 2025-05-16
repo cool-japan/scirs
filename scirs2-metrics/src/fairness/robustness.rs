@@ -427,6 +427,7 @@ pub struct SensitivityResult {
 /// # Returns
 ///
 /// * Information about fairness metric sensitivity to perturbations
+#[allow(clippy::too_many_arguments)]
 pub fn perturbation_sensitivity<T, F>(
     y_true: &Array1<T>,
     y_pred: &Array1<T>,
@@ -653,7 +654,7 @@ where
         let mut perturbed_val = y_val + noise;
 
         // Clamp for binary predictions
-        if (y_val == 0.0 || y_val == 1.0) && (perturbed_val < 0.0 || perturbed_val > 1.0) {
+        if (y_val == 0.0 || y_val == 1.0) && !(0.0..=1.0).contains(&perturbed_val) {
             perturbed_val = perturbed_val.clamp(0.0, 1.0);
         }
 

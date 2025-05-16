@@ -448,7 +448,7 @@ where
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
-                return Err(IntegrateError::GenericError(format!(
+                return Err(IntegrateError::ComputationError(format!(
                     "Failed to converge at t = {}. Step size too small.",
                     t_current
                 )));
@@ -924,7 +924,7 @@ where
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
-                return Err(IntegrateError::GenericError(format!(
+                return Err(IntegrateError::ComputationError(format!(
                     "Failed to converge at t = {}. Step size too small.",
                     t_current
                 )));

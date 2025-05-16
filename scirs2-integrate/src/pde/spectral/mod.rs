@@ -1290,7 +1290,8 @@ impl From<SpectralResult> for PDESolution<f64> {
         let mut values = Vec::new();
         // Clone the result.u to avoid the move issue
         let u_clone = result.u.clone();
-        let u_reshaped = u_clone.into_shape((u_clone.len(), 1)).unwrap();
+        let u_len = u_clone.len();
+        let u_reshaped = u_clone.into_shape((u_len, 1)).unwrap();
         values.push(u_reshaped);
 
         // Create solver info

@@ -74,6 +74,33 @@ pub struct Delaunay {
     _qh: Option<Qh<'static>>,
 }
 
+impl Debug for Delaunay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Delaunay")
+            .field("points", &self.points.shape())
+            .field("ndim", &self.ndim)
+            .field("simplices", &self.simplices.len())
+            .field("neighbors", &self.neighbors.len())
+            .field("coplanar", &self.coplanar.len())
+            .field("furthest_site", &self.furthest_site)
+            .finish()
+    }
+}
+
+impl Clone for Delaunay {
+    fn clone(&self) -> Self {
+        Self {
+            points: self.points.clone(),
+            ndim: self.ndim,
+            simplices: self.simplices.clone(),
+            neighbors: self.neighbors.clone(),
+            coplanar: self.coplanar.clone(),
+            furthest_site: self.furthest_site,
+            _qh: None, // We don't clone the Qhull handle
+        }
+    }
+}
+
 impl Delaunay {
     /// Create a new Delaunay triangulation
     ///

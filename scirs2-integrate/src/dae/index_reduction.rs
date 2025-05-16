@@ -121,12 +121,14 @@ impl<F: Float + FromPrimitive + Debug> DAEStructure<F> {
     {
         // For semi-explicit DAEs, first check if it's index-1
         // by examining if ∂g/∂y is invertible
-        let g_y = compute_constraint_jacobian(g, t, x, y)?;
+        // Convert ArrayView1 to slices for the constraint function
+        let x_slice: Vec<F> = x.to_vec();
+        let y_slice: Vec<F> = y.to_vec();
+        let g_y = compute_constraint_jacobian(&|t, x, y| g(t, ArrayView1::from(x), ArrayView1::from(y)).to_vec(), t, &x_slice, &y_slice);
         self.constraint_jacobian = Some(g_y.clone());
 
         // Check if constraint Jacobian is invertible
-        let tol = F::from_f64(1e-10).unwrap();
-        let singular = is_singular_matrix(g_y.view(), tol);
+        let singular = is_singular_matrix(g_y.view());
 
         if !singular {
             // The system is index-1
@@ -158,7 +160,7 @@ impl<F: Float + FromPrimitive + Debug> DAEStructure<F> {
         }
 
         // Check if index-2 matrix is full rank
-        let index2_singular = is_singular_matrix(index2_matrix.view(), tol);
+        let index2_singular = is_singular_matrix(index2_matrix.view());
 
         if !index2_singular {
             // The system is index-2
@@ -487,7 +489,7 @@ impl<F: Float + FromPrimitive + Debug> ProjectionMethod<F> {
 
         // Check if the projection was successful
         if residual > self.constraint_tol {
-            return Err(IntegrateError::GenericError(format!(
+            return Err(IntegrateError::ComputationError(format!(
                 "Failed to project solution onto constraint manifold. Residual: {}",
                 residual
             )));
@@ -543,7 +545,7 @@ impl<F: Float + FromPrimitive + Debug> ProjectionMethod<F> {
             .sqrt();
 
         if g_norm > self.constraint_tol {
-            return Err(IntegrateError::GenericError(format!(
+            return Err(IntegrateError::ComputationError(format!(
                 "Failed to find consistent initial conditions after {} iterations. Residual: {}",
                 max_iter, g_norm
             )));
@@ -658,7 +660,7 @@ where
     let lambda = match solve_linear_system(&j_jt.view(), &b.view()) {
         Ok(sol) => sol,
         Err(e) => {
-            return Err(IntegrateError::GenericError(format!(
+            return Err(IntegrateError::ComputationError(format!(
                 "Failed to solve least squares system: {}",
                 e
             )))

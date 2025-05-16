@@ -3,6 +3,8 @@
 //! This module provides algorithms and data structures for detecting stiffness
 //! in ODE systems and making intelligent method switching decisions.
 
+pub mod integration;
+
 use ndarray::{Array1, Array2, ArrayView1};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;

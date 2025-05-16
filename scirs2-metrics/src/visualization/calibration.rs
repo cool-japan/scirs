@@ -167,7 +167,7 @@ where
     }
 }
 
-impl<'a, T, S> MetricVisualizer for CalibrationVisualizer<'a, T, S>
+impl<T, S> MetricVisualizer for CalibrationVisualizer<'_, T, S>
 where
     T: Clone + PartialOrd + 'static,
     S: Data<Elem = T>,

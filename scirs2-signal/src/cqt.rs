@@ -17,6 +17,7 @@ use std::f64::consts::PI;
 
 use crate::error::{SignalError, SignalResult};
 use crate::window;
+use scirs2_fft;
 
 /// Configuration parameters for Constant-Q Transform
 #[derive(Debug, Clone)]
@@ -171,7 +172,7 @@ pub struct SparseKernel {
 /// // result.cqt contains the CQT coefficients
 /// // result.frequencies contains the center frequencies of each bin
 /// ```
-pub fn constant_q_transform(signal: &Array1<f64>, config: CqtConfig) -> SignalResult<CqtResult> {
+pub fn constant_q_transform(signal: &Array1<f64>, config: &CqtConfig) -> SignalResult<CqtResult> {
     // Calculate the Q factor if not provided
     let q = config.q_factor.unwrap_or_else(|| {
         // Q = 1 / (2^(1/bins_per_octave) - 1)
@@ -302,7 +303,7 @@ fn compute_cqt_kernel(
         }
 
         // Compute FFT
-        let kernel_fft = scirs2_fft::fft(&padded_kernel).expect("FFT computation failed");
+        let kernel_fft = scirs2_fft::fft(&padded_kernel, None).expect("FFT computation failed");
 
         // Create sparse representation if requested
         if use_sparse {
@@ -359,7 +360,7 @@ fn compute_cqt_frame(signal: &Array1<f64>, kernel: &CqtKernel) -> SignalResult<V
         }
 
         // Compute FFT of padded signal
-        let signal_fft = scirs2_fft::fft(&padded_signal).expect("FFT computation failed");
+        let signal_fft = scirs2_fft::fft(&padded_signal, None).expect("FFT computation failed");
 
         // Multiply with the kernels in the frequency domain
         let n_bins = kernel.kernels.len();
@@ -396,7 +397,7 @@ fn compute_cqt_frame(signal: &Array1<f64>, kernel: &CqtKernel) -> SignalResult<V
             }
 
             // Compute FFT
-            let chunk_fft = scirs2_fft::fft(&padded_chunk).expect("FFT computation failed");
+            let chunk_fft = scirs2_fft::fft(&padded_chunk, None).expect("FFT computation failed");
 
             // Multiply with the kernels
             for (k, sparse_kernel) in kernel.kernels.iter().enumerate() {
@@ -478,11 +479,11 @@ fn compute_cqt_spectrogram(
 /// Create window function of specified type and length
 fn create_window(window_type: &str, length: usize) -> SignalResult<Vec<f64>> {
     match window_type.to_lowercase().as_str() {
-        "hann" | "hanning" => Ok(window::hann(length).to_vec()),
-        "hamming" => Ok(window::hamming(length).to_vec()),
-        "blackman" => Ok(window::blackman(length).to_vec()),
-        "bartlett" => Ok(window::bartlett(length).to_vec()),
-        "rectangular" | "boxcar" => Ok(window::boxcar(length).to_vec()),
+        "hann" | "hanning" => Ok(window::hann(length, true)?),
+        "hamming" => Ok(window::hamming(length, true)?),
+        "blackman" => Ok(window::blackman(length, true)?),
+        "bartlett" => Ok(window::bartlett(length, true)?),
+        "rectangular" | "boxcar" => Ok(window::boxcar(length, true)?),
         _ => Err(SignalError::ValueError(format!(
             "Unsupported window type: {}",
             window_type
@@ -663,7 +664,7 @@ pub fn inverse_constant_q_transform(
         }
 
         // Inverse FFT
-        let frame_signal = scirs2_fft::ifft(&frame_spectrum).expect("IFFT computation failed");
+        let frame_signal = scirs2_fft::ifft(&frame_spectrum, None).expect("IFFT computation failed");
 
         // Overlap-add to output
         let start = frame * hop_size;
@@ -676,7 +677,7 @@ pub fn inverse_constant_q_transform(
     }
 
     // Normalize the output
-    let max_abs = output.iter().cloned().fold(0.0, |a, b| a.max(b.abs()));
+    let max_abs = output.iter().cloned().fold(0.0, |a, b| f64::max(a, b.abs()));
     if max_abs > 0.0 {
         output.iter_mut().for_each(|x| *x /= max_abs);
     }
@@ -837,7 +838,7 @@ mod tests {
         };
 
         // Compute CQT
-        let cqt_result = constant_q_transform(&signal, config).unwrap();
+        let cqt_result = constant_q_transform(&signal, &config).unwrap();
 
         // Find the bin with maximum energy
         let mut max_bin = 0;
@@ -897,7 +898,7 @@ mod tests {
         };
 
         // Compute CQT spectrogram
-        let cqt_result = constant_q_transform(&signal, config).unwrap();
+        let cqt_result = constant_q_transform(&signal, &config).unwrap();
 
         // Check spectrogram dimensions
         let n_bins =
@@ -945,7 +946,7 @@ mod tests {
         };
 
         // Compute CQT
-        let cqt_result = constant_q_transform(&signal, config).unwrap();
+        let cqt_result = constant_q_transform(&signal, &config).unwrap();
 
         // Compute chromagram
         let chroma = chromagram(&cqt_result, None, None).unwrap();

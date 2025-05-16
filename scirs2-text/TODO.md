@@ -31,38 +31,38 @@ This module provides text processing functionality for scientific computing appl
 
 ## Text Preprocessing
 
-- [ ] Enhanced tokenization
+- [x] Enhanced tokenization
   - [ ] Subword tokenization (BPE, WordPiece)
-  - [ ] Regular expression tokenizer
-  - [ ] N-gram tokenization
+  - [x] Regular expression tokenizer
+  - [x] N-gram tokenization
   - [ ] Token filtering options
-  - [ ] Custom tokenizer framework
-- [ ] Advanced normalization
-  - [ ] Stemming algorithms
-    - [ ] Porter stemmer
-    - [ ] Snowball stemmer
+  - [x] Custom tokenizer framework
+- [x] Advanced normalization
+  - [x] Stemming algorithms
+    - [x] Porter stemmer
+    - [x] Snowball stemmer
     - [ ] Lancaster stemmer
-  - [ ] Lemmatization
-    - [ ] Dictionary-based lemmatization
+  - [x] Lemmatization
+    - [x] Dictionary-based lemmatization
     - [ ] Rule-based lemmatization
-  - [ ] Stop word removal with configurable lists
+  - [x] Stop word removal with configurable lists
   - [ ] Spelling correction
     - [ ] Dictionary-based correction
     - [ ] Statistical correction
-- [ ] Text cleansing
-  - [ ] HTML/XML stripping
-  - [ ] Unicode normalization
-  - [ ] Contraction expansion
-  - [ ] URL/email handling
+- [x] Text cleansing
+  - [x] HTML/XML stripping
+  - [x] Unicode normalization
+  - [x] Contraction expansion
+  - [x] URL/email handling
   - [ ] Number normalization
 
 ## Text Representation
 
-- [ ] Count-based models
-  - [ ] Enhanced CountVectorizer
-    - [ ] N-gram support (character and word)
-    - [ ] IDF smoothing options
-    - [ ] Sublinear TF scaling
+- [x] Count-based models
+  - [x] Enhanced CountVectorizer
+    - [x] N-gram support (character and word)
+    - [x] IDF smoothing options
+    - [x] Sublinear TF scaling
     - [ ] Memory-efficient sparse storage
   - [ ] Co-occurrence matrix construction
   - [ ] PMI (Pointwise Mutual Information)
@@ -82,14 +82,15 @@ This module provides text processing functionality for scientific computing appl
 
 ## Distance and Similarity
 
-- [ ] String metrics
-  - [ ] Edit distance enhancements
-    - [ ] Damerau-Levenshtein distance
-    - [ ] Optimal string alignment
-    - [ ] Weighted Levenshtein
-  - [ ] Phonetic algorithms
-    - [ ] Soundex implementation
-    - [ ] Double Metaphone
+- [x] String metrics
+  - [x] Edit distance enhancements
+    - [x] Damerau-Levenshtein distance
+    - [x] Optimal string alignment (restricted Damerau-Levenshtein)
+    - [x] Weighted Levenshtein
+    - [x] Weighted Damerau-Levenshtein
+  - [x] Phonetic algorithms
+    - [x] Soundex implementation
+    - [x] Metaphone
     - [ ] NYSIIS
   - [ ] Sequence alignment scores
     - [ ] Needleman-Wunsch algorithm
@@ -102,14 +103,17 @@ This module provides text processing functionality for scientific computing appl
 
 ## Text Analysis
 
-- [ ] Text statistics
-  - [ ] Readability metrics
-    - [ ] Flesch-Kincaid
-    - [ ] SMOG Index
-    - [ ] Coleman-Liau
-  - [ ] Lexical diversity measures
+- [x] Text statistics
+  - [x] Readability metrics
+    - [x] Flesch Reading Ease and Flesch-Kincaid
+    - [x] SMOG Index
+    - [x] Coleman-Liau
+    - [x] Gunning Fog Index
+    - [x] Automated Readability Index
+    - [x] Dale-Chall Readability Score
+  - [x] Lexical diversity measures (type-token ratio)
   - [ ] Part-of-speech distribution
-  - [ ] Text complexity analysis
+  - [x] Text complexity analysis (syllable counting, complex word ratio)
 - [ ] Information extraction
   - [ ] Regular expression utilities
   - [ ] Pattern matching framework

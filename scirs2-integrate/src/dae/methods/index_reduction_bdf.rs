@@ -151,7 +151,7 @@ where
     // 3. Solve the index-1 DAE using BDF methods
 
     // But for the purposes of this example, we'll just return a not implemented error
-    Err(IntegrateError::GenericError(format!(
+    Err(IntegrateError::ComputationError(format!(
         "Index reduction for implicit DAEs of index {} is not fully implemented yet",
         match index {
             DAEIndex::Index1 => "1",

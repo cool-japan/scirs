@@ -191,7 +191,7 @@ impl<T: Float> Rectangle<T> {
 }
 
 /// A node in the KD-Tree
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct KDNode<T: Float> {
     /// Index of the point in the original data array
     idx: usize,
@@ -211,7 +211,7 @@ struct KDNode<T: Float> {
 ///
 /// * `T` - The floating point type for coordinates
 /// * `D` - The distance metric type
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KDTree<T: Float + Send + Sync + 'static, D: Distance<T> + 'static> {
     /// The points stored in the KD-Tree
     points: Array2<T>,

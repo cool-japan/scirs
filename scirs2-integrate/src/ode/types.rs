@@ -74,7 +74,6 @@ impl Default for MassMatrixType {
 }
 
 /// Mass matrix for ODE system of the form M(t,y)·y' = f(t,y)
-#[derive(Debug, Clone)]
 pub struct MassMatrix<F: Float> {
     /// Type of the mass matrix
     pub matrix_type: MassMatrixType,
@@ -90,6 +89,34 @@ pub struct MassMatrix<F: Float> {
     pub lower_bandwidth: Option<usize>,
     /// Upper bandwidth for banded matrices
     pub upper_bandwidth: Option<usize>,
+}
+
+impl<F: Float> Debug for MassMatrix<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MassMatrix")
+            .field("matrix_type", &self.matrix_type)
+            .field("constant_matrix", &self.constant_matrix)
+            .field("time_function", &self.time_function.is_some())
+            .field("state_function", &self.state_function.is_some())
+            .field("is_banded", &self.is_banded)
+            .field("lower_bandwidth", &self.lower_bandwidth)
+            .field("upper_bandwidth", &self.upper_bandwidth)
+            .finish()
+    }
+}
+
+impl<F: Float> Clone for MassMatrix<F> {
+    fn clone(&self) -> Self {
+        MassMatrix {
+            matrix_type: self.matrix_type.clone(),
+            constant_matrix: self.constant_matrix.clone(),
+            time_function: None, // Cannot clone closures
+            state_function: None, // Cannot clone closures
+            is_banded: self.is_banded,
+            lower_bandwidth: self.lower_bandwidth,
+            upper_bandwidth: self.upper_bandwidth,
+        }
+    }
 }
 
 impl<F: Float + num_traits::FromPrimitive + Debug> MassMatrix<F> {

@@ -9,6 +9,9 @@ use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata
 use crate::classification::curves::precision_recall_curve;
 use crate::error::{MetricsError, Result};
 
+/// Type alias for PR curve computation result
+pub(crate) type PRComputeResult = (Vec<f64>, Vec<f64>, Vec<f64>, Option<f64>);
+
 /// Precision-Recall curve visualizer
 ///
 /// This struct provides methods for visualizing Precision-Recall curves.
@@ -169,7 +172,7 @@ where
     /// # Returns
     ///
     /// * Result containing (precision, recall, thresholds, average_precision)
-    fn compute_pr(&self) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, Option<f64>)> {
+    fn compute_pr(&self) -> Result<PRComputeResult> {
         if self.precision.is_some() && self.recall.is_some() {
             // Return pre-computed values
             return Ok((
@@ -212,7 +215,7 @@ where
     }
 }
 
-impl<'a, T, S> MetricVisualizer for PrecisionRecallVisualizer<'a, T, S>
+impl<T, S> MetricVisualizer for PrecisionRecallVisualizer<'_, T, S>
 where
     T: Clone + PartialOrd + 'static,
     S: Data<Elem = T>,

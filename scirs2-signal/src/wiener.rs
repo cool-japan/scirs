@@ -42,6 +42,7 @@ use std::f64::consts::PI;
 
 use crate::error::{SignalError, SignalResult};
 use crate::window;
+use scirs2_fft;
 
 /// Configuration for Wiener filtering
 #[derive(Debug, Clone)]

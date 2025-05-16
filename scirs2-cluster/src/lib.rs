@@ -85,3 +85,6 @@ pub use spectral::{
     spectral_bipartition, spectral_clustering, AffinityMode, SpectralClusteringOptions,
 };
 pub use vq::*;
+
+#[cfg(test)]
+mod tests;
