@@ -4,7 +4,7 @@
 
 use ndarray::Array2;
 use num_complex::Complex64;
-use scirs2_fft::{fft2, get_global_pool, get_workers, set_workers, with_workers, WorkerPoolInfo};
+use scirs2_fft::{fft2, get_global_pool, get_workers, with_workers};
 use std::time::Instant;
 
 fn main() {
@@ -68,7 +68,7 @@ fn main() {
     // Demonstrate worker context (temporary worker count)
     println!("Using temporary worker context:");
 
-    let result = with_workers(2, || {
+    let _result = with_workers(2, || {
         println!("  Inside context: {} workers", 2);
         // Perform FFT operation with 2 workers
         fft2(&signal.view(), None, None, None).unwrap()

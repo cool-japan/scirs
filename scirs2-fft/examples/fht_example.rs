@@ -3,9 +3,10 @@
 //! This example shows how to use the Fast Hankel Transform for various applications.
 
 use scirs2_fft::{fht, fht_sample_points, fhtoffset, ifht};
-use std::f64::consts::PI;
+// use std::f64::consts::PI;  // Unused import
 
 /// J0 Bessel function approximation for testing
+#[allow(dead_code)]
 fn bessel_j0(x: f64) -> f64 {
     if x.abs() < 1e-6 {
         1.0
@@ -51,7 +52,7 @@ fn example_basic_fht() {
         .collect();
 
     // Compute FHT
-    let F = fht(&f, dln, mu, None, None).unwrap();
+    let f_transform = fht(&f, dln, mu, None, None).unwrap();
 
     // The Hankel transform of a Gaussian is also a Gaussian
     // with reciprocal width
@@ -59,14 +60,14 @@ fn example_basic_fht() {
     println!("Transform: Should be Gaussian with σ' ≈ {}", 1.0 / sigma);
 
     // Find the peak of the transform
-    let max_idx = F
+    let max_idx = f_transform
         .iter()
-        .position(|&x| x == F.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)))
+        .position(|&x| x == f_transform.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)))
         .unwrap();
     println!("Peak at index: {}", max_idx);
 
     // Test inverse transform
-    let f_recovered = ifht(&F, dln, mu, None, None).unwrap();
+    let f_recovered = ifht(&f_transform, dln, mu, None, None).unwrap();
 
     // Check recovery error
     let error: f64 = f
@@ -98,14 +99,14 @@ fn example_different_orders() {
         let f: Vec<f64> = r.iter().map(|&ri| (-ri).exp()).collect();
 
         // Compute FHT
-        let F = fht(&f, dln, mu, None, None).unwrap();
+        let f_transform = fht(&f, dln, mu, None, None).unwrap();
 
         // Check that transform succeeded
-        let has_nan = F.iter().any(|x| x.is_nan());
+        let has_nan = f_transform.iter().any(|x| x.is_nan());
         println!("  Transform successful: {}", !has_nan);
 
         // Simple check: transform should be non-zero
-        let norm: f64 = F.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let norm: f64 = f_transform.iter().map(|x| x * x).sum::<f64>().sqrt();
         println!("  Transform norm: {:.3e}", norm);
     }
     println!();
@@ -125,20 +126,20 @@ fn example_biased_transform() {
     let f: Vec<f64> = r.iter().map(|&ri| ri.powf(-alpha)).collect();
 
     // Transform without bias
-    let F_unbiased = fht(&f, dln, mu, None, None).unwrap();
+    let f_unbiased = fht(&f, dln, mu, None, None).unwrap();
 
     // Transform with bias matching the power law
-    let F_biased = fht(&f, dln, mu, None, Some(alpha)).unwrap();
+    let f_biased = fht(&f, dln, mu, None, Some(alpha)).unwrap();
 
     // The biased transform should handle the power law better
-    let norm_unbiased: f64 = F_unbiased.iter().map(|x| x * x).sum::<f64>().sqrt();
-    let norm_biased: f64 = F_biased.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let norm_unbiased: f64 = f_unbiased.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let norm_biased: f64 = f_biased.iter().map(|x| x * x).sum::<f64>().sqrt();
 
     println!("Power law: r^(-{})", alpha);
     println!("Unbiased transform norm: {:.3e}", norm_unbiased);
     println!("Biased transform norm: {:.3e}", norm_biased);
     println!(
-        "Ratio (biased/unbiased): {:.3f}",
+        "Ratio (biased/unbiased): {:.3}",
         norm_biased / norm_unbiased
     );
     println!();
@@ -171,14 +172,15 @@ fn example_optimal_offset() {
 
     println!("Effect of offset on transform:");
     for offset in offsets {
-        let F = fht(&f, dln, mu, Some(offset), None).unwrap();
-        let norm: f64 = F.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let f_transform = fht(&f, dln, mu, Some(offset), None).unwrap();
+        let norm: f64 = f_transform.iter().map(|x| x * x).sum::<f64>().sqrt();
         println!("  Offset = {}, Transform norm = {:.3e}", offset, norm);
     }
     println!();
 }
 
 // Additional example: Application to radial functions
+#[allow(dead_code)]
 fn example_radial_transform() {
     println!("Example 5: Radial function transform");
     println!("-----------------------------------");
@@ -201,7 +203,7 @@ fn example_radial_transform() {
         .collect();
 
     // Compute the Hankel transform
-    let F = fht(&f, dln, mu, None, None).unwrap();
+    let f_transform = fht(&f, dln, mu, None, None).unwrap();
 
     // The transform represents the radial profile of the 2D Fourier transform
     println!("Mexican hat wavelet in real space");
@@ -209,7 +211,7 @@ fn example_radial_transform() {
 
     // Find characteristic frequency
     let k = fht_sample_points(n, dln, -2.0);
-    let max_idx = F
+    let max_idx = f_transform
         .iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())

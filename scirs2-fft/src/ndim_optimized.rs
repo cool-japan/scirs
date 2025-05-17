@@ -320,7 +320,11 @@ mod tests {
 
     #[test]
     fn test_parallelize_decision() {
-        assert!(should_parallelize(10000, 100));
+        // Test with both conditions met: large data size and axis length > 64
+        assert!(should_parallelize(10001, 100));
+        // Test with only data size large enough but axis too small
+        assert!(!should_parallelize(10001, 50));
+        // Test with both too small
         assert!(!should_parallelize(100, 10));
     }
 

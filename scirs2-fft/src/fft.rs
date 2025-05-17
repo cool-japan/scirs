@@ -52,7 +52,13 @@ where
     // Convert input to complex vector
     let mut complex_input: Vec<Complex64> = x
         .iter()
-        .map(|&val| {
+        .map(|&val| -> FFTResult<Complex64> {
+            // For Complex input
+            if let Some(c) = try_as_complex(val) {
+                return Ok(c);
+            }
+
+            // For real input
             let val_f64 = num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
                 FFTError::ValueError(format!("Could not convert {:?} to f64", val))
             })?;

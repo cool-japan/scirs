@@ -353,7 +353,7 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Example will be expanded when the function is implemented
 /// ```
 /// Compute the N-dimensional discrete Fourier Transform for real input.

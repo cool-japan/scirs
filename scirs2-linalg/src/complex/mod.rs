@@ -33,6 +33,9 @@ use crate::error::{LinalgError, LinalgResult};
 pub mod enhanced_ops;
 pub use enhanced_ops::*;
 
+pub mod decompositions;
+pub use decompositions::*;
+
 /// Complex matrix multiplication C = A * B
 pub fn complex_matmul<F>(
     a: &ArrayView2<Complex<F>>,

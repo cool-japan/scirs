@@ -74,7 +74,7 @@ impl LinalgScalar for f32 {
     }
 
     fn abs(&self) -> Self::Real {
-        self.abs()
+        <f32>::abs(*self)
     }
 
     fn is_zero(&self) -> bool {
@@ -90,7 +90,7 @@ impl LinalgScalar for f32 {
     }
 
     fn sqrt(&self) -> Self {
-        self.sqrt()
+        <f32>::sqrt(*self)
     }
 
     fn conj(&self) -> Self {
@@ -125,7 +125,7 @@ impl LinalgScalar for f64 {
     }
 
     fn abs(&self) -> Self::Real {
-        self.abs()
+        <f64>::abs(*self)
     }
 
     fn is_zero(&self) -> bool {
@@ -141,7 +141,7 @@ impl LinalgScalar for f64 {
     }
 
     fn sqrt(&self) -> Self {
-        self.sqrt()
+        <f64>::sqrt(*self)
     }
 
     fn conj(&self) -> Self {
@@ -158,10 +158,7 @@ impl LinalgScalar for f64 {
 }
 
 /// Generic matrix multiplication - wrapper using ndarray's dot
-pub fn gemm<T>(
-    a: &ArrayView2<T>,
-    b: &ArrayView2<T>,
-) -> LinalgResult<Array2<T>>
+pub fn gemm<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> LinalgResult<Array2<T>>
 where
     T: LinalgScalar + ndarray::LinalgScalar,
 {
@@ -179,10 +176,7 @@ where
 }
 
 /// Generic matrix-vector multiplication - wrapper using ndarray's dot
-pub fn gemv<T>(
-    a: &ArrayView2<T>,
-    x: &ndarray::ArrayView1<T>,
-) -> LinalgResult<ndarray::Array1<T>>
+pub fn gemv<T>(a: &ArrayView2<T>, x: &ndarray::ArrayView1<T>) -> LinalgResult<ndarray::Array1<T>>
 where
     T: LinalgScalar + ndarray::LinalgScalar,
 {
@@ -209,10 +203,7 @@ pub fn ginv<T: LinalgScalar + Float>(a: &ArrayView2<T>) -> LinalgResult<Array2<T
 }
 
 /// Generic matrix norm (only for real floats)
-pub fn gnorm<T: LinalgScalar + Float>(
-    a: &ArrayView2<T>,
-    norm_type: &str,
-) -> LinalgResult<T> {
+pub fn gnorm<T: LinalgScalar + Float>(a: &ArrayView2<T>, norm_type: &str) -> LinalgResult<T> {
     crate::norm::matrix_norm(a, norm_type)
 }
 
@@ -258,9 +249,7 @@ pub struct GenericEigen<T: LinalgScalar> {
 }
 
 /// Generic eigendecomposition (only for real floats, returns complex)
-pub fn geig<T: LinalgScalar + Float>(
-    a: &ArrayView2<T>,
-) -> LinalgResult<GenericEigen<T>> {
+pub fn geig<T: LinalgScalar + Float>(a: &ArrayView2<T>) -> LinalgResult<GenericEigen<T>> {
     let (eigenvalues, eigenvectors) = crate::eigen::eig(a)?;
     Ok(GenericEigen {
         eigenvalues,
@@ -348,7 +337,7 @@ mod tests {
     fn test_gsvd() {
         let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
         let svd = gsvd(&a.view(), false).unwrap();
-        
+
         // Check that U and V are orthogonal
         let u_t_u = svd.u.t().dot(&svd.u);
         for i in 0..u_t_u.nrows() {
@@ -363,7 +352,7 @@ mod tests {
     fn test_gqr() {
         let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
         let qr = gqr(&a.view()).unwrap();
-        
+
         // Check that Q is orthogonal
         let q_t_q = qr.q.t().dot(&qr.q);
         for i in 0..q_t_q.nrows() {
@@ -372,7 +361,7 @@ mod tests {
                 assert!((q_t_q[[i, j]] - expected).abs() < 1e-10);
             }
         }
-        
+
         // Check that A = Q * R
         let reconstructed = qr.q.dot(&qr.r);
         for i in 0..a.nrows() {
@@ -386,12 +375,17 @@ mod tests {
     fn test_geig() {
         let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
         let eigen = geig(&a.view()).unwrap();
-        
+
         // For diagonal matrix, eigenvalues should be the diagonal elements
+        // but they might not be in order
+        let mut eigenvalues_real: Vec<f64> = eigen.eigenvalues.iter().map(|e| e.re).collect();
+        eigenvalues_real.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
         let expected_eigenvalues = vec![1.0, 2.0];
         for (i, &expected) in expected_eigenvalues.iter().enumerate() {
-            assert!((eigen.eigenvalues[i].re - expected).abs() < 1e-10);
-            assert!(eigen.eigenvalues[i].im.abs() < 1e-10);
+            assert!((eigenvalues_real[i] - expected).abs() < 1e-10);
+            assert!(eigen.eigenvalues[0].im.abs() < 1e-10);
+            assert!(eigen.eigenvalues[1].im.abs() < 1e-10);
         }
     }
 
@@ -400,7 +394,7 @@ mod tests {
         let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
         let b = array![[1.0], [1.0]];
         let x = gsolve(&a.view(), &b.view()).unwrap();
-        
+
         // Check that A * x = b
         let ax = a.dot(&x);
         for i in 0..b.nrows() {

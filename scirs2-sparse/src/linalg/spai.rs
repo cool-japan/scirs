@@ -98,8 +98,8 @@ impl<F: Float + NumAssign + Sum + Debug + 'static> SpaiPreconditioner<F> {
             for i in 0..k {
                 for j_inner in 0..k {
                     let mut sum = F::zero();
-                    for m in 0..n {
-                        sum += a_k[m][i] * a_k[m][j_inner];
+                    for a_k_row in a_k.iter().take(n) {
+                        sum += a_k_row[i] * a_k_row[j_inner];
                     }
                     ata[i][j_inner] = sum;
                 }
@@ -124,10 +124,10 @@ impl<F: Float + NumAssign + Sum + Debug + 'static> SpaiPreconditioner<F> {
         let mut indices = Vec::new();
         let mut indptr = vec![0];
 
-        for i in 0..n {
-            for j in 0..n {
-                if m_dense[i][j].abs() > F::epsilon() {
-                    data.push(m_dense[i][j]);
+        for row in m_dense.iter().take(n) {
+            for (j, &val) in row.iter().enumerate().take(n) {
+                if val.abs() > F::epsilon() {
+                    data.push(val);
                     indices.push(j);
                 }
             }

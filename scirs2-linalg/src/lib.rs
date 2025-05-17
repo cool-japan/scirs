@@ -93,6 +93,7 @@ pub use error::{LinalgError, LinalgResult};
 pub mod attention;
 mod basic;
 pub mod batch;
+pub mod broadcast;
 pub mod complex;
 pub mod convolution;
 mod decomposition;
@@ -122,6 +123,7 @@ pub mod matrixfree;
 pub mod mixed_precision;
 mod norm;
 pub mod optim;
+pub mod perf_opt;
 pub mod projection;
 pub mod quantization;
 pub mod random;
@@ -221,6 +223,9 @@ pub mod prelude {
     pub use super::batch::attention::{
         batch_flash_attention, batch_multi_head_attention, batch_multi_query_attention,
     };
+    pub use super::broadcast::{
+        broadcast_matmul, broadcast_matmul_3d, broadcast_matvec, BroadcastExt,
+    };
     pub use super::complex::enhanced_ops::{
         det as complex_det, frobenius_norm as complex_frobenius_norm, hermitian_part,
         inner_product as complex_inner_product, is_hermitian, is_unitary,
@@ -282,6 +287,10 @@ pub mod prelude {
     };
     pub use super::norm::{cond, matrix_norm, matrix_rank, vector_norm};
     pub use super::optim::{block_matmul, strassen_matmul, tiled_matmul};
+    pub use super::perf_opt::{
+        blocked_matmul, inplace_add, inplace_scale, matmul_benchmark, optimized_transpose,
+        OptAlgorithm, OptConfig,
+    };
     pub use super::projection::{
         gaussian_random_matrix, johnson_lindenstrauss_min_dim, johnson_lindenstrauss_transform,
         project, sparse_random_matrix, very_sparse_random_matrix,
@@ -300,16 +309,16 @@ pub mod prelude {
     //     orthogonal as enhanced_orthogonal, unitary, hilbert as enhanced_hilbert,
     //     toeplitz as enhanced_toeplitz, vandermonde as enhanced_vandermonde
     // };
+    pub use super::generic::{
+        gdet, geig, gemm, gemv, ginv, gnorm, gqr, gsolve, gsvd, GenericEigen, GenericQR,
+        GenericSVD, LinalgScalar, PrecisionSelector,
+    };
     #[cfg(feature = "simd")]
     pub use super::simd_ops::{
         simd_axpy_f32, simd_axpy_f64, simd_dot_f32, simd_dot_f64, simd_frobenius_norm_f32,
         simd_frobenius_norm_f64, simd_matmul_f32, simd_matmul_f64, simd_matrix_max_f32,
         simd_matrix_max_f64, simd_matrix_min_f32, simd_matrix_min_f64, simd_matvec_f32,
         simd_matvec_f64,
-    };
-    pub use super::generic::{
-        gdet, geig, gemm, gemv, ginv, gnorm, gqr, gsolve, gsvd, GenericEigen, GenericQR, GenericSVD,
-        LinalgScalar, PrecisionSelector,
     };
     pub use super::solve::{lstsq, solve, solve_multiple, solve_triangular};
     pub use super::sparse_dense::{
@@ -333,43 +342,13 @@ pub mod prelude {
     #[cfg(feature = "autograd")]
     pub mod autograd {
         //! Automatic differentiation for linear algebra operations
-
-        // Basic operations
-        pub use super::super::autograd::{
-            det, dot, eig, expm, inv, matmul, matvec, norm, svd, trace, transpose,
-        };
-
-        // Batch operations
-        pub use super::super::autograd::{batch_det, batch_inv, batch_matmul, batch_matvec};
-
-        // Matrix factorizations
-        pub use super::super::autograd::{cholesky, lu, qr};
-
-        // Matrix calculus
-        pub use super::super::autograd::{
-            gradient, hessian, jacobian, jacobian_vector_product, vector_jacobian_product,
-        };
-
-        // Special matrix functions
-        pub use super::super::autograd::{logm, pinv, sqrtm};
-
-        // Tensor algebra operations
-        pub use super::super::autograd::{contract, outer, tensor_vector_product};
-
-        // Matrix transformations
-        pub use super::super::autograd::{
-            project, reflection_matrix, rotation_matrix_2d, scaling_matrix, shear_matrix,
-        };
-
-        // Variable interface
-        pub use super::super::autograd::variable::{
-            var_batch_det, var_batch_inv, var_batch_matmul, var_batch_matvec, var_cholesky,
-            var_contract, var_det, var_dot, var_eig, var_expm, var_gradient, var_hessian, var_inv,
-            var_jacobian, var_jacobian_vector_product, var_logm, var_lu, var_matmul, var_matvec,
-            var_norm, var_outer, var_pinv, var_project, var_qr, var_reflection_matrix,
-            var_rotation_matrix_2d, var_scaling_matrix, var_shear_matrix, var_sqrtm, var_svd,
-            var_tensor_vector_product, var_trace, var_transpose, var_vector_jacobian_product,
-        };
+        //!
+        //! Note: The autograd module is currently undergoing a major API redesign.
+        //! For basic usage, see examples/autograd_simple_example.rs which demonstrates
+        //! how to use scirs2-autograd directly with linear algebra operations.
+        
+        // Re-export the module itself for documentation purposes
+        pub use super::super::autograd::*;
     }
 
     // Accelerated implementations

@@ -278,7 +278,7 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Example will be expanded when the function is fully implemented
 /// ```
 pub fn dstn<T>(
@@ -348,7 +348,7 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Example will be expanded when the function is fully implemented
 /// ```
 pub fn idstn<T>(

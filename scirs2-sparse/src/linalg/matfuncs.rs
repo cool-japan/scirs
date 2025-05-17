@@ -260,9 +260,9 @@ where
     // Initialize with random vectors
     let mut rng = rand::rng();
     let mut x = vec![vec![F::zero(); n]; t];
-    for j in 0..t {
-        for i in 0..n {
-            x[j][i] = if rng.random::<bool>() {
+    for x_j in x.iter_mut().take(t) {
+        for x_elem in x_j.iter_mut().take(n) {
+            *x_elem = if rng.random::<bool>() {
                 F::one()
             } else {
                 -F::one()

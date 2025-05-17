@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Benchmark without padding
     println!("\n1. FFT without padding:");
     let start = Instant::now();
-    let result_no_pad = fft(&signal.to_vec(), None)?;
+    let _result_no_pad = fft(&signal.to_vec(), None)?;
     let time_no_pad = start.elapsed();
     println!("   Time: {:?}", time_no_pad);
 

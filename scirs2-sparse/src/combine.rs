@@ -906,9 +906,9 @@ where
 
     // If there are no blocks, return an empty matrix
     let mut has_blocks = false;
-    for i in 0..m {
-        for j in 0..n {
-            if block_mask[i][j] {
+    for mask_row in block_mask.iter().take(m) {
+        for &mask_elem in mask_row.iter().take(n) {
+            if mask_elem {
                 has_blocks = true;
                 break;
             }

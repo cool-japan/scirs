@@ -101,6 +101,23 @@ This module provides Fast Fourier Transform functionality similar to SciPy's fft
   - [x] Window visualization utilities
   - [x] Window properties analysis (energy, bandwidth)
 
+## Near-term Improvements
+
+- [ ] Fix Fractional Fourier Transform numerical stability issues
+  - [ ] Implement Ozaktas-Kutay algorithm
+  - [ ] Add eigenvector decomposition method
+  - [ ] Improve chirp function computation
+  - [ ] Add error estimation and correction
+  - [ ] Implement adaptive precision based on parameters
+- [ ] Add comprehensive benchmarks
+  - [ ] Performance comparison with SciPy FFT functions
+  - [ ] Memory usage profiling
+  - [ ] Accuracy comparison tests
+- [ ] Plan serialization and advanced caching
+  - [ ] Serialize FFT plans to disk
+  - [ ] Cross-run plan reuse
+  - [ ] Adaptive cache eviction policies
+
 ## Long-term Goals
 
 - [ ] Performance comparable to or better than FFTW

@@ -292,7 +292,7 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Example will be expanded when the function is fully implemented
 /// ```
 /// # Errors
@@ -363,7 +363,7 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```text
 /// // Example will be expanded when the function is fully implemented
 /// ```
 /// # Errors

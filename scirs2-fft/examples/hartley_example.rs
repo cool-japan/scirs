@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         complex_signal[i] = Complex64::new(val, 0.0);
     }
 
-    let fft_result = fft(&complex_signal, None, None, None, None)?;
+    let fft_result = fft(&complex_signal.to_vec(), None)?;
     let mut hartley_from_fft = Array1::<f64>::zeros(test_signal.len());
     for i in 0..test_signal.len() {
         hartley_from_fft[i] = fft_result[i].re - fft_result[i].im;

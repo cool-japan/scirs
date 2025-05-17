@@ -114,14 +114,14 @@ This module provides linear algebra functionality comparable to NumPy/SciPy's li
   - [x] Standardize function naming and parameter ordering (via compat module)
   - [x] Ensure equivalent functionality for all NumPy linalg functions (most core functions)
   - [x] Document differences from NumPy where they exist for good reasons
-- [ ] Type-generic linear algebra operations
-  - [ ] Unified wrappers for operations on different numeric types
-  - [ ] Consistent error handling across numeric types
-  - [ ] Automatic precision selection based on input requirements
-- [ ] Higher-dimensional array support
-  - [ ] Convert key operations to handle arrays with multiple batch dimensions
-  - [ ] Implement broadcasting behavior consistent with NumPy
-  - [ ] Support for vectorized application of operations to batched arrays
+- [x] Type-generic linear algebra operations
+  - [x] Unified wrappers for operations on different numeric types
+  - [x] Consistent error handling across numeric types
+  - [x] Automatic precision selection based on input requirements
+- [x] Higher-dimensional array support
+  - [x] Convert key operations to handle arrays with multiple batch dimensions
+  - [x] Implement broadcasting behavior consistent with NumPy
+  - [x] Support for vectorized application of operations to batched arrays
 
 ## Optimization Tasks
 
@@ -129,11 +129,11 @@ This module provides linear algebra functionality comparable to NumPy/SciPy's li
   - [x] Test suite that verifies numerical accuracy against SciPy results
   - [ ] Performance benchmarks for all key operations
   - [x] Correctness validation for edge cases
-- [ ] Performance optimizations for large matrices
-  - [ ] Cache-friendly algorithms
+- [x] Performance optimizations for large matrices
+  - [x] Cache-friendly algorithms (implemented in perf_opt module)
   - [x] SIMD optimizations
   - [x] Loop tiling and blocking (implemented in SIMD-accelerated matrix multiplication)
-  - [ ] Memory layout optimizations
+  - [x] Memory layout optimizations (blocked and in-place operations)
   - [ ] Fusion of consecutive operations when possible
 - [x] Improve error messages and handling
   - [x] More detailed error diagnostics for singular matrices
@@ -156,14 +156,14 @@ This module provides linear algebra functionality comparable to NumPy/SciPy's li
 
 ## Feature Enhancements
 
-- [ ] Autodiff for matrix operations
-  - [ ] Forward and reverse mode automatic differentiation
-  - [ ] Matrix calculus operations with gradient tracking
-  - [ ] Integration with optimization frameworks
-- [ ] Complex number support
-  - [ ] Complete implementation for all decompositions
-  - [ ] Specialized algorithms for common complex matrix operations
-  - [ ] Handling of Hermitian matrices and operations
+- [x] Autodiff for matrix operations
+  - [x] Forward and reverse mode automatic differentiation
+  - [x] Matrix calculus operations with gradient tracking
+  - [x] Integration with optimization frameworks
+- [x] Complex number support
+  - [x] Complete implementation for all decompositions
+  - [x] Specialized algorithms for common complex matrix operations
+  - [x] Handling of Hermitian matrices and operations
 - [ ] Extended precision operations
   - [ ] Support for higher precision beyond f64
   - [ ] Specialized algorithms that maintain precision

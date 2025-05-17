@@ -12,7 +12,7 @@ use crate::fft::fft;
 /// Compute the Discrete Hartley Transform (DHT) of a real-valued sequence.
 ///
 /// The Hartley transform is defined as:
-/// H[k] = sum_{n=0}^{N-1} x[n] * cas(2*pi*k*n/N)
+/// H\[k\] = sum_{n=0}^{N-1} x\[n\] * cas(2*pi*k*n/N)
 ///
 /// where cas(x) = cos(x) + sin(x) = sqrt(2) * cos(x - pi/4)
 ///

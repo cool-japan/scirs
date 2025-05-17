@@ -176,6 +176,19 @@ impl CZT {
         let mut result = Array::<Complex<f64>, _>::zeros(output_shape).into_dyn();
 
         // Apply CZT along the specified axis
+        // For 1D array, directly apply the transform
+        if x.ndim() == 1 {
+            let x_1d: Array1<Complex<f64>> = x
+                .to_owned()
+                .into_shape_with_order(x.len())
+                .unwrap()
+                .into_dimensionality()
+                .unwrap();
+            let y = self.transform_1d(&x_1d)?;
+            return Ok(y.into_dyn());
+        }
+
+        // For higher dimensions, iterate over axis
         for (i, x_slice) in x.axis_iter(Axis(axis)).enumerate() {
             // Convert slice to Array1
             let x_1d: Array1<Complex<f64>> = x_slice
@@ -186,9 +199,6 @@ impl CZT {
 
             // Dynamic slicing based on the number of dimensions
             match result.ndim() {
-                1 => {
-                    result[[i]] = y[0];
-                }
                 2 => {
                     if axis == 0 {
                         let mut result_slice = result.slice_mut(s![i, ..]);
@@ -372,8 +382,12 @@ mod tests {
         let n = 8;
         let x: Array1<Complex<f64>> = Array1::linspace(0.0, 7.0, n).mapv(|v| Complex::new(v, 0.0));
 
-        let czt_result = czt(&x, None, None, None, None).unwrap();
-        let czt_result_1d = czt_result.into_shape_with_order(n).unwrap();
+        let czt_result = czt(&x.view(), None, None, None, None).unwrap();
+
+        // czt returns ArrayD, need to convert to Array1
+        assert_eq!(czt_result.ndim(), 1);
+        let czt_result_1d: Array1<Complex<f64>> = czt_result.into_dimensionality().unwrap();
+
         let fft_result_vec = fft(&x.to_vec(), None).unwrap();
         let fft_result = Array1::from_vec(fft_result_vec);
 
@@ -395,11 +409,11 @@ mod tests {
 
         // Zoom in on frequency range containing one peak
         let m = 32;
-        let zoom_result = zoom_fft(&x, m, 0.05, 0.15, None).unwrap();
-        assert_eq!(zoom_result.len(), m);
+        let zoom_result = zoom_fft(&x.view(), m, 0.05, 0.15, None).unwrap();
 
-        // Should have a peak near the 10 Hz component
-        let zoom_result_1d = zoom_result.into_shape_with_order(m).unwrap();
+        // zoom_fft returns ArrayD, need to convert to Array1
+        assert_eq!(zoom_result.ndim(), 1);
+        let zoom_result_1d: Array1<Complex<f64>> = zoom_result.into_dimensionality().unwrap();
         let mag: Array1<f64> = zoom_result_1d.mapv(|c| c.norm());
         let peak_idx = mag
             .indexed_iter()

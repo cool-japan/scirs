@@ -1,6 +1,6 @@
 //! Example demonstrating window analysis and comparison
 
-use ndarray::Array1;
+// use ndarray::Array1;  // Unused import
 use scirs2_fft::window::{get_window, Window};
 use scirs2_fft::window_extended::{
     analyze_window, compare_windows, get_extended_window, ExtendedWindow,
@@ -16,12 +16,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sample_rate = 44100.0;
 
     let windows = vec![
-        ("Rectangular", get_window(Window::Rectangular, n)?),
-        ("Hann", get_window(Window::Hann, n)?),
-        ("Hamming", get_window(Window::Hamming, n)?),
-        ("Blackman", get_window(Window::Blackman, n)?),
-        ("BlackmanHarris", get_window(Window::BlackmanHarris, n)?),
-        ("FlatTop", get_window(Window::FlatTop, n)?),
+        ("Rectangular", get_window(Window::Rectangular, n, true)?),
+        ("Hann", get_window(Window::Hann, n, true)?),
+        ("Hamming", get_window(Window::Hamming, n, true)?),
+        ("Blackman", get_window(Window::Blackman, n, true)?),
+        (
+            "BlackmanHarris",
+            get_window(Window::BlackmanHarris, n, true)?,
+        ),
+        ("FlatTop", get_window(Window::FlatTop, n, true)?),
     ];
 
     for (name, window) in &windows {
@@ -89,8 +92,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // For spectral analysis (low sidelobes)
     println!("   Best for spectral analysis (lowest sidelobes):");
     let spectral_windows = vec![
-        ("Blackman", get_window(Window::Blackman, n)?),
-        ("BlackmanHarris", get_window(Window::BlackmanHarris, n)?),
+        ("Blackman", get_window(Window::Blackman, n, true)?),
+        (
+            "BlackmanHarris",
+            get_window(Window::BlackmanHarris, n, true)?,
+        ),
         (
             "Chebyshev (80dB)",
             get_extended_window(
@@ -129,9 +135,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // For amplitude accuracy (low scalloping loss)
     println!("   Best for amplitude accuracy (lowest scalloping loss):");
     let amplitude_windows = vec![
-        ("FlatTop", get_window(Window::FlatTop, n)?),
-        ("Hann", get_window(Window::Hann, n)?),
-        ("Hamming", get_window(Window::Hamming, n)?),
+        ("FlatTop", get_window(Window::FlatTop, n, true)?),
+        ("Hann", get_window(Window::Hann, n, true)?),
+        ("Hamming", get_window(Window::Hamming, n, true)?),
     ];
 
     let mut best_scalloping = ("", f64::INFINITY);
@@ -160,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut kaiser_windows = Vec::new();
 
     for &beta in &kaiser_betas {
-        let window = get_window(Window::Kaiser(beta), n)?;
+        let window = get_window(Window::Kaiser(beta), n, true)?;
         let props = analyze_window(&window, Some(sample_rate))?;
         kaiser_windows.push((format!("Kaiser(β={})", beta), window));
         println!(
@@ -175,7 +181,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tukey_alphas = [0.0, 0.25, 0.5, 0.75, 1.0];
 
     for &alpha in &tukey_alphas {
-        let window = get_window(Window::Tukey(alpha), n)?;
+        let window = get_window(Window::Tukey(alpha), n, true)?;
         let props = analyze_window(&window, Some(sample_rate))?;
         println!(
             "     α={}: main lobe {:.2} Hz, sidelobes {:.1} dB",
@@ -190,12 +196,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let all_windows = vec![
         (
             "Rectangular".to_string(),
-            get_window(Window::Rectangular, n)?,
+            get_window(Window::Rectangular, n, true)?,
         ),
-        ("Hann".to_string(), get_window(Window::Hann, n)?),
-        ("Hamming".to_string(), get_window(Window::Hamming, n)?),
-        ("Blackman".to_string(), get_window(Window::Blackman, n)?),
-        ("Kaiser(8)".to_string(), get_window(Window::Kaiser(8.0), n)?),
+        ("Hann".to_string(), get_window(Window::Hann, n, true)?),
+        ("Hamming".to_string(), get_window(Window::Hamming, n, true)?),
+        (
+            "Blackman".to_string(),
+            get_window(Window::Blackman, n, true)?,
+        ),
+        (
+            "Kaiser(8)".to_string(),
+            get_window(Window::Kaiser(8.0), n, true)?,
+        ),
         (
             "Chebyshev(60dB)".to_string(),
             get_extended_window(

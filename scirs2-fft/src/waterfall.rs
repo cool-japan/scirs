@@ -398,9 +398,9 @@ where
 /// # Returns
 ///
 /// * A tuple containing:
-///   - Vertices array - Nx3 array of [x,y,z] coordinates for each vertex
+///   - Vertices array - Nx3 array of \[x,y,z\] coordinates for each vertex
 ///   - Faces array - Mx3 array of vertex indices defining triangular faces
-///   - Colors array - Nx3 array of [r,g,b] colors for each vertex (normalized to [0,1])
+///   - Colors array - Nx3 array of \[r,g,b\] colors for each vertex (normalized to \[0,1\])
 ///
 /// # Errors
 ///
@@ -851,7 +851,7 @@ mod tests {
         // Check valid color range
         for color in colors.outer_iter() {
             for &component in color {
-                assert!(0.0 <= component && component <= 1.0);
+                assert!((0.0..=1.0).contains(&component));
             }
         }
     }

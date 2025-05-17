@@ -237,8 +237,8 @@ where
                 .map(|(&wi, &vi)| wi * vi)
                 .sum::<F>();
             h[i][j] = h_ij;
-            for idx in 0..n {
-                w_orth[idx] -= h_ij * v[i][idx];
+            for (idx, w_elem) in w_orth.iter_mut().enumerate().take(n) {
+                *w_elem -= h_ij * v[i][idx];
             }
         }
 

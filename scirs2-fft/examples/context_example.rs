@@ -3,7 +3,7 @@
 //! This example shows how to use context managers to temporarily change FFT settings.
 
 use scirs2_fft::{
-    fft, fft_context, get_backend_name, get_global_cache, get_workers, ifft, with_backend,
+    fft, fft_context, get_backend_name, get_global_cache, get_workers, with_backend,
     with_fft_settings, with_workers, without_cache,
 };
 use std::time::Instant;
@@ -25,7 +25,7 @@ fn main() {
 
     // Test 1: Temporarily disable cache
     println!("Test 1: Without cache");
-    let result1 = without_cache(|| {
+    let _result1 = without_cache(|| {
         println!(
             "  Cache enabled inside context: {}",
             get_global_cache().is_enabled()
@@ -68,7 +68,7 @@ fn main() {
         // Note: Due to current implementation limitations, this doesn't actually
         // change the worker count, but demonstrates the API
         println!("  Would use 2 workers if fully implemented");
-        fft(&signal, None).unwrap()
+        fft(&signal, None)
     })
     .unwrap();
     println!();

@@ -31,7 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fft_result = scirs2_fft::fft(&signal.to_vec(), None)?;
 
     // Convert results to magnitude spectrum
-    let czt_mag: Array1<f64> = czt_result.mapv(|c| c.norm());
+    let czt_mag: Array1<f64> = czt_result
+        .view()
+        .into_shape_with_order(n)?
+        .mapv(|c| c.norm());
     let fft_mag: Vec<f64> = fft_result.iter().map(|c| c.norm()).collect();
 
     // Verify that CZT with default parameters matches FFT
@@ -52,7 +55,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let f1 = 30.0 / 100.0; // Normalized end frequency (30 Hz / Nyquist)
 
     let zoom_result = zoom_fft(&signal, m, f0, f1, Some(4.0))?;
-    let zoom_mag: Array1<f64> = zoom_result.mapv(|c| c.norm());
+    let zoom_mag: Array1<f64> = zoom_result
+        .view()
+        .into_shape_with_order(32)?
+        .mapv(|c| c.norm());
 
     // Create frequency axis for zoom FFT
     let zoom_freqs: Array1<f64> = Array1::linspace(20.0, 30.0, m);
@@ -73,7 +79,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Compute CZT along the spiral
     let czt_spiral = czt(&signal, Some(128), Some(w), Some(a), None)?;
-    let spiral_mag: Array1<f64> = czt_spiral.mapv(|c| c.norm());
+    let spiral_mag: Array1<f64> = czt_spiral
+        .view()
+        .into_shape_with_order(m)?
+        .mapv(|c| c.norm());
 
     // Get the actual points on the spiral
     let spiral_points = czt_points(128, Some(a), Some(w));
@@ -122,8 +131,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Complex::new(s, 0.0)
     });
 
-    let result1 = czt_obj.transform(&signal, None)?;
-    let result2 = czt_obj.transform(&signal2, None)?;
+    let _result1 = czt_obj.transform(&signal, None)?;
+    let _result2 = czt_obj.transform(&signal2, None)?;
 
     println!("Applied CZT to {} different signals", 2);
 

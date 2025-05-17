@@ -632,8 +632,8 @@ mod tests {
         .unwrap();
 
         // Verify basic properties
-        assert!(f.len() > 0);
-        assert!(t.len() > 0);
+        assert!(!f.is_empty());
+        assert!(!t.is_empty());
         assert_eq!(sxx.shape(), &[f.len(), t.len()]);
 
         // Values should be non-negative for PSD
@@ -666,18 +666,18 @@ mod tests {
             .unwrap();
 
             // Check dimensions
-            assert!(f.len() > 0);
-            assert!(t.len() > 0);
+            assert!(!f.is_empty());
+            assert!(!t.is_empty());
             assert_eq!(sxx.shape(), &[f.len(), t.len()]);
 
             // For phase/angle modes, values should be in expected range
             if mode == "phase" {
                 for &val in sxx.iter() {
-                    assert!(-PI <= val && val <= PI);
+                    assert!((-PI..=PI).contains(&val));
                 }
             } else if mode == "angle" {
                 for &val in sxx.iter() {
-                    assert!(-180.0 <= val && val <= 180.0);
+                    assert!((-180.0..=180.0).contains(&val));
                 }
             }
         }
@@ -694,13 +694,13 @@ mod tests {
             spectrogram_normalized(&signal, Some(fs), Some(128), Some(64), Some(80.0)).unwrap();
 
         // Check dimensions
-        assert!(f.len() > 0);
-        assert!(t.len() > 0);
+        assert!(!f.is_empty());
+        assert!(!t.is_empty());
         assert_eq!(sxx.shape(), &[f.len(), t.len()]);
 
         // Values should be in range [0, 1]
         for &val in sxx.iter() {
-            assert!(0.0 <= val && val <= 1.0);
+            assert!((0.0..=1.0).contains(&val));
         }
     }
 }
