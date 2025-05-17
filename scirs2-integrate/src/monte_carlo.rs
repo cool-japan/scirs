@@ -6,13 +6,11 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
 use rand::prelude::*;
 use rand_distr::uniform::SampleUniform;
 use rand_distr::{Distribution, Uniform};
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::AddAssign;
 
 /// Options for controlling the behavior of Monte Carlo integration
 #[derive(Debug, Clone)]
@@ -503,7 +501,7 @@ mod tests {
 
             for i in 0..dims {
                 // Sample and truncate to the integration range [0, 3]
-                let mut x = normal.sample(rng);
+                let mut x: f64 = normal.sample(rng);
                 // Make sure value is within integration range
                 x = x.abs(); // Fold negatives to positive domain
                 if x > 3.0 {

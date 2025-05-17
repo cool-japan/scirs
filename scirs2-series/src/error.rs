@@ -14,8 +14,11 @@ pub enum TimeSeriesError {
     /// Insufficient data for operation
     #[error("Insufficient data: {message}. Need at least {required} observations, got {actual}")]
     InsufficientData {
+        /// Error message
         message: String,
+        /// Required number of observations
         required: usize,
+        /// Actual number of observations
         actual: usize,
     },
 
@@ -49,7 +52,10 @@ pub enum TimeSeriesError {
 
     /// Convergence error
     #[error("Failed to converge after {iterations} iterations")]
-    ConvergenceError { iterations: usize },
+    ConvergenceError {
+        /// Number of iterations attempted
+        iterations: usize
+    },
 
     /// Numerical instability
     #[error("Numerical instability: {0}")]
@@ -61,11 +67,21 @@ pub enum TimeSeriesError {
 
     /// Dimension mismatch
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
-    DimensionMismatch { expected: usize, actual: usize },
+    DimensionMismatch {
+        /// Expected dimension
+        expected: usize,
+        /// Actual dimension
+        actual: usize
+    },
 
     /// Invalid parameter value
     #[error("Invalid parameter '{name}': {message}")]
-    InvalidParameter { name: String, message: String },
+    InvalidParameter {
+        /// Parameter name
+        name: String,
+        /// Error message
+        message: String
+    },
 
     /// Not implemented
     #[error("Not implemented: {0}")]

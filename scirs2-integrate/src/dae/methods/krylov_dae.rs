@@ -11,9 +11,10 @@ use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// Maximum number of GMRES iterations
+#[allow(dead_code)]
 const MAX_GMRES_ITER: usize = 100;
 
 /// GMRES restart parameter
@@ -57,8 +58,8 @@ where
 
     // Current values
     let mut t_current = t_span[0];
-    let mut x_current = x0.clone();
-    let mut y_current = y0.clone();
+    let mut _x_current = x0.clone();
+    let mut _y_current = y0.clone();
 
     // Initial step size
     let mut h = options.h0.unwrap_or_else(|| {
@@ -164,7 +165,7 @@ where
         let y_pred_orig = y_pred.clone();
 
         // Evaluate constraint at the predictor point
-        let g_pred = g(t_new, x_pred.view(), y_pred.view());
+        let _g_pred = g(t_new, x_pred.view(), y_pred.view());
         n_g_evals += 1;
 
         // Get the alpha coefficient for this order
@@ -187,7 +188,7 @@ where
 
         // Newton iteration for corrector
         let mut converged = false;
-        for iter in 0..max_newton_iter {
+        for _iter in 0..max_newton_iter {
             // Evaluate f at the current corrector value
             let f_val = f(t_new, x_corr.view(), y_corr.view());
             n_f_evals += 1;
@@ -363,7 +364,7 @@ where
                 GMRES_RESTART,
             ) {
                 Ok((dz, iters)) => (dz, iters),
-                Err(e) => {
+                Err(_e) => {
                     // If the linear solve fails, try with a smaller step
                     // and terminate this Newton iteration
                     h = h * F::from_f64(0.5).unwrap();
@@ -505,8 +506,8 @@ where
 
         // Update current values
         t_current = t_new;
-        x_current = x_corr;
-        y_current = y_corr;
+        _x_current = x_corr;
+        _y_current = y_corr;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -583,7 +584,7 @@ where
     // Current values
     let mut t_current = t_span[0];
     let mut y_current = y0.clone();
-    let mut y_prime_current = y_prime0.clone();
+    let mut _y_prime_current = y_prime0.clone();
 
     // Initial step size
     let mut h = options.h0.unwrap_or_else(|| {
@@ -723,7 +724,7 @@ where
 
         // Store original predictions for error estimation
         let y_pred_orig = y_pred.clone();
-        let y_prime_pred_orig = y_prime_pred.clone();
+        let _y_prime_pred_orig = y_prime_pred.clone();
 
         // Initialize corrector values
         let mut y_corr = y_pred;
@@ -734,7 +735,7 @@ where
 
         // Newton iteration for corrector
         let mut converged = false;
-        for iter in 0..max_newton_iter {
+        for _iter in 0..max_newton_iter {
             // Evaluate the residual function
             let residual = f(t_new, y_corr.view(), y_prime_corr.view());
             n_f_evals += 1;
@@ -831,7 +832,7 @@ where
                 GMRES_RESTART,
             ) {
                 Ok((dy, iters)) => (dy, iters),
-                Err(e) => {
+                Err(_e) => {
                     // If the linear solve fails, try with a smaller step
                     // and terminate this Newton iteration
                     h = h * F::from_f64(0.5).unwrap();
@@ -964,7 +965,7 @@ where
         // Update current values
         t_current = t_new;
         y_current = y_corr;
-        y_prime_current = y_prime_corr;
+        _y_prime_current = y_prime_corr;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -1105,7 +1106,7 @@ where
         // Re-compute residual for the next restart cycle
         let ax = matvec(&x);
         let residual = b - &ax;
-        let r0 = match &preconditioner {
+        let _r0 = match &preconditioner {
             Some(precond) => precond(&residual),
             None => residual,
         };
@@ -1161,7 +1162,7 @@ where
     for j in 0..m {
         // Apply matrix and preconditioner: w = P⁻¹Aq_j
         let aq = matvec(&q[j]);
-        let w = match preconditioner {
+        let mut w = match preconditioner {
             Some(precond) => precond(&aq),
             None => aq,
         };
@@ -1273,7 +1274,7 @@ fn predict_step<F>(
     x_history: &[Array1<F>],
     y_history: &[Array1<F>],
     order: usize,
-    h: F,
+    _h: F,
 ) -> (Array1<F>, Array1<F>)
 where
     F: IntegrateFloat,

@@ -95,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .iter()
         .zip(parallel_results.iter())
         .map(|(s, p)| f64::abs(*s - *p))
-        .fold(0.0, |a, b| f64::max(a, b));
+        .fold(0.0, f64::max);
 
     println!(
         "Maximum difference between sequential and parallel results: {}",

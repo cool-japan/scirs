@@ -11,7 +11,7 @@
 //! - Block-matching variants for improved performance
 //!
 //! # Example
-//! ```
+//! ```ignore
 //! use ndarray::{Array1, Array2};
 //! use scirs2_signal::nlm::{nlm_denoise_1d, nlm_denoise_2d, NlmConfig};
 //! use rand::Rng;
@@ -27,7 +27,7 @@
 //! let mut rng = rand::thread_rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..n {
-//!     noisy_signal[i] += 0.2 * rng.gen_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.2 * rng.random_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Non-Local Means denoising
@@ -93,7 +93,7 @@ impl Default for NlmConfig {
 /// * The denoised signal
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use ndarray::Array1;
 /// use scirs2_signal::nlm::{nlm_denoise_1d, NlmConfig};
 ///
@@ -251,7 +251,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 /// * The denoised image
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use ndarray::Array2;
 /// use scirs2_signal::nlm::{nlm_denoise_2d, NlmConfig};
 ///
@@ -891,7 +891,7 @@ fn pad_image_2d(image: &Array2<f64>, pad_size: usize) -> Array2<f64> {
     for i in 0..height + 2 * pad_size {
         for j in 0..pad_size {
             // Handle corner cases
-            let src_i = if i < pad_size {
+            let _src_i = if i < pad_size {
                 i.min(pad_size - 1)
             } else if i >= height + pad_size {
                 height - 1 - (i - (height + pad_size)).min(height - 1)

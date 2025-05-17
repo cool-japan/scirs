@@ -177,15 +177,14 @@ mod tests {
     use crate::symplectic::leapfrog::StormerVerlet;
     use crate::symplectic::potential::SeparableHamiltonian;
     use ndarray::array;
-    use std::f64::consts::PI;
 
     /// Test error convergence rates for different order methods
     #[test]
     fn test_composition_convergence() {
         // Simple harmonic oscillator
         let system = SeparableHamiltonian::new(
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
-            |_t, q| -> f64 { 0.5 * q.dot(&q) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
+            |_t, q| -> f64 { 0.5 * q.dot(q) },
         );
 
         // Initial state
@@ -270,7 +269,7 @@ mod tests {
     fn test_long_time_energy_conservation() {
         // Kepler problem (2D planetary orbit)
         let kepler = SeparableHamiltonian::new(
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
             |_t, q| -> f64 {
                 let r = (q[0] * q[0] + q[1] * q[1]).sqrt();
                 if r < 1e-10 {

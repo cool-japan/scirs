@@ -64,6 +64,7 @@ pub use sgd::SGD;
 #[cfg(feature = "optim")]
 mod wrappers {
     use super::*;
+    use crate::NeuralError;
     use ndarray::Dimension;
     use scirs2_optim::optimizers as optim;
 

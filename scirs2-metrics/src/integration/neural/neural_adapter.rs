@@ -9,12 +9,14 @@ use ndarray::{Array, IxDyn};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
+/// Type alias for metric function
+type MetricFn<F> = Box<dyn Fn(&Array<F, IxDyn>, &Array<F, IxDyn>) -> Result<F, MetricsError> + Send + Sync>;
+
 /// Adapter for using metrics with neural network models
 pub struct NeuralMetricAdapter<F: Float + Debug + Display + FromPrimitive> {
     /// The name of the metric
     pub name: String,
-    metric_fn:
-        Box<dyn Fn(&Array<F, IxDyn>, &Array<F, IxDyn>) -> Result<F, MetricsError> + Send + Sync>,
+    metric_fn: MetricFn<F>,
     #[cfg(feature = "neural_common")]
     predictions: Option<Array<F, IxDyn>>,
     #[cfg(feature = "neural_common")]
@@ -41,9 +43,7 @@ impl<F: Float + Debug + Display + FromPrimitive> NeuralMetricAdapter<F> {
     /// Create a new neural metric adapter
     pub fn new(
         name: &str,
-        metric_fn: Box<
-            dyn Fn(&Array<F, IxDyn>, &Array<F, IxDyn>) -> Result<F, MetricsError> + Send + Sync,
-        >,
+        metric_fn: MetricFn<F>,
     ) -> Self {
         #[cfg(feature = "neural_common")]
         {

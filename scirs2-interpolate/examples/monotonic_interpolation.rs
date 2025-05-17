@@ -301,6 +301,7 @@ fn check_monotonicity(
 }
 
 /// Check if a specific segment is monotonic
+#[allow(clippy::too_many_arguments)]
 fn check_segment_monotonicity(
     label: &str,
     x: &Array1<f64>,

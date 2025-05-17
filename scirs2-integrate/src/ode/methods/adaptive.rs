@@ -312,7 +312,7 @@ where
     let mut func_evals = 0;
     let mut step_count = 0;
     let mut accepted_steps = 0;
-    let mut rejected_steps = 0;
+    let rejected_steps = 0;
 
     // Simplified implementation
     // Main integration loop
@@ -429,7 +429,7 @@ where
     let mut func_evals = 0;
     let mut step_count = 0;
     let mut accepted_steps = 0;
-    let mut rejected_steps = 0;
+    let rejected_steps = 0;
 
     // Simplified implementation
     // Main integration loop

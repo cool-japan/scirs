@@ -142,7 +142,8 @@ fn generate_synthetic_data(
     n_dims: usize,
     noise_level: f64,
 ) -> Result<(Array2<f64>, Array1<f64>), Box<dyn std::error::Error>> {
-    let mut rng = scirs2_core::random::rng();
+    use scirs2_core::random::Random;
+    let mut rng = Random::default();
 
     // Create points using Latin Hypercube Sampling for better space filling
     let mut points = Array2::zeros((n_points, n_dims));
@@ -187,7 +188,7 @@ fn generate_synthetic_data(
         }
 
         // Add noise
-        values[i] += noise_level * rng.random_normal();
+        values[i] += noise_level * scirs2_core::random::sampling::random_standard_normal(&mut rng);
     }
 
     Ok((points, values))
@@ -253,7 +254,7 @@ fn local_kriging_example(
 
     for &size in &neighborhood_sizes {
         // Create model
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         let kriging = make_local_kriging(
             &points.view(),
@@ -408,7 +409,7 @@ fn performance_scaling_example(
 
             // Make predictions
             let pred_start = Instant::now();
-            let predictions = kriging.predict(&test_points.view())?;
+            let _predictions = kriging.predict(&test_points.view())?;
             let pred_time = pred_start.elapsed().as_micros() as f64 / 1000.0;
 
             // Print results
@@ -467,8 +468,7 @@ fn accuracy_comparison_example(
     println!("\nMethod | Mean Sq. Error | Compute Time (ms)");
     println!("-------|----------------|------------------");
 
-    let mut i = 0;
-    for &(method, method_name) in &methods {
+    for (i, &(method, method_name)) in methods.iter().enumerate() {
         // Create model with appropriate parameters
         let start_time = Instant::now();
 
@@ -514,8 +514,6 @@ fn accuracy_comparison_example(
 
         // Print results
         println!("{:20} | {:16.6} | {:16.2}", method_name, mse, compute_time);
-
-        i += 1;
     }
 
     // Explanation of the accuracy comparison

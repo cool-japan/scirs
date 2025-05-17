@@ -3,17 +3,20 @@
 //! This module provides learning rate schedulers that adjust the learning rate
 //! based on metric values.
 
+use ndarray::ScalarOperand;
 use num_traits::{Float, FromPrimitive};
+#[cfg(feature = "metrics_integration")]
+use std::fmt::{Debug, Display};
+#[cfg(not(feature = "metrics_integration"))]
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
-use crate::optimizers::{Dimension, Optimizer, ScalarOperand};
+#[cfg(feature = "metrics_integration")]
 use crate::schedulers::LearningRateScheduler;
 
 /// A scheduler that adjusts learning rate based on metrics
 #[cfg(feature = "metrics_integration")]
 #[derive(Debug, Clone)]
-pub struct MetricScheduler<F: Float + Debug + ScalarOperand + FromPrimitive> {
+pub struct MetricScheduler<F: Float + Debug + Display + ScalarOperand + FromPrimitive> {
     /// Base scheduler
     scheduler: scirs2_metrics::integration::optim::MetricScheduler<F>,
     /// Threshold for considering an improvement
@@ -21,7 +24,7 @@ pub struct MetricScheduler<F: Float + Debug + ScalarOperand + FromPrimitive> {
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricScheduler<F> {
+impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> MetricScheduler<F> {
     /// Create a new metric-based scheduler
     pub fn new(
         initial_lr: F,
@@ -78,7 +81,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricScheduler<F> {
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
+impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
     for MetricScheduler<F>
 {
     fn get_learning_rate(&self) -> F {
@@ -98,13 +101,19 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
 /// A wrapper around ReduceOnPlateau for use with metrics
 #[cfg(feature = "metrics_integration")]
 #[derive(Debug)]
-pub struct MetricBasedReduceOnPlateau<F: Float + Debug + ScalarOperand + FromPrimitive> {
-    /// Base scheduler adapter
-    adapter: scirs2_metrics::integration::optim::ReduceOnPlateauAdapter<F>,
+pub struct MetricBasedReduceOnPlateau<F: Float + Debug + Display + ScalarOperand + FromPrimitive> {
+    /// Base scheduler
+    scheduler: crate::schedulers::ReduceOnPlateau<F>,
+    /// Metric name
+    metric_name: String,
+    /// Metric history
+    metric_history: Vec<F>,
+    /// Learning rate history
+    lr_history: Vec<F>,
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricBasedReduceOnPlateau<F> {
+impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> MetricBasedReduceOnPlateau<F> {
     /// Create a new metric-based ReduceOnPlateau scheduler
     pub fn new(
         initial_lr: F,
@@ -114,45 +123,54 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> MetricBasedReduceOnPlatea
         metric_name: &str,
         maximize: bool,
     ) -> Self {
+        let mut scheduler = 
+            crate::schedulers::ReduceOnPlateau::new(initial_lr, factor, patience, min_lr);
+        
+        // Set mode based on maximize flag
+        if maximize {
+            scheduler.mode_max();
+        } else {
+            scheduler.mode_min();
+        }
+        
         Self {
-            adapter: scirs2_metrics::integration::optim::ReduceOnPlateauAdapter::new(
-                initial_lr,
-                factor,
-                patience,
-                min_lr,
-                metric_name,
-                maximize,
-            ),
+            scheduler,
+            metric_name: metric_name.to_string(),
+            metric_history: Vec::new(),
+            lr_history: Vec::new(),
         }
     }
 
     /// Update scheduler with a metric value
     pub fn step_with_metric(&mut self, metric_value: F) -> F {
-        self.adapter.step_with_metric(metric_value)
+        self.metric_history.push(metric_value);
+        let lr = self.scheduler.step_with_metric(metric_value);
+        self.lr_history.push(lr);
+        lr
     }
 
     /// Get the metric name
     pub fn metric_name(&self) -> &str {
-        self.adapter.metric_name()
+        &self.metric_name
     }
 
     /// Get the metric history
     pub fn metric_history(&self) -> &[F] {
-        self.adapter.metric_history()
+        &self.metric_history
     }
 
     /// Get the learning rate history
     pub fn lr_history(&self) -> &[F] {
-        self.adapter.lr_history()
+        &self.lr_history
     }
 }
 
 #[cfg(feature = "metrics_integration")]
-impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
+impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
     for MetricBasedReduceOnPlateau<F>
 {
     fn get_learning_rate(&self) -> F {
-        self.adapter.get_learning_rate()
+        self.scheduler.get_learning_rate()
     }
 
     fn step(&mut self) -> F {
@@ -161,7 +179,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
     }
 
     fn reset(&mut self) {
-        self.adapter.reset();
+        self.scheduler.reset();
+        self.metric_history.clear();
+        self.lr_history.clear();
     }
 }
 
@@ -169,7 +189,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive> LearningRateScheduler<F>
 #[cfg(not(feature = "metrics_integration"))]
 #[derive(Debug)]
 pub struct MetricScheduler<F: Float + Debug> {
-    _phantom: PhantomData<F>,
+    _phantom: std::marker::PhantomData<F>,
 }
 
 #[cfg(not(feature = "metrics_integration"))]

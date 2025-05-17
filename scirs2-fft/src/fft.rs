@@ -1143,10 +1143,10 @@ where
                         .collect();
 
                     // Resize if needed
-                    if buffer.len() < axis_len {
-                        buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
-                    } else if buffer.len() > axis_len {
-                        buffer.truncate(axis_len);
+                    match buffer.len().cmp(&axis_len) {
+                        std::cmp::Ordering::Less => buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0)),
+                        std::cmp::Ordering::Greater => buffer.truncate(axis_len),
+                        std::cmp::Ordering::Equal => {},
                     }
 
                     // Process the FFT
@@ -1431,10 +1431,10 @@ where
                         .collect();
 
                     // Resize if needed
-                    if buffer.len() < axis_len {
-                        buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0));
-                    } else if buffer.len() > axis_len {
-                        buffer.truncate(axis_len);
+                    match buffer.len().cmp(&axis_len) {
+                        std::cmp::Ordering::Less => buffer.resize(axis_len, rustfft::num_complex::Complex::new(0.0, 0.0)),
+                        std::cmp::Ordering::Greater => buffer.truncate(axis_len),
+                        std::cmp::Ordering::Equal => {},
                     }
 
                     // Process the IFFT

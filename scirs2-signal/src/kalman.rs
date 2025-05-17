@@ -7,7 +7,6 @@
 use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array1, Array2, Array3};
 use rand::Rng;
-use rand_distr::Distribution;
 use scirs2_linalg::{cholesky, inv};
 
 /// Configuration for Kalman filter
@@ -196,8 +195,14 @@ pub fn kalman_filter(
                 let mut r_estimate = Array2::<f64>::zeros(adaptive_r.dim());
                 for inn in &innovation_history {
                     let centered = inn - &innovation_mean;
-                    let centered_col = centered.clone().into_shape((centered.len(), 1)).unwrap();
-                    let centered_row = centered.clone().into_shape((1, centered.len())).unwrap();
+                    let centered_col = centered
+                        .clone()
+                        .into_shape_with_order((centered.len(), 1))
+                        .unwrap();
+                    let centered_row = centered
+                        .clone()
+                        .into_shape_with_order((1, centered.len()))
+                        .unwrap();
                     r_estimate += &centered_col.dot(&centered_row);
                 }
                 r_estimate /= innovation_history.len() as f64;
@@ -210,8 +215,14 @@ pub fn kalman_filter(
                 // This is a simplified approach - in practice, estimating Q is more complex
                 // than estimating R and might require more sophisticated techniques
                 let pred_err = &x - &x_pred;
-                let pred_err_col = pred_err.clone().into_shape((pred_err.len(), 1)).unwrap();
-                let pred_err_row = pred_err.clone().into_shape((1, pred_err.len())).unwrap();
+                let pred_err_col = pred_err
+                    .clone()
+                    .into_shape_with_order((pred_err.len(), 1))
+                    .unwrap();
+                let pred_err_row = pred_err
+                    .clone()
+                    .into_shape_with_order((1, pred_err.len()))
+                    .unwrap();
                 let q_update = pred_err_col.dot(&pred_err_row);
                 adaptive_q = &adaptive_q * (1.0 - config.forgetting_factor)
                     + &q_update * config.forgetting_factor;
@@ -451,8 +462,8 @@ where
         let mut p_pred = Array2::<f64>::zeros((n_states, n_states));
         for j in 0..predicted_sigmas.len() {
             let diff = &predicted_sigmas[j] - &x_pred;
-            let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
-            let diff_row = diff.clone().into_shape((1, diff.len())).unwrap();
+            let diff_col = diff.clone().into_shape_with_order((diff.len(), 1)).unwrap();
+            let diff_row = diff.clone().into_shape_with_order((1, diff.len())).unwrap();
             p_pred = &p_pred + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         p_pred = &p_pred + &q;
@@ -473,8 +484,8 @@ where
         let mut s = Array2::<f64>::zeros((n_measurements, n_measurements));
         for j in 0..measurement_sigmas.len() {
             let diff = &measurement_sigmas[j] - &z_pred;
-            let diff_col = diff.clone().into_shape((diff.len(), 1)).unwrap();
-            let diff_row = diff.clone().into_shape((1, diff.len())).unwrap();
+            let diff_col = diff.clone().into_shape_with_order((diff.len(), 1)).unwrap();
+            let diff_row = diff.clone().into_shape_with_order((1, diff.len())).unwrap();
             s = &s + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         s = &s + &r;
@@ -484,8 +495,14 @@ where
         for j in 0..predicted_sigmas.len() {
             let diff_x = &predicted_sigmas[j] - &x_pred;
             let diff_z = &measurement_sigmas[j] - &z_pred;
-            let diff_x_col = diff_x.clone().into_shape((diff_x.len(), 1)).unwrap();
-            let diff_z_row = diff_z.clone().into_shape((1, diff_z.len())).unwrap();
+            let diff_x_col = diff_x
+                .clone()
+                .into_shape_with_order((diff_x.len(), 1))
+                .unwrap();
+            let diff_z_row = diff_z
+                .clone()
+                .into_shape_with_order((1, diff_z.len()))
+                .unwrap();
             c = &c + &(weights_cov[j] * diff_x_col.dot(&diff_z_row));
         }
 
@@ -587,10 +604,6 @@ where
     F: Fn(&Array1<f64>) -> Array1<f64>,
     H: Fn(&Array1<f64>) -> Array1<f64>,
 {
-    
-    
-    
-
     let n_samples = z.shape()[0];
     let n_states = initial_x.len();
     let n_measurements = z.shape()[1];
@@ -610,7 +623,7 @@ where
 
     // Initialize ensemble
     let mut ensemble = Vec::with_capacity(n_ensemble);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..n_ensemble {
         // Generate random perturbation based on initial covariance
@@ -684,11 +697,23 @@ where
             let x_diff = &ensemble[j] - &x_mean;
             let z_diff = &measured_ensemble[j] - &z_mean;
 
-            let x_diff_col = x_diff.clone().into_shape((x_diff.len(), 1)).unwrap();
-            let z_diff_row = z_diff.clone().into_shape((1, z_diff.len())).unwrap();
+            let x_diff_col = x_diff
+                .clone()
+                .into_shape_with_order((x_diff.len(), 1))
+                .unwrap();
+            let z_diff_row = z_diff
+                .clone()
+                .into_shape_with_order((1, z_diff.len()))
+                .unwrap();
             pxz = &pxz + &x_diff_col.dot(&z_diff_row);
-            let z_diff_col = z_diff.clone().into_shape((z_diff.len(), 1)).unwrap();
-            let z_diff_row = z_diff.clone().into_shape((1, z_diff.len())).unwrap();
+            let z_diff_col = z_diff
+                .clone()
+                .into_shape_with_order((z_diff.len(), 1))
+                .unwrap();
+            let z_diff_row = z_diff
+                .clone()
+                .into_shape_with_order((1, z_diff.len()))
+                .unwrap();
             pzz = &pzz + &z_diff_col.dot(&z_diff_row);
         }
 
@@ -756,7 +781,7 @@ pub fn kalman_denoise_1d(
     process_variance: Option<f64>,
     measurement_variance: Option<f64>,
 ) -> SignalResult<Array1<f64>> {
-    let n = signal.len();
+    let _n = signal.len();
 
     // Define a simple constant-velocity model
     let f = match Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 0.0, 1.0]) {
@@ -1185,7 +1210,7 @@ pub fn kalman_smooth(
         // Update
         let z_pred = h.dot(&x_pred);
         let signal_value = signal.slice(s![i]).to_owned();
-        let innovation = &signal_value - &z_pred;
+        let _innovation = &signal_value - &z_pred;
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Kalman gain
@@ -1247,7 +1272,7 @@ pub fn adaptive_kalman_filter(
     adaptive_window: usize,
     forgetting_factor: f64,
 ) -> SignalResult<Array1<f64>> {
-    let n = signal.len();
+    let _n = signal.len();
 
     // Simple constant position model
     let f = Array2::<f64>::eye(1) * 1.0;

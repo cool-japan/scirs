@@ -1,4 +1,4 @@
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -162,10 +162,10 @@ fn generate_phase_coupled_signal() -> Array1<f64> {
 
     // Add some noise
     let noise_level = 0.1;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise = Array1::from_iter(
         (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+            .map(|_| noise_level * (2.0 * rand::Rng::random_range(&mut rng, 0.0..1.0) - 1.0)),
     );
 
     signal + noise
@@ -184,8 +184,8 @@ fn generate_uncoupled_signal() -> Array1<f64> {
     let f3 = f1 + f2; // Same sum frequency but with random phase
 
     // Generate signal without phase coupling by adding random phase to f3
-    let mut rng = rand::thread_rng();
-    let random_phase = rand::Rng::gen_range(&mut rng, 0.0..2.0 * PI);
+    let mut rng = rand::rng();
+    let random_phase = rand::Rng::random_range(&mut rng, 0.0..2.0 * PI);
 
     let signal = t.mapv(|ti| {
         (2.0 * PI * f1 * ti).sin()
@@ -197,7 +197,7 @@ fn generate_uncoupled_signal() -> Array1<f64> {
     let noise_level = 0.1;
     let noise = Array1::from_iter(
         (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+            .map(|_| noise_level * (2.0 * rand::Rng::random_range(&mut rng, 0.0..1.0) - 1.0)),
     );
 
     signal + noise
@@ -224,10 +224,10 @@ fn generate_phase_coupled_signal_with_angle(angle: f64) -> Array1<f64> {
 
     // Add some noise
     let noise_level = 0.1;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise = Array1::from_iter(
         (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+            .map(|_| noise_level * (2.0 * rand::Rng::random_range(&mut rng, 0.0..1.0) - 1.0)),
     );
 
     signal + noise
@@ -236,7 +236,7 @@ fn generate_phase_coupled_signal_with_angle(angle: f64) -> Array1<f64> {
 /// Saves a 2D matrix to CSV with row and column headers
 fn save_matrix_to_csv(
     filename: &str,
-    matrix: &Array1<Array1<f64>>,
+    matrix: &Array2<f64>,
     row_labels: &Array1<f64>,
     col_labels: &Array1<f64>,
 ) {
@@ -254,7 +254,7 @@ fn save_matrix_to_csv(
         write!(file, "{:.2}", row_label).expect("Failed to write data");
 
         for j in 0..col_labels.len() {
-            write!(file, ",{:.6e}", matrix[[i, j]]).expect("Failed to write data");
+            write!(file, ",{:.6e}", matrix[(i, j)]).expect("Failed to write data");
         }
         writeln!(file).expect("Failed to write data");
     }

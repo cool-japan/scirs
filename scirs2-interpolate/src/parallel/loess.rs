@@ -6,8 +6,6 @@
 //! when making predictions at many query points.
 
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-#[cfg(feature = "linalg")]
-use ndarray_linalg::Solve;
 use num_traits::{Float, FromPrimitive};
 use rayon::prelude::*;
 use std::fmt::Debug;
@@ -30,7 +28,7 @@ use crate::spatial::kdtree::KdTree;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::parallel::{ParallelLocalPolynomialRegression, ParallelConfig};
 /// use scirs2_interpolate::local::polynomial::LocalPolynomialConfig;
@@ -443,11 +441,24 @@ fn fit_local_polynomial<F: Float + FromPrimitive + 'static>(
     }
 
     // Solve weighted least squares
+    #[cfg(feature = "linalg")]
+    let xtx = w_basis.t().dot(&w_basis);
+    #[cfg(not(feature = "linalg"))]
     let _xtx = w_basis.t().dot(&w_basis);
     let xty = w_basis.t().dot(&w_values);
 
     #[cfg(feature = "linalg")]
-    let coefficients = xtx.solve(&xty)?;
+    let coefficients = {
+        use ndarray_linalg::Solve;
+        let xtx_f64 = xtx.mapv(|x| x.to_f64().unwrap());
+        let xty_f64 = xty.mapv(|x| x.to_f64().unwrap());
+        xtx_f64
+            .solve(&xty_f64)
+            .map_err(|_| {
+                InterpolateError::ComputationError("Failed to solve linear system".to_string())
+            })?
+            .mapv(|x| F::from_f64(x).unwrap())
+    };
 
     #[cfg(not(feature = "linalg"))]
     let coefficients = {

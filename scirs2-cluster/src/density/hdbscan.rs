@@ -85,14 +85,17 @@ impl<F: Float> Eq for MSTElement<F> {}
 
 impl<F: Float> PartialOrd for MSTElement<F> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // Use reverse ordering for min-heap (smaller distances have higher priority)
-        other.distance.partial_cmp(&self.distance)
+        Some(self.cmp(other))
     }
 }
 
 impl<F: Float> Ord for MSTElement<F> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        // Use reverse ordering for min-heap (smaller distances have higher priority)
+        other
+            .distance
+            .partial_cmp(&self.distance)
+            .unwrap_or(Ordering::Equal)
     }
 }
 
@@ -283,6 +286,9 @@ where
     })
 }
 
+// Type alias for the complex return type
+type CentersResult<F> = (Option<Array2<F>>, Option<Array1<usize>>);
+
 /// Compute cluster centroids and/or medoids
 ///
 /// # Arguments
@@ -298,7 +304,7 @@ fn compute_centers<F>(
     data: ArrayView2<F>,
     labels: &Array1<i32>,
     store_centers: &Option<StoreCenter>,
-) -> Result<(Option<Array2<F>>, Option<Array1<usize>>)>
+) -> Result<CentersResult<F>>
 where
     F: Float + FromPrimitive + Debug + PartialOrd,
 {
@@ -362,7 +368,7 @@ where
         // For each cluster, find the point that minimizes sum of distances to other points
         let mut medoids = Vec::with_capacity(n_clusters as usize);
 
-        for cluster_idx in 0..n_clusters as i32 {
+        for cluster_idx in 0..n_clusters {
             // Get points in this cluster
             let cluster_points: Vec<usize> = labels
                 .iter()
@@ -501,9 +507,9 @@ where
         .collect();
 
     // Process merges up to the cut distance
-    for i in 0..lambdas.len() {
+    for (i, &lambda) in lambdas.iter().enumerate() {
         // Only consider merges below the cut distance (i.e., above the cut lambda)
-        if lambdas[i] < cut_lambda {
+        if lambda < cut_lambda {
             continue;
         }
 
@@ -557,18 +563,18 @@ where
     let mut cluster_map = std::collections::HashMap::new();
     let mut next_label = 0;
 
-    for i in 0..n_samples {
+    for (i, label) in labels.iter_mut().enumerate().take(n_samples) {
         let root = union_find.find(i);
 
         // Only create clusters with at least 2 points
         if union_find.size(root) > 1 {
-            let label = *cluster_map.entry(root).or_insert_with(|| {
+            let cluster_label = *cluster_map.entry(root).or_insert_with(|| {
                 let label = next_label;
                 next_label += 1;
                 label
             });
 
-            labels[i] = label;
+            *label = cluster_label;
         }
     }
 
@@ -603,7 +609,7 @@ fn get_leaves(node: i32, tree: &SingleLinkageTree<impl Float>, n_samples: i32) -
 
 // Below are helper functions for the algorithm implementation
 
-//// Calculate mutual reachability distance between points
+/// Calculate mutual reachability distance between points
 ///
 /// The mutual reachability distance between two points is defined as:
 /// max(core_distance(point1), core_distance(point2), distance(point1, point2))
@@ -1037,10 +1043,9 @@ where
     let mut next_cluster_id = n_samples;
 
     // Process each merge
-    for i in 0..n_merges {
+    for (i, &current_lambda) in lambdas.iter().enumerate().take(n_merges) {
         let left = single_linkage_tree.left_child[i];
         let right = single_linkage_tree.right_child[i];
-        let current_lambda = lambdas[i];
 
         // Current parent is the node created by this merge
         let current_parent = n_samples + i;
@@ -1245,9 +1250,7 @@ where
     // Process from root down
     let mut to_process = vec![root];
 
-    while !to_process.is_empty() {
-        let node = to_process.pop().unwrap();
-
+    while let Some(node) = to_process.pop() {
         // Find all children of the current node
         let children: Vec<i32> = condensed_tree
             .parent

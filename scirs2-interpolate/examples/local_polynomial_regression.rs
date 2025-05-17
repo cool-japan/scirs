@@ -1,5 +1,5 @@
-use ndarray::{Array1, Array2, Axis};
-use scirs2_interpolate::local::mls::{PolynomialBasis, WeightFunction};
+use ndarray::{Array1, Axis};
+use scirs2_interpolate::local::mls::PolynomialBasis;
 use scirs2_interpolate::local::polynomial::{
     make_loess, make_robust_loess, LocalPolynomialConfig, LocalPolynomialRegression,
 };
@@ -78,10 +78,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Add some outliers to the data
     let mut y_outliers = y_array.clone();
-    y_outliers[10] = y_outliers[10] + 1.0; // Add outlier
-    y_outliers[30] = y_outliers[30] - 1.0; // Add outlier
-    y_outliers[50] = y_outliers[50] + 1.5; // Add outlier
-    y_outliers[70] = y_outliers[70] - 1.5; // Add outlier
+    y_outliers[10] += 1.0; // Add outlier
+    y_outliers[30] -= 1.0; // Add outlier
+    y_outliers[50] += 1.5; // Add outlier
+    y_outliers[70] -= 1.5; // Add outlier
 
     // Create robust model with 95% confidence intervals
     let robust_model = make_robust_loess(

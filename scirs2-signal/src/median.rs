@@ -768,7 +768,7 @@ pub fn rank_filter_1d(
         ));
     }
 
-    if rank < 0.0 || rank > 1.0 {
+    if !(0.0..=1.0).contains(&rank) {
         return Err(SignalError::ValueError(
             "Rank must be between 0.0 and 1.0".to_string(),
         ));

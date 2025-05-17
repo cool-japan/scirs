@@ -646,6 +646,7 @@ where
     /// // Evaluate the surface at parameters (u,v) = (0.5, 0.5)
     /// let point = nurbs_surface.evaluate(0.5, 0.5).unwrap();
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         control_points: &ArrayView2<T>,
         weights: &ArrayView1<T>,
@@ -900,7 +901,12 @@ where
         let mut sum_weights = T::zero();
         let mut sum_weights_deriv = T::zero();
 
-        for (i, (&bu, &bu_deriv)) in basis_u.iter().zip(basis_u_deriv.iter()).enumerate().take(self.n_u) {
+        for (i, (&bu, &bu_deriv)) in basis_u
+            .iter()
+            .zip(basis_u_deriv.iter())
+            .enumerate()
+            .take(self.n_u)
+        {
             for (j, &bv) in basis_v.iter().enumerate().take(self.n_v) {
                 let idx = i * self.n_v + j;
                 let weight = self.weights[idx];
@@ -959,7 +965,12 @@ where
         let mut sum_weights_deriv = T::zero();
 
         for (i, &bu) in basis_u.iter().enumerate().take(self.n_u) {
-            for (j, (&bv, &bv_deriv)) in basis_v.iter().zip(basis_v_deriv.iter()).enumerate().take(self.n_v) {
+            for (j, (&bv, &bv_deriv)) in basis_v
+                .iter()
+                .zip(basis_v_deriv.iter())
+                .enumerate()
+                .take(self.n_v)
+            {
                 let idx = i * self.n_v + j;
                 let weight = self.weights[idx];
                 let basis = bu * bv;

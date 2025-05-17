@@ -8,7 +8,7 @@ use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianManager;
 use crate::ode::utils::linear_solvers::{auto_solve_linear_system, LinearSolverType};
-use ndarray::{Array1, ArrayView1};
+use ndarray::Array1;
 
 /// Newton solver parameters
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ where
     F: IntegrateFloat,
     Func: Fn(&Array1<F>) -> Array1<F>,
 {
-    let n = x0.len();
+    let _n = x0.len();
     let mut x = x0.clone();
     let mut residual = f(&x);
     let mut func_evals = 1;
@@ -113,15 +113,15 @@ where
         // Update Jacobian if needed
         if iter == 0 && params.force_jacobian_init {
             // Force Jacobian update on first iteration if requested
-            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y), None)?;
+            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y.to_owned()), None)?;
             jac_evals += 1;
         } else if iter > 0 && iter % params.jacobian_update_freq == 0 {
             // Update Jacobian on specified frequency
-            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y), None)?;
+            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y.to_owned()), None)?;
             jac_evals += 1;
         } else if jac_manager.jacobian().is_none() {
             // Always update if no Jacobian exists
-            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y), None)?;
+            jac_manager.update_jacobian(dummy_t, &x, &|_t, y| f(&y.to_owned()), None)?;
             jac_evals += 1;
         }
 
@@ -132,7 +132,7 @@ where
         let neg_residual = residual.clone() * F::from_f64(-1.0).unwrap();
 
         // Use auto solver selection for the best performance
-        let dx = auto_solve_linear_system(jacobian, &neg_residual)?;
+        let dx = auto_solve_linear_system(&jacobian.view(), &neg_residual.view(), LinearSolverType::Direct)?;
         linear_solves += 1;
 
         // Apply damping if needed
@@ -208,7 +208,7 @@ where
 }
 
 /// Calculate error norm of residual vector
-fn calculate_error<F: IntegrateFloat>(residual: &Array1<F>, params: &NewtonParameters<F>) -> F {
+fn calculate_error<F: IntegrateFloat>(residual: &Array1<F>, _params: &NewtonParameters<F>) -> F {
     // Use L-infinity norm (max absolute value)
     let mut max_abs = F::zero();
     for &r in residual.iter() {

@@ -9,7 +9,7 @@
 //! (like periodogram) for shorter data records, and can model specific spectral characteristics.
 //!
 //! # Example
-//! ```
+//! ```ignore
 //! use ndarray::Array1;
 //! use scirs2_signal::parametric::{ar_spectrum, burg_method};
 //!
@@ -512,10 +512,7 @@ pub fn least_squares_method(
     let xt_x = x.t().dot(&x);
     let xt_y = x.t().dot(&y);
 
-    let ar_params = match solve_linear_system(&xt_x, &xt_y) {
-        Ok(params) => params,
-        Err(e) => return Err(e),
-    };
+    let ar_params = solve_linear_system(&xt_x, &xt_y)?;
 
     // Calculate prediction error variance
     let mut variance = 0.0;

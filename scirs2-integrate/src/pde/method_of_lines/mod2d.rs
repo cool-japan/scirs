@@ -3,14 +3,15 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! 2D parabolic PDEs, such as the 2D heat equation and 2D advection-diffusion.
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
+use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
+use std::sync::Arc;
 use std::time::Instant;
 
-use crate::ode::{solve_ivp, ODEMethod, ODEOptions, ODEResult};
+use crate::ode::{solve_ivp, ODEOptions};
 use crate::pde::finite_difference::FiniteDifferenceScheme;
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    PDESolution, PDESolverInfo,
 };
 
 /// Result of 2D method of lines solution
@@ -32,6 +33,7 @@ pub struct MOL2DResult {
 ///
 /// Solves equations of the form:
 /// ∂u/∂t = ∂/∂x(D_x(x,y,t,u) ∂u/∂x) + ∂/∂y(D_y(x,y,t,u) ∂u/∂y) + v_x(x,y,t,u) ∂u/∂x + v_y(x,y,t,u) ∂u/∂y + f(x,y,t,u)
+#[derive(Clone)]
 pub struct MOLParabolicSolver2D {
     /// Spatial domain
     domain: Domain,
@@ -40,22 +42,22 @@ pub struct MOLParabolicSolver2D {
     time_range: [f64; 2],
 
     /// Diffusion coefficient function D_x(x, y, t, u) for ∂²u/∂x²
-    diffusion_x: Box<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>,
+    diffusion_x: Arc<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>,
 
     /// Diffusion coefficient function D_y(x, y, t, u) for ∂²u/∂y²
-    diffusion_y: Box<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>,
+    diffusion_y: Arc<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>,
 
     /// Advection coefficient function v_x(x, y, t, u) for ∂u/∂x
-    advection_x: Option<Box<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
+    advection_x: Option<Arc<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
 
     /// Advection coefficient function v_y(x, y, t, u) for ∂u/∂y
-    advection_y: Option<Box<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
+    advection_y: Option<Arc<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
 
     /// Reaction term function f(x, y, t, u)
-    reaction_term: Option<Box<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
+    reaction_term: Option<Arc<dyn Fn(f64, f64, f64, f64) -> f64 + Send + Sync>>,
 
     /// Initial condition function u(x, y, 0)
-    initial_condition: Box<dyn Fn(f64, f64) -> f64 + Send + Sync>,
+    initial_condition: Arc<dyn Fn(f64, f64) -> f64 + Send + Sync>,
 
     /// Boundary conditions
     boundary_conditions: Vec<BoundaryCondition<f64>>,
@@ -124,12 +126,12 @@ impl MOLParabolicSolver2D {
         Ok(MOLParabolicSolver2D {
             domain,
             time_range,
-            diffusion_x: Box::new(diffusion_x),
-            diffusion_y: Box::new(diffusion_y),
+            diffusion_x: Arc::new(diffusion_x),
+            diffusion_y: Arc::new(diffusion_y),
             advection_x: None,
             advection_y: None,
             reaction_term: None,
-            initial_condition: Box::new(initial_condition),
+            initial_condition: Arc::new(initial_condition),
             boundary_conditions,
             fd_scheme: FiniteDifferenceScheme::CentralDifference,
             options: options.unwrap_or_default(),
@@ -142,8 +144,8 @@ impl MOLParabolicSolver2D {
         advection_x: impl Fn(f64, f64, f64, f64) -> f64 + Send + Sync + 'static,
         advection_y: impl Fn(f64, f64, f64, f64) -> f64 + Send + Sync + 'static,
     ) -> Self {
-        self.advection_x = Some(Box::new(advection_x));
-        self.advection_y = Some(Box::new(advection_y));
+        self.advection_x = Some(Arc::new(advection_x));
+        self.advection_y = Some(Arc::new(advection_y));
         self
     }
 
@@ -152,7 +154,7 @@ impl MOLParabolicSolver2D {
         mut self,
         reaction_term: impl Fn(f64, f64, f64, f64) -> f64 + Send + Sync + 'static,
     ) -> Self {
-        self.reaction_term = Some(Box::new(reaction_term));
+        self.reaction_term = Some(Arc::new(reaction_term));
         self
     }
 
@@ -163,7 +165,7 @@ impl MOLParabolicSolver2D {
     }
 
     /// Solve the 2D parabolic PDE
-    pub fn solve(&self) -> PDEResult<MOL2DResult> {
+    pub fn solve(self) -> PDEResult<MOL2DResult> {
         let start_time = Instant::now();
 
         // Generate spatial grids
@@ -183,12 +185,45 @@ impl MOLParabolicSolver2D {
         }
 
         // Flatten the 2D grid into a 1D array for the ODE solver
-        let u0_flat = u0.into_shape(nx * ny).unwrap();
+        let _u0_flat = u0.clone().into_shape_with_order(nx * ny).unwrap();
 
+        // Clone grids for the closure
+        let x_grid_closure = x_grid.clone();
+        let y_grid_closure = y_grid.clone();
+        
+        // Clone grids for later use
+        let x_grid_apply = x_grid.clone();
+        let y_grid_apply = y_grid.clone();
+        
+        // Extract options before moving self
+        let ode_options = ODEOptions {
+            method: self.options.ode_method,
+            rtol: self.options.rtol,
+            atol: self.options.atol,
+            max_steps: self.options.max_steps.unwrap_or(500),
+            h0: None,
+            max_step: None,
+            min_step: None,
+            dense_output: true,
+            max_order: None,
+            jac: None,
+            use_banded_jacobian: false,
+            ml: None,
+            mu: None,
+            mass_matrix: None,
+            jacobian_strategy: None,
+        };
+        
+        let time_range = self.time_range;
+        let boundary_conditions = self.boundary_conditions.clone();
+        
+        // Move self into closure
+        let solver = self;
+        
         // Construct the ODE function that represents the PDE after spatial discretization
         let ode_func = move |t: f64, u_flat: ArrayView1<f64>| -> Array1<f64> {
             // Reshape the flattened array back to 2D for easier indexing
-            let u = u_flat.into_shape((ny, nx)).unwrap();
+            let u = u_flat.into_shape_with_order((ny, nx)).unwrap();
             let mut dudt = Array2::zeros((ny, nx));
 
             // Apply finite difference approximations for interior points
@@ -202,18 +237,18 @@ impl MOLParabolicSolver2D {
                     let d2u_dx2 = (u[[j, i + 1]] - 2.0 * u[[j, i]] + u[[j, i - 1]]) / (dx * dx);
                     let d2u_dy2 = (u[[j + 1, i]] - 2.0 * u[[j, i]] + u[[j - 1, i]]) / (dy * dy);
 
-                    let diffusion_term_x = (self.diffusion_x)(x, y, t, u_val) * d2u_dx2;
-                    let diffusion_term_y = (self.diffusion_y)(x, y, t, u_val) * d2u_dy2;
+                    let diffusion_term_x = (solver.diffusion_x)(x, y, t, u_val) * d2u_dx2;
+                    let diffusion_term_y = (solver.diffusion_y)(x, y, t, u_val) * d2u_dy2;
 
                     // Advection terms
-                    let advection_term_x = if let Some(advection_x) = &self.advection_x {
+                    let advection_term_x = if let Some(advection_x) = &solver.advection_x {
                         let du_dx = (u[[j, i + 1]] - u[[j, i - 1]]) / (2.0 * dx);
                         advection_x(x, y, t, u_val) * du_dx
                     } else {
                         0.0
                     };
 
-                    let advection_term_y = if let Some(advection_y) = &self.advection_y {
+                    let advection_term_y = if let Some(advection_y) = &solver.advection_y {
                         let du_dy = (u[[j + 1, i]] - u[[j - 1, i]]) / (2.0 * dy);
                         advection_y(x, y, t, u_val) * du_dy
                     } else {
@@ -221,7 +256,7 @@ impl MOLParabolicSolver2D {
                     };
 
                     // Reaction term
-                    let reaction_term = if let Some(reaction) = &self.reaction_term {
+                    let reaction_val = if let Some(reaction) = &solver.reaction_term {
                         reaction(x, y, t, u_val)
                     } else {
                         0.0
@@ -231,18 +266,18 @@ impl MOLParabolicSolver2D {
                         + diffusion_term_y
                         + advection_term_x
                         + advection_term_y
-                        + reaction_term;
+                        + reaction_val;
                 }
             }
 
             // Apply boundary conditions
-            for bc in &self.boundary_conditions {
+            for bc in &solver.boundary_conditions {
                 match (bc.dimension, bc.location) {
                     // X-direction boundaries
                     (0, BoundaryLocation::Lower) => {
                         // Apply boundary condition at x[0] (left edge)
                         apply_boundary_condition_2d(
-                            &mut dudt, &u, &x_grid, &y_grid, bc, dx, dy, 0, None, None, ny, &self,
+                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, bc, dx, dy, Some(0), None, None, Some(ny), &solver,
                         );
                     }
                     (0, BoundaryLocation::Upper) => {
@@ -250,23 +285,23 @@ impl MOLParabolicSolver2D {
                         apply_boundary_condition_2d(
                             &mut dudt,
                             &u,
-                            &x_grid,
-                            &y_grid,
+                            &x_grid_closure,
+                            &y_grid_closure,
                             bc,
                             dx,
                             dy,
-                            nx - 1,
+                            Some(nx - 1),
                             None,
                             None,
-                            ny,
-                            &self,
+                            Some(ny),
+                            &solver,
                         );
                     }
                     // Y-direction boundaries
                     (1, BoundaryLocation::Lower) => {
                         // Apply boundary condition at y[0] (bottom edge)
                         apply_boundary_condition_2d(
-                            &mut dudt, &u, &x_grid, &y_grid, bc, dx, dy, None, 0, nx, None, &self,
+                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, bc, dx, dy, None, Some(0), Some(nx), None, &solver,
                         );
                     }
                     (1, BoundaryLocation::Upper) => {
@@ -274,16 +309,16 @@ impl MOLParabolicSolver2D {
                         apply_boundary_condition_2d(
                             &mut dudt,
                             &u,
-                            &x_grid,
-                            &y_grid,
+                            &x_grid_closure,
+                            &y_grid_closure,
                             bc,
                             dx,
                             dy,
                             None,
-                            ny - 1,
-                            nx,
+                            Some(ny - 1),
+                            Some(nx),
                             None,
-                            &self,
+                            &solver,
                         );
                     }
                     _ => {
@@ -294,41 +329,29 @@ impl MOLParabolicSolver2D {
             }
 
             // Flatten the 2D dudt back to 1D for the ODE solver
-            dudt.into_shape(nx * ny).unwrap()
-        };
-
-        // Set up ODE solver options
-        let ode_options = ODEOptions {
-            method: self.options.ode_method,
-            rtol: self.options.rtol,
-            atol: Some(self.options.atol),
-            max_num_steps: self.options.max_steps,
-            first_step: None,
-            max_step: None,
-            min_step: None,
-            dense_output: true,
+            dudt.into_shape_with_order(nx * ny).unwrap()
         };
 
         // Apply Dirichlet boundary conditions to initial condition
-        apply_dirichlet_conditions_to_initial(&mut u0, &self.boundary_conditions, &x_grid, &y_grid);
+        apply_dirichlet_conditions_to_initial(&mut u0, &boundary_conditions, &x_grid_apply, &y_grid_apply);
 
-        let u0_flat = u0.into_shape(nx * ny).unwrap();
+        let u0_flat = u0.clone().into_shape_with_order(nx * ny).unwrap();
 
         // Solve the ODE system
-        let ode_result = solve_ivp(ode_func, self.time_range, u0_flat, Some(ode_options))?;
+        let ode_result = solve_ivp(ode_func, time_range, u0_flat, Some(ode_options))?;
 
         // Extract results
         let computation_time = start_time.elapsed().as_secs_f64();
 
         // Reshape the ODE result to match the spatial grid
-        let t = ode_result.t;
+        let t = ode_result.t.clone();
         let nt = t.len();
 
         // Create a 3D array with dimensions [time, y, x]
         let mut u_3d = Array3::zeros((nt, ny, nx));
 
         for (time_idx, y_flat) in ode_result.y.iter().enumerate() {
-            let u_2d = y_flat.clone().into_shape((ny, nx)).unwrap();
+            let u_2d = y_flat.clone().into_shape_with_order((ny, nx)).unwrap();
             for j in 0..ny {
                 for i in 0..nx {
                     u_3d[[time_idx, j, i]] = u_2d[[j, i]];
@@ -338,13 +361,13 @@ impl MOLParabolicSolver2D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.stats.num_steps,
-            ode_result.stats.num_function_evaluations,
-            ode_result.stats.num_accepted_steps,
+            ode_result.n_steps,
+            ode_result.n_eval,
+            ode_result.n_accepted,
         ));
 
         Ok(MOL2DResult {
-            t,
+            t: ode_result.t.into(),
             u: u_3d,
             ode_info,
             computation_time,

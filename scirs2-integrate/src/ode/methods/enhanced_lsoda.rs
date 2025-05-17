@@ -12,11 +12,9 @@ use crate::ode::utils::common::{
     scaled_norm, solve_linear_system,
 };
 use crate::ode::utils::stiffness::integration::{AdaptiveMethodState, AdaptiveMethodType};
-use crate::ode::utils::stiffness::{MethodSwitchInfo, StiffnessDetectionConfig, StiffnessDetector};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use crate::ode::utils::stiffness::StiffnessDetectionConfig;
 use crate::IntegrateFloat;
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// Enhanced LSODA method state information
 struct EnhancedLsodaState<F: IntegrateFloat> {
@@ -35,7 +33,7 @@ struct EnhancedLsodaState<F: IntegrateFloat> {
     /// History of derivatives
     dy_history: Vec<Array1<F>>,
     /// Adaptive method state for method switching
-    adaptive_state: AdaptiveMethodState,
+    adaptive_state: AdaptiveMethodState<F>,
     /// Jacobian matrix
     jacobian: Option<Array2<F>>,
     /// Time since last Jacobian update
@@ -56,11 +54,10 @@ struct EnhancedLsodaState<F: IntegrateFloat> {
     tol_scale: Array1<F>,
 }
 
-impl<F: IntegrateFloat> EnhancedLsodaState<F>
-{
+impl<F: IntegrateFloat> EnhancedLsodaState<F> {
     /// Create a new LSODA state
     fn new(t: F, y: Array1<F>, dy: Array1<F>, h: F, rtol: F, atol: F) -> Self {
-        let n_dim = y.len();
+        let _n_dim = y.len();
 
         // Calculate tolerance scaling for error control
         let tol_scale = calculate_error_weights(&y, atol, rtol);
@@ -104,6 +101,9 @@ impl<F: IntegrateFloat> EnhancedLsodaState<F>
         let max_history = match self.adaptive_state.method_type {
             AdaptiveMethodType::Explicit => 12, // Adams can use up to order 12
             AdaptiveMethodType::Implicit => 5,  // BDF can use up to order 5
+            AdaptiveMethodType::Adams => 12,    // Adams can use up to order 12
+            AdaptiveMethodType::BDF => 5,       // BDF can use up to order 5
+            AdaptiveMethodType::RungeKutta => 4, // RK methods typically don't need much history
         };
 
         if self.t_history.len() > max_history {
@@ -120,16 +120,20 @@ impl<F: IntegrateFloat> EnhancedLsodaState<F>
 
         // Additional state adjustments
         match new_method {
-            AdaptiveMethodType::Implicit => {
+            AdaptiveMethodType::Implicit | AdaptiveMethodType::BDF => {
                 // When switching to BDF, reset Jacobian
                 self.jacobian = None;
                 self.jacobian_age = 0;
             }
-            AdaptiveMethodType::Explicit => {
+            AdaptiveMethodType::Explicit | AdaptiveMethodType::Adams => {
                 // When switching to Adams, be more conservative with step size
                 if self.rejected_steps > 2 {
                     self.h = self.h * F::from_f64(0.5).unwrap();
                 }
+            }
+            AdaptiveMethodType::RungeKutta => {
+                // RK methods - reset step size to be conservative
+                self.h = self.h * F::from_f64(0.8).unwrap();
             }
         }
 
@@ -160,10 +164,10 @@ where
 {
     // Initialize
     let [t_start, t_end] = t_span;
-    let n_dim = y0.len();
+    let _n_dim = y0.len();
 
     // Initial evaluation
-    let mut dy0 = f(t_start, y0.view());
+    let dy0 = f(t_start, y0.view());
     let mut func_evals = 1;
 
     // Estimate initial step size if not provided
@@ -202,11 +206,15 @@ where
 
         // Step with the current method
         let step_result = match state.adaptive_state.method_type {
-            AdaptiveMethodType::Explicit => {
+            AdaptiveMethodType::Explicit | AdaptiveMethodType::Adams => {
                 enhanced_adams_step(&mut state, &f, &opts, &mut func_evals)
             }
-            AdaptiveMethodType::Implicit => {
+            AdaptiveMethodType::Implicit | AdaptiveMethodType::BDF => {
                 enhanced_bdf_step(&mut state, &f, &opts, &mut func_evals)
+            }
+            AdaptiveMethodType::RungeKutta => {
+                // For RK methods, use Adams for now
+                enhanced_adams_step(&mut state, &f, &opts, &mut func_evals)
             }
         };
 
@@ -227,17 +235,11 @@ where
 
                     // Record step data for stiffness analysis
                     let error = F::zero(); // We don't have direct error estimate for reporting
-                    let newton_iterations = 0; // Would need to be passed from step methods
-                    state.adaptive_state.record_step(
-                        state.h,
-                        error,
-                        newton_iterations,
-                        false, // not rejected
-                        state.steps,
-                    );
+                    let _newton_iterations = 0; // Would need to be passed from step methods
+                    state.adaptive_state.record_step(error);
 
                     // Check for method switching
-                    if state.adaptive_state.check_method_switch(state.steps) {
+                    if let Some(_new_method) = state.adaptive_state.check_method_switch() {
                         // Method switching already happened in the check_method_switch call
                     }
 
@@ -256,14 +258,8 @@ where
 
                     // Record step data for stiffness analysis
                     let error = F::one(); // Placeholder for rejected step
-                    let newton_iterations = 0; // Would need to be passed from step methods
-                    state.adaptive_state.record_step(
-                        state.h,
-                        error,
-                        newton_iterations,
-                        true, // rejected
-                        state.steps,
-                    );
+                    let _newton_iterations = 0; // Would need to be passed from step methods
+                    state.adaptive_state.record_step(error);
                 }
             }
             Err(e) => {
@@ -616,13 +612,7 @@ where
         }
 
         // Trigger stiffness detector to record this step
-        state.adaptive_state.record_step(
-            state.h,
-            error,
-            0,     // no Newton iterations for explicit method
-            false, // not rejected
-            state.steps,
-        );
+        state.adaptive_state.record_step(error);
 
         Ok(true)
     } else {
@@ -632,13 +622,7 @@ where
         state.h = state.h * factor;
 
         // Trigger stiffness detector to record this rejected step
-        state.adaptive_state.record_step(
-            state.h,
-            error,
-            0,    // no Newton iterations
-            true, // rejected
-            state.steps,
-        );
+        state.adaptive_state.record_step(error);
 
         // If error is very large, this might indicate stiffness
         if error > F::from_f64(10.0).unwrap() {
@@ -788,13 +772,7 @@ where
             iter_count += 1;
 
             // Record Newton iteration count for stiffness detection
-            state.adaptive_state.record_step(
-                state.h,
-                error,
-                iter_count,
-                false, // not a rejected step yet
-                state.steps,
-            );
+            state.adaptive_state.record_step(error);
         }
 
         if !converged {
@@ -839,7 +817,7 @@ where
 
     // For higher orders, use previous points for prediction
     if order > 1 && state.y_history.len() >= 1 {
-        let y_prev = &state.y_history[state.y_history.len() - 1];
+        let _y_prev = &state.y_history[state.y_history.len() - 1];
 
         // Use more sophisticated extrapolation
         y_pred = extrapolate(&state.t_history[..], &state.y_history[..], next_t);
@@ -937,13 +915,7 @@ where
         iter_count += 1;
 
         // Record Newton iteration count for stiffness detection
-        state.adaptive_state.record_step(
-            state.h,
-            error,
-            iter_count,
-            false, // not a rejected step yet
-            state.steps,
-        );
+        state.adaptive_state.record_step(error);
     }
 
     if !converged {
@@ -954,11 +926,7 @@ where
         if iter_count >= max_newton_iters - 1 {
             // Record as potential non-stiffness indicator
             state.adaptive_state.record_step(
-                state.h,
                 F::one(), // placeholder for error
-                iter_count,
-                true, // rejected step
-                state.steps,
             );
         }
 

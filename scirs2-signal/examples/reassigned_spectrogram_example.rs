@@ -1,4 +1,5 @@
-use ndarray::{s, Array, Array1, Array2};
+use ndarray::{Array, Array1, Array2};
+use rand::{rng, Rng};
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -77,11 +78,9 @@ fn generate_test_signal() -> Array1<f64> {
 
     // Add some noise
     let noise_level = 0.05;
-    let mut rng = rand::thread_rng();
-    let noise = Array::from_iter(
-        (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
-    );
+    let mut rng = rng();
+    let noise =
+        Array::from_iter((0..n_samples).map(|_| noise_level * (2.0 * rng.random::<f64>() - 1.0)));
 
     // Combine components
     &chirp + &burst + &noise
@@ -94,22 +93,30 @@ fn compute_standard_spectrogram(signal: &Array1<f64>) -> Array2<f64> {
     let hop_size = 64;
     let n_fft = 512;
 
-    let win = window::hann(window_size);
+    let _win = window::hann(window_size, true).unwrap();
 
     // Compute STFT using spectral module
-    let stft_complex = spectral::stft(
+    let stft_result = spectral::stft(
         signal.as_slice().unwrap(),
-        win.as_slice().unwrap(),
-        hop_size,
-        n_fft,
+        Some(fs),
+        Some("hann"),
+        Some(window_size),
+        Some(window_size - hop_size), // noverlap = nperseg - hop_size
+        Some(n_fft),
+        None,
+        None,
+        None,
     )
     .unwrap();
 
+    // STFT returns (frequencies, times, STFT values)
+    let (_, _, stft_complex) = stft_result;
+
     // Convert to power spectrogram
-    let mut spectrogram = Array2::zeros((n_fft / 2 + 1, stft_complex.shape()[1]));
+    let mut spectrogram = Array2::zeros((n_fft / 2 + 1, stft_complex.len()));
     for i in 0..spectrogram.shape()[0] {
         for j in 0..spectrogram.shape()[1] {
-            spectrogram[[i, j]] = stft_complex[[i, j]].norm_sqr();
+            spectrogram[[i, j]] = stft_complex[j][i].norm_sqr();
         }
     }
 
@@ -128,7 +135,7 @@ fn compute_reassigned_spectrogram(signal: &Array1<f64>) -> ReassignedResult {
 
     // Configure the reassigned spectrogram
     let mut config = ReassignedConfig::default();
-    config.window = window::hann(256);
+    config.window = Array1::from(window::hann(256, true).unwrap());
     config.hop_size = 64;
     config.n_fft = Some(512);
     config.fs = fs;
@@ -152,7 +159,7 @@ fn compute_smoothed_reassigned_spectrogram(signal: &Array1<f64>) -> ReassignedRe
 
     // Configure the reassigned spectrogram
     let mut config = ReassignedConfig::default();
-    config.window = window::hann(256);
+    config.window = Array1::from(window::hann(256, true).unwrap());
     config.hop_size = 64;
     config.n_fft = Some(512);
     config.fs = fs;
@@ -196,27 +203,35 @@ fn analyze_multicomponent_signal() -> (Array2<f64>, Array2<f64>, Array2<f64>) {
     let hop_size = 64;
     let n_fft = 512;
 
-    let win = window::hann(window_size);
+    let _win = window::hann(window_size, true).unwrap();
 
-    let stft_complex = spectral::stft(
+    let stft_result = spectral::stft(
         signal.as_slice().unwrap(),
-        win.as_slice().unwrap(),
-        hop_size,
-        n_fft,
+        Some(fs),
+        Some("hann"),
+        Some(window_size),
+        Some(window_size - hop_size), // noverlap = nperseg - hop_size
+        Some(n_fft),
+        None,
+        None,
+        None,
     )
     .unwrap();
 
+    // STFT returns (frequencies, times, STFT values)
+    let (_, _, stft_complex) = stft_result;
+
     // Convert to power spectrogram
-    let mut spectrogram = Array2::zeros((n_fft / 2 + 1, stft_complex.shape()[1]));
+    let mut spectrogram = Array2::zeros((n_fft / 2 + 1, stft_complex.len()));
     for i in 0..spectrogram.shape()[0] {
         for j in 0..spectrogram.shape()[1] {
-            spectrogram[[i, j]] = stft_complex[[i, j]].norm_sqr();
+            spectrogram[[i, j]] = stft_complex[j][i].norm_sqr();
         }
     }
 
     // Configure the reassigned spectrogram
     let mut config = ReassignedConfig::default();
-    config.window = window::hann(window_size);
+    config.window = Array1::from(window::hann(window_size, true).unwrap());
     config.hop_size = hop_size;
     config.n_fft = Some(n_fft);
     config.fs = fs;

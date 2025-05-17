@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{rng, Rng};
 use scirs2_signal::lombscargle::{find_peaks, lombscargle, significance_levels, AutoFreqMethod};
 use std::error::Error;
 use std::f64::consts::PI;
@@ -12,13 +12,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let n_samples = 500;
 
     // Create time samples with uneven spacing
-    let mut rng = rand::thread_rng();
+    let mut rng = rng();
     let mut t = Vec::with_capacity(n_samples);
 
     // Start with roughly evenly spaced samples, then add jitter
     for i in 0..n_samples {
         let base_t = i as f64 * 0.1; // Base time (0.1 second spacing)
-        let jitter = 0.05 * rng.gen::<f64>(); // Random jitter up to 0.05 seconds
+        let jitter = 0.05 * rng.random::<f64>(); // Random jitter up to 0.05 seconds
         t.push(base_t + jitter); // Add to time array
     }
 
@@ -43,13 +43,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let noise_level = 0.2;
     println!("  Adding noise with amplitude: {:.1}", noise_level);
     for i in 0..n_samples {
-        y[i] += noise_level * (2.0 * rng.gen::<f64>() - 1.0);
+        y[i] += noise_level * (2.0 * rng.random::<f64>() - 1.0);
     }
 
     // Create frequency grid to evaluate periodogram
     println!("\nComputing Lomb-Scargle periodogram...");
-    let min_freq = 0.1; // Hz
-    let max_freq = 5.0; // Hz
+    let _min_freq = 0.1; // Hz
+    let _max_freq = 5.0; // Hz
 
     // Frequency grid using auto-frequency method
     let (frequencies, power) = lombscargle(
@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?;
 
         // Find the maximum power
-        let max_power = power.iter().fold(0.0, |a, &b| a.max(b));
+        let max_power = power.iter().fold(0.0_f64, |a, &b| a.max(b));
         let max_idx = power.iter().position(|&p| p == max_power).unwrap();
         let max_freq = frequencies[max_idx];
 

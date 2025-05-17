@@ -240,11 +240,8 @@ where
                 * beta2_t
                 / (A::one() - beta2_t);
 
-        // Declare updated parameters variable
-        let updated_params;
-
         // Compute adaptive learning rate and update parameters
-        if rho_t > <A as num_traits::NumCast>::from(4.0).unwrap() {
+        let updated_params = if rho_t > <A as num_traits::NumCast>::from(4.0).unwrap() {
             // Threshold for using the adaptive learning rate
             // Compute bias-corrected second moment estimate (variance)
             let v_hat = &v[0] / (A::one() - beta2_t);
@@ -261,12 +258,12 @@ where
 
             // Update parameters with adaptive learning rate
             let step = &m_hat / &(&v_hat_sqrt + self.epsilon) * sma_rectifier * self.learning_rate;
-            updated_params = &params_dyn - step;
+            &params_dyn - step
         } else {
             // Use non-adaptive (SGD-like) update when SMA too small (early training)
             let step = &m_hat * self.learning_rate;
-            updated_params = &params_dyn - step;
-        }
+            &params_dyn - step
+        };
 
         // Convert back to original dimension
         Ok(updated_params.into_dimensionality::<D>().unwrap())

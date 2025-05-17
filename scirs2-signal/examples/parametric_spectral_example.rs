@@ -1,8 +1,9 @@
-use ndarray::{s, Array1};
+use ndarray::Array1;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
 
+use rand::Rng;
 use scirs2_signal::parametric::{
     ar_spectrum, arma_spectrum, estimate_ar, estimate_arma, select_ar_order, ARMethod,
     OrderSelection,
@@ -62,10 +63,9 @@ fn generate_sinusoid_signal() -> Array1<f64> {
 
     // Add noise
     let noise_level = 0.2;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise = Array1::from_iter(
-        (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+        (0..n_samples).map(|_| noise_level * (2.0 * rng.random_range(0.0..1.0) - 1.0)),
     );
 
     &sinusoid1 + &sinusoid2 + &noise
@@ -84,16 +84,16 @@ fn generate_ar_signal() -> Array1<f64> {
 
     // Generate the AR signal
     let mut signal = Vec::with_capacity(n_samples + n_warmup);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Initialize with random values
     for _ in 0..4 {
-        signal.push(rand::Rng::gen_range(&mut rng, -0.1..0.1));
+        signal.push(rng.random_range(-0.1..0.1));
     }
 
     // Generate AR samples
     for i in 4..(n_samples + n_warmup) {
-        let mut sample = rand::Rng::gen_range(&mut rng, -0.1..0.1);
+        let mut sample = rng.random_range(-0.1..0.1);
         for j in 1..=4 {
             sample -= ar_coeffs[j] * signal[i - j];
         }
@@ -112,11 +112,14 @@ fn analyze_with_ar_methods(signal: &Array1<f64>, fs: f64) {
 
     // Apply different AR estimation methods
     let methods = [
-        (ARMethod::YuleWalker, "Yule-Walker"),
-        (ARMethod::Burg, "Burg"),
-        (ARMethod::Covariance, "Covariance"),
-        (ARMethod::ModifiedCovariance, "Modified Covariance"),
-        (ARMethod::LeastSquares, "Least Squares"),
+        (ARMethod::YuleWalker, "Yule-Walker".to_string()),
+        (ARMethod::Burg, "Burg".to_string()),
+        (ARMethod::Covariance, "Covariance".to_string()),
+        (
+            ARMethod::ModifiedCovariance,
+            "Modified Covariance".to_string(),
+        ),
+        (ARMethod::LeastSquares, "Least Squares".to_string()),
     ];
 
     // Frequency axis for spectral estimation
@@ -127,9 +130,9 @@ fn analyze_with_ar_methods(signal: &Array1<f64>, fs: f64) {
     let mut psd_results = Vec::new();
     psd_results.push(freqs.clone());
 
-    for (method, method_name) in methods {
+    for (method, method_name) in &methods {
         // Estimate AR parameters
-        match estimate_ar(signal, ar_order, method) {
+        match estimate_ar(signal, ar_order, *method) {
             Ok((ar_coeffs, reflection_coeffs, variance)) => {
                 println!(
                     "  {}: Order {}, Variance: {:.4e}",
@@ -144,7 +147,7 @@ fn analyze_with_ar_methods(signal: &Array1<f64>, fs: f64) {
                         psd_results.push(psd_db);
 
                         // Print some info about reflection coefficients (for Burg method)
-                        if method == ARMethod::Burg || method == ARMethod::YuleWalker {
+                        if *method == ARMethod::Burg || *method == ARMethod::YuleWalker {
                             if let Some(ref k) = reflection_coeffs {
                                 let k_max = k.iter().map(|&x| x.abs()).fold(0.0, f64::max);
                                 println!("    Max reflection coefficient magnitude: {:.4}", k_max);
@@ -217,9 +220,9 @@ fn analyze_with_different_orders(signal: &Array1<f64>, fs: f64) {
     }
 
     // Save results to CSV
-    let method_names: Vec<(ARMethod, &str)> = orders
+    let method_names: Vec<(ARMethod, String)> = orders
         .iter()
-        .map(|&order| (method, &format!("AR({})", order)))
+        .map(|&order| (method, format!("AR({})", order)))
         .collect();
 
     save_psd_to_csv("ar_orders_comparison.csv", &psd_results, &method_names);
@@ -228,22 +231,26 @@ fn analyze_with_different_orders(signal: &Array1<f64>, fs: f64) {
 /// Compares parametric methods with traditional periodogram
 fn compare_with_periodogram(signal: &Array1<f64>, fs: f64) {
     // Compute periodogram (non-parametric)
-    let (pxx_periodogram, f_periodogram) = periodogram(signal, fs, None, None, false).unwrap();
+    let (pxx_periodogram, f_periodogram) =
+        periodogram(signal.as_slice().unwrap(), Some(fs), None, None, None, None).unwrap();
 
     // Convert to dB
-    let pxx_db = pxx_periodogram.mapv(|x| 10.0 * (x).log10());
+    let pxx_db = pxx_periodogram
+        .iter()
+        .map(|&x| 10.0 * x.log10())
+        .collect::<Vec<_>>();
 
     // Compute AR spectrum with Burg method
     let ar_orders = [4, 20, 60];
     let method = ARMethod::Burg;
 
     // Frequency axis matching periodogram
-    let freqs = f_periodogram.clone();
+    let freqs = Array1::from(f_periodogram.clone());
 
     // Results for saving to CSV
     let mut psd_results = Vec::new();
     psd_results.push(freqs.clone());
-    psd_results.push(pxx_db);
+    psd_results.push(Array1::from(pxx_db));
 
     for &order in &ar_orders {
         // Estimate AR parameters
@@ -266,9 +273,9 @@ fn compare_with_periodogram(signal: &Array1<f64>, fs: f64) {
     }
 
     // Method names for CSV
-    let mut method_names = vec![(ARMethod::YuleWalker, "Periodogram")];
+    let mut method_names = vec![(ARMethod::YuleWalker, "Periodogram".to_string())];
     for &order in &ar_orders {
-        method_names.push((method, &format!("AR({})", order)));
+        method_names.push((method, format!("AR({})", order)));
     }
 
     // Save results to CSV
@@ -291,18 +298,18 @@ fn demonstrate_arma_model() {
     // Generate the ARMA signal
     let mut signal = Vec::with_capacity(n_samples + n_warmup);
     let mut noise_history = Vec::with_capacity(n_samples + n_warmup);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Initialize with random values
     for _ in 0..2 {
-        signal.push(rand::Rng::gen_range(&mut rng, -0.1..0.1));
-        noise_history.push(rand::Rng::gen_range(&mut rng, -0.1..0.1));
+        signal.push(rng.random_range(-0.1..0.1));
+        noise_history.push(rng.random_range(-0.1..0.1));
     }
 
     // Generate ARMA samples
     for i in 2..(n_samples + n_warmup) {
         // Generate white noise
-        let noise = rand::Rng::gen_range(&mut rng, -0.5..0.5);
+        let noise = rng.random_range(-0.5..0.5);
         noise_history.push(noise);
 
         // AR component
@@ -361,23 +368,25 @@ fn demonstrate_arma_model() {
                     let ar_psd_db = ar_psd.mapv(|x| 10.0 * (x).log10());
 
                     // Compute periodogram for comparison
-                    let (pxx_periodogram, f_periodogram) =
-                        periodogram(&signal, fs, None, None, false).unwrap();
-                    let pxx_db = pxx_periodogram
-                        .slice(s![..(nfft / 2 + 1)])
-                        .mapv(|x| 10.0 * (x).log10());
+                    let (pxx_periodogram, _f_periodogram) =
+                        periodogram(signal.as_slice().unwrap(), Some(fs), None, None, None, None)
+                            .unwrap();
+                    let pxx_db: Vec<f64> = pxx_periodogram[..(nfft / 2 + 1)]
+                        .iter()
+                        .map(|x| 10.0 * (x).log10())
+                        .collect();
 
                     // Save results to CSV
                     let mut psd_results = Vec::new();
                     psd_results.push(freqs.clone());
-                    psd_results.push(pxx_db.to_owned());
+                    psd_results.push(Array1::from(pxx_db.to_owned()));
                     psd_results.push(ar_psd_db);
                     psd_results.push(arma_psd_db);
 
                     let method_names = vec![
-                        (ARMethod::YuleWalker, "Periodogram"),
-                        (ARMethod::Burg, "AR(2)"),
-                        (ARMethod::Burg, "ARMA(2,2)"),
+                        (ARMethod::YuleWalker, "Periodogram".to_string()),
+                        (ARMethod::Burg, "AR(2)".to_string()),
+                        (ARMethod::Burg, "ARMA(2,2)".to_string()),
                     ];
 
                     save_psd_to_csv("arma_comparison.csv", &psd_results, &method_names);
@@ -432,21 +441,23 @@ fn demonstrate_order_selection(signal: &Array1<f64>, fs: f64) {
                     let psd_db = psd.mapv(|x| 10.0 * (x).log10());
 
                     // Compute periodogram for comparison
-                    let (pxx_periodogram, f_periodogram) =
-                        periodogram(signal, fs, None, None, false).unwrap();
-                    let pxx_db = pxx_periodogram
-                        .slice(s![..(nfft / 2 + 1)])
-                        .mapv(|x| 10.0 * (x).log10());
+                    let (pxx_periodogram, _f_periodogram) =
+                        periodogram(signal.as_slice().unwrap(), Some(fs), None, None, None, None)
+                            .unwrap();
+                    let pxx_db: Vec<f64> = pxx_periodogram[..(nfft / 2 + 1)]
+                        .iter()
+                        .map(|x| 10.0 * (x).log10())
+                        .collect();
 
                     // Save to CSV
                     let mut psd_results = Vec::new();
                     psd_results.push(freqs.clone());
-                    psd_results.push(pxx_db.to_owned());
+                    psd_results.push(Array1::from(pxx_db.to_owned()));
                     psd_results.push(psd_db);
 
                     let method_names = vec![
-                        (ARMethod::YuleWalker, "Periodogram"),
-                        (method, &format!("AR({}) - {}", opt_order, name)),
+                        (ARMethod::YuleWalker, "Periodogram".to_string()),
+                        (method, format!("AR({}) - {}", opt_order, name)),
                     ];
 
                     save_psd_to_csv(
@@ -462,7 +473,11 @@ fn demonstrate_order_selection(signal: &Array1<f64>, fs: f64) {
 }
 
 /// Helper function to save PSD results to CSV
-fn save_psd_to_csv(filename: &str, psd_arrays: &[Array1<f64>], method_names: &[(ARMethod, &str)]) {
+fn save_psd_to_csv(
+    filename: &str,
+    psd_arrays: &[Array1<f64>],
+    method_names: &[(ARMethod, String)],
+) {
     let mut file = File::create(filename).expect(&format!("Failed to create {}", filename));
 
     // Write header

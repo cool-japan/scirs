@@ -4,7 +4,6 @@
 
 use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
 
 /// Calculate stability metrics for a solution
 ///

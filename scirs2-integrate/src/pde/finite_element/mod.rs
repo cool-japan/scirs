@@ -10,13 +10,13 @@
 //! - Support for irregular domains
 //! - Various boundary condition types
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::pde::{
-    BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    BoundaryCondition, BoundaryConditionType, BoundaryLocation, PDEError, PDEResult, PDESolution,
+    PDESolverInfo,
 };
 
 /// A point in 2D space
@@ -329,6 +329,7 @@ pub struct FEMPoissonSolver {
     boundary_conditions: Vec<BoundaryCondition<f64>>,
 
     /// Solver options
+    #[allow(dead_code)]
     options: FEMOptions,
 }
 
@@ -364,7 +365,7 @@ impl FEMPoissonSolver {
             .set_boundary_conditions(&self.boundary_conditions)?;
 
         // Number of nodes (degrees of freedom)
-        let n = self.mesh.points.len();
+        let _n = self.mesh.points.len();
 
         // Assemble stiffness matrix and load vector
         let (mut a, mut b) = self.assemble_system()?;
@@ -503,7 +504,7 @@ impl FEMPoissonSolver {
 
                 // For each boundary edge, apply the Neumann condition
                 for &(n1, n2, _) in &boundary_edges {
-                    let other_node = if n1 == node_idx { n2 } else { n1 };
+                    let other_node = if *n1 == node_idx { *n2 } else { *n1 };
 
                     // Get the coordinates of the nodes
                     let p1 = &self.mesh.points[node_idx];
@@ -518,7 +519,7 @@ impl FEMPoissonSolver {
                 }
             } else if bc_info.bc_type == BoundaryConditionType::Robin {
                 // Robin boundary conditions (a*u + b*∂u/∂n = c)
-                if let Some([a_coef, b_coef, c_coef]) = bc_info.coefficients {
+                if let Some([a_coef, _b_coef, c_coef]) = bc_info.coefficients {
                     // Similar to Neumann, we need to find boundary edges
                     let boundary_edges: Vec<_> = self
                         .mesh
@@ -528,7 +529,7 @@ impl FEMPoissonSolver {
                         .collect();
 
                     for &(n1, n2, _) in &boundary_edges {
-                        let other_node = if n1 == node_idx { n2 } else { n1 };
+                        let other_node = if *n1 == node_idx { *n2 } else { *n1 };
 
                         // Get the coordinates of the nodes
                         let p1 = &self.mesh.points[node_idx];
@@ -661,7 +662,7 @@ impl From<FEMResult> for PDESolution<f64> {
 
         // Create solution values as a 2D array with one column
         let mut values = Vec::new();
-        let u_reshaped = result.u.into_shape((n, 1)).unwrap();
+        let u_reshaped = result.u.into_shape_with_order((n, 1)).unwrap();
         values.push(u_reshaped);
 
         // Create solver info
@@ -685,7 +686,7 @@ impl From<FEMResult> for PDESolution<f64> {
 // Add PDE error types
 impl PDEError {
     /// Create a finite element error
-    pub fn FiniteElementError(msg: String) -> Self {
+    pub fn finite_element_error(msg: String) -> Self {
         PDEError::Other(format!("Finite element error: {}", msg))
     }
 }

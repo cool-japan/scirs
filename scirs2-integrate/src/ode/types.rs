@@ -4,9 +4,9 @@
 //! including method enums, options, and results.
 
 use crate::common::IntegrateFloat;
-use crate::error::IntegrateResult;
 use ndarray::Array1;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 /// ODE solver method
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,9 +80,9 @@ pub struct MassMatrix<F: IntegrateFloat> {
     /// Constant mass matrix (if applicable)
     pub constant_matrix: Option<ndarray::Array2<F>>,
     /// Function for time-dependent mass matrix
-    pub time_function: Option<Box<dyn Fn(F) -> ndarray::Array2<F>>>,
+    pub time_function: Option<Arc<dyn Fn(F) -> ndarray::Array2<F> + Send + Sync>>,
     /// Function for state-dependent mass matrix
-    pub state_function: Option<Box<dyn Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F>>>,
+    pub state_function: Option<Arc<dyn Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F> + Send + Sync>>,
     /// Whether the mass matrix is sparse/banded
     pub is_banded: bool,
     /// Lower bandwidth for banded matrices
@@ -110,8 +110,8 @@ impl<F: IntegrateFloat> Clone for MassMatrix<F> {
         MassMatrix {
             matrix_type: self.matrix_type.clone(),
             constant_matrix: self.constant_matrix.clone(),
-            time_function: None,  // Cannot clone closures
-            state_function: None, // Cannot clone closures
+            time_function: self.time_function.clone(),
+            state_function: self.state_function.clone(),
             is_banded: self.is_banded,
             lower_bandwidth: self.lower_bandwidth,
             upper_bandwidth: self.upper_bandwidth,
@@ -149,12 +149,12 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     /// Create a new time-dependent mass matrix M(t)
     pub fn time_dependent<Func>(func: Func) -> Self
     where
-        Func: Fn(F) -> ndarray::Array2<F> + 'static,
+        Func: Fn(F) -> ndarray::Array2<F> + Send + Sync + 'static,
     {
         MassMatrix {
             matrix_type: MassMatrixType::TimeDependent,
             constant_matrix: None,
-            time_function: Some(Box::new(func)),
+            time_function: Some(Arc::new(func)),
             state_function: None,
             is_banded: false,
             lower_bandwidth: None,
@@ -165,13 +165,13 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     /// Create a new state-dependent mass matrix M(t,y)
     pub fn state_dependent<Func>(func: Func) -> Self
     where
-        Func: Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F> + 'static,
+        Func: Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F> + Send + Sync + 'static,
     {
         MassMatrix {
             matrix_type: MassMatrixType::StateDependent,
             constant_matrix: None,
             time_function: None,
-            state_function: Some(Box::new(func)),
+            state_function: Some(Arc::new(func)),
             is_banded: false,
             lower_bandwidth: None,
             upper_bandwidth: None,

@@ -1,4 +1,5 @@
 use ndarray::{Array1, Array2, Array3};
+use rand::{rng, Rng};
 use std::fs::File;
 use std::io::Write;
 
@@ -215,12 +216,12 @@ fn generate_test_signal() -> (Array1<f64>, Array1<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rng();
     let noise_level = 0.15;
     let mut noisy_signal = clean_signal.clone();
 
     for i in 0..n {
-        noisy_signal[i] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+        noisy_signal[i] += noise_level * rng.random_range(-1.0..1.0);
     }
 
     (clean_signal, noisy_signal)
@@ -270,13 +271,13 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
     for i in 0..size {
         for j in 0..size {
-            noisy_image[[i, j]] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+            noisy_image[[i, j]] += noise_level * rng.random_range(-1.0..1.0);
         }
     }
 
@@ -322,14 +323,14 @@ fn generate_color_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
     for i in 0..size {
         for j in 0..size {
             for c in 0..3 {
-                noisy_image[[i, j, c]] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+                noisy_image[[i, j, c]] += noise_level * rng.random_range(-1.0..1.0);
             }
         }
     }

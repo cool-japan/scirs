@@ -1064,7 +1064,11 @@ fn bior_filters(nr: usize, nd: usize) -> SignalResult<WaveletFilters> {
                 0.3535533905932738,
                 -0.1767766952966369,
             ];
-            let rec_lo = vec![0.3535533905932738, 0.7071067811865476, 0.3535533905932738];
+            let rec_lo = vec![
+                0.3535533905932738,
+                std::f64::consts::FRAC_1_SQRT_2,
+                0.3535533905932738,
+            ];
 
             // Create high-pass filters
             let mut dec_hi = vec![0.0; rec_lo.len()];
@@ -1142,7 +1146,11 @@ fn bior_filters(nr: usize, nd: usize) -> SignalResult<WaveletFilters> {
             };
 
             // Define rec_lo - same for all bior2.x
-            let rec_lo = vec![0.3535533905932738, 0.7071067811865476, 0.3535533905932738];
+            let rec_lo = vec![
+                0.3535533905932738,
+                std::f64::consts::FRAC_1_SQRT_2,
+                0.3535533905932738,
+            ];
 
             // Create high-pass filters
             let mut dec_hi = vec![0.0; rec_lo.len()];

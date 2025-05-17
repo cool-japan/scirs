@@ -4,7 +4,7 @@
 //! These replace the need for external linear algebra libraries like ndarray-linalg.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 

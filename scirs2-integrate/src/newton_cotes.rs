@@ -9,7 +9,7 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
 use ndarray::Array1;
-use num_traits::Float;
+// use num_traits::Float;
 
 /// Represents the type of Newton-Cotes formula to generate
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,10 +58,10 @@ pub struct NewtonCotesResult<F: IntegrateFloat> {
 /// # Examples
 ///
 /// ```
-/// use scirs2_integrate::newton_cotes::{newton_cotes, NewtonCotesType};
+/// use scirs2_integrate::newton_cotes::{newton_cotes, NewtonCotesType, NewtonCotesResult};
 ///
 /// // Generate a 5-point closed Newton-Cotes formula (Boole's rule)
-/// let result = newton_cotes(5, NewtonCotesType::Closed, None, None).unwrap();
+/// let result: NewtonCotesResult<f64> = newton_cotes(5, NewtonCotesType::Closed, None, None).unwrap();
 ///
 /// // Print weights
 /// println!("Weights: {:?}", result.weights);
@@ -546,9 +546,10 @@ mod tests {
         assert_abs_diff_eq!(result, 1.0 / 3.0, epsilon = 1e-14);
 
         // Test integration of sin(x) from 0 to pi = 2
+        // Simpson's rule gives 2π/3 ≈ 2.094, which has ~5% error
         let (result, _) =
             newton_cotes_integrate(|x| x.sin(), 0.0, PI, 3, NewtonCotesType::Closed).unwrap();
-        assert_abs_diff_eq!(result, 2.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(result, 2.0, epsilon = 0.1);
     }
 
     #[test]

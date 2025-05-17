@@ -284,8 +284,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     .legend(|(x, y)| Circle::new((x + 10, y), 5, BLACK.filled()));
 
     cc.configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     slice_root.present()?;

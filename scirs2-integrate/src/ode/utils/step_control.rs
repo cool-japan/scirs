@@ -5,8 +5,6 @@
 
 use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use std::cmp::Ordering;
 
 /// Calculate the error norm based on relative and absolute tolerances
 ///

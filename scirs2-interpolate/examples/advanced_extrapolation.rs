@@ -1,10 +1,10 @@
-use ndarray::{Array1, Axis};
+use ndarray::Array1;
 use scirs2_interpolate::{
     make_antisymmetric_boundary, make_cubic_extrapolator, make_exponential_extrapolator,
     make_linear_extrapolator, make_linear_gradient_boundary, make_periodic_boundary,
     make_periodic_extrapolator, make_reflection_extrapolator, make_symmetric_boundary,
-    make_zero_gradient_boundary, make_zero_value_boundary, BoundaryMode, BoundaryParameters,
-    BoundaryResult, ExtrapolateMode, ExtrapolationMethod, ExtrapolationParameters, Extrapolator,
+    make_zero_gradient_boundary, make_zero_value_boundary, BoundaryResult, ExtrapolationMethod,
+    Extrapolator,
 };
 
 // Helper to run extrapolation for example points and display results
@@ -16,16 +16,16 @@ where
     for &(x, expected) in extrap_values {
         match f(x) {
             Ok(value) => println!(
-                "  f({:.2f}) = {:.6f} {}",
+                "  f({:.2}) = {:.6} {}",
                 x,
                 value,
                 if f64::abs(value - expected) < 1e-6 {
-                    "(correct)"
+                    "(correct)".to_string()
                 } else {
-                    format!("(expected: {:.6f})", expected)
+                    format!("(expected: {:.6})", expected)
                 }
             ),
-            Err(e) => println!("  f({:.2f}) = Error: {}", x, e),
+            Err(e) => println!("  f({:.2}) = Error: {}", x, e),
         }
     }
     println!();
@@ -195,9 +195,9 @@ fn main() {
     let lower_bound = 0.0;
     let upper_bound = 1.0;
     let lower_value = 1.0;
-    let upper_value = 2.718281828459045; // e^1
+    let upper_value = std::f64::consts::E; // e^1
     let lower_derivative = 1.0;
-    let upper_derivative = 2.718281828459045; // e^1
+    let upper_derivative = std::f64::consts::E; // e^1
 
     // Create exponential extrapolator
     let exp_extrap = make_exponential_extrapolator(
@@ -232,7 +232,7 @@ fn main() {
 
     // Domain [0, 10] with various boundary conditions
     let domain_points = Array1::linspace(0.0, 10.0, 11);
-    let values = domain_points.mapv(|x| f64::sin(x));
+    let values = domain_points.mapv(f64::sin);
 
     // Create various boundary handlers
     let zero_gradient = make_zero_gradient_boundary(0.0, 10.0);
@@ -252,15 +252,15 @@ fn main() {
                 // For zero gradient, we map to the boundary point
                 let idx = if mapped_x <= 0.0 { 0 } else { 10 };
                 println!(
-                    "  f({:.2f}) → mapped to boundary: f({:.2f}) = {:.6f}",
+                    "  f({:.2}) → mapped to boundary: f({:.2}) = {:.6}",
                     x, mapped_x, values[idx]
                 );
             }
             Ok(BoundaryResult::InsideDomain(_)) => {
                 // This shouldn't happen with our test points
-                println!("  f({:.2f}) is inside domain", x);
+                println!("  f({:.2}) is inside domain", x);
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
     println!();
@@ -269,9 +269,9 @@ fn main() {
     for &x in &test_points {
         match zero_value.map_point(x, Some(&values.view()), Some(&domain_points.view())) {
             Ok(BoundaryResult::DirectValue(value)) => {
-                println!("  f({:.2f}) = {:.6f}", x, value);
+                println!("  f({:.2}) = {:.6}", x, value);
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
     println!();
@@ -292,11 +292,11 @@ fn main() {
                     .map(|(idx, _)| idx)
                     .unwrap();
                 println!(
-                    "  f({:.2f}) → mapped to: f({:.2f}) ≈ {:.6f}",
+                    "  f({:.2}) → mapped to: f({:.2}) ≈ {:.6}",
                     x, mapped_x, values[nearest_idx]
                 );
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
     println!();
@@ -317,11 +317,11 @@ fn main() {
                     .map(|(idx, _)| idx)
                     .unwrap();
                 println!(
-                    "  f({:.2f}) → mapped to: f({:.2f}) ≈ {:.6f}",
+                    "  f({:.2}) → mapped to: f({:.2}) ≈ {:.6}",
                     x, mapped_x, values[nearest_idx]
                 );
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
     println!();
@@ -330,12 +330,12 @@ fn main() {
     for &x in &test_points {
         match antisymmetric.map_point(x, Some(&values.view()), Some(&domain_points.view())) {
             Ok(BoundaryResult::DirectValue(value)) => {
-                println!("  f({:.2f}) = {:.6f}", x, value);
+                println!("  f({:.2}) = {:.6}", x, value);
             }
             Ok(BoundaryResult::MappedPointWithSignChange(mapped_x)) => {
-                println!("  f({:.2f}) → mapped to: -f({:.2f})", x, mapped_x);
+                println!("  f({:.2}) → mapped to: -f({:.2})", x, mapped_x);
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
     println!();
@@ -344,9 +344,9 @@ fn main() {
     for &x in &test_points {
         match linear_gradient.map_point(x, Some(&values.view()), Some(&domain_points.view())) {
             Ok(BoundaryResult::DirectValue(value)) => {
-                println!("  f({:.2f}) = {:.6f}", x, value);
+                println!("  f({:.2}) = {:.6}", x, value);
             }
-            _ => println!("  f({:.2f}) has unexpected result", x),
+            _ => println!("  f({:.2}) has unexpected result", x),
         }
     }
 

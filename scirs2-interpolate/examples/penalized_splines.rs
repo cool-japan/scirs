@@ -165,8 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(k) => k,
         Err(_) => {
             // Fallback if our helper function fails
-            let dummy = Array1::linspace(0.0, 1.0, 15 + 4);
-            dummy
+            Array1::linspace(0.0, 1.0, 15 + 4)
         }
     };
 

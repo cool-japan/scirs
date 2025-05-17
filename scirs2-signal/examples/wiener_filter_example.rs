@@ -1,4 +1,5 @@
 use ndarray::{Array1, Array2};
+use rand::Rng;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -193,15 +194,17 @@ fn generate_test_signal() -> (Array1<f64>, Array1<f64>) {
     let t = Array1::linspace(0.0, (n_samples as f64 - 1.0) / sampling_rate, n_samples);
 
     // Generate a clean chirp signal
-    let clean_signal = waveforms::chirp(&t, 10.0, 1.0, 100.0, Some("linear")).unwrap();
+    let clean_signal = Array1::from_vec(
+        waveforms::chirp(t.as_slice().unwrap(), 10.0, 1.0, 100.0, "linear", 0.0).unwrap(),
+    );
 
     // Add Gaussian noise
     let noise_level = 0.5;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut noisy_signal = clean_signal.clone();
 
     for i in 0..n_samples {
-        noisy_signal[i] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+        noisy_signal[i] += noise_level * rng.random_range(-1.0..1.0);
     }
 
     (clean_signal, noisy_signal)
@@ -221,14 +224,14 @@ fn generate_nonstationary_signal() -> (Array1<f64>, Array1<f64>) {
     let clean_signal = t.mapv(|ti| (2.0 * PI * f1 * ti).sin() + 0.5 * (2.0 * PI * f2 * ti).sin());
 
     // Add time-varying noise (stronger in the middle)
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut noisy_signal = clean_signal.clone();
 
     for i in 0..n_samples {
         // Noise amplitude varies with time (parabolic shape)
         let noise_level = 0.2 + 0.8 * (1.0 - (i as f64 / n_samples as f64 * 2.0 - 1.0).powi(2));
 
-        noisy_signal[i] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+        noisy_signal[i] += noise_level * rng.random_range(-1.0..1.0);
     }
 
     (clean_signal, noisy_signal)
@@ -270,12 +273,12 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
 
     // Add Gaussian noise
     let noise_level = 0.2;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut noisy_image = clean_image.clone();
 
     for i in 0..height {
         for j in 0..width {
-            noisy_image[[i, j]] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+            noisy_image[[i, j]] += noise_level * rng.random_range(-1.0..1.0);
         }
     }
 

@@ -6,10 +6,8 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use crate::IntegrateFloat;
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// Solve ODE using the Backward Differentiation Formula (BDF) method
 ///
@@ -79,7 +77,7 @@ where
     let mut step_count = 0;
     let mut accepted_steps = 0;
     let mut rejected_steps = 0;
-    let mut newton_iters = 0;
+    let mut newton_iters = F::zero();
     let mut n_lu = 0;
     let mut n_jac = 0;
 
@@ -383,7 +381,7 @@ where
             iter_count += 1;
         }
 
-        newton_iters += iter_count;
+        newton_iters = newton_iters + F::from(iter_count).unwrap();
 
         if converged {
             // Step accepted
@@ -580,15 +578,15 @@ where
             // r_i = k_i - y_n - h * sum_j(a_ij * f_j)
             let mut r1 = k1.clone();
             r1 = r1 - &y;
-            r1 = r1 - (h * (a11 * &f1 + a12 * &f2 + a13 * &f3));
+            r1 = r1 - (&f1 * (h * a11) + &f2 * (h * a12) + &f3 * (h * a13));
 
             let mut r2 = k2.clone();
             r2 = r2 - &y;
-            r2 = r2 - (h * (a21 * &f1 + a22 * &f2 + a23 * &f3));
+            r2 = r2 - (&f1 * (h * a21) + &f2 * (h * a22) + &f3 * (h * a23));
 
             let mut r3 = k3.clone();
             r3 = r3 - &y;
-            r3 = r3 - (h * (a31 * &f1 + a32 * &f2 + a33 * &f3));
+            r3 = r3 - (&f1 * (h * a31) + &f2 * (h * a32) + &f3 * (h * a33));
 
             // Check for convergence
             let mut max_res = F::zero();
@@ -649,17 +647,23 @@ where
                     let mut r1_perturbed = k1_perturbed.clone();
                     r1_perturbed = r1_perturbed - &y;
                     r1_perturbed = r1_perturbed
-                        - (h * (a11 * &f1_perturbed + a12 * &f2_perturbed + a13 * &f3_perturbed));
+                        - (&f1_perturbed * (h * a11)
+                            + &f2_perturbed * (h * a12)
+                            + &f3_perturbed * (h * a13));
 
                     let mut r2_perturbed = k2_perturbed.clone();
                     r2_perturbed = r2_perturbed - &y;
                     r2_perturbed = r2_perturbed
-                        - (h * (a21 * &f1_perturbed + a22 * &f2_perturbed + a23 * &f3_perturbed));
+                        - (&f1_perturbed * (h * a21)
+                            + &f2_perturbed * (h * a22)
+                            + &f3_perturbed * (h * a23));
 
                     let mut r3_perturbed = k3_perturbed.clone();
                     r3_perturbed = r3_perturbed - &y;
                     r3_perturbed = r3_perturbed
-                        - (h * (a31 * &f1_perturbed + a32 * &f2_perturbed + a33 * &f3_perturbed));
+                        - (&f1_perturbed * (h * a31)
+                            + &f2_perturbed * (h * a32)
+                            + &f3_perturbed * (h * a33));
 
                     // Finite difference approximation of Jacobian
                     jac[[0, j]] = (r1_perturbed[i] - r1[i]) / eps;
@@ -751,7 +755,7 @@ where
             let f3 = f(t3, k3.view());
             func_evals += 3;
 
-            let y_next = y + h * (b1 * f1.clone() + b2 * f2.clone() + b3 * f3.clone());
+            let y_next = &y + &(&f1 * (h * b1) + &f2 * (h * b2) + &f3 * (h * b3));
 
             // Update state
             t = t + h;

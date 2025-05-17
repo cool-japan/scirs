@@ -524,8 +524,10 @@ where
     // Perform decomposition based on the specified method
     match method {
         DecompositionType::MSTL => {
-            let mut options = crate::decomposition::MSTLOptions::default();
-            options.seasonal_periods = periods.iter().map(|&(p, _)| p).collect();
+            let options = crate::decomposition::MSTLOptions {
+                seasonal_periods: periods.iter().map(|&(p, _)| p).collect(),
+                ..Default::default()
+            };
 
             let mstl_result = crate::decomposition::mstl_decomposition(ts, &options)?;
 
@@ -535,8 +537,10 @@ where
             })
         }
         DecompositionType::TBATS => {
-            let mut options = crate::decomposition::TBATSOptions::default();
-            options.seasonal_periods = periods.iter().map(|&(p, _)| p as f64).collect();
+            let options = crate::decomposition::TBATSOptions {
+                seasonal_periods: periods.iter().map(|&(p, _)| p as f64).collect(),
+                ..Default::default()
+            };
 
             let tbats_result = crate::decomposition::tbats_decomposition(ts, &options)?;
 
@@ -546,8 +550,10 @@ where
             })
         }
         DecompositionType::STR => {
-            let mut options = crate::decomposition::STROptions::default();
-            options.seasonal_periods = periods.iter().map(|&(p, _)| p as f64).collect();
+            let options = crate::decomposition::STROptions {
+                seasonal_periods: periods.iter().map(|&(p, _)| p as f64).collect(),
+                ..Default::default()
+            };
 
             let str_result = crate::decomposition::str_decomposition(ts, &options)?;
 

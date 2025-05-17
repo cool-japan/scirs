@@ -10,11 +10,9 @@ use crate::ode::utils::interpolation::{
 };
 use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// A dense solution that supports evaluation at any time within the integration range
-#[derive(Debug, Clone)]
 pub struct DenseSolution<F: IntegrateFloat> {
     /// Time points from the discrete solution
     pub t: Vec<F>,
@@ -26,6 +24,18 @@ pub struct DenseSolution<F: IntegrateFloat> {
     pub method: ContinuousOutputMethod,
     /// Function to evaluate derivatives (if derivatives not provided)
     pub f: Option<Box<dyn Fn(F, ArrayView1<F>) -> Array1<F>>>,
+}
+
+impl<F: IntegrateFloat> Debug for DenseSolution<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DenseSolution")
+            .field("t", &self.t)
+            .field("y", &self.y)
+            .field("dydt", &self.dydt)
+            .field("method", &self.method)
+            .field("f", &"<closure>")
+            .finish()
+    }
 }
 
 impl<F: IntegrateFloat> DenseSolution<F> {

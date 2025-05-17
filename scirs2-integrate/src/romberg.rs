@@ -8,7 +8,6 @@ use crate::error::{IntegrateError, IntegrateResult};
 use crate::quad::trapezoid;
 use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
 use rand_distr::{Distribution, Uniform};
 use std::fmt::Debug;
 
@@ -551,7 +550,7 @@ mod tests {
 
         // Test integrating exp(-x²) from -1 to 1
         // This is related to the error function, with exact result: sqrt(π)·erf(1)
-        let result = romberg(|x| (-x * x).exp(), -1.0, 1.0, None).unwrap();
+        let result = romberg(|x: f64| (-x * x).exp(), -1.0, 1.0, None).unwrap();
         let exact = PI.sqrt() * libm::erf(1.0);
         assert_relative_eq!(result.value, exact, epsilon = 1e-10);
         assert!(result.converged);

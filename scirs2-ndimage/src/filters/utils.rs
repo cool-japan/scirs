@@ -681,7 +681,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -868,7 +868,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -1028,7 +1028,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -1215,7 +1215,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,

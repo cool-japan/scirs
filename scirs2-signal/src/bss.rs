@@ -344,7 +344,8 @@ fn fast_ica(
     }
 
     // Function to apply nonlinearity and its derivative
-    let (g, g_prime): (Box<dyn Fn(f64) -> f64>, Box<dyn Fn(f64) -> f64>) = match nonlinearity {
+    type NonlinearityFn = Box<dyn Fn(f64) -> f64>;
+    let (g, g_prime): (NonlinearityFn, NonlinearityFn) = match nonlinearity {
         NonlinearityFunction::Logistic => (
             Box::new(|x: f64| x.tanh()),
             Box::new(|x: f64| 1.0 - x.tanh().powi(2)),
@@ -453,7 +454,7 @@ fn fast_ica(
         // Apply simple gradient algorithm (less efficient but more robust)
         let mut w_old = Array2::<f64>::zeros((n_components, n_signals));
 
-        for iteration in 0..config.max_iterations {
+        for _iteration in 0..config.max_iterations {
             // Store previous weight matrix
             w_old.assign(&w);
 
@@ -578,7 +579,7 @@ fn infomax_ica(
     let n_batches = n_samples / batch_size;
 
     // Apply Infomax algorithm
-    for iteration in 0..config.max_iterations {
+    for _iteration in 0..config.max_iterations {
         let mut delta_w_sum = Array2::<f64>::zeros((n_components, n_signals));
 
         // Process in batches
@@ -711,8 +712,7 @@ fn jade_ica(
                 let mut g21 = 0.0;
                 let mut g22 = 0.0;
 
-                for k in 0..cumulants.len() {
-                    let q = &cumulants[k];
+                for q in &cumulants {
                     g11 += q[[i, i]].powi(2) + q[[j, j]].powi(2);
                     g12 += q[[i, j]].powi(2) + q[[j, i]].powi(2);
                     g21 += q[[i, i]] * q[[i, j]] + q[[j, j]] * q[[j, i]];
@@ -746,8 +746,8 @@ fn jade_ica(
                     v = v.dot(&g);
 
                     // Update cumulant matrices
-                    for k in 0..cumulants.len() {
-                        cumulants[k] = g.t().dot(&cumulants[k]).dot(&g);
+                    for q in &mut cumulants {
+                        *q = g.t().dot(q).dot(&g);
                     }
                 }
             }
@@ -938,13 +938,13 @@ pub fn nmf(
 
     for i in 0..n_signals {
         for j in 0..n_components {
-            w[[i, j]] = rng.gen_range(0.0..1.0);
+            w[[i, j]] = rng.random_range(0.0..1.0);
         }
     }
 
     for i in 0..n_components {
         for j in 0..n_samples {
-            h[[i, j]] = rng.gen_range(0.0..1.0);
+            h[[i, j]] = rng.random_range(0.0..1.0);
         }
     }
 
@@ -1119,7 +1119,7 @@ pub fn sparse_component_analysis(
 pub fn joint_bss(
     datasets: &[Array2<f64>],
     n_components: usize,
-    config: &BssConfig,
+    _config: &BssConfig,
 ) -> SignalResult<(Vec<Array2<f64>>, Vec<Array2<f64>>)> {
     if datasets.is_empty() {
         return Err(SignalError::ValueError("No datasets provided".to_string()));
@@ -1177,7 +1177,7 @@ pub fn joint_bss(
     }
 
     // Perform joint diagonalization on the covariance matrices
-    let (eigvals, eigvecs) = match eigh(&joint_cov.view()) {
+    let (_eigvals, eigvecs) = match eigh(&joint_cov.view()) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -1858,7 +1858,7 @@ pub fn multivariate_emd(
 
         // Generate random normal vector
         for _ in 0..n_signals {
-            v.push(rng.gen_range(-1.0..1.0));
+            v.push(rng.random_range(-1.0..1.0));
         }
 
         // Normalize
@@ -1883,13 +1883,13 @@ pub fn multivariate_emd(
     let mut residuals = signals.clone();
 
     // Extract IMFs
-    for imf_idx in 0..max_imf_count {
+    for _imf_idx in 0..max_imf_count {
         // Current IMF
         let mut imf = residuals.clone();
         let mut prev_imf = Array2::<f64>::zeros(imf.dim());
 
         // Apply sifting process
-        for iteration in 0..config.max_iterations {
+        for _iteration in 0..config.max_iterations {
             // Save previous IMF
             prev_imf.assign(&imf);
 

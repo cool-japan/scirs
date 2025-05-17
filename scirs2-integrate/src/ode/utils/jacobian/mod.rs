@@ -15,7 +15,7 @@ pub use parallel::*;
 pub use specialized::*;
 
 use crate::common::IntegrateFloat;
-use crate::error::{IntegrateError, IntegrateResult};
+use crate::error::IntegrateResult;
 use ndarray::{Array1, Array2, ArrayView1};
 
 /// Strategy for Jacobian approximation
@@ -109,8 +109,10 @@ pub struct JacobianManager<F: IntegrateFloat> {
     /// Approximation strategy
     strategy: JacobianStrategy,
     /// Structure information
+    #[allow(dead_code)]
     structure: JacobianStructure,
     /// Condition number estimate (if available)
+    #[allow(dead_code)]
     condition_estimate: Option<F>,
     /// Factorized form (if available)
     factorized: bool,
@@ -336,20 +338,37 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 let jac = if self.strategy == JacobianStrategy::ParallelSparseFiniteDifference {
                     // For parallel sparse computation, need sparsity pattern
                     // Default to dense pattern if none provided
-                    let sparsity_pattern = Array2::<bool>::from_elem((n, n), true);
+                    let _sparsity_pattern = Array2::<bool>::from_elem((n, n), true);
 
-                    // Use parallel sparse Jacobian computation
-                    parallel_sparse_jacobian(
-                        &f,
-                        t,
-                        y,
-                        &f_current,
-                        Some(&sparsity_pattern),
-                        F::one(),
-                    )?
+                    // Check if F has Send + Sync bounds required for parallel computation
+                    #[cfg(feature = "parallel")]
+                    {
+                        // Use parallel sparse Jacobian computation
+                        parallel_sparse_jacobian(
+                            &f,
+                            t,
+                            y,
+                            &f_current,
+                            Some(&sparsity_pattern),
+                            F::one(),
+                        )?
+                    }
+                    #[cfg(not(feature = "parallel"))]
+                    {
+                        // Fallback to non-parallel version
+                        finite_difference_jacobian(&f, t, y, &f_current, F::from_f64(1e-8).unwrap())
+                    }
                 } else {
                     // Use parallel dense Jacobian computation
-                    parallel_finite_difference_jacobian(&f, t, y, &f_current, F::one())?
+                    #[cfg(feature = "parallel")]
+                    {
+                        parallel_finite_difference_jacobian(&f, t, y, &f_current, F::one())?
+                    }
+                    #[cfg(not(feature = "parallel"))]
+                    {
+                        // Fallback to non-parallel version
+                        finite_difference_jacobian(&f, t, y, &f_current, F::from_f64(1e-8).unwrap())
+                    }
                 };
 
                 // Apply scaling if needed
@@ -394,7 +413,7 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 }
 
                 // Perform a Broyden update to the existing Jacobian
-                let (old_t, old_y) = self.state_point.as_ref().unwrap();
+                let (_old_t, old_y) = self.state_point.as_ref().unwrap();
                 let old_f = self.f_eval.as_ref().unwrap();
 
                 // Calculate new function value
@@ -415,7 +434,7 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                     }
                 }
 
-                let dy_norm_squared = delta_y.iter().map(|&x| x * x).sum();
+                let dy_norm_squared: F = delta_y.iter().map(|&x| x * x).sum();
                 if dy_norm_squared > F::from_f64(1e-14).unwrap() {
                     for i in 0..n {
                         for j in 0..n {
@@ -519,38 +538,41 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 Ok(self.jacobian.as_ref().unwrap())
             }
             JacobianStrategy::Adaptive => {
-                // Use autodiff if available, otherwise fall back to finite differences
+                // For adaptive strategy, try autodiff first if available
                 if is_autodiff_available() {
                     // Try using autodiff
-                    match self.update_jacobian_with_strategy(
-                        t,
-                        y,
-                        f,
-                        scale,
-                        JacobianStrategy::AutoDiff,
-                    ) {
-                        Ok(jac) => Ok(jac),
+                    let f_current = f(t, y.view());
+                    match autodiff_jacobian(f, t, y, &f_current, scale.unwrap_or(F::one())) {
+                        Ok(jac) => {
+                            self.jacobian = Some(jac);
+                        }
                         Err(_) => {
                             // Fall back to finite differences if autodiff fails
-                            self.update_jacobian_with_strategy(
+                            self.jacobian = Some(finite_difference_jacobian(
+                                f,
                                 t,
                                 y,
-                                f,
-                                scale,
-                                JacobianStrategy::FiniteDifference,
-                            )
+                                &f_current,
+                                F::from(1e-8).unwrap(),
+                            ));
                         }
                     }
                 } else {
-                    // If autodiff feature is not enabled, use finite differences
-                    self.update_jacobian_with_strategy(
+                    // Use finite differences directly if autodiff is not available
+                    let f_current = f(t, y.view());
+                    self.jacobian = Some(finite_difference_jacobian(
+                        f,
                         t,
                         y,
-                        f,
-                        scale,
-                        JacobianStrategy::FiniteDifference,
-                    )
+                        &f_current,
+                        F::from(1e-8).unwrap(),
+                    ));
                 }
+                
+                self.age = 0;
+                self.factorized = false;
+                
+                Ok(self.jacobian.as_ref().unwrap())
             }
         }
     }
@@ -565,13 +587,13 @@ impl<F: IntegrateFloat> JacobianManager<F> {
         strategy: JacobianStrategy,
     ) -> IntegrateResult<&Array2<F>>
     where
-        Func: Fn(F, ArrayView1<F>) -> Array1<F>,
+        Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
     {
         let original_strategy = self.strategy;
         self.strategy = strategy;
-        let result = self.update_jacobian(t, y, f, scale);
+        self.update_jacobian(t, y, f, scale)?;
         self.strategy = original_strategy;
-        result
+        Ok(self.jacobian.as_ref().unwrap())
     }
 
     /// Helper function to compute dense finite difference Jacobian

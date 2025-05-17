@@ -1,10 +1,10 @@
-use ndarray::Array1;
-use num_complex::Complex64;
-use scirs2_signal::stft::{FftMode, ScalingMode, ShortTimeFft};
+// use ndarray::Array1;
+// use num_complex::Complex64;
+use scirs2_signal::stft::ShortTimeFft;
 use scirs2_signal::waveforms::chirp;
 use scirs2_signal::window;
 use std::error::Error;
-use std::f64::consts::PI;
+// use std::f64::consts::PI;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Short-Time Fourier Transform (STFT) Example");
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("  Frequency range: 100 Hz to 300 Hz");
 
     let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
-    let signal = chirp(&t, 100.0, duration, 300.0, None)?;
+    let signal = chirp(&t, 100.0, duration, 300.0, "linear", 0.0)?;
 
     // Window parameters
     let window_length = 256;
@@ -136,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("  COLA window created successfully!");
     println!("  Window length: {} samples", cola_window.len());
 
-    let stft3 = ShortTimeFft::from_win_equals_dual(&cola_window, 64, fs, None, None, None, None)?;
+    let _stft3 = ShortTimeFft::from_win_equals_dual(&cola_window, 64, fs, None, None, None, None)?;
 
     println!("  Created STFT with self-dual window successfully!");
 

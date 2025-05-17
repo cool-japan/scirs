@@ -2,24 +2,30 @@
 //!
 //! This module provides the MetricOptimizer which uses metrics to guide optimization.
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::marker::PhantomData;
-
-use crate::error::{OptimError, Result};
+#[cfg(feature = "metrics_integration")]
+use crate::error::Result;
 use crate::optimizers::Optimizer;
+#[cfg(feature = "metrics_integration")]
+use ndarray::{Array, Dimension, ScalarOperand};
+#[cfg(not(feature = "metrics_integration"))]
+use ndarray::{Dimension, ScalarOperand};
+use num_traits::{Float, FromPrimitive};
+#[cfg(feature = "metrics_integration")]
+use std::collections::HashMap;
+use std::fmt::{Debug, Display};
+use std::marker::PhantomData;
 
 /// An optimizer guided by metric values
 #[cfg(feature = "metrics_integration")]
 pub struct MetricOptimizer<F, D>
 where
-    F: Float + Debug + FromPrimitive,
+    F: Float + Debug + Display + FromPrimitive + ScalarOperand,
     D: Dimension,
 {
     /// Base optimizer
     base_optimizer: Box<dyn Optimizer<F, D>>,
+    /// Current learning rate
+    current_lr: F,
     /// Metric adapter
     metric_adapter: scirs2_metrics::integration::optim::MetricOptimizer<F>,
     /// History of parameter updates
@@ -33,7 +39,7 @@ where
 #[cfg(feature = "metrics_integration")]
 impl<F, D> MetricOptimizer<F, D>
 where
-    F: Float + Debug + FromPrimitive + 'static,
+    F: Float + Debug + Display + FromPrimitive + ScalarOperand + 'static,
     D: Dimension + 'static,
 {
     /// Create a new MetricOptimizer
@@ -41,8 +47,10 @@ where
     where
         O: Optimizer<F, D> + 'static,
     {
+        let initial_lr = optimizer.get_learning_rate();
         Self {
             base_optimizer: Box::new(optimizer),
+            current_lr: initial_lr,
             metric_adapter: scirs2_metrics::integration::optim::MetricOptimizer::new(
                 metric_name,
                 maximize,
@@ -143,7 +151,7 @@ where
 #[cfg(feature = "metrics_integration")]
 impl<F, D> Optimizer<F, D> for MetricOptimizer<F, D>
 where
-    F: Float + Debug + FromPrimitive + 'static,
+    F: Float + Debug + Display + FromPrimitive + ScalarOperand + 'static,
     D: Dimension + 'static,
 {
     fn step(&mut self, params: &Array<F, D>, gradients: &Array<F, D>) -> Result<Array<F, D>> {
@@ -188,11 +196,11 @@ where
     }
 
     fn get_learning_rate(&self) -> F {
-        self.base_optimizer.get_learning_rate()
+        self.current_lr
     }
 
     fn set_learning_rate(&mut self, learning_rate: F) {
-        self.base_optimizer.set_learning_rate(learning_rate);
+        self.current_lr = learning_rate;
     }
 }
 
@@ -201,7 +209,7 @@ where
 #[derive(Debug)]
 pub struct MetricOptimizer<F, D>
 where
-    F: Float + Debug + FromPrimitive,
+    F: Float + Debug + Display + FromPrimitive + ScalarOperand,
     D: Dimension,
 {
     _phantom: PhantomData<(F, D)>,
@@ -210,7 +218,7 @@ where
 #[cfg(not(feature = "metrics_integration"))]
 impl<F, D> MetricOptimizer<F, D>
 where
-    F: Float + Debug + FromPrimitive,
+    F: Float + Debug + Display + FromPrimitive + ScalarOperand,
     D: Dimension,
 {
     /// Create a new MetricOptimizer (not implemented)

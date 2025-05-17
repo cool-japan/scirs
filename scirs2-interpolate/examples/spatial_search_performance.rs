@@ -1,8 +1,8 @@
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use scirs2_interpolate::local::mls::{MovingLeastSquares, PolynomialBasis, WeightFunction};
 use scirs2_interpolate::spatial::{BallTree, KdTree};
 use std::error::Error;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Spatial Search Performance Comparison");
@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut points_vec = Vec::with_capacity(n_points * dim);
     let mut values_vec = Vec::with_capacity(n_points);
 
-    let mut rng = rand::thread_rng();
+    let _rng = rand::rng();
 
     for _ in 0..n_points {
         // Generate random points in [0, 1]^dim

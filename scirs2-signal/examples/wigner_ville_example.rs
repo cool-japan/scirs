@@ -1,5 +1,6 @@
-use ndarray::{s, Array, Array1, Array2};
-use num_complex::Complex64;
+use ndarray::{Array, Array1, Array2};
+// use num_complex::Complex64;
+use rand::{rng, Rng};
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -10,7 +11,7 @@ use scirs2_signal::wvd::{
     wigner_ville, WvdConfig,
 };
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Wigner-Ville Distribution Examples");
     println!("---------------------------------");
 
@@ -22,10 +23,10 @@ fn main() {
     let (wvd, t_axis, f_axis) = analyze_with_standard_wvd(&signal);
 
     println!("Analyzing signal with Smoothed Pseudo Wigner-Ville Distribution...");
-    let (spwvd, _) = analyze_with_smoothed_wvd(&signal, &t_axis, &f_axis);
+    let (spwvd, _) = analyze_with_smoothed_wvd(&signal, &t_axis, &f_axis)?;
 
     println!("Analyzing multi-component signal to show cross-terms...");
-    let (wvd_multi, spwvd_multi) = compare_wvd_spwvd_multicomponent();
+    let (wvd_multi, spwvd_multi) = compare_wvd_spwvd_multicomponent()?;
 
     println!("Demonstrating Cross Wigner-Ville Distribution...");
     let xwvd = demonstrate_cross_wvd();
@@ -48,6 +49,7 @@ fn main() {
     );
 
     println!("Done! CSV files have been created for visualization.");
+    Ok(())
 }
 
 /// Generate a test signal with multiple chirp components and a transient
@@ -78,10 +80,9 @@ fn generate_test_signal() -> Array1<f64> {
 
     // Add some noise
     let noise_level = 0.05;
-    let mut rng = rand::thread_rng();
+    let mut rng = rng();
     let noise = Array::from_iter(
-        (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+        (0..n_samples).map(|_| noise_level * (2.0 * rng.random_range(0.0..1.0) - 1.0)),
     );
 
     // Combine components
@@ -119,15 +120,15 @@ fn analyze_with_standard_wvd(signal: &Array1<f64>) -> (Array2<f64>, Array1<f64>,
 /// Analyze a signal with the Smoothed Pseudo Wigner-Ville Distribution
 fn analyze_with_smoothed_wvd(
     signal: &Array1<f64>,
-    t_axis: &Array1<f64>,
+    _t_axis: &Array1<f64>,
     f_axis: &Array1<f64>,
-) -> (Array2<f64>, Vec<Vec<(usize, f64)>>) {
+) -> Result<(Array2<f64>, Vec<Vec<(usize, f64)>>), Box<dyn std::error::Error>> {
     // Create windows for time and frequency smoothing
     let time_window_size = 51;
     let freq_window_size = 101;
 
-    let time_window = window::hamming(time_window_size);
-    let freq_window = window::hamming(freq_window_size);
+    let time_window = window::hamming(time_window_size, true)?;
+    let freq_window = window::hamming(freq_window_size, true)?;
 
     // Configure the transform
     let fs = 1024.0;
@@ -140,7 +141,9 @@ fn analyze_with_smoothed_wvd(
     };
 
     // Compute the SPWVD
-    let spwvd = smoothed_pseudo_wigner_ville(signal, &time_window, &freq_window, config).unwrap();
+    let time_win = Array1::from(time_window);
+    let freq_win = Array1::from(freq_window);
+    let spwvd = smoothed_pseudo_wigner_ville(signal, &time_win, &freq_win, config).unwrap();
 
     println!(
         "Smoothed Pseudo WVD: {} time points, {} frequency bins",
@@ -151,11 +154,12 @@ fn analyze_with_smoothed_wvd(
     // Extract ridges from the SPWVD
     let ridges = extract_ridges(&spwvd, f_axis, 2, 0.3);
 
-    (spwvd, ridges)
+    Ok((spwvd, ridges))
 }
 
 /// Compare standard WVD and SPWVD on a multi-component signal
-fn compare_wvd_spwvd_multicomponent() -> (Array2<f64>, Array2<f64>) {
+fn compare_wvd_spwvd_multicomponent(
+) -> Result<(Array2<f64>, Array2<f64>), Box<dyn std::error::Error>> {
     let n_samples = 512;
     let fs = 512.0;
     let duration = n_samples as f64 / fs;
@@ -181,17 +185,19 @@ fn compare_wvd_spwvd_multicomponent() -> (Array2<f64>, Array2<f64>) {
     let wvd = wigner_ville(&signal, config.clone()).unwrap();
 
     // Configure windows for SPWVD
-    let time_window = window::hamming(31);
-    let freq_window = window::hamming(61);
+    let time_window = window::hamming(31, true)?;
+    let freq_window = window::hamming(61, true)?;
 
     // Compute the SPWVD
-    let spwvd = smoothed_pseudo_wigner_ville(&signal, &time_window, &freq_window, config).unwrap();
+    let time_win = Array1::from(time_window);
+    let freq_win = Array1::from(freq_window);
+    let spwvd = smoothed_pseudo_wigner_ville(&signal, &time_win, &freq_win, config).unwrap();
 
     println!("Multi-component analysis:");
     println!("  - Standard WVD shows interference (cross-terms) between the chirps");
     println!("  - SPWVD reduces interference at the cost of slightly reduced resolution");
 
-    (wvd, spwvd)
+    Ok((wvd, spwvd))
 }
 
 /// Demonstrate cross-Wigner-Ville Distribution between related signals

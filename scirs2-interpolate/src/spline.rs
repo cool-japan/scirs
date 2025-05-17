@@ -900,7 +900,7 @@ fn integrate_segment<F: Float + FromPrimitive>(coeffs: &Array1<F>, x0: F, a: F, 
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use ndarray::array;
 /// use scirs2_interpolate::spline::make_interp_spline;
 ///

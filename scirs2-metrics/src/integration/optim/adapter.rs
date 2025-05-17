@@ -103,7 +103,7 @@ impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> MetricOptimizer<F> {
     pub fn add_additional_value(&mut self, metric_name: &str, value: F) {
         self.additional_metrics
             .entry(metric_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(value);
     }
 

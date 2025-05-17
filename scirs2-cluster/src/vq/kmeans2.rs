@@ -1,12 +1,12 @@
 //! Enhanced K-means clustering implementation with multiple initialization methods
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{s, Array1, Array2, ArrayView2};
 use num_traits::{Float, FromPrimitive};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rng, rngs::StdRng, Rng, RngCore, SeedableRng};
 use rand_distr::{Distribution, Normal};
 use std::fmt::Debug;
 
-use super::{euclidean_distance, vq, KMeansOptions};
+use super::{euclidean_distance, vq};
 use crate::error::{ClusteringError, Result};
 
 /// Initialization methods for kmeans2
@@ -47,6 +47,7 @@ pub enum MissingMethod {
 /// * Tuple of (centroids, labels) where:
 ///   - centroids: Array of shape (k × n_features)
 ///   - labels: Array of shape (n_samples,) with cluster assignments
+#[allow(clippy::too_many_arguments)]
 pub fn kmeans2<F>(
     data: ArrayView2<F>,
     k: usize,
@@ -89,7 +90,7 @@ where
         ));
     };
 
-    let mut labels = Array1::zeros(n_samples);
+    let mut labels;
 
     // Run K-means iterations
     for _iteration in 0..iterations {
@@ -194,10 +195,10 @@ where
     // Generate random centroids from Gaussian distribution
     let mut centroids = Array2::<F>::zeros((k, n_features));
 
-    let mut rng = if let Some(seed) = random_seed {
-        StdRng::from_seed([seed as u8; 32])
+    let mut rng: Box<dyn RngCore> = if let Some(seed) = random_seed {
+        Box::new(StdRng::from_seed([seed as u8; 32]))
     } else {
-        rand::rng()
+        Box::new(rng())
     };
 
     for i in 0..k {
@@ -227,10 +228,10 @@ where
     let n_samples = data.shape()[0];
     let n_features = data.shape()[1];
 
-    let mut rng = if let Some(seed) = random_seed {
-        StdRng::from_seed([seed as u8; 32])
+    let mut rng: Box<dyn RngCore> = if let Some(seed) = random_seed {
+        Box::new(StdRng::from_seed([seed as u8; 32]))
     } else {
-        rand::rng()
+        Box::new(rng())
     };
 
     // Choose k random indices without replacement
@@ -262,10 +263,10 @@ where
     let n_samples = data.shape()[0];
     let n_features = data.shape()[1];
 
-    let mut rng = if let Some(seed) = random_seed {
-        StdRng::from_seed([seed as u8; 32])
+    let mut rng: Box<dyn RngCore> = if let Some(seed) = random_seed {
+        Box::new(StdRng::from_seed([seed as u8; 32]))
     } else {
-        rand::rng()
+        Box::new(rng())
     };
 
     let mut centroids = Array2::zeros((k, n_features));

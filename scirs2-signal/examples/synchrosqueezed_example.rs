@@ -1,6 +1,5 @@
 use ndarray::{Array, Array1, Array2};
-use num_complex::Complex64;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -55,23 +54,22 @@ fn generate_test_signal() -> Array1<f64> {
     // Component 3: Hyperbolic chirp (decreasing frequency)
     let f0_3 = 12.0;
     let f1_3 = 4.0;
-    let k = (f1_3 / f0_3).powf(1.0 / duration);
+    let k = ((f1_3 / f0_3) as f64).powf(1.0 / duration);
     let chirp_3 = t.mapv(|ti| {
         if ti < 5.0 {
             return 0.0;
         }
         let ti_adj = ti - 5.0;
-        let freq = f0_3 * k.powf(ti_adj);
+        let _freq = f0_3 * k.powf(ti_adj);
         let phase = 2.0 * PI * f0_3 * (k.powf(ti_adj) - 1.0) / k.ln();
         0.7 * phase.sin()
     });
 
     // Add some noise
     let noise_level = 0.1;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise = Array::from_iter(
-        (0..n_samples)
-            .map(|_| noise_level * (2.0 * rand::Rng::gen_range(&mut rng, 0.0..1.0) - 1.0)),
+        (0..n_samples).map(|_| noise_level * (2.0 * rng.random_range(0.0..1.0) - 1.0)),
     );
 
     // Combine components

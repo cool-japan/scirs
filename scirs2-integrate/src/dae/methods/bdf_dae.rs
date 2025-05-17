@@ -8,7 +8,7 @@ use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// BDF method for semi-explicit DAE systems
 ///
@@ -39,8 +39,8 @@ where
 
     // Current values
     let mut t_current = t_span[0];
-    let mut x_current = x0.clone();
-    let mut y_current = y0.clone();
+    let mut _x_current = x0.clone();
+    let mut _y_current = y0.clone();
 
     // Initial step size
     let mut h = options.h0.unwrap_or_else(|| {
@@ -152,7 +152,7 @@ where
         let y_pred_orig = y_pred.clone();
 
         // Evaluate constraint at the predictor point
-        let g_pred = g(t_new, x_pred.view(), y_pred.view());
+        let _g_pred = g(t_new, x_pred.view(), y_pred.view());
         n_g_evals += 1;
 
         // Compute the Jacobian of g with respect to y
@@ -185,7 +185,7 @@ where
 
         // Newton iteration for corrector
         let mut converged = false;
-        for iter in 0..max_newton_iter {
+        for _iter in 0..max_newton_iter {
             // Evaluate f at the current corrector value
             let f_val = f(t_new, x_corr.view(), y_corr.view());
             n_f_evals += 1;
@@ -320,7 +320,7 @@ where
             // Solve the linear system for the Newton step
             let delta_z = match solve_linear_system(&full_jacobian, &neg_residual) {
                 Ok(dz) => dz,
-                Err(e) => {
+                Err(_e) => {
                     // If the linear solve fails, try with a smaller step
                     // and terminate this Newton iteration
                     h = h * F::from_f64(0.5).unwrap();
@@ -462,8 +462,8 @@ where
 
         // Update current values
         t_current = t_new;
-        x_current = x_corr;
-        y_current = y_corr;
+        _x_current = x_corr;
+        _y_current = y_corr;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -532,7 +532,7 @@ where
     // Current values
     let mut t_current = t_span[0];
     let mut y_current = y0.clone();
-    let mut y_prime_current = y_prime0.clone();
+    let mut _y_prime_current = y_prime0.clone();
 
     // Initial step size
     let mut h = options.h0.unwrap_or_else(|| {
@@ -668,7 +668,7 @@ where
 
         // Store original predictions for error estimation
         let y_pred_orig = y_pred.clone();
-        let y_prime_pred_orig = y_prime_pred.clone();
+        let _y_prime_pred_orig = y_prime_pred.clone();
 
         // Initialize corrector values
         let mut y_corr = y_pred;
@@ -679,7 +679,7 @@ where
 
         // Newton iteration for corrector
         let mut converged = false;
-        for iter in 0..max_newton_iter {
+        for _iter in 0..max_newton_iter {
             // Evaluate the residual function
             let residual = f(t_new, y_corr.view(), y_prime_corr.view());
             n_f_evals += 1;
@@ -742,7 +742,7 @@ where
             // Solve the linear system
             let delta_y = match solve_linear_system(&combined_jac, &neg_residual) {
                 Ok(dy) => dy,
-                Err(e) => {
+                Err(_e) => {
                     // If linear solve fails, reduce step size and try again
                     h = h * F::from_f64(0.5).unwrap();
                     break;
@@ -874,7 +874,7 @@ where
         // Update current values
         t_current = t_new;
         y_current = y_corr;
-        y_prime_current = y_prime_corr;
+        _y_prime_current = y_prime_corr;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -955,7 +955,7 @@ where
     let mut y_pred = y_history[history_len - 1].clone();
 
     // Time for prediction
-    let t_pred = t_current + h;
+    let _t_pred = t_current + h;
 
     // Simple linear extrapolation for order 2
     if order_to_use == 1 {
@@ -1002,7 +1002,7 @@ where
 }
 
 /// Predict the next state for fully implicit DAE
-fn predict_fully_implicit<F>(y_history: &[Array1<F>], order: usize, h: F) -> Array1<F>
+fn predict_fully_implicit<F>(y_history: &[Array1<F>], order: usize, _h: F) -> Array1<F>
 where
     F: IntegrateFloat,
 {

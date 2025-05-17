@@ -1,6 +1,6 @@
 use ndarray::{array, Array1, Array2};
 use scirs2_interpolate::{
-    BivariateInterpolator, RectBivariateSpline, SmoothBivariateSpline, SmoothBivariateSplineBuilder,
+    BivariateInterpolator, RectBivariateSpline, SmoothBivariateSplineBuilder,
 };
 
 /// Create a 2D test function: f(x,y) = sin(πx) * cos(πy)

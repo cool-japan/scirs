@@ -963,7 +963,6 @@ impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> Vorono
                 // Compute weights based on inverse distance
                 let mut total_weight = F::zero();
                 for &(idx, dist) in distances.iter().take(k) {
-
                     // Avoid division by zero
                     if dist < F::epsilon() {
                         // If we're exactly on a site, just use that site

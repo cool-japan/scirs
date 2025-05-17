@@ -5,11 +5,10 @@
 
 pub mod integration;
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use crate::IntegrateFloat;
+use ndarray::Array2;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use crate::IntegrateFloat;
 
 /// Detection method for stiffness analysis
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -378,7 +377,7 @@ impl<F: IntegrateFloat> StiffnessDetector<F> {
     }
 
     /// Estimate stiffness ratio using eigenvalues of the Jacobian
-    pub fn estimate_stiffness_from_jacobian(&mut self, jacobian: &Array2<F>) -> F {
+    pub fn estimate_stiffness_from_jacobian(&mut self, _jacobian: &Array2<F>) -> F {
         // In a real implementation, we would:
         // 1. Estimate eigenvalues of the Jacobian (or their bounds)
         // 2. Calculate stiffness ratio as max(abs(eigenvalues))/min(abs(eigenvalues))

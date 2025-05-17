@@ -1,5 +1,6 @@
 use ndarray::{Array1, Array2, Array3};
-use std::f64::consts::PI;
+// use std::f64::consts::PI;
+use rand::Rng;
 use std::fs::File;
 use std::io::Write;
 
@@ -22,7 +23,7 @@ fn main() {
     println!("\n1. 1D Signal Total Variation Denoising");
 
     // Create configurations with different parameters
-    let mut standard_config = TvConfig::default();
+    let standard_config = TvConfig::default();
 
     let mut anisotropic_config = TvConfig::default();
     anisotropic_config.variant = TvVariant::Anisotropic;
@@ -56,7 +57,7 @@ fn main() {
         &clean_signal,
         &noisy_signal,
         &denoised_standard,
-        &denoised_anisotropic,
+        Some(&denoised_anisotropic),
     );
     println!("   Saved results to tv_1d_results.csv");
 
@@ -253,12 +254,12 @@ fn generate_test_signal() -> (Array1<f64>, Array1<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise_level = 0.15;
     let mut noisy_signal = clean_signal.clone();
 
     for i in 0..n {
-        noisy_signal[i] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+        noisy_signal[i] += noise_level * rng.random_range(-1.0..1.0);
     }
 
     (clean_signal, noisy_signal)
@@ -308,13 +309,13 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
     for i in 0..size {
         for j in 0..size {
-            noisy_image[[i, j]] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+            noisy_image[[i, j]] += noise_level * rng.random_range(-1.0..1.0);
         }
     }
 
@@ -371,14 +372,14 @@ fn generate_color_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
     for i in 0..size {
         for j in 0..size {
             for c in 0..3 {
-                noisy_image[[i, j, c]] += noise_level * rand::Rng::gen_range(&mut rng, -1.0..1.0);
+                noisy_image[[i, j, c]] += noise_level * rng.random_range(-1.0..1.0);
             }
         }
     }
@@ -399,12 +400,12 @@ fn generate_inpainting_image() -> (Array2<f64>, Array2<f64>) {
     let mut corrupted_image = clean_image.clone();
 
     // Create a random mask for missing pixels
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let missing_ratio = 0.3; // 30% of pixels will be missing
 
     for i in 0..height {
         for j in 0..width {
-            if rand::Rng::gen_range(&mut rng, 0.0..1.0) < missing_ratio {
+            if rng.random_range(0.0..1.0) < missing_ratio {
                 corrupted_image[[i, j]] = f64::NAN;
             }
         }

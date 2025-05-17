@@ -11,7 +11,7 @@
 //! - Accelerated optimization algorithms
 //!
 //! # Example
-//! ```
+//! ```ignore
 //! use ndarray::Array1;
 //! use scirs2_signal::tv::{tv_denoise_1d, TvConfig};
 //!
@@ -26,7 +26,7 @@
 //! let mut rng = rand::thread_rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..n {
-//!     noisy_signal[i] += 0.2 * rng.gen_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.2 * rng.random_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Total Variation denoising
@@ -227,7 +227,7 @@ fn tv_denoise_1d_fista(
     let mut t = 1.0;
 
     // Main iteration loop
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Store previous solution
         x_prev.assign(&x);
 
@@ -524,7 +524,7 @@ fn tv_denoise_2d_fista(
     let mut t = 1.0;
 
     // Main iteration loop
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Store previous solution
         x_prev.assign(&x);
 

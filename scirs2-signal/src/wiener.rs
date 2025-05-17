@@ -11,7 +11,7 @@
 //! - Iterative Wiener filtering for improved restoration
 //!
 //! # Example
-//! ```
+//! ```ignore
 //! use ndarray::Array1;
 //! use scirs2_signal::wiener::wiener_filter;
 //! use scirs2_signal::waveforms;
@@ -28,7 +28,7 @@
 //! let mut rng = rand::thread_rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..noisy_signal.len() {
-//!     noisy_signal[i] += 0.5 * rng.gen_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.5 * rng.random_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Wiener filter

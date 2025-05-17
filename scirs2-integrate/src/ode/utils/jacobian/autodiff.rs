@@ -137,12 +137,12 @@ where
         }
     } else {
         // Use finite differences
-        crate::ode::utils::common::finite_difference_jacobian(
+        Ok(crate::ode::utils::common::finite_difference_jacobian(
             f,
             t,
             y,
             f_current,
             perturbation_scale,
-        )
+        ))
     }
 }

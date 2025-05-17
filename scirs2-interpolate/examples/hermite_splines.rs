@@ -167,7 +167,7 @@ fn main() {
 
     // Create a sine wave from 0 to 2π
     let x_sine = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 7);
-    let y_sine = x_sine.mapv(|v| f64::sin(v));
+    let y_sine = x_sine.mapv(f64::sin);
 
     // Create splines with different boundary conditions
     let spline_auto_sine =
@@ -219,7 +219,7 @@ fn main() {
     let y_auto = spline_auto_sine.evaluate(&x_extend.view()).unwrap();
     let y_natural = spline_natural.evaluate(&x_extend.view()).unwrap();
     let y_periodic = spline_periodic.evaluate(&x_extend.view()).unwrap();
-    let y_exact = x_extend.mapv(|v| f64::sin(v));
+    let y_exact = x_extend.mapv(f64::sin);
 
     println!("\nExtrapolation behavior:");
     println!("     x     |   Auto   |  Natural |  Periodic |   Exact");

@@ -12,7 +12,6 @@ pub mod step_control;
 pub mod stiffness;
 
 // Re-exports
-pub use common::*;
 pub use dense_output::*;
 pub use diagnostics::*;
 pub use interpolation::*;
@@ -20,4 +19,10 @@ pub use jacobian::*;
 pub use linear_solvers::*;
 pub use step_control::*;
 pub use stiffness::*;
+
+// Selective imports from common to avoid conflicts
+pub use common::{
+    calculate_error_weights, estimate_initial_step, extrapolate, finite_difference_jacobian,
+    scaled_norm,
+};
 // Don't re-export events or mass_matrix as they have potential naming conflicts

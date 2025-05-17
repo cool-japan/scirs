@@ -114,7 +114,7 @@ pub fn finite_difference_jacobian<F, Func>(
     t: F,
     y: &Array1<F>,
     f_eval: &Array1<F>,
-    perturbation_scale: F,
+    _perturbation_scale: F,
 ) -> Array2<F>
 where
     F: IntegrateFloat,
@@ -287,5 +287,5 @@ pub fn extrapolate<F: IntegrateFloat>(times: &[F], values: &[Array1<F>], t_targe
     let c1 = dt0 * dt2 / (-dt01 * dt12);
     let c2 = dt0 * dt1 / (dt02 * dt12);
 
-    &(c0 * y0) + &(c1 * y1) + &(c2 * y2)
+    y0 * c0 + y1 * c1 + y2 * c2
 }

@@ -121,6 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Simulate training for one epoch
+#[allow(dead_code)]
 fn simulate_epoch_training(current_val_loss: f64, learning_rate: f64) -> (f64, f64) {
     // Simulate training loss
     let train_loss = current_val_loss * (0.8 + rand::random::<f64>() * 0.2);

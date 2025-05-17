@@ -7,16 +7,16 @@
 #[allow(dead_code)]
 pub mod f64 {
     /// π (pi) with high precision
-    pub const PI: f64 = 3.141_592_653_589_793;
+    pub const PI: f64 = std::f64::consts::PI;
 
     /// π/2 (pi/2) with high precision
-    pub const PI_2: f64 = 1.570_796_326_794_896_6;
+    pub const PI_2: f64 = std::f64::consts::FRAC_PI_2;
 
     /// π/4 (pi/4) with high precision
-    pub const PI_4: f64 = 0.785_398_163_397_448_3;
+    pub const PI_4: f64 = std::f64::consts::FRAC_PI_4;
 
     /// 2π (2*pi) with high precision
-    pub const TWO_PI: f64 = 6.283_185_307_179_586;
+    pub const TWO_PI: f64 = std::f64::consts::TAU;
 
     /// √π (square root of pi) with high precision
     pub const SQRT_PI: f64 = 1.772_453_850_905_516;
@@ -25,7 +25,7 @@ pub mod f64 {
     pub const SQRT_2PI: f64 = 2.506_628_274_631_000_7;
 
     /// √2 (square root of 2) with high precision
-    pub const SQRT_2: f64 = 1.414_213_562_373_095_1;
+    pub const SQRT_2: f64 = std::f64::consts::SQRT_2;
 
     /// 1/√π (reciprocal of square root of pi) with high precision
     pub const ONE_OVER_SQRT_PI: f64 = 0.564_189_583_547_756_3;
@@ -34,13 +34,13 @@ pub mod f64 {
     pub const ONE_OVER_SQRT_2PI: f64 = 0.398_942_280_401_432_7;
 
     /// e (base of natural logarithm) with high precision
-    pub const E: f64 = 2.718_281_828_459_045;
+    pub const E: f64 = std::f64::consts::E;
 
     /// ln(2) (natural logarithm of 2) with high precision
-    pub const LN_2: f64 = 0.693_147_180_559_945_3;
+    pub const LN_2: f64 = std::f64::consts::LN_2;
 
     /// ln(10) (natural logarithm of 10) with high precision
-    pub const LN_10: f64 = 2.302_585_092_994_046;
+    pub const LN_10: f64 = std::f64::consts::LN_10;
 
     /// ln(π) (natural logarithm of pi) with high precision
     pub const LN_PI: f64 = 1.144_729_885_849_400_2;
@@ -77,13 +77,13 @@ pub mod f64 {
 #[allow(dead_code)]
 pub mod f32 {
     /// π (pi) with high precision
-    pub const PI: f32 = 3.141_592_7;
+    pub const PI: f32 = std::f32::consts::PI;
 
     /// π/2 (pi/2) with high precision
     pub const PI_2: f32 = 1.570_796_4;
 
     /// π/4 (pi/4) with high precision
-    pub const PI_4: f32 = 0.785_398_2;
+    pub const PI_4: f32 = std::f32::consts::FRAC_PI_4;
 
     /// 2π (2*pi) with high precision
     pub const TWO_PI: f32 = 6.283_185_5;
@@ -95,7 +95,7 @@ pub mod f32 {
     pub const SQRT_2PI: f32 = 2.506_628_3;
 
     /// √2 (square root of 2) with high precision
-    pub const SQRT_2: f32 = 1.414_213_5;
+    pub const SQRT_2: f32 = std::f32::consts::SQRT_2;
 
     /// 1/√π (reciprocal of square root of pi) with high precision
     pub const ONE_OVER_SQRT_PI: f32 = 0.564_189_6;
@@ -107,10 +107,10 @@ pub mod f32 {
     pub const E: f32 = 2.718_281_7;
 
     /// ln(2) (natural logarithm of 2) with high precision
-    pub const LN_2: f32 = 0.693_147_2;
+    pub const LN_2: f32 = std::f32::consts::LN_2;
 
     /// ln(10) (natural logarithm of 10) with high precision
-    pub const LN_10: f32 = 2.302_585_1;
+    pub const LN_10: f32 = std::f32::consts::LN_10;
 
     /// ln(π) (natural logarithm of pi) with high precision
     pub const LN_PI: f32 = 1.144_729_9;
@@ -224,7 +224,7 @@ pub mod coeffs {
     pub const LANCZOS_7_COEFFS: [f64; 9] = [
         0.999_999_999_999_809_9,
         676.520_368_121_885_1,
-        -1259.139_216_722_402_8,
+        -1_259.139_216_722_402_8,
         771.323_428_777_653_1,
         -176.615_029_162_140_6,
         12.507_343_278_686_905,

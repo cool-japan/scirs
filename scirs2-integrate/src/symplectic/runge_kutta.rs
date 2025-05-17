@@ -10,7 +10,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
-use ndarray::{Array1, Array2, ArrayView1};
+use ndarray::{Array1, Array2};
 use std::marker::PhantomData;
 
 /// Gauss-Legendre 4th order symplectic Runge-Kutta method
@@ -166,7 +166,7 @@ impl<F: IntegrateFloat> SymplecticIntegrator<F> for GaussLegendre6<F> {
         dt: F,
     ) -> IntegrateResult<(Array1<F>, Array1<F>)> {
         let two = F::one() + F::one();
-        let half = F::one() / two;
+        let _half = F::one() / two;
 
         // Butcher tableau coefficients for 3-stage Gauss-Legendre method
 
@@ -294,8 +294,8 @@ mod tests {
     fn test_accuracy_comparison() {
         // Simple harmonic oscillator
         let system = SeparableHamiltonian::new(
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
-            |_t, q| -> f64 { 0.5 * q.dot(&q) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
+            |_t, q| -> f64 { 0.5 * q.dot(q) },
         );
 
         // Initial state
@@ -358,7 +358,7 @@ mod tests {
     fn test_energy_preservation() {
         // Simple pendulum: H = p^2/2 - cos(q)
         let pendulum = SeparableHamiltonian::new(
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
             |_t, q| -> f64 { -q[0].cos() },
         );
 

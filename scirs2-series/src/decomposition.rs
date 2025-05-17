@@ -450,10 +450,10 @@ where
         // Process each seasonal component
         for (i, &period) in options.seasonal_periods.iter().enumerate() {
             // Remove the trend and other seasonal components for isolation
-            for j in 0..options.seasonal_periods.len() {
+            for (j, seasonal_comp) in seasonal_components.iter().enumerate() {
                 if j != i {
                     for k in 0..n {
-                        deseasoned[k] = deseasoned[k] - seasonal_components[j][k];
+                        deseasoned[k] = deseasoned[k] - seasonal_comp[k];
                     }
                 }
             }
@@ -837,7 +837,7 @@ where
     let mut seasonal_components = Vec::with_capacity(options.seasonal_periods.len());
 
     // For each seasonal period, extract the corresponding component
-    for (_i, &period) in options.seasonal_periods.iter().enumerate() {
+    for &period in options.seasonal_periods.iter() {
         let p = period.round() as usize;
         let mut season = Array1::zeros(n);
 
@@ -871,8 +871,8 @@ where
             sum = sum + val;
         }
         let mean = sum / F::from_usize(p).unwrap();
-        for j in 0..p {
-            seasonal_means[j] = seasonal_means[j] - mean;
+        for mean_val in seasonal_means.iter_mut() {
+            *mean_val = *mean_val - mean;
         }
 
         // Apply pattern to the whole series
@@ -1024,14 +1024,11 @@ where
 
     // Step 1: Apply Box-Cox transformation if requested
     let (transformed_ts, lambda) = if options.use_box_cox {
-        let lambda = match options.box_cox_lambda {
-            Some(lambda) => lambda,
-            None => {
-                // Auto-estimate lambda (simplified approach)
-                // In a real implementation, we would use maximum likelihood estimation
-                0.0 // Log transformation
-            }
-        };
+        let lambda = options.box_cox_lambda.unwrap_or({
+            // Auto-estimate lambda (simplified approach)
+            // In a real implementation, we would use maximum likelihood estimation
+            0.0 // Log transformation
+        });
         let transformed = box_cox_transform(ts, lambda)?;
         (transformed, Some(lambda))
     } else {
@@ -1086,11 +1083,10 @@ where
         // Apply Fourier series to compute initial seasonal component
         for t in 0..n {
             let t_f = F::from_usize(t).unwrap();
-            for j in 0..k {
+            for (j, &(a, b)) in coefficients.iter().enumerate() {
                 // We don't need j_f for the current implementation
                 let freq =
                     F::from_f64(2.0 * std::f64::consts::PI * (j + 1) as f64 / period).unwrap();
-                let (a, b) = coefficients[j];
                 let a_f = F::from_f64(a).unwrap();
                 let b_f = F::from_f64(b).unwrap();
 
@@ -1732,9 +1728,11 @@ mod tests {
         // Create a simple time series with trend + seasonal components
         let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0];
 
-        let mut options = SSAOptions::default();
-        options.window_length = 4;
-        options.n_trend_components = 1;
+        let options = SSAOptions {
+            window_length: 4,
+            n_trend_components: 1,
+            ..Default::default()
+        };
 
         let result = ssa_decomposition(&ts, &options).unwrap();
 
@@ -1759,9 +1757,11 @@ mod tests {
             4.5, 5.5, 6.5, 7.5, 1.7, 2.7, 3.7, 4.7, 5.7, 6.7, 7.7
         ];
 
-        let mut options = MSTLOptions::default();
-        options.seasonal_periods = vec![7, 12];
-        options.trend_window = 13;
+        let options = MSTLOptions {
+            seasonal_periods: vec![7, 12],
+            trend_window: 13,
+            ..Default::default()
+        };
 
         let result = mstl_decomposition(&ts, &options).unwrap();
 

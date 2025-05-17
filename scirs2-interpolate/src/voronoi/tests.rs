@@ -274,8 +274,8 @@ fn test_3d_linear_function_reproduction() {
 
         // Values should still be within a reasonable range for our function
         // f(x,y,z) = x + 2y + 3z ranges from 0 to 6 in our cube
-        assert!(sibson_result >= 0.0 && sibson_result <= 6.0);
-        assert!(laplace_result >= 0.0 && laplace_result <= 6.0);
+        assert!((0.0..=6.0).contains(&sibson_result));
+        assert!((0.0..=6.0).contains(&laplace_result));
     }
 }
 
@@ -330,7 +330,7 @@ fn test_method_setting() {
     let result = interpolator.interpolate(&query.view()).unwrap();
 
     // Result should be a reasonable value
-    assert!(result >= 0.0 && result <= 2.0);
+    assert!((0.0..=2.0).contains(&result));
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn test_parallel_config() {
     let result = parallel.interpolate(&query.view()).unwrap();
 
     // Result should be a reasonable value
-    assert!(result >= 0.0 && result <= 2.0);
+    assert!((0.0..=2.0).contains(&result));
 }
 
 #[test]
@@ -625,9 +625,7 @@ fn test_extrapolation_nearest_neighbor() {
         // Verify that we get the value of the nearest data point
         // We don't know which is closest without computing distances,
         // but we can verify it matches one of the input points
-        assert!(values
-            .iter()
-            .any(|&v| ((v as f64) - (result as f64)).abs() < 1e-10f64));
+        assert!(values.iter().any(|&v| f64::abs(v - result) < 1e-10));
     }
 }
 
@@ -653,7 +651,7 @@ fn test_extrapolation_inverse_distance() {
     let result = interpolator.extrapolate(&query.view(), &params).unwrap();
 
     // All our points have values between 0 and 2, so the result should be in that range
-    assert!(result >= 0.0 && result <= 2.0);
+    assert!((0.0..=2.0).contains(&result));
 
     // The result should be closer to the values of points near (1,0) and (1,1)
     // which are 1.0 and 2.0 respectively
@@ -685,7 +683,7 @@ fn test_extrapolation_linear_gradient() {
     let result = interpolator.extrapolate(&query.view(), &params).unwrap();
 
     // With the PartialOrd change, we just check that the result is reasonable
-    assert!(result >= -100.0 && result <= 100.0);
+    assert!((-100.0..=100.0).contains(&result));
 }
 
 #[test]
@@ -748,6 +746,6 @@ fn test_interpolate_or_extrapolate() {
             .unwrap();
 
         // With the PartialOrd change, we just check that the result is reasonable
-        assert!(result >= -100.0 && result <= 100.0);
+        assert!((-100.0..=100.0).contains(&result));
     }
 }

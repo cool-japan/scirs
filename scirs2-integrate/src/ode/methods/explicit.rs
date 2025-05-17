@@ -5,10 +5,8 @@
 
 use crate::error::IntegrateResult;
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use crate::IntegrateFloat;
+use ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using Euler's method
 ///

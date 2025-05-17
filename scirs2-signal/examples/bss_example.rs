@@ -1,7 +1,7 @@
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use rand::thread_rng;
+use ndarray::{s, Array1, Array2};
+use rand::rng;
 use rand_distr::{Distribution, Normal};
-use scirs2_signal::{bss, SignalResult};
+use scirs2_signal::{bss, SignalError, SignalResult};
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -50,7 +50,7 @@ fn generate_test_signals(n_samples: usize) -> Array2<f64> {
     }
 
     // Source 4: Random spikes (sparse signal)
-    let mut rng = thread_rng();
+    let _rng = rng();
     let threshold = 0.95;
     for i in 0..n_samples {
         if rand::random::<f64>() > threshold {
@@ -64,7 +64,7 @@ fn generate_test_signals(n_samples: usize) -> Array2<f64> {
 /// Create a random mixing matrix
 fn generate_mixing_matrix(n_sources: usize, n_mixtures: usize) -> Array2<f64> {
     let mut mixing = Array2::zeros((n_mixtures, n_sources));
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     for i in 0..n_mixtures {
@@ -75,7 +75,11 @@ fn generate_mixing_matrix(n_sources: usize, n_mixtures: usize) -> Array2<f64> {
 
     // Normalize each row
     for i in 0..n_mixtures {
-        let row_norm = mixing.slice(s![i, ..]).mapv(|x| x.powi(2)).sum().sqrt();
+        let row_norm = mixing
+            .slice(s![i, ..])
+            .mapv(|x: f64| x.powi(2))
+            .sum()
+            .sqrt();
         if row_norm > 0.0 {
             for j in 0..n_sources {
                 mixing[[i, j]] /= row_norm;
@@ -90,7 +94,7 @@ fn generate_mixing_matrix(n_sources: usize, n_mixtures: usize) -> Array2<f64> {
 fn add_noise(signals: &Array2<f64>, noise_level: f64) -> Array2<f64> {
     let (n_signals, n_samples) = signals.dim();
     let mut noisy = signals.clone();
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     for i in 0..n_signals {
@@ -173,7 +177,7 @@ fn calculate_recovery_quality(original: &Array2<f64>, recovered: &Array2<f64>) -
 
 /// Export signals to CSV for visualization
 fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalResult<()> {
-    let mut file = File::create(file_name)?;
+    let mut file = File::create(file_name).map_err(|e| SignalError::Compute(e.to_string()))?;
 
     // Write header
     let header = signals
@@ -181,7 +185,7 @@ fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalRes
         .map(|(name, _)| name.to_string())
         .collect::<Vec<String>>()
         .join(",");
-    writeln!(file, "{}", header)?;
+    writeln!(file, "{}", header).map_err(|e| SignalError::Compute(e.to_string()))?;
 
     // Find common signal length
     let min_len = signals.iter().map(|(_, data)| data.len()).min().unwrap();
@@ -193,7 +197,7 @@ fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalRes
             .map(|(_, data)| data[i].to_string())
             .collect::<Vec<String>>()
             .join(",");
-        writeln!(file, "{}", line)?;
+        writeln!(file, "{}", line).map_err(|e| SignalError::Compute(e.to_string()))?;
     }
 
     println!("Data exported to {}", file_name);
@@ -236,7 +240,7 @@ fn ica_example() -> SignalResult<()> {
     };
 
     // Apply FastICA
-    let (ica_sources, ica_mixing) = bss::ica(
+    let (ica_sources, _ica_mixing) = bss::ica(
         &noisy_mixed,
         Some(n_sources),
         bss::IcaMethod::FastICA,
@@ -249,7 +253,7 @@ fn ica_example() -> SignalResult<()> {
     println!("FastICA recovery quality: {:.4}", ica_quality);
 
     // Apply Infomax ICA
-    let (infomax_sources, infomax_mixing) = bss::ica(
+    let (infomax_sources, _infomax_mixing) = bss::ica(
         &noisy_mixed,
         Some(n_sources),
         bss::IcaMethod::Infomax,
@@ -262,7 +266,7 @@ fn ica_example() -> SignalResult<()> {
     println!("Infomax ICA recovery quality: {:.4}", infomax_quality);
 
     // Apply JADE ICA
-    let (jade_sources, jade_mixing) = bss::ica(
+    let (jade_sources, _jade_mixing) = bss::ica(
         &noisy_mixed,
         Some(n_sources),
         bss::IcaMethod::JADE,
@@ -378,7 +382,7 @@ fn nmf_example() -> SignalResult<()> {
     };
 
     // Apply NMF
-    let (nmf_sources, nmf_mixing) = bss::nmf(&noisy_mixed, n_sources, &config)?;
+    let (nmf_sources, _nmf_mixing) = bss::nmf(&noisy_mixed, n_sources, &config)?;
 
     // Calculate recovery quality
     let nmf_quality = calculate_recovery_quality(&sources, &nmf_sources);
@@ -454,7 +458,7 @@ fn pca_example() -> SignalResult<()> {
     };
 
     // Apply PCA
-    let (pca_sources, pca_mixing) = bss::pca(&noisy_mixed, &config)?;
+    let (pca_sources, _pca_mixing) = bss::pca(&noisy_mixed, &config)?;
 
     // Calculate recovery quality
     let pca_quality = calculate_recovery_quality(&sources, &pca_sources);
@@ -529,7 +533,7 @@ fn generate_sparse_signals(n_samples: usize) -> Array2<f64> {
     let t = Array1::linspace(0.0, 10.0, n_samples);
 
     // Source 1: Sparse spikes
-    let mut rng = thread_rng();
+    let _rng = rng();
     let threshold = 0.98;
     for i in 0..n_samples {
         if rand::random::<f64>() > threshold {
@@ -592,7 +596,7 @@ fn sparse_component_analysis_example() -> SignalResult<()> {
     };
 
     // Apply Sparse Component Analysis
-    let (sca_sources, sca_mixing) = bss::sparse_component_analysis(
+    let (sca_sources, _sca_mixing) = bss::sparse_component_analysis(
         &noisy_mixed,
         n_sources,
         0.1, // Sparsity parameter
@@ -741,13 +745,16 @@ fn compare_bss_methods() -> SignalResult<()> {
     println!("Joint Diag:      {:.4}", jd_quality);
 
     // Export comparison results
-    let mut file = File::create("bss_comparison.csv")?;
-    writeln!(file, "Method,Quality")?;
-    writeln!(file, "PCA,{}", pca_quality)?;
-    writeln!(file, "FastICA,{}", fastica_quality)?;
-    writeln!(file, "InfomaxICA,{}", infomax_quality)?;
-    writeln!(file, "JADEICA,{}", jade_quality)?;
-    writeln!(file, "JointDiag,{}", jd_quality)?;
+    let mut file =
+        File::create("bss_comparison.csv").map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "Method,Quality").map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "PCA,{}", pca_quality).map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "FastICA,{}", fastica_quality)
+        .map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "InfomaxICA,{}", infomax_quality)
+        .map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "JADEICA,{}", jade_quality).map_err(|e| SignalError::Compute(e.to_string()))?;
+    writeln!(file, "JointDiag,{}", jd_quality).map_err(|e| SignalError::Compute(e.to_string()))?;
 
     println!("Comparison data exported to bss_comparison.csv");
 

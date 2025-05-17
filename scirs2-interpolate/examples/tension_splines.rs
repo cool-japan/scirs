@@ -1,5 +1,5 @@
-use ndarray::{Array1, Axis};
-use scirs2_interpolate::{cubic_interpolate, make_tension_spline, ExtrapolateMode, TensionSpline};
+use ndarray::Array1;
+use scirs2_interpolate::{cubic_interpolate, make_tension_spline, ExtrapolateMode};
 
 fn main() {
     println!("Tension Splines Example");
@@ -211,7 +211,7 @@ fn main() {
 
     // Create data with oscillation to show the difference
     let x_osc = Array1::linspace(0.0, 4.0 * std::f64::consts::PI, 9);
-    let y_osc = x_osc.mapv(|x| f64::sin(x));
+    let y_osc = x_osc.mapv(f64::sin);
 
     // Create tension splines with different tension values
     let tens_0 =
@@ -223,7 +223,7 @@ fn main() {
 
     // Evaluate at fine points
     let x_fine_osc = Array1::linspace(0.0, 4.0 * std::f64::consts::PI, 101);
-    let y_exact = x_fine_osc.mapv(|x| f64::sin(x));
+    let y_exact = x_fine_osc.mapv(f64::sin);
 
     // Also create a standard cubic spline for comparison - handle potential errors
     let y_cubic = match cubic_interpolate(&x_osc.view(), &y_osc.view(), &x_fine_osc.view()) {

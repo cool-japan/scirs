@@ -2448,8 +2448,8 @@ where
     for i in 0..n {
         // Extract values at this point from all bootstrap samples
         let mut values = Vec::with_capacity(num_bootstrap);
-        for j in 0..num_bootstrap {
-            values.push(bootstrap_trends[j][i]);
+        for bootstrap_trend in bootstrap_trends.iter() {
+            values.push(bootstrap_trend[i]);
         }
 
         // Sort values
@@ -3126,9 +3126,11 @@ mod tests {
         }
 
         // Create options with manual breakpoints
-        let mut options = PiecewiseTrendOptions::default();
-        options.segment_trend_type = SegmentTrendType::Linear;
-        options.manual_breakpoints = Some(vec![10, 20]);
+        let options = PiecewiseTrendOptions {
+            segment_trend_type: SegmentTrendType::Linear,
+            manual_breakpoints: Some(vec![10, 20]),
+            ..Default::default()
+        };
 
         let result = estimate_piecewise_trend(&ts, &options).unwrap();
 
@@ -3193,17 +3195,19 @@ mod tests {
         }
 
         // Create options for PELT algorithm
-        let mut options = PiecewiseTrendOptions::default();
-        options.segment_trend_type = SegmentTrendType::Linear;
-        options.method = BreakpointMethod::PELT;
-        options.min_segment_length = 5;
-        options.penalty = 5.0; // Lower penalty to encourage more breakpoints
+        let options = PiecewiseTrendOptions {
+            segment_trend_type: SegmentTrendType::Linear,
+            method: BreakpointMethod::PELT,
+            min_segment_length: 5,
+            penalty: 5.0, // Lower penalty to encourage more breakpoints
+            ..Default::default()
+        };
 
         let result = estimate_piecewise_trend(&ts, &options).unwrap();
 
         // We should detect breakpoints near the true change points
         assert!(
-            result.breakpoints.len() >= 1,
+            !result.breakpoints.is_empty(),
             "Should detect at least one breakpoint"
         );
 
@@ -3249,9 +3253,11 @@ mod tests {
         let mut errors = Vec::with_capacity(segment_types.len());
 
         for &trend_type in &segment_types {
-            let mut options = PiecewiseTrendOptions::default();
-            options.segment_trend_type = trend_type;
-            options.manual_breakpoints = Some(vec![10]); // Split in middle
+            let options = PiecewiseTrendOptions {
+                segment_trend_type: trend_type,
+                manual_breakpoints: Some(vec![10]), // Split in middle
+                ..Default::default()
+            };
 
             let result = estimate_piecewise_trend(&ts, &options).unwrap();
 
@@ -3299,15 +3305,19 @@ mod tests {
         }
 
         // Test with and without smoothing
-        let mut options_no_smooth = PiecewiseTrendOptions::default();
-        options_no_smooth.segment_trend_type = SegmentTrendType::Linear;
-        options_no_smooth.manual_breakpoints = Some(vec![10]);
-        options_no_smooth.allow_discontinuities = true;
+        let options_no_smooth = PiecewiseTrendOptions {
+            segment_trend_type: SegmentTrendType::Linear,
+            manual_breakpoints: Some(vec![10]),
+            allow_discontinuities: true,
+            ..Default::default()
+        };
 
-        let mut options_with_smooth = PiecewiseTrendOptions::default();
-        options_with_smooth.segment_trend_type = SegmentTrendType::Linear;
-        options_with_smooth.manual_breakpoints = Some(vec![10]);
-        options_with_smooth.allow_discontinuities = false;
+        let options_with_smooth = PiecewiseTrendOptions {
+            segment_trend_type: SegmentTrendType::Linear,
+            manual_breakpoints: Some(vec![10]),
+            allow_discontinuities: false,
+            ..Default::default()
+        };
 
         let result_no_smooth = estimate_piecewise_trend(&ts, &options_no_smooth).unwrap();
         let result_with_smooth = estimate_piecewise_trend(&ts, &options_with_smooth).unwrap();

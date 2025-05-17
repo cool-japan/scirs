@@ -239,19 +239,19 @@ where
         }
 
         // Calculate cumulative variance contributions
-        for h in 0..periods {
+        for (h, decomp_h) in decomposition.iter_mut().enumerate().take(periods) {
             let mut total_variance = Array1::zeros(self.n_vars);
 
-            for shock_var in 0..self.n_vars {
+            for (shock_var, impulse_response) in impulse_responses.iter().enumerate() {
                 for response_var in 0..self.n_vars {
                     let mut contribution = F::zero();
 
                     for t in 0..=h {
-                        let response = impulse_responses[shock_var][[t, response_var]];
+                        let response = impulse_response[[t, response_var]];
                         contribution = contribution + response * response;
                     }
 
-                    decomposition[h][[response_var, shock_var]] = contribution;
+                    decomp_h[[response_var, shock_var]] = contribution;
                     total_variance[response_var] = total_variance[response_var] + contribution;
                 }
             }
@@ -260,8 +260,7 @@ where
             for response_var in 0..self.n_vars {
                 if total_variance[response_var] > F::epsilon() {
                     for shock_var in 0..self.n_vars {
-                        decomposition[h][[response_var, shock_var]] = decomposition[h]
-                            [[response_var, shock_var]]
+                        decomp_h[[response_var, shock_var]] = decomp_h[[response_var, shock_var]]
                             / total_variance[response_var];
                     }
                 }
@@ -548,6 +547,6 @@ mod tests {
     fn test_var_order_selection() {
         let data: Array2<f64> = Array2::zeros((100, 2));
         let order = select_var_order(&data, 5, SelectionCriterion::AIC).unwrap();
-        assert!(order >= 1 && order <= 5);
+        assert!((1..=5).contains(&order));
     }
 }

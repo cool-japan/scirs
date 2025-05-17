@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..Default::default()
         };
 
-        let (centroids, labels) = kmeans(data.view(), 3, Some(options))?;
+        let (_centroids, labels) = kmeans(data.view(), 3, Some(options))?;
 
         evaluate_clustering(&data, &labels);
     }

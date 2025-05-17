@@ -20,4 +20,5 @@ ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
 num-traits = "0.2.19"
 thiserror = "2.0.12"
 rand = "0.9.0"
+rand_distr = { workspace = true }
 approx = "0.5.1"

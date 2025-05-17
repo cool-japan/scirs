@@ -34,7 +34,7 @@ use scirs2_core::array_protocol::{
 
 // Define a simpler version of the array_function macro for tests
 macro_rules! array_function {
-    (fn $name:ident($($arg:ident: $arg_ty:ty),*) -> $ret:ty $body:block, $func_name:expr) => {
+    (fn $name:ident($($arg:ident: $arg_ty:ty),* $(,)?) -> $ret:ty $body:block, $func_name:expr) => {
         // Define the function
         fn $name($($arg: $arg_ty),*) -> $ret $body
     };

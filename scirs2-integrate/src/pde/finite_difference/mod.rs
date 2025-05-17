@@ -5,7 +5,7 @@
 //! approach to convert PDEs into systems of ODEs.
 
 use crate::pde::{PDEError, PDEResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// Enum for different finite difference schemes
 #[derive(Debug, Clone, Copy, PartialEq)]

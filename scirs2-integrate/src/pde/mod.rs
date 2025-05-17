@@ -24,10 +24,11 @@ pub use error::{PDEError, PDEResult};
 pub mod elliptic;
 pub mod finite_difference;
 pub mod finite_element;
+pub mod implicit;
 pub mod method_of_lines;
 pub mod spectral;
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, Array2};
 use std::ops::Range;
 
 /// Enum representing different types of boundary conditions

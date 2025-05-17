@@ -6,9 +6,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{MassMatrix, MassMatrixType};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::{Debug, Display, LowerExp};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Solve a linear system with mass matrix: M·x = b
 ///
@@ -111,6 +109,7 @@ where
 ///
 /// This can be used to cache the decomposition for repeated solves
 /// with the same mass matrix
+#[allow(dead_code)]
 struct LUDecomposition<F: IntegrateFloat> {
     /// The LU factors
     lu: Array2<F>,
@@ -118,6 +117,7 @@ struct LUDecomposition<F: IntegrateFloat> {
     pivots: Vec<usize>,
 }
 
+#[allow(dead_code)]
 impl<F: IntegrateFloat> LUDecomposition<F> {
     /// Create a new LU decomposition from a matrix
     fn new(matrix: ArrayView2<F>) -> IntegrateResult<Self> {
@@ -206,7 +206,7 @@ where
 pub fn transform_to_standard_form<F, Func>(
     f: Func,
     mass: &MassMatrix<F>,
-) -> impl Fn(F, ArrayView1<F>) -> IntegrateResult<Array1<F>>
+) -> impl Fn(F, ArrayView1<F>) -> IntegrateResult<Array1<F>> + Clone
 where
     F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
@@ -231,9 +231,7 @@ where
     F: IntegrateFloat,
 {
     // Default condition number threshold
-    let thresh = threshold.unwrap_or_else(|| F::from_f64(1e14).unwrap());
-
-    use crate::ode::utils::linear_solvers::matrix_norm;
+    let _thresh = threshold.unwrap_or_else(|| F::from_f64(1e14).unwrap());
 
     // In a full implementation, we would compute the condition number
     // using singular value decomposition or other methods.

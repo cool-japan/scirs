@@ -158,7 +158,7 @@ fn demonstrate_periodic_splines() {
     // Create sample data for a periodic function
     // Using sin(x) over [0, 2π] as an example
     let _n_points = 9;
-    let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 6.28318530718];
+    let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, std::f64::consts::TAU];
     let mut y = Array1::zeros(x.len());
 
     // Fill y with sin(x) values

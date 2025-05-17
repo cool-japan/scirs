@@ -7,10 +7,7 @@
 use crate::convolve;
 use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array1, Array2, Array3};
-use rustfft::{
-    num_complex::Complex,
-    FftPlanner,
-};
+use rustfft::{num_complex::Complex, FftPlanner};
 
 /// Deconvolution configuration
 #[derive(Debug, Clone)]
@@ -406,7 +403,7 @@ pub fn richardson_lucy_deconvolution_1d(
     let mut prev_estimate = Array1::<f64>::zeros(pad_len);
 
     // Iterative Richardson-Lucy algorithm
-    for iter in 0..max_iter {
+    for _iter in 0..max_iter {
         // Save previous estimate for convergence check
         prev_estimate.assign(&estimate);
 
@@ -669,7 +666,7 @@ pub fn mem_deconvolution_1d(
     let mut lagrange_multiplier = 0.0;
 
     // MEM iterative algorithm
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Save previous model for convergence check
         prev_model.assign(&model);
 
@@ -798,7 +795,7 @@ pub fn blind_deconvolution_1d(
         wiener_deconvolution_1d(&padded_signal, &estimated_psf, 0.1, config)?;
 
     // Alternating minimization
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Save previous estimates for convergence check
         let prev_signal = estimated_signal.clone();
         let prev_psf = estimated_psf.clone();
@@ -822,7 +819,7 @@ pub fn blind_deconvolution_1d(
             richardson_lucy_deconvolution_1d(&padded_signal, &estimated_signal, Some(5), config)?;
 
         // Constrain PSF to its expected size
-        let centered_psf = Array1::<f64>::zeros(pad_len);
+        let _centered_psf = Array1::<f64>::zeros(pad_len);
         let start = (pad_len - psf_size) / 2;
         let mut psf_cropped = temp_psf.slice(s![start..start + psf_size]).to_owned();
 
@@ -1090,7 +1087,7 @@ pub fn richardson_lucy_deconvolution_2d(
     let mut prev_estimate = Array2::<f64>::zeros((pad_height, pad_width));
 
     // Iterative Richardson-Lucy algorithm
-    for iter in 0..max_iter {
+    for _iter in 0..max_iter {
         // Save previous estimate for convergence check
         prev_estimate.assign(&estimate);
 
@@ -1222,7 +1219,7 @@ pub fn tv_deconvolution_2d(
     let eps = 1e-6;
 
     // Iterative total variation minimization
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Save previous estimate for convergence check
         prev_estimate.assign(&estimate);
 
@@ -1365,7 +1362,7 @@ pub fn blind_deconvolution_2d(
     let mut estimated_image = wiener_deconvolution_2d(&padded_image, &padded_psf, 0.1, config)?;
 
     // Alternating minimization
-    for iter in 0..config.max_iterations {
+    for _iter in 0..config.max_iterations {
         // Save previous estimates for convergence check
         let prev_image = estimated_image.clone();
         let prev_psf = estimated_psf.clone();
@@ -1495,7 +1492,7 @@ fn create_gaussian_kernel_2d(height: usize, width: usize) -> Array2<f64> {
 
 /// Helper function to apply Gaussian filtering to a 1D signal
 fn gaussian_filter_1d(signal: &Array1<f64>, sigma: f64) -> Array1<f64> {
-    let n = signal.len();
+    let _n = signal.len();
     let kernel_size = (6.0 * sigma).ceil() as usize;
     let kernel_size = kernel_size + (1 - kernel_size % 2); // Ensure odd size
 
@@ -1513,7 +1510,7 @@ fn gaussian_filter_1d(signal: &Array1<f64>, sigma: f64) -> Array1<f64> {
 
 /// Helper function to apply Gaussian filtering to a 2D image
 fn gaussian_filter_2d(image: &Array2<f64>, sigma: f64) -> Array2<f64> {
-    let (height, width) = image.dim();
+    let (_height, _width) = image.dim();
     let kernel_size = (6.0 * sigma).ceil() as usize;
     let kernel_size = kernel_size + (1 - kernel_size % 2); // Ensure odd size
 

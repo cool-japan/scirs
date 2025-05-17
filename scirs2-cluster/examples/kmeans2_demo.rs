@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut correct = 0;
         for i in 0..true_labels.len() {
             // Simple accuracy assuming cluster ordering matches
-            if true_labels[i] == predicted_labels[i] {
+            if true_labels[i] == predicted_labels[i] as i32 {
                 correct += 1;
             }
         }

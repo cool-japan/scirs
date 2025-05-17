@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let y = row[1];
 
             // Skip points within the unit square (those are interpolated, not extrapolated)
-            if x >= 0.0 && x <= 1.0 && y >= 0.0 && y <= 1.0 {
+            if (0.0..=1.0).contains(&x) && (0.0..=1.0).contains(&y) {
                 continue;
             }
 
@@ -154,7 +154,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Constant Value MSE: {:.6}", constant_mse);
 
     // Determine the best method based on MSE
-    let mut methods = vec![
+    let mut methods = [
         ("Nearest Neighbor", nn_mse),
         ("Inverse Distance Weighting", idw_mse),
         ("Linear Gradient", linear_mse),

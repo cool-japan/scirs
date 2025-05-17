@@ -4,10 +4,9 @@
 //! dense output from ODE solvers, allowing evaluation at arbitrary points
 //! within the integration range without recomputing the entire solution.
 
-use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
-use num_traits::{Float, FromPrimitive};
+use ndarray::Array1;
+use num_traits::Float;
 use std::fmt::Debug;
 
 /// Continuous output method for interpolation

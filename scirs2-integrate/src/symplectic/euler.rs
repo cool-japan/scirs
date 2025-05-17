@@ -156,9 +156,9 @@ mod tests {
         // Simple harmonic oscillator: H(q, p) = p^2/2 + q^2/2
         let system = SeparableHamiltonian::new(
             // T(p) = p^2/2
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
             // V(q) = q^2/2
-            |_t, q| -> f64 { 0.5 * q.dot(&q) },
+            |_t, q| -> f64 { 0.5 * q.dot(q) },
         );
 
         // Initial state
@@ -180,16 +180,19 @@ mod tests {
         assert!((q1_a[0] - 1.0).abs() < 1e-12);
         assert!((p1_a[0] + 0.1).abs() < 1e-12);
 
-        assert!((q1_b[0] - 0.0).abs() < 1e-12);
-        assert!((p1_b[0] + 1.0).abs() < 1e-12);
+        // Correct expected values for Symplectic Euler B:
+        // p_new = 0 + 0.1 * (-1) = -0.1
+        // q_new = 1 + 0.1 * (-0.1) = 0.99
+        assert!((q1_b[0] - 0.99).abs() < 1e-12);
+        assert!((p1_b[0] + 0.1).abs() < 1e-12);
     }
 
     #[test]
     fn test_energy_conservation() {
         // Simple harmonic oscillator
         let system = SeparableHamiltonian::new(
-            |_t, p| -> f64 { 0.5 * p.dot(&p) },
-            |_t, q| -> f64 { 0.5 * q.dot(&q) },
+            |_t, p| -> f64 { 0.5 * p.dot(p) },
+            |_t, q| -> f64 { 0.5 * q.dot(q) },
         );
 
         // Initial state with energy = 0.5

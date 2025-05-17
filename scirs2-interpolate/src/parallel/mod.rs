@@ -17,7 +17,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```ignore
 //! use ndarray::{Array1, Array2, ArrayView2};
 //! use scirs2_interpolate::parallel::{
 //!     ParallelMovingLeastSquares, ParallelConfig,

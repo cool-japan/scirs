@@ -121,7 +121,7 @@ impl<F: Float + Debug + Display + FromPrimitive + Send + Sync + ScalarOperand> C
                                 self.epoch_results.insert(metric_name.clone(), value);
 
                                 // Update context metrics for history tracking
-                                context.metrics.push((metric_name, Some(value)));
+                                context.metrics.push(value);
                             }
                             Err(err) => {
                                 if self.verbose {

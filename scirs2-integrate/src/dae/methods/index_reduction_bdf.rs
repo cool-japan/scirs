@@ -8,8 +8,7 @@ use crate::dae::index_reduction::{DAEStructure, ProjectionMethod};
 use crate::dae::methods::bdf_dae::{bdf_implicit_dae, bdf_semi_explicit_dae};
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
-use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, ArrayView1};
 
 /// BDF method with index reduction for higher-index semi-explicit DAE systems
 ///
@@ -77,8 +76,8 @@ where
     // Perform projection to ensure constraint satisfaction at all solution points
     for i in 0..result.t.len() {
         let t = result.t[i];
-        let mut x = result.x[i].clone();
-        let mut y = result.y[i].clone();
+        let x = result.x[i].clone();
+        let y = result.y[i].clone();
 
         // Apply projection to ensure constraint satisfaction
         // Note: this is a placeholder for the actual projection implementation

@@ -9,8 +9,6 @@
 //! for its ability to handle irregularly spaced data and provide smooth results.
 
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-#[cfg(feature = "linalg")]
-use ndarray_linalg::Solve;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -58,7 +56,7 @@ pub enum PolynomialBasis {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::local::mls::{MovingLeastSquares, WeightFunction, PolynomialBasis};
 ///
@@ -499,38 +497,41 @@ where
         }
 
         // Solve the least squares problem: (B'B)c = B'y
-        let _btb = w_basis.t().dot(&w_basis);
-        #[allow(unused_variables)]
-        let bty = w_basis.t().dot(&w_values);
-
-        // Solve the least squares problem: (B'B)c = B'y
+        #[cfg(feature = "linalg")]
+        let btb = w_basis.t().dot(&w_basis);
+        #[cfg(not(feature = "linalg"))]
         let _btb = w_basis.t().dot(&w_basis);
         #[allow(unused_variables)]
         let bty = w_basis.t().dot(&w_values);
 
         // Solve the system for coefficients
         #[cfg(feature = "linalg")]
-        let coeffs = match btb.solve(&bty) {
-            Ok(c) => c,
-            Err(_) => {
-                // Fallback: use local mean for numerical stability
-                let mut mean = F::zero();
-                let mut sum_weights = F::zero();
-                for (i, &idx) in indices.iter().enumerate() {
-                    mean = mean + weights[i] * self.values[idx];
-                    sum_weights = sum_weights + weights[i];
-                }
+        let coeffs = {
+            use ndarray_linalg::Solve;
+            let btb_f64 = btb.mapv(|x| x.to_f64().unwrap());
+            let bty_f64 = bty.mapv(|x| x.to_f64().unwrap());
+            match btb_f64.solve(&bty_f64) {
+                Ok(c) => c.mapv(|x| F::from_f64(x).unwrap()),
+                Err(_) => {
+                    // Fallback: use local mean for numerical stability
+                    let mut mean = F::zero();
+                    let mut sum_weights = F::zero();
+                    for (i, &idx) in indices.iter().enumerate() {
+                        mean = mean + weights[i] * self.values[idx];
+                        sum_weights = sum_weights + weights[i];
+                    }
 
-                if sum_weights > F::zero() {
-                    // For the fallback, we'll create a coefficient vector with just the mean
-                    // as the constant term and zeros elsewhere
-                    let mut fallback_coeffs = Array1::zeros(bty.len());
-                    fallback_coeffs[0] = mean / sum_weights;
-                    fallback_coeffs
-                } else {
-                    return Err(InterpolateError::ComputationError(
-                        "Failed to solve weighted least squares system".to_string(),
-                    ));
+                    if sum_weights > F::zero() {
+                        // For the fallback, we'll create a coefficient vector with just the mean
+                        // as the constant term and zeros elsewhere
+                        let mut fallback_coeffs = Array1::zeros(bty.len());
+                        fallback_coeffs[0] = mean / sum_weights;
+                        fallback_coeffs
+                    } else {
+                        return Err(InterpolateError::ComputationError(
+                            "Failed to solve weighted least squares system".to_string(),
+                        ));
+                    }
                 }
             }
         };

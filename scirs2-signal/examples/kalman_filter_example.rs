@@ -1,8 +1,8 @@
-use ndarray::{Array1, Array2, Axis};
-use plotters::prelude::*;
-use rand::thread_rng;
+use ndarray::{s, Array1, Array2};
+// use plotters::prelude::*;  // Plotters dependency not available
+use rand::rng;
 use rand_distr::{Distribution, Normal};
-use scirs2_signal::{kalman, SignalResult};
+use scirs2_signal::{kalman, SignalError, SignalResult};
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -40,7 +40,7 @@ fn generate_noisy_sine(
     outlier_prob: Option<f64>,
     outlier_scale: Option<f64>,
 ) -> Array1<f64> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, noise_level).unwrap();
     let t = Array1::linspace(0.0, 10.0, n_samples);
 
@@ -64,7 +64,7 @@ fn generate_noisy_sine(
 
 /// Export signal data to CSV for external plotting
 fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalResult<()> {
-    let mut file = File::create(file_name)?;
+    let mut file = File::create(file_name).map_err(|e| SignalError::Compute(e.to_string()))?;
 
     // Write header
     let header = signals
@@ -72,7 +72,7 @@ fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalRes
         .map(|(name, _)| name.to_string())
         .collect::<Vec<String>>()
         .join(",");
-    writeln!(file, "{}", header)?;
+    writeln!(file, "{}", header).map_err(|e| SignalError::Compute(e.to_string()))?;
 
     // Find common signal length
     let min_len = signals.iter().map(|(_, data)| data.len()).min().unwrap();
@@ -84,7 +84,7 @@ fn export_to_csv(file_name: &str, signals: &[(&str, &Array1<f64>)]) -> SignalRes
             .map(|(_, data)| data[i].to_string())
             .collect::<Vec<String>>()
             .join(",");
-        writeln!(file, "{}", line)?;
+        writeln!(file, "{}", line).map_err(|e| SignalError::Compute(e.to_string()))?;
     }
 
     println!("Data exported to {}", file_name);
@@ -111,8 +111,10 @@ fn basic_kalman_filtering() -> SignalResult<()> {
     // State is [position, velocity]
     // x(k+1) = F*x(k) + w(k)
     // z(k) = H*x(k) + v(k)
-    let f = Array2::from_shape_vec((2, 2), vec![1.0, 0.05, 0.0, 1.0])?;
-    let h = Array2::from_shape_vec((1, 2), vec![1.0, 0.0])?;
+    let f = Array2::from_shape_vec((2, 2), vec![1.0, 0.05, 0.0, 1.0])
+        .map_err(|e| SignalError::ValueError(e.to_string()))?;
+    let h = Array2::from_shape_vec((1, 2), vec![1.0, 0.0])
+        .map_err(|e| SignalError::ValueError(e.to_string()))?;
 
     // Initial state
     let initial_x = Array1::from_vec(vec![noisy_signal[0], 0.0]);
@@ -220,7 +222,7 @@ fn extended_kalman_filtering() -> SignalResult<()> {
 
     // Add noise to measurements
     let noise_level = 0.2;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let noisy_measurements = true_measurements.mapv(|x| x + normal.sample(&mut rng));
@@ -322,7 +324,7 @@ fn unscented_kalman_filtering() -> SignalResult<()> {
 
     // Add noise to measurements
     let noise_level = 0.2;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let noisy_measurements = true_measurements.mapv(|x| x + normal.sample(&mut rng));
@@ -413,7 +415,7 @@ fn kalman_denoising() -> SignalResult<()> {
 
     // Add noise
     let noise_level = 0.2;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let noisy_signal = true_signal.mapv(|x| x + normal.sample(&mut rng));
@@ -495,11 +497,11 @@ fn adaptive_kalman_filtering() -> SignalResult<()> {
     let n_samples = 300;
 
     // Create sine wave signal
-    let true_signal = Array1::linspace(0.0, 15.0, n_samples).mapv(|t| (t * 0.5).sin());
+    let true_signal = Array1::linspace(0.0, 15.0, n_samples).mapv(|t: f64| (t * 0.5).sin());
 
     // Add time-varying noise
     let mut noisy_signal = true_signal.clone();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     for i in 0..n_samples {
         // Noise variance increases with time
@@ -512,7 +514,7 @@ fn adaptive_kalman_filtering() -> SignalResult<()> {
     let standard_filtered = kalman::kalman_denoise_1d(
         &noisy_signal,
         Some(1e-4),
-        Some(0.3.powi(2)), // Fixed noise variance
+        Some(0.3_f64.powi(2)), // Fixed noise variance
     )?;
 
     // Apply adaptive Kalman filter

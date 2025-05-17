@@ -2,14 +2,13 @@
 
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::Rng;
 use std::fmt::Debug;
 
 use super::{euclidean_distance, vq};
 use crate::error::{ClusteringError, Result};
 
 // Re-export kmeans2 related types and functions
-pub use super::kmeans2::*;
 
 /// Options for K-means clustering
 #[derive(Debug, Clone)]
@@ -230,20 +229,15 @@ where
 }
 
 /// Initialization methods for K-means
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum KMeansInit {
     /// Random initialization
     Random,
     /// K-means++ initialization
+    #[default]
     KMeansPlusPlus,
     /// K-means|| initialization (parallel version of K-means++)
     KMeansParallel,
-}
-
-impl Default for KMeansInit {
-    fn default() -> Self {
-        KMeansInit::KMeansPlusPlus
-    }
 }
 
 /// K-means initialization algorithm
@@ -523,93 +517,97 @@ where
     }
 
     // If we have too many candidate centers, cluster them using weighted k-means
-    if centers.len() > k {
-        // Convert centers and weights to arrays for clustering
-        let n_centers = centers.len();
-        let mut centers_array = Array2::zeros((n_centers, n_features));
-        let mut weights_array = Array1::zeros(n_centers);
+    match centers.len().cmp(&k) {
+        std::cmp::Ordering::Greater => {
+            // Convert centers and weights to arrays for clustering
+            let n_centers = centers.len();
+            let mut centers_array = Array2::zeros((n_centers, n_features));
+            let mut weights_array = Array1::zeros(n_centers);
 
-        for i in 0..n_centers {
-            for j in 0..n_features {
-                centers_array[[i, j]] = centers[i][j];
+            for i in 0..n_centers {
+                for j in 0..n_features {
+                    centers_array[[i, j]] = centers[i][j];
+                }
+                weights_array[i] = weights[i];
             }
-            weights_array[i] = weights[i];
-        }
 
-        // Use regular k-means with weights to reduce to k centers
-        let options = KMeansOptions {
-            max_iter: 100,
-            tol: F::from(1e-4).unwrap(),
-            random_seed: _random_seed,
-            n_init: 1,
-            init_method: KMeansInit::KMeansPlusPlus,
-        };
+            // Use regular k-means with weights to reduce to k centers
+            let options = KMeansOptions {
+                max_iter: 100,
+                tol: F::from(1e-4).unwrap(),
+                random_seed: _random_seed,
+                n_init: 1,
+                init_method: KMeansInit::KMeansPlusPlus,
+            };
 
-        // Initialize with random k centers from the candidate centers
-        let init_indices: Vec<usize> = (0..n_centers)
+            // Initialize with random k centers from the candidate centers
+            let init_indices: Vec<usize> = (0..n_centers)
             .filter(|_| rng.random_range(0.0..1.0) < 0.5) // Randomly select some centers
             .take(k) // Take at most k centers
             .collect();
 
-        // If we didn't get k centers, just take the first k
-        let actual_indices = if init_indices.len() < k {
-            (0..k.min(n_centers)).collect::<Vec<usize>>()
-        } else {
-            init_indices
-        };
+            // If we didn't get k centers, just take the first k
+            let actual_indices = if init_indices.len() < k {
+                (0..k.min(n_centers)).collect::<Vec<usize>>()
+            } else {
+                init_indices
+            };
 
-        let mut init_centroids = Array2::zeros((actual_indices.len(), n_features));
-        for (i, &idx) in actual_indices.iter().enumerate() {
-            for j in 0..n_features {
-                init_centroids[[i, j]] = centers_array[[idx, j]];
+            let mut init_centroids = Array2::zeros((actual_indices.len(), n_features));
+            for (i, &idx) in actual_indices.iter().enumerate() {
+                for j in 0..n_features {
+                    init_centroids[[i, j]] = centers_array[[idx, j]];
+                }
             }
+
+            // Run weighted k-means to get final centroids
+            let (final_centroids, _) = _weighted_kmeans_single(
+                centers_array.view(),
+                weights_array.view(),
+                init_centroids.view(),
+                &options,
+            )?;
+
+            Ok(final_centroids)
         }
+        std::cmp::Ordering::Less => {
+            // If we have too few centers, add random points
+            let mut centroids = Array2::zeros((k, n_features));
 
-        // Run weighted k-means to get final centroids
-        let (final_centroids, _) = _weighted_kmeans_single(
-            centers_array.view(),
-            weights_array.view(),
-            init_centroids.view(),
-            &options,
-        )?;
-
-        Ok(final_centroids)
-    } else if centers.len() < k {
-        // If we have too few centers, add random points
-        let mut centroids = Array2::zeros((k, n_features));
-
-        // Copy existing centers
-        for i in 0..centers.len() {
-            for j in 0..n_features {
-                centroids[[i, j]] = centers[i][j];
+            // Copy existing centers
+            for i in 0..centers.len() {
+                for j in 0..n_features {
+                    centroids[[i, j]] = centers[i][j];
+                }
             }
-        }
 
-        // Add random points to reach k centers
-        let mut selected_indices = Vec::with_capacity(k - centers.len());
-        while selected_indices.len() < k - centers.len() {
-            let idx = rng.random_range(0..n_samples);
-            if !selected_indices.contains(&idx) {
-                selected_indices.push(idx);
+            // Add random points to reach k centers
+            let mut selected_indices = Vec::with_capacity(k - centers.len());
+            while selected_indices.len() < k - centers.len() {
+                let idx = rng.random_range(0..n_samples);
+                if !selected_indices.contains(&idx) {
+                    selected_indices.push(idx);
+                }
             }
-        }
 
-        for (i, &idx) in selected_indices.iter().enumerate() {
-            for j in 0..n_features {
-                centroids[[centers.len() + i, j]] = data[[idx, j]];
+            for (i, &idx) in selected_indices.iter().enumerate() {
+                for j in 0..n_features {
+                    centroids[[centers.len() + i, j]] = data[[idx, j]];
+                }
             }
-        }
 
-        Ok(centroids)
-    } else {
-        // We have exactly k centers
-        let mut centroids = Array2::zeros((k, n_features));
-        for i in 0..k {
-            for j in 0..n_features {
-                centroids[[i, j]] = centers[i][j];
-            }
+            Ok(centroids)
         }
-        Ok(centroids)
+        std::cmp::Ordering::Equal => {
+            // We have exactly k centers
+            let mut centroids = Array2::zeros((k, n_features));
+            for i in 0..k {
+                for j in 0..n_features {
+                    centroids[[i, j]] = centers[i][j];
+                }
+            }
+            Ok(centroids)
+        }
     }
 }
 

@@ -44,10 +44,10 @@
 //!
 //! ```
 //! // Example of minimizing a function using BFGS
-//! use ndarray::array;
+//! use ndarray::{array, ArrayView1};
 //! use scirs2_optimize::unconstrained::{minimize, Method};
 //!
-//! fn rosenbrock(x: &[f64]) -> f64 {
+//! fn rosenbrock(x: &ArrayView1<f64>) -> f64 {
 //!     let a = 1.0;
 //!     let b = 100.0;
 //!     let x0 = x[0];
@@ -56,12 +56,12 @@
 //! }
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let initial_guess = array![0.0, 0.0];
+//! let initial_guess = [0.0, 0.0];
 //! let result = minimize(rosenbrock, &initial_guess, Method::BFGS, None)?;
 //!
 //! println!("Solution: {:?}", result.x);
 //! println!("Function value at solution: {}", result.fun);
-//! println!("Number of iterations: {}", result.nit);
+//! println!("Number of iterations: {}", result.iterations);
 //! println!("Success: {}", result.success);
 //! # Ok(())
 //! # }
@@ -71,11 +71,11 @@
 //!
 //! ```
 //! // Example of minimizing a function with bounds constraints
-//! use ndarray::array;
+//! use ndarray::{array, ArrayView1};
 //! use scirs2_optimize::{Bounds, unconstrained::{minimize, Method, Options}};
 //!
 //! // A function with minimum at (-1, -1)
-//! fn func(x: &[f64]) -> f64 {
+//! fn func(x: &ArrayView1<f64>) -> f64 {
 //!     (x[0] + 1.0).powi(2) + (x[1] + 1.0).powi(2)
 //! }
 //!
@@ -84,7 +84,7 @@
 //! // This will constrain the optimization to the positive quadrant
 //! let bounds = Bounds::new(&[(Some(0.0), None), (Some(0.0), None)]);
 //!
-//! let initial_guess = array![0.5, 0.5];
+//! let initial_guess = [0.5, 0.5];
 //! let mut options = Options::default();
 //! options.bounds = Some(bounds);
 //!

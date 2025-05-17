@@ -3,14 +3,15 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! hyperbolic PDEs, such as the wave equation.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{s, Array1, Array2, ArrayView1};
+use std::sync::Arc;
 use std::time::Instant;
 
-use crate::ode::{solve_ivp, ODEMethod, ODEOptions, ODEResult};
+use crate::ode::{solve_ivp, ODEOptions};
 use crate::pde::finite_difference::FiniteDifferenceScheme;
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    PDESolution, PDESolverInfo,
 };
 
 /// Result of hyperbolic PDE solution
@@ -34,6 +35,7 @@ pub struct MOLHyperbolicResult {
 /// Method of Lines solver for 1D Wave Equation
 ///
 /// Solves the equation: ∂²u/∂t² = c² ∂²u/∂x² + f(x,t,u)
+#[derive(Clone)]
 pub struct MOLWaveEquation1D {
     /// Spatial domain
     domain: Domain,
@@ -42,16 +44,16 @@ pub struct MOLWaveEquation1D {
     time_range: [f64; 2],
 
     /// Wave speed (squared) coefficient c²(x, t, u)
-    wave_speed_squared: Box<dyn Fn(f64, f64, f64) -> f64 + Send + Sync>,
+    wave_speed_squared: Arc<dyn Fn(f64, f64, f64) -> f64 + Send + Sync>,
 
     /// Source term function f(x, t, u)
-    source_term: Option<Box<dyn Fn(f64, f64, f64) -> f64 + Send + Sync>>,
+    source_term: Option<Arc<dyn Fn(f64, f64, f64) -> f64 + Send + Sync>>,
 
     /// Initial condition function u(x, 0)
-    initial_condition: Box<dyn Fn(f64) -> f64 + Send + Sync>,
+    initial_condition: Arc<dyn Fn(f64) -> f64 + Send + Sync>,
 
     /// Initial velocity function ∂u/∂t(x, 0)
-    initial_velocity: Box<dyn Fn(f64) -> f64 + Send + Sync>,
+    initial_velocity: Arc<dyn Fn(f64) -> f64 + Send + Sync>,
 
     /// Boundary conditions
     boundary_conditions: Vec<BoundaryCondition<f64>>,
@@ -112,10 +114,10 @@ impl MOLWaveEquation1D {
         Ok(MOLWaveEquation1D {
             domain,
             time_range,
-            wave_speed_squared: Box::new(wave_speed_squared),
+            wave_speed_squared: Arc::new(wave_speed_squared),
             source_term: None,
-            initial_condition: Box::new(initial_condition),
-            initial_velocity: Box::new(initial_velocity),
+            initial_condition: Arc::new(initial_condition),
+            initial_velocity: Arc::new(initial_velocity),
             boundary_conditions,
             fd_scheme: FiniteDifferenceScheme::CentralDifference,
             options: options.unwrap_or_default(),
@@ -127,7 +129,7 @@ impl MOLWaveEquation1D {
         mut self,
         source_term: impl Fn(f64, f64, f64) -> f64 + Send + Sync + 'static,
     ) -> Self {
-        self.source_term = Some(Box::new(source_term));
+        self.source_term = Some(Arc::new(source_term));
         self
     }
 
@@ -138,7 +140,7 @@ impl MOLWaveEquation1D {
     }
 
     /// Solve the wave equation
-    pub fn solve(&self) -> PDEResult<MOLHyperbolicResult> {
+    pub fn solve(self) -> PDEResult<MOLHyperbolicResult> {
         let start_time = Instant::now();
 
         // Generate spatial grid
@@ -168,6 +170,16 @@ impl MOLWaveEquation1D {
             y0[i + nx] = v0[i]; // Next nx elements are v = ∂u/∂t
         }
 
+        // Extract data before moving self
+        let x_grid = x_grid.clone();
+        let time_range = self.time_range;
+        let boundary_conditions = self.boundary_conditions.clone();
+        let boundary_conditions_copy = boundary_conditions.clone();
+        let options = self.options.clone();
+        
+        // Move self into closure
+        let solver = self;
+        
         // Construct the ODE function for the first-order system
         let ode_func = move |t: f64, y: ArrayView1<f64>| -> Array1<f64> {
             // Extract u and v from the combined state vector
@@ -190,11 +202,11 @@ impl MOLWaveEquation1D {
 
                 // Second derivative term
                 let d2u_dx2 = (u[i + 1] - 2.0 * u[i] + u[i - 1]) / (dx * dx);
-                let c_squared = (self.wave_speed_squared)(x, t, u_i);
+                let c_squared = (solver.wave_speed_squared)(x, t, u_i);
                 let wave_term = c_squared * d2u_dx2;
 
                 // Source term
-                let source_term = if let Some(source) = &self.source_term {
+                let source_term = if let Some(source) = &solver.source_term {
                     source(x, t, u_i)
                 } else {
                     0.0
@@ -204,7 +216,7 @@ impl MOLWaveEquation1D {
             }
 
             // Apply boundary conditions
-            for bc in &self.boundary_conditions {
+            for bc in &boundary_conditions_copy {
                 match bc.location {
                     BoundaryLocation::Lower => {
                         // Apply boundary condition at x[0]
@@ -225,11 +237,11 @@ impl MOLWaveEquation1D {
 
                                 // Use central difference for the second derivative
                                 let d2u_dx2 = (u[1] - 2.0 * u[0] + u_ghost) / (dx * dx);
-                                let c_squared = (self.wave_speed_squared)(x_grid[0], t, u[0]);
+                                let c_squared = (solver.wave_speed_squared)(x_grid[0], t, u[0]);
                                 let wave_term = c_squared * d2u_dx2;
 
                                 // Source term
-                                let source_term = if let Some(source) = &self.source_term {
+                                let source_term = if let Some(source) = &solver.source_term {
                                     source(x_grid[0], t, u[0])
                                 } else {
                                     0.0
@@ -247,11 +259,11 @@ impl MOLWaveEquation1D {
 
                                     // Use central difference for the second derivative
                                     let d2u_dx2 = (u[1] - 2.0 * u[0] + u_ghost) / (dx * dx);
-                                    let c_squared = (self.wave_speed_squared)(x_grid[0], t, u[0]);
+                                    let c_squared = (solver.wave_speed_squared)(x_grid[0], t, u[0]);
                                     let wave_term = c_squared * d2u_dx2;
 
                                     // Source term
-                                    let source_term = if let Some(source) = &self.source_term {
+                                    let source_term = if let Some(source) = &solver.source_term {
                                         source(x_grid[0], t, u[0])
                                     } else {
                                         0.0
@@ -266,11 +278,11 @@ impl MOLWaveEquation1D {
 
                                 // Use values from the other end of the domain
                                 let d2u_dx2 = (u[1] - 2.0 * u[0] + u[nx - 1]) / (dx * dx);
-                                let c_squared = (self.wave_speed_squared)(x_grid[0], t, u[0]);
+                                let c_squared = (solver.wave_speed_squared)(x_grid[0], t, u[0]);
                                 let wave_term = c_squared * d2u_dx2;
 
                                 // Source term
-                                let source_term = if let Some(source) = &self.source_term {
+                                let source_term = if let Some(source) = &solver.source_term {
                                     source(x_grid[0], t, u[0])
                                 } else {
                                     0.0
@@ -299,11 +311,11 @@ impl MOLWaveEquation1D {
                                 // Use central difference for the second derivative
                                 let d2u_dx2 = (u_ghost - 2.0 * u[nx - 1] + u[nx - 2]) / (dx * dx);
                                 let c_squared =
-                                    (self.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
+                                    (solver.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
                                 let wave_term = c_squared * d2u_dx2;
 
                                 // Source term
-                                let source_term = if let Some(source) = &self.source_term {
+                                let source_term = if let Some(source) = &solver.source_term {
                                     source(x_grid[nx - 1], t, u[nx - 1])
                                 } else {
                                     0.0
@@ -323,11 +335,11 @@ impl MOLWaveEquation1D {
                                     let d2u_dx2 =
                                         (u_ghost - 2.0 * u[nx - 1] + u[nx - 2]) / (dx * dx);
                                     let c_squared =
-                                        (self.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
+                                        (solver.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
                                     let wave_term = c_squared * d2u_dx2;
 
                                     // Source term
-                                    let source_term = if let Some(source) = &self.source_term {
+                                    let source_term = if let Some(source) = &solver.source_term {
                                         source(x_grid[nx - 1], t, u[nx - 1])
                                     } else {
                                         0.0
@@ -344,11 +356,11 @@ impl MOLWaveEquation1D {
                                 // Use values from the other end of the domain
                                 let d2u_dx2 = (u[0] - 2.0 * u[nx - 1] + u[nx - 2]) / (dx * dx);
                                 let c_squared =
-                                    (self.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
+                                    (solver.wave_speed_squared)(x_grid[nx - 1], t, u[nx - 1]);
                                 let wave_term = c_squared * d2u_dx2;
 
                                 // Source term
-                                let source_term = if let Some(source) = &self.source_term {
+                                let source_term = if let Some(source) = &solver.source_term {
                                     source(x_grid[nx - 1], t, u[nx - 1])
                                 } else {
                                     0.0
@@ -367,18 +379,25 @@ impl MOLWaveEquation1D {
 
         // Set up ODE solver options
         let ode_options = ODEOptions {
-            method: self.options.ode_method,
-            rtol: self.options.rtol,
-            atol: Some(self.options.atol),
-            max_num_steps: self.options.max_steps,
-            first_step: None,
+            method: options.ode_method,
+            rtol: options.rtol,
+            atol: options.atol,
+            h0: None,
+            max_steps: options.max_steps.unwrap_or(500),
             max_step: None,
             min_step: None,
             dense_output: true,
+            max_order: None,
+            jac: None,
+            use_banded_jacobian: false,
+            ml: None,
+            mu: None,
+            mass_matrix: None,
+            jacobian_strategy: None,
         };
 
         // Apply Dirichlet boundary conditions to initial condition
-        for bc in &self.boundary_conditions {
+        for bc in &boundary_conditions {
             if bc.bc_type == BoundaryConditionType::Dirichlet {
                 match bc.location {
                     BoundaryLocation::Lower => {
@@ -394,7 +413,7 @@ impl MOLWaveEquation1D {
         }
 
         // Solve the ODE system
-        let ode_result = solve_ivp(ode_func, self.time_range, y0, Some(ode_options))?;
+        let ode_result = solve_ivp(ode_func, time_range, y0, Some(ode_options))?;
 
         // Extract results
         let computation_time = start_time.elapsed().as_secs_f64();
@@ -416,13 +435,13 @@ impl MOLWaveEquation1D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.stats.num_steps,
-            ode_result.stats.num_function_evaluations,
-            ode_result.stats.num_accepted_steps,
+            ode_result.n_steps,
+            ode_result.n_eval,
+            ode_result.n_accepted,
         ));
 
         Ok(MOLHyperbolicResult {
-            t,
+            t: t.into(),
             u,
             u_t,
             ode_info,

@@ -38,7 +38,7 @@ fn main() {
     // Create a sampled sine function with some noise
     let x = Array1::linspace(0.0, 2.0 * std::f64::consts::PI, 101);
     let noise = Array1::from_vec((0..101).map(|i| f64::sin(i as f64 * 0.3) * 0.05).collect());
-    let y = x.mapv(|v| f64::sin(v)) + &noise;
+    let y = x.mapv(f64::sin) + &noise;
 
     // Create a regular B-spline with fixed number of knots
     // Create knots for the B-spline
@@ -102,7 +102,7 @@ fn main() {
             })
             .collect(),
     );
-    let y_exact = x_fine.mapv(|v| f64::sin(v));
+    let y_exact = x_fine.mapv(f64::sin);
 
     // Calculate errors
     let mse_regular = y_regular

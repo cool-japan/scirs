@@ -41,7 +41,7 @@ mod kmeans;
 mod kmeans2;
 mod minibatch_kmeans;
 pub use kmeans::*;
-pub use kmeans2::*;
+pub use kmeans2::{kmeans2, MinitMethod, MissingMethod};
 pub use minibatch_kmeans::*;
 
 /// Computes the Euclidean distance between two vectors
@@ -114,7 +114,7 @@ where
             let diff = obs[[i, j]] - means[j];
             sum = sum + diff * diff;
         }
-        stds[j] = (sum / F::from(n_samples).unwrap()).sqrt();
+        stds[j] = (sum / F::from(n_samples - 1).unwrap()).sqrt();
 
         // Avoid division by zero
         if stds[j] < F::from(1e-10).unwrap() {
@@ -122,11 +122,11 @@ where
         }
     }
 
-    // Whiten the data
+    // Whiten the data (subtract mean and divide by std)
     let mut whitened = Array2::<F>::zeros((n_samples, n_features));
     for i in 0..n_samples {
         for j in 0..n_features {
-            whitened[[i, j]] = obs[[i, j]] / stds[j];
+            whitened[[i, j]] = (obs[[i, j]] - means[j]) / stds[j];
         }
     }
 

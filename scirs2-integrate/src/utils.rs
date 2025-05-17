@@ -4,8 +4,6 @@
 
 use crate::IntegrateFloat;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 
 /// Compute the numerical Jacobian of a vector-valued function
 ///
@@ -398,35 +396,35 @@ mod tests {
 
         // Expected solution: x = [2.0, 1.0]
         assert!(
-            (x[0] - 2.0).abs() < 1e-8,
+            (x[0] - 2.0_f64).abs() < 1e-8,
             "Expected x[0] = 2.0, got {}",
             x[0]
         );
         assert!(
-            (x[1] - 1.0).abs() < 1e-8,
+            (x[1] - 1.0_f64).abs() < 1e-8,
             "Expected x[1] = 1.0, got {}",
             x[1]
         );
 
         // Test with a 3x3 system
-        let a = array![[3.0, 2.0, -1.0], [2.0, -2.0, 4.0], [-1.0, 0.5, -1.0]];
-        let b = array![1.0, -2.0, 0.0];
+        let a = array![[3.0_f64, 2.0, -1.0], [2.0, -2.0, 4.0], [-1.0, 0.5, -1.0]];
+        let b = array![1.0_f64, -2.0, 0.0];
 
         let x = solve_linear_system(a.view(), b.view());
 
         // Expected solution: x = [1.0, -2.0, -2.0]
         assert!(
-            (x[0] - 1.0).abs() < 1e-8,
+            (x[0] - 1.0_f64).abs() < 1e-8,
             "Expected x[0] = 1.0, got {}",
             x[0]
         );
         assert!(
-            (x[1] - (-2.0)).abs() < 1e-8,
+            (x[1] - (-2.0_f64)).abs() < 1e-8,
             "Expected x[1] = -2.0, got {}",
             x[1]
         );
         assert!(
-            (x[2] - (-2.0)).abs() < 1e-8,
+            (x[2] - (-2.0_f64)).abs() < 1e-8,
             "Expected x[2] = -2.0, got {}",
             x[2]
         );

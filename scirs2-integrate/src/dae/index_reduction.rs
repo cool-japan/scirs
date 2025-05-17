@@ -9,10 +9,10 @@
 //! - Dummy derivative method
 //! - Projection methods for constraint satisfaction
 
-use crate::dae::types::{DAEIndex, DAEResult, DAEType};
+use crate::dae::types::DAEIndex;
 use crate::dae::utils::{compute_constraint_jacobian, is_singular_matrix};
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 
@@ -28,7 +28,8 @@ pub struct DAEStructure<
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
 > {
     /// Number of differential variables
     pub n_differential: usize,
@@ -74,7 +75,8 @@ impl<
             + std::ops::MulAssign
             + std::ops::DivAssign
             + Display
-            + LowerExp,
+            + LowerExp
+            + std::iter::Sum,
     > Default for DAEStructure<F>
 {
     fn default() -> Self {
@@ -104,7 +106,8 @@ impl<
             + std::ops::MulAssign
             + std::ops::DivAssign
             + Display
-            + LowerExp,
+            + LowerExp
+            + std::iter::Sum,
     > DAEStructure<F>
 {
     /// Create a new DAE structure for a semi-explicit system
@@ -181,7 +184,7 @@ impl<
         // We need to perform index detection by differentiation and analysis
 
         // Compute full Jacobians of f and g with respect to x and y
-        let f_x = compute_jacobian_for_variables(f, t, x, y, 0, self.n_differential)?;
+        let _f_x = compute_jacobian_for_variables(f, t, x, y, 0, self.n_differential)?;
         let f_y =
             compute_jacobian_for_variables(f, t, x, y, self.n_differential, self.n_algebraic)?;
         let g_x = compute_jacobian_for_variables(g, t, x, y, 0, self.n_differential)?;
@@ -235,7 +238,8 @@ pub struct PantelidesReducer<
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
 > {
     /// DAE structure information
     pub structure: DAEStructure<F>,
@@ -257,7 +261,8 @@ impl<
             + std::ops::MulAssign
             + std::ops::DivAssign
             + Display
-            + LowerExp,
+            + LowerExp
+            + std::iter::Sum,
     > PantelidesReducer<F>
 {
     /// Create a new Pantelides reducer for index reduction
@@ -434,7 +439,8 @@ pub struct DummyDerivativeReducer<
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
 > {
     /// DAE structure information
     pub structure: DAEStructure<F>,
@@ -456,7 +462,8 @@ impl<
             + std::ops::MulAssign
             + std::ops::DivAssign
             + Display
-            + LowerExp,
+            + LowerExp
+            + std::iter::Sum,
     > DummyDerivativeReducer<F>
 {
     /// Create a new dummy derivative reducer
@@ -519,7 +526,8 @@ pub struct ProjectionMethod<
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
 > {
     /// DAE structure information
     pub structure: DAEStructure<F>,
@@ -544,7 +552,8 @@ impl<
             + std::ops::MulAssign
             + std::ops::DivAssign
             + Display
-            + LowerExp,
+            + LowerExp
+            + std::iter::Sum,
     > ProjectionMethod<F>
 {
     /// Create a new projection method for constraint satisfaction
@@ -693,7 +702,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
     Func: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
     // Evaluate the base function
@@ -774,7 +784,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + Display
-        + LowerExp,
+        + LowerExp
+        + std::iter::Sum,
 {
     use crate::dae::utils::linear_solvers::solve_linear_system;
 

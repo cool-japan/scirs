@@ -25,6 +25,7 @@ Algorithms for minimizing scalar functions with constraints:
 
 - SLSQP (Sequential Least Squares Programming)
 - Trust Region Constrained algorithm
+- COBYLA (Constrained Optimization BY Linear Approximations) - *not yet implemented*
 
 ### Least Squares Optimization
 

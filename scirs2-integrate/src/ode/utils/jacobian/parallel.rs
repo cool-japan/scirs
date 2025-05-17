@@ -16,7 +16,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 
 #[cfg(feature = "parallel_jacobian")]
 use rayon::prelude::*;
@@ -356,6 +356,9 @@ pub fn should_use_parallel_jacobian(n_dim: usize, is_sparse: bool, num_threads: 
     // Check if parallel_jacobian feature is enabled
     #[cfg(not(feature = "parallel_jacobian"))]
     {
+        let _ = n_dim;
+        let _ = is_sparse;
+        let _ = num_threads;
         return false; // Parallel computation not available without the feature
     }
 
@@ -417,7 +420,10 @@ impl ParallelJacobianStrategy {
         };
 
         #[cfg(not(feature = "parallel_jacobian"))]
-        let (use_parallel, num_threads) = (false, 1);
+        let (use_parallel, num_threads) = {
+            let _ = n_dim;
+            (false, 1)
+        };
 
         ParallelJacobianStrategy {
             use_parallel,
@@ -442,7 +448,7 @@ impl ParallelJacobianStrategy {
         y: &Array1<F>,
         f_current: &Array1<F>,
         perturbation_scale: F,
-    ) -> IntegrateResult<&Array2<F>>
+    ) -> IntegrateResult<Array2<F>>
     where
         F: IntegrateFloat + Send + Sync,
         Func: Fn(F, ArrayView1<F>) -> Array1<F> + Sync,
@@ -479,8 +485,8 @@ impl ParallelJacobianStrategy {
         let jacobian_f64 = jacobian.mapv(|x| x.to_f64().unwrap_or(0.0));
         self.jacobian = Some(jacobian_f64);
 
-        // Return reference to stored result
-        Ok(self.jacobian.as_ref().unwrap())
+        // Return the jacobian
+        Ok(jacobian)
     }
 
     /// Check if parallel computation is available and enabled

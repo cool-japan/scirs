@@ -236,7 +236,7 @@ where
     let mut statistic = F::zero();
     for k in 1..=lags {
         let rk = acf[k];
-        statistic = statistic + rk * rk / F::from(n - k).unwrap();
+        statistic += rk * rk / F::from(n - k).unwrap();
     }
     statistic = F::from(n * (n + 2)).unwrap() * statistic;
 
@@ -332,7 +332,7 @@ where
     let lambda = F::from(1e-6).unwrap();
     let mut xtx_reg = xtx.clone();
     for i in 0..n {
-        xtx_reg[[i, i]] = xtx_reg[[i, i]] + lambda;
+        xtx_reg[[i, i]] += lambda;
     }
 
     // Simple matrix solve

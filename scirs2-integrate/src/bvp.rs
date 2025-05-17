@@ -564,7 +564,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use ndarray::array;
 
     #[test]
@@ -593,12 +592,12 @@ mod tests {
 
         // Expected solution: x = [2.0, 1.0]
         assert!(
-            (x[0] - 2.0).abs() < 1e-6,
+            (x[0] - 2.0_f64).abs() < 1e-6,
             "Expected x[0] = 2.0, got {}",
             x[0]
         );
         assert!(
-            (x[1] - 1.0).abs() < 1e-6,
+            (x[1] - 1.0_f64).abs() < 1e-6,
             "Expected x[1] = 1.0, got {}",
             x[1]
         );

@@ -1,7 +1,6 @@
 use ndarray::{Array1, Array2};
-use scirs2_interpolate::error::Result;
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing scirs2-interpolate linalg feature configuration");
 
     // Create some test arrays
@@ -33,6 +32,9 @@ fn main() -> Result<()> {
         // In the real code, we'd use a fallback implementation here
         // For this example, we'll just output what would happen
         println!("Using fallback methods for linear algebra operations");
+        
+        // Use the variables to avoid warnings
+        println!("Would solve A*x = b where A shape: {:?} and b shape: {:?}", a.shape(), b.shape());
     }
 
     // Always runs regardless of feature

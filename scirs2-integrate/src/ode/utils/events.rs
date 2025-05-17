@@ -8,7 +8,6 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::dense_output::DenseSolution;
-use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use ndarray::{Array1, ArrayView1};
 
 /// Direction of zero-crossing for event detection
@@ -58,6 +57,18 @@ pub struct EventSpec<F: IntegrateFloat> {
     pub max_count: Option<usize>,
     /// Whether to refine the event time with high precision
     pub precise_time: bool,
+}
+
+impl<F: IntegrateFloat> EventSpec<F> {
+    /// Check if the maximum count has been reached for this event
+    pub fn max_count_reached(&self, _id: &str, current_count: Option<usize>) -> bool {
+        if let Some(max) = self.max_count {
+            if let Some(count) = current_count {
+                return count >= max;
+            }
+        }
+        false
+    }
 }
 
 impl<F: IntegrateFloat> Default for EventSpec<F> {
@@ -312,7 +323,7 @@ impl<F: IntegrateFloat> EventHandler<F> {
         let mut t_left = t_prev;
         let mut t_right = t_curr;
         let mut f_left = value_prev;
-        let mut f_right = value_curr;
+        let f_right = value_curr;
 
         // Handle the case where one endpoint is exactly zero
         if f_left.abs() < tol {
@@ -346,7 +357,7 @@ impl<F: IntegrateFloat> EventHandler<F> {
             // Update interval
             if f_left * f_mid < F::zero() {
                 t_right = t_mid;
-                f_right = f_mid;
+                let _f_right = f_mid;
             } else {
                 t_left = t_mid;
                 f_left = f_mid;
@@ -405,7 +416,7 @@ impl<F: IntegrateFloat> ODEOptionsWithEvents<F> {
 }
 
 /// Extended ODE result that includes event information
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ODEResultWithEvents<F: IntegrateFloat> {
     /// Base ODE result
     pub base_result: super::super::types::ODEResult<F>,

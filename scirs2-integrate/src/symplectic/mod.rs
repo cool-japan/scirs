@@ -71,7 +71,7 @@ pub use runge_kutta::{GaussLegendre4, GaussLegendre6};
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, ArrayView1};
+use ndarray::Array1;
 
 /// Result of symplectic integration containing state history
 #[derive(Debug, Clone)]

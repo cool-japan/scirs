@@ -6,8 +6,8 @@ use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianStrategy;
-use crate::ode::{solve_ivp, MassMatrix, ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use crate::ode::{solve_ivp, ODEOptions};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Solve an initial value problem (IVP) for a semi-explicit index-1 DAE
 ///
@@ -357,7 +357,7 @@ where
     // Function to evaluate the implicit BDF formula for a given step size and order
     let eval_bdf_formula = |y_new: ArrayView1<F>,
                             y_history: &[Array1<F>],
-                            y_prime_new: ArrayView1<F>,
+                            _y_prime_new: ArrayView1<F>,
                             t_new: F,
                             k: usize,
                             step_size: F|
@@ -395,7 +395,7 @@ where
         };
 
         // Compute the BDF approximation of the derivative
-        let mut bdf_derivative = Array1::zeros(n);
+        let mut bdf_derivative: Array1<F> = Array1::zeros(n);
 
         for i in 0..=k {
             if i == 0 {
@@ -409,7 +409,7 @@ where
         bdf_derivative = bdf_derivative / step_size;
 
         // Return the residual f(t, y, y') where y' is the BDF approximation
-        f(t_new, y_new, y_prime_new)
+        f(t_new, y_new, bdf_derivative.view())
     };
 
     // Counters for statistics
@@ -472,7 +472,7 @@ where
 
         let mut converged = false;
 
-        for iter in 0..max_iter {
+        for _iter in 0..max_iter {
             // Compute the residual using the BDF formula
             let residual = if step == 0 || order == 1 {
                 // For first step or order 1, use simple backward Euler
@@ -507,7 +507,7 @@ where
             // Newton iteration: Compute the Jacobian of the residual function
             // Note: For time-dependent Jacobian, we differentiate with respect to time
             // This is a placeholder - in a full implementation, we'd compute d(residual)/dt
-            let jacobian_t = Array2::zeros((n, n));
+            let _jacobian_t: Array2<F> = Array2::zeros((n, n));
 
             // Compute jacobians directly using finite differences
             let f_current = f(t_new, y_pred.view(), y_prime_pred.view());
@@ -591,7 +591,7 @@ where
                     (&y_new - &y_current) / h
                 } else {
                     // For higher orders, use the BDF formula
-                    let mut y_prime = Array1::zeros(n);
+                    let _y_prime: Array1<F> = Array1::zeros(n);
 
                     // BDF coefficients for this order
                     let bdf_coeffs = match order {
@@ -800,9 +800,9 @@ where
             let mut reducer = crate::dae::index_reduction::PantelidesReducer::new(structure);
 
             // Attempt to reduce the index
-            if let Err(e) = reducer.reduce_index(t_span[0], x0.view(), y0.view(), &f, &g) {
+            if let Err(_e) = reducer.reduce_index(t_span[0], x0.view(), y0.view(), &f, &g) {
                 // If Pantelides algorithm is not yet implemented, try projection method
-                let mut projection = crate::dae::index_reduction::ProjectionMethod::new(
+                let projection = crate::dae::index_reduction::ProjectionMethod::new(
                     crate::dae::index_reduction::DAEStructure::new_semi_explicit(
                         x0.len(),
                         y0.len(),
@@ -929,6 +929,7 @@ where
     }
 
     // Create a new result with the projected solution
+    let t_len = original_result.t.len();
     let projected_result = DAEResult {
         t: original_result.t,
         x: x_projected,
@@ -936,7 +937,7 @@ where
         success: original_result.success,
         message: original_result.message,
         n_eval: original_result.n_eval,
-        n_constraint_eval: original_result.n_constraint_eval + original_result.t.len(),
+        n_constraint_eval: original_result.n_constraint_eval + t_len,
         n_steps: original_result.n_steps,
         n_accepted: original_result.n_accepted,
         n_rejected: original_result.n_rejected,

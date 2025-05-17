@@ -173,13 +173,11 @@ where
         distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Select k nearest neighbors
-        for k in 0..n_neighbors.min(distances.len()) {
-            let (j, _) = distances[k];
-
+        for (j, _) in distances.iter().take(n_neighbors.min(distances.len())) {
             // Create binary adjacency matrix (1 for neighbors, 0 otherwise)
-            affinity[[i, j]] = F::one();
+            affinity[[i, *j]] = F::one();
             // Make it symmetric
-            affinity[[j, i]] = F::one();
+            affinity[[*j, i]] = F::one();
         }
     }
 
@@ -414,7 +412,7 @@ where
         // Subtract affinity matrix: L = D - A
         for i in 0..n_samples {
             for j in 0..n_samples {
-                lap[[i, j]] = lap[[i, j]] - affinity[[i, j]];
+                lap[[i, j]] -= affinity[[i, j]];
             }
         }
 
@@ -426,7 +424,7 @@ where
     let n = laplacian.nrows();
     let mut stabilized_laplacian = laplacian.clone();
     for i in 0..n {
-        stabilized_laplacian[[i, i]] = stabilized_laplacian[[i, i]] + F::from(1e-10).unwrap();
+        stabilized_laplacian[[i, i]] += F::from(1e-10).unwrap();
     }
 
     // Use the stabilized matrix for eigenvalue decomposition
@@ -569,8 +567,7 @@ mod tests {
         assert_eq!(unique_labels.len(), 2);
 
         // Check cluster quality with silhouette score
-        let silhouette =
-            silhouette_score(data.view(), labels.mapv(|x| x as i32).view(), None).unwrap();
+        let silhouette = silhouette_score(data.view(), labels.mapv(|x| x as i32).view()).unwrap();
         assert!(
             silhouette > 0.8,
             "Silhouette score should be high for well-separated clusters"

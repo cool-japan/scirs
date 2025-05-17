@@ -12,11 +12,11 @@
 //! * Alternating Direction Implicit (ADI) method: An efficient operator splitting method for
 //!   multi-dimensional problems
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 use std::time::Instant;
 
 use crate::pde::{
-    Domain, BoundaryCondition, PDEError, PDEResult, PDESolution, PDESolverInfo, PDEType,
+    Domain, BoundaryCondition, PDEError, PDEResult, PDESolution, PDESolverInfo,
     BoundaryConditionType, BoundaryLocation
 };
 use crate::pde::finite_difference::FiniteDifferenceScheme;
@@ -256,7 +256,7 @@ impl CrankNicolson1D {
         // Store solutions
         let save_every = self.options.save_every.unwrap_or(1);
         let mut solutions = Vec::with_capacity((num_steps + 1) / save_every + 1);
-        solutions.push(u_current.clone().into_shape((nx, 1)).unwrap());
+        solutions.push(u_current.clone().into_shape_with_order((nx, 1)).unwrap());
         
         // Initialize matrices for Crank-Nicolson method
         let mut a_matrix = Array2::zeros((nx, nx));
@@ -293,7 +293,7 @@ impl CrankNicolson1D {
             
             // Save solution if needed
             if (step + 1) % save_every == 0 || step == num_steps - 1 {
-                solutions.push(u_current.clone().into_shape((nx, 1)).unwrap());
+                solutions.push(u_current.clone().into_shape_with_order((nx, 1)).unwrap());
             }
             
             // Print progress if verbose
@@ -606,7 +606,7 @@ impl CrankNicolson1D {
         
         // Check if the matrix is tridiagonal
         let is_tridiagonal = a.indexed_iter()
-            .filter(|((i, j), &val)| val != 0.0 && (i as isize - j as isize).abs() > 1)
+            .filter(|((i, j), &val)| val != 0.0 && (*i as isize - *j as isize).abs() > 1)
             .count() == 0;
         
         if is_tridiagonal {
@@ -864,7 +864,7 @@ impl BackwardEuler1D {
         // Store solutions
         let save_every = self.options.save_every.unwrap_or(1);
         let mut solutions = Vec::with_capacity((num_steps + 1) / save_every + 1);
-        solutions.push(u_current.clone().into_shape((nx, 1)).unwrap());
+        solutions.push(u_current.clone().into_shape_with_order((nx, 1)).unwrap());
         
         // Initialize coefficient matrix for Backward Euler method
         let mut a_matrix = Array2::zeros((nx, nx));
@@ -899,7 +899,7 @@ impl BackwardEuler1D {
             
             // Save solution if needed
             if (step + 1) % save_every == 0 || step == num_steps - 1 {
-                solutions.push(u_current.clone().into_shape((nx, 1)).unwrap());
+                solutions.push(u_current.clone().into_shape_with_order((nx, 1)).unwrap());
             }
             
             // Print progress if verbose
@@ -1026,7 +1026,7 @@ impl BackwardEuler1D {
                         },
                         BoundaryConditionType::Robin => {
                             // a*u + b*du/dx = c
-                            if let Some([a_val, b_val, c_val]) = bc.coefficients {
+                            if let Some([a_val, b_val, _c_val]) = bc.coefficients {
                                 // Use second-order one-sided difference for the derivative:
                                 // (-3u_0 + 4u_1 - u_2)/(2dx)
                                 
@@ -1082,7 +1082,7 @@ impl BackwardEuler1D {
                         },
                         BoundaryConditionType::Robin => {
                             // a*u + b*du/dx = c
-                            if let Some([a_val, b_val, c_val]) = bc.coefficients {
+                            if let Some([a_val, b_val, _c_val]) = bc.coefficients {
                                 // Use second-order one-sided difference for the derivative:
                                 // (3u_{nx-1} - 4u_{nx-2} + u_{nx-3})/(2dx)
                                 
@@ -1180,7 +1180,7 @@ impl BackwardEuler1D {
         
         // Check if the matrix is tridiagonal
         let is_tridiagonal = a.indexed_iter()
-            .filter(|((i, j), &val)| val != 0.0 && (i as isize - j as isize).abs() > 1)
+            .filter(|((i, j), &val)| val != 0.0 && (*i as isize - *j as isize).abs() > 1)
             .count() == 0;
         
         if is_tridiagonal {

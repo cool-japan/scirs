@@ -46,17 +46,17 @@ impl Eq for PriorityQueueElement {}
 
 impl PartialOrd for PriorityQueueElement {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // Use reverse ordering for min-heap (smaller distances have higher priority)
-        other
-            .reachability_distance
-            .partial_cmp(&self.reachability_distance)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for PriorityQueueElement {
     fn cmp(&self, other: &Self) -> Ordering {
         // Use reverse ordering for min-heap (smaller distances have higher priority)
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        other
+            .reachability_distance
+            .partial_cmp(&self.reachability_distance)
+            .unwrap_or(Ordering::Equal)
     }
 }
 

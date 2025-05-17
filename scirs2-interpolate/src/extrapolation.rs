@@ -766,6 +766,7 @@ pub fn make_reflection_extrapolator<T: Float + std::fmt::Display>(
 /// # Returns
 ///
 /// A new `Extrapolator` configured for cubic extrapolation
+#[allow(clippy::too_many_arguments)]
 pub fn make_cubic_extrapolator<T: Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
@@ -804,6 +805,7 @@ pub fn make_cubic_extrapolator<T: Float + std::fmt::Display>(
 /// # Returns
 ///
 /// A new `Extrapolator` configured for exponential extrapolation
+#[allow(clippy::too_many_arguments)]
 pub fn make_exponential_extrapolator<T: Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
@@ -978,9 +980,9 @@ mod tests {
         let lower_bound = 0.0;
         let upper_bound = 1.0;
         let lower_value = 1.0;
-        let upper_value = 2.718281828459045; // e^1
+        let upper_value = std::f64::consts::E; // e^1
         let lower_derivative = 1.0;
-        let upper_derivative = 2.718281828459045; // e^1
+        let upper_derivative = std::f64::consts::E; // e^1
         let lower_rate = 1.0;
         let upper_rate = 1.0;
 

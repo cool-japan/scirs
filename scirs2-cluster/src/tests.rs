@@ -2,13 +2,13 @@
 
 #[cfg(test)]
 mod tests {
-    use super::metrics::silhouette_score;
-    use super::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
+    use crate::metrics::silhouette_score;
+    use crate::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
     use ndarray::{array, Array2};
 
     #[test]
     fn test_whiten() {
-        let data =
+        let data: Array2<f64> =
             Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.5, 2.5, 0.5, 1.5, 2.0, 3.0]).unwrap();
 
         let whitened = whiten(&data).unwrap();
@@ -17,8 +17,8 @@ mod tests {
         let n_features = whitened.shape()[1];
         for j in 0..n_features {
             let column = whitened.column(j);
-            let mean = column.mean().unwrap();
-            let var = column.var(1.0);
+            let mean: f64 = column.mean().unwrap();
+            let var: f64 = column.var(1.0);
 
             assert!((mean.abs()) < 1e-6, "Mean should be close to 0");
             assert!((var - 1.0).abs() < 1e-6, "Variance should be close to 1");

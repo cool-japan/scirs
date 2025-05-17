@@ -11,8 +11,8 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::HamiltonianFn;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use ndarray::Array1;
+use std::fmt::{Debug, Formatter};
 
 /// A separable Hamiltonian system with H(q, p) = T(p) + V(q)
 ///
@@ -24,7 +24,6 @@ use num_traits::Float;
 /// - Simple harmonic oscillator: H = p²/2 + q²/2
 /// - Pendulum: H = p²/2 - cos(q)
 /// - Kepler problem: H = |p|²/2 - 1/|q|
-#[derive(Debug)]
 pub struct SeparableHamiltonian<F: IntegrateFloat> {
     /// Kinetic energy function T(p)
     kinetic_energy: Box<dyn Fn(F, &Array1<F>) -> F + Send + Sync>,
@@ -37,6 +36,17 @@ pub struct SeparableHamiltonian<F: IntegrateFloat> {
 
     /// Gradient of kinetic energy ∇T(p)
     kinetic_gradient: Option<Box<dyn Fn(F, &Array1<F>) -> Array1<F> + Send + Sync>>,
+}
+
+impl<F: IntegrateFloat> Debug for SeparableHamiltonian<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SeparableHamiltonian")
+            .field("kinetic_energy", &"<dyn Fn>")
+            .field("potential_energy", &"<dyn Fn>")
+            .field("potential_gradient", &"<dyn Fn>")
+            .field("kinetic_gradient", &"<dyn Fn>")
+            .finish()
+    }
 }
 
 impl<F: IntegrateFloat> SeparableHamiltonian<F> {
@@ -52,8 +62,8 @@ impl<F: IntegrateFloat> SeparableHamiltonian<F> {
     /// A new separable Hamiltonian system
     pub fn new<K, V>(kinetic_energy: K, potential_energy: V) -> Self
     where
-        K: Fn(F, &Array1<F>) -> F + 'static,
-        V: Fn(F, &Array1<F>) -> F + 'static,
+        K: Fn(F, &Array1<F>) -> F + 'static + Send + Sync,
+        V: Fn(F, &Array1<F>) -> F + 'static + Send + Sync,
     {
         SeparableHamiltonian {
             kinetic_energy: Box::new(kinetic_energy),
@@ -75,8 +85,8 @@ impl<F: IntegrateFloat> SeparableHamiltonian<F> {
     /// Self with gradients configured
     pub fn with_gradients<KG, VG>(mut self, kinetic_gradient: KG, potential_gradient: VG) -> Self
     where
-        KG: Fn(F, &Array1<F>) -> Array1<F> + 'static,
-        VG: Fn(F, &Array1<F>) -> Array1<F> + 'static,
+        KG: Fn(F, &Array1<F>) -> Array1<F> + 'static + Send + Sync,
+        VG: Fn(F, &Array1<F>) -> Array1<F> + 'static + Send + Sync,
     {
         self.kinetic_gradient = Some(Box::new(kinetic_gradient));
         self.potential_gradient = Some(Box::new(potential_gradient));
@@ -239,7 +249,6 @@ impl<F: IntegrateFloat> HamiltonianFn<F> for SeparableHamiltonian<F> {
 ///
 /// This represents Hamiltonian systems where the equations of motion are
 /// specified directly without assuming a separable structure.
-#[derive(Debug)]
 pub struct HamiltonianSystem<F: IntegrateFloat> {
     /// Function computing dq/dt = ∂H/∂p
     dq_dt_fn: Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + Send + Sync>,
@@ -264,8 +273,8 @@ impl<F: IntegrateFloat> HamiltonianSystem<F> {
     /// A new Hamiltonian system
     pub fn new<DQ, DP>(dq_dt_fn: DQ, dp_dt_fn: DP) -> Self
     where
-        DQ: Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + 'static,
-        DP: Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + 'static,
+        DQ: Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + 'static + Send + Sync,
+        DP: Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + 'static + Send + Sync,
     {
         HamiltonianSystem {
             dq_dt_fn: Box::new(dq_dt_fn),
@@ -285,7 +294,7 @@ impl<F: IntegrateFloat> HamiltonianSystem<F> {
     /// Self with Hamiltonian function configured
     pub fn with_hamiltonian<H>(mut self, hamiltonian_fn: H) -> Self
     where
-        H: Fn(F, &Array1<F>, &Array1<F>) -> F + 'static,
+        H: Fn(F, &Array1<F>, &Array1<F>) -> F + 'static + Send + Sync,
     {
         self.hamiltonian_fn = Some(Box::new(hamiltonian_fn));
         self
@@ -317,6 +326,7 @@ impl<F: IntegrateFloat> HamiltonianFn<F> for HamiltonianSystem<F> {
 mod tests {
     use super::*;
     use crate::symplectic::leapfrog::StormerVerlet;
+    use crate::symplectic::SymplecticIntegrator;
     use ndarray::array;
     use std::f64::consts::PI;
 
@@ -327,9 +337,9 @@ mod tests {
         let system = SeparableHamiltonian::harmonic_oscillator();
 
         // Initial state
-        let q0 = array![1.0];
-        let p0 = array![0.0];
-        let t0 = 0.0;
+        let q0 = array![1.0_f64];
+        let p0 = array![0.0_f64];
+        let t0 = 0.0_f64;
 
         // Verify equations of motion
         let dq = system.dq_dt(t0, &q0, &p0).unwrap();
@@ -338,14 +348,15 @@ mod tests {
         // For harmonic oscillator:
         // dq/dt = p
         // dp/dt = -q
-        assert!((dq[0] - p0[0]).abs() < 1e-10);
-        assert!((dp[0] + q0[0]).abs() < 1e-10);
+        assert!((dq[0] - p0[0]).abs() < 1e-10_f64);
+        assert!((dp[0] + q0[0]).abs() < 1e-10_f64);
 
         // Verify Hamiltonian function
-        if let Some(h_fn) = system.hamiltonian() {
-            let energy = h_fn(t0, &q0, &p0).unwrap();
+        let h_fn = system.hamiltonian();
+        if let Some(hamiltonian) = h_fn {
+            let energy = hamiltonian(t0, &q0, &p0).unwrap();
             // H = p²/2 + q²/2 = 0 + 0.5 = 0.5
-            assert!((energy - 0.5).abs() < 1e-10);
+            assert!((energy - 0.5_f64).abs() < 1e-10);
         } else {
             panic!("Hamiltonian function not provided");
         }
@@ -415,22 +426,23 @@ mod tests {
         );
 
         // Initial state
-        let q0 = array![1.0];
-        let p0 = array![0.0];
-        let t0 = 0.0;
+        let q0 = array![1.0_f64];
+        let p0 = array![0.0_f64];
+        let t0 = 0.0_f64;
 
         // Verify equations of motion
         let dq = system.dq_dt(t0, &q0, &p0).unwrap();
         let dp = system.dp_dt(t0, &q0, &p0).unwrap();
 
-        assert!((dq[0] - p0[0]).abs() < 1e-10);
-        assert!((dp[0] + q0[0]).abs() < 1e-10);
+        assert!((dq[0] - p0[0]).abs() < 1e-10_f64);
+        assert!((dp[0] + q0[0]).abs() < 1e-10_f64);
 
         // Verify Hamiltonian function
-        if let Some(h_fn) = system.hamiltonian() {
-            let energy = h_fn(t0, &q0, &p0).unwrap();
+        let h_fn = system.hamiltonian();
+        if let Some(hamiltonian) = h_fn {
+            let energy = hamiltonian(t0, &q0, &p0).unwrap();
             // H = p²/2 + q²/2 = 0 + 0.5 = 0.5
-            assert!((energy - 0.5).abs() < 1e-10);
+            assert!((energy - 0.5_f64).abs() < 1e-10);
         } else {
             panic!("Hamiltonian function not provided");
         }

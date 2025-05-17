@@ -1,4 +1,4 @@
-use ndarray::{Array, Array1, Array2};
+use ndarray::Array1;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::Write;
@@ -68,7 +68,7 @@ fn generate_test_signals() -> (
 
     // 3. Exponential chirp (110 Hz to 880 Hz)
     let chirp = t.mapv(|ti| {
-        let rate = (880.0 / 110.0).ln() / duration;
+        let rate = (880.0_f64 / 110.0).ln() / duration;
         let phase = 2.0 * PI * 110.0 * (rate * ti).exp() / rate;
         phase.sin()
     });
@@ -126,7 +126,7 @@ fn analyze_single_tone(signal: &Array1<f64>) {
     };
 
     // Compute CQT
-    let cqt_result = constant_q_transform(signal, config).unwrap();
+    let cqt_result = constant_q_transform(signal, &config).unwrap();
 
     // Compute magnitude in dB
     let magnitude = cqt_magnitude(&cqt_result, true, None);
@@ -166,7 +166,7 @@ fn analyze_chord(signal: &Array1<f64>) {
     };
 
     // Compute CQT
-    let cqt_result = constant_q_transform(signal, config).unwrap();
+    let cqt_result = constant_q_transform(signal, &config).unwrap();
 
     // Compute magnitude in dB
     let magnitude = cqt_magnitude(&cqt_result, true, None);
@@ -226,7 +226,7 @@ fn analyze_chirp(signal: &Array1<f64>) {
     };
 
     // Compute CQT spectrogram
-    let cqt_result = constant_q_transform(signal, config).unwrap();
+    let cqt_result = constant_q_transform(signal, &config).unwrap();
 
     // Compute magnitude in dB
     let magnitude = cqt_magnitude(&cqt_result, true, None);
@@ -279,7 +279,7 @@ fn compare_frequency_resolution(signal: &Array1<f64>) {
     };
 
     // Compute CQT
-    let cqt_result = constant_q_transform(signal, cqt_config).unwrap();
+    let cqt_result = constant_q_transform(signal, &cqt_config).unwrap();
 
     // Compute magnitude in dB
     let cqt_magnitude_db = cqt_magnitude(&cqt_result, true, None);
@@ -294,9 +294,15 @@ fn compare_frequency_resolution(signal: &Array1<f64>) {
 
     // For comparison, compute FFT-based power spectral density (with linear frequency bins)
     let n_fft = 8192; // Large FFT size for better resolution
-    let (frequencies, psd) =
-        scirs2_signal::spectral::periodogram(signal.as_slice().unwrap(), n_fft, 22050.0, "density")
-            .unwrap();
+    let (frequencies, psd) = scirs2_signal::spectral::periodogram(
+        signal.as_slice().unwrap(),
+        Some(22050.0),
+        None,
+        Some(n_fft),
+        None,
+        Some("density"),
+    )
+    .unwrap();
 
     // Convert PSD to dB
     let max_psd = psd.iter().cloned().fold(0.0, f64::max);
@@ -360,7 +366,7 @@ fn test_reconstruction(signal: &Array1<f64>) {
     };
 
     // Compute CQT
-    let cqt_result = constant_q_transform(signal, config).unwrap();
+    let cqt_result = constant_q_transform(signal, &config).unwrap();
 
     // Reconstruct signal
     let reconstructed = inverse_constant_q_transform(&cqt_result, Some(signal.len())).unwrap();
@@ -403,7 +409,7 @@ fn analyze_chord_progression(signal: &Array1<f64>) {
     };
 
     // Compute CQT
-    let cqt_result = constant_q_transform(signal, config).unwrap();
+    let cqt_result = constant_q_transform(signal, &config).unwrap();
 
     // Compute chromagram
     let chroma = chromagram(&cqt_result, None, None).unwrap();

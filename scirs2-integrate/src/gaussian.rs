@@ -8,7 +8,6 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Gauss-Legendre quadrature nodes and weights

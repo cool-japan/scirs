@@ -3,7 +3,7 @@
 //! This module implements the Radau IIA method for solving ODEs
 //! with support for mass matrices of the form M(t,y)·y' = f(t,y).
 
-use crate::error::{IntegrateError, IntegrateResult};
+use crate::error::IntegrateResult;
 use crate::ode::types::{MassMatrix, MassMatrixType, ODEMethod, ODEOptions, ODEResult};
 use crate::ode::utils::common::calculate_error_weights;
 use crate::ode::utils::dense_output::DenseSolution;
@@ -11,10 +11,8 @@ use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use crate::ode::utils::jacobian;
 use crate::ode::utils::linear_solvers::solve_linear_system;
 use crate::ode::utils::mass_matrix;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use crate::IntegrateFloat;
+use ndarray::{Array1, Array2, ArrayView1};
 
 /// Solve an ODE with mass matrix using the Radau IIA method
 ///
@@ -43,7 +41,7 @@ pub fn radau_method_with_mass<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: IntegrateFloat,
+    F: IntegrateFloat + std::iter::Sum,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
     // Initialize
@@ -215,15 +213,15 @@ where
                 let error_norm = (r1
                     .iter()
                     .zip(error_weights.iter())
-                    .map(|(r, &w)| (r / w).powi(2))
+                    .map(|(r, &w)| (*r / w).powi(2))
                     .sum::<F>()
                     + r2.iter()
                         .zip(error_weights.iter())
-                        .map(|(r, &w)| (r / w).powi(2))
+                        .map(|(r, &w)| (*r / w).powi(2))
                         .sum::<F>()
                     + r3.iter()
                         .zip(error_weights.iter())
-                        .map(|(r, &w)| (r / w).powi(2))
+                        .map(|(r, &w)| (*r / w).powi(2))
                         .sum::<F>())
                 .sqrt()
                     / F::from_f64(3.0).unwrap().sqrt();
@@ -271,9 +269,9 @@ where
                 }
 
                 // Solve the linear systems to get Newton updates
-                let dk1 = solve_linear_system(&j1, &r1)?;
-                let dk2 = solve_linear_system(&j2, &r2)?;
-                let dk3 = solve_linear_system(&j3, &r3)?;
+                let dk1 = solve_linear_system(&j1.view(), &r1.view())?;
+                let dk2 = solve_linear_system(&j2.view(), &r2.view())?;
+                let dk3 = solve_linear_system(&j3.view(), &r3.view())?;
                 n_lu += 3;
 
                 // Update the stage values
@@ -282,11 +280,11 @@ where
                 k3 -= &dk3;
             } else {
                 // For non-identity mass matrices, we need to evaluate M·(k_i - y)/h
-                let mut r1 = Array1::<F>::zeros(n_dim);
-                let mut r2 = Array1::<F>::zeros(n_dim);
-                let mut r3 = Array1::<F>::zeros(n_dim);
+                let r1;// = Array1::<F>::zeros(n_dim);
+                let r2;// = Array1::<F>::zeros(n_dim);
+                let r3;// = Array1::<F>::zeros(n_dim);
 
-                if let Some(m1_matrix) = m1 {
+                if let Some(ref m1_matrix) = m1 {
                     let diff1 = (&k1 - &y) / h;
                     r1 = m1_matrix.dot(&diff1)
                         - (f1.clone() * a11 + f2.clone() * a12 + f3.clone() * a13);
@@ -296,7 +294,7 @@ where
                         - (f1.clone() * a11 + f2.clone() * a12 + f3.clone() * a13);
                 }
 
-                if let Some(m2_matrix) = m2 {
+                if let Some(ref m2_matrix) = m2 {
                     let diff2 = (&k2 - &y) / h;
                     r2 = m2_matrix.dot(&diff2)
                         - (f1.clone() * a21 + f2.clone() * a22 + f3.clone() * a23);
@@ -306,7 +304,7 @@ where
                         - (f1.clone() * a21 + f2.clone() * a22 + f3.clone() * a23);
                 }
 
-                if let Some(m3_matrix) = m3 {
+                if let Some(ref m3_matrix) = m3 {
                     let diff3 = (&k3 - &y) / h;
                     r3 = m3_matrix.dot(&diff3)
                         - (f1.clone() * a31 + f2.clone() * a32 + f3.clone() * a33);
@@ -320,15 +318,15 @@ where
                 let error_norm = (r1
                     .iter()
                     .zip(error_weights.iter())
-                    .map(|(r, &w)| (r / w).powi(2))
+                    .map(|(r, &w)| (*r / w).powi(2))
                     .sum::<F>()
                     + r2.iter()
                         .zip(error_weights.iter())
-                        .map(|(r, &w)| (r / w).powi(2))
+                        .map(|(r, &w)| (*r / w).powi(2))
                         .sum::<F>()
                     + r3.iter()
                         .zip(error_weights.iter())
-                        .map(|(r, &w)| (r / w).powi(2))
+                        .map(|(r, &w)| (*r / w).powi(2))
                         .sum::<F>())
                 .sqrt()
                     / F::from_f64(3.0).unwrap().sqrt();
@@ -367,7 +365,7 @@ where
                 let mut j2 = Array2::<F>::zeros((n_dim, n_dim));
                 let mut j3 = Array2::<F>::zeros((n_dim, n_dim));
 
-                if let Some(m1_matrix) = m1 {
+                if let Some(ref m1_matrix) = m1 {
                     for i in 0..n_dim {
                         for j in 0..n_dim {
                             j1[[i, j]] = m1_matrix[[i, j]] / h - a11 * jac[[i, j]];
@@ -383,7 +381,7 @@ where
                     }
                 }
 
-                if let Some(m2_matrix) = m2 {
+                if let Some(ref m2_matrix) = m2 {
                     for i in 0..n_dim {
                         for j in 0..n_dim {
                             j2[[i, j]] = m2_matrix[[i, j]] / h - a22 * jac[[i, j]];
@@ -399,7 +397,7 @@ where
                     }
                 }
 
-                if let Some(m3_matrix) = m3 {
+                if let Some(ref m3_matrix) = m3 {
                     for i in 0..n_dim {
                         for j in 0..n_dim {
                             j3[[i, j]] = m3_matrix[[i, j]] / h - a33 * jac[[i, j]];
@@ -416,9 +414,9 @@ where
                 }
 
                 // Solve the linear systems to get Newton updates
-                let dk1 = solve_linear_system(&j1, &r1)?;
-                let dk2 = solve_linear_system(&j2, &r2)?;
-                let dk3 = solve_linear_system(&j3, &r3)?;
+                let dk1 = solve_linear_system(&j1.view(), &r1.view())?;
+                let dk2 = solve_linear_system(&j2.view(), &r2.view())?;
+                let dk3 = solve_linear_system(&j3.view(), &r3.view())?;
                 n_lu += 3;
 
                 // Update the stage values
@@ -449,7 +447,7 @@ where
         let error_norm = error
             .iter()
             .zip(error_weights.iter())
-            .map(|(e, &w)| (e / w).powi(2))
+            .map(|(e, &w)| (*e / w).powi(2))
             .sum::<F>()
             .sqrt();
 
@@ -497,7 +495,7 @@ where
     };
 
     // Create dense output if requested
-    let dense_output = if opts.dense_output {
+    let _dense_output = if opts.dense_output {
         Some(DenseSolution::new(
             t_values.clone(),
             y_values.clone(),

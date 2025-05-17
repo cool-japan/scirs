@@ -17,8 +17,9 @@ pub struct OptimizationOptions<F> {
     pub tolerance: F,
     /// Initial step size
     pub initial_step: F,
-    /// Line search parameters
+    /// Line search parameter alpha
     pub line_search_alpha: F,
+    /// Line search parameter beta 
     pub line_search_beta: F,
     /// Gradient tolerance
     pub grad_tolerance: F,
@@ -188,9 +189,9 @@ where
         let mut r = &q * gamma;
 
         // Second loop
-        for i in 0..self.s_history.len() {
+        for (i, alpha_val) in alpha.iter().enumerate() {
             let beta = self.rho_history[i] * self.y_history[i].dot(&r);
-            r = &r + &(&self.s_history[i] * (alpha[i] - beta));
+            r = &r + &(&self.s_history[i] * (*alpha_val - beta));
         }
 
         Ok(r.mapv(|x| -x))

@@ -271,6 +271,7 @@ pub fn evaluate_bispline<F: Float + FromPrimitive + Debug>(
 /// # Returns
 ///
 /// The value of the specified derivative of the tensor-product B-spline at (x, y)
+#[allow(clippy::too_many_arguments)]
 pub fn evaluate_bispline_derivative<F: Float + FromPrimitive + Debug>(
     x: F,
     y: F,
@@ -346,6 +347,7 @@ pub fn evaluate_bispline_derivative<F: Float + FromPrimitive + Debug>(
 /// # Returns
 ///
 /// The integral of the tensor-product B-spline over the rectangular region
+#[allow(clippy::too_many_arguments)]
 pub fn integrate_bispline<F: Float + FromPrimitive + Debug>(
     xa: F,
     xb: F,

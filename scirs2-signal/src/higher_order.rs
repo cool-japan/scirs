@@ -199,7 +199,7 @@ pub fn bicoherence(
 
     // Compute bispectrum and power spectrum for normalization
     let (bis_complex, f1_axis, f2_axis) = compute_bispectrum(signal, &config)?;
-    let (power_spectrum, f_axis) = compute_power_spectrum(signal, &config)?;
+    let (power_spectrum, _f_axis) = compute_power_spectrum(signal, &config)?;
 
     // Create the bicoherence
     let mut bicoherence = Array2::zeros(bis_complex.raw_dim());
@@ -261,7 +261,7 @@ fn compute_bispectrum(
     });
 
     // Create frequency axes
-    let freq_step = config.fs / nfft as f64;
+    let _freq_step = config.fs / nfft as f64;
     let max_freq = config.fs / 2.0;
     let freq_bins = (nfft / 2) + 1;
 
@@ -474,7 +474,7 @@ fn compute_power_spectrum(
     });
 
     // Calculate frequency axis
-    let freq_step = config.fs / nfft as f64;
+    let _freq_step = config.fs / nfft as f64;
     let max_freq = config.fs / 2.0;
     let freq_bins = (nfft / 2) + 1;
 
@@ -711,7 +711,7 @@ pub fn biamplitude(
     let n_bins = (nfft / 2) + 1;
 
     // Create frequency axes
-    let freq_step = fs / nfft as f64;
+    let _freq_step = fs / nfft as f64;
     let max_freq = fs / 2.0;
 
     let f1_axis = Array1::linspace(0.0, max_freq, n_bins);

@@ -9,13 +9,8 @@
 //! The preconditioners in this module are designed to be used with the
 //! Krylov-based DAE solvers in the `krylov_dae` module.
 
-use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
-use crate::error::{IntegrateError, IntegrateResult};
-use crate::ode::ODEMethod;
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
+use ndarray::{Array1, Array2};
 
 /// Block ILU(0) Preconditioner for Semi-explicit DAE Systems
 ///
@@ -23,13 +18,13 @@ use std::fmt::Debug;
 /// exploits the block structure of semi-explicit DAE systems.
 ///
 /// The semi-explicit DAE system:
-/// ```
+/// ```ignore
 /// x' = f(x, y, t)
 /// 0 = g(x, y, t)
 /// ```
 ///
 /// leads to a Jacobian matrix of the form:
-/// ```
+/// ```ignore
 /// | I - h*β*∂f/∂x  -h*β*∂f/∂y |
 /// | ∂g/∂x          ∂g/∂y      |
 /// ```
@@ -42,9 +37,13 @@ pub struct BlockILUPreconditioner<F: IntegrateFloat> {
     n_y: usize,
 
     // Block components
+    #[allow(dead_code)]
     a_block: Array2<F>, // I - h*β*∂f/∂x
+    #[allow(dead_code)]
     b_block: Array2<F>, // -h*β*∂f/∂y
+    #[allow(dead_code)]
     c_block: Array2<F>, // ∂g/∂x
+    #[allow(dead_code)]
     d_block: Array2<F>, // ∂g/∂y
 
     // ILU(0) factors for the blocks

@@ -1,12 +1,11 @@
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2};
 use scirs2_interpolate::local::mls::{MovingLeastSquares, PolynomialBasis, WeightFunction};
 use scirs2_interpolate::local::polynomial::{LocalPolynomialConfig, LocalPolynomialRegression};
 use scirs2_interpolate::parallel::{
-    make_parallel_loess, make_parallel_mls, ParallelConfig, ParallelLocalPolynomialRegression,
-    ParallelMovingLeastSquares,
+    ParallelConfig, ParallelLocalPolynomialRegression, ParallelMovingLeastSquares,
 };
 use std::error::Error;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Parallel Interpolation Performance Comparison");

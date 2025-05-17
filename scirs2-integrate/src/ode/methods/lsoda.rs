@@ -8,8 +8,7 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 
 /// Method type for LSODA
@@ -176,6 +175,7 @@ struct StiffnessDetector<F: IntegrateFloat> {
     // How many non-stiffness indicators needed to go back to Adams
     non_stiffness_threshold: usize,
     // Scale factors for detection
+    #[allow(dead_code)]
     step_size_ratio_threshold: F,
 }
 

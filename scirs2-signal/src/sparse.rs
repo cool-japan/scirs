@@ -7,7 +7,7 @@ use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array1, Array2};
 use num_complex::Complex64;
 use rand::seq::SliceRandom;
-use rand::{rngs::StdRng, thread_rng as rng, Rng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rand_distr::Distribution;
 use rustfft::{num_complex::Complex, FftPlanner};
 use scirs2_linalg::{solve, vector_norm};
@@ -334,7 +334,7 @@ pub fn ista(
     phi: &Array2<f64>,
     config: &SparseRecoveryConfig,
 ) -> SignalResult<Array1<f64>> {
-    let (m, n) = phi.dim();
+    let (_m, n) = phi.dim();
 
     // Compute step size (based on max eigenvalue of phi^T * phi)
     // For efficiency, we use an approximation: 1 / (largest singular value of phi)^2
@@ -406,7 +406,7 @@ pub fn fista(
     phi: &Array2<f64>,
     config: &SparseRecoveryConfig,
 ) -> SignalResult<Array1<f64>> {
-    let (m, n) = phi.dim();
+    let (_m, n) = phi.dim();
 
     // Compute step size (based on max eigenvalue of phi^T * phi)
     // For efficiency, we use an approximation: 1 / (largest singular value of phi)^2
@@ -759,7 +759,7 @@ pub fn subspace_pursuit(
     };
 
     // Initialize solution
-    let x = Array1::<f64>::zeros(n);
+    let _x = Array1::<f64>::zeros(n);
 
     // Initialize residual
     let mut residual = y.clone();
@@ -929,7 +929,7 @@ pub fn smooth_l0(
     phi: &Array2<f64>,
     config: &SparseRecoveryConfig,
 ) -> SignalResult<Array1<f64>> {
-    let (m, n) = phi.dim();
+    let (_m, _n) = phi.dim();
 
     // Initialize solution with minimum L2 norm solution
     let phi_t = phi.t();
@@ -1098,7 +1098,7 @@ pub fn compressed_sensing_recover(
 /// * Recovered full signal
 pub fn sparse_transform_recovery<F, G>(
     y: &Array1<f64>,
-    transform_forward: F,
+    _transform_forward: F,
     transform_inverse: G,
     mask: Option<&Array1<f64>>,
     method: SparseRecoveryMethod,
@@ -1409,7 +1409,7 @@ pub fn matrix_coherence(phi: &Array2<f64>) -> SignalResult<f64> {
 ///
 /// * Estimated RIP constant
 pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
-    let (m, n) = phi.dim();
+    let (_m, n) = phi.dim();
 
     if s > n {
         return Err(SignalError::ValueError(
@@ -1422,7 +1422,7 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
     // Instead, we use a Monte Carlo approach with random sparse vectors.
 
     const NUM_TRIALS: usize = 1000;
-    let mut rng = rng();
+    let mut rng = rand::rng();
 
     let mut min_ratio = f64::MAX;
     let mut max_ratio = 0.0;
@@ -1439,7 +1439,7 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
         // Set random values at these indices
         for &idx in &indices {
             // Random value between -1 and 1
-            x[idx] = 2.0 * rng.gen::<f64>() - 1.0;
+            x[idx] = 2.0 * rng.random::<f64>() - 1.0;
         }
 
         // Normalize x
@@ -1479,13 +1479,9 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
 pub fn measure_sparsity(x: &Array1<f64>, threshold: f64) -> SignalResult<f64> {
     let n = x.len();
 
-    // Count non-zero elements (L0 norm approximation)
-    let mut count = 0;
-    for &val in x.iter() {
-        if val.abs() > threshold {
-            count += 1;
-        }
-    }
+    // Note: the threshold parameter is currently unused in this function
+    // The function uses L1/L2 norm ratio instead of counting non-zero elements
+    let _ = threshold;
 
     // L1 norm
     let l1_norm = vector_norm(&x.view(), 1)

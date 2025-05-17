@@ -10,11 +10,8 @@ use crate::ode::utils::common::{calculate_error_weights, extrapolate};
 use crate::ode::utils::jacobian::{
     newton_solve, JacobianManager, JacobianStrategy, JacobianStructure, NewtonParameters,
 };
-use crate::ode::utils::linear_solvers::LinearSolverType;
-use ndarray::{Array1, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use std::fmt::Debug;
 use crate::IntegrateFloat;
+use ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using an enhanced Backward Differentiation Formula (BDF) method
 ///
@@ -105,7 +102,7 @@ where
     let mut step_count = 0;
     let mut accepted_steps = 0;
     let mut rejected_steps = 0;
-    let mut newton_iters = 0;
+    let mut newton_iters = F::zero();
     let mut n_lu = 0;
     let mut n_jac = 0;
 
@@ -234,6 +231,9 @@ where
             y.clone()
         };
 
+        // Create a function evaluations counter as a Cell to allow mutation
+        let func_evals_cell = std::cell::Cell::new(0usize);
+
         // Create the nonlinear system for BDF
         let bdf_system = |y_next: &Array1<F>| {
             // Compute BDF residual:
@@ -241,7 +241,7 @@ where
 
             // Evaluate function at the current iterate
             let f_eval = f(next_t, y_next.view());
-            func_evals += 1;
+            func_evals_cell.set(func_evals_cell.get() + 1);
 
             // Initialize residual with c_0 * y_{n+1} term
             let mut residual = y_next.clone() * coeffs[0];
@@ -259,6 +259,9 @@ where
 
             residual
         };
+
+        // Update func_evals after the closure is done
+        let prev_func_evals = func_evals;
 
         // Set up Newton solver parameters based on Jacobian strategy
         let update_freq = match jacobian_strategy {
@@ -285,11 +288,11 @@ where
 
         match newton_result {
             Ok(result) => {
-                // Update counters
-                func_evals += result.func_evals;
+                // Update counters including Cell-based func_evals
+                func_evals = prev_func_evals + func_evals_cell.get() + result.func_evals;
                 n_jac += result.jac_evals;
                 n_lu += result.linear_solves;
-                newton_iters += result.iterations;
+                newton_iters = newton_iters + F::from(result.iterations).unwrap();
 
                 // Update state
                 let y_next = result.solution;
@@ -369,7 +372,7 @@ where
                         // Strategy: try to estimate the error of the current order and one order higher
                         if current_order < order
                             && error < opts.rtol
-                            && y_values.len() >= current_order + 1
+                            && y_values.len() > current_order
                         {
                             // Consider increasing order
                             current_order += 1;

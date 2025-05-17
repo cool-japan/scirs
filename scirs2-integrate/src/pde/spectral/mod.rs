@@ -12,7 +12,7 @@
 //! - Fast transforms using FFT
 //! - High accuracy for smooth solutions
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1};
 use std::f64::consts::PI;
 use std::time::Instant;
 
@@ -22,7 +22,7 @@ use std::time::Instant;
 use crate::gaussian::GaussLegendreQuadrature;
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    PDESolution, PDESolverInfo,
 };
 
 /// Type of spectral basis functions
@@ -169,7 +169,7 @@ pub fn chebyshev_transform(u: &ArrayView1<f64>) -> Array1<f64> {
     for k in 0..n {
         let mut sum = 0.0;
         for j in 0..n {
-            let x_j = (j as f64 * PI / (n - 1) as f64).cos();
+            let _x_j = (j as f64 * PI / (n - 1) as f64).cos();
             sum += u[j] * (k as f64 * j as f64 * PI / (n - 1) as f64).cos();
         }
 
@@ -190,7 +190,7 @@ pub fn chebyshev_inverse_transform(coeffs: &ArrayView1<f64>) -> Array1<f64> {
     let mut u = Array1::zeros(n);
 
     // Generate Chebyshev points
-    let x = chebyshev_points(n);
+    let _x = chebyshev_points(n);
 
     // Evaluate the Chebyshev series at each point
     for j in 0..n {
@@ -269,7 +269,7 @@ pub fn legendre_points(n: usize) -> (Array1<f64>, Array1<f64>) {
         // We compute P'ₙ₋₁(x) and P''ₙ₋₁(x) using recurrence relations
         for _ in 0..10 {
             // Usually converges in a few iterations
-            let p = legendre_polynomial(n - 1, x);
+            let _p = legendre_polynomial(n - 1, x);
             let dp = legendre_polynomial_derivative(n - 1, x);
             // d/dx[(1-x²)P'ₙ₋₁(x)] = -2x·P'ₙ₋₁(x) + (1-x²)P''ₙ₋₁(x)
             // We approximate P''ₙ₋₁(x) using a central difference on P'ₙ₋₁
@@ -468,6 +468,7 @@ pub struct FourierSpectralSolver1D {
     source_term: Box<dyn Fn(f64) -> f64 + Send + Sync>,
 
     /// Boundary conditions (must be periodic for Fourier methods)
+    #[allow(dead_code)]
     boundary_conditions: Vec<BoundaryCondition<f64>>,
 
     /// Solver options
@@ -540,9 +541,9 @@ impl FourierSpectralSolver1D {
 
         // Transform source term to frequency domain
         let f_hat = if self.options.use_real_transform {
-            rfft(&f_values.view())?
+            rfft(&f_values.to_owned())
         } else {
-            fft(&f_values.view())?
+            fft(&f_values.to_owned())
         };
 
         // Set up wavenumbers (accounting for rfft vs fft)
@@ -562,14 +563,14 @@ impl FourierSpectralSolver1D {
         }
 
         // Solve in frequency domain: -k²û = f̂ => û = -f̂/k²
-        let mut u_hat = Array1::zeros_like(&f_hat);
+        let mut u_hat = Array1::from_elem(f_hat.len(), num_complex::Complex::new(0.0, 0.0));
 
         for i in 0..n_freq {
             if i == 0 {
                 // k=0 mode corresponds to the constant/mean of the solution
                 // For Poisson's equation, this is determined by the source term's mean
-                // Typically, we set it to zero (solution is determined up to a constant)
-                u_hat[i] = 0.0;
+                // Typically, we set it to zero (solution is determined up to a constant)  
+                u_hat[i] = num_complex::Complex::new(0.0, 0.0);
             } else {
                 // For all other modes, solve using the inverse Laplacian
                 u_hat[i] = -f_hat[i] / (k[i] * k[i]);
@@ -580,15 +581,15 @@ impl FourierSpectralSolver1D {
         if self.options.use_dealiasing {
             let cutoff = 2 * n / 3;
             for i in cutoff..n_freq {
-                u_hat[i] = 0.0;
+                u_hat[i] = num_complex::Complex::new(0.0, 0.0);
             }
         }
 
         // Transform back to physical space
         let u = if self.options.use_real_transform {
-            irfft(&u_hat.view(), Some(n))?
+            irfft(&u_hat)
         } else {
-            ifft(&u_hat.view())?
+            ifft(&u_hat).mapv(|c| c.re)
         };
 
         // Compute residual norm
@@ -597,18 +598,18 @@ impl FourierSpectralSolver1D {
         // Second derivative using spectral accuracy
         let u_xx = if self.options.use_real_transform {
             // Compute second derivative in frequency domain
-            let mut u_xx_hat = Array1::zeros_like(&u_hat);
+            let mut u_xx_hat = Array1::zeros(u_hat.len());
             for i in 0..n_freq {
                 u_xx_hat[i] = -k[i] * k[i] * u_hat[i];
             }
-            irfft(&u_xx_hat.view(), Some(n))?
+            irfft(&u_xx_hat)
         } else {
             // Compute second derivative in frequency domain
-            let mut u_xx_hat = Array1::zeros_like(&u_hat);
+            let mut u_xx_hat = Array1::zeros(u_hat.len());
             for i in 0..n_freq {
                 u_xx_hat[i] = -k[i] * k[i] * u_hat[i];
             }
-            ifft(&u_xx_hat.view())?
+            ifft(&u_xx_hat).mapv(|c| c.re)
         };
 
         // Residual: d²u/dx² - f(x)
@@ -617,13 +618,13 @@ impl FourierSpectralSolver1D {
         }
 
         // Compute L2 norm of residual
-        let residual_norm = (residual.iter().map(|r| r * r).sum::<f64>() / n as f64).sqrt();
+        let residual_norm = (residual.mapv(|r| r * r).sum() / n as f64).sqrt();
 
         let computation_time = start_time.elapsed().as_secs_f64();
 
         Ok(SpectralResult {
             u,
-            coefficients: u_hat,
+            coefficients: u_hat.mapv(|c| c.re),
             grid,
             residual_norm,
             num_iterations: 1, // Direct method, one iteration
@@ -1047,7 +1048,7 @@ impl LegendreSpectralSolver1D {
         let n = self.options.num_modes;
 
         // Generate Legendre-Gauss-Lobatto grid in [-1, 1] and weights
-        let (lgb_grid, weights) = legendre_points(n);
+        let (lgb_grid, _weights) = legendre_points(n);
 
         // Map Legendre grid to the domain [a, b]
         let mut grid = Array1::zeros(n);
@@ -1291,7 +1292,7 @@ impl From<SpectralResult> for PDESolution<f64> {
         // Clone the result.u to avoid the move issue
         let u_clone = result.u.clone();
         let u_len = u_clone.len();
-        let u_reshaped = u_clone.into_shape((u_len, 1)).unwrap();
+        let u_reshaped = u_clone.into_shape_with_order((u_len, 1)).unwrap();
         values.push(u_reshaped);
 
         // Create solver info

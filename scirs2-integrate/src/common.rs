@@ -25,6 +25,7 @@ pub trait IntegrateFloat:
     + std::ops::DivAssign
     + Display
     + LowerExp
+    + std::iter::Sum
 {
 }
 
@@ -41,5 +42,6 @@ impl<T> IntegrateFloat for T where
         + std::ops::DivAssign
         + Display
         + LowerExp
+        + std::iter::Sum
 {
 }

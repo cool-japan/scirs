@@ -5,10 +5,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array1, Array2};
-use rustfft::{
-    num_complex::Complex,
-    FftPlanner,
-};
+use rustfft::{num_complex::Complex, FftPlanner};
 use scirs2_linalg::{cholesky, solve, solve_triangular};
 use std::f64::consts::PI;
 

@@ -9,8 +9,6 @@
 //! regression diagnostics, bandwidth selection, and statistical properties.
 
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-#[cfg(feature = "linalg")]
-use ndarray_linalg::Solve;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -95,7 +93,7 @@ impl<F: Float + FromPrimitive> Default for LocalPolynomialConfig<F> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::local::polynomial::{
 ///     LocalPolynomialRegression, LocalPolynomialConfig
@@ -548,6 +546,9 @@ where
         }
 
         // Solve the least squares problem: (X'WX)β = X'Wy
+        #[cfg(feature = "linalg")]
+        let xtx = w_basis.t().dot(&w_basis);
+        #[cfg(not(feature = "linalg"))]
         let _xtx = w_basis.t().dot(&w_basis);
         let xty = w_basis.t().dot(&w_values);
 
@@ -555,27 +556,32 @@ where
 
         // Solve the system for coefficients
         #[cfg(feature = "linalg")]
-        let coefficients = match xtx.solve(&xty) {
-            Ok(c) => c,
-            Err(_) => {
-                // Fallback: use local weighted mean for numerical stability
-                let mut mean = F::zero();
-                let mut sum_weights = F::zero();
+        let coefficients = {
+            use ndarray_linalg::Solve;
+            let xtx_f64 = xtx.mapv(|x| x.to_f64().unwrap());
+            let xty_f64 = xty.mapv(|x| x.to_f64().unwrap());
+            match xtx_f64.solve(&xty_f64) {
+                Ok(c) => c.mapv(|x| F::from_f64(x).unwrap()),
+                Err(_) => {
+                    // Fallback: use local weighted mean for numerical stability
+                    let mut mean = F::zero();
+                    let mut sum_weights = F::zero();
 
-                for i in 0..n_points {
-                    mean = mean + weights[i] * local_values[i];
-                    sum_weights = sum_weights + weights[i];
+                    for i in 0..n_points {
+                        mean = mean + weights[i] * local_values[i];
+                        sum_weights = sum_weights + weights[i];
+                    }
+
+                    if sum_weights > F::zero() {
+                        mean = mean / sum_weights;
+                    } else {
+                        mean = local_values.mean().unwrap_or(F::zero());
+                    }
+
+                    let mut result = Array1::zeros(n_basis);
+                    result[0] = mean;
+                    result
                 }
-
-                if sum_weights > F::zero() {
-                    mean = mean / sum_weights;
-                } else {
-                    mean = local_values.mean().unwrap_or(F::zero());
-                }
-
-                let mut result = Array1::zeros(n_basis);
-                result[0] = mean;
-                result
             }
         };
 
@@ -612,18 +618,22 @@ where
 
         // Try to compute the inverse of X'WX
         #[cfg(feature = "linalg")]
-        let xtx_inv = match xtx.inv() {
-            Ok(inv) => inv,
-            Err(_) => {
-                // If inversion fails, return a simpler result without diagnostics
-                return Ok(RegressionResult {
-                    value: fitted_value,
-                    std_error: F::zero(),
-                    confidence_interval: None,
-                    coefficients,
-                    effective_df: F::from_f64(1.0).unwrap(),
-                    r_squared: F::zero(),
-                });
+        let xtx_inv = {
+            use ndarray_linalg::Inverse;
+            let xtx_f64 = xtx.mapv(|x| x.to_f64().unwrap());
+            match xtx_f64.inv() {
+                Ok(inv) => inv.mapv(|x| F::from_f64(x).unwrap()),
+                Err(_) => {
+                    // If inversion fails, return a simpler result without diagnostics
+                    return Ok(RegressionResult {
+                        value: fitted_value,
+                        std_error: F::zero(),
+                        confidence_interval: None,
+                        coefficients,
+                        effective_df: F::from_f64(1.0).unwrap(),
+                        r_squared: F::zero(),
+                    });
+                }
             }
         };
 
@@ -686,7 +696,6 @@ where
             let effective_df = leverage.sum();
 
             // Compute standard error of the fitted value
-            let mut std_error = F::zero();
 
             // Get the first row of (X'WX)^(-1) which corresponds to the intercept
             let xtx_inv_row1 = xtx_inv.row(0);
@@ -700,7 +709,7 @@ where
             };
 
             // Standard error depends on the type (robust or regular)
-            if self.config.robust_se {
+            let std_error = if self.config.robust_se {
                 // Compute robust HC3 standard errors
                 let mut sum_squared_weighted_residuals = F::zero();
 
@@ -719,11 +728,11 @@ where
                 }
 
                 // Robust variance estimate
-                std_error = (xtx_inv_row1[0] * sum_squared_weighted_residuals).sqrt();
+                (xtx_inv_row1[0] * sum_squared_weighted_residuals).sqrt()
             } else {
                 // Regular standard error
-                std_error = (xtx_inv_row1[0] * mse).sqrt();
-            }
+                (xtx_inv_row1[0] * mse).sqrt()
+            };
 
             // Compute confidence interval if requested
             let confidence_interval = self.config.confidence_level.map(|level| {

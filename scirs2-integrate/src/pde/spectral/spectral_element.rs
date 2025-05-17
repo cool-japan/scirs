@@ -12,14 +12,13 @@
 //! - Isoparametric mapping for curved elements
 //! - Exponential convergence for smooth solutions
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
-use std::f64::consts::PI;
+use ndarray::{s, Array1, Array2, Array3, ArrayView1};
 use std::time::Instant;
 
 use crate::pde::spectral::{legendre_diff_matrix, legendre_points};
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    PDESolution, PDESolverInfo,
 };
 
 /// Quadrilateral element for 2D spectral element methods
@@ -109,7 +108,6 @@ impl SpectralElementMesh2D {
         // Create elements and nodes
         let mut elements = Vec::with_capacity(nx * ny);
         let mut nodes = Vec::new();
-        let mut global_to_local = Vec::new();
         let mut boundary_nodes = Vec::new();
 
         // Global node counter
@@ -122,7 +120,7 @@ impl SpectralElementMesh2D {
         for j in 0..(ny * n - (ny - 1)) {
             for i in 0..(nx * n - (nx - 1)) {
                 // Determine if this is an element edge or interior node
-                let is_edge = i % n == 0
+                let _is_edge = i % n == 0
                     || i == nx * n - (nx - 1) - 1
                     || j % n == 0
                     || j == ny * n - (ny - 1) - 1;
@@ -170,7 +168,7 @@ impl SpectralElementMesh2D {
         }
 
         // Initialize global to local mapping
-        global_to_local = vec![Vec::new(); node_count];
+        let mut global_to_local = vec![Vec::new(); node_count];
 
         // Now create elements using the global node indices
         for ey in 0..ny {
@@ -551,15 +549,23 @@ impl SpectralElementPoisson2D {
 
             for j in 0..n {
                 for i in 0..n {
-                    let node = j * n + i;
+                    let _node = j * n + i;
 
                     // Fill tensor products
                     for k in 0..n {
-                        dx_tensor[[i, j, k * n..(k + 1) * n]].assign(&d1_x.slice(s![k, ..]));
-                        dy_tensor[[i, j, k * n..(k + 1) * n]].fill(0.0);
-
-                        dx_tensor[[i, j, k..n * n, n]].fill(0.0);
-                        dy_tensor[[i, j, k..n * n, n]].assign(&d1_y.slice(s![k, ..]));
+                        // First pattern: dx_tensor[[i, j, k * n..(k + 1) * n]]
+                        dx_tensor.slice_mut(s![i, j, k * n..(k + 1) * n]).assign(&d1_x.slice(s![k, ..]));
+                        dy_tensor.slice_mut(s![i, j, k * n..(k + 1) * n]).fill(0.0);
+                    }
+                    
+                    // Second pattern: tensors at indices from k to n*n
+                    for k in 0..n {
+                        for idx in k..(n * n) {
+                            if idx % n == k {
+                                dx_tensor[[i, j, idx]] = 0.0;
+                                dy_tensor[[i, j, idx]] = d1_y[[k, idx / n]];
+                            }
+                        }
                     }
                 }
             }
@@ -598,7 +604,7 @@ impl SpectralElementPoisson2D {
 
                     // Which local nodes do i and j correspond to?
                     let i_local = (i % n, i / n);
-                    let j_local = (j % n, j / n);
+                    let _j_local = (j % n, j / n);
 
                     // Mass matrix has nice tensor product structure for Lagrange polynomials
                     // If nodes are far apart, the integral is zero (orthogonality)
@@ -710,7 +716,6 @@ impl SpectralElementPoisson2D {
                     // add boundary integrals
 
                     // Find the appropriate boundary condition value
-                    let mut bc_value = 0.0;
                     let (x, y) = mesh.nodes[node_idx];
 
                     for bc in &self.boundary_conditions {
@@ -731,7 +736,7 @@ impl SpectralElementPoisson2D {
                         };
 
                         if is_on_boundary {
-                            bc_value = bc.value;
+                            let bc_value = bc.value;
 
                             // For non-zero Neumann BC, we need to add the boundary integral
                             if bc_value != 0.0 {
@@ -770,7 +775,7 @@ impl SpectralElementPoisson2D {
                         };
 
                         if is_on_boundary {
-                            if let Some([a, b, c]) = bc.coefficients {
+                            if let Some([a, _b, c]) = bc.coefficients {
                                 // For Robin BCs: a*u + b*du/dn = c
                                 // We need to modify the matrix and load vector
                                 global_matrix[[node_idx, node_idx]] += a;
@@ -909,8 +914,8 @@ impl From<SpectralElementResult> for PDESolution<f64> {
         x_coords.sort_by(|a, b| a.partial_cmp(b).unwrap());
         y_coords.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        x_coords.dedup_by(|a, b| (a - b).abs() < 1e-10);
-        y_coords.dedup_by(|a, b| (a - b).abs() < 1e-10);
+        x_coords.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
+        y_coords.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
         let mut grids = Vec::new();
         grids.push(Array1::from_vec(x_coords));
@@ -918,7 +923,8 @@ impl From<SpectralElementResult> for PDESolution<f64> {
 
         // Create solution values as a 2D array for each grid point
         let mut values = Vec::new();
-        let u_reshaped = result.u.into_shape((result.u.len(), 1)).unwrap();
+        let n_points = result.u.len();
+        let u_reshaped = result.u.into_shape_with_order((n_points, 1)).unwrap();
         values.push(u_reshaped);
 
         // Create solver info

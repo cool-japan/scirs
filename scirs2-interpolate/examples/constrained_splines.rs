@@ -1,6 +1,6 @@
 use ndarray::{s, Array1};
 use scirs2_interpolate::bspline::ExtrapolateMode as BSplineExtrapolateMode;
-use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint, ConstraintType};
+use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
 
 fn main() {
     println!("Constrained Splines Examples");
@@ -213,7 +213,7 @@ fn main() {
     let region2_indices = x_fine_region
         .iter()
         .enumerate()
-        .filter(|(_, &x)| x >= 3.0 && x < 7.0)
+        .filter(|(_, &x)| (3.0..7.0).contains(&x))
         .map(|(i, _)| i)
         .collect::<Vec<_>>();
 

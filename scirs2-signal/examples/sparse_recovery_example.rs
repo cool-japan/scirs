@@ -1,7 +1,6 @@
 /// Example demonstrating sparse signal recovery techniques
-use ndarray::{Array1, Array2, Axis};
-use rand::seq::SliceRandom;
-use rand::Rng;
+use ndarray::{Array1, Array2};
+use rand::{seq::SliceRandom, Rng};
 use scirs2_linalg::vector_norm;
 use scirs2_signal::sparse::{
     compressed_sensing_recover, image_inpainting, measure_sparsity, random_sensing_matrix,
@@ -39,7 +38,7 @@ fn basic_compressed_sensing_example() {
     let n = 100; // Signal dimension
     let k = 5; // Sparsity level (number of non-zero entries)
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Generate random sparse signal
     let mut original_signal = Array1::zeros(n);
@@ -49,7 +48,7 @@ fn basic_compressed_sensing_example() {
 
     for &idx in &indices {
         // Random non-zero values between -10 and 10
-        original_signal[idx] = 20.0 * rng.gen::<f64>() - 10.0;
+        original_signal[idx] = 20.0 * rng.random::<f64>() - 10.0;
     }
 
     // Number of measurements
@@ -65,7 +64,7 @@ fn basic_compressed_sensing_example() {
     let noise_level = 0.01;
     let noisy_y = y
         .clone()
-        .mapv(|v| v + noise_level * (2.0 * rng.gen::<f64>() - 1.0));
+        .mapv(|v| v + noise_level * (2.0 * rng.random::<f64>() - 1.0));
 
     // Sparse recovery configuration
     let config = SparseRecoveryConfig {
@@ -82,7 +81,7 @@ fn basic_compressed_sensing_example() {
     // Calculate recovery error
     let diff = &original_signal - &recovered_signal;
     let recovery_error =
-        vector_norm(&diff, 2.0).unwrap() / vector_norm(&original_signal, 2.0).unwrap();
+        vector_norm(&diff.view(), 2).unwrap() / vector_norm(&original_signal.view(), 2).unwrap();
 
     println!(
         "Original signal sparsity: {:.3}",
@@ -108,7 +107,7 @@ fn basic_compressed_sensing_example() {
 fn missing_samples_recovery_example() {
     // Create a sparse signal in frequency domain
     let n = 128;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Generate a signal with a few frequency components
     let mut signal = Array1::zeros(n);
@@ -124,7 +123,7 @@ fn missing_samples_recovery_example() {
     let mut observed_signal = signal.clone();
 
     for i in 0..n {
-        if rng.gen::<f64>() < missing_ratio {
+        if rng.random::<f64>() < missing_ratio {
             observed_signal[i] = f64::NAN;
         }
     }
@@ -182,7 +181,7 @@ fn missing_samples_recovery_example() {
 fn sparse_denoising_example() {
     // Create a signal that is sparse in the frequency domain
     let n = 128;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Generate a clean signal with a few frequency components
     let mut clean_signal = Array1::zeros(n);
@@ -196,7 +195,7 @@ fn sparse_denoising_example() {
     let noise_level = 0.5;
     let noisy_signal = clean_signal
         .clone()
-        .mapv(|v| v + noise_level * (2.0 * rng.gen::<f64>() - 1.0));
+        .mapv(|v| v + noise_level * (2.0 * rng.random::<f64>() - 1.0));
 
     // Calculate SNR of noisy signal
     let signal_power = clean_signal.mapv(|v| v * v).sum() / n as f64;
@@ -233,8 +232,8 @@ fn sparse_denoising_example() {
     // Calculate RMSE
     let diff_before = &clean_signal - &noisy_signal;
     let diff_after = &clean_signal - &denoised_signal;
-    let rmse_before = vector_norm(&diff_before, 2.0).unwrap() / (n as f64).sqrt();
-    let rmse_after = vector_norm(&diff_after, 2.0).unwrap() / (n as f64).sqrt();
+    let rmse_before = vector_norm(&diff_before.view(), 2).unwrap() / (n as f64).sqrt();
+    let rmse_after = vector_norm(&diff_after.view(), 2).unwrap() / (n as f64).sqrt();
 
     println!("RMSE before denoising: {:.6}", rmse_before);
     println!("RMSE after denoising: {:.6}", rmse_after);
@@ -246,7 +245,7 @@ fn compare_recovery_methods() {
     let n = 200; // Signal dimension
     let k = 10; // Sparsity level
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Generate random sparse signal
     let mut original_signal = Array1::zeros(n);
@@ -255,7 +254,7 @@ fn compare_recovery_methods() {
     indices.truncate(k);
 
     for &idx in &indices {
-        original_signal[idx] = 20.0 * rng.gen::<f64>() - 10.0;
+        original_signal[idx] = 20.0 * rng.random::<f64>() - 10.0;
     }
 
     // Number of measurements
@@ -271,7 +270,7 @@ fn compare_recovery_methods() {
     let noise_level = 0.02;
     let noisy_y = y
         .clone()
-        .mapv(|v| v + noise_level * (2.0 * rng.gen::<f64>() - 1.0));
+        .mapv(|v| v + noise_level * (2.0 * rng.random::<f64>() - 1.0));
 
     // Recovery methods to compare
     let methods = vec![
@@ -307,8 +306,8 @@ fn compare_recovery_methods() {
 
         // Calculate recovery error
         let diff = &original_signal - &recovered_signal;
-        let recovery_error =
-            vector_norm(&diff, 2.0).unwrap() / vector_norm(&original_signal, 2.0).unwrap();
+        let recovery_error = vector_norm(&diff.view(), 2).unwrap()
+            / vector_norm(&original_signal.view(), 2).unwrap();
 
         // Measure output sparsity
         let sparsity = measure_sparsity(&recovered_signal, 1e-6).unwrap();
@@ -343,14 +342,14 @@ fn image_inpainting_example() {
     }
 
     // Create random missing pixels
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let missing_ratio = 0.3; // 30% of pixels are missing
 
     let mut masked_image = image.clone();
 
     for i in 0..n_rows {
         for j in 0..n_cols {
-            if rng.gen::<f64>() < missing_ratio {
+            if rng.random::<f64>() < missing_ratio {
                 masked_image[[i, j]] = f64::NAN;
             }
         }

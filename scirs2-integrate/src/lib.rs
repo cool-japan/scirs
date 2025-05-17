@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 //! Numerical integration module
 //!
 //! This module provides implementations of various numerical integration methods.

@@ -6,13 +6,12 @@ use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::methods::{
     bdf_method, dop853_method, enhanced_bdf_method, enhanced_lsoda_method, euler_method,
-    lsoda_method, radau_method, rk23_method, rk45_method, rk4_method,
+    lsoda_method, radau_method, radau_method_with_mass, rk23_method, rk45_method, rk4_method,
 };
 use crate::ode::types::{MassMatrix, MassMatrixType, ODEMethod, ODEOptions, ODEResult};
 use crate::ode::utils::dense_output::DenseSolution;
 use crate::ode::utils::events::{
-    EventAction, EventDirection, EventHandler, EventRecord, EventSpec, ODEOptionsWithEvents,
-    ODEResultWithEvents,
+    EventAction, EventHandler, ODEOptionsWithEvents, ODEResultWithEvents,
 };
 use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use crate::ode::utils::mass_matrix;
@@ -99,7 +98,7 @@ pub fn solve_ivp<F, Func>(
     options: Option<ODEOptions<F>>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: IntegrateFloat,
+    F: IntegrateFloat + std::iter::Sum,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Use default options if none provided
@@ -212,8 +211,8 @@ fn solve_ivp_with_mass_internal<F, Func>(
     opts: ODEOptions<F>,
 ) -> IntegrateResult<ODEResult<F>>
 where
-    F: IntegrateFloat,
-    Func: Fn(F, ArrayView1<F>) -> Array1<F>,
+    F: IntegrateFloat + std::iter::Sum,
+    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Check if mass matrix is compatible with the initial state
     mass_matrix::check_mass_compatibility(&mass_matrix, t_span[0], y0.view())?;
@@ -248,7 +247,9 @@ where
 
                 // For explicit methods, transform to standard form: y' = M⁻¹·f(t,y)
                 _ => {
-                    let transformed_f = mass_matrix::transform_to_standard_form(f, &mass_matrix);
+                    // Clone f before moving into the transformation
+                    let f_clone = f.clone();
+                    let transformed_f = mass_matrix::transform_to_standard_form(f_clone, &mass_matrix);
 
                     // Create a wrapper function that handles the IntegrateResult return type
                     let wrapper_f = move |t: F, y: ArrayView1<F>| -> Array1<F> {
@@ -263,8 +264,25 @@ where
                     let mut new_opts = opts.clone();
                     new_opts.mass_matrix = None;
 
-                    // Solve the transformed system
-                    solve_ivp(wrapper_f, t_span, y0, Some(new_opts))
+                    // Solve the transformed system by dispatching to the appropriate method
+                    let [t_start, t_end] = t_span;
+                    let h0 = new_opts.h0.unwrap_or_else(|| {
+                        let span = t_end - t_start;
+                        span * F::from_f64(0.01).unwrap() // 1% of interval
+                    });
+                    
+                    match new_opts.method {
+                        ODEMethod::Euler => euler_method(wrapper_f, t_span, y0, h0, new_opts),
+                        ODEMethod::RK4 => rk4_method(wrapper_f, t_span, y0, h0, new_opts),
+                        ODEMethod::RK45 => rk45_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::RK23 => rk23_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::DOP853 => dop853_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::Radau => radau_method_with_mass(wrapper_f, t_span, y0, mass_matrix.clone(), new_opts),
+                        ODEMethod::Bdf => bdf_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::EnhancedBDF => enhanced_bdf_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::LSODA => lsoda_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::EnhancedLSODA => enhanced_lsoda_method(wrapper_f, t_span, y0, new_opts),
+                    }
                 }
             }
         }
@@ -311,8 +329,30 @@ where
                     let mut new_opts = opts.clone();
                     new_opts.mass_matrix = None;
 
-                    // Solve the wrapped system
-                    solve_ivp(wrapper_f, t_span, y0, Some(new_opts))
+                    // Calculate default initial step size if not provided
+                    let h0 = new_opts.h0.unwrap_or_else(|| {
+                        let span = t_span[1] - t_span[0];
+                        span * F::from_f64(0.01).unwrap() // 1% of interval
+                    });
+
+                    // Dispatch directly to the appropriate method
+                    match new_opts.method {
+                        ODEMethod::Euler => euler_method(wrapper_f, t_span, y0, h0, new_opts),
+                        ODEMethod::RK4 => rk4_method(wrapper_f, t_span, y0, h0, new_opts),
+                        ODEMethod::RK45 => rk45_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::RK23 => rk23_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::DOP853 => dop853_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::Radau => radau_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::LSODA => lsoda_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::EnhancedLSODA => enhanced_lsoda_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::EnhancedBDF => enhanced_bdf_method(wrapper_f, t_span, y0, new_opts),
+                        ODEMethod::Bdf => {
+                            // BDF shouldn't reach here because we already handled it above
+                            Err(IntegrateError::NotImplementedError(
+                                "BDF method should not reach this case".to_string()
+                            ))
+                        }
+                    }
                 }
             }
         }
@@ -405,7 +445,7 @@ pub fn solve_ivp_with_events<F, Func, EventFunc>(
 ) -> IntegrateResult<ODEResultWithEvents<F>>
 where
     F: IntegrateFloat,
-    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
+    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone + 'static,
     EventFunc: Fn(F, ArrayView1<F>) -> F,
 {
     // Extract base options and ensure dense output is enabled for event detection

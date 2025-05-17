@@ -5,7 +5,6 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Options for controlling the behavior of the adaptive quadrature algorithm

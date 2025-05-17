@@ -17,13 +17,13 @@ fn main() {
         let labels_i32 = labels.mapv(|x| x as i32);
 
         // Calculate silhouette score
-        let score = silhouette_score(data.view(), labels_i32.view(), None).unwrap();
+        let score = silhouette_score(data.view(), labels_i32.view()).unwrap();
 
         println!("K = {}: Silhouette score = {:.4}", k, score);
 
         // For k=3, also show individual sample scores
         if k == 3 {
-            let sample_scores = silhouette_samples(data.view(), labels_i32.view(), None).unwrap();
+            let sample_scores = silhouette_samples(data.view(), labels_i32.view()).unwrap();
 
             println!("\nSilhouette scores for individual samples (k=3):");
 

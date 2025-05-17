@@ -8,15 +8,13 @@
 //! - Poisson's equation: ∇²u = f(x, y)
 //! - Laplace's equation: ∇²u = 0
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2};
 use std::time::Instant;
 
-use crate::pde::finite_difference::{
-    first_derivative_matrix, second_derivative_matrix, FiniteDifferenceScheme,
-};
+use crate::pde::finite_difference::FiniteDifferenceScheme;
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
-    PDESolution, PDESolverInfo, PDEType,
+    PDESolution, PDESolverInfo,
 };
 
 /// Result of elliptic PDE solution
@@ -573,8 +571,8 @@ impl PoissonSolver2D {
         &self,
         a: &mut Array2<f64>,
         b: &mut Array1<f64>,
-        x_grid: &Array1<f64>,
-        y_grid: &Array1<f64>,
+        _x_grid: &Array1<f64>,
+        _y_grid: &Array1<f64>,
         nx: usize,
         ny: usize,
         dx: f64,

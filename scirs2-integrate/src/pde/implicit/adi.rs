@@ -5,7 +5,7 @@
 //! ADI methods split multi-dimensional problems into sequences of one-dimensional
 //! problems, making them computationally efficient.
 
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis, s};
+use ndarray::{Array1, Array2, Array3, ArrayView1, s};
 use std::time::Instant;
 
 use crate::pde::{
@@ -13,7 +13,7 @@ use crate::pde::{
     BoundaryConditionType, BoundaryLocation
 };
 use crate::pde::finite_difference::FiniteDifferenceScheme;
-use super::{ImplicitMethod, ImplicitOptions};
+use super::ImplicitOptions;
 
 /// Result of ADI method solution
 pub struct ADIResult {
@@ -764,7 +764,7 @@ impl ADI2D {
         u: &mut Array2<f64>,
         x_grid: &Array1<f64>,
         y_grid: &Array1<f64>,
-        t: f64,
+        _t: f64,
     ) {
         let nx = x_grid.len();
         let ny = y_grid.len();

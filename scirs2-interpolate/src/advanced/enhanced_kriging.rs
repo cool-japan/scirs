@@ -1,8 +1,6 @@
 use crate::advanced::kriging::{CovarianceFunction, PredictionResult};
 use crate::error::{InterpolateError, InterpolateResult};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-#[cfg(feature = "linalg")]
-use ndarray_linalg::{Solve, SVD};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;

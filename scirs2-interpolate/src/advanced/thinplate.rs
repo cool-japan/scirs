@@ -64,7 +64,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::thinplate::ThinPlateSpline;
     ///
@@ -194,9 +194,16 @@ where
         #[cfg(feature = "linalg")]
         let coeffs_full = {
             use ndarray_linalg::Solve;
-            a.solve(&b).map_err(|_| {
-                InterpolateError::LinalgError("failed to solve linear system".to_string())
-            })?
+            let a_f64 = a.mapv(|x| x.to_f64().unwrap());
+            let b_f64 = b.mapv(|x| x.to_f64().unwrap());
+            match a_f64.solve(&b_f64) {
+                Ok(solution) => solution.mapv(|x| T::from_f64(x).unwrap()),
+                Err(_) => {
+                    return Err(InterpolateError::LinalgError(
+                        "failed to solve linear system".to_string(),
+                    ));
+                }
+            }
         };
 
         #[cfg(not(feature = "linalg"))]

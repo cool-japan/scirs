@@ -926,7 +926,7 @@ mod tests {
         let results = balltree.points_within_radius(&query, radius).unwrap();
 
         // Should include the origin and possibly (0.5, 0.5, 0.5) depending on threshold
-        assert!(results.len() >= 1);
+        assert!(!results.is_empty());
         assert_eq!(results[0].0, 0); // Origin should be first
     }
 }

@@ -82,9 +82,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let total_points = grid_size.pow(3);
     let mut processed = 0;
 
-    for (_i, &x) in x_vals.iter().enumerate() {
-        for (_j, &y) in y_vals.iter().enumerate() {
-            for (_k, &z) in z_vals.iter().enumerate() {
+    for &x in x_vals.iter() {
+        for &y in y_vals.iter() {
+            for &z in z_vals.iter() {
                 let query = Array1::from_vec(vec![x, y, z]);
 
                 // Interpolate using Sibson method
@@ -146,11 +146,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("```python");
     println!("import pandas as pd");
     println!("import plotly.graph_objects as go");
-    println!("");
+    println!();
     println!("# Load the data");
     println!("sibson_data = pd.read_csv('sibson_3d_interpolation.csv')");
     println!("original_data = pd.read_csv('original_3d_data.csv')");
-    println!("");
+    println!();
     println!("# Create a 3D scatter plot for the interpolated values");
     println!("fig = go.Figure(data=[");
     println!("    go.Scatter3d(");
@@ -182,7 +182,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("        name='Original Data Points'");
     println!("    )");
     println!("]);");
-    println!("");
+    println!();
     println!("fig.update_layout(");
     println!("    title='3D Natural Neighbor Interpolation',");
     println!("    scene=dict(");
@@ -191,7 +191,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("        zaxis_title='Z',");
     println!("    )");
     println!(")");
-    println!("");
+    println!();
     println!("fig.show()");
     println!("```");
 
