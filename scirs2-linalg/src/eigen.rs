@@ -567,7 +567,7 @@ where
     // Clear numerical noise in the tridiagonal matrix
     for i in 0..n {
         for j in 0..n {
-            if j < i - 1 || j > i + 1 {
+            if (i > 0 && j < i - 1) || j > i + 1 {
                 t[[i, j]] = F::zero();
             }
         }
@@ -635,7 +635,9 @@ where
             let b = c * subdiag[i];
 
             r = (f * f + g * g).sqrt();
-            subdiag[i - 1] = r;
+            if i > l {
+                subdiag[i - 1] = r;
+            }
 
             if r == F::zero() {
                 diag[i + 1] -= p;
@@ -652,10 +654,12 @@ where
             g = c * r - b;
 
             // Accumulate the transformation in the eigenvector matrix
-            for k in 0..n {
-                let temp = q[[k, i]];
-                q[[k, i]] = s * q[[k, i - 1]] + c * temp;
-                q[[k, i - 1]] = c * q[[k, i - 1]] - s * temp;
+            if i > l {
+                for k in 0..n {
+                    let temp = q[[k, i]];
+                    q[[k, i]] = s * q[[k, i - 1]] + c * temp;
+                    q[[k, i - 1]] = c * q[[k, i - 1]] - s * temp;
+                }
             }
         }
 

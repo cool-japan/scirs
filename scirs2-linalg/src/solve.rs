@@ -78,7 +78,17 @@ where
     }
 
     // For larger systems, use LU decomposition
-    let (p, l, u) = lu(a)?;
+    let (p, l, u) = match lu(a) {
+        Err(LinalgError::SingularMatrixError(msg)) => {
+            return Err(LinalgError::SingularMatrixError(format!(
+                "{}\nMatrix shape: {:?}\nOperation: solve linear system",
+                msg,
+                a.shape()
+            )))
+        }
+        Err(e) => return Err(e),
+        Ok(result) => result,
+    };
 
     // Compute P*b
     let mut pb = Array1::zeros(b.len());
@@ -161,9 +171,10 @@ where
                 x[i] = sum;
             } else {
                 if a[[i, i]].abs() < F::epsilon() {
-                    return Err(LinalgError::SingularMatrixError(
-                        "Diagonal element is zero in triangular solve".to_string(),
-                    ));
+                    return Err(LinalgError::SingularMatrixError(format!(
+                        "Diagonal element is zero in triangular solve\nMatrix shape: {:?}",
+                        a.shape()
+                    )));
                 }
                 x[i] = sum / a[[i, i]];
             }
@@ -179,9 +190,10 @@ where
                 x[i] = sum;
             } else {
                 if a[[i, i]].abs() < F::epsilon() {
-                    return Err(LinalgError::SingularMatrixError(
-                        "Diagonal element is zero in triangular solve".to_string(),
-                    ));
+                    return Err(LinalgError::SingularMatrixError(format!(
+                        "Diagonal element is zero in triangular solve\nMatrix shape: {:?}",
+                        a.shape()
+                    )));
                 }
                 x[i] = sum / a[[i, i]];
             }
@@ -222,7 +234,7 @@ where
 /// ```
 pub fn lstsq<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<LstsqResult<F>>
 where
-    F: Float + NumAssign + Sum + One,
+    F: Float + NumAssign + Sum + One + ndarray::ScalarOperand,
 {
     if a.nrows() != b.len() {
         return Err(LinalgError::ShapeError(format!(
@@ -367,7 +379,17 @@ where
     }
 
     // For efficiency, perform LU decomposition once
-    let (p, l, u) = lu(a)?;
+    let (p, l, u) = match lu(a) {
+        Err(LinalgError::SingularMatrixError(msg)) => {
+            return Err(LinalgError::SingularMatrixError(format!(
+                "{}\nMatrix shape: {:?}\nOperation: solve multiple linear systems",
+                msg,
+                a.shape()
+            )))
+        }
+        Err(e) => return Err(e),
+        Ok(result) => result,
+    };
 
     // Initialize solution matrix
     let mut x = Array2::zeros((a.ncols(), b.ncols()));

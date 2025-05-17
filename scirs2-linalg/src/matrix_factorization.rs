@@ -237,7 +237,7 @@ pub fn interpolative_decomposition<F>(
     method: &str,
 ) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + Debug + 'static,
+    F: Float + NumAssign + Zero + One + Sum + Debug + 'static + ndarray::ScalarOperand,
 {
     // Validate inputs
     check_2d(a, "a")?;
@@ -505,7 +505,7 @@ pub fn cur_decomposition<F>(
     method: &str,
 ) -> LinalgResult<(Array2<F>, Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + Debug + 'static,
+    F: Float + NumAssign + Zero + One + Sum + Debug + 'static + ndarray::ScalarOperand,
 {
     // Validate inputs
     check_2d(a, "a")?;
@@ -844,7 +844,7 @@ pub fn rank_revealing_qr<F>(
     tol: F,
 ) -> LinalgResult<(Array2<F>, Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + Debug + 'static,
+    F: Float + NumAssign + Zero + One + Sum + Debug + 'static + ndarray::ScalarOperand,
 {
     // Validate inputs
     check_2d(a, "a")?;
@@ -1038,7 +1038,7 @@ pub fn utv_decomposition<F>(
     tol: F,
 ) -> LinalgResult<(Array2<F>, Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + Debug + 'static,
+    F: Float + NumAssign + Zero + One + Sum + Debug + 'static + ndarray::ScalarOperand,
 {
     // Validate inputs
     check_2d(a, "a")?;

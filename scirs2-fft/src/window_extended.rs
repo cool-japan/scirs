@@ -325,8 +325,8 @@ pub fn analyze_window(
 
     // Find main lobe width (3dB down from peak)
     let mut main_lobe_width = 0.0;
-    for i in 1..n_fft / 2 {
-        if mag_db[i] < -3.0 {
+    for (i, &val) in mag_db.iter().enumerate().take(n_fft / 2).skip(1) {
+        if val < -3.0 {
             main_lobe_width = 2.0 * i as f64 * fs / n_fft as f64;
             break;
         }
@@ -335,9 +335,9 @@ pub fn analyze_window(
     // Find sidelobe level
     let mut sidelobe_level_db = -1000.0;
     let main_lobe_end = (main_lobe_width * n_fft as f64 / fs).ceil() as usize;
-    for i in main_lobe_end..n_fft / 2 {
-        if mag_db[i] > sidelobe_level_db {
-            sidelobe_level_db = mag_db[i];
+    for &val in mag_db.iter().take(n_fft / 2).skip(main_lobe_end) {
+        if val > sidelobe_level_db {
+            sidelobe_level_db = val;
         }
     }
 
@@ -375,7 +375,7 @@ pub fn visualize_window(
         padded[i] = num_complex::Complex64::new(window[i], 0.0);
     }
 
-    let fft_result = fft(&padded, None).unwrap_or_else(|_| padded);
+    let fft_result = fft(&padded, None).unwrap_or(padded);
     let freq = fftfreq(n_fft, 1.0)?;
     let magnitude: Vec<f64> = fft_result.iter().map(|c| c.norm()).collect();
 
@@ -413,7 +413,7 @@ pub fn compare_windows(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use crate::Window;
 
     #[test]
     fn test_extended_windows() {

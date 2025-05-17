@@ -218,7 +218,7 @@ where
     // This is a simplified chunking strategy
     // In practice, we'd need to handle overlapping chunks
     // for proper FFT computation
-    let n_chunks = (axis_len + CHUNK_SIZE - 1) / CHUNK_SIZE;
+    let n_chunks = axis_len.div_ceil(CHUNK_SIZE);
 
     for chunk_idx in 0..n_chunks {
         let start = chunk_idx * CHUNK_SIZE;
@@ -305,7 +305,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
 
     #[test]
     fn test_axis_optimization() {

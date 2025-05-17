@@ -419,11 +419,11 @@ impl<
 
         let mut c_dense = vec![vec![T::zero(); n]; m];
 
-        for i in 0..m {
+        for (i, c_row) in c_dense.iter_mut().enumerate().take(m) {
             for j in 0..n {
                 for l in 0..k {
                     let prod = a_dense[i][l] * b_dense[l][j];
-                    c_dense[i][j] += prod;
+                    c_row[j] += prod;
                 }
             }
         }

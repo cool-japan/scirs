@@ -430,14 +430,15 @@ where
 /// ```
 /// use scirs2_linalg::random::sparse;
 ///
-/// // Generate a 10x10 sparse matrix with 10% non-zero elements
-/// let s = sparse::<f64>(10, 10, 0.1, -1.0, 1.0, None);
-/// assert_eq!(s.shape(), &[10, 10]);
+/// // Generate a 100x100 sparse matrix with 10% non-zero elements
+/// let s = sparse::<f64>(100, 100, 0.1, -1.0, 1.0, Some(42));
+/// assert_eq!(s.shape(), &[100, 100]);
 ///
 /// // Check that approximately 10% of elements are non-zero
 /// let non_zero_count = s.iter().filter(|&&x| x != 0.0).count();
-/// let expected_count = (10.0 * 10.0 * 0.1) as usize;
-/// assert!(non_zero_count >= expected_count - 5 && non_zero_count <= expected_count + 5);
+/// let expected_count = (100.0 * 100.0 * 0.1) as usize;
+/// // With a larger matrix, we expect the density to be closer to the target
+/// assert!((non_zero_count as f64 - expected_count as f64).abs() < expected_count as f64 * 0.2);
 /// ```
 pub fn sparse<F>(
     rows: usize,

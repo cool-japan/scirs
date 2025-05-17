@@ -55,9 +55,9 @@ impl<F: Float + NumAssign + Sum + Debug + 'static> IC0Preconditioner<F> {
 
             // Find diagonal element
             let mut diag_idx = None;
-            for idx in row_start..row_end {
-                if l_indices[idx] == i {
-                    diag_idx = Some(idx);
+            for (idx, &col) in l_indices[row_start..row_end].iter().enumerate() {
+                if col == i {
+                    diag_idx = Some(row_start + idx);
                     break;
                 }
             }

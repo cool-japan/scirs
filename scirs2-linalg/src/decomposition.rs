@@ -166,7 +166,7 @@ pub fn svd<F>(
     full_matrices: bool,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum,
+    F: Float + NumAssign + Sum + ndarray::ScalarOperand,
 {
     let svd_result = lapack_svd(a, full_matrices)?;
     Ok((svd_result.u, svd_result.s, svd_result.vt))

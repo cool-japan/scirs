@@ -307,7 +307,7 @@ where
     S: Data<Elem = Complex<f64>>,
     D: Dimension + RemoveAxis,
 {
-    if f0 < 0.0 || f0 > 1.0 || f1 < 0.0 || f1 > 1.0 {
+    if !(0.0..=1.0).contains(&f0) || !(0.0..=1.0).contains(&f1) {
         return Err(FFTError::ValueError(
             "Frequencies must be in range [0, 1]".to_string(),
         ));

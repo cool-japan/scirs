@@ -150,9 +150,9 @@ where
 
     for k in 0..n {
         let mut sum = 0.0;
-        for n_i in 0..n {
+        for (n_i, &val) in x_flat.iter().enumerate().take(n) {
             let angle = PI * k as f64 * (n_i as f64 + 0.5) / n as f64;
-            sum += x_flat[n_i] * angle.cos();
+            sum += val * angle.cos();
         }
         result[k] = scale * sum;
     }
@@ -201,9 +201,9 @@ where
 
     for k in 0..n {
         let mut sum = 0.0;
-        for n_i in 0..n {
+        for (n_i, &val) in x_flat.iter().enumerate().take(n) {
             let angle = PI * (k as f64 + 0.5) * (n_i as f64 + 0.5) / n as f64;
-            sum += x_flat[n_i] * angle.cos();
+            sum += val * angle.cos();
         }
         result[k] = scale * sum;
 
@@ -305,9 +305,9 @@ where
 
     for k in 0..n {
         let mut sum = 0.0;
-        for n_i in 0..n {
+        for (n_i, &val) in x_flat.iter().enumerate().take(n) {
             let angle = PI * (k as f64 + 0.5) * (n_i as f64 + 1.0) / n as f64;
-            sum += x_flat[n_i] * angle.sin();
+            sum += val * angle.sin();
         }
         result[k] = scale * sum;
     }
@@ -342,9 +342,9 @@ where
 
     for k in 0..n {
         let mut sum = 0.0;
-        for n_i in 0..n {
+        for (n_i, &val) in x_flat.iter().enumerate().take(n) {
             let angle = PI * (k as f64 + 1.0) * (n_i as f64 + 0.5) / n as f64;
-            sum += x_flat[n_i] * angle.sin();
+            sum += val * angle.sin();
         }
         result[k] = scale * sum;
     }
@@ -378,9 +378,9 @@ where
 
     for k in 0..n {
         let mut sum = 0.0;
-        for n_i in 0..n {
+        for (n_i, &val) in x_flat.iter().enumerate().take(n) {
             let angle = PI * (k as f64 + 0.5) * (n_i as f64 + 0.5) / n as f64;
-            sum += x_flat[n_i] * angle.sin();
+            sum += val * angle.sin();
         }
         result[k] = scale * sum;
     }

@@ -508,11 +508,11 @@ where
     // Here we'll just use the fallback implementation for simplicity
     if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
         let result = a_array.as_array().mapv(f);
-        return Ok(Box::new(NdarrayWrapper::new(result)));
+        Ok(Box::new(NdarrayWrapper::new(result)))
     } else {
-        return Err(OperationError::NotImplemented(
+        Err(OperationError::NotImplemented(
             "apply_elementwise not implemented for this array type".to_string()
-        ));
+        ))
     }
 }
 

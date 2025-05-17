@@ -240,13 +240,13 @@ where
                 let block = &self.data[k];
 
                 // Copy block to dense matrix
-                for i in 0..r {
+                for (i, block_row_data) in block.iter().enumerate().take(r) {
                     let row = block_row * r + i;
                     if row < self.rows {
-                        for j in 0..c {
+                        for (j, &value) in block_row_data.iter().enumerate().take(c) {
                             let col = block_col * c + j;
                             if col < self.cols {
-                                result[row][col] = block[i][j];
+                                result[row][col] = value;
                             }
                         }
                     }

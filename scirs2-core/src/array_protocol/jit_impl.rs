@@ -182,7 +182,7 @@ impl LLVMFunctionFactory {
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
         let source = expression.to_string();
-        let function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync> = 
+        let function: JITFunctionType = 
             Box::new(move |_args| {
                 // Mock function just returns a constant value
                 Ok(Box::new(42.0))
@@ -259,7 +259,7 @@ impl CraneliftFunctionFactory {
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
         let source = expression.to_string();
-        let function: Box<dyn Fn(&[Box<dyn Any>]) -> CoreResult<Box<dyn Any>> + Send + Sync> = 
+        let function: JITFunctionType = 
             Box::new(move |_args| {
                 // Mock function just returns a constant value
                 Ok(Box::new(42.0))

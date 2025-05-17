@@ -183,6 +183,7 @@ pub struct ZeroOperator<F> {
 
 impl<F> ZeroOperator<F> {
     /// Create a new zero operator with given shape
+    #[allow(dead_code)]
     pub fn new(rows: usize, cols: usize) -> Self {
         Self {
             shape: (rows, cols),
@@ -263,7 +264,7 @@ impl<F: Float + NumAssign + Sum + 'static + Debug> LinearOperator<F>
 
         // Manual implementation for generic types
         let mut result = vec![F::zero(); self.matrix.rows()];
-        for row in 0..self.matrix.rows() {
+        for (row, result_elem) in result.iter_mut().enumerate().take(self.matrix.rows()) {
             let row_range = self.matrix.row_range(row);
             let row_indices = &self.matrix.col_indices()[row_range.clone()];
             let row_data = &self.matrix.data[row_range];
@@ -272,7 +273,7 @@ impl<F: Float + NumAssign + Sum + 'static + Debug> LinearOperator<F>
             for (col_idx, &col) in row_indices.iter().enumerate() {
                 sum += row_data[col_idx] * x[col];
             }
-            result[row] = sum;
+            *result_elem = sum;
         }
         Ok(result)
     }
@@ -303,6 +304,7 @@ pub struct SumOperator<F> {
 
 impl<F: Float + NumAssign> SumOperator<F> {
     /// Create a new sum operator
+    #[allow(dead_code)]
     pub fn new(a: Box<dyn LinearOperator<F>>, b: Box<dyn LinearOperator<F>>) -> SparseResult<Self> {
         if a.shape() != b.shape() {
             return Err(crate::error::SparseError::ShapeMismatch {
@@ -357,6 +359,7 @@ pub struct ProductOperator<F> {
 
 impl<F: Float + NumAssign> ProductOperator<F> {
     /// Create a new product operator
+    #[allow(dead_code)]
     pub fn new(a: Box<dyn LinearOperator<F>>, b: Box<dyn LinearOperator<F>>) -> SparseResult<Self> {
         let (_a_rows, a_cols) = a.shape();
         let (b_rows, _b_cols) = b.shape();

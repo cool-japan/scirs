@@ -1105,7 +1105,15 @@ pub fn mixed_precision_cond<A, C, H>(a: &ArrayView2<A>, p: Option<H>) -> LinalgR
 where
     A: Clone + Debug + ToPrimitive + Copy,
     C: Clone + Zero + NumCast + Debug,
-    H: Float + Clone + NumCast + Debug + ToPrimitive + 'static + std::iter::Sum + NumAssign,
+    H: Float
+        + Clone
+        + NumCast
+        + Debug
+        + ToPrimitive
+        + 'static
+        + std::iter::Sum
+        + NumAssign
+        + ndarray::ScalarOperand,
 {
     // Convert to high precision
     let a_high = convert_2d::<A, H>(a);

@@ -433,13 +433,13 @@ where
                 let block = &self.data[k];
 
                 // Copy block to dense array
-                for i in 0..r {
+                for (i, block_row_data) in block.iter().enumerate().take(r) {
                     let row = block_row * r + i;
                     if row < self.rows {
-                        for j in 0..c {
+                        for (j, &value) in block_row_data.iter().enumerate().take(c) {
                             let col = block_col * c + j;
                             if col < self.cols {
-                                result[[row, col]] = block[i][j];
+                                result[[row, col]] = value;
                             }
                         }
                     }
@@ -601,13 +601,13 @@ where
                 let block = &self.data[k];
 
                 // For each element in the block
-                for i in 0..r {
+                for (i, block_row_data) in block.iter().enumerate().take(r) {
                     let row = block_row * r + i;
                     if row < self.rows {
-                        for j in 0..c {
+                        for (j, &value) in block_row_data.iter().enumerate().take(c) {
                             let col = block_col * c + j;
                             if col < self.cols {
-                                result[row] += block[i][j] * other[col];
+                                result[row] += value * other[col];
                             }
                         }
                     }
@@ -821,11 +821,11 @@ where
                         let block_col = self.indices[k][0];
                         let block = &self.data[k];
 
-                        for i in 0..r {
-                            for j in 0..c {
+                        for block_row_data in block.iter().take(r) {
+                            for (j, &value) in block_row_data.iter().enumerate().take(c) {
                                 let col = block_col * c + j;
                                 if col < self.cols {
-                                    result[col] += block[i][j];
+                                    result[col] += value;
                                 }
                             }
                         }
@@ -865,11 +865,11 @@ where
                     for k in self.indptr[block_row]..self.indptr[block_row + 1] {
                         let block = &self.data[k];
 
-                        for i in 0..r {
+                        for (i, block_row_data) in block.iter().enumerate().take(r) {
                             let row = block_row * r + i;
                             if row < self.rows {
-                                for j in 0..c {
-                                    result[row] += block[i][j];
+                                for &value in block_row_data.iter().take(c) {
+                                    result[row] += value;
                                 }
                             }
                         }

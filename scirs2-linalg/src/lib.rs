@@ -110,6 +110,7 @@ mod eigen_specialized {
     pub use tridiagonal::{tridiagonal_eigh, tridiagonal_eigvalsh};
 }
 pub mod extended_precision;
+pub mod generic;
 pub mod gradient;
 mod iterative_solvers;
 pub mod kronecker;
@@ -126,6 +127,7 @@ pub mod quantization;
 pub mod random;
 // 一時的にrandom_newモジュールを無効化（コンパイル問題解決まで）
 // pub mod random_new;
+mod diagnostics;
 pub mod simd_ops;
 mod solve;
 pub mod sparse_dense;
@@ -304,6 +306,10 @@ pub mod prelude {
         simd_frobenius_norm_f64, simd_matmul_f32, simd_matmul_f64, simd_matrix_max_f32,
         simd_matrix_max_f64, simd_matrix_min_f32, simd_matrix_min_f64, simd_matvec_f32,
         simd_matvec_f64,
+    };
+    pub use super::generic::{
+        gdet, geig, gemm, gemv, ginv, gnorm, gqr, gsolve, gsvd, GenericEigen, GenericQR, GenericSVD,
+        LinalgScalar, PrecisionSelector,
     };
     pub use super::solve::{lstsq, solve, solve_multiple, solve_triangular};
     pub use super::sparse_dense::{

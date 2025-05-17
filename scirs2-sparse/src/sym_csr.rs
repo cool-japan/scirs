@@ -345,10 +345,10 @@ where
         let mut dense = vec![vec![T::zero(); n]; n];
 
         // Fill the lower triangular part (directly from stored data)
-        for i in 0..n {
+        for (i, row) in dense.iter_mut().enumerate().take(n) {
             for j_ptr in self.indptr[i]..self.indptr[i + 1] {
                 let j = self.indices[j_ptr];
-                dense[i][j] = self.data[j_ptr];
+                row[j] = self.data[j_ptr];
             }
         }
 

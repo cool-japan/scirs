@@ -718,8 +718,8 @@ where
             // Orthogonalize against previous vectors
             for i in 0..=inner_iter {
                 h[i][inner_iter] = dot(&v[i], &w);
-                for k in 0..n {
-                    w[k] -= h[i][inner_iter] * v[i][k];
+                for (k, w_elem) in w.iter_mut().enumerate().take(n) {
+                    *w_elem -= h[i][inner_iter] * v[i][k];
                 }
             }
 

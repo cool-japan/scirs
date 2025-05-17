@@ -12,6 +12,9 @@ use std::iter::Sum;
 use crate::error::{LinalgError, LinalgResult};
 use crate::{basic, decomposition, eigen, solve};
 
+/// Type alias for SVD decomposition result
+pub type SvdResult<F> = (Option<Array2<F>>, Array1<F>, Option<Array2<F>>);
+
 /// Compute the determinant of a matrix (SciPy-compatible interface)
 ///
 /// # Arguments
@@ -78,6 +81,7 @@ where
 ///
 /// # Returns
 /// * Tuple of (eigenvalues, eigenvectors) if right=true
+#[allow(clippy::too_many_arguments)]
 pub fn eig<F>(
     a: &ArrayView2<F>,
     b: Option<&ArrayView2<F>>,
@@ -153,6 +157,7 @@ where
 ///
 /// # Returns
 /// * Eigenvalues if eigvals_only=true, otherwise (eigenvalues, eigenvectors)
+#[allow(clippy::too_many_arguments)]
 pub fn eigh<F>(
     a: &ArrayView2<F>,
     b: Option<&ArrayView2<F>>,
@@ -300,17 +305,13 @@ where
             let (_, r) = decomposition::qr(a)?;
             Ok((None, r))
         }
-        "raw" => {
-            Err(LinalgError::NotImplementedError(
-                "Raw QR mode not yet supported".to_string(),
-            ))
-        }
-        _ => {
-            Err(LinalgError::InvalidInputError(format!(
-                "Invalid QR mode: {}",
-                mode
-            )))
-        }
+        "raw" => Err(LinalgError::NotImplementedError(
+            "Raw QR mode not yet supported".to_string(),
+        )),
+        _ => Err(LinalgError::InvalidInputError(format!(
+            "Invalid QR mode: {}",
+            mode
+        ))),
     }
 }
 
@@ -333,9 +334,9 @@ pub fn svd<F>(
     _overwrite_a: bool,
     check_finite: bool,
     _lapack_driver: &str,
-) -> LinalgResult<(Option<Array2<F>>, Array1<F>, Option<Array2<F>>)>
+) -> LinalgResult<SvdResult<F>>
 where
-    F: Float + NumAssign + Sum,
+    F: Float + NumAssign + Sum + ndarray::ScalarOperand,
 {
     if check_finite {
         for &elem in a.iter() {
@@ -412,6 +413,7 @@ where
 ///
 /// # Returns
 /// * Solution x
+#[allow(clippy::too_many_arguments)]
 pub fn compat_solve<F>(
     a: &ArrayView2<F>,
     b: &ArrayView2<F>,

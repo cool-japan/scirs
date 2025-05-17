@@ -74,8 +74,7 @@ impl Default for AutoDeviceConfig {
 }
 
 /// Global auto device configuration.
-pub static AUTO_DEVICE_CONFIG: RwLock<AutoDeviceConfig> = RwLock::new({
-    let config = AutoDeviceConfig {
+pub static AUTO_DEVICE_CONFIG: RwLock<AutoDeviceConfig> = RwLock::new(AutoDeviceConfig {
         gpu_threshold: 1_000_000,
         distributed_threshold: 100_000_000,
         enable_mixed_precision: false,
@@ -84,9 +83,7 @@ pub static AUTO_DEVICE_CONFIG: RwLock<AutoDeviceConfig> = RwLock::new({
         prefer_data_locality: true,
         preferred_gpu_backend: GPUBackend::CUDA,
         fallback_to_cpu: true,
-    };
-    config
-});
+    });
 
 /// Set the global auto device configuration.
 pub fn set_auto_device_config(config: AutoDeviceConfig) {
@@ -136,10 +133,7 @@ where
     let config = get_auto_device_config();
     
     // Complex operations (matrix multiplication, SVD, etc.) benefit more from GPU
-    let is_complex_operation = match operation {
-        "matmul" | "svd" | "inverse" | "conv2d" => true,
-        _ => false,
-    };
+    let is_complex_operation = matches!(operation, "matmul" | "svd" | "inverse" | "conv2d");
     
     // Compute total size of all arrays
     let total_size: usize = arrays.iter().map(|arr| arr.len()).sum();

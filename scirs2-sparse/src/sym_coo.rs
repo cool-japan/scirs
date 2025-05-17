@@ -444,9 +444,9 @@ where
             let mut sym_rows = Vec::new();
             let mut sym_cols = Vec::new();
 
-            for i in 0..n {
+            for (i, row) in dense.iter().enumerate().take(n) {
                 for j in 0..=i {
-                    let val = dense[i][j];
+                    let val = row[j];
                     if val != T::zero() {
                         sym_data.push(val);
                         sym_rows.push(i);
@@ -502,9 +502,9 @@ where
         let mut sym_rows = Vec::new();
         let mut sym_cols = Vec::new();
 
-        for i in 0..n {
+        for (i, row) in dense.iter().enumerate().take(n) {
             for j in 0..=i {
-                let val = dense[i][j];
+                let val = row[j];
                 if val != T::zero() {
                     sym_data.push(val);
                     sym_rows.push(i);

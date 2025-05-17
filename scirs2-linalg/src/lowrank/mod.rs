@@ -55,7 +55,7 @@ pub fn truncated_svd<F>(
     k: usize,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum,
+    F: Float + NumAssign + Sum + ndarray::ScalarOperand,
 {
     let (m, n) = a.dim();
 
@@ -284,7 +284,7 @@ where
 /// Compute an orthogonal basis for the range of A using QR decomposition
 fn find_orthogonal_basis<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum,
+    F: Float + NumAssign + Sum + ndarray::ScalarOperand,
 {
     use crate::decomposition::qr;
 
