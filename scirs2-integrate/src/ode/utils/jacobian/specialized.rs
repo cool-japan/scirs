@@ -27,7 +27,7 @@ where
     // Compute only the diagonals within the band
     for j in 0..n {
         // Define the range of rows affected by column j
-        let row_start = if j < lower { 0 } else { j - lower };
+        let row_start = j.saturating_sub(lower);
         let row_end = (j + upper + 1).min(n);
 
         // Only compute if there are rows in range
@@ -35,7 +35,7 @@ where
             // Perturb the j-th component
             let mut y_perturbed = y.clone();
             let perturbation = eps * (F::one() + y[j].abs()).max(F::one());
-            y_perturbed[j] = y_perturbed[j] + perturbation;
+            y_perturbed[j] += perturbation;
 
             // Evaluate function at perturbed point
             let f_perturbed = f(t, y_perturbed.view());
@@ -76,7 +76,7 @@ where
         // Perturb the j-th component
         let mut y_perturbed = y.clone();
         let perturbation = eps * (F::one() + y[j].abs()).max(F::one());
-        y_perturbed[j] = y_perturbed[j] + perturbation;
+        y_perturbed[j] += perturbation;
 
         // Evaluate function at perturbed point
         let f_perturbed = f(t, y_perturbed.view());
@@ -119,7 +119,7 @@ where
         for j in 0..n {
             if coloring[j] == color {
                 let perturbation = eps * (F::one() + y[j].abs()).max(F::one());
-                y_perturbed[j] = y_perturbed[j] + perturbation;
+                y_perturbed[j] += perturbation;
                 perturbations[j] = perturbation;
             }
         }
@@ -145,10 +145,10 @@ pub fn generate_banded_coloring(n: usize, lower: usize, upper: usize) -> Vec<usi
     let bandwidth = lower + upper + 1;
     let mut coloring = vec![0; n];
 
-    for i in 0..n {
+    for (i, color) in coloring.iter_mut().enumerate().take(n) {
         // Assign a color (modulo bandwidth) to each variable
         // This ensures no two variables that could interact have the same color
-        coloring[i] = i % bandwidth;
+        *color = i % bandwidth;
     }
 
     coloring
@@ -166,7 +166,7 @@ where
     let mut jac_dy = Array1::zeros(n);
     for i in 0..n {
         for j in 0..n {
-            jac_dy[i] = jac_dy[i] + jac[[i, j]] * delta_y[j];
+            jac_dy[i] += jac[[i, j]] * delta_y[j];
         }
     }
 
@@ -180,7 +180,7 @@ where
     if dy_norm_squared > F::from_f64(1e-14).unwrap() {
         for i in 0..n {
             for j in 0..n {
-                jac[[i, j]] = jac[[i, j]] + correction[i] * delta_y[j] / dy_norm_squared;
+                jac[[i, j]] += correction[i] * delta_y[j] / dy_norm_squared;
             }
         }
     }
@@ -196,7 +196,7 @@ pub fn block_update<F>(
     F: IntegrateFloat,
 {
     let n = delta_y.len();
-    let n_blocks = (n + block_size - 1) / block_size;
+    let n_blocks = n.div_ceil(block_size);
 
     // Process each block separately
     for block in 0..n_blocks {
@@ -216,7 +216,7 @@ pub fn block_update<F>(
         let mut block_jac_dy = Array1::zeros(end - start);
         for i in 0..(end - start) {
             for j in 0..(end - start) {
-                block_jac_dy[i] = block_jac_dy[i] + jac[[i + start, j + start]] * block_dy[j];
+                block_jac_dy[i] += jac[[i + start, j + start]] * block_dy[j];
             }
         }
 
@@ -227,8 +227,7 @@ pub fn block_update<F>(
         if dy_norm_squared > F::from_f64(1e-14).unwrap() {
             for i in 0..(end - start) {
                 for j in 0..(end - start) {
-                    jac[[i + start, j + start]] =
-                        jac[[i + start, j + start]] + correction[i] * block_dy[j] / dy_norm_squared;
+                    jac[[i + start, j + start]] += correction[i] * block_dy[j] / dy_norm_squared;
                 }
             }
         }

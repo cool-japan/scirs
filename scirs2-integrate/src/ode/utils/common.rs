@@ -132,7 +132,7 @@ where
 
         // Perturb the i-th component
         let mut y_perturbed = y.clone();
-        y_perturbed[i] = y_perturbed[i] + eps;
+        y_perturbed[i] += eps;
 
         // Evaluate function at perturbed point
         let f_perturbed = f(t, y_perturbed.view());
@@ -233,7 +233,7 @@ pub fn solve_linear_system<F: IntegrateFloat>(
         let mut sum = aug[[i, n]];
 
         for j in i + 1..n {
-            sum = sum - aug[[i, j]] * x[j];
+            sum -= aug[[i, j]] * x[j];
         }
 
         x[i] = sum / aug[[i, i]];

@@ -4,12 +4,18 @@
 //! including method enums, options, and results.
 
 use crate::common::IntegrateFloat;
-use ndarray::Array1;
+use ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 use std::sync::Arc;
 
+/// Type alias for time-dependent matrix function
+pub type TimeFunction<F> = Arc<dyn Fn(F) -> Array2<F> + Send + Sync>;
+
+/// Type alias for state-dependent matrix function  
+pub type StateFunction<F> = Arc<dyn Fn(F, ArrayView1<F>) -> Array2<F> + Send + Sync>;
+
 /// ODE solver method
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ODEMethod {
     /// Euler method (first-order)
     Euler,
@@ -17,6 +23,7 @@ pub enum ODEMethod {
     RK4,
     /// Dormand-Prince method (variable step size)
     /// 5th order method with 4th order error estimate
+    #[default]
     RK45,
     /// Bogacki-Shampine method (variable step size)
     /// 3rd order method with 2nd order error estimate
@@ -48,16 +55,11 @@ pub enum ODEMethod {
     EnhancedBDF,
 }
 
-impl Default for ODEMethod {
-    fn default() -> Self {
-        ODEMethod::RK45
-    }
-}
-
 /// Type of mass matrix for ODE system
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MassMatrixType {
     /// Identity mass matrix (standard ODE)
+    #[default]
     Identity,
     /// Constant mass matrix
     Constant,
@@ -67,12 +69,6 @@ pub enum MassMatrixType {
     StateDependent,
 }
 
-impl Default for MassMatrixType {
-    fn default() -> Self {
-        MassMatrixType::Identity
-    }
-}
-
 /// Mass matrix for ODE system of the form M(t,y)·y' = f(t,y)
 pub struct MassMatrix<F: IntegrateFloat> {
     /// Type of the mass matrix
@@ -80,9 +76,9 @@ pub struct MassMatrix<F: IntegrateFloat> {
     /// Constant mass matrix (if applicable)
     pub constant_matrix: Option<ndarray::Array2<F>>,
     /// Function for time-dependent mass matrix
-    pub time_function: Option<Arc<dyn Fn(F) -> ndarray::Array2<F> + Send + Sync>>,
+    pub time_function: Option<TimeFunction<F>>,
     /// Function for state-dependent mass matrix
-    pub state_function: Option<Arc<dyn Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F> + Send + Sync>>,
+    pub state_function: Option<StateFunction<F>>,
     /// Whether the mass matrix is sparse/banded
     pub is_banded: bool,
     /// Lower bandwidth for banded matrices
@@ -108,7 +104,7 @@ impl<F: IntegrateFloat> Debug for MassMatrix<F> {
 impl<F: IntegrateFloat> Clone for MassMatrix<F> {
     fn clone(&self) -> Self {
         MassMatrix {
-            matrix_type: self.matrix_type.clone(),
+            matrix_type: self.matrix_type,
             constant_matrix: self.constant_matrix.clone(),
             time_function: self.time_function.clone(),
             state_function: self.state_function.clone(),
@@ -191,20 +187,8 @@ impl<F: IntegrateFloat> MassMatrix<F> {
         match self.matrix_type {
             MassMatrixType::Identity => None, // Identity is handled specially
             MassMatrixType::Constant => self.constant_matrix.clone(),
-            MassMatrixType::TimeDependent => {
-                if let Some(f) = &self.time_function {
-                    Some(f(t))
-                } else {
-                    None
-                }
-            }
-            MassMatrixType::StateDependent => {
-                if let Some(f) = &self.state_function {
-                    Some(f(t, y))
-                } else {
-                    None
-                }
-            }
+            MassMatrixType::TimeDependent => self.time_function.as_ref().map(|f| f(t)),
+            MassMatrixType::StateDependent => self.state_function.as_ref().map(|f| f(t, y)),
         }
     }
 }

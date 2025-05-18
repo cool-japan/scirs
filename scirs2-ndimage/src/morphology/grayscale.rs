@@ -70,8 +70,8 @@ enum MorphOperation {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use ndarray::Array2;
+/// ```
+/// use ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_erosion;
 ///
 /// // Create a simple 5x5 grayscale array with varying values
@@ -267,8 +267,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use ndarray::Array2;
+/// ```
+/// use ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_dilation;
 ///
 /// // Create a simple 5x5 grayscale array with varying values
@@ -467,8 +467,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use ndarray::Array2;
+/// ```
+/// use ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_opening;
 ///
 /// // Create a 7x7 array with a small bright spot
@@ -522,7 +522,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_ndimage::morphology::grey_closing;
 ///
@@ -576,8 +576,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use ndarray::Array2;
+/// ```
+/// use ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::morphological_gradient;
 ///
 /// // Create a test image with a step edge
@@ -666,7 +666,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_ndimage::morphology::morphological_laplace;
 ///
@@ -769,7 +769,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_ndimage::morphology::white_tophat;
 ///
@@ -859,7 +859,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_ndimage::morphology::black_tophat;
 ///

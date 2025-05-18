@@ -11,7 +11,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Detection method for stiffness analysis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StiffnessDetectionMethod {
     /// Basic counter-based detection (original LSODA approach)
     Basic,
@@ -22,13 +22,8 @@ pub enum StiffnessDetectionMethod {
     /// Eigenvalue estimation of the Jacobian
     EigenvalueEstimation,
     /// Combined approach using multiple indicators
+    #[default]
     Combined,
-}
-
-impl Default for StiffnessDetectionMethod {
-    fn default() -> Self {
-        StiffnessDetectionMethod::Combined
-    }
 }
 
 /// Configuration for stiffness detection
@@ -123,6 +118,12 @@ pub struct StiffnessDetector<F: IntegrateFloat> {
     last_eigenvalue_est: usize,
     /// Current stiffness score (-1.0 to 1.0, where positive means stiff)
     stiffness_score: F,
+}
+
+impl<F: IntegrateFloat> Default for StiffnessDetector<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: IntegrateFloat> StiffnessDetector<F> {
@@ -414,6 +415,12 @@ pub struct MethodSwitchInfo<F: IntegrateFloat> {
     pub switch_steps: Vec<usize>,
     /// Reason for each switch
     pub switch_reasons: Vec<String>,
+}
+
+impl<F: IntegrateFloat> Default for MethodSwitchInfo<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: IntegrateFloat> MethodSwitchInfo<F> {

@@ -280,9 +280,9 @@ where
                 k3 -= &dk3;
             } else {
                 // For non-identity mass matrices, we need to evaluate M·(k_i - y)/h
-                let r1;// = Array1::<F>::zeros(n_dim);
-                let r2;// = Array1::<F>::zeros(n_dim);
-                let r3;// = Array1::<F>::zeros(n_dim);
+                let r1; // = Array1::<F>::zeros(n_dim);
+                let r2; // = Array1::<F>::zeros(n_dim);
+                let r3; // = Array1::<F>::zeros(n_dim);
 
                 if let Some(ref m1_matrix) = m1 {
                     let diff1 = (&k1 - &y) / h;
@@ -429,7 +429,7 @@ where
         // Check if Newton iteration converged
         if !newton_converged {
             // Reduce step size and try again
-            h = h * F::from_f64(0.5).unwrap();
+            h *= F::from_f64(0.5).unwrap();
             rejected_steps += 1;
             continue;
         }
@@ -454,7 +454,7 @@ where
         // Determine if step is acceptable
         if error_norm <= F::one() {
             // Accept the step
-            t = t + h;
+            t += h;
             y = y_new;
 
             // Store the result
@@ -473,13 +473,13 @@ where
 
             // Increase step size for next step if error is small
             if error_norm < F::from_f64(0.1).unwrap() {
-                h = h * F::from_f64(2.0).unwrap();
+                h *= F::from_f64(2.0).unwrap();
             }
         } else {
             // Reject the step and reduce step size
             let factor = F::from_f64(0.9).unwrap()
                 * (F::one() / error_norm).powf(F::from_f64(1.0 / 5.0).unwrap());
-            h = h * factor
+            h *= factor
                 .max(F::from_f64(0.1).unwrap())
                 .min(F::from_f64(0.5).unwrap());
             rejected_steps += 1;

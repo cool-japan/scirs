@@ -50,7 +50,7 @@ use crate::error::{NdimageError, Result};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///

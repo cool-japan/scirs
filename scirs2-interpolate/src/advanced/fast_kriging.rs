@@ -58,20 +58,22 @@ pub enum FastKrigingMethod {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::{
 ///     FastKriging, FastKrigingMethod, FastKrigingBuilder
 /// };
-/// use scirs2_interpolate::advanced::enhanced_kriging::CovarianceFunction;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
-/// // Create sample data (e.g., 10,000 points)
-/// let n_points = 10_000;
+/// // Create sample data
+/// let n_points = 100; // Reduced for testing
 /// let points = Array2::<f64>::zeros((n_points, 2));
 /// let values = Array1::<f64>::zeros(n_points);
 ///
 /// // Create a fast kriging model using local approximation
-/// let local_kriging = FastKrigingBuilder::new()
+/// let local_kriging = FastKrigingBuilder::<f64>::new()
 ///     .points(points.clone())
 ///     .values(values.clone())
 ///     .covariance_function(CovarianceFunction::Matern52)
@@ -81,17 +83,18 @@ pub enum FastKrigingMethod {
 ///     .unwrap();
 ///
 /// // Predict at new points
-/// let query_points = Array2::<f64>::zeros((100, 2));
+/// let query_points = Array2::<f64>::zeros((10, 2));
 /// let predictions = local_kriging.predict(&query_points.view()).unwrap();
 ///
 /// // Create a model using fixed rank approximation
-/// let low_rank_kriging = FastKrigingBuilder::new()
+/// let low_rank_kriging = FastKrigingBuilder::<f64>::new()
 ///     .points(points.clone())
 ///     .values(values.clone())
 ///     .covariance_function(CovarianceFunction::Exponential)
-///     .approximation_method(FastKrigingMethod::FixedRank(100))
+///     .approximation_method(FastKrigingMethod::FixedRank(10))
 ///     .build()
 ///     .unwrap();
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct FastKriging<F>
@@ -166,19 +169,21 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::{
 ///     FastKrigingBuilder, FastKrigingMethod
 /// };
-/// use scirs2_interpolate::advanced::enhanced_kriging::CovarianceFunction;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
 /// // Create sample data
-/// let points = Array2::<f64>::zeros((1000, 2));
-/// let values = Array1::<f64>::zeros(1000);
+/// let points = Array2::<f64>::zeros((100, 2));
+/// let values = Array1::<f64>::zeros(100);
 ///
 /// // Build a fast kriging model with local approximation
-/// let kriging = FastKrigingBuilder::new()
+/// let kriging = FastKrigingBuilder::<f64>::new()
 ///     .points(points.clone())
 ///     .values(values.clone())
 ///     .covariance_function(CovarianceFunction::Matern52)
@@ -187,6 +192,7 @@ where
 ///     .radius_multiplier(2.5)
 ///     .build()
 ///     .unwrap();
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct FastKrigingBuilder<F>
@@ -1736,15 +1742,16 @@ fn project_to_feature<
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
-/// use scirs2_interpolate::advanced::fast_kriging::{
-///     make_local_kriging, CovarianceFunction
-/// };
+/// use scirs2_interpolate::advanced::fast_kriging::make_local_kriging;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
 /// // Create sample data
-/// let points = Array2::<f64>::zeros((1000, 2));
-/// let values = Array1::<f64>::zeros(1000);
+/// let points = Array2::<f64>::zeros((100, 2));
+/// let values = Array1::<f64>::zeros(100);
 ///
 /// // Create a local kriging model
 /// let kriging = make_local_kriging(
@@ -1758,6 +1765,7 @@ fn project_to_feature<
 /// // Make a prediction
 /// let query_point = Array2::<f64>::zeros((1, 2));
 /// let pred = kriging.predict(&query_point.view()).unwrap();
+/// # }
 /// ```
 pub fn make_local_kriging<
     F: Float
@@ -1811,14 +1819,14 @@ pub fn make_local_kriging<
 /// # Example
 ///
 /// ```ignore
+/// // Fixed rank kriging implementation needs investigation
 /// use ndarray::{Array1, Array2};
-/// use scirs2_interpolate::advanced::fast_kriging::{
-///     make_fixed_rank_kriging, CovarianceFunction
-/// };
+/// use scirs2_interpolate::advanced::fast_kriging::make_fixed_rank_kriging;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
 /// // Create sample data
-/// let points = Array2::<f64>::zeros((5000, 2));
-/// let values = Array1::<f64>::zeros(5000);
+/// let points = Array2::<f64>::zeros((100, 2));
+/// let values = Array1::<f64>::zeros(100);
 ///
 /// // Create a fixed rank kriging model
 /// let kriging = make_fixed_rank_kriging(
@@ -1826,7 +1834,7 @@ pub fn make_local_kriging<
 ///     &values.view(),
 ///     CovarianceFunction::Matern52,
 ///     1.0,  // length_scale
-///     100   // rank
+///     10    // rank
 /// ).unwrap();
 ///
 /// // Make a prediction
@@ -1884,14 +1892,14 @@ pub fn make_fixed_rank_kriging<
 /// # Example
 ///
 /// ```ignore
+/// // HODLR implementation has stack overflow issues - needs investigation
 /// use ndarray::{Array1, Array2};
-/// use scirs2_interpolate::advanced::fast_kriging::{
-///     make_hodlr_kriging, CovarianceFunction
-/// };
+/// use scirs2_interpolate::advanced::fast_kriging::make_hodlr_kriging;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
 /// // Create sample data
-/// let points = Array2::<f64>::zeros((5000, 2));
-/// let values = Array1::<f64>::zeros(5000);
+/// let points = Array2::<f64>::zeros((100, 2));
+/// let values = Array1::<f64>::zeros(100);
 ///
 /// // Create a HODLR kriging model
 /// let kriging = make_hodlr_kriging(
@@ -1899,7 +1907,7 @@ pub fn make_fixed_rank_kriging<
 ///     &values.view(),
 ///     CovarianceFunction::Matern52,
 ///     1.0,  // length_scale
-///     64    // leaf_size
+///     32    // leaf_size
 /// ).unwrap();
 ///
 /// // Make a prediction
@@ -1956,15 +1964,16 @@ pub fn make_hodlr_kriging<
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
-/// use scirs2_interpolate::advanced::fast_kriging::{
-///     make_tapered_kriging, CovarianceFunction
-/// };
+/// use scirs2_interpolate::advanced::fast_kriging::make_tapered_kriging;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
 /// // Create sample data
-/// let points = Array2::<f64>::zeros((2000, 2));
-/// let values = Array1::<f64>::zeros(2000);
+/// let points = Array2::<f64>::zeros((100, 2));
+/// let values = Array1::<f64>::zeros(100);
 ///
 /// // Create a tapered kriging model
 /// let kriging = make_tapered_kriging(
@@ -1978,6 +1987,7 @@ pub fn make_hodlr_kriging<
 /// // Make a prediction
 /// let query_point = Array2::<f64>::zeros((1, 2));
 /// let pred = kriging.predict(&query_point.view()).unwrap();
+/// # }
 /// ```
 pub fn make_tapered_kriging<
     F: Float

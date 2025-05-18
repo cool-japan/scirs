@@ -225,6 +225,7 @@ pub fn constant_q_transform(signal: &Array1<f64>, config: &CqtConfig) -> SignalR
 }
 
 /// Compute the CQT kernel for efficient CQT calculation
+#[allow(clippy::too_many_arguments)]
 fn compute_cqt_kernel(
     f_min: f64,
     f_max: f64,
@@ -261,7 +262,7 @@ fn compute_cqt_kernel(
     // Create the kernels
     let mut kernels = Vec::with_capacity(n_bins);
 
-    for (_k, &freq) in frequencies.iter().enumerate() {
+    for &freq in frequencies.iter() {
         // Calculate kernel length for this frequency
         let kernel_length = (window_scale * q * fs / freq).ceil() as usize;
         let kernel_length = if kernel_length % 2 == 0 {
@@ -417,8 +418,8 @@ fn compute_cqt_frame(signal: &Array1<f64>, kernel: &CqtKernel) -> SignalResult<V
         }
 
         // Normalize by the number of chunks
-        for k in 0..cqt.len() {
-            cqt[k] /= n_chunks as f64;
+        for item in cqt.iter_mut() {
+            *item /= n_chunks as f64;
         }
 
         Ok(cqt)

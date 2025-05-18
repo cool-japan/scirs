@@ -1,7 +1,7 @@
 //! Unit tests for clustering algorithms
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::metrics::silhouette_score;
     use crate::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
     use ndarray::{array, Array2};

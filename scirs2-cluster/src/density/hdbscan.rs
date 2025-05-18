@@ -266,6 +266,7 @@ where
         &condensed_tree,
         opts.cluster_selection_method,
         opts.allow_single_cluster,
+        n_samples,
     )?;
 
     // Optional: Compute cluster centroids/medoids if requested
@@ -931,7 +932,10 @@ where
     let mut sizes = Vec::with_capacity(n_samples - 1);
 
     // Union-find data structure to track clusters
-    let mut union_find = UnionFind::new(n_samples);
+    // Need to allocate space for all nodes including internal nodes
+    // For n samples, we'll have n-1 internal nodes in the hierarchy
+    let total_nodes = n_samples + (n_samples - 1);
+    let mut union_find = UnionFind::new(total_nodes);
 
     // Next id for new nodes (internal nodes of the tree)
     let mut next_id = n_samples;
@@ -1143,6 +1147,7 @@ fn extract_clusters<F>(
     condensed_tree: &CondensedTree<F>,
     method: ClusterSelectionMethod,
     allow_single_cluster: bool,
+    n_samples: usize,
 ) -> Result<(Array1<i32>, Array1<F>)>
 where
     F: Float + FromPrimitive + Debug + PartialOrd,
@@ -1173,7 +1178,7 @@ where
 
         // Assign points to clusters
         let (labels, probabilities) =
-            assign_points_to_clusters(condensed_tree, &leaf_clusters, root)?;
+            assign_points_to_clusters(condensed_tree, &leaf_clusters, root, n_samples)?;
 
         return Ok((labels, probabilities));
     }
@@ -1306,14 +1311,14 @@ where
         if highest_child >= 0 {
             // Assign all points to this single cluster
             let (labels, probabilities) =
-                assign_points_to_clusters(condensed_tree, &[highest_child], root)?;
+                assign_points_to_clusters(condensed_tree, &[highest_child], root, n_samples)?;
 
             return Ok((labels, probabilities));
         }
     }
 
     let (labels, probabilities) =
-        assign_points_to_clusters(condensed_tree, &selected_clusters_vec, root)?;
+        assign_points_to_clusters(condensed_tree, &selected_clusters_vec, root, n_samples)?;
 
     Ok((labels, probabilities))
 }
@@ -1333,20 +1338,12 @@ fn assign_points_to_clusters<F>(
     condensed_tree: &CondensedTree<F>,
     selected_clusters: &[i32],
     root: i32,
+    n_samples: usize,
 ) -> Result<(Array1<i32>, Array1<F>)>
 where
     F: Float + FromPrimitive + Debug + PartialOrd,
 {
-    // Find the maximum point index (needed to determine number of points)
-    let max_point_idx = condensed_tree
-        .child
-        .iter()
-        .filter(|&&c| c < 0)
-        .map(|&c| -c - 1)
-        .max()
-        .unwrap_or(0) as usize;
-
-    let n_samples = max_point_idx + 1;
+    // n_samples is now passed as a parameter
 
     // Initialize labels to noise (-1)
     let mut labels = vec![-1; n_samples];
@@ -1360,7 +1357,8 @@ where
 
     // For each point, find its maximum lambda path to any cluster
     for point_idx in 0..n_samples {
-        let point_label = -(point_idx as i32) - 1; // Convert to negative index
+        // In the current implementation, points have positive indices from 0 to n_samples-1
+        let point_label = point_idx as i32;
 
         // Find all edges connecting this point to the tree
         let point_edges: Vec<(i32, F)> = condensed_tree
@@ -1469,24 +1467,51 @@ mod tests {
     use ndarray::Array2;
 
     #[test]
-    #[ignore = "Needs algorithm tuning - fails in the current implementation"]
     fn test_hdbscan_placeholder() {
-        // Create a test dataset
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.5, 1.8, 8.0, 9.0, 8.2, 8.8]).unwrap();
+        // Create a test dataset with more points
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                // Cluster 1 - tight cluster
+                1.0, 2.0, 1.5, 1.8, 1.3, 2.2, // Cluster 2 - tight cluster
+                8.0, 9.0, 8.2, 8.8, 7.8, 9.1,
+            ],
+        )
+        .unwrap();
 
-        // Run HDBSCAN with parameters that work for this small dataset
+        // Run HDBSCAN with very small parameters for this tiny dataset
         let options = HDBSCANOptions {
-            min_samples: Some(2), // Reduced from default (often 5) to work with our small dataset
-            min_cluster_size: 2,
+            min_samples: Some(2), // Very small for testing
+            min_cluster_size: 2,  // Very small for testing
+            cluster_selection_epsilon: 0.0,
+            allow_single_cluster: true, // Allow single cluster result
             ..Default::default()
         };
 
-        let result = hdbscan(data.view(), Some(options)).unwrap();
+        let result = hdbscan(data.view(), Some(options));
+
+        // Check for error first
+        assert!(result.is_ok(), "HDBSCAN failed: {:?}", result.err());
+
+        let result = result.unwrap();
 
         // Check that we get a result with the right shape
-        assert_eq!(result.labels.len(), 4);
-        assert_eq!(result.probabilities.len(), 4);
+        assert_eq!(
+            result.labels.len(),
+            6,
+            "Labels length should be 6, got: {:?}",
+            result.labels
+        );
+        assert_eq!(
+            result.probabilities.len(),
+            6,
+            "Probabilities length should be 6, got: {:?}",
+            result.probabilities
+        );
+
+        // For this simple test, we just check that the algorithm runs without error
+        // HDBSCAN is complex and results can vary based on the implementation details
+        // So we use a relaxed test that just checks basic properties
     }
 
     #[test]

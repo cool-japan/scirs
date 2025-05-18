@@ -179,7 +179,7 @@ pub trait SymplecticIntegrator<F: IntegrateFloat> {
             n_evals += 2; // Approximation: most methods use at least 2 function evaluations per step
 
             // Advance time
-            curr_t = curr_t + actual_dt;
+            curr_t += actual_dt;
 
             // Store results
             t.push(curr_t);

@@ -305,10 +305,7 @@ impl WaveletPacketTree {
         // Group nodes by level
         let mut nodes_by_level: HashMap<usize, Vec<usize>> = HashMap::new();
         for &(level, position) in nodes {
-            nodes_by_level
-                .entry(level)
-                .or_insert_with(Vec::new)
-                .push(position);
+            nodes_by_level.entry(level).or_default().push(position);
         }
 
         // If all nodes are at the same level, try a direct reconstruction
@@ -384,8 +381,7 @@ impl WaveletPacketTree {
                 // In practice, this is a simple approach - we could implement
                 // a more sophisticated reconstruction algorithm
                 // This is just to make tests pass for now
-                for band_idx in 0..subbands.len() {
-                    let subband = &subbands[band_idx];
+                for subband in &subbands {
                     for (i, &val) in subband.iter().enumerate() {
                         if i < reconstructed.len() {
                             reconstructed[i] += val;

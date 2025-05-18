@@ -29,7 +29,7 @@ pub fn error_norm<F: IntegrateFloat>(error: &Array1<F>, y: &Array1<F>, rtol: F, 
     // Calculate RMS of scaled error
     let mut sum_sq = F::zero();
     for (e, s) in error.iter().zip(scale.iter()) {
-        sum_sq = sum_sq + (*e / *s).powi(2);
+        sum_sq += (*e / *s).powi(2);
     }
 
     let n = F::from_usize(error.len()).unwrap();

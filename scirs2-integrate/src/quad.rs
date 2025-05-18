@@ -83,7 +83,7 @@ where
 
     for i in 1..n {
         let x = a + F::from_usize(i).unwrap() * h;
-        sum = sum + f(x);
+        sum += f(x);
     }
 
     sum * h
@@ -133,9 +133,9 @@ where
     for i in 1..n {
         let x = a + F::from_usize(i).unwrap() * h;
         if i % 2 == 0 {
-            sum_even = sum_even + f(x);
+            sum_even += f(x);
         } else {
-            sum_odd = sum_odd + f(x);
+            sum_odd += f(x);
         }
     }
 
@@ -321,9 +321,9 @@ where
         let x = a + F::from_usize(i).unwrap() * h;
         *count += 1;
         if i % 2 == 0 {
-            sum_even = sum_even + f(x);
+            sum_even += f(x);
         } else {
-            sum_odd = sum_odd + f(x);
+            sum_odd += f(x);
         }
     }
 

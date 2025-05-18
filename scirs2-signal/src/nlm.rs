@@ -12,6 +12,7 @@
 //!
 //! # Example
 //! ```ignore
+//! # FIXME: Integer overflow in nlm_denoise functions
 //! use ndarray::{Array1, Array2};
 //! use scirs2_signal::nlm::{nlm_denoise_1d, nlm_denoise_2d, NlmConfig};
 //! use rand::Rng;
@@ -94,6 +95,7 @@ impl Default for NlmConfig {
 ///
 /// # Example
 /// ```ignore
+/// # FIXME: Integer overflow in nlm_denoise functions
 /// use ndarray::Array1;
 /// use scirs2_signal::nlm::{nlm_denoise_1d, NlmConfig};
 ///
@@ -252,6 +254,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 ///
 /// # Example
 /// ```ignore
+/// # FIXME: Integer overflow in nlm_denoise functions
 /// use ndarray::Array2;
 /// use scirs2_signal::nlm::{nlm_denoise_2d, NlmConfig};
 ///

@@ -12,6 +12,9 @@ use rand_distr::{Distribution, Normal};
 use scirs2_linalg::{eigh, solve, solve_multiple, svd};
 use std::f64::consts::PI;
 
+/// Type alias for multi-dataset JADE result
+type JadeMultiResult = (Vec<Array2<f64>>, Vec<Array2<f64>>);
+
 /// Configuration for blind source separation
 #[derive(Debug, Clone)]
 pub struct BssConfig {
@@ -1120,7 +1123,7 @@ pub fn joint_bss(
     datasets: &[Array2<f64>],
     n_components: usize,
     _config: &BssConfig,
-) -> SignalResult<(Vec<Array2<f64>>, Vec<Array2<f64>>)> {
+) -> SignalResult<JadeMultiResult> {
     if datasets.is_empty() {
         return Err(SignalError::ValueError("No datasets provided".to_string()));
     }

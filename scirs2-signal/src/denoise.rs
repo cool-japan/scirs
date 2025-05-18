@@ -52,8 +52,7 @@ pub enum ThresholdSelect {
 /// # Examples
 ///
 /// ```ignore
-/// // This example is marked as ignore because the implementation
-/// // needs more work for full compatibility
+/// # FIXME: Issue with DWT module - Approximation and detail coefficients length mismatch
 /// use scirs2_signal::denoise::{denoise_wavelet, ThresholdMethod, ThresholdSelect};
 /// use scirs2_signal::dwt::Wavelet;
 /// use std::f64::consts::PI;

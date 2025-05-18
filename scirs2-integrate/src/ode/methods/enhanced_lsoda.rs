@@ -128,12 +128,12 @@ impl<F: IntegrateFloat> EnhancedLsodaState<F> {
             AdaptiveMethodType::Explicit | AdaptiveMethodType::Adams => {
                 // When switching to Adams, be more conservative with step size
                 if self.rejected_steps > 2 {
-                    self.h = self.h * F::from_f64(0.5).unwrap();
+                    self.h *= F::from_f64(0.5).unwrap();
                 }
             }
             AdaptiveMethodType::RungeKutta => {
                 // RK methods - reset step size to be conservative
-                self.h = self.h * F::from_f64(0.8).unwrap();
+                self.h *= F::from_f64(0.8).unwrap();
             }
         }
 
@@ -271,7 +271,7 @@ where
                             state.switch_method(AdaptiveMethodType::Implicit)?;
 
                             // Reduce step size
-                            state.h = state.h * F::from_f64(0.5).unwrap();
+                            state.h *= F::from_f64(0.5).unwrap();
                             if state.h < min_step {
                                 return Err(IntegrateError::ConvergenceError(
                                     "Step size too small after method switch".to_string(),
@@ -288,7 +288,7 @@ where
                             state.switch_method(AdaptiveMethodType::Explicit)?;
 
                             // Reduce step size for stability
-                            state.h = state.h * F::from_f64(0.5).unwrap();
+                            state.h *= F::from_f64(0.5).unwrap();
                             if state.h < min_step {
                                 return Err(IntegrateError::ConvergenceError(
                                     "Step size too small after method switch".to_string(),
@@ -503,7 +503,7 @@ where
         .min(12);
 
     // If we don't have enough history, use lower order
-    if order == 1 || state.dy_history.len() == 0 {
+    if order == 1 || state.dy_history.is_empty() {
         // Explicit Euler method (1st order Adams-Bashforth)
         let next_t = state.t + state.h;
         let next_y = &state.y + &(state.dy.clone() * state.h);
@@ -534,10 +534,10 @@ where
     // y_{n+1} = y_n + h * sum(b_i * f_{n-i+1})
     let mut ab_sum = state.dy.clone() * ab_coefs[0];
 
-    for i in 1..order {
+    for (i, &coeff) in ab_coefs.iter().enumerate().take(order).skip(1) {
         if i <= state.dy_history.len() {
             let idx = state.dy_history.len() - i;
-            ab_sum = ab_sum + &(state.dy_history[idx].clone() * ab_coefs[i]);
+            ab_sum += &(state.dy_history[idx].clone() * coeff);
         }
     }
 
@@ -557,14 +557,14 @@ where
     // y_{n+1} = y_n + h * (b_0 * f_{n+1} + sum(b_i * f_{n-i+1}))
     let mut am_sum = dy_pred.clone() * am_coefs[0]; // f_{n+1} term
 
-    for i in 1..am_order {
+    for (i, &coeff) in am_coefs.iter().enumerate().take(am_order).skip(1) {
         if i == 1 {
             // Current derivative (f_n)
-            am_sum = am_sum + &(state.dy.clone() * am_coefs[i]);
+            am_sum += &(state.dy.clone() * coeff);
         } else if i - 1 < state.dy_history.len() {
             // Historical derivatives (f_{n-1}, f_{n-2}, ...)
             let idx = state.dy_history.len() - (i - 1);
-            am_sum = am_sum + &(state.dy_history[idx].clone() * am_coefs[i]);
+            am_sum += &(state.dy_history[idx].clone() * coeff);
         }
     }
 
@@ -602,7 +602,7 @@ where
         state.dy = dy_corr;
 
         // Update step size for next step
-        state.h = state.h * factor;
+        state.h *= factor;
 
         // Order adaptation
         if order < 12 && error < opts.rtol && state.dy_history.len() >= order {
@@ -619,7 +619,7 @@ where
         // Step rejected
 
         // Adjust step size for retry
-        state.h = state.h * factor;
+        state.h *= factor;
 
         // Trigger stiffness detector to record this rejected step
         state.adaptive_state.record_step(error);
@@ -686,7 +686,7 @@ where
     let order = state.adaptive_state.order.min(state.y_history.len()).min(5);
 
     // If we don't have enough history for the requested order, use lower order
-    if order == 1 || state.y_history.len() == 0 {
+    if order == 1 || state.y_history.is_empty() {
         // Implicit Euler method (1st order BDF)
         let next_t = state.t + state.h;
 
@@ -735,7 +735,7 @@ where
                 for i in 0..n_dim {
                     for j in 0..n_dim {
                         jac[[i, j]] = if i == j { F::one() } else { F::zero() };
-                        jac[[i, j]] = jac[[i, j]] - state.h * new_jacobian[[i, j]];
+                        jac[[i, j]] -= state.h * new_jacobian[[i, j]];
                     }
                 }
 
@@ -756,7 +756,7 @@ where
                 Ok(delta) => delta,
                 Err(_) => {
                     // Nearly singular, reduce step size and try again
-                    state.h = state.h * F::from_f64(0.5).unwrap();
+                    state.h *= F::from_f64(0.5).unwrap();
                     return Ok(false);
                 }
             };
@@ -777,7 +777,7 @@ where
 
         if !converged {
             // Newton iteration failed, reduce step size
-            state.h = state.h * F::from_f64(0.5).unwrap();
+            state.h *= F::from_f64(0.5).unwrap();
 
             // If we've reduced step size too much, the problem might be non-stiff
             if state.h < opts.min_step.unwrap_or(F::from_f64(1e-10).unwrap()) {
@@ -816,7 +816,7 @@ where
     let mut y_pred = state.y.clone();
 
     // For higher orders, use previous points for prediction
-    if order > 1 && state.y_history.len() >= 1 {
+    if order > 1 && !state.y_history.is_empty() {
         let _y_prev = &state.y_history[state.y_history.len() - 1];
 
         // Use more sophisticated extrapolation
@@ -840,17 +840,17 @@ where
         let mut residual = y_next.clone() * coeffs[0];
 
         // Subtract previous terms
-        residual = residual - &(state.y.clone() * coeffs[1]);
+        residual -= &(state.y.clone() * coeffs[1]);
 
-        for j in 2..coeffs.len() {
+        for (j, &coeff) in coeffs.iter().enumerate().skip(2) {
             if j - 1 < state.y_history.len() {
                 let idx = state.y_history.len() - (j - 1);
-                residual = residual - &(state.y_history[idx].clone() * coeffs[j]);
+                residual -= &(state.y_history[idx].clone() * coeff);
             }
         }
 
         // Subtract h * f term
-        residual = residual - &(f_eval.clone() * state.h);
+        residual -= &(f_eval.clone() * state.h);
 
         // Check convergence
         let error = scaled_norm(&residual, &state.tol_scale);
@@ -878,7 +878,7 @@ where
             for i in 0..n_dim {
                 for j in 0..n_dim {
                     jac[[i, j]] = if i == j { coeffs[0] } else { F::zero() };
-                    jac[[i, j]] = jac[[i, j]] - state.h * new_jacobian[[i, j]];
+                    jac[[i, j]] -= state.h * new_jacobian[[i, j]];
                 }
             }
 
@@ -899,7 +899,7 @@ where
             Ok(delta) => delta,
             Err(_) => {
                 // Nearly singular, reduce step size and try again
-                state.h = state.h * F::from_f64(0.5).unwrap();
+                state.h *= F::from_f64(0.5).unwrap();
                 return Ok(false);
             }
         };
@@ -920,7 +920,7 @@ where
 
     if !converged {
         // Newton iteration failed, reduce step size
-        state.h = state.h * F::from_f64(0.5).unwrap();
+        state.h *= F::from_f64(0.5).unwrap();
 
         // If the problem is consistently difficult to solve, it might not be stiff
         if iter_count >= max_newton_iters - 1 {
@@ -953,7 +953,7 @@ where
     // Step size and order adaptation based on convergence rate
     if iter_count <= 2 {
         // Converged quickly - can increase step size
-        state.h = state.h * F::from_f64(1.1).unwrap();
+        state.h *= F::from_f64(1.1).unwrap();
 
         // Maybe increase order if convergence is very good
         if state.adaptive_state.order < 5 && state.y_history.len() >= state.adaptive_state.order {
@@ -961,7 +961,7 @@ where
         }
     } else if iter_count >= 8 {
         // Converged slowly - reduce step size
-        state.h = state.h * F::from_f64(0.8).unwrap();
+        state.h *= F::from_f64(0.8).unwrap();
 
         // Decrease order if we're struggling
         if state.adaptive_state.order > 1 {

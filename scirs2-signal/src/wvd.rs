@@ -61,6 +61,7 @@ impl Default for WvdConfig {
 /// # Example
 ///
 /// ```ignore
+/// # FIXME: FFT library expects f64 values but we're passing Complex64
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{wigner_ville, WvdConfig};
 ///
@@ -105,6 +106,7 @@ pub fn wigner_ville(signal: &Array1<f64>, config: WvdConfig) -> SignalResult<Arr
 /// # Example
 ///
 /// ```ignore
+/// # FIXME: FFT library expects f64 values but we're passing Complex64
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{cross_wigner_ville, WvdConfig};
 ///
@@ -169,6 +171,7 @@ pub fn cross_wigner_ville(
 /// # Example
 ///
 /// ```ignore
+/// # FIXME: FFT library expects f64 values but we're passing Complex64
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{smoothed_pseudo_wigner_ville, WvdConfig};
 /// use scirs2_signal::window;
@@ -179,8 +182,8 @@ pub fn cross_wigner_ville(
 /// let signal = t.mapv(|ti| (2.0 * std::f64::consts::PI * (10.0 * ti + 50.0 * ti * ti)).sin());
 ///
 /// // Create windows for smoothing
-/// let time_win = window::hamming(51);
-/// let freq_win = window::hamming(101);
+/// let time_win = Array1::from(window::hamming(51, true).unwrap());
+/// let freq_win = Array1::from(window::hamming(101, true).unwrap());
 ///
 /// // Configure the WVD
 /// let mut config = WvdConfig::default();
@@ -261,18 +264,20 @@ fn compute_cross_wvd(
 
     let freq_window = config.freq_window.as_ref().map(|w| {
         // Ensure frequency window is of appropriate length for FFT
-        if w.len() < n_fft {
-            let mut new_w = Array1::zeros(n_fft);
-            let offset = (n_fft - w.len()) / 2;
-            for i in 0..w.len() {
-                new_w[i + offset] = w[i];
+        match w.len().cmp(&n_fft) {
+            std::cmp::Ordering::Less => {
+                let mut new_w = Array1::zeros(n_fft);
+                let offset = (n_fft - w.len()) / 2;
+                for i in 0..w.len() {
+                    new_w[i + offset] = w[i];
+                }
+                new_w
             }
-            new_w
-        } else if w.len() > n_fft {
-            let offset = (w.len() - n_fft) / 2;
-            w.slice(s![offset..offset + n_fft]).to_owned()
-        } else {
-            w.clone()
+            std::cmp::Ordering::Greater => {
+                let offset = (w.len() - n_fft) / 2;
+                w.slice(s![offset..offset + n_fft]).to_owned()
+            }
+            std::cmp::Ordering::Equal => w.clone(),
         }
     });
 

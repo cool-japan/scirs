@@ -22,26 +22,27 @@ type VoronoiDiagramResult = (Array2<f64>, Vec<Vec<usize>>, Array2<f64>);
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// # use scirs2_spatial::spherical_voronoi::SphericalVoronoi;
 /// # use ndarray::array;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Create points on a sphere (these should be normalized)
-/// let points = array![
-///     [0.0, 0.0, 1.0],
-///     [0.0, 0.0, -1.0],
-///     [1.0, 0.0, 0.0],
-///     [0.0, 1.0, 0.0],
-///     [0.0, -1.0, 0.0],
-///     [-1.0, 0.0, 0.0]
-/// ];
+/// // Using points that avoid degenerate simplices
+/// let angles = [(0.5_f64, 0.0_f64), (0.5_f64, 1.0_f64), (1.0_f64, 0.5_f64),
+///              (1.5_f64, 1.0_f64), (0.8_f64, 1.5_f64)];
+/// let mut points = Vec::new();
+/// for &(phi, theta) in angles.iter() {
+///     let x = phi.sin() * theta.cos();
+///     let y = phi.sin() * theta.sin();
+///     let z = phi.cos();
+///     points.push([x, y, z]);
+/// }
+/// let points = ndarray::arr2(&points);
 ///
 /// // Create a SphericalVoronoi diagram
 /// let radius = 1.0;
 /// let center = array![0.0, 0.0, 0.0];
 /// let sv = SphericalVoronoi::new(&points.view(), radius, Some(&center), None)?;
-/// // Note: This example is currently ignored due to implementation issues with degenerate simplices
-/// // Error: "Degenerate simplex, cannot compute circumcenter"
 ///
 /// // Access the Voronoi regions
 /// let regions = sv.regions();

@@ -18,7 +18,7 @@ use std::f64::consts::PI;
 ///
 /// * `m` - Number of points in the output window
 /// * `beta` - Shape parameter that determines the trade-off between main-lobe width
-///            and side lobe level
+///  and side lobe level
 /// * `sym` - If true, generates a symmetric window, otherwise a periodic window
 ///
 /// # Returns
@@ -72,7 +72,7 @@ pub fn kaiser(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
 ///
 /// * `m` - Number of points in the output window
 /// * `beta` - Shape parameter that determines the trade-off between main-lobe width
-///            and side lobe level
+///  and side lobe level
 /// * `sym` - If true, generates a symmetric window, otherwise a periodic window
 ///
 /// # Returns
@@ -104,7 +104,7 @@ pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec
     // Special handling for even and odd lengths
     if n % 2 == 0 {
         // Even
-        for i in 0..n {
+        for (i, item) in w.iter_mut().enumerate().take(n) {
             let mut sum = 0.0;
             for j in 0..(n / 2) {
                 let angle = 2.0 * PI * i as f64 * j as f64 / n as f64;
@@ -115,18 +115,18 @@ pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec
                 sum += kaiser_win[len_half - j] * angle.cos();
             }
 
-            w[i] = (sum / len_half as f64).sqrt();
+            *item = (sum / len_half as f64).sqrt();
         }
     } else {
         // Odd
-        for i in 0..n {
+        for (i, item) in w.iter_mut().enumerate().take(n) {
             let mut sum = kaiser_win[len_half];
             for j in 1..=len_half {
                 let angle = 2.0 * PI * i as f64 * j as f64 / n as f64;
                 sum += 2.0 * kaiser_win[len_half + j] * angle.cos();
             }
 
-            w[i] = (sum / n as f64).sqrt();
+            *item = (sum / n as f64).sqrt();
         }
     }
 

@@ -118,7 +118,7 @@ where
         let mut sum = b_copy[i];
 
         for j in (i + 1)..n {
-            sum = sum - a_copy[[i, j]] * x[j];
+            sum -= a_copy[[i, j]] * x[j];
         }
 
         x[i] = sum / a_copy[[i, i]];

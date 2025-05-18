@@ -107,7 +107,7 @@ where
             y = y + slope * h;
 
             // Update time
-            t = t + h;
+            t += h;
 
             // Store results
             t_values.push(t);
@@ -249,7 +249,7 @@ where
 
             for i in 0..n_dim {
                 let mut y_perturbed = y_next.clone();
-                y_perturbed[i] = y_perturbed[i] + eps;
+                y_perturbed[i] += eps;
 
                 let f_perturbed = f(next_t, y_perturbed.view());
                 func_evals += 1;
@@ -275,7 +275,7 @@ where
                 // For scalar case, J is just a number, and delta_y = -residual / J
                 if jacobian[[0, 0]].abs() < F::from_f64(1e-10).unwrap() {
                     // Nearly singular, reduce step size and try again
-                    h = h * F::from_f64(0.5).unwrap();
+                    h *= F::from_f64(0.5).unwrap();
                     if h < min_step {
                         return Err(IntegrateError::ConvergenceError(
                             "Newton iteration failed to converge with minimum step size"
@@ -288,7 +288,7 @@ where
 
                 // Direct solution for scalar case
                 let delta_y0 = residual[0] / jacobian[[0, 0]];
-                y_next[0] = y_next[0] - delta_y0;
+                y_next[0] -= delta_y0;
             }
             // For larger systems, use Gaussian elimination
             else {
@@ -319,7 +319,7 @@ where
                     // Check if the matrix is singular
                     if max_val < F::from_f64(1e-10).unwrap() {
                         // Nearly singular matrix, reduce step size and try again
-                        h = h * F::from_f64(0.5).unwrap();
+                        h *= F::from_f64(0.5).unwrap();
                         if h < min_step {
                             return Err(IntegrateError::ConvergenceError(
                                 "Newton iteration failed to converge with minimum step size"
@@ -353,14 +353,14 @@ where
                 for i in (0..n_dim).rev() {
                     let mut sum = aug[[i, n_dim]];
                     for j in i + 1..n_dim {
-                        sum = sum - aug[[i, j]] * delta_y[j];
+                        sum -= aug[[i, j]] * delta_y[j];
                     }
                     delta_y[i] = sum / aug[[i, i]];
                 }
 
                 // Update solution
                 for i in 0..n_dim {
-                    y_next[i] = y_next[i] - delta_y[i];
+                    y_next[i] -= delta_y[i];
                 }
             }
 
@@ -381,7 +381,7 @@ where
             iter_count += 1;
         }
 
-        newton_iters = newton_iters + F::from(iter_count).unwrap();
+        newton_iters += F::from(iter_count).unwrap();
 
         if converged {
             // Step accepted
@@ -398,15 +398,15 @@ where
             // Adjust step size based on Newton convergence
             // If we converged quickly, increase step size
             if iter_count <= 2 {
-                h = h * F::from_f64(1.2).unwrap().min(F::from_f64(5.0).unwrap());
+                h *= F::from_f64(1.2).unwrap().min(F::from_f64(5.0).unwrap());
             }
             // If we needed many iterations, decrease step size
             else if iter_count >= max_newton_iters - 1 {
-                h = h * F::from_f64(0.8).unwrap().max(F::from_f64(0.2).unwrap());
+                h *= F::from_f64(0.8).unwrap().max(F::from_f64(0.2).unwrap());
             }
         } else {
             // Newton iteration failed to converge, reduce step size
-            h = h * F::from_f64(0.5).unwrap();
+            h *= F::from_f64(0.5).unwrap();
             if h < min_step {
                 return Err(IntegrateError::ConvergenceError(
                     "Newton iteration failed to converge with minimum step size".to_string(),
@@ -577,15 +577,15 @@ where
             // Compute residuals for each stage
             // r_i = k_i - y_n - h * sum_j(a_ij * f_j)
             let mut r1 = k1.clone();
-            r1 = r1 - &y;
+            r1 -= &y;
             r1 = r1 - (&f1 * (h * a11) + &f2 * (h * a12) + &f3 * (h * a13));
 
             let mut r2 = k2.clone();
-            r2 = r2 - &y;
+            r2 -= &y;
             r2 = r2 - (&f1 * (h * a21) + &f2 * (h * a22) + &f3 * (h * a23));
 
             let mut r3 = k3.clone();
-            r3 = r3 - &y;
+            r3 -= &y;
             r3 = r3 - (&f1 * (h * a31) + &f2 * (h * a32) + &f3 * (h * a33));
 
             // Check for convergence
@@ -645,21 +645,21 @@ where
 
                     // Compute perturbed residuals
                     let mut r1_perturbed = k1_perturbed.clone();
-                    r1_perturbed = r1_perturbed - &y;
+                    r1_perturbed -= &y;
                     r1_perturbed = r1_perturbed
                         - (&f1_perturbed * (h * a11)
                             + &f2_perturbed * (h * a12)
                             + &f3_perturbed * (h * a13));
 
                     let mut r2_perturbed = k2_perturbed.clone();
-                    r2_perturbed = r2_perturbed - &y;
+                    r2_perturbed -= &y;
                     r2_perturbed = r2_perturbed
                         - (&f1_perturbed * (h * a21)
                             + &f2_perturbed * (h * a22)
                             + &f3_perturbed * (h * a23));
 
                     let mut r3_perturbed = k3_perturbed.clone();
-                    r3_perturbed = r3_perturbed - &y;
+                    r3_perturbed -= &y;
                     r3_perturbed = r3_perturbed
                         - (&f1_perturbed * (h * a31)
                             + &f2_perturbed * (h * a32)
@@ -699,7 +699,7 @@ where
                     // Check for singularity
                     if max_val < F::from_f64(1e-10).unwrap() {
                         // Nearly singular matrix, reduce step size and try again
-                        h = h * F::from_f64(0.5).unwrap();
+                        h *= F::from_f64(0.5).unwrap();
                         if h < min_step {
                             return Err(IntegrateError::ConvergenceError(
                                 "Newton iteration failed to converge with minimum step size"
@@ -733,15 +733,15 @@ where
                 for j in (0..3).rev() {
                     let mut sum = aug[[j, 3]];
                     for k in j + 1..3 {
-                        sum = sum - aug[[j, k]] * delta[k];
+                        sum -= aug[[j, k]] * delta[k];
                     }
                     delta[j] = sum / aug[[j, j]];
                 }
 
                 // Update stage values
-                k1[i] = k1[i] - delta[0];
-                k2[i] = k2[i] - delta[1];
-                k3[i] = k3[i] - delta[2];
+                k1[i] -= delta[0];
+                k2[i] -= delta[1];
+                k3[i] -= delta[2];
             }
 
             iter_count += 1;
@@ -758,7 +758,7 @@ where
             let y_next = &y + &(&f1 * (h * b1) + &f2 * (h * b2) + &f3 * (h * b3));
 
             // Update state
-            t = t + h;
+            t += h;
             y = y_next;
 
             // Store results
@@ -771,14 +771,14 @@ where
             // Adjust step size based on convergence
             if iter_count <= 2 {
                 // Fast convergence, increase step size
-                h = h * F::from_f64(1.2).unwrap().min(F::from_f64(5.0).unwrap());
+                h *= F::from_f64(1.2).unwrap().min(F::from_f64(5.0).unwrap());
             } else if iter_count >= max_newton_iters - 1 {
                 // Slow convergence, decrease step size
-                h = h * F::from_f64(0.8).unwrap().max(F::from_f64(0.2).unwrap());
+                h *= F::from_f64(0.8).unwrap().max(F::from_f64(0.2).unwrap());
             }
         } else {
             // Step rejected, reduce step size
-            h = h * F::from_f64(0.5).unwrap();
+            h *= F::from_f64(0.5).unwrap();
             if h < min_step {
                 return Err(IntegrateError::ConvergenceError(
                     "Newton iteration failed to converge with minimum step size".to_string(),

@@ -69,8 +69,8 @@ impl<F: IntegrateFloat> SymplecticIntegrator<F> for GaussLegendre4<F> {
         let zero = Array1::<F>::zeros(n);
 
         // Initial guess for stage derivatives
-        let mut k_q = vec![zero.clone(), zero.clone()];
-        let mut k_p = vec![zero.clone(), zero.clone()];
+        let mut k_q = [zero.clone(), zero.clone()];
+        let mut k_p = [zero.clone(), zero.clone()];
 
         // Time points for each stage
         let t1 = t + c[0] * dt;
@@ -204,8 +204,8 @@ impl<F: IntegrateFloat> SymplecticIntegrator<F> for GaussLegendre6<F> {
         let zero = Array1::<F>::zeros(n);
 
         // Initial guess for stage derivatives
-        let mut k_q = vec![zero.clone(), zero.clone(), zero.clone()];
-        let mut k_p = vec![zero.clone(), zero.clone(), zero.clone()];
+        let mut k_q = [zero.clone(), zero.clone(), zero.clone()];
+        let mut k_p = [zero.clone(), zero.clone(), zero.clone()];
 
         // Time points for each stage
         let t1 = t + c[0] * dt;

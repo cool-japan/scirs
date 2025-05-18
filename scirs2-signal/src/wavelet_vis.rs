@@ -852,18 +852,12 @@ pub mod colormaps {
     /// Viridis colormap (perceptually uniform, color-blind friendly)
     pub fn viridis(value: f64) -> [u8; 3] {
         // Clamp value to [0, 1]
-        let x = value.max(0.0).min(1.0);
+        let x = value.clamp(0.0, 1.0);
 
         // Viridis colormap approximation
-        let r = (70.0 * x.powi(2) - 35.0 * x - 129.0 * x.powi(3) + 133.0)
-            .max(0.0)
-            .min(255.0) as u8;
-        let g = (87.0 + 192.0 * x - 386.0 * x.powi(2) + 203.0 * x.powi(3))
-            .max(0.0)
-            .min(255.0) as u8;
-        let b = (173.0 - 36.0 * x - 476.0 * x.powi(2) + 357.0 * x.powi(3))
-            .max(0.0)
-            .min(255.0) as u8;
+        let r = (70.0 * x.powi(2) - 35.0 * x - 129.0 * x.powi(3) + 133.0).clamp(0.0, 255.0) as u8;
+        let g = (87.0 + 192.0 * x - 386.0 * x.powi(2) + 203.0 * x.powi(3)).clamp(0.0, 255.0) as u8;
+        let b = (173.0 - 36.0 * x - 476.0 * x.powi(2) + 357.0 * x.powi(3)).clamp(0.0, 255.0) as u8;
 
         [r, g, b]
     }
@@ -871,18 +865,15 @@ pub mod colormaps {
     /// Plasma colormap (perceptually uniform)
     pub fn plasma(value: f64) -> [u8; 3] {
         // Clamp value to [0, 1]
-        let x = value.max(0.0).min(1.0);
+        let x = value.clamp(0.0, 1.0);
 
         // Plasma colormap approximation
-        let r = (255.0 * (0.05 + 0.82 * x + 1.15 * x.powi(2) - 1.82 * x.powi(3)))
-            .max(0.0)
-            .min(255.0) as u8;
-        let g = (255.0 * (-0.15 + 1.80 * x - 3.09 * x.powi(2) + 1.42 * x.powi(3)))
-            .max(0.0)
-            .min(255.0) as u8;
-        let b = (255.0 * (0.51 + 0.56 * x - 2.31 * x.powi(2) + 1.24 * x.powi(3)))
-            .max(0.0)
-            .min(255.0) as u8;
+        let r = (255.0 * (0.05 + 0.82 * x + 1.15 * x.powi(2) - 1.82 * x.powi(3))).clamp(0.0, 255.0)
+            as u8;
+        let g = (255.0 * (-0.15 + 1.80 * x - 3.09 * x.powi(2) + 1.42 * x.powi(3))).clamp(0.0, 255.0)
+            as u8;
+        let b = (255.0 * (0.51 + 0.56 * x - 2.31 * x.powi(2) + 1.24 * x.powi(3))).clamp(0.0, 255.0)
+            as u8;
 
         [r, g, b]
     }
@@ -890,7 +881,7 @@ pub mod colormaps {
     /// Sequential grayscale (black to white)
     pub fn grayscale(value: f64) -> [u8; 3] {
         // Clamp value to [0, 1]
-        let x = value.max(0.0).min(1.0);
+        let x = value.clamp(0.0, 1.0);
 
         // Grayscale is simple - same value for R, G, and B
         let gray = (255.0 * x) as u8;
@@ -901,7 +892,7 @@ pub mod colormaps {
     /// Diverging red-blue colormap (for positive/negative values)
     pub fn diverging_rb(value: f64) -> [u8; 3] {
         // Clamp value to [0, 1]
-        let x = value.max(0.0).min(1.0);
+        let x = value.clamp(0.0, 1.0);
 
         // Red for values < 0.5, blue for values > 0.5
         let r = if x < 0.5 {
@@ -925,12 +916,12 @@ pub mod colormaps {
     /// Jet colormap (rainbow)
     pub fn jet(value: f64) -> [u8; 3] {
         // Clamp value to [0, 1]
-        let x = value.max(0.0).min(1.0);
+        let x = value.clamp(0.0, 1.0);
 
         // Jet colormap approximation
-        let r = (255.0 * (1.5 - 4.0 * (x - 0.75).abs()).max(0.0).min(1.0)) as u8;
-        let g = (255.0 * (1.5 - 4.0 * (x - 0.5).abs()).max(0.0).min(1.0)) as u8;
-        let b = (255.0 * (1.5 - 4.0 * (x - 0.25).abs()).max(0.0).min(1.0)) as u8;
+        let r = (255.0 * (1.5 - 4.0 * (x - 0.75).abs()).clamp(0.0, 1.0)) as u8;
+        let g = (255.0 * (1.5 - 4.0 * (x - 0.5).abs()).clamp(0.0, 1.0)) as u8;
+        let b = (255.0 * (1.5 - 4.0 * (x - 0.25).abs()).clamp(0.0, 1.0)) as u8;
 
         [r, g, b]
     }

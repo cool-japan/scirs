@@ -56,7 +56,9 @@ pub enum PolynomialBasis {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::local::mls::{MovingLeastSquares, WeightFunction, PolynomialBasis};
 ///
@@ -70,18 +72,19 @@ pub enum PolynomialBasis {
 /// ]).unwrap();
 /// let values = Array1::from_vec(vec![0.0, 1.0, 1.0, 2.0, 1.5]);
 ///
-/// // Create MLS interpolator
-/// let mls = MovingLeastSquares::new(
+/// // Create MLS interpolator (simplified configuration for test)
+/// let mls = MovingLeastSquares::<f64>::new(
 ///     points,
 ///     values,
 ///     WeightFunction::Gaussian,
-///     PolynomialBasis::Linear,
+///     PolynomialBasis::Constant, // Using constant basis to avoid linalg feature requirement
 ///     0.5, // bandwidth parameter
 /// ).unwrap();
 ///
 /// // Evaluate at a new point
 /// let query = Array1::from_vec(vec![0.25, 0.25]);
 /// let result = mls.evaluate(&query.view()).unwrap();
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct MovingLeastSquares<F>

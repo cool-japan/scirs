@@ -81,7 +81,7 @@ impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
         // Subtract h*β*∂f/∂x from the identity
         for i in 0..n_x {
             for j in 0..n_x {
-                a_block[[i, j]] = a_block[[i, j]] - h * beta * f_x[[i, j]];
+                a_block[[i, j]] -= h * beta * f_x[[i, j]];
             }
         }
 
@@ -134,15 +134,19 @@ impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
         // Fill in the A block (split between L and U)
         for i in 0..n_x {
             for j in 0..n_x {
-                if i > j {
-                    // Lower triangular part goes to L
-                    l[[i, j]] = a[[i, j]];
-                } else if i == j {
-                    // Diagonal goes to U
-                    u[[i, j]] = a[[i, j]];
-                } else {
-                    // Upper triangular part goes to U
-                    u[[i, j]] = a[[i, j]];
+                match i.cmp(&j) {
+                    std::cmp::Ordering::Greater => {
+                        // Lower triangular part goes to L
+                        l[[i, j]] = a[[i, j]];
+                    }
+                    std::cmp::Ordering::Equal => {
+                        // Diagonal goes to U
+                        u[[i, j]] = a[[i, j]];
+                    }
+                    std::cmp::Ordering::Less => {
+                        // Upper triangular part goes to U
+                        u[[i, j]] = a[[i, j]];
+                    }
                 }
             }
         }
@@ -164,15 +168,19 @@ impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
         // Fill in the D block (split between L and U)
         for i in 0..n_y {
             for j in 0..n_y {
-                if i > j {
-                    // Lower triangular part goes to L
-                    l[[n_x + i, n_x + j]] = d[[i, j]];
-                } else if i == j {
-                    // Diagonal goes to U
-                    u[[n_x + i, n_x + j]] = d[[i, j]];
-                } else {
-                    // Upper triangular part goes to U
-                    u[[n_x + i, n_x + j]] = d[[i, j]];
+                match i.cmp(&j) {
+                    std::cmp::Ordering::Greater => {
+                        // Lower triangular part goes to L
+                        l[[n_x + i, n_x + j]] = d[[i, j]];
+                    }
+                    std::cmp::Ordering::Equal => {
+                        // Diagonal goes to U
+                        u[[n_x + i, n_x + j]] = d[[i, j]];
+                    }
+                    std::cmp::Ordering::Less => {
+                        // Upper triangular part goes to U
+                        u[[n_x + i, n_x + j]] = d[[i, j]];
+                    }
                 }
             }
         }
@@ -189,7 +197,7 @@ impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
             for i in (k + 1)..n_total {
                 // Only process entries that are non-zero in L
                 if l[[i, k]].abs() > F::from_f64(1e-14).unwrap() {
-                    l[[i, k]] = l[[i, k]] / u[[k, k]];
+                    l[[i, k]] /= u[[k, k]];
 
                     // Update the remaining entries in row i
                     for j in (k + 1)..n_total {
@@ -247,7 +255,7 @@ impl<F: IntegrateFloat> BlockILUPreconditioner<F> {
                 result[i] = result[i] - self.u_factors[[i, j]] * result[j];
             }
             // Apply diagonal scaling
-            result[i] = result[i] * self.d_scaling[i];
+            result[i] *= self.d_scaling[i];
         }
 
         result
@@ -470,8 +478,8 @@ impl<F: IntegrateFloat> BlockJacobiPreconditioner<F> {
             // Scale the pivot row
             let pivot = lu[[k, k]];
             for j in 0..n {
-                lu[[k, j]] = lu[[k, j]] / pivot;
-                inv[[k, j]] = inv[[k, j]] / pivot;
+                lu[[k, j]] /= pivot;
+                inv[[k, j]] /= pivot;
             }
 
             // Eliminate other rows

@@ -120,7 +120,7 @@ mod tests {
     fn test_lambert_w() {
         // Test principal branch (k=0)
         let w = lambert_w(Complex64::new(1.0, 0.0), 0, 1e-8).unwrap();
-        let expected = Complex64::new(0.56714329040978384, 0.0);
+        let expected = Complex64::new(0.567_143_290_409_783_8, 0.0);
         assert!((w - expected).norm() < 1e-10);
 
         // Test w * exp(w) = z
@@ -138,6 +138,6 @@ mod tests {
 
         // Test real function
         let w_real = lambert_w_real(1.0, 1e-8).unwrap();
-        assert!((w_real - 0.56714329040978384).abs() < 1e-10);
+        assert!((w_real - 0.567_143_290_409_783_8).abs() < 1e-10);
     }
 }

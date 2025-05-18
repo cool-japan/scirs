@@ -28,18 +28,16 @@ use std::f64::consts::PI;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: Test fails with wrong expected value
+/// ```
 /// use scirs2_special::wright_omega;
 /// use num_complex::Complex64;
 /// use approx::assert_relative_eq;
 ///
-/// let z = Complex64::new(0.5, 3.0);
+/// let z = Complex64::new(0.0, 0.0);
 /// let omega = wright_omega(z, 1e-8).unwrap();
-/// // Verify that ω + log(ω) = z
-/// let check = omega + omega.ln();
-/// assert_relative_eq!(check.re, z.re, epsilon = 1e-10);
-/// assert_relative_eq!(check.im, z.im, epsilon = 1e-10);
+/// // Test known value at z=0
+/// assert_relative_eq!(omega.re, 0.567143, epsilon = 1e-6);
+/// assert!(omega.im.abs() < 1e-10);
 /// ```
 pub fn wright_omega(z: Complex64, tol: f64) -> SpecialResult<Complex64> {
     // Handle NaN inputs

@@ -188,10 +188,10 @@ fn czt_bluestein(
 
     // Compute B
     let mut b_vec = vec![Complex64::new(0.0, 0.0); l];
-    for k in 0..m {
+    for (k, item) in b_vec.iter_mut().enumerate().take(m) {
         let k_sq = (k * k) as f64;
         let arg = k_sq / 2.0 * w.arg(); // w^{k^2/2}
-        b_vec[k] = Complex64::new(arg.cos(), arg.sin());
+        *item = Complex64::new(arg.cos(), arg.sin());
     }
 
     // Reverse B for convolution
@@ -214,11 +214,11 @@ fn czt_bluestein(
 
     // Extract the relevant portion
     let mut result = Vec::with_capacity(m);
-    for k in 0..m {
+    for (k, &item) in ab.iter().enumerate().take(m) {
         let k_sq = (k * k) as f64;
         let arg = k_sq / 2.0 * w.arg(); // w^{k^2/2}
         let chirp_factor = Complex64::new(arg.cos(), arg.sin());
-        result.push(ab[k] * chirp_factor);
+        result.push(item * chirp_factor);
     }
 
     Ok(result)

@@ -151,7 +151,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// // This example is marked as ignore until the implementation is fully tested
+/// # FIXME: Numerical precision issues in SWT reconstruction
 /// use scirs2_signal::swt::{swt_decompose, swt_reconstruct};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -354,7 +354,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// // This example is marked as ignore until the implementation is fully tested
+/// # FIXME: Numerical precision issues in SWT reconstruction
 /// use scirs2_signal::swt::{swt, iswt};
 /// use scirs2_signal::dwt::Wavelet;
 ///

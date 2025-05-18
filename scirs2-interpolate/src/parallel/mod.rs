@@ -17,11 +17,11 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{Array1, Array2, ArrayView2};
 //! use scirs2_interpolate::parallel::{
 //!     ParallelMovingLeastSquares, ParallelConfig,
-//!     make_parallel_mls
+//!     ParallelEvaluate
 //! };
 //! use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
 //!
@@ -36,9 +36,11 @@
 //! let values = Array1::from_vec(vec![0.0, 1.0, 1.0, 2.0, 1.5]);
 //!
 //! // Create parallel MLS interpolator
-//! let parallel_mls = make_parallel_mls(
+//! let parallel_mls = ParallelMovingLeastSquares::new(
 //!     points.clone(),
 //!     values.clone(),
+//!     WeightFunction::Gaussian,
+//!     PolynomialBasis::Linear,
 //!     0.5, // bandwidth
 //! ).unwrap();
 //!
@@ -49,7 +51,7 @@
 //! ]).unwrap();
 //!
 //! let config = ParallelConfig::new();
-//! let results = parallel_mls.evaluate_parallel(&query_points.view(), &config).unwrap();
+//! let results: Array1<f64> = parallel_mls.evaluate_parallel(&query_points.view(), &config).unwrap();
 //! ```
 
 use ndarray::{Array1, ArrayView2};

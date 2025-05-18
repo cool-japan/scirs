@@ -10,20 +10,15 @@ use num_traits::Float;
 use std::fmt::Debug;
 
 /// Continuous output method for interpolation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ContinuousOutputMethod {
     /// Simple linear interpolation between points
     Linear,
     /// Cubic Hermite interpolation using function values and derivatives
+    #[default]
     CubicHermite,
     /// Specialized high-order interpolation for specific ODE methods
     MethodSpecific,
-}
-
-impl Default for ContinuousOutputMethod {
-    fn default() -> Self {
-        ContinuousOutputMethod::CubicHermite
-    }
 }
 
 /// Find the index in a sorted array where the given value would be inserted

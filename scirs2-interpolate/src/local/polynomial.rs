@@ -93,26 +93,28 @@ impl<F: Float + FromPrimitive> Default for LocalPolynomialConfig<F> {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use ndarray::{Array1, Array2};
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
+/// use ndarray::{Array1, Array2, Axis};
 /// use scirs2_interpolate::local::polynomial::{
 ///     LocalPolynomialRegression, LocalPolynomialConfig
 /// };
 /// use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
 ///
 /// // Create some 1D data with noise
-/// let x = Array1::linspace(0.0, 10.0, 50);
-/// let mut y = Array1::zeros(50);
-/// for (i, &x_val) in x.iter().enumerate() {
+/// let x = Array1::<f64>::linspace(0.0, 10.0, 50);
+/// let mut y = Array1::<f64>::zeros(50);
+/// for (i, x_val) in x.iter().enumerate() {
 ///     // y = sin(x) + some noise
-///     y[i] = x_val.sin() + 0.1 * (rand::random::<f64>() - 0.5);
+///     y[i] = x_val.sin() + 0.1 * 0.3;
 /// }
 ///
 /// // Create a 2D array of points
 /// let points = x.clone().insert_axis(Axis(1));
 ///
 /// // Configure and create the local polynomial regression model
-/// let config = LocalPolynomialConfig {
+/// let config = LocalPolynomialConfig::<f64> {
 ///     bandwidth: 1.0,
 ///     weight_fn: WeightFunction::Gaussian,
 ///     basis: PolynomialBasis::Quadratic,
@@ -137,6 +139,7 @@ impl<F: Float + FromPrimitive> Default for LocalPolynomialConfig<F> {
 /// if let Some((lower, upper)) = result.confidence_interval {
 ///     println!("95% CI: ({}, {})", lower, upper);
 /// }
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct LocalPolynomialRegression<F>

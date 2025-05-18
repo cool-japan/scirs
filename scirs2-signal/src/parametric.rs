@@ -10,6 +10,7 @@
 //!
 //! # Example
 //! ```ignore
+//! # FIXME: AR coefficients validation issue in ar_spectrum
 //! use ndarray::Array1;
 //! use scirs2_signal::parametric::{ar_spectrum, burg_method};
 //!

@@ -149,7 +149,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_signal::envelope;
 /// use std::f64::consts::PI;
 ///

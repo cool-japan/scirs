@@ -32,7 +32,7 @@ pub fn compute_constraint_jacobian<F: IntegrateFloat>(
     // Compute partial derivatives with respect to x
     for i in 0..n {
         let mut x_perturbed = x.to_vec();
-        x_perturbed[i] = x_perturbed[i] + epsilon;
+        x_perturbed[i] += epsilon;
         let g_perturbed = g(t, &x_perturbed, y);
 
         for j in 0..ng {
@@ -43,7 +43,7 @@ pub fn compute_constraint_jacobian<F: IntegrateFloat>(
     // Compute partial derivatives with respect to y
     for i in 0..m {
         let mut y_perturbed = y.to_vec();
-        y_perturbed[i] = y_perturbed[i] + epsilon;
+        y_perturbed[i] += epsilon;
         let g_perturbed = g(t, x, &y_perturbed);
 
         for j in 0..ng {
@@ -76,7 +76,7 @@ pub fn is_singular_matrix<F: IntegrateFloat>(matrix: ArrayView2<F>) -> bool {
 
         for j in 0..n {
             if i != j {
-                off_diagonal_sum = off_diagonal_sum + matrix[(i, j)].abs();
+                off_diagonal_sum += matrix[(i, j)].abs();
             }
         }
 

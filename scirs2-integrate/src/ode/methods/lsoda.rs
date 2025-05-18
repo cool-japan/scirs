@@ -2,7 +2,7 @@
 //!
 //! This module implements the LSODA (Livermore Solver for Ordinary Differential
 //! Equations with Automatic method switching) method for solving ODE systems.
-//! LSODA automatically switches between Adams methods (non-stiff) and BDF methods (stiff)
+//! LSODA automatically switches between Adams methods (non-stiff) and Bdf methods (stiff)
 //! based on the detected stiffness of the problem during integration.
 
 use crate::error::{IntegrateError, IntegrateResult};
@@ -16,8 +16,8 @@ use std::fmt::Debug;
 enum LsodaMethodType {
     /// Adams method (explicit, non-stiff)
     Adams,
-    /// BDF method (implicit, stiff)
-    BDF,
+    /// Bdf method (implicit, stiff)
+    Bdf,
 }
 
 /// State information for the LSODA integrator
@@ -125,7 +125,7 @@ impl<F: IntegrateFloat> LsodaState<F> {
         // Keep history limited to what's needed
         let max_history = match self.method_type {
             LsodaMethodType::Adams => 12, // Adams can use up to order 12
-            LsodaMethodType::BDF => 5,    // BDF can use up to order 5
+            LsodaMethodType::Bdf => 5,    // Bdf can use up to order 5
         };
 
         if self.t_history.len() > max_history {
@@ -138,14 +138,14 @@ impl<F: IntegrateFloat> LsodaState<F> {
     /// Switch method type
     fn switch_method(&mut self, new_method: LsodaMethodType) {
         // Track switches between methods
-        if self.method_type == LsodaMethodType::Adams && new_method == LsodaMethodType::BDF {
+        if self.method_type == LsodaMethodType::Adams && new_method == LsodaMethodType::Bdf {
             self.nonstiff_to_stiff_switches += 1;
 
-            // When switching to BDF, reset order and jacobian
+            // When switching to Bdf, reset order and jacobian
             self.order = 1;
             self.jacobian = None;
             self.jacobian_age = 0;
-        } else if self.method_type == LsodaMethodType::BDF && new_method == LsodaMethodType::Adams {
+        } else if self.method_type == LsodaMethodType::Bdf && new_method == LsodaMethodType::Adams {
             self.stiff_to_nonstiff_switches += 1;
 
             // When switching to Adams, be more conservative
@@ -153,7 +153,7 @@ impl<F: IntegrateFloat> LsodaState<F> {
 
             // Optionally reduce step size when switching to non-stiff method
             if self.rejected_steps > 2 {
-                self.h = self.h * F::from_f64(0.5).unwrap();
+                self.h *= F::from_f64(0.5).unwrap();
             }
         }
 
@@ -197,19 +197,19 @@ impl<F: IntegrateFloat> StiffnessDetector<F> {
             return false;
         }
 
-        // If already using BDF, require more evidence to switch back to Adams
-        if state.method_type == LsodaMethodType::BDF {
+        // If already using Bdf, require more evidence to switch back to Adams
+        if state.method_type == LsodaMethodType::Bdf {
             return state.non_stiffness_detected_count < self.non_stiffness_threshold;
         }
 
-        // If using Adams, check if we should switch to BDF
+        // If using Adams, check if we should switch to Bdf
         state.stiffness_detected_count >= self.stiffness_threshold
     }
 }
 
 /// Solve ODE using LSODA method (Livermore Solver for Ordinary Differential Equations with Automatic method switching)
 ///
-/// LSODA automatically switches between Adams methods (non-stiff) and BDF methods (stiff) based on
+/// LSODA automatically switches between Adams methods (non-stiff) and Bdf methods (stiff) based on
 /// the detected stiffness of the problem during integration. This makes it especially suitable for
 /// problems that change character during the integration process.
 ///
@@ -218,14 +218,14 @@ impl<F: IntegrateFloat> StiffnessDetector<F> {
 /// This implementation includes:
 /// - Automatic stiffness detection and method switching
 /// - Variable-order Adams methods (1-12) for non-stiff regions
-/// - Variable-order BDF methods (1-5) for stiff regions
+/// - Variable-order Bdf methods (1-5) for stiff regions
 /// - Adaptive step size control based on error estimation
 /// - Jacobian approximation via finite differences
 ///
 /// ## Method Details
 ///
 /// - For non-stiff regions: Uses Adams-Moulton predictor-corrector methods (orders 1-12)
-/// - For stiff regions: Uses Backward Differentiation Formula (BDF) methods (orders 1-5)
+/// - For stiff regions: Uses Backward Differentiation Formula (Bdf) methods (orders 1-5)
 /// - Automatic switching based on step size efficiency and convergence behavior
 /// - Comprehensive error control with relative and absolute tolerance
 ///
@@ -297,7 +297,7 @@ where
         // Step with the current method
         let step_result = match state.method_type {
             LsodaMethodType::Adams => adams_step(&mut state, &f, &opts, &mut func_evals),
-            LsodaMethodType::BDF => bdf_step(&mut state, &f, &opts, &mut func_evals),
+            LsodaMethodType::Bdf => bdf_step(&mut state, &f, &opts, &mut func_evals),
         };
 
         state.steps += 1;
@@ -320,10 +320,10 @@ where
                         let is_stiff = stiffness_detector.is_stiff(&state);
 
                         if state.method_type == LsodaMethodType::Adams && is_stiff {
-                            // Switch from Adams to BDF
-                            state.switch_method(LsodaMethodType::BDF);
-                        } else if state.method_type == LsodaMethodType::BDF && !is_stiff {
-                            // Switch from BDF to Adams
+                            // Switch from Adams to Bdf
+                            state.switch_method(LsodaMethodType::Bdf);
+                        } else if state.method_type == LsodaMethodType::Bdf && !is_stiff {
+                            // Switch from Bdf to Adams
                             state.switch_method(LsodaMethodType::Adams);
                         }
                     }
@@ -331,8 +331,8 @@ where
                     // Update tolerance scaling for next step
                     state.update_tol_scale(opts.rtol, opts.atol);
 
-                    // Increment Jacobian age if we're using BDF
-                    if state.method_type == LsodaMethodType::BDF && state.jacobian.is_some() {
+                    // Increment Jacobian age if we're using Bdf
+                    if state.method_type == LsodaMethodType::Bdf && state.jacobian.is_some() {
                         state.jacobian_age += 1;
                     }
                 } else {
@@ -345,30 +345,30 @@ where
                 match &e {
                     IntegrateError::ConvergenceError(msg) if msg.contains("stiff") => {
                         if state.method_type == LsodaMethodType::Adams {
-                            // Problem appears to be stiff - switch to BDF
+                            // Problem appears to be stiff - switch to Bdf
                             state.stiffness_detected_count += 1;
-                            state.switch_method(LsodaMethodType::BDF);
+                            state.switch_method(LsodaMethodType::Bdf);
 
                             // Reduce step size
-                            state.h = state.h * F::from_f64(0.5).unwrap();
+                            state.h *= F::from_f64(0.5).unwrap();
                             if state.h < min_step {
                                 return Err(IntegrateError::ConvergenceError(
                                     "Step size too small after method switch".to_string(),
                                 ));
                             }
                         } else {
-                            // Already using BDF and still failing
+                            // Already using Bdf and still failing
                             return Err(e);
                         }
                     }
                     IntegrateError::ConvergenceError(msg) if msg.contains("non-stiff") => {
-                        if state.method_type == LsodaMethodType::BDF {
+                        if state.method_type == LsodaMethodType::Bdf {
                             // Problem appears to be non-stiff - switch to Adams
                             state.non_stiffness_detected_count += 1;
                             state.switch_method(LsodaMethodType::Adams);
 
                             // Reduce step size for stability
-                            state.h = state.h * F::from_f64(0.5).unwrap();
+                            state.h *= F::from_f64(0.5).unwrap();
                             if state.h < min_step {
                                 return Err(IntegrateError::ConvergenceError(
                                     "Step size too small after method switch".to_string(),
@@ -661,7 +661,7 @@ where
     let order = state.order.min(state.dy_history.len() + 1).min(12);
 
     // If we don't have enough history, use lower order
-    if order == 1 || state.dy_history.len() == 0 {
+    if order == 1 || state.dy_history.is_empty() {
         // Explicit Euler method (1st order Adams-Bashforth)
         let next_t = state.t + state.h;
         let next_y = state.y.clone() + state.dy.clone() * state.h;
@@ -692,10 +692,10 @@ where
     // y_{n+1} = y_n + h * sum(b_i * f_{n-i+1})
     let mut ab_sum = state.dy.clone() * ab_coefs[0];
 
-    for i in 1..order {
+    for (i, &coeff) in ab_coefs.iter().enumerate().take(order).skip(1) {
         if i <= state.dy_history.len() {
             let idx = state.dy_history.len() - i;
-            ab_sum = ab_sum + state.dy_history[idx].clone() * ab_coefs[i];
+            ab_sum = ab_sum + state.dy_history[idx].clone() * coeff;
         }
     }
 
@@ -713,14 +713,14 @@ where
     // y_{n+1} = y_n + h * (b_0 * f_{n+1} + sum(b_i * f_{n-i+1}))
     let mut am_sum = dy_pred.clone() * am_coefs[0]; // f_{n+1} term
 
-    for i in 1..order {
+    for (i, &coeff) in am_coefs.iter().enumerate().take(order).skip(1) {
         if i == 1 {
             // Current derivative (f_n)
-            am_sum = am_sum + state.dy.clone() * am_coefs[i];
+            am_sum = am_sum + state.dy.clone() * coeff;
         } else if i - 1 < state.dy_history.len() {
             // Historical derivatives (f_{n-1}, f_{n-2}, ...)
             let idx = state.dy_history.len() - (i - 1);
-            am_sum = am_sum + state.dy_history[idx].clone() * am_coefs[i];
+            am_sum = am_sum + state.dy_history[idx].clone() * coeff;
         }
     }
 
@@ -764,7 +764,7 @@ where
         state.dy = dy_corr;
 
         // Update step size for next step
-        state.h = state.h * factor;
+        state.h *= factor;
 
         // Order adaptation (simplified)
         if order < 12 && max_err < opts.rtol && state.dy_history.len() >= order {
@@ -783,7 +783,7 @@ where
         // Step rejected
 
         // Adjust step size for retry
-        state.h = state.h * factor;
+        state.h *= factor;
 
         // If error is very large, this might indicate stiffness
         if max_err > F::from_f64(10.0).unwrap() {
@@ -792,7 +792,7 @@ where
             // If stiffness is consistently detected, suggest switching
             if state.stiffness_detected_count > 2 {
                 return Err(IntegrateError::ConvergenceError(
-                    "Problem appears stiff - consider using BDF method".to_string(),
+                    "Problem appears stiff - consider using Bdf method".to_string(),
                 ));
             }
         }
@@ -801,7 +801,7 @@ where
     }
 }
 
-/// Take a step using BDF method for stiff regions
+/// Take a step using Bdf method for stiff regions
 fn bdf_step<F, Func>(
     state: &mut LsodaState<F>,
     f: &Func,
@@ -812,7 +812,7 @@ where
     F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
-    // Coefficients for BDF methods of different orders
+    // Coefficients for Bdf methods of different orders
     let bdf_coefs: [Vec<F>; 5] = [
         // BDF1 (Implicit Euler): y_{n+1} - y_n = h * f(t_{n+1}, y_{n+1})
         vec![F::one(), F::from_f64(-1.0).unwrap()],
@@ -852,8 +852,8 @@ where
     let order = state.order.min(state.y_history.len()).min(5);
 
     // If we don't have enough history for the requested order, use lower order
-    if order == 1 || state.y_history.len() == 0 {
-        // Implicit Euler method (1st order BDF)
+    if order == 1 || state.y_history.is_empty() {
+        // Implicit Euler method (1st order Bdf)
         let next_t = state.t + state.h;
 
         // Predict the next value (simple extrapolation)
@@ -901,7 +901,7 @@ where
 
                 for i in 0..n_dim {
                     let mut y_perturbed = y_next.clone();
-                    y_perturbed[i] = y_perturbed[i] + eps;
+                    y_perturbed[i] += eps;
 
                     let f_perturbed = f(next_t, y_perturbed.view());
                     *func_evals += 1;
@@ -955,7 +955,7 @@ where
                 // Check if matrix is singular
                 if max_val < F::from_f64(1e-10).unwrap() {
                     // Nearly singular, reduce step size and try again
-                    state.h = state.h * F::from_f64(0.5).unwrap();
+                    state.h *= F::from_f64(0.5).unwrap();
                     return Ok(false);
                 }
 
@@ -982,14 +982,14 @@ where
             for i in (0..n_dim).rev() {
                 let mut sum = aug[[i, n_dim]];
                 for j in i + 1..n_dim {
-                    sum = sum - aug[[i, j]] * delta_y[j];
+                    sum -= aug[[i, j]] * delta_y[j];
                 }
                 delta_y[i] = sum / aug[[i, i]];
             }
 
             // Update solution
             for i in 0..n_dim {
-                y_next[i] = y_next[i] - delta_y[i];
+                y_next[i] -= delta_y[i];
             }
 
             iter_count += 1;
@@ -997,7 +997,7 @@ where
 
         if !converged {
             // Newton iteration failed, reduce step size
-            state.h = state.h * F::from_f64(0.5).unwrap();
+            state.h *= F::from_f64(0.5).unwrap();
 
             // If we've reduced step size too much, the problem might be non-stiff
             // or our initial guess might be poor
@@ -1033,9 +1033,9 @@ where
         return Ok(true);
     }
 
-    // Higher-order BDF methods (2-5)
+    // Higher-order Bdf methods (2-5)
 
-    // Get BDF coefficients for the current order
+    // Get Bdf coefficients for the current order
     let coeffs = &bdf_coefs[order - 1];
 
     // Next time and step size
@@ -1045,7 +1045,7 @@ where
     let mut y_pred = state.y.clone();
 
     // For higher orders, use previous points for prediction
-    if order > 1 && state.y_history.len() >= 1 {
+    if order > 1 && !state.y_history.is_empty() {
         let y_prev = &state.y_history[state.y_history.len() - 1];
 
         // Basic extrapolation
@@ -1053,7 +1053,7 @@ where
         y_pred = state.y.clone() + (state.y.clone() - y_prev) * dt_ratio;
     }
 
-    // Newton's method for solving the BDF equation
+    // Newton's method for solving the Bdf equation
     let max_newton_iters = 10;
     let newton_tol = F::from_f64(1e-8).unwrap();
     let mut y_next = y_pred.clone();
@@ -1066,16 +1066,16 @@ where
         *func_evals += 1;
         state.func_evals += 1;
 
-        // Compute residual for BDF: c_0 * y_{n+1} - sum(c_j * y_{n+1-j}) - h * f(t_{n+1}, y_{n+1}) = 0
+        // Compute residual for Bdf: c_0 * y_{n+1} - sum(c_j * y_{n+1-j}) - h * f(t_{n+1}, y_{n+1}) = 0
         let mut residual = y_next.clone() * coeffs[0];
 
         // Subtract previous terms
         residual = residual - state.y.clone() * coeffs[1];
 
-        for j in 2..coeffs.len() {
+        for (j, &coeff) in coeffs.iter().enumerate().skip(2) {
             if j - 1 < state.y_history.len() {
                 let idx = state.y_history.len() - (j - 1);
-                residual = residual - state.y_history[idx].clone() * coeffs[j];
+                residual = residual - state.y_history[idx].clone() * coeff;
             }
         }
 
@@ -1108,7 +1108,7 @@ where
 
             for i in 0..n_dim {
                 let mut y_perturbed = y_next.clone();
-                y_perturbed[i] = y_perturbed[i] + eps;
+                y_perturbed[i] += eps;
 
                 let f_perturbed = f(next_t, y_perturbed.view());
                 *func_evals += 1;
@@ -1162,7 +1162,7 @@ where
             // Check if matrix is singular
             if max_val < F::from_f64(1e-10).unwrap() {
                 // Nearly singular, reduce step size and try again
-                state.h = state.h * F::from_f64(0.5).unwrap();
+                state.h *= F::from_f64(0.5).unwrap();
                 return Ok(false);
             }
 
@@ -1189,14 +1189,14 @@ where
         for i in (0..n_dim).rev() {
             let mut sum = aug[[i, n_dim]];
             for j in i + 1..n_dim {
-                sum = sum - aug[[i, j]] * delta_y[j];
+                sum -= aug[[i, j]] * delta_y[j];
             }
             delta_y[i] = sum / aug[[i, i]];
         }
 
         // Update solution
         for i in 0..n_dim {
-            y_next[i] = y_next[i] - delta_y[i];
+            y_next[i] -= delta_y[i];
         }
 
         iter_count += 1;
@@ -1204,7 +1204,7 @@ where
 
     if !converged {
         // Newton iteration failed, reduce step size
-        state.h = state.h * F::from_f64(0.5).unwrap();
+        state.h *= F::from_f64(0.5).unwrap();
 
         // If the problem is consistently difficult to solve, it might not be stiff
         if iter_count >= max_newton_iters - 1 {
@@ -1214,7 +1214,7 @@ where
         // If we've reduced step size too much, the problem might not be stiff
         if state.h < opts.min_step.unwrap_or(F::from_f64(1e-10).unwrap()) {
             return Err(IntegrateError::ConvergenceError(
-                "BDF failed to converge - problem might be non-stiff".to_string(),
+                "Bdf failed to converge - problem might be non-stiff".to_string(),
             ));
         }
 
@@ -1240,12 +1240,12 @@ where
 
     // Compute the values for the lower order solution
     let mut rhs = Array1::<F>::zeros(y_next.len());
-    for j in 1..lower_order + 1 {
+    for (j, &coeff) in lower_coeffs.iter().enumerate().skip(1).take(lower_order) {
         if j == 1 {
-            rhs = rhs + state.y.clone() * lower_coeffs[j];
+            rhs = rhs + state.y.clone() * coeff;
         } else if j - 1 < state.y_history.len() {
             let idx = state.y_history.len() - (j - 1);
-            rhs = rhs + state.y_history[idx].clone() * lower_coeffs[j];
+            rhs = rhs + state.y_history[idx].clone() * coeff;
         }
     }
 
@@ -1286,7 +1286,7 @@ where
     state.dy = next_dy;
 
     // Update step size for next step
-    state.h = state.h * factor;
+    state.h *= factor;
 
     // Order adaptation (simplified)
     // Increase order if we're converging well and have enough history

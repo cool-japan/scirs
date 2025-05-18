@@ -190,11 +190,11 @@ impl MOLParabolicSolver2D {
         // Clone grids for the closure
         let x_grid_closure = x_grid.clone();
         let y_grid_closure = y_grid.clone();
-        
+
         // Clone grids for later use
         let x_grid_apply = x_grid.clone();
         let y_grid_apply = y_grid.clone();
-        
+
         // Extract options before moving self
         let ode_options = ODEOptions {
             method: self.options.ode_method,
@@ -213,13 +213,13 @@ impl MOLParabolicSolver2D {
             mass_matrix: None,
             jacobian_strategy: None,
         };
-        
+
         let time_range = self.time_range;
         let boundary_conditions = self.boundary_conditions.clone();
-        
+
         // Move self into closure
         let solver = self;
-        
+
         // Construct the ODE function that represents the PDE after spatial discretization
         let ode_func = move |t: f64, u_flat: ArrayView1<f64>| -> Array1<f64> {
             // Reshape the flattened array back to 2D for easier indexing
@@ -277,7 +277,18 @@ impl MOLParabolicSolver2D {
                     (0, BoundaryLocation::Lower) => {
                         // Apply boundary condition at x[0] (left edge)
                         apply_boundary_condition_2d(
-                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, bc, dx, dy, Some(0), None, None, Some(ny), &solver,
+                            &mut dudt,
+                            &u,
+                            &x_grid_closure,
+                            &y_grid_closure,
+                            bc,
+                            dx,
+                            dy,
+                            Some(0),
+                            None,
+                            None,
+                            Some(ny),
+                            &solver,
                         );
                     }
                     (0, BoundaryLocation::Upper) => {
@@ -301,7 +312,18 @@ impl MOLParabolicSolver2D {
                     (1, BoundaryLocation::Lower) => {
                         // Apply boundary condition at y[0] (bottom edge)
                         apply_boundary_condition_2d(
-                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, bc, dx, dy, None, Some(0), Some(nx), None, &solver,
+                            &mut dudt,
+                            &u,
+                            &x_grid_closure,
+                            &y_grid_closure,
+                            bc,
+                            dx,
+                            dy,
+                            None,
+                            Some(0),
+                            Some(nx),
+                            None,
+                            &solver,
                         );
                     }
                     (1, BoundaryLocation::Upper) => {
@@ -333,7 +355,12 @@ impl MOLParabolicSolver2D {
         };
 
         // Apply Dirichlet boundary conditions to initial condition
-        apply_dirichlet_conditions_to_initial(&mut u0, &boundary_conditions, &x_grid_apply, &y_grid_apply);
+        apply_dirichlet_conditions_to_initial(
+            &mut u0,
+            &boundary_conditions,
+            &x_grid_apply,
+            &y_grid_apply,
+        );
 
         let u0_flat = u0.clone().into_shape_with_order(nx * ny).unwrap();
 
@@ -361,9 +388,7 @@ impl MOLParabolicSolver2D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.n_steps,
-            ode_result.n_eval,
-            ode_result.n_accepted,
+            ode_result.n_steps, ode_result.n_eval, ode_result.n_accepted,
         ));
 
         Ok(MOL2DResult {
@@ -376,6 +401,7 @@ impl MOLParabolicSolver2D {
 }
 
 // Helper function to apply boundary conditions in 2D
+#[allow(clippy::too_many_arguments)]
 fn apply_boundary_condition_2d(
     dudt: &mut Array2<f64>,
     u: &ArrayView2<f64>,

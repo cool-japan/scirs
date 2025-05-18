@@ -25,9 +25,9 @@ use crate::spatial::kdtree::KdTree;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array1, Array2};
-/// use scirs2_interpolate::parallel::{ParallelMovingLeastSquares, ParallelConfig};
+/// use scirs2_interpolate::parallel::{ParallelMovingLeastSquares, ParallelConfig, ParallelEvaluate};
 /// use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
 ///
 /// // Create some 2D scattered data

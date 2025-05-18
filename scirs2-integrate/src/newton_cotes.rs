@@ -362,11 +362,11 @@ fn calculate_weights_general<F: IntegrateFloat>(
             let contribution_f64 = sign.to_f64().unwrap()
                 * (1.0 / ((n_f64 + 1.0) * factorial.to_f64().unwrap() * diff.to_f64().unwrap()));
             let contribution = F::from(contribution_f64).unwrap();
-            weight = weight + contribution;
+            weight += contribution;
 
             // Update for next term
             sign = -sign;
-            factorial = factorial * F::from(j + 1).unwrap();
+            factorial *= F::from(j + 1).unwrap();
         }
 
         weights[i] = weight;
@@ -469,7 +469,7 @@ where
     for i in 0..n {
         let x = rule.points[i];
         let w = rule.weights[i];
-        sum = sum + f(x) * w;
+        sum += f(x) * w;
     }
 
     // Estimate error based on error coefficient

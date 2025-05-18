@@ -915,7 +915,7 @@ pub fn hybrid_median_filter_2d(
                 padded_image[[window_i_start + half_kernel, window_j_start + half_kernel]];
 
             // Find the median of the three values: plus_median, cross_median, original
-            let mut final_values = vec![plus_median, cross_median, orig_value];
+            let mut final_values = [plus_median, cross_median, orig_value];
             final_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Set output to the median of the three values

@@ -285,7 +285,7 @@ where
     // Choose appropriate quadrature rule based on infinite bounds
     if has_infinite_bound {
         // For infinite bounds, use a transformation and higher number of points
-        return integrate_with_infinite_bounds(
+        integrate_with_infinite_bounds(
             f,
             mapped_bounds,
             point,
@@ -293,10 +293,10 @@ where
             original_bounds,
             n_evals,
             options,
-        );
+        )
     } else {
         // For finite bounds, use standard Gauss-Kronrod quadrature
-        return integrate_with_finite_bounds(
+        integrate_with_finite_bounds(
             f,
             mapped_bounds,
             point,
@@ -304,7 +304,7 @@ where
             original_bounds,
             n_evals,
             options,
-        );
+        )
     }
 }
 
@@ -377,19 +377,19 @@ where
 
         // Add this point's contribution to the integral
         let val = sub_result.0 * weights[i];
-        result = result + val;
+        result += val;
 
         // Accumulate for Gauss rule (crude error estimate)
         if i % 2 == 0 {
-            gauss_rule_result = gauss_rule_result + val;
+            gauss_rule_result += val;
         }
 
         // Add to error estimate
-        error_est = error_est + sub_result.1 * weights[i];
+        error_est += sub_result.1 * weights[i];
     }
 
     // Scale the result
-    result = result * scale;
+    result *= scale;
 
     // Calculate error estimate based on the difference between Gauss and Kronrod
     let gauss_error = (result - gauss_rule_result * scale).abs();
@@ -474,11 +474,11 @@ where
 
             // Trapezoidal rule: (f(a) + f(b)) * (b-a) / 2
             let segment_val = (prev_val + val) * dx / F::from_f64(2.0).unwrap();
-            result = result + segment_val;
+            result += segment_val;
 
             // Use this to check how well the trapezoid rule works for this segment
             let segment_error = sub_result.1 * dx;
-            error_est = error_est + segment_error;
+            error_est += segment_error;
         }
 
         prev_val = val;
@@ -582,7 +582,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Not converging properly 
+    #[ignore] // FIXME: Not converging properly
     fn test_3d_integral() {
         // Integrate f(x,y,z) = x*y*z over [0,1]×[0,1]×[0,1] = 0.125
         let f = |x: &Array1<f64>| x[0] * x[1] * x[2];

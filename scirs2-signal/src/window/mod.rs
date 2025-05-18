@@ -67,12 +67,10 @@ pub fn get_window(window_type: &str, length: usize, periodic: bool) -> SignalRes
             // Default beta value of 8.6
             kaiser_bessel_derived(length, 8.6, !periodic)
         }
-        _ => {
-            return Err(SignalError::ValueError(format!(
-                "Unknown window type: {}",
-                window_type
-            )));
-        }
+        _ => Err(SignalError::ValueError(format!(
+            "Unknown window type: {}",
+            window_type
+        ))),
     }
 }
 
@@ -633,7 +631,7 @@ pub fn exponential(m: usize, center: Option<f64>, tau: f64, sym: bool) -> Signal
 ///
 /// * `m` - Number of points in the output window
 /// * `alpha` - Shape parameter of the Tukey window, representing the ratio of
-///           cosine-tapered section length to the total window length
+///  cosine-tapered section length to the total window length
 /// * `sym` - If true, generates a symmetric window, otherwise a periodic window
 ///
 /// # Returns
@@ -653,7 +651,7 @@ pub fn tukey(m: usize, alpha: f64, sym: bool) -> SignalResult<Vec<f64>> {
         return Ok(vec![1.0; m]);
     }
 
-    let alpha = alpha.max(0.0).min(1.0);
+    let alpha = alpha.clamp(0.0, 1.0);
 
     if alpha == 0.0 {
         return boxcar(m, sym);

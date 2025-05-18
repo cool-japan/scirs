@@ -12,6 +12,9 @@ use crate::IntegrateFloat;
 use ndarray::{Array1, ArrayView1};
 use std::fmt::Debug;
 
+/// Type alias for derivative function
+type DerivativeFunction<F> = Box<dyn Fn(F, ArrayView1<F>) -> Array1<F>>;
+
 /// A dense solution that supports evaluation at any time within the integration range
 pub struct DenseSolution<F: IntegrateFloat> {
     /// Time points from the discrete solution
@@ -23,7 +26,7 @@ pub struct DenseSolution<F: IntegrateFloat> {
     /// Interpolation method to use
     pub method: ContinuousOutputMethod,
     /// Function to evaluate derivatives (if derivatives not provided)
-    pub f: Option<Box<dyn Fn(F, ArrayView1<F>) -> Array1<F>>>,
+    pub f: Option<DerivativeFunction<F>>,
 }
 
 impl<F: IntegrateFloat> Debug for DenseSolution<F> {
@@ -45,7 +48,7 @@ impl<F: IntegrateFloat> DenseSolution<F> {
         y: Vec<Array1<F>>,
         dydt: Option<Vec<Array1<F>>>,
         method: Option<ContinuousOutputMethod>,
-        f: Option<Box<dyn Fn(F, ArrayView1<F>) -> Array1<F>>>,
+        f: Option<DerivativeFunction<F>>,
     ) -> Self {
         let interp_method = method.unwrap_or_default();
 
@@ -240,16 +243,16 @@ impl<F: IntegrateFloat> DOP853Interpolant<F> {
 
         // Compute the interpolant using the stage values
         let mut result = self.y0.clone();
-        result = result + &(self.k[0].clone() * self.h * b1);
-        result = result + &(self.k[1].clone() * self.h * b2);
-        result = result + &(self.k[2].clone() * self.h * b3);
-        result = result + &(self.k[3].clone() * self.h * b4);
-        result = result + &(self.k[4].clone() * self.h * b5);
-        result = result + &(self.k[5].clone() * self.h * b6);
+        result += &(self.k[0].clone() * self.h * b1);
+        result += &(self.k[1].clone() * self.h * b2);
+        result += &(self.k[2].clone() * self.h * b3);
+        result += &(self.k[3].clone() * self.h * b4);
+        result += &(self.k[4].clone() * self.h * b5);
+        result += &(self.k[5].clone() * self.h * b6);
 
         // Only use k6 if available (depends on how many stages were stored)
         if self.k.len() > 6 {
-            result = result + &(self.k[6].clone() * self.h * b7);
+            result += &(self.k[6].clone() * self.h * b7);
         }
 
         Ok(result)
@@ -302,11 +305,7 @@ impl<F: IntegrateFloat> RadauInterpolant<F> {
 
         // Use the first stage value as derivative at the beginning
         // and the last stage value as derivative at the end
-        let dy0 = if !self.k.is_empty() {
-            &self.k[0]
-        } else {
-            &self.k[0]
-        };
+        let dy0 = &self.k[0];
         let dy1 = if self.k.len() > 1 {
             &self.k[self.k.len() - 1]
         } else {

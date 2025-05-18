@@ -59,6 +59,9 @@ use num_traits::{Float, NumCast};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+/// Type alias for 2D decomposition result (LL, LH, HL, HH)
+type Decompose2DResult = (Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>);
+
 // Import rayon for parallel processing when the "parallel" feature is enabled
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -531,7 +534,7 @@ fn decompose_2d(
     data: &Array2<f64>,
     filters: &WaveletFilters,
     mode: Option<&str>,
-) -> SignalResult<(Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>)> {
+) -> SignalResult<Decompose2DResult> {
     let (rows, cols) = data.dim();
 
     // Get filter coefficients
@@ -605,11 +608,11 @@ fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> 
     let out_len = n / 2;
     let mut result = vec![0.0; out_len];
 
-    for i in 0..out_len {
+    for (i, item) in result.iter_mut().enumerate().take(out_len) {
         let idx = i * 2; // Downsampling by 2
 
         let mut sum = 0.0;
-        for j in 0..filter_len {
+        for (j, &filter_val) in filter.iter().enumerate().take(filter_len) {
             // Calculate the signal index with proper extension
             let signal_idx = match extension_mode {
                 "symmetric" => {
@@ -636,10 +639,10 @@ fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> 
                 _ => return vec![], // Invalid mode
             };
 
-            sum += signal[signal_idx] * filter[j];
+            sum += signal[signal_idx] * filter_val;
         }
 
-        result[i] = sum;
+        *item = sum;
     }
 
     result

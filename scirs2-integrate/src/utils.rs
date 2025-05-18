@@ -38,7 +38,7 @@ where
 
     for i in 0..n {
         let mut x_perturbed = x.to_owned();
-        x_perturbed[i] = x_perturbed[i] + eps;
+        x_perturbed[i] += eps;
 
         let f_perturbed = f(x_perturbed.view());
 
@@ -85,7 +85,7 @@ where
 
     for i in 0..n {
         let mut x_perturbed = x.to_owned();
-        x_perturbed[i] = x_perturbed[i] + eps;
+        x_perturbed[i] += eps;
 
         let f_perturbed = f(t, x_perturbed.view());
 
@@ -212,7 +212,7 @@ pub fn solve_linear_system<F: IntegrateFloat>(a: ArrayView2<F>, b: ArrayView1<F>
     for i in (0..n_cols).rev() {
         let mut sum = aug[[i, n_cols]];
         for j in (i + 1)..n_cols {
-            sum = sum - aug[[i, j]] * x[j];
+            sum -= aug[[i, j]] * x[j];
         }
         x[i] = sum / aug[[i, i]];
     }

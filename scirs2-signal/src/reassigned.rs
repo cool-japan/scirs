@@ -101,7 +101,7 @@ pub struct ReassignedResult {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::reassigned::{reassigned_spectrogram, ReassignedConfig};
 /// use scirs2_signal::window;
@@ -113,7 +113,7 @@ pub struct ReassignedResult {
 ///
 /// // Configure the reassigned spectrogram
 /// let mut config = ReassignedConfig::default();
-/// config.window = window::hann(256);
+/// config.window = Array1::from(window::hann(256, true).unwrap());
 /// config.hop_size = 64;
 /// config.fs = fs;
 /// config.return_spectrogram = true;

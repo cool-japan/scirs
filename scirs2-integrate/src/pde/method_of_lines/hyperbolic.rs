@@ -176,10 +176,10 @@ impl MOLWaveEquation1D {
         let boundary_conditions = self.boundary_conditions.clone();
         let boundary_conditions_copy = boundary_conditions.clone();
         let options = self.options.clone();
-        
+
         // Move self into closure
         let solver = self;
-        
+
         // Construct the ODE function for the first-order system
         let ode_func = move |t: f64, y: ArrayView1<f64>| -> Array1<f64> {
             // Extract u and v from the combined state vector
@@ -226,7 +226,7 @@ impl MOLWaveEquation1D {
                                 // For Dirichlet, we set v[0] = 0 to maintain the fixed value
                                 // and to ensure u[0] doesn't change
                                 dydt[0] = 0.0; // ∂u/∂t = 0
-                                dydt[0 + nx] = 0.0; // ∂v/∂t = 0
+                                dydt[nx] = 0.0; // ∂v/∂t = 0
                             }
                             BoundaryConditionType::Neumann => {
                                 // Fixed gradient: ∂u/∂x|_{x_0} = bc.value
@@ -248,7 +248,7 @@ impl MOLWaveEquation1D {
                                 };
 
                                 dydt[0] = v[0]; // ∂u/∂t = v
-                                dydt[0 + nx] = wave_term + source_term; // ∂v/∂t
+                                dydt[nx] = wave_term + source_term; // ∂v/∂t
                             }
                             BoundaryConditionType::Robin => {
                                 // Robin boundary condition: a*u + b*du/dx = c
@@ -270,7 +270,7 @@ impl MOLWaveEquation1D {
                                     };
 
                                     dydt[0] = v[0]; // ∂u/∂t = v
-                                    dydt[0 + nx] = wave_term + source_term; // ∂v/∂t
+                                    dydt[nx] = wave_term + source_term; // ∂v/∂t
                                 }
                             }
                             BoundaryConditionType::Periodic => {
@@ -289,7 +289,7 @@ impl MOLWaveEquation1D {
                                 };
 
                                 dydt[0] = v[0]; // ∂u/∂t = v
-                                dydt[0 + nx] = wave_term + source_term; // ∂v/∂t
+                                dydt[nx] = wave_term + source_term; // ∂v/∂t
                             }
                         }
                     }
@@ -402,7 +402,7 @@ impl MOLWaveEquation1D {
                 match bc.location {
                     BoundaryLocation::Lower => {
                         y0[0] = bc.value; // u(x_0, 0) = bc.value
-                        y0[0 + nx] = 0.0; // v(x_0, 0) = 0
+                        y0[nx] = 0.0; // v(x_0, 0) = 0
                     }
                     BoundaryLocation::Upper => {
                         y0[nx - 1] = bc.value; // u(x_n, 0) = bc.value
@@ -435,9 +435,7 @@ impl MOLWaveEquation1D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.n_steps,
-            ode_result.n_eval,
-            ode_result.n_accepted,
+            ode_result.n_steps, ode_result.n_eval, ode_result.n_accepted,
         ));
 
         Ok(MOLHyperbolicResult {
@@ -475,9 +473,7 @@ impl From<MOLHyperbolicResult> for PDESolution<f64> {
         };
 
         // For hyperbolic PDEs, we return both u and u_t as values
-        let mut values = Vec::new();
-        values.push(result.u);
-        values.push(result.u_t);
+        let values = vec![result.u, result.u_t];
 
         PDESolution {
             grids,

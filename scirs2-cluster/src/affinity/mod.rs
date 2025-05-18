@@ -539,7 +539,7 @@ mod tests {
 
         // Check dimensions
         assert_eq!(labels.len(), 4);
-        assert!(centers.len() > 0);
+        assert!(!centers.is_empty());
 
         // Check that at least some points are in the same cluster
         assert!(labels.iter().any(|&l| l == labels[0]));

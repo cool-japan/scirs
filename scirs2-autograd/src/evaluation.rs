@@ -37,7 +37,7 @@ impl Placeholder for &'static str {
 /// and runs batched evaluation.
 /// You can also use `feed` method to feed NdArrays to placeholders.
 ///
-///    ```ignoreignore
+///    ```ignore
 /// use scirs2_autograd as ag;
 ///
 /// ag::run(|ctx| {
@@ -52,7 +52,7 @@ impl Placeholder for &'static str {
 ///        .run();
 ///    println!("{:?}", result);
 /// });
-///    ```ignoreignore
+///    ```
 pub struct Evaluator<'c, 'g, F: Float> {
     targets: Vec<&'g Tensor<'g, F>>,
     ctx: &'c Context<'g, F>,
@@ -194,7 +194,7 @@ impl<'c, 'g, F: Float> Evaluator<'c, 'g, F> {
 ///
 /// You can add your placeholder-array pairs with `push` method.
 ///
-///    ```ignoreignore
+///    ```ignore
 /// use scirs2_autograd as ag;
 ///
 /// ag::run(|ctx| {
@@ -209,7 +209,7 @@ impl<'c, 'g, F: Float> Evaluator<'c, 'g, F> {
 ///         .run();
 ///     println!("{:?}", result[0]);  // => Ok(arr0(200.0))
 /// });
-///    ```ignoreignore
+///    ```
 #[derive(Clone)]
 pub struct Feeder<'g, F: Float> {
     feeds: Vec<(

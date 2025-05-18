@@ -164,7 +164,7 @@ impl<F: IntegrateFloat, S: SymplecticIntegrator<F>> SymplecticIntegrator<F>
 
             q_current = q_next;
             p_current = p_next;
-            t_current = t_current + dt_sub;
+            t_current += dt_sub;
         }
 
         Ok((q_current, p_current))

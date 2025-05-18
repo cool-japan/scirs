@@ -78,6 +78,7 @@ pub struct MOLParabolicSolver3D {
 
 impl MOLParabolicSolver3D {
     /// Create a new Method of Lines solver for 3D parabolic PDEs
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         domain: Domain,
         time_range: [f64; 2],
@@ -221,7 +222,7 @@ impl MOLParabolicSolver3D {
         let x_grid_closure = x_grid.clone();
         let y_grid_closure = y_grid.clone();
         let z_grid_closure = z_grid.clone();
-        
+
         // Clone grids for later use outside closure
         let x_grid_apply = x_grid.clone();
         let y_grid_apply = y_grid.clone();
@@ -245,13 +246,13 @@ impl MOLParabolicSolver3D {
             mass_matrix: None,
             jacobian_strategy: None,
         };
-        
+
         let time_range = self.time_range;
         let boundary_conditions = self.boundary_conditions.clone();
-        
+
         // Move self into closure
         let solver = self;
-        
+
         // Construct the ODE function that represents the PDE after spatial discretization
         let ode_func = move |t: f64, u_flat: ArrayView1<f64>| -> Array1<f64> {
             // Reshape the flattened array back to 3D for easier indexing
@@ -326,8 +327,21 @@ impl MOLParabolicSolver3D {
                     (0, BoundaryLocation::Lower) => {
                         // Apply boundary condition at x[0] (left face)
                         apply_boundary_condition_3d(
-                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, &z_grid_closure, bc, dx, dy, dz, Some(0), None,
-                            None, Some(ny), Some(nz), &solver,
+                            &mut dudt,
+                            &u,
+                            &x_grid_closure,
+                            &y_grid_closure,
+                            &z_grid_closure,
+                            bc,
+                            dx,
+                            dy,
+                            dz,
+                            Some(0),
+                            None,
+                            None,
+                            Some(ny),
+                            Some(nz),
+                            &solver,
                         );
                     }
                     (0, BoundaryLocation::Upper) => {
@@ -354,8 +368,21 @@ impl MOLParabolicSolver3D {
                     (1, BoundaryLocation::Lower) => {
                         // Apply boundary condition at y[0] (front face)
                         apply_boundary_condition_3d(
-                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, &z_grid_closure, bc, dx, dy, dz, None, Some(0), Some(nx),
-                            None, Some(nz), &solver,
+                            &mut dudt,
+                            &u,
+                            &x_grid_closure,
+                            &y_grid_closure,
+                            &z_grid_closure,
+                            bc,
+                            dx,
+                            dy,
+                            dz,
+                            None,
+                            Some(0),
+                            Some(nx),
+                            None,
+                            Some(nz),
+                            &solver,
                         );
                     }
                     (1, BoundaryLocation::Upper) => {
@@ -382,8 +409,21 @@ impl MOLParabolicSolver3D {
                     (2, BoundaryLocation::Lower) => {
                         // Apply boundary condition at z[0] (bottom face)
                         apply_boundary_condition_3d(
-                            &mut dudt, &u, &x_grid_closure, &y_grid_closure, &z_grid_closure, bc, dx, dy, dz, None, None,
-                            Some(nx), Some(ny), Some(0), &solver,
+                            &mut dudt,
+                            &u,
+                            &x_grid_closure,
+                            &y_grid_closure,
+                            &z_grid_closure,
+                            bc,
+                            dx,
+                            dy,
+                            dz,
+                            None,
+                            None,
+                            Some(nx),
+                            Some(ny),
+                            Some(0),
+                            &solver,
                         );
                     }
                     (2, BoundaryLocation::Upper) => {
@@ -456,9 +496,7 @@ impl MOLParabolicSolver3D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.n_steps,
-            ode_result.n_eval,
-            ode_result.n_accepted,
+            ode_result.n_steps, ode_result.n_eval, ode_result.n_accepted,
         ));
 
         Ok(MOL3DResult {
@@ -471,6 +509,7 @@ impl MOLParabolicSolver3D {
 }
 
 // Helper function to apply boundary conditions in 3D
+#[allow(clippy::too_many_arguments)]
 fn apply_boundary_condition_3d(
     dudt: &mut Array3<f64>,
     u: &ArrayView3<f64>,
@@ -1148,10 +1187,13 @@ impl From<MOL3DResult> for PDESolution<f64> {
         // For PDESolution format, we need to flatten the spatial dimensions
         let mut values = Vec::new();
         let total_spatial_points = nx * ny * nz;
-        
+
         // Reshape the 4D array (time, z, y, x) to 2D (time, spatial_points)
-        let u_reshaped = result.u.into_shape_with_order((nt, total_spatial_points)).unwrap();
-        
+        let u_reshaped = result
+            .u
+            .into_shape_with_order((nt, total_spatial_points))
+            .unwrap();
+
         // Create a single 2D array with time on one dimension and flattened spatial points on the other
         values.push(u_reshaped.t().to_owned());
 

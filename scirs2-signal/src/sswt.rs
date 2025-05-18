@@ -73,7 +73,7 @@ pub struct SynchroCwtResult {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::sswt::{synchrosqueezed_cwt, SynchroCwtConfig};
 /// use scirs2_signal::wavelets;
@@ -85,8 +85,8 @@ pub struct SynchroCwtResult {
 /// let rate = (f1 - f0) / 10.0;
 /// let signal = t.mapv(|ti| (2.0 * std::f64::consts::PI * (f0 * ti + 0.5 * rate * ti * ti)).sin());
 ///
-/// // Create logarithmically spaced scales
-/// let scales = Array1::logspace(10.0.log10(), 1.0.log10(), 64, 10.0);
+/// // Create logarithmically spaced scales (from 10 to 1)
+/// let scales = Array1::logspace(10.0, 10.0_f64.log10(), 1.0_f64.log10(), 64);
 ///
 /// // Configure the transform
 /// let mut config = SynchroCwtConfig::default();

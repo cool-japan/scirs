@@ -7,7 +7,7 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::array;
 //! use scirs2_spatial::pathplanning::VisibilityGraphPlanner;
 //!
@@ -18,7 +18,7 @@
 //! ];
 //!
 //! // Create a visibility graph planner
-//! let planner = VisibilityGraphPlanner::new(obstacles);
+//! let mut planner = VisibilityGraphPlanner::new(obstacles);
 //!
 //! // Find a path from start to goal
 //! let start = [0.0, 0.0];

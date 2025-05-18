@@ -681,7 +681,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -693,7 +693,7 @@ where
         in_indices: &mut Vec<usize>,
         dim: usize,
         center_starts: &[usize],
-        pad_width: &[(usize, usize)],
+        _pad_width: &[(usize, usize)],
     ) -> Result<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
@@ -718,7 +718,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         } else {
             // Calculate reflected index
@@ -734,7 +734,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         }
 
@@ -868,7 +868,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -880,7 +880,7 @@ where
         in_indices: &mut Vec<usize>,
         dim: usize,
         center_starts: &[usize],
-        pad_width: &[(usize, usize)],
+        _pad_width: &[(usize, usize)],
     ) -> Result<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
@@ -905,7 +905,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         } else {
             // Calculate mirrored index
@@ -921,7 +921,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         }
 
@@ -1028,7 +1028,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -1040,7 +1040,7 @@ where
         in_indices: &mut Vec<usize>,
         dim: usize,
         center_starts: &[usize],
-        pad_width: &[(usize, usize)],
+        _pad_width: &[(usize, usize)],
     ) -> Result<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
@@ -1065,7 +1065,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         } else {
             // Calculate wrapped index
@@ -1081,7 +1081,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         }
 
@@ -1215,7 +1215,7 @@ where
     }
 
     // Recursive function to pad each region
-    #[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
+    #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
         S1: ndarray::DataMut<Elem = T>,
@@ -1227,7 +1227,7 @@ where
         in_indices: &mut Vec<usize>,
         dim: usize,
         center_starts: &[usize],
-        pad_width: &[(usize, usize)],
+        _pad_width: &[(usize, usize)],
     ) -> Result<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
@@ -1252,7 +1252,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         } else {
             // Calculate nearest index
@@ -1268,7 +1268,7 @@ where
                 in_indices,
                 dim + 1,
                 center_starts,
-                pad_width,
+                _pad_width,
             )?;
         }
 

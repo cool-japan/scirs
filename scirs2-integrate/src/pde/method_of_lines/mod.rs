@@ -212,7 +212,7 @@ impl MOLParabolicSolver1D {
         let x_grid = x_grid.clone();
         let time_range = self.time_range;
         let boundary_conditions = self.boundary_conditions.clone();
-        
+
         // Extract options before moving self
         let _ode_options = ODEOptions {
             method: self.options.ode_method,
@@ -231,10 +231,10 @@ impl MOLParabolicSolver1D {
             mass_matrix: None,
             jacobian_strategy: None,
         };
-        
+
         // Move self into closure
         let solver = self;
-        
+
         // Construct the ODE function that represents the PDE after spatial discretization
         let ode_func = move |t: f64, u: ArrayView1<f64>| -> Array1<f64> {
             let mut dudt = Array1::zeros(nx);
@@ -289,13 +289,13 @@ impl MOLParabolicSolver1D {
                                     (solver.diffusion_coeff)(x_grid[0], t, u[0]) * d2u_dx2;
 
                                 // Other terms
-                                let advection_term = if let Some(advection) = &solver.advection_coeff
-                                {
-                                    let du_dx_forward = (u[1] - u[0]) / dx;
-                                    advection(x_grid[0], t, u[0]) * du_dx_forward
-                                } else {
-                                    0.0
-                                };
+                                let advection_term =
+                                    if let Some(advection) = &solver.advection_coeff {
+                                        let du_dx_forward = (u[1] - u[0]) / dx;
+                                        advection(x_grid[0], t, u[0]) * du_dx_forward
+                                    } else {
+                                        0.0
+                                    };
 
                                 let reaction_term = if let Some(reaction) = &solver.reaction_term {
                                     reaction(x_grid[0], t, u[0])
@@ -326,12 +326,12 @@ impl MOLParabolicSolver1D {
                                             0.0
                                         };
 
-                                    let reaction_term = if let Some(reaction) = &solver.reaction_term
-                                    {
-                                        reaction(x_grid[0], t, u[0])
-                                    } else {
-                                        0.0
-                                    };
+                                    let reaction_term =
+                                        if let Some(reaction) = &solver.reaction_term {
+                                            reaction(x_grid[0], t, u[0])
+                                        } else {
+                                            0.0
+                                        };
 
                                     dudt[0] = diffusion_term + advection_term + reaction_term;
                                 }
@@ -344,13 +344,13 @@ impl MOLParabolicSolver1D {
                                     (solver.diffusion_coeff)(x_grid[0], t, u[0]) * d2u_dx2;
 
                                 // Other terms
-                                let advection_term = if let Some(advection) = &solver.advection_coeff
-                                {
-                                    let du_dx = (u[1] - u[nx - 1]) / (2.0 * dx);
-                                    advection(x_grid[0], t, u[0]) * du_dx
-                                } else {
-                                    0.0
-                                };
+                                let advection_term =
+                                    if let Some(advection) = &solver.advection_coeff {
+                                        let du_dx = (u[1] - u[nx - 1]) / (2.0 * dx);
+                                        advection(x_grid[0], t, u[0]) * du_dx
+                                    } else {
+                                        0.0
+                                    };
 
                                 let reaction_term = if let Some(reaction) = &solver.reaction_term {
                                     reaction(x_grid[0], t, u[0])
@@ -379,16 +379,17 @@ impl MOLParabolicSolver1D {
                                 // Now use central difference for diffusion term
                                 let d2u_dx2 = (u_ghost - 2.0 * u[nx - 1] + u[nx - 2]) / (dx * dx);
                                 let diffusion_term =
-                                    (solver.diffusion_coeff)(x_grid[nx - 1], t, u[nx - 1]) * d2u_dx2;
+                                    (solver.diffusion_coeff)(x_grid[nx - 1], t, u[nx - 1])
+                                        * d2u_dx2;
 
                                 // Other terms
-                                let advection_term = if let Some(advection) = &solver.advection_coeff
-                                {
-                                    let du_dx_backward = (u[nx - 1] - u[nx - 2]) / dx;
-                                    advection(x_grid[nx - 1], t, u[nx - 1]) * du_dx_backward
-                                } else {
-                                    0.0
-                                };
+                                let advection_term =
+                                    if let Some(advection) = &solver.advection_coeff {
+                                        let du_dx_backward = (u[nx - 1] - u[nx - 2]) / dx;
+                                        advection(x_grid[nx - 1], t, u[nx - 1]) * du_dx_backward
+                                    } else {
+                                        0.0
+                                    };
 
                                 let reaction_term = if let Some(reaction) = &solver.reaction_term {
                                     reaction(x_grid[nx - 1], t, u[nx - 1])
@@ -421,12 +422,12 @@ impl MOLParabolicSolver1D {
                                             0.0
                                         };
 
-                                    let reaction_term = if let Some(reaction) = &solver.reaction_term
-                                    {
-                                        reaction(x_grid[nx - 1], t, u[nx - 1])
-                                    } else {
-                                        0.0
-                                    };
+                                    let reaction_term =
+                                        if let Some(reaction) = &solver.reaction_term {
+                                            reaction(x_grid[nx - 1], t, u[nx - 1])
+                                        } else {
+                                            0.0
+                                        };
 
                                     dudt[nx - 1] = diffusion_term + advection_term + reaction_term;
                                 }
@@ -436,16 +437,17 @@ impl MOLParabolicSolver1D {
                                 // Use values from the other end of the domain
                                 let d2u_dx2 = (u[0] - 2.0 * u[nx - 1] + u[nx - 2]) / (dx * dx);
                                 let diffusion_term =
-                                    (solver.diffusion_coeff)(x_grid[nx - 1], t, u[nx - 1]) * d2u_dx2;
+                                    (solver.diffusion_coeff)(x_grid[nx - 1], t, u[nx - 1])
+                                        * d2u_dx2;
 
                                 // Other terms
-                                let advection_term = if let Some(advection) = &solver.advection_coeff
-                                {
-                                    let du_dx = (u[0] - u[nx - 2]) / (2.0 * dx);
-                                    advection(x_grid[nx - 1], t, u[nx - 1]) * du_dx
-                                } else {
-                                    0.0
-                                };
+                                let advection_term =
+                                    if let Some(advection) = &solver.advection_coeff {
+                                        let du_dx = (u[0] - u[nx - 2]) / (2.0 * dx);
+                                        advection(x_grid[nx - 1], t, u[nx - 1]) * du_dx
+                                    } else {
+                                        0.0
+                                    };
 
                                 let reaction_term = if let Some(reaction) = &solver.reaction_term {
                                     reaction(x_grid[nx - 1], t, u[nx - 1])
@@ -463,7 +465,7 @@ impl MOLParabolicSolver1D {
             dudt
         };
 
-        // Set up ODE solver options  
+        // Set up ODE solver options
         let ode_options = _ode_options;
 
         // Apply Dirichlet boundary conditions to initial condition
@@ -495,9 +497,7 @@ impl MOLParabolicSolver1D {
 
         let ode_info = Some(format!(
             "ODE steps: {}, function evaluations: {}, successful steps: {}",
-            ode_result.n_steps,
-            ode_result.n_eval,
-            ode_result.n_accepted,
+            ode_result.n_steps, ode_result.n_eval, ode_result.n_accepted,
         ));
 
         Ok(MOLResult {

@@ -122,8 +122,8 @@ fn generate_clustered_data(n_samples: usize, n_dim: usize) -> Array2<f64> {
             &cluster2_dist
         };
 
-        for j in 0..n_dim {
-            data.push(center[j] + rng.sample(*dist));
+        for &center_j in center.iter() {
+            data.push(center_j + rng.sample(*dist));
         }
     }
 
@@ -133,9 +133,9 @@ fn generate_clustered_data(n_samples: usize, n_dim: usize) -> Array2<f64> {
 
     let mut shuffled_data = Vec::with_capacity(n_samples * n_dim);
     for &idx in &indices {
-        for j in 0..n_dim {
-            shuffled_data.push(data[idx * n_dim + j]);
-        }
+        let start = idx * n_dim;
+        let end = start + n_dim;
+        shuffled_data.extend_from_slice(&data[start..end]);
     }
 
     Array2::from_shape_vec((n_samples, n_dim), shuffled_data).unwrap()

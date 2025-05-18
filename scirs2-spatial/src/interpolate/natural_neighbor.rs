@@ -26,7 +26,7 @@ use std::fmt;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_spatial::interpolate::NaturalNeighborInterpolator;
 /// use ndarray::array;
 ///
@@ -272,6 +272,19 @@ impl NaturalNeighborInterpolator {
         let simplex_idx = simplex_idx.unwrap();
         let simplex = &self.delaunay.simplices()[simplex_idx];
 
+        // For small datasets or boundary cases, use barycentric coordinates directly
+        if self.n_points < 5 {
+            let bary_weights = self.barycentric_weights(point, simplex_idx)?;
+
+            // Convert from simplex indices to point indices
+            let mut weights = HashMap::new();
+            for (i, &idx) in simplex.iter().enumerate() {
+                weights.insert(idx, bary_weights[i]);
+            }
+
+            return Ok(weights);
+        }
+
         // Get the neighboring points
         let mut neighbors = Vec::new();
         for &idx in simplex {
@@ -294,34 +307,40 @@ impl NaturalNeighborInterpolator {
         // Compute the areas of the "stolen" regions
         let mut weights = HashMap::new();
         let mut total_area = 0.0;
+        let mut valid_regions = 0;
 
         for &idx in &neighbors {
             // Get the Voronoi region of this point
             let region = &self.voronoi.regions()[idx];
-            let vertices = Self::get_voronoi_vertices(&self.voronoi, region)?;
+            match Self::get_voronoi_vertices(&self.voronoi, region) {
+                Ok(vertices) => {
+                    // Try to compute the area of the region
+                    if let Ok(original_area) = Self::polygon_area(&vertices) {
+                        if original_area > 0.0 {
+                            valid_regions += 1;
 
-            // Compute the original area of the region
-            let original_area = Self::polygon_area(&vertices)?;
+                            // Compute the distance from query point to the data point
+                            let data_point = self.points.row(idx);
+                            let dist = Self::euclidean_distance(point, &data_point);
 
-            // Compute the distance from query point to the data point
-            let data_point = self.points.row(idx);
-            let dist = Self::euclidean_distance(point, &data_point);
+                            // Compute the area that would be "stolen" by the query point
+                            // This is a heuristic based on the distance to the data point
+                            let stolen_area = original_area * (1.0 / (1.0 + dist * dist));
 
-            // Compute the area that would be "stolen" by the query point
-            // This is a heuristic based on the distance to the data point
-            let stolen_area = original_area * (1.0 / (1.0 + dist * dist));
-
-            weights.insert(idx, stolen_area);
-            total_area += stolen_area;
+                            weights.insert(idx, stolen_area);
+                            total_area += stolen_area;
+                        }
+                    }
+                }
+                Err(_) => {
+                    // Skip regions that can't be processed
+                    continue;
+                }
+            }
         }
 
-        // Normalize the weights
-        if total_area > 0.0 {
-            for weight in weights.values_mut() {
-                *weight /= total_area;
-            }
-        } else {
-            // If the total area is zero, use barycentric coordinates
+        // If we couldn't compute valid regions, fall back to barycentric coordinates
+        if valid_regions == 0 || total_area <= 0.0 {
             let bary_weights = self.barycentric_weights(point, simplex_idx)?;
 
             // Convert from simplex indices to point indices
@@ -331,6 +350,11 @@ impl NaturalNeighborInterpolator {
             }
 
             return Ok(new_weights);
+        }
+
+        // Normalize the weights
+        for weight in weights.values_mut() {
+            *weight /= total_area;
         }
 
         Ok(weights)

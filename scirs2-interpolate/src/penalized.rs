@@ -132,7 +132,9 @@ where
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # #[cfg(feature = "linalg")]
+    /// # {
     /// use ndarray::array;
     /// use scirs2_interpolate::penalized::{PSpline, PenaltyType};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
@@ -154,6 +156,7 @@ where
     ///
     /// // Evaluate the fitted spline
     /// let y_smooth = pspline.evaluate(0.5).unwrap();
+    /// # }
     /// ```
     pub fn new(
         x: &ArrayView1<T>,

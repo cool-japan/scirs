@@ -30,7 +30,7 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_spatial::transform::{Rotation, RotationSpline};
 /// use ndarray::array;
 /// use std::f64::consts::PI;
@@ -38,8 +38,8 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 /// // Create some rotations
 /// let rotations = vec![
 ///     Rotation::identity(),
-///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
-///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap(),
+///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
 /// ];
 ///
 /// // Create times at which these rotations occur
@@ -53,7 +53,6 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 ///
 /// // Get the interpolated rotation at t=0.75 (between the second two rotations)
 /// let rot_75 = spline.interpolate(0.75);
-/// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
 /// ```
 #[derive(Clone, Debug)]
 pub struct RotationSpline {
@@ -81,19 +80,18 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn new(rotations: &[Rotation], times: &[f64]) -> SpatialResult<Self> {
         if rotations.is_empty() {
@@ -149,22 +147,21 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let mut spline = RotationSpline::new(&rotations, &times).unwrap();
     ///
     /// // Set the interpolation type to cubic (natural cubic spline)
     /// spline.set_interpolation_type("cubic").unwrap();
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn set_interpolation_type(&mut self, interp_type: &str) -> SpatialResult<()> {
         match interp_type.to_lowercase().as_str() {
@@ -332,22 +329,21 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
     ///
     /// // Interpolate at t=0.5 (halfway between the first two rotations)
     /// let rot_half = spline.interpolate(0.5);
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn interpolate(&self, t: f64) -> Rotation {
         let n = self.times.len();
@@ -500,14 +496,14 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -516,7 +512,6 @@ impl RotationSpline {
     /// let (sample_times, sample_rotations) = spline.sample(5);
     /// assert_eq!(sample_times.len(), 5);
     /// assert_eq!(sample_rotations.len(), 5);
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn sample(&self, n: usize) -> (Vec<f64>, Vec<Rotation>) {
         if n <= 1 {
@@ -553,20 +548,19 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let key_rots = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let key_times = vec![0.0, 1.0, 2.0];
     ///
     /// let spline = RotationSpline::from_key_rotations(&key_rots, &key_times).unwrap();
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn from_key_rotations(key_rots: &[Rotation], key_times: &[f64]) -> SpatialResult<Self> {
         Self::new(key_rots, key_times)
@@ -609,14 +603,14 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     /// ];
     /// let times = vec![0.0, 1.0];
     /// let spline = RotationSpline::new(&rotations, &times).unwrap();
@@ -624,7 +618,6 @@ impl RotationSpline {
     /// // Calculate angular velocity at t=0.5
     /// let velocity = spline.angular_velocity(0.5);
     /// // Should be approximately [0, 0, PI]
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn angular_velocity(&self, t: f64) -> Array1<f64> {
         let n = self.times.len();
@@ -724,14 +717,14 @@ impl RotationSpline {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, RotationSpline};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// let rotations = vec![
     ///     Rotation::identity(),
-    ///     rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+    ///     Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
     ///     Rotation::identity(),
     /// ];
     /// let times = vec![0.0, 1.0, 2.0];
@@ -742,7 +735,6 @@ impl RotationSpline {
     ///
     /// // Calculate angular acceleration at t=0.5
     /// let acceleration = spline.angular_acceleration(0.5);
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn angular_acceleration(&self, t: f64) -> Array1<f64> {
         // Cubic interpolation is needed for meaningful acceleration
@@ -823,7 +815,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -839,7 +831,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -866,7 +858,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -890,7 +882,7 @@ mod tests {
     fn test_rotation_spline_sampling() {
         let rotations = vec![
             Rotation::identity(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0];
 
@@ -976,7 +968,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -1004,7 +996,7 @@ mod tests {
     fn test_angular_velocity() {
         let rotations = vec![
             Rotation::identity(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0];
 
@@ -1035,7 +1027,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 
@@ -1083,7 +1075,7 @@ mod tests {
         let rotations = vec![
             Rotation::identity(),
             rotation_from_euler(0.0, 0.0, PI / 2.0, "xyz").unwrap(),
-            rotation_from_euler(0.0, 0.0, PI, "xyz").unwrap(),
+            Rotation::from_euler(&array![0.0, 0.0, PI].view(), "xyz").unwrap(),
         ];
         let times = vec![0.0, 1.0, 2.0];
 

@@ -1087,13 +1087,12 @@ fn improved_continued_fraction_betainc<
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: Missing type annotation for j0_large
+/// ```
 /// use scirs2_special::betaincinv;
 ///
-/// let a = 2.0;
-/// let b = 3.0;
-/// let y = 0.5;
+/// let a = 2.0f64;
+/// let b = 3.0f64;
+/// let y = 0.5f64;
 ///
 /// // Find x where the regularized incomplete beta function equals 0.5
 /// let x = betaincinv(y, a, b).unwrap();

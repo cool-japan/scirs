@@ -75,7 +75,7 @@ impl EulerConvention {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_spatial::transform::Rotation;
 /// use ndarray::array;
 /// use std::f64::consts::PI;
@@ -97,7 +97,6 @@ impl EulerConvention {
 /// let matrix = rot.as_matrix();
 /// let euler = rot.as_euler("xyz").unwrap();
 /// let axis_angle = rot.as_rotvec();
-/// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
 /// ```
 #[derive(Clone, Debug)]
 pub struct Rotation {
@@ -132,14 +131,13 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     ///
     /// // Create a quaternion for a 90-degree rotation around the x-axis
     /// let quat = array![0.7071, 0.7071, 0.0, 0.0];
     /// let rot = Rotation::from_quat(&quat.view()).unwrap();
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn from_quat(quat: &ArrayView1<f64>) -> SpatialResult<Self> {
         if quat.len() != 4 {
@@ -177,7 +175,7 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     ///
@@ -188,7 +186,6 @@ impl Rotation {
     ///     [0.0, 0.0, 1.0]
     /// ];
     /// let rot = Rotation::from_matrix(&matrix.view()).unwrap();
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn from_matrix(matrix: &ArrayView2<f64>) -> SpatialResult<Self> {
         if matrix.shape() != [3, 3] {
@@ -268,7 +265,7 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -276,7 +273,6 @@ impl Rotation {
     /// // Create a rotation using Euler angles in the XYZ convention
     /// let angles = array![PI/2.0, 0.0, 0.0]; // 90 degrees around X
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn from_euler(angles: &ArrayView1<f64>, convention: &str) -> SpatialResult<Self> {
         if angles.len() != 3 {
@@ -378,7 +374,7 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -386,7 +382,6 @@ impl Rotation {
     /// // Create a rotation for a 90-degree rotation around the x-axis
     /// let rotvec = array![PI/2.0, 0.0, 0.0];
     /// let rot = Rotation::from_rotvec(&rotvec.view()).unwrap();
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn from_rotvec(rotvec: &ArrayView1<f64>) -> SpatialResult<Self> {
         if rotvec.len() != 3 {
@@ -434,15 +429,15 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap();
+    /// let angles = array![0.0, 0.0, PI/2.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let matrix = rot.as_matrix();
     /// // Should approximately be a 90 degree rotation around Z
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn as_matrix(&self) -> Array2<f64> {
         let mut matrix = Array2::zeros((3, 3));
@@ -482,7 +477,7 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -490,7 +485,6 @@ impl Rotation {
     /// let rot = Rotation::from_rotvec(&array![PI/2.0, 0.0, 0.0].view()).unwrap();
     /// let angles = rot.as_euler("xyz").unwrap();
     /// // Should be approximately [PI/2, 0, 0]
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn as_euler(&self, convention: &str) -> SpatialResult<Array1<f64>> {
         let conv = EulerConvention::from_str(convention)?;
@@ -612,15 +606,15 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = rotation_from_euler(PI/2.0, 0.0, 0.0, "xyz").unwrap();
+    /// let angles = array![PI/2.0, 0.0, 0.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let rotvec = rot.as_rotvec();
     /// // Should be approximately [PI/2, 0, 0]
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn as_rotvec(&self) -> Array1<f64> {
         let q = &self.quat;
@@ -662,14 +656,14 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     ///
-    /// let rot = rotation_from_euler(0.0, 0.0, 0.0, "xyz").unwrap();
+    /// let angles = array![0.0, 0.0, 0.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let quat = rot.as_quat();
     /// // Should be [1, 0, 0, 0] (identity rotation)
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn as_quat(&self) -> Array1<f64> {
         self.quat.clone()
@@ -683,14 +677,14 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = rotation_from_euler(0.0, 0.0, PI/4.0, "xyz").unwrap();
+    /// let angles = array![0.0, 0.0, PI/4.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let rot_inv = rot.inv();
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn inv(&self) -> Rotation {
         // For unit quaternions, the inverse is the conjugate
@@ -714,16 +708,16 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap();
+    /// let angles = array![0.0, 0.0, PI/2.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let vec = array![1.0, 0.0, 0.0];
     /// let rotated = rot.apply(&vec.view());
     /// // Should be approximately [0, 1, 0]
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn apply(&self, vec: &ArrayView1<f64>) -> Array1<f64> {
         if vec.len() != 3 {
@@ -747,17 +741,17 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
-    /// let rot = rotation_from_euler(0.0, 0.0, PI/2.0, "xyz").unwrap();
+    /// let angles = array![0.0, 0.0, PI/2.0];
+    /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
     /// let vecs = array![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
     /// let rotated = rot.apply_multiple(&vecs.view());
     /// // First row should be approximately [0, 1, 0]
     /// // Second row should be approximately [-1, 0, 0]
-    /// // Note: This example is currently ignored due to syntax errors and the rotation_from_euler function not being found in this scope
     /// ```
     pub fn apply_multiple(&self, vecs: &ArrayView2<f64>) -> Array2<f64> {
         if vecs.ncols() != 3 {
@@ -780,16 +774,17 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     /// use std::f64::consts::PI;
     ///
     /// // Rotate 90 degrees around X, then 90 degrees around Y
-    /// let rot1 = rotation_from_euler(PI/2.0, 0.0, 0.0, "xyz").unwrap();
-    /// let rot2 = rotation_from_euler(0.0, PI/2.0, 0.0, "xyz").unwrap();
+    /// let angles1 = array![PI/2.0, 0.0, 0.0];
+    /// let rot1 = Rotation::from_euler(&angles1.view(), "xyz").unwrap();
+    /// let angles2 = array![0.0, PI/2.0, 0.0];
+    /// let rot2 = Rotation::from_euler(&angles2.view(), "xyz").unwrap();
     /// let combined = rot1.compose(&rot2);
-    /// // Note: This example is currently ignored due to the rotation_from_euler function not being found in this scope
     /// ```
     pub fn compose(&self, other: &Rotation) -> Rotation {
         // Quaternion multiplication
@@ -827,7 +822,7 @@ impl Rotation {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
     ///
@@ -835,7 +830,6 @@ impl Rotation {
     /// let vec = array![1.0, 2.0, 3.0];
     /// let rotated = identity.apply(&vec.view());
     /// // Should still be [1.0, 2.0, 3.0]
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn identity() -> Rotation {
         let quat = array![1.0, 0.0, 0.0, 0.0];

@@ -27,7 +27,7 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_spatial::transform::{Rotation, Slerp};
 /// use ndarray::array;
 /// use std::f64::consts::PI;
@@ -46,7 +46,6 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 /// let point = array![1.0, 0.0, 0.0];
 /// let rotated = rot_half.apply(&point.view());
 /// // Should be approximately [0.7071, 0.7071, 0.0]
-/// // Note: This example is currently ignored due to implementation issues with slerp interpolation
 /// ```
 #[derive(Clone, Debug)]
 pub struct Slerp {
@@ -76,7 +75,7 @@ impl Slerp {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, Slerp};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -84,7 +83,6 @@ impl Slerp {
     /// let rot1 = Rotation::identity();
     /// let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap();
     /// let slerp = Slerp::new(rot1, rot2).unwrap();
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn new(start: Rotation, end: Rotation) -> SpatialResult<Self> {
         let q1 = start.as_quat();
@@ -135,7 +133,7 @@ impl Slerp {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, Slerp};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -152,7 +150,6 @@ impl Slerp {
     ///
     /// // Get rotation at t=0.75 (75% from rot1 to rot2)
     /// let rot_75 = slerp.interpolate(0.75);
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn interpolate(&self, t: f64) -> Rotation {
         // Clamp t to [0, 1]
@@ -199,7 +196,7 @@ impl Slerp {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_spatial::transform::{Rotation, Slerp};
     /// use ndarray::array;
     /// use std::f64::consts::PI;
@@ -211,7 +208,6 @@ impl Slerp {
     /// // Get 5 times for constant angular velocity
     /// let times = slerp.times(5);
     /// // Should be [0.0, 0.25, 0.5, 0.75, 1.0]
-    /// // Note: This example is currently ignored due to type mismatches between owned arrays and array views
     /// ```
     pub fn times(&self, n: usize) -> Vec<f64> {
         if n <= 1 {

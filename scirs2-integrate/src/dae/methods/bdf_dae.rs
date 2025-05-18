@@ -84,7 +84,7 @@ where
     // For higher orders, the coefficients provide higher-order accuracy
 
     // Alpha coefficients (exclude α_0 = 1)
-    let alpha_coeffs = vec![
+    let alpha_coeffs = [
         // Order 1 (Backward Euler)
         vec![F::from_f64(-1.0).unwrap()],
         // Order 2
@@ -116,7 +116,7 @@ where
     ];
 
     // Beta coefficients (multiplier for the RHS function)
-    let beta_coeffs = vec![
+    let beta_coeffs = [
         F::from_f64(1.0).unwrap(),          // Order 1
         F::from_f64(2.0 / 3.0).unwrap(),    // Order 2
         F::from_f64(6.0 / 11.0).unwrap(),   // Order 3
@@ -156,7 +156,7 @@ where
         n_g_evals += 1;
 
         // Compute the Jacobian of g with respect to y
-        let g_y = compute_jacobian_y(
+        let _g_y = compute_jacobian_y(
             &g,
             t_new,
             x_pred.view(),
@@ -204,11 +204,11 @@ where
 
                 // Historical terms: - Σ α_j * x_{n-j}
                 for j in 0..order {
-                    residual_x[i] = residual_x[i] + alpha[j] * x_history[j][i];
+                    residual_x[i] += alpha[j] * x_history[j][i];
                 }
 
                 // Function term: - h * β * f
-                residual_x[i] = residual_x[i] - h * beta * f_val[i];
+                residual_x[i] -= h * beta * f_val[i];
             }
 
             // Constraint residual is simply g_val
@@ -260,6 +260,16 @@ where
 
             // Compute ∂g/∂x
             let g_x = compute_jacobian_x(
+                &g,
+                t_new,
+                x_corr.view(),
+                y_corr.view(),
+                F::from_f64(1e-8).unwrap(),
+            );
+            n_jac_evals += 1;
+
+            // Compute ∂g/∂y
+            let g_y = compute_jacobian_y(
                 &g,
                 t_new,
                 x_corr.view(),
@@ -323,7 +333,7 @@ where
                 Err(_e) => {
                     // If the linear solve fails, try with a smaller step
                     // and terminate this Newton iteration
-                    h = h * F::from_f64(0.5).unwrap();
+                    h *= F::from_f64(0.5).unwrap();
                     break;
                 }
             };
@@ -354,9 +364,9 @@ where
                 for i in 0..n_x {
                     residual_x_new[i] = x_new[i];
                     for j in 0..order {
-                        residual_x_new[i] = residual_x_new[i] + alpha[j] * x_history[j][i];
+                        residual_x_new[i] += alpha[j] * x_history[j][i];
                     }
-                    residual_x_new[i] = residual_x_new[i] - h * beta * f_new[i];
+                    residual_x_new[i] -= h * beta * f_new[i];
                 }
 
                 let res_x_new_norm = residual_x_new
@@ -379,13 +389,13 @@ where
                 }
 
                 // Reduce damping factor
-                alpha_damp = alpha_damp * F::from_f64(0.5).unwrap();
+                alpha_damp *= F::from_f64(0.5).unwrap();
             }
 
             // If damping factor got too small, the Newton iteration is not converging
             if alpha_damp < min_alpha {
                 // Reduce step size and try again
-                h = h * F::from_f64(0.5).unwrap();
+                h *= F::from_f64(0.5).unwrap();
                 break;
             }
         }
@@ -393,7 +403,7 @@ where
         // Check for convergence of the Newton iteration
         if !converged {
             // If not converged, reduce step size and try again
-            h = h * F::from_f64(0.5).unwrap();
+            h *= F::from_f64(0.5).unwrap();
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
@@ -408,7 +418,6 @@ where
         }
 
         // Step accepted, update step count
-        n_steps += 1;
         n_accepted += 1;
 
         // Estimate local error for step size control
@@ -420,14 +429,14 @@ where
         let mut error_norm_x = F::zero();
         for i in 0..n_x {
             let scale = atol + rtol * x_corr[i].abs();
-            error_norm_x = error_norm_x + (error_x[i] / scale).powi(2);
+            error_norm_x += (error_x[i] / scale).powi(2);
         }
         error_norm_x = (error_norm_x / F::from_usize(n_x).unwrap()).sqrt();
 
         let mut error_norm_y = F::zero();
         for i in 0..n_y {
             let scale = atol + rtol * y_corr[i].abs();
-            error_norm_y = error_norm_y + (error_y[i] / scale).powi(2);
+            error_norm_y += (error_y[i] / scale).powi(2);
         }
         error_norm_y = (error_norm_y / F::from_usize(n_y).unwrap()).sqrt();
 
@@ -464,6 +473,9 @@ where
         t_current = t_new;
         _x_current = x_corr;
         _y_current = y_corr;
+
+        // Increment step counter
+        n_steps += 1;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -568,7 +580,7 @@ where
 
     // BDF method coefficients for various orders
     // Alpha coefficients (exclude α_0 = 1)
-    let alpha_coeffs = vec![
+    let alpha_coeffs = [
         // Order 1 (Backward Euler)
         vec![F::from_f64(-1.0).unwrap()],
         // Order 2
@@ -600,7 +612,7 @@ where
     ];
 
     // Beta coefficients (for derivative approximation)
-    let beta_coeffs = vec![
+    let beta_coeffs = [
         F::from_f64(1.0).unwrap(),          // Order 1
         F::from_f64(2.0 / 3.0).unwrap(),    // Order 2
         F::from_f64(6.0 / 11.0).unwrap(),   // Order 3
@@ -652,15 +664,15 @@ where
                 y_prime[i] = y_pred[i];
 
                 // Historical terms: + Σ α_j * y_{n-j}
-                for j in 0..order {
+                for (j, &alpha_j) in alpha.iter().enumerate().take(order) {
                     let idx = y_values.len() - 1 - j;
                     if idx < y_values.len() {
-                        y_prime[i] = y_prime[i] + alpha[j] * y_values[idx][i];
+                        y_prime[i] += alpha_j * y_values[idx][i];
                     }
                 }
 
                 // Scale by the beta coefficient
-                y_prime[i] = y_prime[i] / (h * beta);
+                y_prime[i] /= h * beta;
             }
 
             y_prime
@@ -732,7 +744,7 @@ where
             let mut combined_jac = jac_y.clone();
             for i in 0..n {
                 for j in 0..n {
-                    combined_jac[[i, j]] = combined_jac[[i, j]] + jac_y_prime[[i, j]] * scale;
+                    combined_jac[[i, j]] += jac_y_prime[[i, j]] * scale;
                 }
             }
 
@@ -744,7 +756,7 @@ where
                 Ok(dy) => dy,
                 Err(_e) => {
                     // If linear solve fails, reduce step size and try again
-                    h = h * F::from_f64(0.5).unwrap();
+                    h *= F::from_f64(0.5).unwrap();
                     break;
                 }
             };
@@ -774,13 +786,12 @@ where
                     // Historical terms: + Σ α_j * y_{n-j}
                     for j in 0..order {
                         if j < y_history.len() {
-                            y_prime_new[i] =
-                                y_prime_new[i] + alpha[j] * y_history[y_history.len() - 1 - j][i];
+                            y_prime_new[i] += alpha[j] * y_history[y_history.len() - 1 - j][i];
                         }
                     }
 
                     // Scale by the beta coefficient
-                    y_prime_new[i] = y_prime_new[i] / (h * beta);
+                    y_prime_new[i] /= h * beta;
                 }
 
                 // Evaluate the residual at the new point
@@ -801,13 +812,13 @@ where
                 }
 
                 // Reduce damping factor
-                alpha_damp = alpha_damp * F::from_f64(0.5).unwrap();
+                alpha_damp *= F::from_f64(0.5).unwrap();
             }
 
             // If damping factor got too small, the Newton iteration is not converging
             if alpha_damp < min_alpha {
                 // Reduce step size and try again
-                h = h * F::from_f64(0.5).unwrap();
+                h *= F::from_f64(0.5).unwrap();
                 break;
             }
         }
@@ -815,7 +826,7 @@ where
         // Check for convergence of the Newton iteration
         if !converged {
             // If not converged, reduce step size and try again
-            h = h * F::from_f64(0.5).unwrap();
+            h *= F::from_f64(0.5).unwrap();
 
             // If step size gets too small, the problem might be too stiff
             if h < min_step {
@@ -830,7 +841,6 @@ where
         }
 
         // Step accepted, update step count
-        n_steps += 1;
         n_accepted += 1;
 
         // Estimate local error for step size control
@@ -841,7 +851,7 @@ where
         let mut error_norm = F::zero();
         for i in 0..n {
             let scale = atol + rtol * y_corr[i].abs();
-            error_norm = error_norm + (error[i] / scale).powi(2);
+            error_norm += (error[i] / scale).powi(2);
         }
         error_norm = (error_norm / F::from_usize(n).unwrap()).sqrt();
 
@@ -875,6 +885,9 @@ where
         t_current = t_new;
         y_current = y_corr;
         _y_prime_current = y_prime_corr;
+
+        // Increment step counter
+        n_steps += 1;
 
         // Adjust the order based on history
         if n_steps >= 5 {
@@ -1278,9 +1291,9 @@ where
 
     // Check the last pivot
     if a_copy[[n - 1, n - 1]].abs() < F::from_f64(1e-10).unwrap() {
-        return Err(IntegrateError::ComputationError(format!(
-            "Matrix is singular at the last row"
-        )));
+        return Err(IntegrateError::ComputationError(
+            "Matrix is singular at the last row".to_string(),
+        ));
     }
 
     // Back substitution
@@ -1289,7 +1302,7 @@ where
     for i in (0..n - 1).rev() {
         let mut sum = F::zero();
         for j in i + 1..n {
-            sum = sum + a_copy[[i, j]] * x[j];
+            sum += a_copy[[i, j]] * x[j];
         }
         x[i] = (b_copy[i] - sum) / a_copy[[i, i]];
     }

@@ -137,10 +137,10 @@ pub fn lebedev_rule<F: IntegrateFloat>(order: LebedevOrder) -> IntegrateResult<L
         LebedevOrder::Order50 => generate_order50(),
         order => {
             // For higher orders, provide a helpful error message
-            return Err(IntegrateError::ValueError(format!(
+            Err(IntegrateError::ValueError(format!(
                 "Lebedev order {:?} (requiring {} points) is not yet implemented. Available orders: 6, 14, 26, 38, 50.",
                 order, order.num_points()
-            )));
+            )))
         }
     }
 }
@@ -185,7 +185,7 @@ where
         let y = rule.points[[i, 1]];
         let z = rule.points[[i, 2]];
 
-        sum = sum + f(x, y, z) * rule.weights[i];
+        sum += f(x, y, z) * rule.weights[i];
     }
 
     // Multiply by the surface area of the unit sphere (4π)
@@ -456,8 +456,8 @@ fn generate_order38<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
             + point[2].to_f64().unwrap().powi(2))
         .sqrt();
 
-        for i in 0..3 {
-            point[i] = F::from(point[i].to_f64().unwrap() / norm).unwrap();
+        for p in point.iter_mut().take(3) {
+            *p = F::from(p.to_f64().unwrap() / norm).unwrap();
         }
     }
 
@@ -761,7 +761,8 @@ mod tests {
             assert_abs_diff_eq!(result_z, expected, epsilon = 1e-10);
 
             // Sum of all second moments should be 4π (since x² + y² + z² = 1 on the sphere)
-            let result_total = lebedev_integrate(|x: f64, y: f64, z: f64| x * x + y * y + z * z, order).unwrap();
+            let result_total =
+                lebedev_integrate(|x: f64, y: f64, z: f64| x * x + y * y + z * z, order).unwrap();
             assert_abs_diff_eq!(result_total, 4.0 * PI, epsilon = 1e-10);
         }
     }

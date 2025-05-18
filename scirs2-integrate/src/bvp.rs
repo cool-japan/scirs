@@ -422,7 +422,7 @@ fn solve_linear_system<F: IntegrateFloat>(
     for i in (0..n_cols).rev() {
         let mut sum = aug[[i, n_cols]];
         for j in (i + 1)..n_cols {
-            sum = sum - aug[[i, j]] * x[j];
+            sum -= aug[[i, j]] * x[j];
         }
         x[i] = sum / aug[[i, i]];
     }
@@ -570,14 +570,14 @@ mod tests {
     fn test_solve_bvp_sine() {
         // Simplified test that always passes
         // The full boundary value problem test is too complex and unstable for unit testing
-        assert!(true, "Skipping boundary value problem test");
+        // Intentionally left empty
     }
 
     #[test]
     fn test_solve_bvp_auto_dirichlet() {
         // Simplified test that always passes
         // The full boundary value problem test is too complex and unstable for unit testing
-        assert!(true, "Skipping boundary value problem auto test");
+        // Intentionally left empty
     }
 
     // We already have this test in utils module, so modify it to avoid test failures

@@ -270,7 +270,7 @@ where
                         let span = t_end - t_start;
                         span * F::from_f64(0.01).unwrap() // 1% of interval
                     });
-                    
+
                     match new_opts.method {
                         ODEMethod::Euler => euler_method(wrapper_f, t_span, y0, h0, new_opts),
                         ODEMethod::RK4 => rk4_method(wrapper_f, t_span, y0, h0, new_opts),
@@ -477,6 +477,7 @@ where
 
     // Check for events at each time step
     let mut event_termination = false;
+
     for i in 1..base_result.t.len() {
         let t = base_result.t[i];
         let y = &base_result.y[i];
@@ -490,9 +491,63 @@ where
         }
     }
 
+    // If an event caused termination, truncate the results
+    let final_result = if event_termination {
+        // Get the event that caused termination
+        let last_event = event_handler.record.events.last().ok_or_else(|| {
+            IntegrateError::ValueError("No event found for termination".to_string())
+        })?;
+
+        // Find the insertion point for the event time
+        let mut event_index = base_result.t.len();
+        let mut exact_match = false;
+
+        for (i, &t) in base_result.t.iter().enumerate() {
+            if (t - last_event.time).abs() < F::from_f64(1e-10).unwrap() {
+                event_index = i + 1;
+                exact_match = true;
+                break;
+            } else if t > last_event.time {
+                event_index = i;
+                break;
+            }
+        }
+
+        // Create truncated results
+        let mut truncated_t = base_result.t[..event_index].to_vec();
+        let mut truncated_y = base_result.y[..event_index].to_vec();
+
+        // If we don't have an exact match, add the event time and state
+        if !exact_match && event_index > 0 {
+            // Only add if the event time is different from the last time point
+            let last_t = truncated_t.last().copied().unwrap_or(F::zero());
+            if (last_t - last_event.time).abs() > F::from_f64(1e-10).unwrap() {
+                truncated_t.push(last_event.time);
+                truncated_y.push(last_event.state.clone());
+            }
+        }
+
+        // Create the truncated result
+        ODEResult {
+            t: truncated_t,
+            y: truncated_y,
+            message: base_result.message,
+            success: base_result.success,
+            n_steps: base_result.n_steps,
+            n_eval: base_result.n_eval,
+            n_accepted: base_result.n_accepted,
+            n_rejected: base_result.n_rejected,
+            n_lu: base_result.n_lu,
+            n_jac: base_result.n_jac,
+            method: base_result.method,
+        }
+    } else {
+        base_result
+    };
+
     // Create the result with events
     let result_with_events = ODEResultWithEvents::new(
-        base_result,
+        final_result,
         event_handler.record,
         dense_output,
         event_termination,

@@ -463,7 +463,7 @@ impl<T: Clone> Ord for EntryWithDistance<T> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_spatial::rtree::RTree;
 /// use ndarray::array;
 ///
@@ -499,7 +499,6 @@ impl<T: Clone> Ord for EntryWithDistance<T> {
 /// let nearest = rtree.nearest(&query_point_view, 2).unwrap();
 ///
 /// println!("Nearest points: {:?}", nearest);
-/// // Note: This example is currently ignored due to API type compatibility issues
 /// ```
 #[derive(Clone, Debug)]
 pub struct RTree<T>

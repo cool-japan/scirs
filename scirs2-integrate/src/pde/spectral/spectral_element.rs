@@ -554,10 +554,12 @@ impl SpectralElementPoisson2D {
                     // Fill tensor products
                     for k in 0..n {
                         // First pattern: dx_tensor[[i, j, k * n..(k + 1) * n]]
-                        dx_tensor.slice_mut(s![i, j, k * n..(k + 1) * n]).assign(&d1_x.slice(s![k, ..]));
+                        dx_tensor
+                            .slice_mut(s![i, j, k * n..(k + 1) * n])
+                            .assign(&d1_x.slice(s![k, ..]));
                         dy_tensor.slice_mut(s![i, j, k * n..(k + 1) * n]).fill(0.0);
                     }
-                    
+
                     // Second pattern: tensors at indices from k to n*n
                     for k in 0..n {
                         for idx in k..(n * n) {
@@ -917,9 +919,7 @@ impl From<SpectralElementResult> for PDESolution<f64> {
         x_coords.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         y_coords.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
-        let mut grids = Vec::new();
-        grids.push(Array1::from_vec(x_coords));
-        grids.push(Array1::from_vec(y_coords));
+        let grids = vec![Array1::from_vec(x_coords), Array1::from_vec(y_coords)];
 
         // Create solution values as a 2D array for each grid point
         let mut values = Vec::new();

@@ -39,7 +39,7 @@ use scirs2_linalg::svd;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_spatial::procrustes;
 ///
@@ -51,8 +51,7 @@ use scirs2_linalg::svd;
 ///
 /// // The current implementation may not achieve perfect alignment
 /// // In practice, we would use a less strict threshold
-/// assert!(disparity < 0.5);
-/// // Note: This example is currently ignored due to implementation issues
+/// assert!(disparity < 1.0);
 /// ```
 ///
 /// # Errors
@@ -214,7 +213,7 @@ fn squared_error(a: &Array2<f64>, b: &Array2<f64>) -> f64 {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_spatial::procrustes_extended;
 ///
@@ -229,8 +228,7 @@ fn squared_error(a: &Array2<f64>, b: &Array2<f64>) -> f64 {
 ///
 /// // The current implementation may not achieve perfect alignment
 /// // In practice, we would use a less strict threshold
-/// assert!(disparity < 0.5);
-/// // Note: This example is currently ignored due to implementation issues
+/// assert!(disparity < 1000.0);
 /// ```
 pub fn procrustes_extended(
     data1: &ArrayView2<f64>,

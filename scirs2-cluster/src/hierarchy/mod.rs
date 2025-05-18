@@ -377,7 +377,11 @@ mod tests {
         assert_abs_diff_eq!(euclidean_distances[0], 1.0, epsilon = 1e-10);
 
         // Distance between (0,0) and (1,1) should be sqrt(2) for Euclidean
-        assert_abs_diff_eq!(euclidean_distances[2], 1.4142135623730951, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            euclidean_distances[2],
+            std::f64::consts::SQRT_2,
+            epsilon = 1e-10
+        );
 
         // Distance between (0,0) and (1,0) should be 1.0 for Manhattan
         assert_abs_diff_eq!(manhattan_distances[0], 1.0, epsilon = 1e-10);

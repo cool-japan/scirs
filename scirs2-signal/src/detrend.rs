@@ -353,8 +353,8 @@ where
     // Evaluate the polynomial at each x value
     let mut trend = vec![0.0; n];
     for i in 0..n {
-        for j in 0..=order {
-            trend[i] += coefficients[j] * x_indices[i].powi(j as i32);
+        for (j, &coeff) in coefficients.iter().enumerate().take(order + 1) {
+            trend[i] += coeff * x_indices[i].powi(j as i32);
         }
     }
 

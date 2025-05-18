@@ -475,7 +475,7 @@ where
     // Estimate the volume of the integration domain
     let mut volume = F::one();
     for &(a, b) in ranges {
-        volume = volume * (b - a);
+        volume *= b - a;
     }
 
     // Perform stratified sampling to reduce variance

@@ -466,8 +466,8 @@ mod tests {
         let options = MiniBatchKMeansOptions {
             max_iter: 20,
             batch_size: 4,
-            random_seed: Some(42),          // For reproducibility
-            reassignment_ratio: 0.1.into(), // Higher reassignment to test this feature
+            random_seed: Some(42),   // For reproducibility
+            reassignment_ratio: 0.1, // Higher reassignment to test this feature
             ..Default::default()
         };
 
@@ -487,7 +487,7 @@ mod tests {
         assert!(unique_labels.len() <= 3);
 
         // Every centroid should have at least one point assigned to it
-        let mut centroid_counts = vec![0; 3];
+        let mut centroid_counts = [0; 3];
         for &label in labels.iter() {
             centroid_counts[label] += 1;
         }

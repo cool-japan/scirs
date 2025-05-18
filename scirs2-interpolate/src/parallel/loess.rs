@@ -28,18 +28,20 @@ use crate::spatial::kdtree::KdTree;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "linalg")]
+/// # {
 /// use ndarray::{Array1, Array2};
 /// use scirs2_interpolate::parallel::{ParallelLocalPolynomialRegression, ParallelConfig};
 /// use scirs2_interpolate::local::polynomial::LocalPolynomialConfig;
 /// use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
 ///
 /// // Create sample 1D data
-/// let x = Array1::linspace(0.0, 10.0, 100);
-/// let mut y = Array1::zeros(100);
-/// for (i, &x_val) in x.iter().enumerate() {
+/// let x = Array1::<f64>::linspace(0.0, 10.0, 100);
+/// let mut y = Array1::<f64>::zeros(100);
+/// for (i, x_val) in x.iter().enumerate() {
 ///     // y = sin(x) + noise
-///     y[i] = x_val.sin() + 0.1 * (rand::random::<f64>() - 0.5);
+///     y[i] = x_val.sin() + 0.1 * 0.3;
 /// }
 ///
 /// // Create 2D points array from 1D data
@@ -61,7 +63,7 @@ use crate::spatial::kdtree::KdTree;
 /// ).unwrap();
 ///
 /// // Create test points
-/// let test_x = Array1::linspace(0.0, 10.0, 50);
+/// let test_x = Array1::<f64>::linspace(0.0, 10.0, 50);
 /// let test_points = test_x.clone().insert_axis(ndarray::Axis(1));
 ///
 /// // Parallel evaluation
@@ -70,6 +72,7 @@ use crate::spatial::kdtree::KdTree;
 ///     &test_points.view(),
 ///     &parallel_config
 /// ).unwrap();
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct ParallelLocalPolynomialRegression<F>

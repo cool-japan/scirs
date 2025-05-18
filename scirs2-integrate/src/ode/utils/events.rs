@@ -11,35 +11,25 @@ use crate::ode::utils::dense_output::DenseSolution;
 use ndarray::{Array1, ArrayView1};
 
 /// Direction of zero-crossing for event detection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EventDirection {
     /// Detect crossings from negative to positive
     Rising,
     /// Detect crossings from positive to negative
     Falling,
     /// Detect both crossing directions
+    #[default]
     Both,
 }
 
-impl Default for EventDirection {
-    fn default() -> Self {
-        EventDirection::Both
-    }
-}
-
 /// Action to take when an event is detected
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EventAction {
     /// Continue integration without stopping
+    #[default]
     Continue,
     /// Stop the integration and return
     Stop,
-}
-
-impl Default for EventAction {
-    fn default() -> Self {
-        EventAction::Continue
-    }
 }
 
 /// Definition of an event to detect during integration
@@ -106,6 +96,12 @@ pub struct EventRecord<F: IntegrateFloat> {
     pub events: Vec<Event<F>>,
     /// Count of events by ID
     pub counts: std::collections::HashMap<String, usize>,
+}
+
+impl<F: IntegrateFloat> Default for EventRecord<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: IntegrateFloat> EventRecord<F> {
@@ -250,7 +246,7 @@ impl<F: IntegrateFloat> EventHandler<F> {
                         if spec.precise_time && dense_output.is_some() {
                             self.refine_event_time(
                                 *t_prev,
-                                &y_prev,
+                                y_prev,
                                 t,
                                 y,
                                 prev_value,
@@ -294,6 +290,7 @@ impl<F: IntegrateFloat> EventHandler<F> {
     }
 
     /// Refine the exact time of an event using bisection on the dense output
+    #[allow(clippy::too_many_arguments)]
     fn refine_event_time<Func>(
         &self,
         t_prev: F,

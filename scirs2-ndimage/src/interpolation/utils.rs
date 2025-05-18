@@ -103,16 +103,22 @@ where
     let x_int = x_floor.to_usize().unwrap();
     let t = x - x_floor;
 
-    // Cubic interpolation weights
+    // Catmull-Rom cubic interpolation weights
     let t2 = t * t;
     let t3 = t2 * t;
 
-    let h00 = T::from_f64(2.0).unwrap() * t3 - T::from_f64(3.0).unwrap() * t2 + T::one();
-    let h10 = t3 - T::from_f64(2.0).unwrap() * t2 + t;
-    let h01 = -T::from_f64(2.0).unwrap() * t3 + T::from_f64(3.0).unwrap() * t2;
-    let h11 = t3 - t2;
+    let half = T::from_f64(0.5).unwrap();
+    let two = T::from_f64(2.0).unwrap();
+    let three = T::from_f64(3.0).unwrap();
+    let four = T::from_f64(4.0).unwrap();
+    let five = T::from_f64(5.0).unwrap();
 
-    let weights = [h00, h10, h01, h11];
+    let w0 = half * (-t3 + two * t2 - t);
+    let w1 = half * (three * t3 - five * t2 + two);
+    let w2 = half * (-three * t3 + four * t2 + t);
+    let w3 = half * (t3 - t2);
+
+    let weights = [w0, w1, w2, w3];
 
     // Starting index is one less than floor because cubic uses 4 points
     let start_idx = if x_int > 0 { x_int - 1 } else { 0 };
@@ -140,16 +146,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Implementation is placeholder, will be fixed with full implementation"]
     fn test_linear_weights() {
         let (i0, i1, t) = linear_weights(1.3);
         assert_eq!(i0, 1);
         assert_eq!(i1, 2);
-        assert_eq!(t, 0.3);
+        assert!((t - 0.3).abs() < 1e-10);
     }
 
     #[test]
-    #[ignore = "Implementation is placeholder, will be fixed with full implementation"]
     fn test_cubic_weights() {
         let (start_idx, weights) = cubic_weights(1.3);
         assert!(start_idx <= 1);

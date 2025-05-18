@@ -195,7 +195,7 @@ where
 
         if err_norm <= F::one() {
             // Step accepted
-            t = t + h;
+            t += h;
             y = y5; // Use higher order solution
 
             // Store results
@@ -205,16 +205,16 @@ where
             // Increase step size for next step
             if err_norm <= F::from_f64(0.1).unwrap() {
                 // For very accurate steps, try a larger increase
-                h = h * factor.max(F::from_f64(2.0).unwrap());
+                h *= factor.max(F::from_f64(2.0).unwrap());
             } else {
-                h = h * factor;
+                h *= factor;
             }
 
             step_count += 1;
             accepted_steps += 1;
         } else {
             // Step rejected
-            h = h * factor.min(F::one());
+            h *= factor.min(F::one());
             rejected_steps += 1;
 
             // If step size is too small, return error
@@ -332,7 +332,7 @@ where
         let y_next = y.clone() + k1.clone() * h;
 
         // Always accept the step in this simplified implementation
-        t = t + h;
+        t += h;
         y = y_next;
 
         // Store results
@@ -449,7 +449,7 @@ where
         let y_next = y.clone() + k1.clone() * h;
 
         // Always accept the step in this simplified implementation
-        t = t + h;
+        t += h;
         y = y_next;
 
         // Store results

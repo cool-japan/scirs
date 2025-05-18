@@ -122,7 +122,7 @@ where
     // Calculate the volume of the integration domain
     let mut volume = F::one();
     for &(a, b) in ranges {
-        volume = volume * (b - a);
+        volume *= b - a;
     }
 
     // Initialize random number generator

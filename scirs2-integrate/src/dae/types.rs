@@ -8,11 +8,12 @@ use crate::ode::ODEMethod;
 use ndarray::Array1;
 
 /// DAE system type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DAEType {
     /// Semi-explicit index-1 DAE of the form:
     /// x' = f(x, y, t)
     /// 0 = g(x, y, t)
+    #[default]
     SemiExplicit,
 
     /// Fully implicit index-1 DAE of the form:
@@ -20,16 +21,11 @@ pub enum DAEType {
     FullyImplicit,
 }
 
-impl Default for DAEType {
-    fn default() -> Self {
-        DAEType::SemiExplicit
-    }
-}
-
 /// DAE index classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DAEIndex {
     /// Index-1 (differentiate once to get an ODE)
+    #[default]
     Index1,
     /// Index-2 (differentiate twice)
     Index2,
@@ -37,12 +33,6 @@ pub enum DAEIndex {
     Index3,
     /// Higher-index (differentiate more than three times)
     HigherIndex,
-}
-
-impl Default for DAEIndex {
-    fn default() -> Self {
-        DAEIndex::Index1
-    }
 }
 
 /// Options for controlling the behavior of DAE solvers

@@ -569,7 +569,7 @@ impl FourierSpectralSolver1D {
             if i == 0 {
                 // k=0 mode corresponds to the constant/mean of the solution
                 // For Poisson's equation, this is determined by the source term's mean
-                // Typically, we set it to zero (solution is determined up to a constant)  
+                // Typically, we set it to zero (solution is determined up to a constant)
                 u_hat[i] = num_complex::Complex::new(0.0, 0.0);
             } else {
                 // For all other modes, solve using the inverse Laplacian
@@ -1284,8 +1284,7 @@ impl LegendreSpectralSolver1D {
 
 impl From<SpectralResult> for PDESolution<f64> {
     fn from(result: SpectralResult) -> Self {
-        let mut grids = Vec::new();
-        grids.push(result.grid.clone());
+        let grids = vec![result.grid.clone()];
 
         // Create solution values as a 2D array with one column
         let mut values = Vec::new();
@@ -1335,7 +1334,7 @@ fn fft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
         for j in 0..n {
             let angle = -2.0 * PI * (j as f64) * (k as f64) / (n as f64);
             let factor = num_complex::Complex::new(angle.cos(), angle.sin());
-            sum = sum + factor * x[j];
+            sum += factor * x[j];
         }
         result[k] = sum;
     }
@@ -1361,7 +1360,7 @@ fn ifft(x: &Array1<num_complex::Complex<f64>>) -> Array1<num_complex::Complex<f6
         for j in 0..n {
             let angle = 2.0 * PI * (j as f64) * (k as f64) / (n as f64);
             let factor = num_complex::Complex::new(angle.cos(), angle.sin());
-            sum = sum + factor * x[j];
+            sum += factor * x[j];
         }
         result[k] = sum / (n as f64);
     }

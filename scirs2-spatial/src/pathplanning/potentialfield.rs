@@ -7,7 +7,7 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::Array1;
 //! use scirs2_spatial::pathplanning::{PotentialFieldPlanner, PotentialConfig};
 //!

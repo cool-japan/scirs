@@ -70,6 +70,7 @@ pub struct NewtonResult<F: IntegrateFloat> {
 /// Solve a nonlinear system F(x) = 0 using Newton's method
 ///
 /// This version uses the improved Jacobian handling for performance
+#[allow(clippy::explicit_counter_loop)]
 pub fn newton_solve<F, Func>(
     f: Func,
     x0: Array1<F>,
@@ -132,7 +133,11 @@ where
         let neg_residual = residual.clone() * F::from_f64(-1.0).unwrap();
 
         // Use auto solver selection for the best performance
-        let dx = auto_solve_linear_system(&jacobian.view(), &neg_residual.view(), LinearSolverType::Direct)?;
+        let dx = auto_solve_linear_system(
+            &jacobian.view(),
+            &neg_residual.view(),
+            LinearSolverType::Direct,
+        )?;
         linear_solves += 1;
 
         // Apply damping if needed
@@ -150,7 +155,7 @@ where
             let mut backtrack_count = 0;
 
             while error_new > error && damping > params.min_damping && backtrack_count < 5 {
-                damping = damping * F::from_f64(0.5).unwrap();
+                damping *= F::from_f64(0.5).unwrap();
                 x_new = x.clone() + &dx * damping;
                 residual_new = f(&x_new);
                 func_evals += 1;

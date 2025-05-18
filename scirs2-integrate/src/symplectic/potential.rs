@@ -14,6 +14,18 @@ use crate::symplectic::HamiltonianFn;
 use ndarray::Array1;
 use std::fmt::{Debug, Formatter};
 
+/// Type alias for energy function
+type EnergyFunction<F> = Box<dyn Fn(F, &Array1<F>) -> F + Send + Sync>;
+
+/// Type alias for gradient function  
+type GradientFunction<F> = Box<dyn Fn(F, &Array1<F>) -> Array1<F> + Send + Sync>;
+
+/// Type alias for Hamiltonian equations of motion
+type EquationOfMotion<F> = Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + Send + Sync>;
+
+/// Type alias for Hamiltonian function
+type HamiltonianFunction<F> = Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> F + Send + Sync>;
+
 /// A separable Hamiltonian system with H(q, p) = T(p) + V(q)
 ///
 /// This represents systems where the Hamiltonian can be split into
@@ -26,16 +38,16 @@ use std::fmt::{Debug, Formatter};
 /// - Kepler problem: H = |p|²/2 - 1/|q|
 pub struct SeparableHamiltonian<F: IntegrateFloat> {
     /// Kinetic energy function T(p)
-    kinetic_energy: Box<dyn Fn(F, &Array1<F>) -> F + Send + Sync>,
+    kinetic_energy: EnergyFunction<F>,
 
     /// Potential energy function V(q)
-    potential_energy: Box<dyn Fn(F, &Array1<F>) -> F + Send + Sync>,
+    potential_energy: EnergyFunction<F>,
 
     /// Gradient of potential energy ∇V(q)
-    potential_gradient: Option<Box<dyn Fn(F, &Array1<F>) -> Array1<F> + Send + Sync>>,
+    potential_gradient: Option<GradientFunction<F>>,
 
     /// Gradient of kinetic energy ∇T(p)
-    kinetic_gradient: Option<Box<dyn Fn(F, &Array1<F>) -> Array1<F> + Send + Sync>>,
+    kinetic_gradient: Option<GradientFunction<F>>,
 }
 
 impl<F: IntegrateFloat> Debug for SeparableHamiltonian<F> {
@@ -187,10 +199,10 @@ impl<F: IntegrateFloat> HamiltonianFn<F> for SeparableHamiltonian<F> {
 
             for i in 0..p.len() {
                 let mut p_plus = p.to_owned();
-                p_plus[i] = p_plus[i] + h;
+                p_plus[i] += h;
 
                 let mut p_minus = p.to_owned();
-                p_minus[i] = p_minus[i] - h;
+                p_minus[i] -= h;
 
                 let t_plus = (self.kinetic_energy)(t, &p_plus);
                 let t_minus = (self.kinetic_energy)(t, &p_minus);
@@ -215,10 +227,10 @@ impl<F: IntegrateFloat> HamiltonianFn<F> for SeparableHamiltonian<F> {
 
             for i in 0..q.len() {
                 let mut q_plus = q.to_owned();
-                q_plus[i] = q_plus[i] + h;
+                q_plus[i] += h;
 
                 let mut q_minus = q.to_owned();
-                q_minus[i] = q_minus[i] - h;
+                q_minus[i] -= h;
 
                 let v_plus = (self.potential_energy)(t, &q_plus);
                 let v_minus = (self.potential_energy)(t, &q_minus);
@@ -251,13 +263,13 @@ impl<F: IntegrateFloat> HamiltonianFn<F> for SeparableHamiltonian<F> {
 /// specified directly without assuming a separable structure.
 pub struct HamiltonianSystem<F: IntegrateFloat> {
     /// Function computing dq/dt = ∂H/∂p
-    dq_dt_fn: Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + Send + Sync>,
+    dq_dt_fn: EquationOfMotion<F>,
 
     /// Function computing dp/dt = -∂H/∂q
-    dp_dt_fn: Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> Array1<F> + Send + Sync>,
+    dp_dt_fn: EquationOfMotion<F>,
 
     /// Optional function computing the Hamiltonian H(q, p)
-    hamiltonian_fn: Option<Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> F + Send + Sync>>,
+    hamiltonian_fn: Option<HamiltonianFunction<F>>,
 }
 
 impl<F: IntegrateFloat> HamiltonianSystem<F> {

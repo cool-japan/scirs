@@ -900,7 +900,7 @@ fn integrate_segment<F: Float + FromPrimitive>(coeffs: &Array1<F>, x0: F, a: F, 
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_interpolate::spline::make_interp_spline;
 ///
@@ -915,7 +915,7 @@ fn integrate_segment<F: Float + FromPrimitive>(coeffs: &Array1<F>, x0: F, a: F, 
 ///     &x.view(),
 ///     &y.view(),
 ///     "clamped",
-///     Some(&array![0.0, 6.0]),  // first derivative at start = 0, end = 6
+///     Some(&array![0.0, 6.0].view()),  // first derivative at start = 0, end = 6
 /// ).unwrap();
 ///
 /// // Interpolate at x = 1.5

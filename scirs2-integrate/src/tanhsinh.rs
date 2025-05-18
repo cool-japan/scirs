@@ -87,7 +87,7 @@ impl TanhSinhRule {
         // We sample at t = j*h for j = -m,...,m
         // where m is chosen such that the weights at the endpoints are negligible
         let max_j = Self::determine_max_j(level);
-        
+
         // println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
 
         for j in -max_j..=max_j {
@@ -147,7 +147,7 @@ impl TanhSinhRule {
             .collect::<Vec<_>>();
 
         let weights = self.weights.iter().map(|&w| len * w).collect::<Vec<_>>();
-        
+
         // println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
         // Debug: show actual points and weights
         // for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
@@ -268,7 +268,7 @@ where
 
         // Evaluate integral with current rule
         evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
-        
+
         // Debug output
         // println!("Level {}: estimate = {}, prev = {}", level, state.estimate, state.prev_estimate);
 
@@ -792,7 +792,7 @@ where
     let integrate_end = if b.is_finite() { b + step / 2.0 } else { b };
 
     // Use tanh-sinh to estimate the integral
-    let integral_result = tanhsinh(|x| f(x), integrate_start, integrate_end, Some(options))?;
+    let integral_result = tanhsinh(f, integrate_start, integrate_end, Some(options))?;
 
     // Combine direct sum and integral estimate
     let total_sum = direct_sum + integral_result.integral / step;
@@ -813,7 +813,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use std::f64::consts::PI;
 
-    #[test] 
+    #[test]
     #[ignore] // FIXME: tanh-sinh implementation has issues
     fn test_basic_integral() {
         // Integrate x^2 from 0 to 1 (= 1/3)

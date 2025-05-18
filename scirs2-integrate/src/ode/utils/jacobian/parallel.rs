@@ -102,7 +102,7 @@ where
 
             // Perturb the j-th component
             let mut y_perturbed = y.clone();
-            y_perturbed[j] = y_perturbed[j] + eps;
+            y_perturbed[j] += eps;
 
             // Evaluate function at perturbed point
             let f_perturbed = f(t, y_perturbed.view());
@@ -261,7 +261,7 @@ where
 
             for &j in &columns_with_color {
                 let eps = eps_base * (F::one() + y[j].abs()).max(F::one());
-                y_perturbed[j] = y_perturbed[j] + eps;
+                y_perturbed[j] += eps;
                 perturbation_sizes.push(eps);
             }
 
@@ -359,7 +359,7 @@ pub fn should_use_parallel_jacobian(n_dim: usize, is_sparse: bool, num_threads: 
         let _ = n_dim;
         let _ = is_sparse;
         let _ = num_threads;
-        return false; // Parallel computation not available without the feature
+        false // Parallel computation not available without the feature
     }
 
     #[cfg(feature = "parallel_jacobian")]

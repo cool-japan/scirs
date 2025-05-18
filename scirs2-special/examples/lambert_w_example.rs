@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let c = -0.5;
 
     // Solution is x = a - W(-b*c*e^(a*c))/c
-    let z = -b * c * (a * c as f64).exp();
+    let z = -b * c * f64::exp(a * c);
     let w = lambert_w(Complex64::new(z, 0.0), 0, 1e-12)?;
     let x = a - w.re / c;
 

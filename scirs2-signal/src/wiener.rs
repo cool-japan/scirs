@@ -766,7 +766,7 @@ fn smooth_psd(psd: &Array1<f64>) -> Array1<f64> {
     let mut smoothed = Array1::zeros(n);
 
     // Apply simple moving average smoothing
-    let window_size = (n as f64 * 0.02).max(3.0).min(15.0) as usize;
+    let window_size = (n as f64 * 0.02).clamp(3.0, 15.0) as usize;
     let half_window = window_size / 2;
 
     for i in 0..n {

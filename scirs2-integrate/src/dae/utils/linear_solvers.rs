@@ -102,7 +102,7 @@ where
         let mut sum = b_copy[i];
 
         for j in (i + 1)..n {
-            sum = sum - a_copy[[i, j]] * x[j];
+            sum -= a_copy[[i, j]] * x[j];
         }
 
         x[i] = sum / a_copy[[i, i]];
@@ -140,8 +140,8 @@ where
 
     // Array to store permutation
     let mut p = vec![0; n];
-    for i in 0..n {
-        p[i] = i;
+    for (i, p_elem) in p.iter_mut().enumerate().take(n) {
+        *p_elem = i;
     }
 
     // Perform LU decomposition with partial pivoting
@@ -175,9 +175,7 @@ where
             }
 
             // Update permutation
-            let temp = p[k];
-            p[k] = p[pivot_idx];
-            p[pivot_idx] = temp;
+            p.swap(k, pivot_idx);
 
             // If k > 0, swap rows in L for columns 0 to k-1
             if k > 0 {
@@ -209,7 +207,7 @@ where
             for p in 0..k {
                 l[[i, k]] = l[[i, k]] - l[[i, p]] * u[[p, k]];
             }
-            l[[i, k]] = l[[i, k]] / u[[k, k]];
+            l[[i, k]] /= u[[k, k]];
         }
     }
 
@@ -245,7 +243,7 @@ where
         for j in (i + 1)..n {
             x[i] = x[i] - u[[i, j]] * x[j];
         }
-        x[i] = x[i] / u[[i, i]];
+        x[i] /= u[[i, i]];
     }
 
     Ok(x)
@@ -264,7 +262,7 @@ where
 {
     let mut sum = F::zero();
     for &val in v.iter() {
-        sum = sum + val * val;
+        sum += val * val;
     }
     sum.sqrt()
 }
@@ -282,7 +280,7 @@ where
 {
     let mut sum = F::zero();
     for val in m.iter() {
-        sum = sum + (*val) * (*val);
+        sum += (*val) * (*val);
     }
     sum.sqrt()
 }

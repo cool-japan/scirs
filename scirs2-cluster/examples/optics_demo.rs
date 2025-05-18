@@ -113,8 +113,8 @@ fn print_cluster_stats(labels: &Array1<i32>) {
     }
 
     // Print cluster sizes
-    for i in 0..num_clusters {
-        println!("Cluster {}: {} points", i, cluster_counts[i]);
+    for (i, &count) in cluster_counts.iter().take(num_clusters).enumerate() {
+        println!("Cluster {}: {} points", i, count);
     }
     println!("Noise points: {}", cluster_counts[num_clusters]);
 

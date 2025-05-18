@@ -132,7 +132,7 @@ where
             y = y + slope * h;
 
             // Update time
-            t = t + h;
+            t += h;
 
             // Store results
             t_values.push(t);
@@ -292,7 +292,7 @@ where
                 func_evals = prev_func_evals + func_evals_cell.get() + result.func_evals;
                 n_jac += result.jac_evals;
                 n_lu += result.linear_solves;
-                newton_iters = newton_iters + F::from(result.iterations).unwrap();
+                newton_iters += F::from(result.iterations).unwrap();
 
                 // Update state
                 let y_next = result.solution;
@@ -306,10 +306,10 @@ where
 
                     // Compute the lower order solution using the values we already have
                     let mut rhs = Array1::<F>::zeros(n_dim);
-                    for j in 1..lower_order + 1 {
+                    for (j, &coeff) in lower_coeffs.iter().enumerate().skip(1).take(lower_order) {
                         if j <= y_values.len() {
                             let idx = y_values.len() - j;
-                            rhs = rhs + y_values[idx].clone() * lower_coeffs[j];
+                            rhs = rhs + y_values[idx].clone() * coeff;
                         }
                     }
 
@@ -365,7 +365,7 @@ where
                     accepted_steps += 1;
 
                     // Adjust step size for next step
-                    h = h * factor;
+                    h *= factor;
 
                     // Consider order adjustment - but not too frequently
                     if step_count - last_order_change >= min_steps_before_order_change {
@@ -387,7 +387,7 @@ where
                     }
                 } else {
                     // Step rejected
-                    h = h * factor;
+                    h *= factor;
                     rejected_steps += 1;
 
                     // If we've reduced step size too much, report error
@@ -400,7 +400,7 @@ where
             }
             Err(e) => {
                 // Newton failed to converge
-                h = h * F::from_f64(0.5).unwrap();
+                h *= F::from_f64(0.5).unwrap();
                 rejected_steps += 1;
 
                 // If step size is too small, return error

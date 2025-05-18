@@ -86,7 +86,7 @@ where
         // Calculate how much the step size had to be reduced
         if h2 < h1 {
             let ratio = h2 / h1;
-            stiffness = stiffness + (F::one() - ratio);
+            stiffness += F::one() - ratio;
         }
     }
 

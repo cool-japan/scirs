@@ -19,7 +19,7 @@ This module provides numerical integration functionality similar to SciPy's inte
 | `BDF` | ✅ Implemented | Enhanced with improved Jacobian handling and error estimation |
 | `solve_bvp` | ✅ Implemented | Boundary Value Problem solver |
 | `DOP853` | ✅ Implemented | Higher-order Runge-Kutta |
-| `Radau` | ⚠️ Partially implemented | Implicit Runge-Kutta (needs refinement) |
+| `Radau` | ⚠️ Partially implemented | Implicit Runge-Kutta (Newton iteration fails with mass matrices) |
 | `LSODA` | ✅ Implemented | Adaptive switching method with enhanced stiffness detection |
 | `qmc_quad` | ✅ Implemented | Quasi-Monte Carlo |
 | `tanhsinh` | ✅ Implemented | Tanh-sinh quadrature |
@@ -60,6 +60,10 @@ This module provides numerical integration functionality similar to SciPy's inte
     - [x] Revise BDF implementation with more stable numerical method for Newton iterations
     - [x] Add auto-differentiation or better numerical Jacobian calculation for BDF
     - [x] Enable currently ignored tests once fixed
+  - [ ] Fix Radau method with mass matrices:
+    - [ ] Newton iteration fails to converge when mass matrices are used
+    - [ ] Issue appears in both standalone use and with event detection
+    - [ ] Debug shows step size repeatedly decreasing due to Newton failures
 - [x] Add utilities for numerical methods
   - [x] Numerical Jacobian calculation
   - [x] Linear system solver
@@ -70,7 +74,7 @@ This module provides numerical integration functionality similar to SciPy's inte
 - [ ] Complete implementation of high-priority SciPy methods
   - [x] Additional ODE solvers
     - [x] DOP853 (8th order Runge-Kutta with 5th order error estimator)
-    - [⚠️] Radau (implicit Runge-Kutta, L-stable) - improve implementation
+    - [⚠️] Radau (implicit Runge-Kutta, L-stable) - fix mass matrix implementation
     - [x] LSODA (automatic Adams/BDF switching for non-stiff/stiff problems) - with enhanced stiffness detection
     - [x] Enhanced BDF with improved Jacobian handling and error estimation
   - [x] Quadrature rules generator

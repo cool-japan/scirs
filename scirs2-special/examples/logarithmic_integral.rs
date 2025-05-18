@@ -65,11 +65,11 @@ fn main() {
             println!("  li(x)             = {:.10}", li_x);
             println!(
                 "  Ei(ln(x)) - γ     = {:.10}",
-                (x.ln().exp_integral() - 0.57721566490153286060)
+                (x.ln().exp_integral() - 0.577_215_664_901_532_9)
             );
             println!(
                 "  Relative difference: {:.10e}",
-                ((li_x - (x.ln().exp_integral() - 0.57721566490153286060)).abs() / li_x.abs())
+                ((li_x - (x.ln().exp_integral() - 0.577_215_664_901_532_9)).abs() / li_x.abs())
             );
         }
     }
@@ -95,7 +95,7 @@ impl ExpIntegral for f64 {
             let mut factorial = 1.0;
 
             // Series: Ei(x) = γ + ln|x| + sum_{k=1}^∞ x^k/(k·k!)
-            let euler_mascheroni = 0.57721566490153286060;
+            let euler_mascheroni = 0.577_215_664_901_532_9;
             sum = euler_mascheroni + self.ln();
 
             while k < 30.0 {
@@ -148,7 +148,7 @@ impl ExpIntegral for f64 {
             let mut k = 1.0;
 
             // Series: E₁(x) = -γ - ln(x) - sum_{k=1}^∞ (-1)^k x^k/(k·k!)
-            let euler_mascheroni = 0.57721566490153286060;
+            let euler_mascheroni = 0.577_215_664_901_532_9;
             sum = -euler_mascheroni - self.ln();
 
             let mut factorial = 1.0;

@@ -502,10 +502,7 @@ mod tests {
         // Check that each sample has L2 norm approximately equal to 1
         for i in 0..data.shape()[0] {
             let row = normalized.row(i);
-            let norm_sq: f64 = row.iter().fold(0.0, |acc, &x| {
-                let x_f64 = f64::from(x);
-                acc + x_f64 * x_f64
-            });
+            let norm_sq: f64 = row.iter().fold(0.0, |acc, &x| acc + x * x);
             let norm = norm_sq.sqrt();
             assert_abs_diff_eq!(norm, 1.0, epsilon = 1e-10);
         }
@@ -529,7 +526,7 @@ mod tests {
             let column = scaled.column(j);
 
             // Convert the values to f64 for stable comparison
-            let column_values: Vec<f64> = column.iter().map(|&x| f64::from(x)).collect();
+            let column_values: Vec<f64> = column.iter().copied().collect();
 
             if !column_values.is_empty() {
                 let min_val = column_values

@@ -90,6 +90,12 @@ pub struct BoundaryNodeInfo {
     pub marker: Option<i32>,
 }
 
+impl Default for TriangularMesh {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TriangularMesh {
     /// Create a new empty triangular mesh
     pub fn new() -> Self {
@@ -342,7 +348,7 @@ impl FEMPoissonSolver {
         options: Option<FEMOptions>,
     ) -> PDEResult<Self> {
         // Validate boundary conditions
-        if boundary_conditions.len() < 1 {
+        if boundary_conditions.is_empty() {
             return Err(PDEError::BoundaryConditions(
                 "At least one boundary condition is required".to_string(),
             ));

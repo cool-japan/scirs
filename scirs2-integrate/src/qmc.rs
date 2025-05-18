@@ -55,7 +55,7 @@ pub struct RandomGenerator {
 impl RandomGenerator {
     /// Create a new random number generator
     pub fn new(dim: usize, seed: Option<u64>) -> Self {
-        let _seed = seed.unwrap_or_else(|| random::<u64>());
+        let _seed = seed.unwrap_or_else(random::<u64>);
 
         Self { dim, _seed }
     }
@@ -93,7 +93,7 @@ pub struct Sobol {
 impl Sobol {
     /// Create a new Sobol sequence generator
     pub fn new(dim: usize, seed: Option<u64>) -> Self {
-        let seed = seed.unwrap_or_else(|| random::<u64>());
+        let seed = seed.unwrap_or_else(random::<u64>);
 
         Self {
             dim,
@@ -112,7 +112,7 @@ impl Sobol {
         let mut result = vec![0.0; self.dim];
 
         // Basic bit-reversal sequence for each dimension
-        for d in 0..self.dim {
+        for (d, res) in result.iter_mut().enumerate().take(self.dim) {
             let mut i = self.curr_index;
             let mut f = 1.0;
 
@@ -122,7 +122,7 @@ impl Sobol {
 
             while i > 0 {
                 f /= base as f64;
-                result[d] += f * (i % base) as f64;
+                *res += f * (i % base) as f64;
                 i /= base;
             }
         }
@@ -165,7 +165,7 @@ pub struct Halton {
 impl Halton {
     /// Create a new Halton sequence generator
     pub fn new(dim: usize, seed: Option<u64>) -> Self {
-        let seed = seed.unwrap_or_else(|| random::<u64>());
+        let seed = seed.unwrap_or_else(random::<u64>);
 
         Self {
             dim,
@@ -433,12 +433,10 @@ where
             variance /= (n_estimates - 1) as f64;
             (variance / (n_estimates as f64)).sqrt()
         }
+    } else if log {
+        f64::NEG_INFINITY
     } else {
-        if log {
-            f64::NEG_INFINITY
-        } else {
-            0.0
-        }
+        0.0
     };
 
     // Apply sign correction for reversed limits

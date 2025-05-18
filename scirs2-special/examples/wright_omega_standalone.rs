@@ -1,19 +1,19 @@
 use num_complex::Complex64;
 use std::f64::consts::PI;
-use std::f64::{INFINITY, NAN, NEG_INFINITY};
+// Removed legacy numeric constant imports
 
 // Simple implementation of Wright Omega function for demonstration purposes
 fn wright_omega(z: Complex64, tol: f64) -> Complex64 {
     // Handle NaN inputs
     if z.re.is_nan() || z.im.is_nan() {
-        return Complex64::new(NAN, NAN);
+        return Complex64::new(f64::NAN, f64::NAN);
     }
 
     // Handle infinities
     if z.re.is_infinite() || z.im.is_infinite() {
-        if z.re == INFINITY {
+        if z.re == f64::INFINITY {
             return z; // ω(∞ + yi) = ∞ + yi
-        } else if z.re == NEG_INFINITY {
+        } else if z.re == f64::NEG_INFINITY {
             // Special cases for -∞ + yi based on the angle
             let angle = z.im;
             if angle.abs() <= PI / 2.0 {
@@ -70,10 +70,10 @@ fn wright_omega(z: Complex64, tol: f64) -> Complex64 {
         // Halley's formula (simplified)
         if (Complex64::new(2.0, 0.0) * f_prime * f_prime - f * f_double_prime).norm() < 1e-10 {
             // Use a dampened Newton step when denominator is small
-            w = w - f / f_prime * Complex64::new(0.5, 0.0);
+            w -= f / f_prime * Complex64::new(0.5, 0.0);
         } else {
             // Full Newton step otherwise
-            w = w - f / f_prime;
+            w -= f / f_prime;
         }
     }
 
@@ -84,13 +84,13 @@ fn wright_omega(z: Complex64, tol: f64) -> Complex64 {
 fn wright_omega_real(x: f64, tol: f64) -> f64 {
     // Handle NaN input
     if x.is_nan() {
-        return NAN;
+        return f64::NAN;
     }
 
     // Handle infinities
-    if x == INFINITY {
-        return INFINITY;
-    } else if x == NEG_INFINITY {
+    if x == f64::INFINITY {
+        return f64::INFINITY;
+    } else if x == f64::NEG_INFINITY {
         return 0.0;
     }
 
@@ -112,7 +112,7 @@ fn wright_omega_real(x: f64, tol: f64) -> f64 {
             return complex_result.re;
         } else {
             // Not a real result
-            return NAN;
+            return f64::NAN;
         }
     }
 
@@ -140,7 +140,7 @@ fn wright_omega_real(x: f64, tol: f64) -> f64 {
         let f_prime = 1.0 + 1.0 / w;
 
         // Newton step
-        w = w - f / f_prime;
+        w -= f / f_prime;
     }
 
     w
@@ -206,8 +206,8 @@ fn main() {
     // Special values
     println!("\nSpecial Values:");
     println!("--------------");
-    println!("ω(-∞) = {}", wright_omega_real(NEG_INFINITY, 1e-8));
-    println!("ω(+∞) = {}", wright_omega_real(INFINITY, 1e-8));
+    println!("ω(-∞) = {}", wright_omega_real(f64::NEG_INFINITY, 1e-8));
+    println!("ω(+∞) = {}", wright_omega_real(f64::INFINITY, 1e-8));
 
     // Numerical properties
     println!("\nNumerical Properties:");

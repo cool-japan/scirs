@@ -19,7 +19,7 @@ use crate::error::IntegrateResult;
 use ndarray::{Array1, Array2, ArrayView1};
 
 /// Strategy for Jacobian approximation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum JacobianStrategy {
     /// Standard finite difference approximation
     FiniteDifference,
@@ -38,14 +38,8 @@ pub enum JacobianStrategy {
     /// Automatic differentiation (exact derivatives)
     AutoDiff,
     /// Adaptive selection (uses autodiff if available, falls back to finite difference)
+    #[default]
     Adaptive,
-}
-
-impl Default for JacobianStrategy {
-    fn default() -> Self {
-        // Use adaptive strategy as default to get autodiff when available
-        JacobianStrategy::Adaptive
-    }
 }
 
 /// Compute Jacobian using finite differences (for compatibility)
@@ -75,9 +69,10 @@ where
 pub use crate::ode::utils::common::finite_difference_jacobian;
 
 /// Structure of the Jacobian matrix
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum JacobianStructure {
     /// Dense matrix (default)
+    #[default]
     Dense,
     /// Banded matrix (efficient for certain types of ODEs)
     Banded { lower: usize, upper: usize },
@@ -85,12 +80,6 @@ pub enum JacobianStructure {
     Sparse,
     /// Structured matrix (e.g., Toeplitz, circulant)
     Structured,
-}
-
-impl Default for JacobianStructure {
-    fn default() -> Self {
-        JacobianStructure::Dense
-    }
 }
 
 /// Manages Jacobian computation, updates, and reuse
@@ -116,6 +105,12 @@ pub struct JacobianManager<F: IntegrateFloat> {
     condition_estimate: Option<F>,
     /// Factorized form (if available)
     factorized: bool,
+}
+
+impl<F: IntegrateFloat> Default for JacobianManager<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: IntegrateFloat> JacobianManager<F> {
@@ -430,7 +425,7 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 let mut jac_dy = Array1::zeros(n);
                 for i in 0..n {
                     for j in 0..n {
-                        jac_dy[i] = jac_dy[i] + jac[[i, j]] * delta_y[j];
+                        jac_dy[i] += jac[[i, j]] * delta_y[j];
                     }
                 }
 
@@ -438,8 +433,7 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 if dy_norm_squared > F::from_f64(1e-14).unwrap() {
                     for i in 0..n {
                         for j in 0..n {
-                            jac[[i, j]] = jac[[i, j]]
-                                + (delta_f[i] - jac_dy[i]) * delta_y[j] / dy_norm_squared;
+                            jac[[i, j]] += (delta_f[i] - jac_dy[i]) * delta_y[j] / dy_norm_squared;
                         }
                     }
                 }
@@ -568,10 +562,10 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                         F::from(1e-8).unwrap(),
                     ));
                 }
-                
+
                 self.age = 0;
                 self.factorized = false;
-                
+
                 Ok(self.jacobian.as_ref().unwrap())
             }
         }
@@ -616,7 +610,7 @@ impl<F: IntegrateFloat> JacobianManager<F> {
 
             // Perturb the j-th component
             let mut y_perturbed = y.clone();
-            y_perturbed[j] = y_perturbed[j] + eps;
+            y_perturbed[j] += eps;
 
             // Evaluate function at perturbed point
             let f_perturbed = f(t, y_perturbed.view());

@@ -399,14 +399,13 @@ where
 
         for i in 0..=k {
             if i == 0 {
-                bdf_derivative = bdf_derivative + &(&y_new * bdf_coeffs[i]);
+                bdf_derivative += &(&y_new * bdf_coeffs[i]);
             } else if i <= y_history.len() {
-                bdf_derivative =
-                    bdf_derivative + &(&y_history[y_history.len() - i] * bdf_coeffs[i]);
+                bdf_derivative += &(&y_history[y_history.len() - i] * bdf_coeffs[i]);
             }
         }
 
-        bdf_derivative = bdf_derivative / step_size;
+        bdf_derivative /= step_size;
 
         // Return the residual f(t, y, y') where y' is the BDF approximation
         f(t_new, y_new, bdf_derivative.view())
@@ -629,10 +628,9 @@ where
 
                     for i in 0..=order {
                         if i == 0 {
-                            bdf_derivative = bdf_derivative + &(&y_new * bdf_coeffs[i]);
+                            bdf_derivative += &(&y_new * bdf_coeffs[i]);
                         } else if i <= y_history.len() {
-                            bdf_derivative =
-                                bdf_derivative + &(&y_history[y_history.len() - i] * bdf_coeffs[i]);
+                            bdf_derivative += &(&y_history[y_history.len() - i] * bdf_coeffs[i]);
                         }
                     }
 
@@ -656,7 +654,7 @@ where
                 }
 
                 // Reduce alpha for next attempt
-                alpha = alpha * F::from_f64(0.5).unwrap();
+                alpha *= F::from_f64(0.5).unwrap();
             }
 
             // If alpha got too small, Newton's method is diverging
@@ -897,8 +895,8 @@ where
     }
 
     // Set tighter tolerances
-    opts.rtol = opts.rtol * F::from_f64(0.1).unwrap();
-    opts.atol = opts.atol * F::from_f64(0.1).unwrap();
+    opts.rtol *= F::from_f64(0.1).unwrap();
+    opts.atol *= F::from_f64(0.1).unwrap();
 
     // Solve using the basic semi-explicit DAE solver
     let f_clone = f.clone();
