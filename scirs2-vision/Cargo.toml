@@ -15,6 +15,7 @@ scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
 # Temporarily commented out for publishing
 # scirs2-ndimage = { path = "../scirs2-ndimage", version = "0.1.0-alpha.3" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
+ndarray-linalg = "0.17.0"
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "1.0.69"
@@ -41,3 +42,23 @@ path = "examples/image_segmentation.rs"
 [[example]]
 name = "morphological_operations"
 path = "examples/morphological_operations.rs"
+
+[[example]]
+name = "canny_edge_detection"
+path = "examples/canny_edge_detection.rs"
+
+[[example]]
+name = "edge_detection_comparison"
+path = "examples/edge_detection_comparison.rs"
+
+[[example]]
+name = "corner_detection_comparison"
+path = "examples/corner_detection_comparison.rs"
+
+[[example]]
+name = "non_rigid_transformations"
+path = "examples/non_rigid_transformations.rs"
+
+[[example]]
+name = "noise_reduction"
+path = "examples/noise_reduction.rs"

@@ -108,6 +108,12 @@ impl<A: Float + ScalarOperand + Debug> Adam<A> {
         self
     }
 
+    /// Builder method to set beta1 and return self
+    pub fn with_beta1(mut self, beta1: A) -> Self {
+        self.beta1 = beta1;
+        self
+    }
+
     /// Gets the beta1 parameter
     pub fn get_beta1(&self) -> A {
         self.beta1
@@ -115,6 +121,12 @@ impl<A: Float + ScalarOperand + Debug> Adam<A> {
 
     /// Sets the beta2 parameter
     pub fn set_beta2(&mut self, beta2: A) -> &mut Self {
+        self.beta2 = beta2;
+        self
+    }
+
+    /// Builder method to set beta2 and return self
+    pub fn with_beta2(mut self, beta2: A) -> Self {
         self.beta2 = beta2;
         self
     }
@@ -130,6 +142,12 @@ impl<A: Float + ScalarOperand + Debug> Adam<A> {
         self
     }
 
+    /// Builder method to set epsilon and return self
+    pub fn with_epsilon(mut self, epsilon: A) -> Self {
+        self.epsilon = epsilon;
+        self
+    }
+
     /// Gets the epsilon parameter
     pub fn get_epsilon(&self) -> A {
         self.epsilon
@@ -137,6 +155,12 @@ impl<A: Float + ScalarOperand + Debug> Adam<A> {
 
     /// Sets the weight decay parameter
     pub fn set_weight_decay(&mut self, weight_decay: A) -> &mut Self {
+        self.weight_decay = weight_decay;
+        self
+    }
+
+    /// Builder method to set weight decay and return self
+    pub fn with_weight_decay(mut self, weight_decay: A) -> Self {
         self.weight_decay = weight_decay;
         self
     }

@@ -486,6 +486,7 @@ impl Word2Vec {
 
             // Collect context words and average their vectors
             let mut context_words = Vec::new();
+            #[allow(clippy::needless_range_loop)]
             for i in pos.saturating_sub(window)..=(pos + window).min(sentence.len() - 1) {
                 if i != pos {
                     context_words.push(sentence[i]);
@@ -593,6 +594,7 @@ impl Word2Vec {
             let target_word = sentence[pos];
 
             // For each context position
+            #[allow(clippy::needless_range_loop)]
             for i in pos.saturating_sub(window)..=(pos + window).min(sentence.len() - 1) {
                 if i == pos {
                     continue; // Skip the target word itself
@@ -646,6 +648,11 @@ impl Word2Vec {
         }
 
         Ok(())
+    }
+
+    /// Get the vector size
+    pub fn vector_size(&self) -> usize {
+        self.config.vector_size
     }
 
     /// Get the embedding vector for a word
@@ -795,7 +802,7 @@ impl Word2Vec {
             .read_line(&mut header)
             .map_err(|e| TextError::IoError(e.to_string()))?;
 
-        let parts: Vec<&str> = header.trim().split_whitespace().collect();
+        let parts: Vec<&str> = header.split_whitespace().collect();
         if parts.len() != 2 {
             return Err(TextError::EmbeddingError(
                 "Invalid model file format".into(),
@@ -819,7 +826,7 @@ impl Word2Vec {
         let mut i = 0;
         for line in reader.lines() {
             let line = line.map_err(|e| TextError::IoError(e.to_string()))?;
-            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+            let parts: Vec<&str> = line.split_whitespace().collect();
 
             if parts.len() != vector_size + 1 {
                 return Err(TextError::EmbeddingError(format!(

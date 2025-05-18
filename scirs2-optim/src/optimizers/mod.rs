@@ -28,14 +28,10 @@ where
     fn step(&mut self, params: &Array<A, D>, gradients: &Array<A, D>) -> Result<Array<A, D>>;
 
     /// Gets the current learning rate
-    fn get_learning_rate(&self) -> A
-    where
-        Self: Sized;
+    fn get_learning_rate(&self) -> A;
 
     /// Sets a new learning rate
-    fn set_learning_rate(&mut self, learning_rate: A)
-    where
-        Self: Sized;
+    fn set_learning_rate(&mut self, learning_rate: A);
 
     /// Updates multiple parameter arrays at once
     ///
@@ -72,14 +68,30 @@ where
 mod adagrad;
 mod adam;
 mod adamw;
+mod grouped_adam;
+mod lamb;
+mod lars;
+mod lbfgs;
+mod lion;
+mod lookahead;
 mod radam;
 mod rmsprop;
+mod sam;
 mod sgd;
+mod sparse_adam;
 
 // Re-export specific optimizers
 pub use adagrad::Adagrad;
 pub use adam::Adam;
 pub use adamw::AdamW;
+pub use grouped_adam::GroupedAdam;
+pub use lamb::LAMB;
+pub use lars::LARS;
+pub use lbfgs::LBFGS;
+pub use lion::Lion;
+pub use lookahead::Lookahead;
 pub use radam::RAdam;
 pub use rmsprop::RMSprop;
+pub use sam::SAM;
 pub use sgd::SGD;
+pub use sparse_adam::{SparseAdam, SparseGradient};

@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("SciRS2 Vision - Color Transformations Example");
 
     // In a real application, you would provide your own image file path
-    let image_path = "input.jpg"; // Change this to your image path
+    let image_path = "examples/input/input.jpg"; // Change this to your image path
     println!("Attempting to load image from: {}", image_path);
 
     // Check if the image file exists

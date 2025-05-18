@@ -21,7 +21,36 @@ openblas-src = "0.10.11"
 
 # Optimization specific dependencies
 argmin = "0.10.0"
+rand = "0.9.0"
+rand_distr.workspace = true
+rayon = "1.5"
+friedrich = "0.5.0"
+scirs2-sparse = { path = "../scirs2-sparse", version = "0.1.0-alpha.3" }
 
 [dev-dependencies]
 approx = "0.5.1"
 criterion = "0.5.1"
+
+[[example]]
+name = "global_optimization"
+path = "examples/global_optimization.rs"
+
+[[example]]
+name = "sparse_numerical_differentiation"
+path = "examples/sparse_numerical_differentiation.rs"
+
+[[example]]
+name = "powell_example"
+path = "examples/powell_example.rs"
+
+[[example]]
+name = "scalar_optimization"
+path = "examples/scalar_optimization.rs"
+
+[[bin]]
+name = "test_debug_hessian"
+path = "test_debug_hessian.rs"
+
+[[bin]]
+name = "test_debug_multistart"
+path = "test_debug_multistart.rs"

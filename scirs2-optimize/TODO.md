@@ -31,7 +31,7 @@ This module provides optimization algorithms similar to SciPy's optimize module.
 ## Algorithm Variants and Extensions
 
 - [ ] Implement additional algorithm variants
-  - [ ] Dogleg trust-region method
+  - [x] Dogleg trust-region method (implemented in trust_region module)
   - [ ] Truncated Newton methods with various preconditioners
   - [ ] Quasi-Newton methods with different update formulas (SR1, DFP)
   - [ ] Augmented Lagrangian methods for constrained optimization
@@ -48,15 +48,15 @@ This module provides optimization algorithms similar to SciPy's optimize module.
 
 ## Global Optimization Methods
 
-- [ ] Implement global optimization algorithms
-  - [ ] Simulated annealing
-  - [ ] Differential evolution
-  - [ ] Particle swarm optimization
-  - [ ] Bayesian optimization with Gaussian processes
-  - [ ] Basin-hopping algorithm
-  - [ ] Dual annealing
-- [ ] Multi-start strategies
-  - [ ] Systematic sampling of initial points
+- [x] Implement global optimization algorithms
+  - [x] Simulated annealing
+  - [x] Differential evolution
+  - [x] Particle swarm optimization
+  - [x] Bayesian optimization with Gaussian processes
+  - [x] Basin-hopping algorithm
+  - [x] Dual annealing
+- [x] Multi-start strategies
+  - [x] Systematic sampling of initial points (random, Latin hypercube, grid)
   - [ ] Clustering of local minima
   - [ ] Adaptive restart strategies
 - [ ] Hybrid global-local methods
@@ -66,18 +66,18 @@ This module provides optimization algorithms similar to SciPy's optimize module.
 
 ## Least Squares Enhancements
 
-- [ ] Robust least squares methods
-  - [ ] Huber loss functions
-  - [ ] Bisquare loss functions
-  - [ ] Other M-estimators for outlier resistance
-- [ ] Enhance non-linear least squares capabilities
-  - [ ] Separable least squares for partially linear problems
+- [x] Robust least squares methods
+  - [x] Huber loss functions
+  - [x] Bisquare loss functions
+  - [x] Other M-estimators for outlier resistance (Cauchy loss)
+- [x] Enhance non-linear least squares capabilities
+  - [x] Separable least squares for partially linear problems
   - [ ] Sparsity-aware algorithms for large-scale problems
   - [ ] Implement more robust Jacobian approximations
-- [ ] Extended least squares functionality
-  - [ ] Weighted least squares
-  - [ ] Bounded-variable least squares
-  - [ ] Total least squares (errors-in-variables)
+- [x] Extended least squares functionality
+  - [x] Weighted least squares
+  - [x] Bounded-variable least squares
+  - [x] Total least squares (errors-in-variables)
 
 ## Performance Optimizations
 
@@ -85,10 +85,10 @@ This module provides optimization algorithms similar to SciPy's optimize module.
   - [ ] Efficient handling of sparse Jacobians and Hessians
   - [ ] Memory-efficient implementations for large-scale problems
   - [ ] Subspace methods for very high-dimensional problems
-- [ ] Parallel computation support
-  - [ ] Add `workers` parameter to parallelizable algorithms
-  - [ ] Implement parallel function evaluation for gradient approximation
-  - [ ] Parallel exploration in global optimization methods
+- [x] Parallel computation support
+  - [x] Add `workers` parameter to parallelizable algorithms (via ParallelOptions)
+  - [x] Implement parallel function evaluation for gradient approximation
+  - [x] Parallel exploration in global optimization methods (differential evolution)
   - [ ] Asynchronous parallel optimization for varying evaluation times
 - [ ] JIT and auto-vectorization
   - [ ] Support for just-in-time compilation of objective functions

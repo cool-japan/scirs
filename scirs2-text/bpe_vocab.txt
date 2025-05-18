@@ -1,0 +1,171 @@
+100
+m	13
+e	19
+-	5
+it	70
+un	49
+u	16
+h	23
+<PAD>	0
+this 	54
+s'	52
+mer	83
+t is 	86
+nes	77
+el	94
+ be 	98
+ang	99
+y	8
+ti	37
+co	61
+', 'common	81
+and 	88
+w	9
+t	6
+'un	60
+and	63
+common	74
+n	24
+ular	56
+ing	58
+s.	80
+<BOS>	2
+is 	36
+<EOS>	3
+a	14
+r	27
+atio	57
+i	17
+', 	65
+en	46
+ua	93
+hand	97
+l	4
+y 	39
+ges 	95
+ 	10
+'	21
+o	28
+e 	32
+ar	34
+or	38
+ro	73
+b	29
+<UNK>	1
+ r	76
+ness'	78
+li	87
+ch	96
+ai	92
+es 	71
+d	15
+ati	50
+k	18
+ord	42
+in	43
+c	30
+mos	89
+ul	44
+mon	45
+t 	41
+, 	48
+f	25
+lo	64
+of	47
+g	12
+ken	79
+word	51
+,	11
+mo	33
+pe 	53
+ b	69
+s 	31
+ing 	62
+er	66
+bpe 	85
+de	90
+ly 	75
+', '	72
+p	7
+th	35
+es	67
+ely 	84
+v	20
+an	40
+s	22
+.	26
+to	68
+se	82
+ation	59
+e 'un	91
+mmon	55
+69
+m	er	mer
+h	and	hand
+s	.	s.
+c	h	ch
+l	y 	ly 
+th	is 	this 
+t	i	ti
+m	o	mo
+g	es 	ges 
+d	e	de
+r	o	ro
+ 	b	 b
+', 	'	', '
+'	, 	', 
+ing	 	ing 
+e 	'un	e 'un
+ati	o	atio
+s	'	s'
+s	 	s 
+t	h	th
+i	s 	is 
+e	 	e 
+i	t	it
+a	n	an
+ 	r	 r
+nes	s'	ness'
+l	o	lo
+m	mon	mmon
+or	d	ord
+s	e	se
+c	o	co
+n	es	nes
+co	mmon	common
+u	a	ua
+p	e 	pe 
+atio	n	ation
+k	en	ken
+a	r	ar
+b	pe 	bpe 
+ b	e 	 be 
+and	 	and 
+i	n	in
+y	 	y 
+'	un	'un
+l	i	li
+a	ti	ati
+e	r	er
+an	g	ang
+mo	s	mos
+u	l	ul
+t	 	t 
+ul	ar	ular
+in	g	ing
+a	i	ai
+o	f	of
+t	o	to
+e	s 	es 
+e	n	en
+,	 	, 
+e	ly 	ely 
+w	ord	word
+t 	is 	t is 
+u	n	un
+', '	common	', 'common
+o	r	or
+e	s	es
+mo	n	mon
+an	d	and
+e	l	el

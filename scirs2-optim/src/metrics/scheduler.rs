@@ -5,10 +5,10 @@
 
 use ndarray::ScalarOperand;
 use num_traits::{Float, FromPrimitive};
-#[cfg(feature = "metrics_integration")]
-use std::fmt::{Debug, Display};
 #[cfg(not(feature = "metrics_integration"))]
 use std::fmt::Debug;
+#[cfg(feature = "metrics_integration")]
+use std::fmt::{Debug, Display};
 
 #[cfg(feature = "metrics_integration")]
 use crate::schedulers::LearningRateScheduler;
@@ -123,16 +123,16 @@ impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> MetricBasedRedu
         metric_name: &str,
         maximize: bool,
     ) -> Self {
-        let mut scheduler = 
+        let mut scheduler =
             crate::schedulers::ReduceOnPlateau::new(initial_lr, factor, patience, min_lr);
-        
+
         // Set mode based on maximize flag
         if maximize {
             scheduler.mode_max();
         } else {
             scheduler.mode_min();
         }
-        
+
         Self {
             scheduler,
             metric_name: metric_name.to_string(),

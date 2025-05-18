@@ -84,6 +84,16 @@ impl<A: Float + ScalarOperand + Debug> SGD<A> {
         self
     }
 
+    /// Builder method to set momentum and return self
+    ///
+    /// # Arguments
+    ///
+    /// * `momentum` - The momentum factor (0.0 means no momentum)
+    pub fn with_momentum(mut self, momentum: A) -> Self {
+        self.momentum = momentum;
+        self
+    }
+
     /// Gets the current momentum factor
     pub fn get_momentum(&self) -> A {
         self.momentum
@@ -100,6 +110,16 @@ impl<A: Float + ScalarOperand + Debug> SGD<A> {
     ///
     /// * `weight_decay` - The weight decay factor (L2 regularization)
     pub fn set_weight_decay(&mut self, weight_decay: A) -> &mut Self {
+        self.weight_decay = weight_decay;
+        self
+    }
+
+    /// Builder method to set weight decay and return self
+    ///
+    /// # Arguments
+    ///
+    /// * `weight_decay` - The weight decay factor (L2 regularization)
+    pub fn with_weight_decay(mut self, weight_decay: A) -> Self {
         self.weight_decay = weight_decay;
         self
     }

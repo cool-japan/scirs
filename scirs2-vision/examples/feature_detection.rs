@@ -1,13 +1,14 @@
 //! Example demonstrating feature detection and description functionality
 //!
 //! This example shows how to:
-//! 1. Detect edges using Sobel operator
+//! 1. Detect edges using various operators (Sobel, Canny, Prewitt, Laplacian)
 //! 2. Detect corners using Harris corner detector
 //! 3. Extract feature points and compute descriptors
 
 use image::DynamicImage;
 use scirs2_vision::feature::{
-    detect_and_compute, extract_feature_coordinates, harris_corners, sobel_edges,
+    canny_simple, detect_and_compute, extract_feature_coordinates, harris_corners,
+    sobel_edges,
 };
 use scirs2_vision::preprocessing::{gaussian_blur, normalize_brightness};
 use std::path::PathBuf;
@@ -16,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("SciRS2 Vision - Feature Detection Example");
 
     // In a real application, you would provide your own image file path
-    let image_path = "input.jpg"; // Change this to your image path
+    let image_path = "examples/input/input.jpg"; // Change this to your image path
     println!("Attempting to load image from: {}", image_path);
 
     // Check if the image file exists
@@ -60,24 +61,31 @@ fn process_image(img: &DynamicImage) -> Result<(), Box<dyn std::error::Error>> {
     let normalized = normalize_brightness(img, 0.0, 1.0)?;
     let blurred = gaussian_blur(&normalized, 1.0)?;
 
-    // 2. Detect edges
-    println!("Detecting edges...");
-    let edges = sobel_edges(&blurred, 0.1)?;
-    println!("Edge detection complete");
+    // 2. Detect edges using Sobel
+    println!("Detecting edges using Sobel...");
+    let sobel_edges_img = sobel_edges(&blurred, 0.1)?;
+    println!("Sobel edge detection complete");
 
-    // 3. Detect corners
+    // 3. Detect edges using Canny
+    println!("Detecting edges using Canny...");
+    let canny_edges_img = canny_simple(&blurred, 1.0)?;
+    println!("Canny edge detection complete");
+
+    // 4. Detect corners
     println!("Detecting corners...");
     let corners = harris_corners(&blurred, 3, 0.04, 0.01)?;
     println!("Corner detection complete");
 
-    // 4. Extract feature coordinates
-    let edge_points = extract_feature_coordinates(&edges);
+    // 5. Extract feature coordinates
+    let sobel_edge_points = extract_feature_coordinates(&sobel_edges_img);
+    let canny_edge_points = extract_feature_coordinates(&canny_edges_img);
     let corner_points = extract_feature_coordinates(&corners);
 
-    println!("Detected {} edge points", edge_points.len());
+    println!("Detected {} Sobel edge points", sobel_edge_points.len());
+    println!("Detected {} Canny edge points", canny_edge_points.len());
     println!("Detected {} corner points", corner_points.len());
 
-    // 5. Extract features and compute descriptors
+    // 6. Extract features and compute descriptors
     println!("Computing feature descriptors...");
     let descriptors = detect_and_compute(&blurred, 100, 0.1)?;
     println!("Computed {} feature descriptors", descriptors.len());

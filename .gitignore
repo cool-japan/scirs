@@ -16,6 +16,9 @@ criterion_result/
 # Example output files
 scirs2-integrate/*.csv
 scirs2-integrate/*.txt
+scirs2-vision/examples/output/*
+!scirs2-vision/examples/output/.gitignore
+!scirs2-vision/examples/output/.gitkeep
 
 # Documentation
 target/doc/

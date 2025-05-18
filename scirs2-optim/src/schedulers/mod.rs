@@ -29,15 +29,31 @@ pub trait LearningRateScheduler<A: Float + Debug + ScalarOperand> {
     fn reset(&mut self);
 }
 
+mod constant;
 mod cosine_annealing;
+mod cosine_annealing_warm_restarts;
+mod curriculum;
+mod custom_scheduler;
+mod cyclic_lr;
 mod exponential_decay;
 mod linear_decay;
+mod linear_warmup_decay;
+mod noise_injection;
+mod one_cycle;
 mod reduce_on_plateau;
 mod step_decay;
 
 // Re-export schedulers
+pub use constant::ConstantScheduler;
 pub use cosine_annealing::CosineAnnealing;
+pub use cosine_annealing_warm_restarts::CosineAnnealingWarmRestarts;
+pub use curriculum::{CurriculumScheduler, CurriculumStage, TransitionStrategy};
+pub use custom_scheduler::{CombinedScheduler, CustomScheduler, SchedulerBuilder};
+pub use cyclic_lr::{CyclicLR, CyclicMode};
 pub use exponential_decay::ExponentialDecay;
 pub use linear_decay::LinearDecay;
+pub use linear_warmup_decay::{DecayStrategy, LinearWarmupDecay};
+pub use noise_injection::{NoiseDistribution, NoiseInjectionScheduler};
+pub use one_cycle::{AnnealStrategy, OneCycle};
 pub use reduce_on_plateau::ReduceOnPlateau;
 pub use step_decay::StepDecay;

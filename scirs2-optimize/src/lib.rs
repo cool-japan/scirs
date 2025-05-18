@@ -9,8 +9,10 @@
 //!
 //! * `unconstrained`: Unconstrained optimization algorithms
 //! * `constrained`: Constrained optimization algorithms
-//! * `least_squares`: Least squares minimization
+//! * `least_squares`: Least squares minimization (including robust methods)
 //! * `roots`: Root finding algorithms
+//! * `scalar`: Scalar (univariate) optimization algorithms
+//! * `global`: Global optimization algorithms
 //!
 //! ## Optimization Methods
 //!
@@ -26,6 +28,29 @@
 //! - **SLSQP**: Sequential Least SQuares Programming
 //! - **TrustConstr**: Trust-region constrained optimizer
 //!
+//! ### Scalar (Univariate) Optimization:
+//! - **Brent**: Combines parabolic interpolation with golden section search
+//! - **Bounded**: Brent's method with bounds constraints
+//! - **Golden**: Golden section search
+//!
+//! ### Global:
+//! - **Differential Evolution**: Stochastic global optimization method
+//! - **Basin-hopping**: Random perturbations with local minimization
+//! - **Dual Annealing**: Simulated annealing with fast annealing
+//! - **Particle Swarm**: Population-based optimization inspired by swarm behavior
+//! - **Simulated Annealing**: Probabilistic optimization with cooling schedule
+//!
+//! ### Least Squares:
+//! - **Levenberg-Marquardt**: Trust-region algorithm for nonlinear least squares
+//! - **Trust Region Reflective**: Bounds-constrained least squares
+//! - **Robust Least Squares**: M-estimators for outlier-resistant regression
+//!   - Huber loss: Reduces influence of moderate outliers
+//!   - Bisquare loss: Completely rejects extreme outliers
+//!   - Cauchy loss: Provides very strong outlier resistance
+//! - **Weighted Least Squares**: Handles heteroscedastic data (varying variance)
+//! - **Bounded Least Squares**: Box constraints on parameters
+//! - **Separable Least Squares**: Variable projection for partially linear models
+//! - **Total Least Squares**: Errors-in-variables regression
 //! ## Bounds Support
 //!
 //! The `unconstrained` module now supports bounds constraints for variables.
@@ -117,6 +142,47 @@
 //! let ub = vec![Some(1.0), None, Some(10.0), None];
 //! let bounds2 = Bounds::from_vecs(lb, ub).unwrap();
 //! ```
+//!
+//! ### Robust Least Squares Example
+//!
+//! ```
+//! use ndarray::{array, Array1, Array2};
+//! use scirs2_optimize::least_squares::{robust_least_squares, HuberLoss};
+//!
+//! // Define residual function for linear regression
+//! fn residual(params: &[f64], data: &[f64]) -> Array1<f64> {
+//!     let n = data.len() / 2;
+//!     let x_vals = &data[0..n];
+//!     let y_vals = &data[n..];
+//!     
+//!     let mut res = Array1::zeros(n);
+//!     for i in 0..n {
+//!         res[i] = y_vals[i] - (params[0] + params[1] * x_vals[i]);
+//!     }
+//!     res
+//! }
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Data with outliers
+//! let data = array![0., 1., 2., 3., 4., 0.1, 0.9, 2.1, 2.9, 10.0];
+//! let x0 = array![0.0, 0.0];
+//!
+//! // Use Huber loss for robustness
+//! let huber_loss = HuberLoss::new(1.0);
+//! let result = robust_least_squares(
+//!     residual,
+//!     &x0,
+//!     huber_loss,
+//!     None::<fn(&[f64], &[f64]) -> Array2<f64>>,
+//!     &data,
+//!     None
+//! )?;
+//!
+//! println!("Robust solution: intercept={:.3}, slope={:.3}",
+//!          result.x[0], result.x[1]);
+//! # Ok(())
+//! # }
+//! ```
 
 extern crate openblas_src;
 
@@ -126,10 +192,14 @@ pub use error::{OptimizeError, OptimizeResult};
 
 // Module structure
 pub mod constrained;
+pub mod global;
 pub mod least_squares;
+pub mod parallel;
 pub mod roots;
 pub mod roots_anderson;
 pub mod roots_krylov;
+pub mod scalar;
+pub mod sparse_numdiff;
 pub mod unconstrained;
 
 // Common optimization result structure
@@ -138,17 +208,46 @@ pub use result::OptimizeResults;
 
 // Convenience re-exports for common functions
 pub use constrained::minimize_constrained;
-pub use least_squares::least_squares;
+pub use global::{
+    basinhopping, bayesian_optimization, differential_evolution, dual_annealing, multi_start,
+    particle_swarm, simulated_annealing,
+};
+pub use least_squares::{
+    bounded_least_squares, least_squares, robust_least_squares, separable_least_squares,
+    total_least_squares, weighted_least_squares, BisquareLoss, CauchyLoss, HuberLoss,
+};
 pub use roots::root;
+pub use scalar::minimize_scalar;
+pub use sparse_numdiff::{sparse_hessian, sparse_jacobian, SparseFiniteDiffOptions};
 pub use unconstrained::{minimize, Bounds};
 
 // Prelude module for convenient imports
 pub mod prelude {
     pub use crate::constrained::{minimize_constrained, Method as ConstrainedMethod};
     pub use crate::error::{OptimizeError, OptimizeResult};
-    pub use crate::least_squares::{least_squares, Method as LeastSquaresMethod};
+    pub use crate::global::{
+        basinhopping, bayesian_optimization, differential_evolution, dual_annealing,
+        particle_swarm, simulated_annealing, AcquisitionFunctionType, BasinHoppingOptions,
+        BayesianOptimizationOptions, BayesianOptimizer, DifferentialEvolutionOptions,
+        DualAnnealingOptions, InitialPointGenerator, KernelType, Parameter, ParticleSwarmOptions,
+        SimulatedAnnealingOptions, Space,
+    };
+    pub use crate::least_squares::{
+        bounded_least_squares, least_squares, robust_least_squares, separable_least_squares,
+        total_least_squares, weighted_least_squares, BisquareLoss, BoundedOptions, CauchyLoss,
+        HuberLoss, LinearSolver, Method as LeastSquaresMethod, RobustLoss, RobustOptions,
+        SeparableOptions, SeparableResult, TLSMethod, TotalLeastSquaresOptions,
+        TotalLeastSquaresResult, WeightedOptions,
+    };
+    pub use crate::parallel::{
+        parallel_evaluate_batch, parallel_finite_diff_gradient, ParallelOptions,
+    };
     pub use crate::result::OptimizeResults;
     pub use crate::roots::{root, Method as RootMethod};
+    pub use crate::scalar::{
+        minimize_scalar, Method as ScalarMethod, Options as ScalarOptions, ScalarOptimizeResult,
+    };
+    pub use crate::sparse_numdiff::{sparse_hessian, sparse_jacobian, SparseFiniteDiffOptions};
     pub use crate::unconstrained::{minimize, Bounds, Method as UnconstrainedMethod, Options};
 }
 

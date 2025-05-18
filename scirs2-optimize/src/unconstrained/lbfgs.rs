@@ -177,7 +177,9 @@ where
         x,
         fun: final_fun,
         iterations: iter,
+        nit: iter,
         func_evals: nfev,
+        nfev,
         success: iter < max_iter,
         message: if iter < max_iter {
             "Optimization terminated successfully.".to_string()
@@ -407,7 +409,9 @@ where
         x,
         fun: final_fun,
         iterations: iter,
+        nit: iter,
         func_evals: nfev,
+        nfev,
         success: iter < max_iter,
         message: if iter < max_iter {
             "Optimization terminated successfully.".to_string()

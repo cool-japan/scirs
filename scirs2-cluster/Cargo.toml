@@ -16,7 +16,7 @@ scirs2-spatial = { path = "../scirs2-spatial", version = "0.1.0-alpha.3" }
 scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
 scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.3" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+ndarray-linalg = { workspace = true }
 num-traits = "0.2.19"
 thiserror = "2.0.12"
 rand = "0.9.0"

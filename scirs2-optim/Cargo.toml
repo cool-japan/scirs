@@ -8,12 +8,13 @@ description = "Machine Learning optimization module for SciRS2"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["optimization", "machine-learning", "scientific", "sgd", "adam"]
 categories = ["science", "mathematics", "algorithms"]
+build = "build.rs"
 
 [dependencies]
 # Core dependencies
 scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
 scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
-scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.3" }
+# scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.3" }
 scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.3", optional = true, features = ["neural_common"] }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-rand = { workspace = true }
@@ -24,6 +25,7 @@ rand = "0.9.0"
 
 [dev-dependencies]
 plotters = "0.3.5"
+approx = "0.5"
 
 [features]
 default = []

@@ -11,8 +11,12 @@ pub struct OptimizeResult<T> {
     pub fun: T,
     /// Number of iterations performed
     pub iterations: usize,
+    /// Number of iterations (alternative name)
+    pub nit: usize,
     /// Number of function evaluations
     pub func_evals: usize,
+    /// Number of function evaluations (alternative name)
+    pub nfev: usize,
     /// Whether optimization was successful
     pub success: bool,
     /// Status message
@@ -21,4 +25,21 @@ pub struct OptimizeResult<T> {
     pub jacobian: Option<Array1<f64>>,
     /// Hessian at solution (optional)
     pub hessian: Option<Array2<f64>>,
+}
+
+impl<T: Default> Default for OptimizeResult<T> {
+    fn default() -> Self {
+        Self {
+            x: Array1::zeros(0),
+            fun: T::default(),
+            iterations: 0,
+            nit: 0,
+            func_evals: 0,
+            nfev: 0,
+            success: false,
+            message: String::new(),
+            jacobian: None,
+            hessian: None,
+        }
+    }
 }

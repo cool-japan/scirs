@@ -1,6 +1,7 @@
 //! Least squares optimization
 //!
-//! This module provides methods for solving nonlinear least squares problems.
+//! This module provides methods for solving nonlinear least squares problems,
+//! including robust methods that are less sensitive to outliers.
 //!
 //! ## Example
 //!

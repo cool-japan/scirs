@@ -1,5 +1,6 @@
 //! Error types for the vision module
 
+use ndarray::ShapeError;
 use thiserror::Error;
 
 /// Vision module error type
@@ -17,6 +18,10 @@ pub enum VisionError {
     #[error("Operation failed: {0}")]
     OperationError(String),
 
+    /// Operation failure
+    #[error("Operation failed: {0}")]
+    OperationFailed(String),
+
     /// Underlying ndimage error (temporarily simplified for publishing)
     #[error("ndimage error: {0}")]
     NdimageError(String),
@@ -28,6 +33,14 @@ pub enum VisionError {
     /// Type conversion error
     #[error("Type conversion error: {0}")]
     TypeConversionError(String),
+
+    /// Shape error
+    #[error("Shape error: {0}")]
+    ShapeError(#[from] ShapeError),
+
+    /// Linear algebra error
+    #[error("Linear algebra error: {0}")]
+    LinAlgError(String),
 }
 
 /// Result type for vision operations

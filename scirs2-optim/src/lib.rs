@@ -30,15 +30,21 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod gradient_processing;
+pub mod memory_efficient;
 pub mod metrics;
+pub mod optimizer_composition;
 pub mod optimizers;
+pub mod parameter_groups;
 pub mod regularizers;
 pub mod schedulers;
 pub mod utils;
 
 // Re-exports for convenience
+pub use gradient_processing::*;
 #[cfg(feature = "metrics_integration")]
 pub use metrics::*;
+pub use optimizer_composition::*;
 pub use optimizers::*;
 pub use regularizers::*;
 pub use schedulers::*;

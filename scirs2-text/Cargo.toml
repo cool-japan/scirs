@@ -27,6 +27,8 @@ unicode-normalization = "0.1"
 unicode-segmentation = "1.10"
 lazy_static = "1.4"
 tempfile = "3.9"
+rayon = "1.8"
+num_cpus = "1.16"
 
 # Feature-gated dependencies
 tokenizers = { version = "0.15", optional = true }

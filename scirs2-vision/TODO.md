@@ -57,46 +57,46 @@ This module provides computer vision functionality for scientific computing appl
 
 ## Feature Detection and Extraction
 
-- [ ] Edge detection enhancements
-  - [ ] Canny edge detector
-  - [ ] Prewitt operator
-  - [ ] Laplacian operator
+- [x] Edge detection enhancements
+  - [x] Canny edge detector
+  - [x] Prewitt operator
+  - [x] Laplacian operator (including LoG and zero-crossing)
   - [ ] Oriented gradient algorithms
   - [ ] Multi-scale edge detection
-- [ ] Corner detection
-  - [ ] FAST corner detector
-  - [ ] Shi-Tomasi corner detector
+- [x] Corner detection
+  - [x] FAST corner detector
+  - [x] Shi-Tomasi corner detector (with Good Features to Track)
   - [ ] AGAST feature detector
-  - [ ] Corner subpixel refinement
-- [ ] Blob and region detection
-  - [ ] DoG (Difference of Gaussians)
-  - [ ] MSER (Maximally Stable Extremal Regions)
-  - [ ] LoG (Laplacian of Gaussian)
-  - [ ] Hough Circle Transform
-- [ ] Feature descriptors
-  - [ ] ORB descriptor
-  - [ ] BRIEF descriptor
-  - [ ] HOG descriptors
+  - [x] Corner subpixel refinement
+- [x] Blob and region detection
+  - [x] DoG (Difference of Gaussians)
+  - [x] MSER (Maximally Stable Extremal Regions)
+  - [x] LoG (Laplacian of Gaussian)
+  - [x] Hough Circle Transform
+- [x] Feature descriptors
+  - [x] ORB descriptor
+  - [x] BRIEF descriptor
+  - [x] HOG descriptors
   - [ ] AKAZE descriptors
   - [ ] Local binary patterns
-- [ ] Feature matching and registration
-  - [ ] RANSAC algorithm
-  - [ ] Homography estimation
+- [x] Feature matching and registration
+  - [x] RANSAC algorithm
+  - [x] Homography estimation
   - [ ] Feature matching optimization
   - [ ] Feature tracking
 
 ## Image Transformations
 
-- [ ] Geometric transformations
-  - [ ] Affine transformations
-  - [ ] Perspective transformations
-  - [ ] Image warping
-  - [ ] Non-rigid transformations
-- [ ] Interpolation methods
-  - [ ] Bilinear interpolation
-  - [ ] Bicubic interpolation
-  - [ ] Lanczos interpolation
-  - [ ] Edge-preserving interpolation
+- [x] Geometric transformations
+  - [x] Affine transformations
+  - [x] Perspective transformations
+  - [x] Image warping
+  - [x] Non-rigid transformations
+- [x] Interpolation methods
+  - [x] Bilinear interpolation
+  - [x] Bicubic interpolation
+  - [x] Lanczos interpolation
+  - [x] Edge-preserving interpolation
 - [ ] Image registration
   - [ ] Intensity-based registration
   - [ ] Feature-based registration
@@ -126,17 +126,22 @@ This module provides computer vision functionality for scientific computing appl
 
 ## Image Enhancement and Restoration
 
-- [ ] Noise reduction
+- [x] Noise reduction
   - [ ] Non-local means denoising
-  - [ ] Bilateral filtering
+  - [x] Bilateral filtering (grayscale and color support)
   - [ ] Wavelet denoising
   - [ ] BM3D algorithm
   - [ ] Guided filtering
-- [ ] Contrast enhancement
-  - [ ] CLAHE (Contrast Limited Adaptive Histogram Equalization)
+  - [x] Median filtering
+  - [x] Gaussian blur
+- [x] Contrast enhancement
+  - [x] CLAHE (Contrast Limited Adaptive Histogram Equalization)
+  - [x] Histogram equalization
   - [ ] Gamma correction
   - [ ] Retinex algorithms
   - [ ] HDR tone mapping
+- [x] Edge enhancement
+  - [x] Unsharp masking
 - [ ] Image restoration
   - [ ] Deblurring algorithms
   - [ ] Inpainting methods

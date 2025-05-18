@@ -1,12 +1,106 @@
 //! Text stemming algorithms
 //!
 //! This module provides implementations of various stemming algorithms
-//! including Porter and Snowball stemmers.
+//! including Porter, Snowball, and Lancaster stemmers, as well as lemmatization
+//! approaches.
+//!
+//! # Stemming Algorithms
+//!
+//! This module offers three primary stemming algorithms with different characteristics:
+//!
+//! - **Porter stemmer**: A classic stemming algorithm with moderate stemming strength.
+//!   Good balance between performance and accuracy for English text.
+//!
+//! - **Snowball stemmer**: An improved version of the Porter algorithm with language-specific
+//!   rules. Currently supports English, with more languages planned for future updates.
+//!
+//! - **Lancaster stemmer**: Also known as Paice/Husk stemmer, this is a more aggressive
+//!   stemming algorithm that typically produces shorter stems. It's configurable with
+//!   options for setting minimum stem length and handling short words.
+//!
+//! # Lemmatization Approaches
+//!
+//! In addition to stemmers, this module provides two lemmatization options:
+//!
+//! - **SimpleLemmatizer**: A dictionary-based lemmatizer that uses predefined
+//!   mappings from word forms to their lemmas. Simple but effective for high-frequency
+//!   words and common irregular forms.
+//!
+//! - **RuleLemmatizer**: A more advanced lemmatizer that combines dictionary
+//!   lookups with rule-based transformations. It handles regular inflectional
+//!   patterns through rules and irregular forms through exceptions.
+//!
+//! # Performance Comparison
+//!
+//! In terms of computational efficiency:
+//! - Lancaster stemmer is typically the fastest stemming algorithm
+//! - Snowball stemmer is moderately fast
+//! - Porter stemmer is the slowest of the three stemmers
+//! - RuleLemmatizer performance is comparable to Porter stemming but with better
+//!   accuracy for many English words
+//! - SimpleLemmatizer is very fast for known words but limited in vocabulary
+//!
+//! # Choosing a Stemming/Lemmatization Approach
+//!
+//! - Use **Porter** when you need established, widely recognized stemming with moderate
+//!   aggressiveness.
+//! - Use **Snowball** when working with multiple languages or when you need language-specific
+//!   refinements to the Porter algorithm.
+//! - Use **Lancaster** when you need very aggressive stemming or maximum performance.
+//! - Use **SimpleLemmatizer** when you need high-speed processing for a limited set
+//!   of known words.
+//! - Use **RuleLemmatizer** when you need more accurate word normalization that
+//!   preserves the base form (lemma) rather than a stem, or when you need
+//!   part-of-speech-aware word normalization.
+//!
+//! # Stemming vs. Lemmatization
+//!
+//! - **Stemming** (Porter, Snowball, Lancaster) simply removes word endings to reduce
+//!   words to their stems, which may not be valid words.
+//! - **Lemmatization** (SimpleLemmatizer, RuleLemmatizer) reduces words to their base
+//!   form (lemma), which is always a valid word. It often requires knowledge of a word's
+//!   part of speech.
+//!
+//! # Example
+//!
+//! ```
+//! use scirs2_text::{LancasterStemmer, PorterStemmer, RuleLemmatizer, SimpleLemmatizer, SnowballStemmer, Stemmer};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let porter = PorterStemmer::new();
+//! let snowball = SnowballStemmer::new("english")?;
+//! let lancaster = LancasterStemmer::new();
+//! let simple_lemmatizer = SimpleLemmatizer::new();
+//! let rule_lemmatizer = RuleLemmatizer::new();
+//!
+//! // Compare stemming results
+//! assert_eq!(porter.stem("running")?, "run");
+//! assert_eq!(snowball.stem("running")?, "running");
+//! assert_eq!(lancaster.stem("running")?, "running");
+//! assert_eq!(simple_lemmatizer.stem("running")?, "run");
+//! assert_eq!(rule_lemmatizer.stem("running")?, "run");
+//!
+//! // Compare lemmatization and stemming on irregular verbs
+//! assert_eq!(porter.stem("went")?, "went");
+//! assert_eq!(simple_lemmatizer.stem("went")?, "went"); // Unknown unless in dictionary
+//! assert_eq!(rule_lemmatizer.stem("went")?, "go");     // Correctly lemmatizes irregular form
+//! # Ok(())
+//! # }
+//! ```
+
+pub mod lancaster;
+pub mod rule_lemmatizer;
 
 use crate::error::{Result, TextError};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+
+// Re-export stemmer and lemmatizer implementations
+pub use self::lancaster::LancasterStemmer;
+pub use self::rule_lemmatizer::{
+    LemmatizerConfig, PosTag, RuleCondition, RuleLemmatizer, RuleLemmatizerBuilder,
+};
 
 lazy_static! {
     // Porter stemmer regex patterns
@@ -486,7 +580,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lemmatizer() {
+    fn test_simple_lemmatizer() {
         let lemmatizer = SimpleLemmatizer::new();
 
         let test_cases = vec![
@@ -502,5 +596,77 @@ mod tests {
             let lemma = lemmatizer.stem(word).unwrap();
             assert_eq!(lemma, expected, "Failed for word: {}", word);
         }
+    }
+
+    #[test]
+    fn test_rule_lemmatizer() {
+        let lemmatizer = RuleLemmatizer::new();
+
+        // Test with various parts of speech
+        assert_eq!(lemmatizer.lemmatize("running", Some(PosTag::Verb)), "run");
+        assert_eq!(lemmatizer.lemmatize("cats", Some(PosTag::Noun)), "cat");
+        assert_eq!(
+            lemmatizer.lemmatize("better", Some(PosTag::Adjective)),
+            "good"
+        );
+        assert_eq!(
+            lemmatizer.lemmatize("quickly", Some(PosTag::Adverb)),
+            "quick"
+        );
+
+        // Test irregular forms
+        assert_eq!(lemmatizer.lemmatize("went", Some(PosTag::Verb)), "go");
+        assert_eq!(
+            lemmatizer.lemmatize("children", Some(PosTag::Noun)),
+            "child"
+        );
+        assert_eq!(lemmatizer.lemmatize("feet", Some(PosTag::Noun)), "foot");
+
+        // Test without POS tag
+        assert_eq!(lemmatizer.lemmatize("running", None), "run");
+        assert_eq!(lemmatizer.lemmatize("went", None), "go");
+    }
+
+    #[test]
+    fn test_stemmers_and_lemmatizers_comparison() {
+        let porter = PorterStemmer::new();
+        let snowball = SnowballStemmer::new("english").unwrap();
+        let lancaster = LancasterStemmer::new();
+        let simple_lemmatizer = SimpleLemmatizer::new();
+        let rule_lemmatizer = RuleLemmatizer::new();
+
+        let test_words = vec![
+            "running",
+            "cats",
+            "better",
+            "went",
+            "children",
+            "feet",
+            "universities",
+        ];
+
+        for word in test_words {
+            println!(
+                "Word: '{}'\nPorter: '{}'\nSnowball: '{}'\nLancaster: '{}'\nSimple: '{}'\nRule: '{}'",
+                word,
+                porter.stem(word).unwrap(),
+                snowball.stem(word).unwrap(),
+                lancaster.stem(word).unwrap(),
+                simple_lemmatizer.stem(word).unwrap(),
+                rule_lemmatizer.stem(word).unwrap()
+            );
+        }
+
+        // Test basic cases
+        assert_eq!(porter.stem("running").unwrap(), "run");
+        assert_eq!(rule_lemmatizer.stem("running").unwrap(), "run");
+
+        // Test that lemmatizer works better for irregular forms
+        assert_eq!(porter.stem("went").unwrap(), "went"); // Stemmer doesn't handle irregular verbs
+        assert_eq!(rule_lemmatizer.stem("went").unwrap(), "go"); // Lemmatizer does
+
+        // Lemmatizer should handle irregular plurals
+        assert_eq!(porter.stem("feet").unwrap(), "feet"); // Stemmer doesn't normalize irregular plurals
+        assert_eq!(rule_lemmatizer.stem("feet").unwrap(), "foot"); // Lemmatizer does
     }
 }

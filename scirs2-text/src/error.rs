@@ -36,6 +36,14 @@ pub enum TextError {
     /// Other error
     #[error("Error: {0}")]
     Other(String),
+
+    /// Model not fitted error
+    #[error("Model not fitted: {0}")]
+    ModelNotFitted(String),
+
+    /// Runtime error
+    #[error("Runtime error: {0}")]
+    RuntimeError(String),
 }
 
 /// Result type for text processing operations

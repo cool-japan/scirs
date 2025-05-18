@@ -181,10 +181,7 @@ impl Bounds {
             return false;
         }
 
-        for (&xi, (&lb, &ub)) in x
-            .iter()
-            .zip(self.lower.iter().zip(self.upper.iter()))
-        {
+        for (&xi, (&lb, &ub)) in x.iter().zip(self.lower.iter().zip(self.upper.iter())) {
             if let Some(l) = lb {
                 if xi < l {
                     return false;
@@ -201,10 +198,7 @@ impl Bounds {
 
     /// Project point onto feasible region
     pub fn project(&self, x: &mut [f64]) {
-        for (xi, (&lb, &ub)) in x
-            .iter_mut()
-            .zip(self.lower.iter().zip(self.upper.iter()))
-        {
+        for (xi, (&lb, &ub)) in x.iter_mut().zip(self.lower.iter().zip(self.upper.iter())) {
             if let Some(l) = lb {
                 if *xi < l {
                     *xi = l;

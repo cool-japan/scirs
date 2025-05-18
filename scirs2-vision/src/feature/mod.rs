@@ -3,9 +3,37 @@
 //! This module provides functionality for detecting and extracting features
 //! from images.
 
+pub mod brief;
+pub mod canny;
 pub mod descriptor;
+pub mod dog;
+pub mod fast;
+pub mod hog;
+pub mod homography;
+pub mod hough_circle;
+pub mod laplacian;
+pub mod log_blob;
+pub mod mser;
+pub mod orb;
+pub mod prewitt;
+pub mod ransac;
+pub mod shi_tomasi;
 
+pub use brief::*;
+pub use canny::*;
 pub use descriptor::*;
+pub use dog::*;
+pub use fast::*;
+pub use hog::*;
+pub use homography::*;
+pub use hough_circle::*;
+pub use laplacian::*;
+pub use log_blob::*;
+pub use mser::*;
+pub use orb::*;
+pub use prewitt::*;
+pub use ransac::*;
+pub use shi_tomasi::*;
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GrayImage};

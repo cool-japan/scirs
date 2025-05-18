@@ -3,10 +3,14 @@
 //! This module provides functionality for tokenizing text into
 //! words, sentences, or characters.
 
+pub mod bpe;
+
 use crate::error::{Result, TextError};
 use lazy_static::lazy_static;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
+
+pub use bpe::{BpeConfig, BpeTokenizer, BpeVocabulary};
 
 lazy_static! {
     static ref WORD_PATTERN: Regex = Regex::new(r"\b\w+\b").unwrap();
