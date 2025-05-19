@@ -30,7 +30,7 @@ blas = "0.23.0"
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [features]
 default = ["openblas", "simd"]

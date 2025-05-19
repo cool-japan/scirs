@@ -49,7 +49,7 @@ scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.3", opti
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [features]
 default = ["standard"]

@@ -29,7 +29,7 @@ scirs2-sparse = { path = "../scirs2-sparse", version = "0.1.0-alpha.3" }
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [[example]]
 name = "global_optimization"
