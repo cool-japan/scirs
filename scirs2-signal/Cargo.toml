@@ -37,4 +37,4 @@ parallel = ["rayon"]
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
