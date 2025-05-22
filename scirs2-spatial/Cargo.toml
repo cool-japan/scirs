@@ -33,6 +33,6 @@ parallel = []
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 rand_chacha = "0.9.0"
 plotters = "0.3.5"

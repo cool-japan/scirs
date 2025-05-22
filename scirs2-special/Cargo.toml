@@ -25,4 +25,4 @@ parallel = ["scirs2-core/parallel", "ndarray/rayon"]
 simd = ["scirs2-core/simd"]
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.6.0"

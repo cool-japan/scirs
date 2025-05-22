@@ -31,7 +31,7 @@ blas = { workspace = true }
 
 [dev-dependencies]
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 
 [features]
 default = ["openblas-backend", "simd"]

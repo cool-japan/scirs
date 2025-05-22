@@ -23,13 +23,13 @@ serde_json = "1.0"
 csv = "1.2"
 
 # Datasets specific dependencies
-reqwest = { version = "0.11", features = ["blocking", "json"], optional = true }
-dirs = "5.0"
+reqwest = { version = "0.12", features = ["blocking", "json"], optional = true }
+dirs = "6.0"
 flate2 = "1.0"
-zip = "0.6"
+zip = "4.0"
 blake3 = "1.5"
 lazy_static = "1.4"
-ureq = "2.9"
+ureq = "3.0"
 tempfile = "3.10"
 
 [features]
