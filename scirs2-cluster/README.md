@@ -13,6 +13,7 @@ A comprehensive clustering module for the SciRS2 scientific computing library in
   * K-means++ smart initialization
   * Enhanced kmeans2 with SciPy-compatible interface
   * Mini-batch K-means for large datasets
+  * Parallel K-means for multi-core systems
   * Data whitening/normalization utilities
 
 * **Hierarchical Clustering**
@@ -37,11 +38,16 @@ A comprehensive clustering module for the SciRS2 scientific computing library in
   * Mean-shift clustering
   * Spectral clustering
   * Affinity propagation
+  * BIRCH (Balanced Iterative Reducing and Clustering using Hierarchies)
+  * Gaussian Mixture Models (GMM)
 
 * **Evaluation Metrics**
   * Silhouette coefficient
   * Davies-Bouldin index
   * Calinski-Harabasz index
+  * Adjusted Rand Index
+  * Normalized Mutual Information
+  * Homogeneity, Completeness, and V-measure
 
 ## Installation
 
@@ -197,6 +203,10 @@ let noise_count = cluster_labels.iter().filter(|&&label| label == labels::NOISE)
 println!("Cluster assignments: {:?}", cluster_labels);
 println!("Number of noise points: {}", noise_count);
 ```
+
+## Documentation
+
+* [Algorithm Comparison Guide](ALGORITHM_COMPARISON.md) - Comprehensive guide to choosing the right clustering algorithm for your use case
 
 ## Key Enhancements
 

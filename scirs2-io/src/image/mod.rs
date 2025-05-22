@@ -5,7 +5,9 @@
 //!
 //! Features:
 //! - Reading and writing common image formats (PNG, JPEG, BMP, TIFF)
-//! - Metadata extraction and manipulation
+//! - EXIF metadata extraction from JPEG and TIFF files
+//! - GPS data extraction from EXIF
+//! - Camera settings and technical metadata
 //! - Conversion between different image formats
 //! - Basic image properties and information
 //! - Image sequence handling and animations (GIF, sequence of images)
@@ -15,6 +17,9 @@ use ndarray::{Array2, Array3, Array4};
 use regex::Regex;
 use std::fs;
 use std::path::Path;
+use std::io::BufReader;
+use chrono::{DateTime, NaiveDateTime, Utc};
+// extern crate kamadak_exif; // Temporarily disabled
 
 use crate::error::{IoError, Result};
 
@@ -49,6 +54,71 @@ impl ColorMode {
     }
 }
 
+/// GPS coordinates from EXIF data
+#[derive(Debug, Clone)]
+pub struct GpsCoordinates {
+    /// Latitude in decimal degrees
+    pub latitude: f64,
+    /// Longitude in decimal degrees
+    pub longitude: f64,
+    /// Altitude in meters (if available)
+    pub altitude: Option<f64>,
+    /// Latitude reference (N/S)
+    pub latitude_ref: String,
+    /// Longitude reference (E/W)
+    pub longitude_ref: String,
+}
+
+/// Camera settings from EXIF data
+#[derive(Debug, Clone, Default)]
+pub struct CameraSettings {
+    /// Camera make (manufacturer)
+    pub make: Option<String>,
+    /// Camera model
+    pub model: Option<String>,
+    /// Lens model
+    pub lens_model: Option<String>,
+    /// ISO speed
+    pub iso: Option<u32>,
+    /// Aperture value (f-number)
+    pub aperture: Option<f64>,
+    /// Shutter speed in seconds
+    pub shutter_speed: Option<f64>,
+    /// Focal length in mm
+    pub focal_length: Option<f64>,
+    /// Flash fired (true/false)
+    pub flash: Option<bool>,
+    /// White balance setting
+    pub white_balance: Option<String>,
+    /// Exposure mode
+    pub exposure_mode: Option<String>,
+    /// Metering mode
+    pub metering_mode: Option<String>,
+}
+
+/// EXIF metadata extracted from image files
+#[derive(Debug, Clone, Default)]
+pub struct ExifMetadata {
+    /// Date and time when image was taken
+    pub datetime: Option<DateTime<Utc>>,
+    /// GPS coordinates (if available)
+    pub gps: Option<GpsCoordinates>,
+    /// Camera settings
+    pub camera: CameraSettings,
+    /// Image orientation (rotation)
+    pub orientation: Option<u32>,
+    /// Software used to create/edit the image
+    pub software: Option<String>,
+    /// Copyright information
+    pub copyright: Option<String>,
+    /// Artist/photographer name
+    pub artist: Option<String>,
+    /// Image description/title
+    pub description: Option<String>,
+    /// All EXIF tags as key-value pairs
+    pub raw_tags: std::collections::HashMap<String, String>,
+}
+
 /// Image metadata
 #[derive(Debug, Clone, Default)]
 pub struct ImageMetadata {
@@ -64,6 +134,8 @@ pub struct ImageMetadata {
     pub dpi: Option<(u32, u32)>,
     /// Original format
     pub format: Option<String>,
+    /// EXIF metadata (for JPEG and TIFF files)
+    pub exif: Option<ExifMetadata>,
     /// Additional metadata as key-value pairs
     pub custom: std::collections::HashMap<String, String>,
 }
@@ -546,6 +618,268 @@ pub fn convert_image<P1: AsRef<Path>, P2: AsRef<Path>>(
 
     // Write to output format
     write_image(output_path, &data, output_format, Some(&metadata))
+}
+
+/// Extract EXIF metadata from an image file
+///
+/// # Arguments
+///
+/// * `path` - Path to the image file
+///
+/// # Returns
+///
+/// * `Result<Option<ExifMetadata>>` - EXIF metadata if present, None if not available
+///
+/// # Examples
+///
+/// ```no_run
+/// use scirs2_io::image::read_exif_metadata;
+///
+/// // Read EXIF data from a JPEG file
+/// let exif = read_exif_metadata("photo.jpg").unwrap();
+/// if let Some(metadata) = exif {
+///     println!("Camera: {:?} {:?}", metadata.camera.make, metadata.camera.model);
+///     if let Some(gps) = metadata.gps {
+///         println!("Location: {}, {}", gps.latitude, gps.longitude);
+///     }
+/// }
+/// ```
+pub fn read_exif_metadata<P: AsRef<Path>>(path: P) -> Result<Option<ExifMetadata>> {
+    let file = std::fs::File::open(path).map_err(|e| IoError::FileError(e.to_string()))?;
+    let mut bufreader = BufReader::new(&file);
+    
+    // Try to read EXIF data
+    match kamadak_exif::Reader::new().read_from_container(&mut bufreader) {
+        Ok(exif_data) => {
+            let mut metadata = ExifMetadata::default();
+            let mut raw_tags = std::collections::HashMap::new();
+            
+            // Extract all EXIF fields
+            for field in exif_data.fields() {
+                let tag_name = format!("{}", field.tag);
+                let value = format!("{}", field.display_value().with_unit(&exif_data));
+                raw_tags.insert(tag_name.clone(), value.clone());
+                
+                // Parse specific important fields
+                match field.tag {
+                    kamadak_exif::Tag::DateTime => {
+                        metadata.datetime = parse_exif_datetime(&value);
+                    }
+                    kamadak_exif::Tag::DateTimeOriginal => {
+                        if metadata.datetime.is_none() {
+                            metadata.datetime = parse_exif_datetime(&value);
+                        }
+                    }
+                    kamadak_exif::Tag::Make => {
+                        metadata.camera.make = Some(value);
+                    }
+                    kamadak_exif::Tag::Model => {
+                        metadata.camera.model = Some(value);
+                    }
+                    kamadak_exif::Tag::LensModel => {
+                        metadata.camera.lens_model = Some(value);
+                    }
+                    kamadak_exif::Tag::PhotographicSensitivity => {
+                        metadata.camera.iso = value.parse().ok();
+                    }
+                    kamadak_exif::Tag::FNumber => {
+                        metadata.camera.aperture = parse_rational_value(&value);
+                    }
+                    kamadak_exif::Tag::ExposureTime => {
+                        metadata.camera.shutter_speed = parse_rational_value(&value);
+                    }
+                    kamadak_exif::Tag::FocalLength => {
+                        metadata.camera.focal_length = parse_rational_value(&value);
+                    }
+                    kamadak_exif::Tag::Flash => {
+                        metadata.camera.flash = Some(value.contains("fired") || value.contains("Fired"));
+                    }
+                    kamadak_exif::Tag::WhiteBalance => {
+                        metadata.camera.white_balance = Some(value);
+                    }
+                    kamadak_exif::Tag::ExposureMode => {
+                        metadata.camera.exposure_mode = Some(value);
+                    }
+                    kamadak_exif::Tag::MeteringMode => {
+                        metadata.camera.metering_mode = Some(value);
+                    }
+                    kamadak_exif::Tag::Orientation => {
+                        metadata.orientation = value.parse().ok();
+                    }
+                    kamadak_exif::Tag::Software => {
+                        metadata.software = Some(value);
+                    }
+                    kamadak_exif::Tag::Copyright => {
+                        metadata.copyright = Some(value);
+                    }
+                    kamadak_exif::Tag::Artist => {
+                        metadata.artist = Some(value);
+                    }
+                    kamadak_exif::Tag::ImageDescription => {
+                        metadata.description = Some(value);
+                    }
+                    _ => {} // Store in raw_tags only
+                }
+            }
+            
+            // Extract GPS data if available
+            metadata.gps = extract_gps_data(&exif_data);
+            metadata.raw_tags = raw_tags;
+            
+            Ok(Some(metadata))
+        }
+        Err(_) => {
+            // No EXIF data or unsupported format
+            Ok(None)
+        }
+    }
+}
+
+/// Extract GPS coordinates from EXIF data
+fn extract_gps_data(exif_data: &kamadak_exif::Exif) -> Option<GpsCoordinates> {
+    let mut lat: Option<f64> = None;
+    let mut lon: Option<f64> = None;
+    let mut alt: Option<f64> = None;
+    let mut lat_ref = String::new();
+    let mut lon_ref = String::new();
+    
+    for field in exif_data.fields() {
+        match field.tag {
+            kamadak_exif::Tag::GPSLatitude => {
+                lat = parse_gps_coordinate(&field);
+            }
+            kamadak_exif::Tag::GPSLongitude => {
+                lon = parse_gps_coordinate(&field);
+            }
+            kamadak_exif::Tag::GPSAltitude => {
+                alt = parse_rational_value(&format!("{}", field.display_value().with_unit(exif_data)));
+            }
+            kamadak_exif::Tag::GPSLatitudeRef => {
+                lat_ref = format!("{}", field.display_value().with_unit(exif_data));
+            }
+            kamadak_exif::Tag::GPSLongitudeRef => {
+                lon_ref = format!("{}", field.display_value().with_unit(exif_data));
+            }
+            _ => {}
+        }
+    }
+    
+    if let (Some(latitude), Some(longitude)) = (lat, lon) {
+        // Apply sign based on hemisphere
+        let final_lat = if lat_ref.contains('S') { -latitude } else { latitude };
+        let final_lon = if lon_ref.contains('W') { -longitude } else { longitude };
+        
+        Some(GpsCoordinates {
+            latitude: final_lat,
+            longitude: final_lon,
+            altitude: alt,
+            latitude_ref: lat_ref,
+            longitude_ref: lon_ref,
+        })
+    } else {
+        None
+    }
+}
+
+/// Parse GPS coordinate from EXIF field (degrees, minutes, seconds)
+fn parse_gps_coordinate(field: &kamadak_exif::Field) -> Option<f64> {
+    if let kamadak_exif::Value::Rational(ref rationals) = field.value {
+        if rationals.len() >= 3 {
+            let degrees = rationals[0].to_f64();
+            let minutes = rationals[1].to_f64();
+            let seconds = rationals[2].to_f64();
+            
+            Some(degrees + minutes / 60.0 + seconds / 3600.0)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/// Parse EXIF datetime string
+fn parse_exif_datetime(datetime_str: &str) -> Option<DateTime<Utc>> {
+    // EXIF datetime format: "YYYY:MM:DD HH:MM:SS"
+    let clean_str = datetime_str.trim().replace(':', "-");
+    if let Some(space_pos) = clean_str.find(' ') {
+        let date_part = &clean_str[..space_pos];
+        let time_part = &clean_str[space_pos + 1..];
+        let iso_str = format!("{}T{}Z", date_part, time_part);
+        
+        if let Ok(naive_dt) = NaiveDateTime::parse_from_str(&iso_str[..19], "%Y-%m-%dT%H:%M:%S") {
+            Some(DateTime::from_naive_utc_and_offset(naive_dt, Utc))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/// Parse rational value from EXIF field display string
+fn parse_rational_value(value_str: &str) -> Option<f64> {
+    let clean_str = value_str.trim();
+    
+    // Handle fractions like "1/60" or "1/60 sec"
+    if clean_str.contains('/') {
+        let parts: Vec<&str> = clean_str.split_whitespace().collect();
+        if let Some(fraction) = parts.first() {
+            let frac_parts: Vec<&str> = fraction.split('/').collect();
+            if frac_parts.len() == 2 {
+                if let (Ok(num), Ok(den)) = (frac_parts[0].parse::<f64>(), frac_parts[1].parse::<f64>()) {
+                    if den != 0.0 {
+                        return Some(num / den);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Handle decimal values like "2.8" or "2.8 f"
+    let parts: Vec<&str> = clean_str.split_whitespace().collect();
+    if let Some(number_part) = parts.first() {
+        number_part.parse().ok()
+    } else {
+        None
+    }
+}
+
+/// Read enhanced image metadata including EXIF data
+///
+/// # Arguments
+///
+/// * `path` - Path to the image file
+///
+/// # Returns
+///
+/// * `Result<ImageMetadata>` - Enhanced metadata including EXIF data
+///
+/// # Examples
+///
+/// ```no_run
+/// use scirs2_io::image::read_enhanced_metadata;
+///
+/// let metadata = read_enhanced_metadata("photo.jpg").unwrap();
+/// println!("Image: {}x{}", metadata.width, metadata.height);
+/// 
+/// if let Some(exif) = &metadata.exif {
+///     if let Some(camera_make) = &exif.camera.make {
+///         println!("Camera: {}", camera_make);
+///     }
+///     if let Some(gps) = &exif.gps {
+///         println!("GPS: {}, {}", gps.latitude, gps.longitude);
+///     }
+/// }
+/// ```
+pub fn read_enhanced_metadata<P: AsRef<Path>>(path: P) -> Result<ImageMetadata> {
+    // Get basic metadata
+    let mut metadata = read_image_metadata(&path)?;
+    
+    // Try to add EXIF metadata
+    metadata.exif = read_exif_metadata(&path)?;
+    
+    Ok(metadata)
 }
 
 /// Get a grayscale view of an image

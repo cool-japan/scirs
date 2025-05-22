@@ -22,3 +22,4 @@ thiserror = "2.0.12"
 rand = "0.9.0"
 rand_distr = { workspace = true }
 approx = "0.5.1"
+rayon = "1.10"

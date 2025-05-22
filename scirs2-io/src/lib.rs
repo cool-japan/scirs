@@ -18,6 +18,8 @@
 //! - `csv`: Support for CSV (Comma-Separated Values) files
 //! - `image`: Support for image file formats (PNG, JPEG, BMP, TIFF)
 //! - `matlab`: Support for MATLAB (.mat) files
+//! - `matrix_market`: Support for Matrix Market sparse and dense matrix files
+//! - `netcdf`: Support for NetCDF scientific data files
 //! - `serialize`: Utilities for data serialization and deserialization
 //! - `validation`: Utilities for data validation and integrity checking
 //! - `wavfile`: Support for WAV audio files
@@ -58,6 +60,15 @@ pub mod error;
 /// - Basic image processing operations
 pub mod image;
 pub mod matlab;
+/// Matrix Market file format module
+///
+/// Provides functionality for reading and writing Matrix Market files:
+/// - Support for sparse matrix coordinate format (COO)
+/// - Support for dense array format
+/// - Real, complex, integer, and pattern data types
+/// - Different matrix symmetry types (general, symmetric, hermitian, skew-symmetric)
+/// - Integration with ndarray for efficient matrix operations
+pub mod matrix_market;
 /// NetCDF file format module
 ///
 /// Provides functionality for reading and writing NetCDF files:
