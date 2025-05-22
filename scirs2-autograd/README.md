@@ -20,6 +20,8 @@ Automatic differentiation module for SciRS2, providing functionality comparable 
 - Gradient computation and propagation with improved numerical stability
 - Lazy tensor evaluation
 - Higher-order derivatives
+- Memory optimization with gradient checkpointing
+- Enhanced linear algebra operations
 - GPU computation support (planned)
 - BLAS acceleration for linear algebra operations
 - Numerically stable SVD gradient computation
@@ -30,14 +32,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.1.0-alpha.3"
+scirs2-autograd = "0.1.0-alpha.4"
 ```
 
 To enable optimizations and GPU support:
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.1.0-alpha.3", features = ["blas", "cuda"] }
+scirs2-autograd = { version = "0.1.0-alpha.4", features = ["blas", "cuda"] }
 ```
 
 ## Usage
@@ -132,6 +134,72 @@ for epoch in 0..10 {
 - Multi-dimensional tensor operations
 - Broadcasting operations like NumPy
 - Support for both eager and graph execution models
+
+## Gradient Checkpointing
+
+Gradient checkpointing is a memory optimization technique that trades additional computation time for reduced memory usage during backpropagation. This is especially useful for training large models under memory constraints.
+
+### How It Works
+
+During standard backpropagation, all intermediate activations must be stored to compute gradients, which can lead to high memory usage in deep networks. Gradient checkpointing selectively discards intermediate activations during the forward pass and recomputes them during the backward pass as needed.
+
+### Benefits
+
+- Significantly reduced memory usage (typically 50-80% reduction)
+- Enables training of deeper/larger models that would otherwise not fit in memory
+- Flexible strategies to balance memory usage vs. computation time
+
+### Usage Options
+
+```rust
+use scirs2_autograd::{run, tensor_ops as T};
+
+run(|ctx| {
+    // 1. Basic checkpointing of individual tensors
+    let input = T::ones(&[128, 128], ctx);
+    let w = T::ones(&[128, 128], ctx);
+    let hidden = T::matmul(&input, &w);
+    let hidden_checkpoint = T::checkpoint(&hidden);  // This tensor will be recomputed during backprop
+    
+    // 2. Adaptive checkpointing based on memory threshold (in bytes)
+    let large_tensor = T::matmul(&input, &w);
+    let adaptive_checkpoint = T::adaptive_checkpoint(&large_tensor, 1_000_000);  // 1MB threshold
+    
+    // 3. Checkpoint groups for multi-output operations
+    let checkpoint_group = T::CheckpointGroup::new(ctx);
+    let (output1, output2) = checkpoint_group.checkpoint_fn_flex2(&[&input, &w], |inputs| {
+        let a = T::matmul(&inputs[0], &inputs[1]);
+        let b = T::transpose(&a, &[1, 0]);
+        (a, b)  // Both tensors will be checkpointed together
+    });
+});
+```
+
+### Profiling Checkpoint Performance
+
+You can measure the memory savings and performance impact of your checkpointing strategy:
+
+```rust
+// Start tracking memory usage
+T::CheckpointProfiler::start_tracking();
+
+// Your model with checkpointing
+// ... (model code with checkpoint operations)
+
+// Evaluate performance
+println!("Memory saved: {} KB", T::CheckpointProfiler::memory_saved() / 1024);
+println!("Checkpoint operations: {}", T::CheckpointProfiler::checkpoint_count());
+
+// Reset for next test
+T::CheckpointProfiler::reset_statistics();
+```
+
+### Optimization Strategies
+
+- **Basic Strategy**: Checkpoint every N layers (e.g., every other layer)
+- **Adaptive Strategy**: Use automatic thresholds based on tensor size
+- **Targeted Strategy**: Manually checkpoint only the largest tensors
+- **Segment Strategy**: Checkpoint entire computation segments together
 
 ## License
 

@@ -35,7 +35,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = "0.1.0-alpha.3"
+scirs2-integrate = "0.1.0-alpha.4"
 ndarray = "0.16.1"
 ```
 

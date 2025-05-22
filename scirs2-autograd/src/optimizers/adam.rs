@@ -148,10 +148,10 @@ impl<F: Float> Optimizer<F> for Adam<F> {
                     b1: self.b1,
                     b2: self.b2,
                 });
-            
+
             // Log Adam operation construction
             eprintln!("Created AdamOp with all 5 inputs");
-            
+
             // Add the updated parameter to the result
             ret.push(adam_op);
         }

@@ -73,7 +73,18 @@ where
     T: Tokenizer + Send + Sync,
 {
     // Process texts in parallel using scirs2-core::parallel
-    let token_counts = parallel::try_parallel_map(texts, |&text| count_tokens(text, tokenizer))?;
+    // Clone data to avoid lifetime issues
+    let texts_owned: Vec<String> = texts.iter().map(|&s| s.to_string()).collect();
+    let tokenizer_boxed = tokenizer.clone_box();
+
+    let token_counts = parallel::parallel_map(&texts_owned, move |text| {
+        count_tokens(text, &*tokenizer_boxed).map_err(|e| {
+            // Convert TextError to CoreError
+            scirs2_core::CoreError::ComputationError(scirs2_core::error::ErrorContext::new(
+                format!("Text processing error: {}", e),
+            ))
+        })
+    })?;
 
     // Merge all counts
     let mut total_counts = HashMap::new();

@@ -43,6 +43,7 @@ pub mod advanced;
 pub mod curves;
 pub mod one_vs_one;
 pub mod threshold;
+pub mod threshold_analyzer;
 
 use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
 use num_traits::NumCast;

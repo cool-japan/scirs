@@ -19,17 +19,17 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optim = "0.1.0-alpha.3"
+scirs2-optim = "0.1.0-alpha.4"
 ```
 
 To enable optimizations or integration with other modules:
 
 ```toml
 [dependencies]
-scirs2-optim = { version = "0.1.0-alpha.3", features = ["parallel"] }
+scirs2-optim = { version = "0.1.0-alpha.4", features = ["parallel"] }
 
 # For integration with scirs2-metrics
-scirs2-optim = { version = "0.1.0-alpha.3", features = ["metrics_integration"] }
+scirs2-optim = { version = "0.1.0-alpha.4", features = ["metrics_integration"] }
 ```
 
 ## Usage

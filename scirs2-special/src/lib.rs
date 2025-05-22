@@ -35,7 +35,7 @@ pub use error::{SpecialError, SpecialResult};
 
 // Modules
 mod airy;
-mod bessel;
+pub mod bessel;
 mod constants;
 mod coulomb;
 mod elliptic;
@@ -61,7 +61,33 @@ mod zeta;
 // Note: These functions require various trait bounds in their implementation,
 // including Float, FromPrimitive, Debug, AddAssign, etc.
 pub use airy::{ai, aip, bi, bip};
-pub use bessel::{i0, i1, iv, j0, j1, jn, k0, k1, kv, y0, y1, yn};
+pub use bessel::{
+    // Regular Bessel functions
+    i0,
+    i1,
+    iv,
+    j0,
+    // Derivatives of Bessel functions
+    j0_prime,
+    j1,
+    j1_prime,
+    jn,
+    jn_prime,
+    jv,
+    jv_prime,
+    k0,
+    k1,
+    kv,
+    // Spherical Bessel functions
+    spherical_jn,
+    spherical_yn,
+    y0,
+    y0_prime,
+    y1,
+    y1_prime,
+    yn,
+    yn_prime,
+};
 pub use coulomb::{coulomb_f, coulomb_g, coulomb_h_minus, coulomb_h_plus, coulomb_phase_shift};
 pub use elliptic::{
     elliptic_e, elliptic_e_inc, elliptic_f, elliptic_k, elliptic_pi, jacobi_cn, jacobi_dn,

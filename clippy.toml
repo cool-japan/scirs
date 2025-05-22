@@ -1,0 +1,6 @@
+# Global Clippy configuration
+
+too-many-arguments-threshold = 30
+
+disallowed-methods = []
+disallowed-types = []

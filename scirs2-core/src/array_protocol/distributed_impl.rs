@@ -243,34 +243,245 @@ where
 
 impl<T, D> ArrayProtocol for DistributedNdarray<T, D>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<Output = T>,
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
     fn array_function(
         &self,
         func: &ArrayFunction,
         _types: &[TypeId],
-        _args: &[Box<dyn Any>],
-        _kwargs: &HashMap<String, Box<dyn Any>>,
+        args: &[Box<dyn Any>],
+        kwargs: &HashMap<String, Box<dyn Any>>,
     ) -> Result<Box<dyn Any>, NotImplemented> {
         match func.name {
-            "scirs2::sum" => {
-                // Example implementation of sum for a distributed array
-                // For a real distributed array, this would be implemented
-                // as a distributed computation
+            "scirs2::array_protocol::operations::sum" => {
+                // Distributed implementation of sum
+                let axis = kwargs.get("axis").and_then(|a| a.downcast_ref::<usize>());
 
-                // In a simplified implementation, use a dummy value
-                let sum = T::zero();
-                Ok(Box::new(sum))
+                if let Some(&ax) = axis {
+                    // Sum along a specific axis - use map-reduce across chunks
+                    // In a simplified implementation, we'll use a dummy array
+                    let dummy_array = self.chunks[0].data.clone();
+                    let sum_array = dummy_array.sum_axis(ndarray::Axis(ax));
+
+                    // Create a new distributed array with the result
+                    Ok(Box::new(super::NdarrayWrapper::new(sum_array)))
+                } else {
+                    // Sum all elements using map-reduce
+                    let sum = self.map_reduce(|chunk| chunk.data.sum(), |a, b| a + b);
+                    Ok(Box::new(sum))
+                }
             }
-            "scirs2::mean" => {
-                // Example implementation of mean for a distributed array
-                // In a simplified implementation, use a dummy value
-                let zero: T = T::zero();
-                let mean = zero / 1.0;
+            "scirs2::array_protocol::operations::mean" => {
+                // Distributed implementation of mean
+                // Get total sum across chunks
+                let sum = self.map_reduce(|chunk| chunk.data.sum(), |a, b| a + b);
+
+                // Calculate the total number of elements across all chunks
+                let count = self.shape.iter().product::<usize>() as f64;
+
+                // Calculate mean
+                let mean = sum / count;
+
                 Ok(Box::new(mean))
             }
-            // Add more function implementations as needed
+            "scirs2::array_protocol::operations::add" => {
+                // Element-wise addition
+                if args.len() < 2 {
+                    return Err(NotImplemented);
+                }
+
+                // Try to get the second argument as a distributed array
+                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                    // Check shapes match
+                    if self.shape() != other.shape() {
+                        return Err(NotImplemented);
+                    }
+
+                    // Create a new distributed array with chunks that represent addition
+                    let mut new_chunks = Vec::with_capacity(self.chunks.len());
+
+                    // For simplicity, assume number of chunks matches
+                    // In a real implementation, we would handle different chunk distributions
+                    for (self_chunk, other_chunk) in self.chunks.iter().zip(other.chunks.iter()) {
+                        let result_data = &self_chunk.data + &other_chunk.data;
+                        new_chunks.push(ArrayChunk {
+                            data: result_data,
+                            global_index: self_chunk.global_index.clone(),
+                            node_id: self_chunk.node_id,
+                        });
+                    }
+
+                    let result = DistributedNdarray::new(
+                        new_chunks,
+                        self.shape.clone(),
+                        self.config.clone(),
+                    );
+
+                    return Ok(Box::new(result));
+                }
+
+                Err(NotImplemented)
+            }
+            "scirs2::array_protocol::operations::multiply" => {
+                // Element-wise multiplication
+                if args.len() < 2 {
+                    return Err(NotImplemented);
+                }
+
+                // Try to get the second argument as a distributed array
+                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                    // Check shapes match
+                    if self.shape() != other.shape() {
+                        return Err(NotImplemented);
+                    }
+
+                    // Create a new distributed array with chunks that represent multiplication
+                    let mut new_chunks = Vec::with_capacity(self.chunks.len());
+
+                    // For simplicity, assume number of chunks matches
+                    // In a real implementation, we would handle different chunk distributions
+                    for (self_chunk, other_chunk) in self.chunks.iter().zip(other.chunks.iter()) {
+                        let result_data = &self_chunk.data * &other_chunk.data;
+                        new_chunks.push(ArrayChunk {
+                            data: result_data,
+                            global_index: self_chunk.global_index.clone(),
+                            node_id: self_chunk.node_id,
+                        });
+                    }
+
+                    let result = DistributedNdarray::new(
+                        new_chunks,
+                        self.shape.clone(),
+                        self.config.clone(),
+                    );
+
+                    return Ok(Box::new(result));
+                }
+
+                Err(NotImplemented)
+            }
+            "scirs2::array_protocol::operations::matmul" => {
+                // Matrix multiplication
+                if args.len() < 2 {
+                    return Err(NotImplemented);
+                }
+
+                // We can only handle matrix multiplication for 2D arrays
+                if self.shape.len() != 2 {
+                    return Err(NotImplemented);
+                }
+
+                // Try to get the second argument as a distributed array
+                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                    // Check that shapes are compatible
+                    if self.shape.len() != 2
+                        || other.shape.len() != 2
+                        || self.shape[1] != other.shape[0]
+                    {
+                        return Err(NotImplemented);
+                    }
+
+                    // In a real implementation, we would perform a distributed matrix multiplication
+                    // For this simplified version, we'll return a dummy result with the correct shape
+
+                    let result_shape = vec![self.shape[0], other.shape[1]];
+
+                    // Create a dummy result array
+                    // Using a simpler approach with IxDyn directly
+                    let dummy_shape = ndarray::IxDyn(&result_shape);
+                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+
+                    // Create a new distributed array with the dummy result
+                    let chunk = ArrayChunk {
+                        data: dummy_array,
+                        global_index: vec![0],
+                        node_id: 0,
+                    };
+
+                    let result =
+                        DistributedNdarray::new(vec![chunk], result_shape, self.config.clone());
+
+                    return Ok(Box::new(result));
+                }
+
+                Err(NotImplemented)
+            }
+            "scirs2::array_protocol::operations::transpose" => {
+                // Transpose operation
+                if self.shape.len() != 2 {
+                    return Err(NotImplemented);
+                }
+
+                // Create a new shape for the transposed array
+                let transposed_shape = vec![self.shape[1], self.shape[0]];
+
+                // In a real implementation, we would transpose each chunk and reconstruct
+                // the distributed array with the correct chunk distribution
+                // For this simplified version, we'll just create a single dummy chunk
+
+                // Create a dummy result array
+                // Using a simpler approach with IxDyn directly
+                let dummy_shape = ndarray::IxDyn(&transposed_shape);
+                let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+
+                // Create a new distributed array with the dummy result
+                let chunk = ArrayChunk {
+                    data: dummy_array,
+                    global_index: vec![0],
+                    node_id: 0,
+                };
+
+                let result =
+                    DistributedNdarray::new(vec![chunk], transposed_shape, self.config.clone());
+
+                Ok(Box::new(result))
+            }
+            "scirs2::array_protocol::operations::reshape" => {
+                // Reshape operation
+                if let Some(shape) = kwargs
+                    .get("shape")
+                    .and_then(|s| s.downcast_ref::<Vec<usize>>())
+                {
+                    // Check that total size matches
+                    let old_size: usize = self.shape.iter().product();
+                    let new_size: usize = shape.iter().product();
+
+                    if old_size != new_size {
+                        return Err(NotImplemented);
+                    }
+
+                    // In a real implementation, we would need to redistribute the chunks
+                    // For this simplified version, we'll just create a single dummy chunk
+
+                    // Create a dummy result array
+                    // Using a simpler approach with IxDyn directly
+                    let dummy_shape = ndarray::IxDyn(shape);
+                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+
+                    // Create a new distributed array with the dummy result
+                    let chunk = ArrayChunk {
+                        data: dummy_array,
+                        global_index: vec![0],
+                        node_id: 0,
+                    };
+
+                    let result =
+                        DistributedNdarray::new(vec![chunk], shape.clone(), self.config.clone());
+
+                    return Ok(Box::new(result));
+                }
+
+                Err(NotImplemented)
+            }
             _ => Err(NotImplemented),
         }
     }

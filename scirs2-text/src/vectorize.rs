@@ -11,7 +11,7 @@ use scirs2_core::parallel;
 use std::collections::HashMap;
 
 /// Trait for text vectorizers
-pub trait Vectorizer {
+pub trait Vectorizer: Clone {
     /// Fit the vectorizer on a corpus of texts
     fn fit(&mut self, texts: &[&str]) -> Result<()>;
 
@@ -29,10 +29,17 @@ pub trait Vectorizer {
 }
 
 /// Count vectorizer that uses a bag-of-words representation
+#[derive(Clone)]
 pub struct CountVectorizer {
     tokenizer: Box<dyn Tokenizer + Send + Sync>,
     vocabulary: Vocabulary,
     binary: bool, // If true, all non-zero counts are set to 1
+}
+
+impl Clone for Box<dyn Tokenizer + Send + Sync> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
 }
 
 impl CountVectorizer {
@@ -137,7 +144,18 @@ impl Vectorizer for CountVectorizer {
         }
 
         // Use scirs2-core::parallel for parallel processing
-        let vectors = parallel::try_parallel_map(texts, |&text| self.transform(text))?;
+        // Clone data to avoid lifetime issues
+        let texts_owned: Vec<String> = texts.iter().map(|&s| s.to_string()).collect();
+        let self_clone = self.clone();
+
+        let vectors = parallel::parallel_map(&texts_owned, move |text| {
+            self_clone.transform(text).map_err(|e| {
+                // Convert TextError to CoreError
+                scirs2_core::CoreError::ComputationError(scirs2_core::error::ErrorContext::new(
+                    format!("Text vectorization error: {}", e),
+                ))
+            })
+        })?;
 
         // Convert to 2D array
         let n_samples = vectors.len();
@@ -153,6 +171,7 @@ impl Vectorizer for CountVectorizer {
 }
 
 /// TF-IDF vectorizer that computes term frequency-inverse document frequency
+#[derive(Clone)]
 pub struct TfidfVectorizer {
     count_vectorizer: CountVectorizer,
     idf: Option<Array1<f64>>,

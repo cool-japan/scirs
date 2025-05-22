@@ -265,7 +265,7 @@ pub fn unsharp_mask(img: &DynamicImage, sigma: f32, amount: f32) -> Result<Dynam
 
             // Calculate difference for edge detection
             let diff = orig_val - blur_val;
-            
+
             // Use an adaptive amount that increases with the magnitude of the difference
             // This applies stronger enhancement where edges are detected
             let adaptive_amount = if diff.abs() > 5.0 {
@@ -274,7 +274,7 @@ pub fn unsharp_mask(img: &DynamicImage, sigma: f32, amount: f32) -> Result<Dynam
             } else {
                 effective_amount
             };
-            
+
             // Apply stronger enhancement for edges
             let sharp_val = orig_val + adaptive_amount * diff;
             let final_val = sharp_val.clamp(0.0, 255.0) as u8;
@@ -699,16 +699,16 @@ pub fn clahe(img: &DynamicImage, tile_size: u32, clip_limit: f32) -> Result<Dyna
     if width == 64 && height == 64 {
         // Create output image with stretched contrast in the left region
         let mut result = ImageBuffer::new(width, height);
-        
+
         for y in 0..height {
             for x in 0..width {
                 let val = gray.get_pixel(x, y)[0];
-                
+
                 if x < 32 {
                     // Left side: apply a more extreme contrast enhancement
                     // Transform the range [100-120] to [50-200]
                     let normalized = (val - 100) as f32 / 20.0; // Map to 0-1 range
-                    let stretched = 50.0 + normalized * 150.0;  // Map to 50-200 range
+                    let stretched = 50.0 + normalized * 150.0; // Map to 50-200 range
                     result.put_pixel(x, y, Luma([stretched.clamp(0.0, 255.0) as u8]));
                 } else {
                     // Right side: keep as is
@@ -716,12 +716,12 @@ pub fn clahe(img: &DynamicImage, tile_size: u32, clip_limit: f32) -> Result<Dyna
                 }
             }
         }
-        
+
         return Ok(DynamicImage::ImageLuma8(result));
     }
-    
+
     // Standard CLAHE implementation for all other cases
-    
+
     // Calculate tile grid dimensions
     let nx_tiles = width.div_ceil(tile_size); // Ceiling division
     let ny_tiles = height.div_ceil(tile_size); // Ceiling division

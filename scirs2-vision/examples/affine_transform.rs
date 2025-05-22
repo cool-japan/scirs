@@ -1,9 +1,7 @@
 //! Example demonstrating affine transformations
 
 use image::{GenericImageView, Pixel, RgbaImage};
-use scirs2_vision::transform::{
-    estimate_affine_transform, warp_affine, AffineTransform,
-};
+use scirs2_vision::transform::{estimate_affine_transform, warp_affine, AffineTransform};
 use std::env;
 use std::path::Path;
 
@@ -27,14 +25,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Translation
     println!("\nApplying translation...");
     let translation = AffineTransform::translation(50.0, 30.0);
-    let translated = warp_affine(&img, &translation, None, None, scirs2_vision::transform::affine::BorderMode::Transparent)?;
+    let translated = warp_affine(
+        &img,
+        &translation,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Transparent,
+    )?;
     translated.save("output/translated.png")?;
     println!("  Saved to output/translated.png");
 
     // 2. Scaling
     println!("\nApplying scaling...");
     let scaling = AffineTransform::scaling(1.5, 0.7);
-    let scaled = warp_affine(&img, &scaling, None, None, scirs2_vision::transform::affine::BorderMode::Transparent)?;
+    let scaled = warp_affine(
+        &img,
+        &scaling,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Transparent,
+    )?;
     scaled.save("output/scaled.png")?;
     println!("  Saved to output/scaled.png");
 
@@ -83,19 +93,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let small_rotation = AffineTransform::rotation(std::f64::consts::PI / 12.0); // 15 degrees
 
     // Transparent border (default)
-    let transparent = warp_affine(&img, &small_rotation, None, None, scirs2_vision::transform::affine::BorderMode::Transparent)?;
+    let transparent = warp_affine(
+        &img,
+        &small_rotation,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Transparent,
+    )?;
     transparent.save("output/border_transparent.png")?;
 
     // Replicate border
-    let replicate = warp_affine(&img, &small_rotation, None, None, scirs2_vision::transform::affine::BorderMode::Replicate)?;
+    let replicate = warp_affine(
+        &img,
+        &small_rotation,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Replicate,
+    )?;
     replicate.save("output/border_replicate.png")?;
 
     // Reflect border
-    let reflect = warp_affine(&img, &small_rotation, None, None, scirs2_vision::transform::affine::BorderMode::Reflect)?;
+    let reflect = warp_affine(
+        &img,
+        &small_rotation,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Reflect,
+    )?;
     reflect.save("output/border_reflect.png")?;
 
     // Wrap border
-    let wrap = warp_affine(&img, &small_rotation, None, None, scirs2_vision::transform::affine::BorderMode::Wrap)?;
+    let wrap = warp_affine(
+        &img,
+        &small_rotation,
+        None,
+        None,
+        scirs2_vision::transform::affine::BorderMode::Wrap,
+    )?;
     wrap.save("output/border_wrap.png")?;
 
     // Constant border (red)

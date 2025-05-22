@@ -26,6 +26,9 @@ pub trait Tokenizer {
     fn tokenize_batch(&self, texts: &[&str]) -> Result<Vec<Vec<String>>> {
         texts.iter().map(|text| self.tokenize(text)).collect()
     }
+
+    /// Clone the tokenizer (for use in parallel processing)
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync>;
 }
 
 /// Tokenizer for splitting text into words
@@ -90,6 +93,10 @@ impl Tokenizer for WordTokenizer {
 
         Ok(tokens)
     }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
+    }
 }
 
 /// Tokenizer for splitting text into sentences
@@ -143,6 +150,10 @@ impl Tokenizer for SentenceTokenizer {
 
         Ok(tokens)
     }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
+    }
 }
 
 /// Tokenizer for splitting text into characters or grapheme clusters
@@ -179,6 +190,10 @@ impl Tokenizer for CharacterTokenizer {
         };
 
         Ok(tokens)
+    }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
     }
 }
 
@@ -277,6 +292,10 @@ impl Tokenizer for NgramTokenizer {
 
         Ok(ngrams)
     }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
+    }
 }
 
 /// Regular expression based tokenizer
@@ -329,6 +348,10 @@ impl Tokenizer for RegexTokenizer {
 
         Ok(tokens)
     }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
+    }
 }
 
 /// Whitespace tokenizer that splits on any whitespace character
@@ -355,6 +378,10 @@ impl Tokenizer for WhitespaceTokenizer {
         }
 
         Ok(text.split_whitespace().map(|s| s.to_string()).collect())
+    }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
     }
 }
 

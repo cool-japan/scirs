@@ -32,11 +32,11 @@ impl UFunc for SinUFunc {
     fn name(&self) -> &str {
         "sin"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -44,7 +44,7 @@ impl UFunc for SinUFunc {
         if inputs.len() != 1 {
             return Err("Sin requires exactly one input array");
         }
-        
+
         // Apply the sine function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.sin())
     }
@@ -57,11 +57,11 @@ impl UFunc for CosUFunc {
     fn name(&self) -> &str {
         "cos"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -69,7 +69,7 @@ impl UFunc for CosUFunc {
         if inputs.len() != 1 {
             return Err("Cos requires exactly one input array");
         }
-        
+
         // Apply the cosine function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.cos())
     }
@@ -82,11 +82,11 @@ impl UFunc for TanUFunc {
     fn name(&self) -> &str {
         "tan"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -94,7 +94,7 @@ impl UFunc for TanUFunc {
         if inputs.len() != 1 {
             return Err("Tan requires exactly one input array");
         }
-        
+
         // Apply the tangent function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.tan())
     }
@@ -107,11 +107,11 @@ impl UFunc for ExpUFunc {
     fn name(&self) -> &str {
         "exp"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -119,7 +119,7 @@ impl UFunc for ExpUFunc {
         if inputs.len() != 1 {
             return Err("Exp requires exactly one input array");
         }
-        
+
         // Apply the exponential function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.exp())
     }
@@ -132,11 +132,11 @@ impl UFunc for LogUFunc {
     fn name(&self) -> &str {
         "log"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -144,7 +144,7 @@ impl UFunc for LogUFunc {
         if inputs.len() != 1 {
             return Err("Log requires exactly one input array");
         }
-        
+
         // Apply the natural logarithm function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.ln())
     }
@@ -157,11 +157,11 @@ impl UFunc for SqrtUFunc {
     fn name(&self) -> &str {
         "sqrt"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -169,7 +169,7 @@ impl UFunc for SqrtUFunc {
         if inputs.len() != 1 {
             return Err("Sqrt requires exactly one input array");
         }
-        
+
         // Apply the square root function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.sqrt())
     }
@@ -182,11 +182,11 @@ impl UFunc for AbsUFunc {
     fn name(&self) -> &str {
         "abs"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Unary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -194,7 +194,7 @@ impl UFunc for AbsUFunc {
         if inputs.len() != 1 {
             return Err("Abs requires exactly one input array");
         }
-        
+
         // Apply the absolute value function element-wise
         apply_unary(inputs[0], output, |&x: &f64| x.abs())
     }
@@ -231,14 +231,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the sine function
     let sin_ufunc = SinUFunc;
     sin_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -271,14 +271,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the cosine function
     let cos_ufunc = CosUFunc;
     cos_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -310,14 +310,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the tangent function
     let tan_ufunc = TanUFunc;
     tan_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -348,14 +348,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the exponential function
     let exp_ufunc = ExpUFunc;
     exp_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -386,14 +386,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the natural logarithm function
     let log_ufunc = LogUFunc;
     log_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -423,14 +423,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the square root function
     let sqrt_ufunc = SqrtUFunc;
     sqrt_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 
@@ -460,14 +460,14 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_math_ufuncs();
-    
+
     // Create output array
     let mut result = Array::zeros(array.raw_dim());
-    
+
     // Apply the absolute value function
     let abs_ufunc = AbsUFunc;
     abs_ufunc.apply(&[array], &mut result).unwrap();
-    
+
     result
 }
 

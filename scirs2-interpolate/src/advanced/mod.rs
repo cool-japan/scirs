@@ -16,7 +16,13 @@ pub mod akima;
 pub mod barycentric;
 pub mod enhanced_kriging;
 pub mod enhanced_rbf;
-pub mod fast_kriging;
+// Fast Kriging algorithms for large datasets
+// Currently using a reexport with defined API but placeholder implementations
+// This module is under active development with algorithms being optimized
+// Full implementations will be available in future updates
+pub mod fast_kriging_reexports;
+// Aliasing to maintain API compatibility
+pub use fast_kriging_reexports as fast_kriging;
 pub mod kriging;
 pub mod rbf;
 pub mod thinplate;

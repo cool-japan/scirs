@@ -312,9 +312,8 @@ where
     }
 
     fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {
-        // Convert to CSR for matrix-vector multiplication
-        let csr = <Self as SymSparseArray<T>>::to_csr(self)?;
-        SparseArray::<T>::dot_vector(&csr, other)
+        // Use optimized symmetric matrix-vector product
+        crate::sym_ops::sym_csr_matvec(self.inner(), other)
     }
 
     fn copy(&self) -> Box<dyn SparseArray<T>> {
@@ -684,9 +683,8 @@ where
     }
 
     fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {
-        // Convert to CSR for matrix-vector multiplication
-        let csr = <Self as SymSparseArray<T>>::to_csr(self)?;
-        SparseArray::<T>::dot_vector(&csr, other)
+        // Use optimized symmetric matrix-vector product
+        crate::sym_ops::sym_coo_matvec(self.inner(), other)
     }
 
     fn copy(&self) -> Box<dyn SparseArray<T>> {

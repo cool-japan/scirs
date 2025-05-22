@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
-use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rand::SeedableRng;
 use rand_distr::{Distribution, Normal};
 use scirs2_fft::{
     sparse_fft::sparse_fft,
@@ -48,10 +48,11 @@ fn create_noisy_sparse_signal(
 fn setup_memory_manager() {
     init_global_memory_manager(
         GPUBackend::CPUFallback, // Use CPU fallback for benchmarks if CUDA is not available
-        0, // Device ID 0
+        0,                       // Device ID 0
         AllocationStrategy::CacheBySize, // Use cache by size strategy
-        1_073_741_824, // 1GB of memory
-    ).unwrap();
+        1_073_741_824,           // 1GB of memory
+    )
+    .unwrap();
 }
 
 /// CPU Benchmarks

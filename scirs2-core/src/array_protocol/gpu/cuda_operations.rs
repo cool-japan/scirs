@@ -46,33 +46,33 @@ where
 {
     // In a real implementation, this would use CUBLAS for matrix multiplication.
     // For now, we'll simulate the behavior with a CPU fallback.
-    
+
     // Check if arrays are on the same device
     if a.device_id() != b.device_id() {
         return Err(NotImplemented);
     }
-    
+
     // Get dimensions
     let a_shape = a.shape();
     let b_shape = b.shape();
-    
+
     // Verify matrix dimensions
     if a_shape.len() != 2 || b_shape.len() != 2 || a_shape[1] != b_shape[0] {
         return Err(NotImplemented);
     }
-    
+
     // Transfer to CPU, perform operation, and transfer back to GPU
     let a_cpu = a.to_cpu().unwrap();
     let b_cpu = b.to_cpu().unwrap();
-    
+
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
     let b_array = b_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     let result = a_array.dot(b_array);
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, a.config().clone());
-    
+
     Ok(result_gpu)
 }
 
@@ -89,28 +89,28 @@ where
 {
     // In a real implementation, this would use a custom CUDA kernel for addition.
     // For now, we'll simulate the behavior with a CPU fallback.
-    
+
     // Check if arrays are on the same device
     if a.device_id() != b.device_id() {
         return Err(NotImplemented);
     }
-    
+
     // Check if shapes are compatible for broadcasting
     let a_shape = a.shape();
     let b_shape = b.shape();
-    
+
     // Transfer to CPU, perform operation, and transfer back to GPU
     let a_cpu = a.to_cpu().unwrap();
     let b_cpu = b.to_cpu().unwrap();
-    
+
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
     let b_array = b_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     let result = a_array + b_array;
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, a.config().clone());
-    
+
     Ok(result_gpu)
 }
 
@@ -124,24 +124,24 @@ where
     D2: Dimension,
 {
     // Similar implementation to cuda_add, but with multiplication
-    
+
     // Check if arrays are on the same device
     if a.device_id() != b.device_id() {
         return Err(NotImplemented);
     }
-    
+
     // Transfer to CPU, perform operation, and transfer back to GPU
     let a_cpu = a.to_cpu().unwrap();
     let b_cpu = b.to_cpu().unwrap();
-    
+
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
     let b_array = b_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     let result = a_array * b_array;
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, a.config().clone());
-    
+
     Ok(result_gpu)
 }
 
@@ -157,16 +157,16 @@ where
     if shape.len() != 2 {
         return Err(NotImplemented);
     }
-    
+
     // Transfer to CPU, perform operation, and transfer back to GPU
     let a_cpu = a.to_cpu().unwrap();
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     let result = a_array.t().to_owned();
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, a.config().clone());
-    
+
     Ok(result_gpu)
 }
 
@@ -181,7 +181,7 @@ where
     // Transfer to CPU, perform operation
     let a_cpu = a.to_cpu().unwrap();
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     match axis {
         Some(ax) => {
             let result = a_array.sum_axis(ndarray::Axis(ax));
@@ -206,7 +206,7 @@ where
     // Transfer to CPU, perform operation, and transfer back to GPU
     let a_cpu = a.to_cpu().unwrap();
     let a_array = a_cpu.downcast_ref::<NdarrayWrapper<f64, _>>().unwrap().as_array();
-    
+
     match a_array.clone().into_shape(shape) {
         Ok(result) => {
             // Create a new GPU array with the result
@@ -232,25 +232,25 @@ where
     if input.device_id() != kernel.device_id() {
         return Err(NotImplemented);
     }
-    
+
     // In a real implementation, this would use cuDNN for convolution.
     // For now, we'll return a placeholder result.
-    
+
     let input_shape = input.shape();
     if input_shape.len() != 2 {
         return Err(NotImplemented);
     }
-    
+
     // Calculate output dimensions (simplified)
     let h_out = (input_shape[0] - kernel.shape()[0] + 2 * padding.0) / stride.0 + 1;
     let w_out = (input_shape[1] - kernel.shape()[1] + 2 * padding.1) / stride.1 + 1;
-    
+
     // Create a placeholder result array
     let result = Array::<f64, _>::zeros((h_out, w_out));
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, input.config().clone());
-    
+
     Ok(result_gpu)
 }
 
@@ -266,20 +266,20 @@ where
     if shape.len() != 2 {
         return Err(NotImplemented);
     }
-    
+
     // In a real implementation, this would use cuSOLVER for SVD.
     // For now, we'll create placeholder arrays.
-    
+
     let (m, n) = (shape[0], shape[1]);
     let u = Array::<f64, _>::eye(m);
     let s = Array::<f64, _>::ones(m.min(n));
     let vt = Array::<f64, _>::eye(n);
-    
+
     // Create new GPU arrays with the results
     let u_gpu = GPUNdarray::new(u, a.config().clone());
     let s_gpu = GPUNdarray::new(s, a.config().clone());
     let vt_gpu = GPUNdarray::new(vt, a.config().clone());
-    
+
     Ok((u_gpu, s_gpu, vt_gpu))
 }
 
@@ -295,15 +295,15 @@ where
     if shape.len() != 2 || shape[0] != shape[1] {
         return Err(NotImplemented);
     }
-    
+
     // In a real implementation, this would use cuSOLVER for matrix inversion.
     // For now, we'll create a placeholder identity matrix.
-    
+
     let n = shape[0];
     let result = Array::<f64, _>::eye(n);
-    
+
     // Create a new GPU array with the result
     let result_gpu = GPUNdarray::new(result, a.config().clone());
-    
+
     Ok(result_gpu)
 }

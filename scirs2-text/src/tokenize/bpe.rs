@@ -445,6 +445,10 @@ impl Tokenizer for BpeTokenizer {
 
         Ok(tokens)
     }
+
+    fn clone_box(&self) -> Box<dyn Tokenizer + Send + Sync> {
+        Box::new(self.clone())
+    }
 }
 
 #[cfg(test)]

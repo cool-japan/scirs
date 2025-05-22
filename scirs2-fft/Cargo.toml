@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-fft"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Fast Fourier Transform module for SciRS2"
@@ -24,11 +24,11 @@ ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "1.0.69"
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3", features = ["simd", "parallel"] }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["simd", "parallel"] }
 rayon = { version = "1.10.0", optional = true }
 
 # FFT specific dependencies
-rustfft = "6.2.0"
+rustfft = { workspace = true }
 rand = "0.9.0"
 
 # Serialization dependencies

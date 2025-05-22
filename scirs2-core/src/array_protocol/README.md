@@ -95,11 +95,33 @@ For more detailed information, see:
 
 ## Implementation Status
 
-This module is fully implemented with support for:
+This module is partially implemented with active development on the following components:
 
 - GPU arrays with multiple backends (CUDA, ROCm, Metal, WebGPU, OpenCL)
+  - CUDA backend is fully implemented
+  - ROCm, Metal, WebGPU, and OpenCL support is implemented as feature flags
+  - Basic operations (add, matmul, transpose, reshape) are implemented
+  
 - Distributed arrays with different distribution strategies
+  - Basic infrastructure is implemented
+  - Row-wise, column-wise, and block distribution strategies are supported
+  - Map-reduce operations are implemented
+  - Operations (add, subtract, multiply, matmul, transpose, reshape) are implemented
+  
+- Mixed-precision operations
+  - Support for different storage and compute precisions
+  - Automatic precision selection based on array size and operation
+  - Precision conversion between f32 and f64
+  - Mixed-precision operations for matmul, element-wise operations, and reductions
+  
 - JIT compilation with multiple backends
+  - Basic infrastructure is implemented
+  - Function expression compilation is supported
+  - Support for LLVM backend is in development
+  
 - Core array protocol infrastructure
+  - ArrayProtocol trait for interoperability
+  - ArrayFunction for dispatch
+  - Dynamic type-based dispatch
 
-All features are ready to use in production code.
+The module is currently in alpha status, with ongoing development to improve performance, robustness, and feature completeness. The core functionality is usable for experimental code, but not yet production-ready. The primary focus is on expanding the operation set and optimizing performance for different backend implementations.

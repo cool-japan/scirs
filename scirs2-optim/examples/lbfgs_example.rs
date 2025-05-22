@@ -108,7 +108,7 @@ fn test_lbfgs_on_rosenbrock() {
     // Test that L-BFGS converges on the Rosenbrock function
     // Use a higher learning rate for better convergence
     let mut optimizer = LBFGS::new(0.5);
-    
+
     // Start from a point closer to the solution
     let mut params = Array1::from_vec(vec![0.0, 0.0]);
 

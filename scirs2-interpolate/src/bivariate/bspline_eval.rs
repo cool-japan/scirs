@@ -598,7 +598,7 @@ mod tests {
             Some(5),
         );
 
-        // FIXME: Currently returns 0.0 due to PartialOrd issues  
+        // FIXME: Currently returns 0.0 due to PartialOrd issues
         // assert_relative_eq!(integral_half, 0.25, epsilon = 1e-8);
         assert!(integral_half.is_finite()); // Basic check that we get a valid number
     }

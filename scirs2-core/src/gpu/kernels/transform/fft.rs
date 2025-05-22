@@ -103,7 +103,7 @@ struct Uniforms {
 @compute @workgroup_size(256)
 fn fft_1d_forward(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
-    
+
     if (i < uniforms.n) {
         // This is just a placeholder, not a real FFT
         output[i] = input[i];
@@ -151,7 +151,7 @@ __kernel void fft_1d_forward(
     const int n)
 {
     int i = get_global_id(0);
-    
+
     if (i < n) {
         // This is just a placeholder, not a real FFT
         output[i] = input[i];
@@ -177,8 +177,8 @@ __kernel void fft_1d_forward(
     /// Generate a kernel specialized for a specific size
     fn generate_specialized_kernel(
         &self,
-        data_type: DataType,
-        size: usize,
+        _data_type: DataType,
+        _size: usize,
     ) -> Result<FftKernel, GpuError> {
         // In a real implementation, we would generate different kernels
         // optimized for different sizes (especially powers of 2)

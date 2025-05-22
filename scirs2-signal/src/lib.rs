@@ -3,6 +3,11 @@
 //! This module provides implementations of various signal processing algorithms
 //! for filtering, convolution, and spectral analysis.
 //!
+//! Refactored modules:
+//! - features: Comprehensive time series feature extraction in modular structure
+//! - wavelets: Wavelet transforms and related functionality in modular structure
+//! - multitaper: Multitaper spectral estimation methods in modular structure
+//!
 //! ## Overview
 //!
 //! * Filtering: FIR and IIR filters, filter design, Savitzky-Golay filter
@@ -64,6 +69,15 @@ pub mod detrend;
 pub mod dwt;
 pub mod dwt2d;
 pub mod dwt2d_image;
+pub mod emd;
+pub mod features;
+pub mod image_features;
+pub mod utilities;
+
+// Re-export the main public DWT functionality
+pub use dwt::{
+    dwt_decompose, dwt_reconstruct, extend_signal, wavedec, waverec, Wavelet, WaveletFilters,
+};
 pub mod filter;
 pub mod higher_order;
 pub mod interpolate;
@@ -72,9 +86,11 @@ pub mod lombscargle;
 pub mod lti;
 pub mod lti_response;
 pub mod median;
+pub mod multitaper;
 pub mod nlm;
 pub mod parametric;
 pub mod peak;
+pub mod phase_vocoder;
 pub mod reassigned;
 pub mod resample;
 pub mod savgol;
@@ -168,12 +184,19 @@ pub use wvd::{cross_wigner_ville, smoothed_pseudo_wigner_ville, wigner_ville, Wv
 // Savitzky-Golay filtering
 pub use savgol::{savgol_coeffs, savgol_filter};
 
-// Wavelet transform functions
-pub use dwt::{dwt_decompose, dwt_reconstruct, wavedec, waverec, Wavelet, WaveletFilters};
+// Multitaper spectral analysis
+pub use multitaper::{
+    adaptive_psd, coherence, dpss, multitaper_filtfilt, multitaper_spectrogram, pmtm,
+};
+
+// Wavelet transform functions already re-exported above
 pub use dwt2d::{dwt2d_decompose, dwt2d_reconstruct, wavedec2, waverec2, Dwt2dResult};
 pub use swt::{iswt, swt, swt_decompose, swt_reconstruct};
 pub use swt2d::{iswt2d, swt2d, swt2d_decompose, swt2d_reconstruct, Swt2dResult};
-pub use wavelets::{complex_gaussian, complex_morlet, cwt, fbsp, morlet, paul, ricker, shannon};
+pub use wavelets::{
+    complex_gaussian, complex_morlet, cwt, cwt_magnitude, cwt_phase, fbsp, morlet, paul, ricker,
+    scale_to_frequency, scalogram, shannon,
+};
 pub use wpt::{
     get_level_coefficients, reconstruct_from_nodes, wp_decompose, WaveletPacket, WaveletPacketTree,
 };
@@ -208,12 +231,40 @@ pub use wavelet_vis::{
     WaveletEnergy,
 };
 
+// Utilities module re-exports
+pub use utilities::spectral::{
+    energy_spectral_density, normalized_psd, spectral_centroid, spectral_flatness, spectral_flux,
+    spectral_kurtosis, spectral_rolloff, spectral_skewness, spectral_spread,
+};
+
 // Signal measurement functions
 pub mod measurements;
 pub use measurements::{peak_to_peak, peak_to_rms, rms, snr, thd};
 
+// Phase vocoder for time stretching and pitch shifting
+pub use phase_vocoder::{phase_vocoder, PhaseVocoderConfig};
+
+// Empirical Mode Decomposition (EMD) for nonlinear and non-stationary signals
+pub use emd::{eemd, emd, hilbert_huang_spectrum, EmdConfig, EmdResult};
+
+// Feature extraction for time series analysis
+pub use features::{
+    activity_recognition_features, extract_features, extract_features_batch, FeatureOptions,
+};
+
+// Feature extraction for image analysis
+pub use image_features::{
+    extract_color_image_features, extract_image_features, ImageFeatureOptions,
+};
+
 // Utility functions for signal processing
 pub mod utils;
+
+// Re-export spectral utility functions
+pub use utilities::spectral::{
+    dominant_frequencies, dominant_frequency, spectral_bandwidth, spectral_contrast,
+    spectral_crest, spectral_decrease, spectral_slope,
+};
 
 // Window functions
 pub use window::{

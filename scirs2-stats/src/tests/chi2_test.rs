@@ -69,7 +69,8 @@ where
         + NumCast
         + Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
     I: num_traits::PrimInt + NumCast,
 {
     // Check if observed is empty
@@ -179,7 +180,8 @@ where
         + NumCast
         + Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
     I: num_traits::PrimInt + NumCast,
 {
     // Check if observed is empty
@@ -293,7 +295,8 @@ where
         + NumCast
         + Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
     I: num_traits::PrimInt + NumCast,
 {
     // Check if observed is a 2x2 table

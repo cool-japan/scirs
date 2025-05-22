@@ -86,8 +86,15 @@ This module provides automatic differentiation functionality comparable to PyTor
   - [x] Eigendecomposition (basic implementation)
 - [x] Matrix norms
   - [x] Frobenius norm
-  - [ ] Spectral norm
-  - [ ] Nuclear norm
+  - [x] Spectral norm (basic implementation)
+  - [x] Nuclear norm (basic implementation)
+  - [ ] Matrix norm gradient enhancements (issue #42)
+    - [ ] Numerically stable Frobenius norm gradients
+    - [ ] SVD-based spectral norm gradients with proper backpropagation
+    - [ ] Nuclear norm gradient calculation via full SVD
+    - [ ] Optimized gradient implementations for large matrices
+    - [ ] Comprehensive gradient tests and validation
+    - [ ] See MATRIX_NORM_GRADIENTS.md for detailed implementation guide
 - [ ] Matrix functions
   - [ ] Matrix exponential
   - [ ] Matrix logarithm
@@ -293,7 +300,79 @@ This module provides automatic differentiation functionality comparable to PyTor
   - [ ] Performance comparisons
   - [ ] Memory efficiency analysis
 
-## Long-term Goals
+## Short-term Improvements (Next 3-6 months)
+
+### Immediate Priorities
+- [ ] Matrix norm gradient fixes (issue #42)
+  - [ ] Complete implementation following MATRIX_NORM_GRADIENTS.md guide
+  - [ ] Reactivate and expand gradient tests
+  - [ ] Performance benchmarking against reference implementations
+- [ ] Gradient system robustness
+  - [ ] Fix placeholder/feeder system issues causing test failures
+  - [ ] Improve error handling in gradient computation
+  - [ ] Add gradient verification utilities
+- [ ] Memory optimization
+  - [ ] Implement more efficient gradient checkpointing strategies
+  - [ ] Reduce memory allocations in hot paths
+  - [ ] Add memory profiling and optimization tooling
+
+### Core Feature Enhancements
+- [ ] Enhanced linear algebra operations
+  - [ ] Cholesky decomposition with gradients
+  - [ ] Improved eigendecomposition for symmetric matrices
+  - [ ] Matrix functions (exp, log, power) with proper gradients
+- [ ] More activation functions
+  - [ ] Swish, GELU, Mish activations
+  - [ ] Learnable activation functions
+  - [ ] Custom activation function framework
+- [ ] Advanced optimizers
+  - [ ] AdamW optimizer
+  - [ ] Learning rate schedulers
+  - [ ] Gradient clipping utilities
+- [ ] Tensor manipulation improvements
+  - [ ] More efficient reshape and slice operations
+  - [ ] Advanced indexing operations
+  - [ ] Tensor broadcasting optimizations
+
+### Code Quality and Testing
+- [ ] Comprehensive test coverage
+  - [ ] Property-based testing for mathematical operations
+  - [ ] Stress testing with large tensors
+  - [ ] Numerical stability testing framework
+- [ ] Documentation improvements
+  - [ ] API documentation with examples
+  - [ ] Tutorial notebooks for common use cases
+  - [ ] Performance guide for users
+- [ ] Code maintenance
+  - [ ] Refactor large files into smaller modules
+  - [ ] Address all clippy warnings
+  - [ ] Improve error messages and debugging
+
+## Medium-term Goals (6-12 months)
+
+### Performance Optimization
+- [ ] SIMD acceleration for element-wise operations
+- [ ] Multi-threading optimization for large tensor operations
+- [ ] Memory layout optimizations for cache efficiency
+- [ ] Graph-level optimizations (fusion, constant folding)
+
+### Advanced Features
+- [ ] Higher-order differentiation improvements
+  - [ ] Efficient Hessian computation
+  - [ ] Mixed-mode automatic differentiation
+  - [ ] Forward-mode AD for specific use cases
+- [ ] Custom operation framework
+  - [ ] Plugin system for user-defined operations
+  - [ ] Automatic gradient derivation for simple operations
+  - [ ] Operation composition utilities
+
+### Integration and Ecosystem
+- [ ] Better integration with ndarray ecosystem
+- [ ] Interoperability with candle and burn frameworks
+- [ ] Export/import capabilities for ONNX models
+- [ ] Integration with scientific computing libraries
+
+## Long-term Goals (1+ years)
 
 - [ ] Feature parity with PyTorch/TensorFlow autograd
   - [ ] Full operation coverage

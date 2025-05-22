@@ -316,13 +316,13 @@ mod tests {
         assert_relative_eq!(points[0].im, 0.0, epsilon = 1e-10);
 
         // Check that points are evenly spaced on unit circle (W = exp(-j*2π/4))
-        for i in 0..4 {
+        points.iter().enumerate().take(4).for_each(|(i, point)| {
             let angle = -2.0 * std::f64::consts::PI * i as f64 / 4.0;
             let expected = Complex64::new(angle.cos(), angle.sin());
 
-            assert_relative_eq!(points[i].re, expected.re, epsilon = 1e-10);
-            assert_relative_eq!(points[i].im, expected.im, epsilon = 1e-10);
-        }
+            assert_relative_eq!(point.re, expected.re, epsilon = 1e-10);
+            assert_relative_eq!(point.im, expected.im, epsilon = 1e-10);
+        });
     }
 
     #[test]

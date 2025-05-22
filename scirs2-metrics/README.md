@@ -10,7 +10,7 @@ Evaluation metrics module for the SciRS2 scientific computing library. This modu
 
 - **Classification Metrics**: Accuracy, precision, recall, F1-score, ROC curves, AUC, etc.
 - **Regression Metrics**: MSE, MAE, R2 score, explained variance, etc.
-- **Clustering Metrics**: Silhouette score, Calinski-Harabasz index, Davies-Bouldin index, etc.
+- **Clustering Metrics**: Internal metrics (Silhouette score, Calinski-Harabasz index, Davies-Bouldin index, etc.) and external metrics (Adjusted Rand Index, Normalized Mutual Information, etc.)
 - **General Evaluation**: Cross-validation, learning curves, confusion matrices
 - **Visualization**: ROC curves, precision-recall curves, confusion matrices, calibration plots, and more
 - **Integration**: Seamless integration with other SciRS2 modules (neural, optim)
@@ -21,25 +21,25 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-metrics = "0.1.0-alpha.3"
+scirs2-metrics = "0.1.0-alpha.4"
 ```
 
 To enable optimizations through the core module or integration with other modules, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.1.0-alpha.3", features = ["parallel"] }
+scirs2-metrics = { version = "0.1.0-alpha.4", features = ["parallel"] }
 
 # For integration with neural networks
-scirs2-metrics = { version = "0.1.0-alpha.3", features = ["neural_common"] }
+scirs2-metrics = { version = "0.1.0-alpha.4", features = ["neural_common"] }
 
 # For integration with optimization
-scirs2-metrics = { version = "0.1.0-alpha.3", features = ["optim_integration"] }
+scirs2-metrics = { version = "0.1.0-alpha.4", features = ["optim_integration"] }
 
 # For visualization capabilities
-scirs2-metrics = { version = "0.1.0-alpha.3", features = ["plotters_backend"] }
+scirs2-metrics = { version = "0.1.0-alpha.4", features = ["plotters_backend"] }
 # or
-scirs2-metrics = { version = "0.1.0-alpha.3", features = ["plotly_backend"] }
+scirs2-metrics = { version = "0.1.0-alpha.4", features = ["plotly_backend"] }
 ```
 
 ## Usage
@@ -117,17 +117,34 @@ fn clustering_metrics_example() -> CoreResult<()> {
         [9.0, 11.0]
     ];
     
-    // Cluster labels
-    let labels = array![0, 0, 1, 1, 0, 1];
+    // Predicted cluster labels from algorithm
+    let pred_labels = array![0, 0, 1, 1, 0, 1];
     
-    // Calculate clustering metrics
-    let silhouette = clustering::silhouette_score(&data, &labels, None, None)?;
-    let calinski_harabasz = clustering::calinski_harabasz_score(&data, &labels)?;
-    let davies_bouldin = clustering::davies_bouldin_score(&data, &labels)?;
+    // Calculate internal clustering metrics (no ground truth needed)
+    let silhouette = clustering::silhouette_score(&data, &pred_labels, None, None)?;
+    let calinski_harabasz = clustering::calinski_harabasz_score(&data, &pred_labels)?;
+    let davies_bouldin = clustering::davies_bouldin_score(&data, &pred_labels)?;
     
+    println!("Internal Metrics (evaluate clustering without ground truth):");
     println!("Silhouette Score: {}", silhouette);
     println!("Calinski-Harabasz Index: {}", calinski_harabasz);
     println!("Davies-Bouldin Index: {}", davies_bouldin);
+    
+    // For external metrics, we need ground truth labels
+    let true_labels = array![0, 0, 1, 1, 0, 2];  // True class assignments
+    
+    // Calculate external clustering metrics (comparing to ground truth)
+    let ari = clustering::adjusted_rand_index(&true_labels, &pred_labels)?;
+    let nmi = clustering::normalized_mutual_info_score(&true_labels, &pred_labels, "arithmetic")?;
+    let (homogeneity, completeness, v_measure) = 
+        clustering::homogeneity_completeness_v_measure(&true_labels, &pred_labels, 1.0)?;
+    
+    println!("\nExternal Metrics (compare to ground truth):");
+    println!("Adjusted Rand Index: {}", ari);
+    println!("Normalized Mutual Information: {}", nmi);
+    println!("Homogeneity: {}", homogeneity);
+    println!("Completeness: {}", completeness);
+    println!("V-measure: {}", v_measure);
     
     Ok(())
 }
@@ -497,9 +514,10 @@ use scirs2_metrics::clustering::{
     davies_bouldin_score,   // Calculate Davies-Bouldin Index
     
     // External Metrics (with ground truth)
-    adjusted_rand_score,    // Calculate Adjusted Rand Index
+    adjusted_rand_index,    // Calculate Adjusted Rand Index
     normalized_mutual_info_score, // Calculate normalized mutual information
     adjusted_mutual_info_score, // Calculate adjusted mutual information
+    homogeneity_completeness_v_measure, // Calculate homogeneity, completeness and V-measure
     fowlkes_mallows_score,  // Calculate Fowlkes-Mallows Index
     
     // Contingency Matrix

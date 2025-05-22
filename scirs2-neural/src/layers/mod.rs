@@ -93,7 +93,7 @@ mod dense;
 mod dropout;
 mod embedding;
 mod normalization;
-mod recurrent;
+pub mod recurrent;
 mod rnn_thread_safe;
 
 // Re-export layer types

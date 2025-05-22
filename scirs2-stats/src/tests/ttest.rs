@@ -83,7 +83,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Handle NaN values according to policy
     let data = match nan_policy {
@@ -201,7 +202,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Handle NaN values according to policy
     let (data_a, data_b) = match nan_policy {
@@ -368,7 +370,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Handle NaN values and pair the data
     let paired_data = match nan_policy {
@@ -518,7 +521,7 @@ pub fn ttest_ind_from_stats<F>(
     alternative: Alternative,
 ) -> StatsResult<TTestResult<F>>
 where
-    F: Float + NumCast + std::marker::Send + std::marker::Sync + std::fmt::Display,
+    F: Float + NumCast + std::marker::Send + std::marker::Sync + std::fmt::Display + 'static,
 {
     // Check if inputs are valid
     if nobs1 == 0 || nobs2 == 0 {

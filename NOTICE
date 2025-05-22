@@ -5,7 +5,7 @@ This software is dual-licensed under MIT License and Apache License 2.0. Please 
 
 Portions of this software are inspired by or based on SciPy:
 SciPy (https://scipy.org/)
-Copyright © 2001-2024 SciPy developers. All rights reserved.
+Copyright © 2001-2025 SciPy developers. All rights reserved.
 
 This implementation uses several Rust crates from third parties, including:
 - ndarray

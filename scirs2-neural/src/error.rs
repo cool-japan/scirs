@@ -25,6 +25,10 @@ pub enum NeuralError {
     NotImplementedError(String),
     /// IO error
     IOError(String),
+    /// Invalid argument error
+    InvalidArgument(String),
+    /// Shape mismatch error  
+    ShapeMismatch(String),
     /// Other error
     Other(String),
 }
@@ -40,6 +44,8 @@ impl fmt::Display for NeuralError {
             NeuralError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             NeuralError::NotImplementedError(msg) => write!(f, "Not implemented: {}", msg),
             NeuralError::IOError(msg) => write!(f, "IO error: {}", msg),
+            NeuralError::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
+            NeuralError::ShapeMismatch(msg) => write!(f, "Shape mismatch: {}", msg),
             NeuralError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }

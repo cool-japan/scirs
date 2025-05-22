@@ -73,7 +73,7 @@ struct Uniforms {
 @compute @workgroup_size(256)
 fn axpy(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
-    
+
     if (i < uniforms.n) {
         y[i] = uniforms.alpha * x[i] + y[i];
     }
@@ -120,7 +120,7 @@ __kernel void axpy(
     }
 
     /// Create a specialized version of the kernel with a hardcoded alpha value
-    pub fn with_alpha(alpha: f32) -> Box<dyn GpuKernel> {
+    pub fn with_alpha(_alpha: f32) -> Box<dyn GpuKernel> {
         // In a full implementation, we'd generate a specialized kernel with
         // the alpha value hardcoded for better performance
         Box::new(Self::new())

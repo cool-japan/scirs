@@ -219,7 +219,8 @@ pub trait SymplecticIntegrator<F: IntegrateFloat> {
 }
 
 /// Type alias for Hamiltonian function
-pub type HamiltonianFnBox<'a, F> = Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> IntegrateResult<F> + 'a>;
+pub type HamiltonianFnBox<'a, F> =
+    Box<dyn Fn(F, &Array1<F>, &Array1<F>) -> IntegrateResult<F> + 'a>;
 
 /// Trait for Hamiltonian systems
 pub trait HamiltonianFn<F: IntegrateFloat> {
@@ -263,9 +264,7 @@ pub trait HamiltonianFn<F: IntegrateFloat> {
     /// # Returns
     ///
     /// Value of the Hamiltonian (energy)
-    fn hamiltonian(
-        &self,
-    ) -> Option<HamiltonianFnBox<'_, F>> {
+    fn hamiltonian(&self) -> Option<HamiltonianFnBox<'_, F>> {
         None
     }
 }

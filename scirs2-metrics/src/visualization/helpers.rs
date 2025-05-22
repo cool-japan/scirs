@@ -3,9 +3,10 @@
 //! This module provides helper functions for creating visualizations for common
 //! metrics result types.
 
-use ndarray::{Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::error::Error;
 
+use crate::visualization::interactive::InteractiveOptions;
 use crate::visualization::{ColorMap, PlotType, VisualizationData, VisualizationMetadata};
 
 /// Create a confusion matrix visualization from a confusion matrix array
@@ -72,6 +73,99 @@ where
         thresholds_vec,
         auc,
     ))
+}
+
+/// Create an interactive ROC curve visualization
+///
+/// # Arguments
+///
+/// * `fpr` - False positive rates
+/// * `tpr` - True positive rates
+/// * `thresholds` - Optional thresholds
+/// * `auc` - Optional area under the curve
+/// * `interactive_options` - Optional interactive options
+///
+/// # Returns
+///
+/// * `Box<dyn crate::visualization::MetricVisualizer>` - An interactive visualizer for the ROC curve
+pub fn visualize_interactive_roc_curve<A>(
+    fpr: ArrayView1<A>,
+    tpr: ArrayView1<A>,
+    thresholds: Option<ArrayView1<A>>,
+    auc: Option<f64>,
+    interactive_options: Option<InteractiveOptions>,
+) -> Box<dyn crate::visualization::MetricVisualizer>
+where
+    A: Clone + Into<f64>,
+{
+    // Convert the arrays to f64 vectors
+    let fpr_vec = fpr.iter().map(|x| x.clone().into()).collect::<Vec<f64>>();
+    let tpr_vec = tpr.iter().map(|x| x.clone().into()).collect::<Vec<f64>>();
+    let thresholds_vec =
+        thresholds.map(|t| t.iter().map(|x| x.clone().into()).collect::<Vec<f64>>());
+
+    let mut visualizer = crate::visualization::interactive::interactive_roc_curve_visualization(
+        fpr_vec,
+        tpr_vec,
+        thresholds_vec,
+        auc,
+    );
+
+    if let Some(options) = interactive_options {
+        visualizer = visualizer.with_interactive_options(options);
+    }
+
+    Box::new(visualizer)
+}
+
+/// Create an interactive ROC curve visualization from labels and scores
+///
+/// # Arguments
+///
+/// * `y_true` - True binary labels
+/// * `y_score` - Target scores (probabilities or decision function output)
+/// * `pos_label` - Optional positive class label
+/// * `interactive_options` - Optional interactive options
+///
+/// # Returns
+///
+/// * `Result<Box<dyn crate::visualization::MetricVisualizer>, Box<dyn Error>>` - An interactive visualizer for the ROC curve
+pub fn visualize_interactive_roc_from_labels<A, B>(
+    y_true: ArrayView1<A>,
+    y_score: ArrayView1<B>,
+    _pos_label: Option<A>,
+    interactive_options: Option<InteractiveOptions>,
+) -> Result<Box<dyn crate::visualization::MetricVisualizer>, Box<dyn Error>>
+where
+    A: Clone + PartialOrd + 'static,
+    B: Clone + PartialOrd + 'static,
+    f64: From<A> + From<B>,
+{
+    // Compute ROC curve
+    let (fpr, tpr, _thresholds) = crate::classification::curves::roc_curve(&y_true, &y_score)
+        .map_err(|e| Box::new(e) as Box<dyn Error>)?;
+
+    // Calculate AUC - simplified version
+    let auc = {
+        let n = fpr.len();
+        let mut area = 0.0;
+        for i in 1..n {
+            area += (fpr[i] - fpr[i - 1]) * (tpr[i] + tpr[i - 1]) / 2.0;
+        }
+        area
+    };
+
+    // Create an owned ROC curve visualizer using raw data
+    let mut visualizer = crate::visualization::interactive::roc_curve::InteractiveROCVisualizer::<
+        f64,
+        ndarray::OwnedRepr<f64>,
+    >::new(fpr.to_vec(), tpr.to_vec(), None, Some(auc));
+
+    if let Some(options) = interactive_options {
+        visualizer = visualizer.with_interactive_options(options);
+    }
+
+    Ok(Box::new(visualizer))
 }
 
 /// Create a precision-recall curve visualization

@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-stats"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Statistical functions module for SciRS2"
@@ -16,8 +16,8 @@ num-traits = "0.2.19"
 num-complex = "0.4.6"
 thiserror = "2.0.12"
 ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
-scirs2-core = { version = "0.1.0-alpha.3", path = "../scirs2-core", features = ["validation", "parallel", "simd", "linalg", "openblas"] }
-scirs2-linalg = { version = "0.1.0-alpha.3", path = "../scirs2-linalg" }
+scirs2-core = { version = "0.1.0-alpha.4", path = "../scirs2-core", features = ["validation", "parallel", "simd", "linalg", "openblas"] }
+scirs2-linalg = { version = "0.1.0-alpha.4", path = "../scirs2-linalg" }
 openblas-src = "0.10.11"
 
 # Statistics specific dependencies

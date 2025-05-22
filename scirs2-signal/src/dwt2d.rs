@@ -297,11 +297,14 @@ where
             })
             .collect();
 
-        // Copy results back to the arrays
+        // Copy results back to the arrays with bounds checking
         for (i, approx, detail) in row_results {
             for j in 0..approx.len() {
-                rows_lo[[i, j]] = approx[j];
-                rows_hi[[i, j]] = detail[j];
+                if j < output_cols {
+                    // Make sure we don't go out of bounds
+                    rows_lo[[i, j]] = approx[j];
+                    rows_hi[[i, j]] = detail[j];
+                }
             }
         }
     }
@@ -314,8 +317,11 @@ where
             let (approx, detail) = dwt::dwt_decompose(&row, wavelet, mode)?;
 
             for j in 0..approx.len() {
-                rows_lo[[i, j]] = approx[j];
-                rows_hi[[i, j]] = detail[j];
+                if j < output_cols {
+                    // Make sure we don't go out of bounds
+                    rows_lo[[i, j]] = approx[j];
+                    rows_hi[[i, j]] = detail[j];
+                }
             }
         }
     }
@@ -344,13 +350,19 @@ where
         // Copy results back to output arrays
         for (j, approx_lo, detail_lo, approx_hi, detail_hi) in column_results {
             for i in 0..approx_lo.len() {
-                ll[[i, j]] = approx_lo[i];
-                hl[[i, j]] = detail_lo[i];
+                if i < output_rows {
+                    // Make sure we don't go out of bounds
+                    ll[[i, j]] = approx_lo[i];
+                    hl[[i, j]] = detail_lo[i];
+                }
             }
 
             for i in 0..approx_hi.len() {
-                lh[[i, j]] = approx_hi[i];
-                hh[[i, j]] = detail_hi[i];
+                if i < output_rows {
+                    // Make sure we don't go out of bounds
+                    lh[[i, j]] = approx_hi[i];
+                    hh[[i, j]] = detail_hi[i];
+                }
             }
         }
     }
@@ -363,8 +375,11 @@ where
             let (approx, detail) = dwt::dwt_decompose(&col_lo, wavelet, mode)?;
 
             for i in 0..approx.len() {
-                ll[[i, j]] = approx[i];
-                hl[[i, j]] = detail[i];
+                if i < output_rows {
+                    // Make sure we don't go out of bounds
+                    ll[[i, j]] = approx[i];
+                    hl[[i, j]] = detail[i];
+                }
             }
 
             // Process high-pass filtered rows
@@ -372,8 +387,11 @@ where
             let (approx, detail) = dwt::dwt_decompose(&col_hi, wavelet, mode)?;
 
             for i in 0..approx.len() {
-                lh[[i, j]] = approx[i];
-                hh[[i, j]] = detail[i];
+                if i < output_rows {
+                    // Make sure we don't go out of bounds
+                    lh[[i, j]] = approx[i];
+                    hh[[i, j]] = detail[i];
+                }
             }
         }
     }
@@ -1323,7 +1341,7 @@ mod tests {
     #[test]
     fn test_soft_thresholding() {
         // Create input coefficients
-        let values = vec![-10.0, -6.0, -4.0, -2.0, 0.0, 3.0, 5.0, 8.0];
+        let values = [-10.0, -6.0, -4.0, -2.0, 0.0, 3.0, 5.0, 8.0];
         let threshold = 4.0;
 
         // Apply soft thresholding
@@ -1335,7 +1353,7 @@ mod tests {
         // Expected results:
         // Values below threshold -> 0
         // Values above threshold -> shrink toward zero by threshold amount
-        let expected = vec![-6.0, -2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 4.0];
+        let expected = [-6.0, -2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 4.0];
 
         assert_eq!(thresholded.len(), expected.len());
         for (actual, expected) in thresholded.iter().zip(expected.iter()) {
@@ -1346,7 +1364,7 @@ mod tests {
     #[test]
     fn test_garrote_thresholding() {
         // Create input coefficients (avoiding zero for garrote)
-        let values = vec![-10.0, -6.0, -4.0, -3.0, 3.0, 5.0, 8.0];
+        let values = [-10.0, -6.0, -4.0, -3.0, 3.0, 5.0, 8.0];
         let threshold = 4.0;
 
         // Apply garrote thresholding

@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-interpolate"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Interpolation module for SciRS2"
@@ -11,8 +11,8 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-linalg = { workspace = true, optional = true }
 num-traits = "0.2.19"

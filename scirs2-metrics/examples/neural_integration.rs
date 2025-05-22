@@ -8,6 +8,8 @@
 //! ```
 
 #[cfg(feature = "neural_common")]
+use ndarray::{Array1, Array2};
+#[cfg(feature = "neural_common")]
 use scirs2_metrics::classification::{
     accuracy_score, f1_score, precision_score, recall_score, roc_auc_score,
 };
@@ -61,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Classification example (binary)
         let binary_targets = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0]);
-        let binary_predictions = Array1::from_vec(vec![0.0, 1.0, 0.0, 0.0, 1.0]);
+        let binary_predictions = Array1::from_vec(vec![0.0, 1.0, 0.0, 0.0, 0.0]);
         let binary_scores = Array1::from_vec(vec![0.2, 0.9, 0.3, 0.4, 0.8]);
 
         // Create metric adapters

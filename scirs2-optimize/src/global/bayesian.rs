@@ -355,8 +355,7 @@ fn approx_erf(x: f64) -> f64 {
 }
 
 /// Acquisition function type enum for option selection
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum AcquisitionFunctionType {
     /// Expected Improvement (default)
     #[default]
@@ -377,10 +376,8 @@ impl fmt::Display for AcquisitionFunctionType {
     }
 }
 
-
 /// Kernel type enum for option selection
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum KernelType {
     /// Squared Exponential (default)
     #[default]
@@ -401,10 +398,8 @@ impl fmt::Display for KernelType {
     }
 }
 
-
 /// Initial point generator type
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum InitialPointGenerator {
     /// Random sampling (default)
     #[default]
@@ -427,7 +422,6 @@ impl fmt::Display for InitialPointGenerator {
         }
     }
 }
-
 
 /// Options for Bayesian optimization
 #[derive(Clone, Debug)]

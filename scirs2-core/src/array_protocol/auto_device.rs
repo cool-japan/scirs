@@ -181,7 +181,15 @@ pub enum DeviceType {
 /// the appropriate array wrapper for the target device.
 pub fn convert_to_device<T, D>(array: Array<T, D>, device: DeviceType) -> Box<dyn ArrayProtocol>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -219,7 +227,15 @@ where
 /// based on their size and the operations being performed.
 pub struct AutoDevice<T, D>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -244,7 +260,9 @@ where
         + 'static
         + num_traits::Zero
         + std::ops::Div<f64, Output = T>
-        + Default,
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + std::fmt::Debug + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -260,7 +278,15 @@ where
 
 impl<T, D> AutoDevice<T, D>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -301,7 +327,15 @@ where
 
 impl<T, D> Clone for AutoDevice<T, D>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -317,7 +351,15 @@ where
 
 impl<T, D> ArrayProtocol for AutoDevice<T, D>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -367,7 +409,15 @@ pub fn auto_execute<T, D, F, R>(
     executor: F,
 ) -> CoreResult<R>
 where
-    T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T> + Default,
+    T: Clone
+        + Send
+        + Sync
+        + 'static
+        + num_traits::Zero
+        + std::ops::Div<f64, Output = T>
+        + Default
+        + std::ops::Mul<Output = T>
+        + std::ops::Add<Output = T>,
     D: Dimension + ndarray::RemoveAxis + 'static,
     SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
     SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -408,7 +458,9 @@ pub mod ops {
             + 'static
             + num_traits::Zero
             + std::ops::Div<f64, Output = T>
-            + Default,
+            + Default
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>,
         D: Dimension + ndarray::RemoveAxis + 'static,
         SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
         SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -436,7 +488,9 @@ pub mod ops {
             + 'static
             + num_traits::Zero
             + std::ops::Div<f64, Output = T>
-            + Default,
+            + Default
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>,
         D: Dimension + ndarray::RemoveAxis + 'static,
         SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
         SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,
@@ -464,7 +518,9 @@ pub mod ops {
             + 'static
             + num_traits::Zero
             + std::ops::Div<f64, Output = T>
-            + Default,
+            + Default
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>,
         D: Dimension + ndarray::RemoveAxis + 'static,
         SliceInfo<[SliceInfoElem; 1], Dim<[usize; 1]>, Dim<[usize; 1]>>: SliceArg<D>,
         SliceInfo<[SliceInfoElem; 2], Dim<[usize; 2]>, Dim<[usize; 2]>>: SliceArg<D>,

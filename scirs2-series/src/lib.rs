@@ -42,7 +42,8 @@
 #![warn(missing_docs)]
 
 pub mod arima_models;
-pub mod decomposition;
+pub mod decomposition; // Directory-based modular structure
+pub mod decomposition_compat; // For backward compatibility
 pub mod detection;
 pub mod diagnostics;
 pub mod error;

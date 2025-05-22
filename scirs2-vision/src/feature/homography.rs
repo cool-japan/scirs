@@ -93,9 +93,9 @@ pub fn find_homography_from_matches(
     confidence: f64,
 ) -> Result<(Homography, Vec<bool>)> {
     if matches.is_empty() {
-        return Err(
-            crate::error::VisionError::InvalidParameter("No matches provided".to_string()),
-        );
+        return Err(crate::error::VisionError::InvalidParameter(
+            "No matches provided".to_string(),
+        ));
     }
 
     // Extract matching points

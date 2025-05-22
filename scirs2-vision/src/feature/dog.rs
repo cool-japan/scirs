@@ -248,7 +248,9 @@ fn is_local_extremum(
             let ny = (y as i32 + dy) as usize;
 
             // Current scale
-            if !(dx == 0 && dy == 0) && ((is_max && curr[[ny, nx]] >= val) || (!is_max && curr[[ny, nx]] <= val)) {
+            if !(dx == 0 && dy == 0)
+                && ((is_max && curr[[ny, nx]] >= val) || (!is_max && curr[[ny, nx]] <= val))
+            {
                 return false;
             }
 

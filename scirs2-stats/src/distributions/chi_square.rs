@@ -22,7 +22,7 @@ pub struct ChiSquare<F: Float + Send + Sync> {
     rand_distr: RandChiSquared<f64>,
 }
 
-impl<F: Float + NumCast + Send + Sync> ChiSquare<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> ChiSquare<F> {
     /// Create a new Chi-square distribution with given degrees of freedom, location, and scale
     ///
     /// # Arguments
@@ -274,8 +274,11 @@ impl<F: Float + NumCast + Send + Sync> ChiSquare<F> {
             let mut rng = rand::rng();
             let rand_distr = RandChiSquared::new(df_f64).unwrap();
             let sample = rand_distr.sample(&mut rng);
-            F::from(sample).unwrap() * scale + loc
-        });
+            Ok(F::from(sample).unwrap() * scale + loc)
+        })
+        .map_err(|e| {
+            StatsError::ComputationError(format!("Failed to generate samples in parallel: {}", e))
+        })?;
 
         Ok(samples)
     }
@@ -450,7 +453,7 @@ fn gamma_function<F: Float>(x: F) -> F {
 }
 
 /// Implementation of Distribution trait for ChiSquare
-impl<F: Float + NumCast + Send + Sync> ScirsDist<F> for ChiSquare<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> ScirsDist<F> for ChiSquare<F> {
     fn mean(&self) -> F {
         // Mean of chi-square is degrees of freedom * scale + loc
         self.df * self.scale + self.loc
@@ -503,7 +506,7 @@ impl<F: Float + NumCast + Send + Sync> ScirsDist<F> for ChiSquare<F> {
 }
 
 /// Implementation of ContinuousDistribution trait for ChiSquare
-impl<F: Float + NumCast + Send + Sync> ContinuousDistribution<F> for ChiSquare<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> ContinuousDistribution<F> for ChiSquare<F> {
     fn pdf(&self, x: F) -> F {
         // Call the implementation from the struct
         ChiSquare::pdf(self, x)
@@ -574,7 +577,7 @@ impl<F: Float + NumCast + Send + Sync> ContinuousDistribution<F> for ChiSquare<F
 }
 
 /// Implementation of SampleableDistribution for ChiSquare
-impl<F: Float + NumCast + Send + Sync> SampleableDistribution<F> for ChiSquare<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> SampleableDistribution<F> for ChiSquare<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
         self.rvs_vec(size)
     }

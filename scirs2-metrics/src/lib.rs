@@ -442,7 +442,8 @@
 //!     roc_curve::roc_curve_visualization,
 //!     precision_recall::precision_recall_visualization,
 //!     calibration::calibration_visualization,
-//!     learning_curve::learning_curve_visualization
+//!     learning_curve::learning_curve_visualization,
+//!     interactive::interactive_roc_curve_visualization
 //! };
 //!
 //! // Example: Confusion matrix visualization
@@ -468,6 +469,10 @@
 //! let auc = 0.83; // Example AUC value
 //!
 //! let roc_viz = roc_curve_visualization(fpr.to_vec(), tpr.to_vec(), Some(thresholds.to_vec()), Some(auc));
+//!
+//! // Example: Interactive ROC curve visualization with threshold adjustment
+//! let interactive_roc_viz = interactive_roc_curve_visualization(
+//!     fpr.to_vec(), tpr.to_vec(), Some(thresholds.to_vec()), Some(auc));
 //!
 //! // Example: Precision-Recall curve visualization
 //! let (precision, recall, pr_thresholds) = precision_recall_curve(&y_true_binary, &y_score).unwrap();
@@ -498,6 +503,52 @@
 //! ];
 //!
 //! let lc_viz = learning_curve_visualization(train_sizes, train_scores, val_scores, "Accuracy").unwrap();
+//! ```
+//!
+//! ## Interactive Visualizations
+//!
+//! The library also provides interactive visualizations that allow for dynamic exploration
+//! of metrics via web interfaces:
+//!
+//! ```
+//! use ndarray::array;
+//! use scirs2_metrics::classification::curves::roc_curve;
+//! use scirs2_metrics::visualization::{
+//!     helpers, InteractiveOptions,
+//!     backends::{default_interactive_backend, PlotlyInteractiveBackendInterface},
+//! };
+//!
+//! // Create binary classification data
+//! let y_true = array![0, 0, 0, 0, 1, 1, 1, 1];
+//! let y_score = array![0.1, 0.2, 0.4, 0.6, 0.5, 0.7, 0.8, 0.9];
+//!
+//! // Compute ROC curve
+//! let (fpr, tpr, thresholds) = roc_curve(&y_true, &y_score).unwrap();
+//!
+//! // Interactive ROC curve with threshold adjustment
+//! let interactive_options = InteractiveOptions {
+//!     width: 900,
+//!     height: 600,
+//!     show_threshold_slider: true,
+//!     show_metric_values: true,
+//!     show_confusion_matrix: true,
+//!     custom_layout: std::collections::HashMap::new(),
+//! };
+//!
+//! // Create interactive ROC curve visualization
+//! let viz = helpers::visualize_interactive_roc_curve(
+//!     fpr.view(),
+//!     tpr.view(),
+//!     Some(thresholds.view()),
+//!     Some(0.94), // AUC value
+//!     Some(interactive_options),
+//! );
+//!
+//! // Note: In a real application, you would save this to an HTML file with:
+//! // let viz_data = viz.prepare_data().unwrap();
+//! // let viz_metadata = viz.get_metadata();
+//! // let backend = default_interactive_backend();
+//! // backend.save_interactive_roc(&viz_data, &viz_metadata, &Default::default(), "interactive_roc.html");
 //! ```
 //!
 //! # Metric Serialization

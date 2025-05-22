@@ -68,13 +68,13 @@ where
 
     // For simplicity, we'll create a new array and copy the strided elements
     let mut result = Array::default(new_shape);
-    
+
     // This is a simplified implementation that only handles 2D arrays
     // A more complete implementation would handle arbitrary dimensions
     if array.ndim() == 2 {
         let (rows, cols) = (array.shape()[0], array.shape()[1]);
         let (step_row, step_col) = (step[0], step[1]);
-        
+
         let mut r = 0;
         for i in (0..rows).step_by(step_row) {
             let mut c = 0;
@@ -87,7 +87,7 @@ where
     } else {
         return Err("This simplified implementation only supports 2D arrays");
     }
-    
+
     Ok(result)
 }
 
@@ -166,15 +166,15 @@ where
     let dim = shape.into_shape();
     let target_shape = dim.as_array_view();
     let src_shape = array.shape();
-    
+
     // Check broadcasting rules: for each dimension, the sizes must either:
     // 1. Be the same, or
     // 2. One of them (usually the source) must be 1
-    
+
     if target_shape.len() < src_shape.len() {
         return Err("Target shape cannot have fewer dimensions than source");
     }
-    
+
     // Check broadcasting compatibility
     let offset = target_shape.len() - src_shape.len();
     for (i, &s) in src_shape.iter().enumerate() {
@@ -183,13 +183,13 @@ where
             return Err("Incompatible shapes for broadcasting");
         }
     }
-    
+
     // Create the output array
     let mut result = Array::<T, _>::default(dim);
-    
+
     // This is a very simplified implementation that assumes 1D to 2D broadcasting
     // A real implementation would handle arbitrary dimensions
-    
+
     if src_shape.len() == 1 && target_shape.len() == 2 {
         // Broadcast 1D to 2D
         for i in 0..target_shape[0] {
@@ -202,7 +202,7 @@ where
     } else {
         return Err("This simplified implementation only supports 1D to 2D broadcasting");
     }
-    
+
     Ok(result)
 }
 
@@ -229,12 +229,12 @@ mod tests {
     #[test]
     fn test_as_layout() {
         let a = array![[1, 2], [3, 4]];
-        
+
         let b = as_layout(a.view(), Order::C);
         assert_eq!(b.shape(), &[2, 2]);
         assert_eq!(b[[0, 0]], 1);
         assert_eq!(b[[1, 1]], 4);
-        
+
         let c = as_layout(a.view(), Order::F);
         assert_eq!(c.shape(), &[2, 2]);
         assert_eq!(c[[0, 0]], 1);

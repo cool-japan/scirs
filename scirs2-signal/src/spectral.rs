@@ -779,9 +779,9 @@ mod tests {
 
         // Add noise
         let mut rng = rand::rng();
-        for i in 0..x.len() {
-            x[i] += rng.random_range(-0.1..0.1);
-        }
+        x.iter_mut().for_each(|val| {
+            *val += rng.random_range(-0.1..0.1);
+        });
 
         // Compute Welch's periodogram
         let (freqs, psd) =
@@ -929,7 +929,7 @@ mod tests {
         // Phase values should be between -π and π
         for row in &phase_values {
             for &val in row {
-                assert!(val >= -PI && val <= PI);
+                assert!((-PI..=PI).contains(&val));
             }
         }
     }

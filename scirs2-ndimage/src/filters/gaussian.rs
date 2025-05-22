@@ -4,7 +4,7 @@ use ndarray::{Array, Array1, Array2, Dimension, Ix2, IxDyn};
 
 use super::{pad_array, BorderMode};
 use crate::error::{NdimageError, Result};
-use scirs2_core::parallel;
+use scirs2_core::{parallel, CoreError};
 
 /// Apply a gaussian filter to an n-dimensional array of f64 values
 ///
@@ -417,7 +417,7 @@ where
         // Wrap in an Arc for thread safety
         let input_dyn_arc = std::sync::Arc::new(input_dyn.clone());
 
-        let parallel_convolve = move |idx: &IxDyn| -> (IxDyn, f64) {
+        let parallel_convolve = move |idx: &IxDyn| -> std::result::Result<(IxDyn, f64), CoreError> {
             // Convert to vec for easier manipulation
             let idx_vec = idx.as_array_view().to_vec();
             let mut sum = 0.0;
@@ -485,11 +485,11 @@ where
                 sum += input_dyn_arc[&padded_idx] * kernel_clone[k];
             }
 
-            (idx.clone(), sum)
+            Ok((idx.clone(), sum))
         };
 
         // Use parallel_map from scirs2-core for parallel processing
-        let results = parallel::parallel_map(&indices, parallel_convolve);
+        let results = parallel::parallel_map(&indices, parallel_convolve)?;
 
         // Apply results to output array
         for (pos, value) in results {

@@ -135,7 +135,7 @@ pub fn linear_interpolate(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
                     std::cmp::Ordering::Greater => {
                         right_idx = Some(j);
                         break;
-                    },
+                    }
                     std::cmp::Ordering::Equal => {} // No action needed for exact match
                 }
             }

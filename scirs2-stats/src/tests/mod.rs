@@ -80,7 +80,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Delegate to the enhanced implementation
     crate::tests::ttest::ttest_1samp(x, popmean, alternative, nan_policy)
@@ -136,7 +137,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Check if the input arrays are empty
     if x.is_empty() || y.is_empty() {
@@ -253,7 +255,8 @@ where
         + NumCast
         + std::marker::Send
         + std::marker::Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     // Check if the input arrays are empty
     if x.is_empty() || y.is_empty() {

@@ -31,7 +31,7 @@ pub type TrainTestSplitResult<T> = (Vec<Array1<T>>, Vec<Array1<T>>);
 ///
 /// # Arguments
 ///
-/// * `arrays` - Sequence of arrays to be split
+/// * `arrays` - Sequence of arrays to be split (not modified)
 /// * `test_size` - Proportion of the dataset to include in the test split (float between 0.0 and 1.0)
 /// * `random_seed` - Seed for the random number generator
 ///
@@ -113,9 +113,7 @@ where
         Some(seed) => StdRng::seed_from_u64(seed),
         None => {
             // In rand 0.9.0, from_rng returns the RNG directly, not a Result
-            // Create a StdRng from the global RNG (this suppresses the deprecation warning)
-            #[allow(deprecated)]
-            let mut r = rand::thread_rng();
+            let mut r = rand::rng();
             StdRng::from_rng(&mut r)
         }
     };

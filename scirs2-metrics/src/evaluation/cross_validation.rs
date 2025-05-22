@@ -75,9 +75,8 @@ pub fn k_fold_cross_validation(
         let mut rng = match random_seed {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
-                // Create a StdRng from the global RNG (this suppresses the deprecation warning)
-                #[allow(deprecated)]
-                let mut r = rand::thread_rng();
+                // In rand 0.9.0, use rng() instead of thread_rng()
+                let mut r = rand::rng();
                 StdRng::from_rng(&mut r)
             }
         };
@@ -170,7 +169,7 @@ pub fn leave_one_out_cv(n: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
 ///
 /// # Arguments
 ///
-/// * `y` - Array of target values
+/// * `y` - Array of target values (not modified)
 /// * `n_folds` - Number of folds
 /// * `shuffle` - Whether to shuffle the data before splitting
 /// * `random_seed` - Seed for the random number generator (if shuffle is true)
@@ -230,12 +229,11 @@ where
 
     // Check that each class has enough instances
     for (class, indices) in &class_counts {
-        if indices.len() < n_folds {
+        let class_size = indices.len();
+        if class_size < n_folds {
             return Err(MetricsError::InvalidInput(format!(
                 "Class {:?} has only {} samples, which is less than n_folds={}",
-                class,
-                indices.len(),
-                n_folds
+                class, class_size, n_folds
             )));
         }
     }
@@ -244,9 +242,8 @@ where
     let mut rng = match random_seed {
         Some(seed) => Some(StdRng::seed_from_u64(seed)),
         None if shuffle => {
-            // Create a StdRng from the global RNG (this suppresses the deprecation warning)
-            #[allow(deprecated)]
-            let mut r = rand::thread_rng();
+            // In rand 0.9.0, use rng() instead of thread_rng()
+            let mut r = rand::rng();
             Some(StdRng::from_rng(&mut r))
         }
         None => None,
@@ -329,6 +326,7 @@ where
 /// assert_eq!(train_indices, &[0, 1, 2, 3, 4, 5]);
 /// assert_eq!(test_indices, &[6, 7]);
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn time_series_split(
     n: usize,
     n_splits: usize,
@@ -402,7 +400,7 @@ pub fn time_series_split(
 ///
 /// # Arguments
 ///
-/// * `groups` - Array of group labels for the samples
+/// * `groups` - Array of group labels for the samples (not modified)
 /// * `n_folds` - Number of folds
 ///
 /// # Returns
@@ -424,15 +422,15 @@ pub fn time_series_split(
 /// for (train_indices, test_indices) in &splits {
 ///     let mut train_groups = Vec::new();
 ///     let mut test_groups = Vec::new();
-///     
+///
 ///     for &idx in train_indices {
 ///         train_groups.push(groups[idx]);
 ///     }
-///     
+///
 ///     for &idx in test_indices {
 ///         test_groups.push(groups[idx]);
 ///     }
-///     
+///
 ///     // Verify no group appears in both train and test sets
 ///     let mut has_overlap = false;
 ///     for &test_group in &test_groups {
@@ -441,7 +439,7 @@ pub fn time_series_split(
 ///             break;
 ///         }
 ///     }
-///     
+///
 ///     assert!(!has_overlap);
 /// }
 /// ```
@@ -569,6 +567,7 @@ where
 /// assert_eq!(outer_train.len() + outer_test.len(), 20); // All samples are used
 /// assert_eq!(inner_splits.len(), 3); // 3 inner folds
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn nested_cross_validation(
     n: usize,
     outer_n_folds: usize,

@@ -101,8 +101,8 @@ impl GemmKernel {
     }
 
     /// Create a GEMM kernel with specific alpha and beta values
-    pub fn with_alpha_beta(alpha: f32, beta: f32) -> Box<dyn GpuKernel> {
-        let mut kernel = Self::new();
+    pub fn with_alpha_beta(_alpha: f32, _beta: f32) -> Box<dyn GpuKernel> {
+        let kernel = Self::new();
 
         // Generate specialized kernel sources with hard-coded alpha/beta values
         // for better performance
@@ -132,68 +132,68 @@ extern "C" __global__ void gemm_standard(
     // Block index
     int bx = blockIdx.x;
     int by = blockIdx.y;
-    
+
     // Thread index
     int tx = threadIdx.x;
     int ty = threadIdx.y;
-    
+
     // Define block size
     const int BLOCK_SIZE = 16;
-    
+
     // Index of the first sub-matrix of A processed by the block
     int aBegin = k * BLOCK_SIZE * by;
-    
+
     // Index of the last sub-matrix of A processed by the block
     int aEnd = aBegin + k - 1;
-    
+
     // Step size used to iterate through the sub-matrices of A
     int aStep = BLOCK_SIZE;
-    
+
     // Index of the first sub-matrix of B processed by the block
     int bBegin = BLOCK_SIZE * bx;
-    
+
     // Step size used to iterate through the sub-matrices of B
     int bStep = BLOCK_SIZE * n;
-    
+
     // The element of the block sub-matrix that is computed
     // by the thread
     float Csub = 0;
-    
+
     // Loop over all the sub-matrices of A and B required to
     // compute the block sub-matrix
     for (int a = aBegin, b = bBegin;
          a <= aEnd;
          a += aStep, b += bStep) {
-        
+
         // Shared memory for the sub-matrix of A
         __shared__ float As[BLOCK_SIZE][BLOCK_SIZE];
-        
+
         // Shared memory for the sub-matrix of B
         __shared__ float Bs[BLOCK_SIZE][BLOCK_SIZE];
-        
+
         // Load the matrices from global memory to shared memory
         As[ty][tx] = a[a + k * ty + tx];
         Bs[ty][tx] = b[b + n * ty + tx];
-        
+
         // Synchronize to make sure the matrices are loaded
         __syncthreads();
-        
+
         // Multiply the two matrices together
         #pragma unroll
         for (int i = 0; i < BLOCK_SIZE; ++i) {
             Csub += As[ty][i] * Bs[i][tx];
         }
-        
+
         // Synchronize to make sure that the preceding
         // computation is done before loading two new
         // sub-matrices of A and B in the next iteration
         __syncthreads();
     }
-    
+
     // Write the block sub-matrix to global memory
     int c_idx = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
     int c_row = c_idx + n * ty + tx;
-    
+
     if (beta == 0) {
         c[c_row] = alpha * Csub;
     } else {
@@ -241,21 +241,21 @@ var<workgroup> Bs: array<array<f32, 16>, 16>;
 fn gemm_standard(@builtin(global_invocation_id) global_id: vec3<u32>,
                  @builtin(workgroup_id) workgroup_id: vec3<u32>,
                  @builtin(local_invocation_id) local_id: vec3<u32>) {
-    
+
     let bx = workgroup_id.x;
     let by = workgroup_id.y;
-    
+
     let tx = local_id.x;
     let ty = local_id.y;
-    
+
     let block_size = 16u;
-    
+
     // Index of c
     let row = by * block_size + ty;
     let col = bx * block_size + tx;
-    
+
     var sum = 0.0;
-    
+
     // Loop over A and B tiles
     for (var t = 0u; t < (uniforms.k + block_size - 1u) / block_size; t = t + 1u) {
         // Load A tile
@@ -264,24 +264,24 @@ fn gemm_standard(@builtin(global_invocation_id) global_id: vec3<u32>,
         } else {
             As[ty][tx] = 0.0;
         }
-        
+
         // Load B tile
         if (t * block_size + ty < uniforms.k && col < uniforms.n) {
             Bs[ty][tx] = b[(t * block_size + ty) * uniforms.n + col];
         } else {
             Bs[ty][tx] = 0.0;
         }
-        
+
         workgroupBarrier();
-        
+
         // Compute
         for (var k = 0u; k < block_size; k = k + 1u) {
             sum = sum + As[ty][k] * Bs[k][tx];
         }
-        
+
         workgroupBarrier();
     }
-    
+
     // Write result
     if (row < uniforms.m && col < uniforms.n) {
         let c_idx = row * uniforms.n + col;
@@ -314,25 +314,25 @@ kernel void gemm_standard(
     uint2 wgid [[threadgroup_position_in_grid]])
 {
     const uint block_size = 16;
-    
+
     // Thread indices
     uint tx = lid.x;
     uint ty = lid.y;
-    
+
     // Block indices
     uint bx = wgid.x;
     uint by = wgid.y;
-    
+
     // Global indices
     uint row = by * block_size + ty;
     uint col = bx * block_size + tx;
-    
+
     // Shared memory for tile
     threadgroup float As[16][16];
     threadgroup float Bs[16][16];
-    
+
     float sum = 0.0;
-    
+
     // Loop over tiles
     for (uint t = 0; t < (k + block_size - 1) / block_size; t++) {
         // Load tiles
@@ -341,23 +341,23 @@ kernel void gemm_standard(
         } else {
             As[ty][tx] = 0.0;
         }
-        
+
         if (t * block_size + ty < k && col < n) {
             Bs[ty][tx] = b[(t * block_size + ty) * n + col];
         } else {
             Bs[ty][tx] = 0.0;
         }
-        
+
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        
+
         // Compute
         for (uint i = 0; i < block_size; i++) {
             sum += As[ty][i] * Bs[i][tx];
         }
-        
+
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
-    
+
     // Write result
     if (row < m && col < n) {
         uint c_idx = row * n + col;
@@ -384,25 +384,25 @@ __kernel void gemm_standard(
     const float beta)
 {
     const int block_size = 16;
-    
+
     // Thread indices
     const int tx = get_local_id(0);
     const int ty = get_local_id(1);
-    
+
     // Block indices
     const int bx = get_group_id(0);
     const int by = get_group_id(1);
-    
+
     // Global indices
     const int row = by * block_size + ty;
     const int col = bx * block_size + tx;
-    
+
     // Shared memory for tile
     __local float As[16][16];
     __local float Bs[16][16];
-    
+
     float sum = 0.0f;
-    
+
     // Loop over tiles
     for (int t = 0; t < (k + block_size - 1) / block_size; t++) {
         // Load tiles
@@ -411,23 +411,23 @@ __kernel void gemm_standard(
         } else {
             As[ty][tx] = 0.0f;
         }
-        
+
         if (t * block_size + ty < k && col < n) {
             Bs[ty][tx] = b[(t * block_size + ty) * n + col];
         } else {
             Bs[ty][tx] = 0.0f;
         }
-        
+
         barrier(CLK_LOCAL_MEM_FENCE);
-        
+
         // Compute
         for (int i = 0; i < block_size; i++) {
             sum += As[ty][i] * Bs[i][tx];
         }
-        
+
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-    
+
     // Write result
     if (row < m && col < n) {
         const int c_idx = row * n + col;

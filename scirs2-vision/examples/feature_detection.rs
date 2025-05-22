@@ -7,8 +7,7 @@
 
 use image::DynamicImage;
 use scirs2_vision::feature::{
-    canny_simple, detect_and_compute, extract_feature_coordinates, harris_corners,
-    sobel_edges,
+    canny_simple, detect_and_compute, extract_feature_coordinates, harris_corners, sobel_edges,
 };
 use scirs2_vision::preprocessing::{gaussian_blur, normalize_brightness};
 use std::path::PathBuf;

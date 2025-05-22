@@ -1,0 +1,8 @@
+//! Spelling correction algorithms
+//!
+//! This module has been refactored into a directory structure.
+//! This file is maintained for backwards compatibility and
+//! re-exports all components from the new module structure.
+
+pub mod spelling;
+pub use spelling::*;

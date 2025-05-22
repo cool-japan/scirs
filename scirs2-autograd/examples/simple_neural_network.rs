@@ -81,30 +81,33 @@ fn main() {
 
             // Update parameters using SGD instead of Adam to avoid the issues
             // We'll implement a simple SGD optimizer directly here
-            println!("Applying manual SGD updates to {} parameters", &[w1, b1, w2, b2].len());
-            
+            println!(
+                "Applying manual SGD updates to {} parameters",
+                &[w1, b1, w2, b2].len()
+            );
+
             // Create manual SGD update operations
             let params = [w1, b1, w2, b2];
             let learning_rate = 0.01; // Use a reasonable learning rate for SGD
-            
+
             // Create update operations first and store them in a vector
             let mut update_ops = Vec::with_capacity(params.len());
             for i in 0..params.len() {
                 let param = params[i];
                 let grad = grads[i];
-                
+
                 // Create update operation: param = param - learning_rate * grad
                 let scaled_grad = ag::tensor_ops::scalar_mul(&grad, learning_rate);
                 let update_op = ag::tensor_ops::sub(param, scaled_grad);
                 update_ops.push(update_op);
             }
-            
+
             // Create evaluator and add all operations
             let mut evaluator = ctx.evaluator().set_feeder(feeder.clone());
             for op in &update_ops {
                 evaluator = evaluator.push(op);
             }
-            
+
             // Run all update operations
             let results = evaluator.run();
             println!("SGD update applied with {} operations", results.len());

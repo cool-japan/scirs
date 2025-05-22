@@ -51,7 +51,7 @@ struct Uniforms {
 @compute @workgroup_size(256)
 fn relu(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
-    
+
     if (i < uniforms.n) {
         output[i] = max(0.0, input[i]);
     }
@@ -175,7 +175,7 @@ struct Uniforms {
 @compute @workgroup_size(256)
 fn sigmoid(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let i = global_id.x;
-    
+
     if (i < uniforms.n) {
         output[i] = 1.0 / (1.0 + exp(-input[i]));
     }

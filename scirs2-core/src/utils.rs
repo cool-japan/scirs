@@ -269,26 +269,27 @@ pub fn linspace<F: Float + std::iter::Sum>(start: F, end: F, num: usize) -> Arra
     #[cfg(feature = "parallel")]
     {
         if num >= 1000 {
-            // Only parallelize for larger arrays
-            use crate::parallel::par_linspace;
+            // TODO: Re-enable when par_linspace is implemented
+            // use crate::parallel::par_linspace;
 
             // Use numeric conversion for f64 values
             let start_f64: Option<f64> = NumCast::from(start);
             let end_f64: Option<f64> = NumCast::from(end);
 
-            if let (Some(start_64), Some(end_64)) = (start_f64, end_f64) {
-                let result = par_linspace(start_64, end_64, num);
+            if let (Some(_start_64), Some(_end_64)) = (start_f64, end_f64) {
+                // TODO: Implement par_linspace
+                // let result = par_linspace(start_64, end_64, num);
                 // Convert back to F using safe numeric conversion
-                let mut result_f = Array1::zeros(result.raw_dim());
-                for (i, val) in result.iter().enumerate() {
-                    if let Some(val_f) = NumCast::from(*val) {
-                        result_f[i] = val_f;
-                    } else {
-                        // If conversion fails for any value, fall back to serial implementation
-                        break;
-                    }
-                }
-                return result_f;
+                // let mut result_f = Array1::zeros(result.raw_dim());
+                // for (i, val) in result.iter().enumerate() {
+                //     if let Some(val_f) = NumCast::from(*val) {
+                //         result_f[i] = val_f;
+                //     } else {
+                //         // If conversion fails for any value, fall back to serial implementation
+                //         break;
+                //     }
+                // }
+                // return result_f;
             }
         }
     }
@@ -373,12 +374,13 @@ where
     // Use parallel implementation for larger arrays
     #[cfg(feature = "parallel")]
     {
-        use crate::parallel::par_maximum;
+        // TODO: Re-enable when par_maximum is implemented
+        // use crate::parallel::par_maximum;
 
         // Check if array is large enough
         if a.len() > 1000 {
-            // Try using parallel implementation
-            return par_maximum(a, b);
+            // TODO: Implement par_maximum
+            // return par_maximum(a, b);
         }
     }
 
@@ -438,12 +440,13 @@ where
     // Use parallel implementation for larger arrays
     #[cfg(feature = "parallel")]
     {
-        use crate::parallel::par_minimum;
+        // TODO: Re-enable when par_minimum is implemented
+        // use crate::parallel::par_minimum;
 
         // Check if array is large enough
         if a.len() > 1000 {
-            // Try using parallel implementation
-            return par_minimum(a, b);
+            // TODO: Implement par_minimum
+            // return par_minimum(a, b);
         }
     }
 

@@ -915,7 +915,9 @@ impl ShortTimeFft {
 
                     // Scale all frequencies except DC and Nyquist
                     let nyquist_idx = if self.mfft % 2 == 0 { self.mfft / 2 } else { 0 };
-                    for (i, frame_spectrum_i) in frame_spectrum.iter_mut().enumerate().take(f_pts).skip(1) {
+                    for (i, frame_spectrum_i) in
+                        frame_spectrum.iter_mut().enumerate().take(f_pts).skip(1)
+                    {
                         if i != nyquist_idx {
                             *frame_spectrum_i /= factor;
                         }
@@ -924,7 +926,11 @@ impl ShortTimeFft {
             }
             FftMode::TwoSided => {
                 // Two-sided FFT (already in correct order)
-                for (i, frame_spectrum_i) in frame_spectrum.iter_mut().enumerate().take(f_pts.min(self.mfft)) {
+                for (i, frame_spectrum_i) in frame_spectrum
+                    .iter_mut()
+                    .enumerate()
+                    .take(f_pts.min(self.mfft))
+                {
                     *frame_spectrum_i = frame_slice[i];
                 }
             }
