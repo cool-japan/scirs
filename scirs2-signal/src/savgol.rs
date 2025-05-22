@@ -829,7 +829,7 @@ mod tests {
     fn test_savgol_coeffs_basic() {
         // Test with window_length = 5, polyorder = 2
         let coeffs = savgol_coeffs(5, 2, None, None, None, None).unwrap();
-        let expected = vec![-0.08571429, 0.34285714, 0.48571429, 0.34285714, -0.08571429];
+        let expected = [-0.08571429, 0.34285714, 0.48571429, 0.34285714, -0.08571429];
 
         assert_eq!(coeffs.len(), 5);
         for (a, b) in coeffs.iter().zip(expected.iter()) {
@@ -841,7 +841,7 @@ mod tests {
     fn test_savgol_coeffs_deriv() {
         // Test with derivative = 1
         let coeffs = savgol_coeffs(5, 2, Some(1), None, None, None).unwrap();
-        let expected = vec![0.2, 0.1, 0.0, -0.1, -0.2];
+        let expected = [0.2, 0.1, 0.0, -0.1, -0.2];
 
         assert_eq!(coeffs.len(), 5);
         for (a, b) in coeffs.iter().zip(expected.iter()) {
@@ -856,9 +856,9 @@ mod tests {
         let mut x: Vec<f64> = t.iter().map(|&t| t.sin()).collect();
 
         // Add fixed-pattern noise instead of random noise for reproducible tests
-        for i in 0..x.len() {
-            x[i] += 0.1 * (i as f64 / 5.0).sin();
-        }
+        x.iter_mut().enumerate().for_each(|(i, val)| {
+            *val += 0.1 * (i as f64 / 5.0).sin();
+        });
 
         // Apply Savitzky-Golay filter
         let smoothed = savgol_filter(&x, 11, 2, None, None, None, None).unwrap();

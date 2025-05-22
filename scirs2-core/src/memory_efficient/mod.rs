@@ -11,6 +11,7 @@ mod adaptive_chunking;
 mod adaptive_prefetch;
 mod chunked;
 mod compressed_memmap;
+mod cross_device;
 mod cross_file_prefetch;
 mod fusion;
 mod lazy_array;
@@ -21,8 +22,10 @@ mod out_of_core;
 mod pattern_recognition;
 mod prefetch;
 mod resource_aware;
+mod streaming;
 mod validation;
 mod views;
+mod zero_serialization;
 mod zerocopy;
 
 pub use adaptive_chunking::{
@@ -38,6 +41,12 @@ pub use chunked::{
 };
 pub use compressed_memmap::{
     CompressedFileMetadata, CompressedMemMapBuilder, CompressedMemMappedArray, CompressionAlgorithm,
+};
+pub use cross_device::{
+    create_cpu_array, create_cross_device_manager, create_gpu_array, to_best_device,
+    CrossDeviceManager, DeviceArray, DeviceBuffer, DeviceMemoryManager, DeviceMemoryPool,
+    DeviceStream, DeviceType, KernelParam, ToDevice, ToHost, TransferDirection, TransferEvent,
+    TransferMode, TransferOptions, TransferOptionsBuilder,
 };
 pub use cross_file_prefetch::{
     AccessType, CrossFilePrefetchConfig, CrossFilePrefetchConfigBuilder, CrossFilePrefetchManager,
@@ -62,7 +71,13 @@ pub use resource_aware::{
     ResourceAwareConfig, ResourceAwareConfigBuilder, ResourceAwarePrefetcher, ResourceMonitor,
     ResourceSnapshot, ResourceSummary, ResourceType,
 };
+pub use streaming::{
+    create_pipeline, create_stream_processor, Pipeline, PipelineBuilder, PipelineStats,
+    StreamConfig, StreamConfigBuilder, StreamMode, StreamProcessor, StreamSource, StreamState,
+    StreamStats,
+};
 pub use views::{diagonal_view, transpose_view, view_as, view_mut_as, ArrayView, ViewMut};
+pub use zero_serialization::{ZeroCopySerializable, ZeroCopySerialization};
 pub use zerocopy::{ArithmeticOps, BroadcastOps, ZeroCopyOps};
 
 // Re-export commonly used items in a prelude module for convenience
@@ -71,10 +86,14 @@ pub mod prelude {
         chunk_wise_binary_op,
         chunk_wise_op,
         chunk_wise_reduce,
+        create_cpu_array,
+        create_cross_device_manager,
+        create_gpu_array,
         create_mmap,
         create_temp_mmap,
         evaluate,
         open_mmap,
+        to_best_device,
         view_as,
         view_mut_as,
         AccessMode,
@@ -91,9 +110,13 @@ pub mod prelude {
         ComplexPattern,
         CompressedMemMapBuilder,
         CompressionAlgorithm,
+        CrossDeviceManager,
         CrossFilePrefetchManager,
         DatasetId,
         DatasetPrefetcher,
+        DeviceArray,
+        DeviceBuffer,
+        DeviceType,
         LazyArray,
         MemoryMappedArray,
         MemoryMappedChunkIter,
@@ -109,8 +132,20 @@ pub mod prelude {
         PrefetchingCompressedArray,
         ResourceAwareConfig,
         ResourceAwarePrefetcher,
+        StreamConfig,
+        StreamConfigBuilder,
+        StreamMode,
+        StreamProcessor,
+        StreamState,
+        ToDevice,
+        ToHost,
+        TransferMode,
+        TransferOptions,
+        TransferOptionsBuilder,
         ViewMut,
         ZeroCopyOps,
+        ZeroCopySerializable,
+        ZeroCopySerialization,
     };
 
     #[cfg(feature = "parallel")]

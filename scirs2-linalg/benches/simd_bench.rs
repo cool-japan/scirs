@@ -2,10 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_linalg::{
     blas_accelerated,
-    simd_ops::{
-        simd_dot_f32, simd_matmul_f32,
-        simd_matvec_f32,
-    },
+    simd_ops::{simd_dot_f32, simd_matmul_f32, simd_matvec_f32},
 };
 
 fn regular_matmul_f32(a: &ArrayView2<f32>, b: &ArrayView2<f32>) -> Array2<f32> {
@@ -91,7 +88,7 @@ fn bench_matvec(c: &mut Criterion) {
                         &matrix.view(),
                         &vector.view(),
                         0.0,
-                        &Array1::<f32>::zeros(matrix.nrows()).view()
+                        &Array1::<f32>::zeros(matrix.nrows()).view(),
                     )
                     .unwrap(),
                 )

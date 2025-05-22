@@ -311,7 +311,8 @@ mod tests {
         let y_pred = Array1::from_vec(vec![0, 2, 1, 0, 0, 2]);
 
         // Define metric functions
-        let metric_fns: Vec<Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> Result<f64> + Send + Sync>> = vec![
+        type MetricFn = Box<dyn Fn(&Array1<i32>, &Array1<i32>) -> Result<f64> + Send + Sync>;
+        let metric_fns: Vec<MetricFn> = vec![
             Box::new(|a, b| {
                 if a.len() != b.len() {
                     return Err(MetricsError::InvalidInput("Lengths must match".to_string()));

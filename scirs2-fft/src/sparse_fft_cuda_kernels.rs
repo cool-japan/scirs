@@ -505,15 +505,15 @@ impl CUDACompressedSensingSparseFFTKernel {
     ) -> Self {
         // Calculate input size for grid size calculation
         let input_size = input_buffer.size / std::mem::size_of::<Complex64>();
-        
+
         // Enable tensor cores if compute capability supports it
         let compute_capability = context.device_info().compute_capability;
         let use_tensor_cores = compute_capability.0 >= 7;
-        
+
         // Initialize config with all fields set at once
         let config = KernelConfig {
             block_size: 512,
-            shared_memory_size: 32 * 1024, // 32 KB
+            shared_memory_size: 32 * 1024,       // 32 KB
             grid_size: input_size.div_ceil(512), // Using block_size directly
             use_tensor_cores,
             ..KernelConfig::default()

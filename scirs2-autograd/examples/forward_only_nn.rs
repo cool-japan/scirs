@@ -40,7 +40,7 @@ fn main() {
         let xw1 = matmul(x, w1);
         let z1 = add(xw1, b1);
         let h = relu(z1);
-        
+
         // Second layer with sigmoid activation
         let hw2 = matmul(h, w2);
         let z2 = add(hw2, b2);

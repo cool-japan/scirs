@@ -1251,7 +1251,7 @@ mod tests {
 ///
 /// The Dice distance between two boolean vectors u and v is defined as:
 /// (c_TF + c_FT) / (2 * c_TT + c_FT + c_TF)
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1306,7 +1306,7 @@ pub fn dice<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Kulsinski distance between two boolean vectors u and v is defined as:
 /// (c_TF + c_FT - c_TT + n) / (c_FT + c_TF + n)
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1362,7 +1362,7 @@ pub fn kulsinski<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Rogers-Tanimoto distance between two boolean vectors u and v is defined as:
 /// 2(c_TF + c_FT) / (c_TT + c_FF + 2(c_TF + c_FT))
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1422,7 +1422,7 @@ pub fn rogerstanimoto<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Russell-Rao distance between two boolean vectors u and v is defined as:
 /// (n - c_TT) / n
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1472,7 +1472,7 @@ pub fn russellrao<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Sokal-Michener distance between two boolean vectors u and v is defined as:
 /// 2(c_TF + c_FT) / (c_TT + c_FF + 2(c_TF + c_FT))
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1503,7 +1503,7 @@ pub fn sokalmichener<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Sokal-Sneath distance between two boolean vectors u and v is defined as:
 /// 2(c_TF + c_FT) / (c_TT + 2(c_TF + c_FT))
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///
@@ -1560,7 +1560,7 @@ pub fn sokalsneath<T: Float>(point1: &[bool], point2: &[bool]) -> T {
 ///
 /// The Yule distance between two boolean vectors u and v is defined as:
 /// 2(c_TF * c_FT) / (c_TT * c_FF + c_TF * c_FT)
-/// where c_ij is the number of occurrences of u[k]=i and v[k]=j for k<n.
+/// where c_ij is the number of occurrences of u\[k\]=i and v\[k\]=j for k<n.
 ///
 /// # Arguments
 ///

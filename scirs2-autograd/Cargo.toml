@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-autograd"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -29,7 +29,8 @@ libc = "0.2"
 matrixmultiply = "0.3.2"
 num = "0.4.0"
 special = "0.10.2"
-scirs2-core = { version = "0.1.0-alpha.3", path = "../scirs2-core" }
+array-init = "2.1.0"
+scirs2-core = { version = "0.1.0-alpha.4", path = "../scirs2-core" }
 # Remove dependency on scirs2-linalg to avoid circular dependency
 ndarray-linalg = { version = "0.16" }
 

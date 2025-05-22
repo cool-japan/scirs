@@ -102,11 +102,13 @@ pub mod eigen;
 pub use self::eigen::{eig, eigh, eigvals, eigvalsh, power_iteration};
 
 // Specialized eigen solvers in separate module
-mod eigen_specialized {
+pub mod eigen_specialized {
     pub mod banded;
+    pub mod sparse;
     pub mod symmetric;
     pub mod tridiagonal;
     pub use banded::{banded_eigh, banded_eigvalsh};
+    pub use sparse::{largest_k_eigh, smallest_k_eigh};
     pub use symmetric::{symmetric_eigh, symmetric_eigvalsh};
     pub use tridiagonal::{tridiagonal_eigh, tridiagonal_eigvalsh};
 }
@@ -176,6 +178,7 @@ pub mod accelerated {
 
 // Re-exports for user convenience
 pub use self::basic::{det, inv, matrix_power};
+pub use self::eigen_specialized::sparse::{largest_k_eigh, smallest_k_eigh};
 // Re-export complex module functions explicitly to avoid conflicts
 pub use self::complex::enhanced_ops::{
     det as complex_det, frobenius_norm, hermitian_part, inner_product, is_hermitian, is_unitary,
@@ -249,6 +252,7 @@ pub mod prelude {
     pub use super::decomposition::{cholesky, lu, qr, svd};
     pub use super::eigen::{eig, eigh, eigvals, eigvalsh, power_iteration};
     pub use super::eigen_specialized::banded::{banded_eigh, banded_eigvalsh};
+    pub use super::eigen_specialized::sparse::{largest_k_eigh, smallest_k_eigh};
     pub use super::eigen_specialized::symmetric::{symmetric_eigh, symmetric_eigvalsh};
     pub use super::eigen_specialized::tridiagonal::{tridiagonal_eigh, tridiagonal_eigvalsh};
     pub use super::extended_precision::eigen::{

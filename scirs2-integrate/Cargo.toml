@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-integrate"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Numerical integration module for SciRS2"
@@ -11,9 +11,9 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
 # Temporarily removed for publishing
-# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
@@ -27,7 +27,7 @@ sobol = "1.0.2"
 halton = "0.2.1"
 
 # Optional dependencies
-scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.3", optional = true }
+scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.4", optional = true }
 rayon = { version = "1.10.0", optional = true }
 
 [dev-dependencies]

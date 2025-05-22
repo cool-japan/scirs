@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-signal"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Signal processing module for SciRS2"
@@ -11,7 +11,7 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon", "blas"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
@@ -20,9 +20,9 @@ openblas-src = { workspace = true }
 
 # Signal processing specific dependencies
 rustfft = { version = "6.2.0", default-features = false, features = [] }
-scirs2-fft = { path = "../scirs2-fft", version = "0.1.0-alpha.3" }
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
-scirs2-special = { path = "../scirs2-special", version = "0.1.0-alpha.3" }
+scirs2-fft = { path = "../scirs2-fft", version = "0.1.0-alpha.4" }
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
+scirs2-special = { path = "../scirs2-special", version = "0.1.0-alpha.4" }
 rand = "0.9.0"
 rand_distr = "0.5.0"
 plotly = "0.12.1"

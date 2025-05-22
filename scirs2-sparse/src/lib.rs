@@ -187,6 +187,16 @@ pub mod construct_sym;
 pub mod combine;
 pub use combine::{block_diag, bmat, hstack, kron, kronsum, tril, triu, vstack};
 
+// Index dtype handling utilities
+pub mod index_dtype;
+pub use index_dtype::{can_cast_safely, get_index_dtype, safely_cast_index_arrays};
+
+// Optimized operations for symmetric sparse formats
+pub mod sym_ops;
+pub use sym_ops::{
+    sym_coo_matvec, sym_csr_matvec, sym_csr_quadratic_form, sym_csr_rank1_update, sym_csr_trace,
+};
+
 // Re-export warnings from scipy for compatibility
 pub struct SparseEfficiencyWarning;
 pub struct SparseWarning;

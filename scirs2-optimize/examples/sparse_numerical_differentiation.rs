@@ -263,7 +263,15 @@ fn sparse_hessian_methods_comparison() -> Result<(), Box<dyn std::error::Error>>
         options.method = method.to_string();
 
         let start = Instant::now();
-        let hess = sparse_hessian(rosenbrock, &x.view(), None, Some(&sparsity), Some(options))?;
+        let hess = sparse_hessian(
+            rosenbrock,
+            None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+            &x.view(),
+            None,
+            None,
+            Some(&sparsity),
+            Some(options),
+        )?;
         let duration = start.elapsed();
 
         println!("\nHessian using {} method:", method);

@@ -25,7 +25,7 @@
 //! ).unwrap();
 //!
 //! // Add noise
-//! let mut rng = rand::thread_rng();
+//! let mut rng = rand::rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..noisy_signal.len() {
 //!     noisy_signal[i] += 0.5 * rng.random_range(-1.0..1.0);
@@ -100,8 +100,9 @@ impl Default for WienerConfig {
 /// use ndarray::Array1;
 /// use scirs2_signal::wiener::wiener_filter;
 ///
-/// let noisy_signal = Array1::from_vec(vec![1.2, 2.3, 3.1, 2.2, 1.3, 0.2, -0.3, -1.1]);
-/// let denoised = wiener_filter(&noisy_signal, None, None).unwrap();
+/// let noisy_signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 2.0, 1.0, 0.0]);
+/// let result = wiener_filter(&noisy_signal, Some(0.1), None);
+/// assert!(result.is_ok());
 /// ```
 pub fn wiener_filter(
     signal: &Array1<f64>,
@@ -146,10 +147,11 @@ pub fn wiener_filter_freq(
     let signal_vec = signal.to_vec();
     let fft_result = match scirs2_fft::fft(&signal_vec, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute FFT for Wiener filter".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute FFT for Wiener filter: {}",
+                e
+            )))
         }
     };
 
@@ -175,10 +177,11 @@ pub fn wiener_filter_freq(
     // Inverse FFT to get filtered signal
     let ifft_result = match scirs2_fft::ifft(&filtered_fft, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute inverse FFT for Wiener filter".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute inverse FFT for Wiener filter: {}",
+                e
+            )))
         }
     };
 
@@ -446,10 +449,11 @@ pub fn spectral_subtraction(
     let signal_vec = signal.to_vec();
     let fft_result = match scirs2_fft::fft(&signal_vec, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute FFT for spectral subtraction".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute FFT for spectral subtraction: {}",
+                e
+            )))
         }
     };
 
@@ -480,10 +484,11 @@ pub fn spectral_subtraction(
                             .map(|c| c.norm_sqr() / n as f64),
                     )
                 }
-                Err(_) => {
-                    return Err(SignalError::ComputationError(
-                        "Failed to compute noise spectrum".to_string(),
-                    ))
+                Err(e) => {
+                    return Err(SignalError::ComputationError(format!(
+                        "Failed to compute noise spectrum: {}",
+                        e
+                    )))
                 }
             }
         }
@@ -523,10 +528,11 @@ pub fn spectral_subtraction(
     // Inverse FFT to get filtered signal
     let ifft_result = match scirs2_fft::ifft(&filtered_fft, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute inverse FFT for spectral subtraction".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute inverse FFT for spectral subtraction: {}",
+                e
+            )))
         }
     };
 
@@ -559,10 +565,11 @@ pub fn psd_wiener_filter(
     let signal_vec = signal.to_vec();
     let fft_result = match scirs2_fft::fft(&signal_vec, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute FFT for PSD Wiener filter".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute FFT for PSD Wiener filter: {}",
+                e
+            )))
         }
     };
 
@@ -630,10 +637,11 @@ pub fn psd_wiener_filter(
     // Inverse FFT to get filtered signal
     let ifft_result = match scirs2_fft::ifft(&filtered_fft, None) {
         Ok(result) => result,
-        Err(_) => {
-            return Err(SignalError::ComputationError(
-                "Failed to compute inverse FFT for PSD Wiener filter".to_string(),
-            ))
+        Err(e) => {
+            return Err(SignalError::ComputationError(format!(
+                "Failed to compute inverse FFT for PSD Wiener filter: {}",
+                e
+            )))
         }
     };
 

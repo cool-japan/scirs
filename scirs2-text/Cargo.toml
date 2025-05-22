@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-text"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -11,9 +11,9 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3", features = ["parallel"] }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["parallel"] }
 # Temporarily removed for publishing
-# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"

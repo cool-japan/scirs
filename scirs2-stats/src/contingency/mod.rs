@@ -50,7 +50,8 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     // Check input dimensions
     if observed.ndim() != 2 {
@@ -191,7 +192,8 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     // Check input dimensions
     if table.nrows() != 2 || table.ncols() != 2 {
@@ -345,7 +347,8 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     // Check input dimensions
     if table.ndim() != 2 {
@@ -437,7 +440,8 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     // Check input dimensions
     if table.nrows() != 2 || table.ncols() != 2 {
@@ -551,7 +555,8 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     // Check input dimensions
     if table.nrows() != 2 || table.ncols() != 2 {

@@ -132,7 +132,7 @@ fn multi_dimensional_fft_example() {
     }
 
     // Compute 2D FFT
-    let spectrum_2d = fft2(&data.view(), None, None, None).unwrap();
+    let spectrum_2d = fft2(&data.to_owned(), None, None, None).unwrap();
 
     // DC component should be the sum of all elements
     let total_sum: f64 = data.iter().sum();
@@ -156,7 +156,7 @@ fn multi_dimensional_fft_example() {
     );
 
     // Recover original data
-    let recovered_2d = ifft2(&spectrum_2d.view(), None, None, None).unwrap();
+    let recovered_2d = ifft2(&spectrum_2d.to_owned(), None, None, None).unwrap();
     println!(
         "Recovered 2D array matches original: {}",
         recovered_2d

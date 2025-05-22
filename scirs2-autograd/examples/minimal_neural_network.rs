@@ -54,14 +54,15 @@ fn main() {
             let epsilon = 1e-7;
             let one_minus_epsilon = 1.0 - epsilon;
             let clipped_logits = clip(logits, epsilon, one_minus_epsilon);
-            
+
             // Create tensors of ones with the same shape as y and clipped_logits
             let ones_y = ones(&[batch_size, 1], ctx);
             let ones_logits = ones(&[batch_size, 1], ctx);
-            
-            let loss = neg(mean_all(
-                add(mul(y, ln(clipped_logits)), mul(sub(ones_y, y), ln(sub(ones_logits, clipped_logits)))),
-            ));
+
+            let loss = neg(mean_all(add(
+                mul(y, ln(clipped_logits)),
+                mul(sub(ones_y, y), ln(sub(ones_logits, clipped_logits))),
+            )));
 
             // Create feeder to provide input data
             let x_dyn = x_data.clone().into_dyn();

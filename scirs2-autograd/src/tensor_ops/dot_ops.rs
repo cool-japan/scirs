@@ -571,15 +571,15 @@ impl<T: Float> op::Op<T> for MatMul {
             ctx.append_output(dummy);
             return Ok(());
         }
-        
+
         // Get input arrays
         let input_a = ctx.input(0);
         let input_b = ctx.input(1);
-        
+
         // Create owned arrays for our inputs, handling different dimensionalities
         let a_owned: ndarray::Array2<T>;
         let b_owned: ndarray::Array2<T>;
-        
+
         // Handle left-hand side input
         if input_a.ndim() == 0 {
             // For scalar inputs to MatMul, we need to reshape them as 1x1 matrices
@@ -595,16 +595,22 @@ impl<T: Float> op::Op<T> for MatMul {
             a_owned = arr;
         } else if input_a.ndim() == 2 {
             // Normal 2D case - convert to owned array
-            a_owned = input_a.to_owned().into_dimensionality::<ndarray::Ix2>()
-                .map_err(|_| op::OpError::IncompatibleShape(
-                    format!("Cannot convert input array to 2D matrix, shape: {:?}", input_a.shape())
-                ))?;
+            a_owned = input_a
+                .to_owned()
+                .into_dimensionality::<ndarray::Ix2>()
+                .map_err(|_| {
+                    op::OpError::IncompatibleShape(format!(
+                        "Cannot convert input array to 2D matrix, shape: {:?}",
+                        input_a.shape()
+                    ))
+                })?;
         } else {
-            return Err(op::OpError::IncompatibleShape(
-                format!("lhs input for MatMul must be 0D, 1D, or 2D, got shape: {:?}", input_a.shape())
-            ));
+            return Err(op::OpError::IncompatibleShape(format!(
+                "lhs input for MatMul must be 0D, 1D, or 2D, got shape: {:?}",
+                input_a.shape()
+            )));
         }
-        
+
         // Handle right-hand side input
         if input_b.ndim() == 0 {
             // For scalar inputs to MatMul, we need to reshape them as 1x1 matrices
@@ -620,29 +626,35 @@ impl<T: Float> op::Op<T> for MatMul {
             b_owned = arr;
         } else if input_b.ndim() == 2 {
             // Normal 2D case - convert to owned array
-            b_owned = input_b.to_owned().into_dimensionality::<ndarray::Ix2>()
-                .map_err(|_| op::OpError::IncompatibleShape(
-                    format!("Cannot convert input array to 2D matrix, shape: {:?}", input_b.shape())
-                ))?;
+            b_owned = input_b
+                .to_owned()
+                .into_dimensionality::<ndarray::Ix2>()
+                .map_err(|_| {
+                    op::OpError::IncompatibleShape(format!(
+                        "Cannot convert input array to 2D matrix, shape: {:?}",
+                        input_b.shape()
+                    ))
+                })?;
         } else {
-            return Err(op::OpError::IncompatibleShape(
-                format!("rhs input for MatMul must be 0D, 1D, or 2D, got shape: {:?}", input_b.shape())
-            ));
+            return Err(op::OpError::IncompatibleShape(format!(
+                "rhs input for MatMul must be 0D, 1D, or 2D, got shape: {:?}",
+                input_b.shape()
+            )));
         }
-        
+
         // Create transposed arrays if needed
         let a_final = if self.transpose_a {
             a_owned.clone().reversed_axes().to_owned()
         } else {
             a_owned
         };
-        
+
         let b_final = if self.transpose_b {
             b_owned.clone().reversed_axes().to_owned()
         } else {
             b_owned
         };
-        
+
         // Check dimensions
         let ((m, k), (k2, n)) = (a_final.dim(), b_final.dim());
         if k != k2 || m.checked_mul(n).is_none() {
@@ -653,7 +665,7 @@ impl<T: Float> op::Op<T> for MatMul {
         let lhs_s0 = a_final.strides()[0];
         let rhs_s0 = b_final.strides()[0];
         let column_major = lhs_s0 == 1 && rhs_s0 == 1;
-        
+
         // Allocate output array
         let mut v = Vec::with_capacity(m * n);
         let mut c;
@@ -665,7 +677,7 @@ impl<T: Float> op::Op<T> for MatMul {
         // Perform matrix multiplication
         let a_view = a_final.view();
         let b_view = b_final.view();
-        
+
         #[cfg(feature = "blas")]
         {
             mat_mul_impl_blas(T::one(), &a_view, &b_view, T::zero(), &mut c.view_mut());
@@ -674,7 +686,7 @@ impl<T: Float> op::Op<T> for MatMul {
         {
             mat_mul_impl_slow(T::one(), &a_view, &b_view, T::zero(), &mut c.view_mut());
         }
-        
+
         ctx.append_output(c.into_dyn());
         Ok(())
     }

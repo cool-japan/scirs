@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-optim"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -12,10 +12,10 @@ build = "build.rs"
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
-# scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.3" }
-scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.3", optional = true, features = ["neural_common"] }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
+# scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.4" }
+scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.4", optional = true, features = ["neural_common"] }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-rand = { workspace = true }
 num-traits = "0.2.19"

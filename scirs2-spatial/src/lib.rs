@@ -356,14 +356,19 @@ pub mod transform;
 
 // Collision detection
 pub mod collision;
-pub use collision::{
-    box2d_box2d_collision, box3d_box3d_collision, circle_box2d_collision, circle_circle_collision,
-    continuous_sphere_sphere_collision, point_box2d_collision, point_box3d_collision,
-    point_circle_collision, point_sphere_collision, point_triangle2d_collision,
-    ray_box3d_collision, ray_sphere_collision, ray_triangle3d_collision, sphere_box3d_collision,
-    sphere_sphere_collision, Box2D, Box3D, Circle, LineSegment2D, LineSegment3D, Sphere,
-    Triangle2D, Triangle3D,
+// Re-export shapes for convenience
+pub use collision::shapes::{
+    Box2D, Box3D, Circle, LineSegment2D, LineSegment3D, Sphere, Triangle2D, Triangle3D,
 };
+// Re-export narrowphase collision functions
+pub use collision::narrowphase::{
+    box2d_box2d_collision, box3d_box3d_collision, circle_box2d_collision, circle_circle_collision,
+    point_box2d_collision, point_box3d_collision, point_circle_collision, point_sphere_collision,
+    point_triangle2d_collision, ray_box3d_collision, ray_sphere_collision,
+    ray_triangle3d_collision, sphere_box3d_collision, sphere_sphere_collision,
+};
+// Re-export continuous collision functions
+pub use collision::continuous::continuous_sphere_sphere_collision;
 
 // Utility functions
 mod utils;

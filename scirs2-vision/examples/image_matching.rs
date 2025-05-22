@@ -2,8 +2,7 @@
 
 use image::{GenericImageView, Pixel, Rgba, RgbaImage};
 use scirs2_vision::feature::{
-    detect_and_compute_orb, find_homography_from_matches, match_orb_descriptors,
-    OrbConfig,
+    detect_and_compute_orb, find_homography_from_matches, match_orb_descriptors, OrbConfig,
 };
 use scirs2_vision::transform::{warp_affine, AffineTransform};
 use std::env;
@@ -62,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|(idx1, idx2, dist)| (*idx1, *idx2, *dist as f32))
         .collect();
-    
+
     let (homography, mask) = find_homography_from_matches(
         &matches_f32,
         &descriptors1

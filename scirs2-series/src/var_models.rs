@@ -260,8 +260,8 @@ where
             for response_var in 0..self.n_vars {
                 if total_variance[response_var] > F::epsilon() {
                     for shock_var in 0..self.n_vars {
-                        decomp_h[[response_var, shock_var]] = decomp_h[[response_var, shock_var]]
-                            / total_variance[response_var];
+                        decomp_h[[response_var, shock_var]] =
+                            decomp_h[[response_var, shock_var]] / total_variance[response_var];
                     }
                 }
             }

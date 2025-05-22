@@ -202,6 +202,14 @@ pub enum CoreError {
     /// IO error
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    /// Scheduler error (error in work-stealing scheduler)
+    #[error("Scheduler error: {0}")]
+    SchedulerError(ErrorContext),
+
+    /// Timeout error (operation timed out)
+    #[error("Timeout error: {0}")]
+    TimeoutError(ErrorContext),
 }
 
 /// Result type alias for core operations

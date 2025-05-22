@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let max_scale = 64.0;
     let factor = f64::powf(max_scale / min_scale, 1.0 / (num_scales - 1) as f64);
     let scales: Vec<f64> = (0..num_scales)
-        .map(|i| min_scale * factor.powi(i as i32))
+        .map(|i| min_scale * factor.powi(i))
         .collect();
 
     println!("Performing wavelet transforms with {} scales", scales.len());
@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compute ridge detection to track instantaneous frequency
     let ridge_detection = |scalogram: &[Vec<f64>]| -> Vec<usize> {
         let n_times = scalogram[0].len();
-        let n_scales = scalogram.len();
+        let _n_scales = scalogram.len();
 
         (0..n_times)
             .map(|j| {
@@ -139,12 +139,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut max_idx = 0;
                 let mut max_val = 0.0;
 
-                for i in 0..n_scales {
-                    if scalogram[i][j] > max_val {
-                        max_val = scalogram[i][j];
+                scalogram.iter().enumerate().for_each(|(i, row)| {
+                    if row[j] > max_val {
+                        max_val = row[j];
                         max_idx = i;
                     }
-                }
+                });
 
                 max_idx
             })

@@ -64,6 +64,13 @@ pub enum SparseError {
     /// Iterative solver failure error
     #[error("Iterative solver failure: {0}")]
     IterativeSolverFailure(String),
+
+    /// Index cast overflow error
+    #[error("Index value {value} cannot be represented in the target type {target_type}")]
+    IndexCastOverflow {
+        value: usize,
+        target_type: &'static str,
+    },
 }
 
 /// Result type for sparse matrix/array operations

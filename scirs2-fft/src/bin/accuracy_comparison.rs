@@ -239,7 +239,7 @@ pub fn test_fft2_accuracy() -> Vec<AccuracyResult> {
         let complex_signal = signal.mapv(|x| Complex64::new(x, 0.0));
 
         // Forward 2D FFT
-        let spectrum = fft2(&complex_signal.view(), None, None, None).unwrap();
+        let spectrum = fft2(&complex_signal.to_owned(), None, None, None).unwrap();
 
         // For a 2D sine wave, we expect peaks at specific frequencies
         let mut expected = Array2::zeros((size, size));

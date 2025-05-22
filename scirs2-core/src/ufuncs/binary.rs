@@ -32,11 +32,11 @@ impl UFunc for AddUFunc {
     fn name(&self) -> &str {
         "add"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Binary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -44,7 +44,7 @@ impl UFunc for AddUFunc {
         if inputs.len() != 2 {
             return Err("Add requires exactly two input arrays");
         }
-        
+
         // Apply addition element-wise
         apply_binary(inputs[0], inputs[1], output, |&x: &f64, &y: &f64| x + y)
     }
@@ -57,11 +57,11 @@ impl UFunc for SubtractUFunc {
     fn name(&self) -> &str {
         "subtract"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Binary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -69,7 +69,7 @@ impl UFunc for SubtractUFunc {
         if inputs.len() != 2 {
             return Err("Subtract requires exactly two input arrays");
         }
-        
+
         // Apply subtraction element-wise
         apply_binary(inputs[0], inputs[1], output, |&x: &f64, &y: &f64| x - y)
     }
@@ -82,11 +82,11 @@ impl UFunc for MultiplyUFunc {
     fn name(&self) -> &str {
         "multiply"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Binary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -94,7 +94,7 @@ impl UFunc for MultiplyUFunc {
         if inputs.len() != 2 {
             return Err("Multiply requires exactly two input arrays");
         }
-        
+
         // Apply multiplication element-wise
         apply_binary(inputs[0], inputs[1], output, |&x: &f64, &y: &f64| x * y)
     }
@@ -107,11 +107,11 @@ impl UFunc for DivideUFunc {
     fn name(&self) -> &str {
         "divide"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Binary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -119,7 +119,7 @@ impl UFunc for DivideUFunc {
         if inputs.len() != 2 {
             return Err("Divide requires exactly two input arrays");
         }
-        
+
         // Apply division element-wise
         apply_binary(inputs[0], inputs[1], output, |&x: &f64, &y: &f64| {
             if y == 0.0 {
@@ -138,11 +138,11 @@ impl UFunc for PowerUFunc {
     fn name(&self) -> &str {
         "power"
     }
-    
+
     fn kind(&self) -> UFuncKind {
         UFuncKind::Binary
     }
-    
+
     fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
     where
         D: Dimension,
@@ -150,7 +150,7 @@ impl UFunc for PowerUFunc {
         if inputs.len() != 2 {
             return Err("Power requires exactly two input arrays");
         }
-        
+
         // Apply power function element-wise
         apply_binary(inputs[0], inputs[1], output, |&x: &f64, &y: &f64| x.powf(y))
     }
@@ -195,23 +195,23 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_binary_ufuncs();
-    
+
     // Use broadcasting to handle arrays of different shapes
     // We need to convert to dynamic dimension for broadcasting
     let a_view = a.view().into_dyn();
     let b_view = b.view().into_dyn();
-    
+
     // Try to broadcast the arrays
     broadcast_apply(a_view, b_view, |x, y| x + y).unwrap_or_else(|_| {
         // If broadcasting fails, assume arrays are the same shape
         // and apply operation directly
         let mut result = Array::<f64, _>::zeros(a.raw_dim().into_dyn());
-        
+
         let add_ufunc = AddUFunc;
         if let Err(_) = add_ufunc.apply(&[&a.view(), &b.view()], &mut result) {
             panic!("Arrays are not compatible for addition");
         }
-        
+
         result
     })
 }
@@ -253,22 +253,22 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_binary_ufuncs();
-    
+
     // Use broadcasting to handle arrays of different shapes
     let a_view = a.view().into_dyn();
     let b_view = b.view().into_dyn();
-    
+
     // Try to broadcast the arrays
     broadcast_apply(a_view, b_view, |x, y| x - y).unwrap_or_else(|_| {
         // If broadcasting fails, assume arrays are the same shape
         // and apply operation directly
         let mut result = Array::<f64, _>::zeros(a.raw_dim().into_dyn());
-        
+
         let subtract_ufunc = SubtractUFunc;
         if let Err(_) = subtract_ufunc.apply(&[&a.view(), &b.view()], &mut result) {
             panic!("Arrays are not compatible for subtraction");
         }
-        
+
         result
     })
 }
@@ -310,22 +310,22 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_binary_ufuncs();
-    
+
     // Use broadcasting to handle arrays of different shapes
     let a_view = a.view().into_dyn();
     let b_view = b.view().into_dyn();
-    
+
     // Try to broadcast the arrays
     broadcast_apply(a_view, b_view, |x, y| x * y).unwrap_or_else(|_| {
         // If broadcasting fails, assume arrays are the same shape
         // and apply operation directly
         let mut result = Array::<f64, _>::zeros(a.raw_dim().into_dyn());
-        
+
         let multiply_ufunc = MultiplyUFunc;
         if let Err(_) = multiply_ufunc.apply(&[&a.view(), &b.view()], &mut result) {
             panic!("Arrays are not compatible for multiplication");
         }
-        
+
         result
     })
 }
@@ -367,11 +367,11 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_binary_ufuncs();
-    
+
     // Use broadcasting to handle arrays of different shapes
     let a_view = a.view().into_dyn();
     let b_view = b.view().into_dyn();
-    
+
     // Try to broadcast the arrays
     broadcast_apply(a_view, b_view, |x, y| {
         if *y == 0.0 {
@@ -383,12 +383,12 @@ where
         // If broadcasting fails, assume arrays are the same shape
         // and apply operation directly
         let mut result = Array::<f64, _>::zeros(a.raw_dim().into_dyn());
-        
+
         let divide_ufunc = DivideUFunc;
         if let Err(_) = divide_ufunc.apply(&[&a.view(), &b.view()], &mut result) {
             panic!("Arrays are not compatible for division");
         }
-        
+
         result
     })
 }
@@ -430,22 +430,22 @@ where
 {
     // Initialize the ufuncs registry if needed
     init_binary_ufuncs();
-    
+
     // Use broadcasting to handle arrays of different shapes
     let a_view = a.view().into_dyn();
     let b_view = b.view().into_dyn();
-    
+
     // Try to broadcast the arrays
     broadcast_apply(a_view, b_view, |x, y| x.powf(*y)).unwrap_or_else(|_| {
         // If broadcasting fails, assume arrays are the same shape
         // and apply operation directly
         let mut result = Array::<f64, _>::zeros(a.raw_dim().into_dyn());
-        
+
         let power_ufunc = PowerUFunc;
         if let Err(_) = power_ufunc.apply(&[&a.view(), &b.view()], &mut result) {
             panic!("Arrays are not compatible for power operation");
         }
-        
+
         result
     })
 }
@@ -461,7 +461,7 @@ mod tests {
         let b = array![4.0, 5.0, 6.0];
         let result = add(&a, &b);
         assert_eq!(result, array![5.0, 7.0, 9.0]);
-        
+
         // Test broadcasting
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
         let b = array![10.0, 20.0, 30.0];
@@ -475,7 +475,7 @@ mod tests {
         let b = array![1.0, 2.0, 3.0];
         let result = subtract(&a, &b);
         assert_eq!(result, array![4.0, 5.0, 6.0]);
-        
+
         // Test broadcasting
         let a = array![[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]];
         let b = array![1.0, 2.0, 3.0];
@@ -489,7 +489,7 @@ mod tests {
         let b = array![4.0, 5.0, 6.0];
         let result = multiply(&a, &b);
         assert_eq!(result, array![4.0, 10.0, 18.0]);
-        
+
         // Test broadcasting
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
         let b = array![10.0, 20.0, 30.0];
@@ -503,13 +503,13 @@ mod tests {
         let b = array![1.0, 2.0, 3.0];
         let result = divide(&a, &b);
         assert_eq!(result, array![4.0, 5.0, 6.0]);
-        
+
         // Test broadcasting
         let a = array![[10.0, 40.0, 90.0], [40.0, 100.0, 180.0]];
         let b = array![10.0, 20.0, 30.0];
         let result = divide(&a, &b);
         assert_eq!(result, array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-        
+
         // Test division by zero
         let a = array![1.0, 2.0, 3.0];
         let b = array![1.0, 0.0, 3.0];
@@ -525,7 +525,7 @@ mod tests {
         let b = array![2.0, 2.0, 2.0];
         let result = power(&a, &b);
         assert_eq!(result, array![4.0, 9.0, 16.0]);
-        
+
         // Test broadcasting
         let a = array![[2.0, 3.0, 4.0], [5.0, 6.0, 7.0]];
         let b = array![2.0, 3.0, 2.0];

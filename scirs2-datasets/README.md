@@ -20,14 +20,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-datasets = "0.1.0-alpha.3"
+scirs2-datasets = "0.1.0-alpha.4"
 ```
 
 To enable additional download and caching features:
 
 ```toml
 [dependencies]
-scirs2-datasets = { version = "0.1.0-alpha.3", features = ["remote-datasets"] }
+scirs2-datasets = { version = "0.1.0-alpha.4", features = ["remote-datasets"] }
 ```
 
 ## Usage

@@ -22,15 +22,17 @@
   - Key challenge: Memory-efficient implementation for large matrices
   - Status: Completed with efficient implementations for all three functions
   
-- ⏳ Specialized sparse formats (symmetric, block, banded) 
+- ✅ Specialized sparse formats (symmetric, block, banded) 
   - Implementation strategy: Extend core formats with specialized variants
   - Initial focus: Symmetric formats and optimized banded formats
   - Key challenge: Maintaining performance while adding specialization
+  - Status: Implemented symmetric sparse formats (SymCsrMatrix, SymCooMatrix) with optimized matrix-vector multiplication and other operations
   
-- ⏳ Enhanced index dtype handling
+- ✅ Enhanced index dtype handling
   - Implementation strategy: Implement utilities similar to SciPy's index handling
   - Initial focus: Index dtype selection and safe casting
   - Key challenge: Supporting 64-bit indices efficiently
+  - Status: Implemented get_index_dtype and safely_cast_index_arrays functions
 
 ### Phase 3: Linear Algebra and Algorithms (Q3 2025 - Q1 2026)
 - ✅ Linear operators infrastructure
@@ -420,16 +422,16 @@ This module provides sparse matrix functionality similar to SciPy's sparse modul
 - [x] Add sparse array tools
   - [x] `save_npz`/`load_npz` for serialization
   - [x] `find` function to return indices and values of nonzero elements
-  - [ ] `get_index_dtype` to determine a good dtype for index arrays
-    - [ ] Analyze array size and maximum values
-    - [ ] Select the smallest appropriate integer type
-    - [ ] Handle edge cases for very large arrays
-    - [ ] Support for multiple input arrays
-  - [ ] `safely_cast_index_arrays` for safe casting of index arrays
-    - [ ] Ensure no overflow during conversion
-    - [ ] Preserve index integrity during format conversion
-    - [ ] Handle mixed dtype index arrays
-    - [ ] Optimize for common use cases
+  - [x] `get_index_dtype` to determine a good dtype for index arrays
+    - [x] Analyze array size and maximum values
+    - [x] Select the smallest appropriate integer type
+    - [x] Handle edge cases for very large arrays
+    - [x] Support for multiple input arrays
+  - [x] `safely_cast_index_arrays` for safe casting of index arrays
+    - [x] Ensure no overflow during conversion
+    - [x] Preserve index integrity during format conversion
+    - [x] Handle mixed dtype index arrays
+    - [x] Optimize for common use cases
 
 ## Sparse Linear Algebra
 

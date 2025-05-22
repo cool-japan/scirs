@@ -463,9 +463,9 @@ mod tests {
     fn test_detrend_linear() {
         // Test signal with linear trend: y = 2x + 1
         let mut signal = vec![0.0; 10];
-        for i in 0..10 {
-            signal[i] = 2.0 * i as f64 + 1.0;
-        }
+        signal.iter_mut().enumerate().for_each(|(i, val)| {
+            *val = 2.0 * i as f64 + 1.0;
+        });
 
         let detrended = detrend(&signal, Some("linear")).unwrap();
 
@@ -559,10 +559,10 @@ mod tests {
         // Create a signal with a cubic trend: y = 0.1*x^3 - 0.5*x^2 + 2*x - 3
         let n = 20;
         let mut signal = vec![0.0; n];
-        for i in 0..n {
+        signal.iter_mut().enumerate().for_each(|(i, val)| {
             let x = i as f64;
-            signal[i] = 0.1 * x.powi(3) - 0.5 * x.powi(2) + 2.0 * x - 3.0;
-        }
+            *val = 0.1 * x.powi(3) - 0.5 * x.powi(2) + 2.0 * x - 3.0;
+        });
 
         // Remove cubic trend (polynomial of order 3)
         let detrended = detrend_poly(&signal, 3).unwrap();

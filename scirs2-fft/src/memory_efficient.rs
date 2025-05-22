@@ -106,6 +106,42 @@ pub fn fft_inplace(
         )));
     }
 
+    // For larger arrays, consider using SIMD acceleration
+    let use_simd = n >= 32 && crate::simd_fft::simd_support_available();
+
+    if use_simd {
+        // Use the SIMD-accelerated FFT implementation
+        let result = match mode {
+            FftMode::Forward => crate::simd_fft::fft_adaptive(
+                input,
+                Some(n),
+                if normalize {
+                    Some(crate::simd_fft::NormMode::Forward)
+                } else {
+                    None
+                },
+            )?,
+            FftMode::Inverse => crate::simd_fft::ifft_adaptive(
+                input,
+                Some(n),
+                if normalize {
+                    Some(crate::simd_fft::NormMode::Backward)
+                } else {
+                    None
+                },
+            )?,
+        };
+
+        // Copy the results back to the input and output buffers
+        for (i, &val) in result.iter().enumerate() {
+            input[i] = val;
+            output[i] = val;
+        }
+
+        return Ok(n);
+    }
+
+    // Fall back to standard implementation for small arrays
     // Create FFT plan
     let mut planner = FftPlanner::new();
     let fft = match mode {
@@ -125,9 +161,23 @@ pub fn fft_inplace(
     // Convert back to num_complex::Complex64 and apply normalization if needed
     let scale = if normalize { 1.0 / (n as f64) } else { 1.0 };
 
-    for (i, &c) in buffer.iter().enumerate() {
-        input[i] = Complex64::new(c.re * scale, c.im * scale);
-        output[i] = input[i];
+    if scale != 1.0 && use_simd {
+        // Copy back to input buffer first
+        for (i, &c) in buffer.iter().enumerate() {
+            input[i] = Complex64::new(c.re, c.im);
+        }
+
+        // Use SIMD-accelerated normalization
+        crate::simd_fft::apply_simd_normalization(input, scale);
+
+        // Copy to output buffer
+        output.copy_from_slice(input);
+    } else {
+        // Standard normalization
+        for (i, &c) in buffer.iter().enumerate() {
+            input[i] = Complex64::new(c.re * scale, c.im * scale);
+            output[i] = input[i];
+        }
     }
 
     Ok(n)

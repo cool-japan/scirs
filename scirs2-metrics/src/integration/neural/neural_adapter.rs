@@ -10,7 +10,8 @@ use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 /// Type alias for metric function
-type MetricFn<F> = Box<dyn Fn(&Array<F, IxDyn>, &Array<F, IxDyn>) -> Result<F, MetricsError> + Send + Sync>;
+type MetricFn<F> =
+    Box<dyn Fn(&Array<F, IxDyn>, &Array<F, IxDyn>) -> Result<F, MetricsError> + Send + Sync>;
 
 /// Adapter for using metrics with neural network models
 pub struct NeuralMetricAdapter<F: Float + Debug + Display + FromPrimitive> {
@@ -41,10 +42,7 @@ impl<F: Float + Debug + Display + FromPrimitive> std::fmt::Debug for NeuralMetri
 
 impl<F: Float + Debug + Display + FromPrimitive> NeuralMetricAdapter<F> {
     /// Create a new neural metric adapter
-    pub fn new(
-        name: &str,
-        metric_fn: MetricFn<F>,
-    ) -> Self {
+    pub fn new(name: &str, metric_fn: MetricFn<F>) -> Self {
         #[cfg(feature = "neural_common")]
         {
             Self {

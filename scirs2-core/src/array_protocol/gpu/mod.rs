@@ -24,6 +24,6 @@ pub use cuda_operations::*;
 pub fn init_gpu_system() {
     // Initialize CUDA operations
     cuda_operations::register_cuda_operations();
-    
+
     // Other GPU backends would be initialized here
 }

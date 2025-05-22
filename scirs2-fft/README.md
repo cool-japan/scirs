@@ -43,13 +43,13 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-fft = "0.1.0-alpha.3"
+scirs2-fft = "0.1.0-alpha.4"
 # Optional: Enable parallel processing
-scirs2-fft = { version = "0.1.0-alpha.3", features = ["parallel"] }
+scirs2-fft = { version = "0.1.0-alpha.4", features = ["parallel"] }
 # Optional: Enable CUDA GPU acceleration
-scirs2-fft = { version = "0.1.0-alpha.3", features = ["cuda"] }
+scirs2-fft = { version = "0.1.0-alpha.4", features = ["cuda"] }
 # Optional: Enable both parallel processing and CUDA
-scirs2-fft = { version = "0.1.0-alpha.3", features = ["parallel", "cuda"] }
+scirs2-fft = { version = "0.1.0-alpha.4", features = ["parallel", "cuda"] }
 ```
 
 Basic usage examples:
@@ -218,6 +218,13 @@ use scirs2_fft::fft::{
     fftfreq,            // Return the Discrete Fourier Transform sample frequencies
     fftshift,           // Shift the zero-frequency component to the center
     ifftshift,          // Inverse of fftshift
+};
+
+// Advanced parallel planning and execution
+use scirs2_fft::{
+    ParallelPlanner,       // Create FFT plans in parallel
+    ParallelExecutor,      // Execute FFT plans in parallel
+    ParallelPlanningConfig // Configure parallel planning behavior
 };
 
 // Memory-efficient operations for large arrays
@@ -453,8 +460,79 @@ The FFT implementation in this module is optimized for performance:
 - Includes specialized implementations for common cases 
 - Parallel implementations for large arrays using Rayon
 - GPU acceleration for even greater performance on supported hardware
+- Advanced parallel planning system for creating and executing multiple FFT plans concurrently
 - Offers automatic selection of the most efficient algorithm
 - Smart thresholds to choose between sequential and parallel implementations
+
+### Parallel Planning
+
+The parallel planning system allows for concurrent creation and execution of FFT plans:
+
+```rust
+use scirs2_fft::{ParallelPlanner, ParallelExecutor, ParallelPlanningConfig};
+use num_complex::Complex64;
+
+// Configure parallel planning
+let config = ParallelPlanningConfig {
+    parallel_threshold: 1024,  // Only use parallelism for FFTs >= 1024 elements
+    max_threads: None,         // Use all available threads
+    parallel_execution: true,  // Enable parallel execution
+    ..Default::default()
+};
+
+// Create a parallel planner
+let planner = ParallelPlanner::new(Some(config.clone()));
+
+// Create multiple plans in parallel
+let plan_specs = vec![
+    (vec![1024], true, Default::default()),       // 1D FFT of size 1024
+    (vec![512, 512], true, Default::default()),   // 2D FFT of size 512x512
+    (vec![128, 128, 128], true, Default::default()), // 3D FFT of size 128x128x128
+];
+
+let results = planner.plan_multiple(&plan_specs).unwrap();
+
+// Use the plans for execution
+let plan = &results[0].plan;
+let executor = ParallelExecutor::new(plan.clone(), Some(config));
+
+// Create input data
+let size = plan.shape().iter().product::<usize>();
+let input = vec![Complex64::new(1.0, 0.0); size];
+let mut output = vec![Complex64::default(); size];
+
+// Execute the FFT plan in parallel
+executor.execute(&input, &mut output).unwrap();
+
+// Batch execution of multiple FFTs
+let batch_size = 4;
+let mut inputs = Vec::with_capacity(batch_size);
+let mut outputs = Vec::with_capacity(batch_size);
+
+// Create batch data
+for _ in 0..batch_size {
+    inputs.push(vec![Complex64::new(1.0, 0.0); size]);
+    outputs.push(vec![Complex64::default(); size]);
+}
+
+// Get mutable references to outputs
+let mut output_refs: Vec<&mut [Complex64]> = outputs.iter_mut()
+    .map(|v| v.as_mut_slice())
+    .collect();
+
+// Execute batch of FFTs in parallel
+executor.execute_batch(
+    &inputs.iter().map(|v| v.as_slice()).collect::<Vec<_>>(),
+    &mut output_refs
+).unwrap();
+```
+
+Benefits of using the parallel planning system:
+- Create multiple FFT plans concurrently, reducing initialization time
+- Execute FFTs in parallel for better hardware utilization
+- Batch processing for multiple input signals
+- Configurable thresholds to control when parallelism is used
+- Worker pool management for optimal thread usage
 
 ## Testing
 

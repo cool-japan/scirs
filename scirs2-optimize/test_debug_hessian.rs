@@ -1,4 +1,4 @@
-use ndarray::{array, ArrayView1};
+use ndarray::{array, Array1, ArrayView1};
 use scirs2_optimize::sparse_numdiff::{sparse_hessian, SparseFiniteDiffOptions};
 use scirs2_sparse::sparray::SparseArray;
 
@@ -11,7 +11,16 @@ fn main() {
 
     // Test the default method
     println!("Testing default method:");
-    let hess = sparse_hessian(sphere, &x.view(), None, None, None).unwrap();
+    let hess = sparse_hessian(
+        sphere,
+        None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+        &x.view(),
+        None,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
 
     println!("Hessian computed:");
     let hess_dense = hess.to_array();
@@ -36,7 +45,16 @@ fn main() {
         ..SparseFiniteDiffOptions::default()
     };
 
-    let hess2 = sparse_hessian(sphere, &x.view(), None, None, Some(options)).unwrap();
+    let hess2 = sparse_hessian(
+        sphere,
+        None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+        &x.view(),
+        None,
+        None,
+        None,
+        Some(options),
+    )
+    .unwrap();
     let hess2_dense = hess2.to_array();
     println!("{:?}", hess2_dense);
 }

@@ -26,10 +26,10 @@
 //!
 //! for i in 0..1000 {
 //!     // Perform computation
-//!     
+//!
 //!     // Update progress
 //!     progress.update(i + 1);
-//!     
+//!
 //!     // Log intermediate results at low frequency to avoid flooding logs
 //!     if i % 100 == 0 {
 //!         logger.debug(&format!("Completed {}/{} iterations", i + 1, 1000));

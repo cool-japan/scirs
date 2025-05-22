@@ -51,11 +51,15 @@ fn main() {
         if !predictions.is_empty() {
             println!("Input    | Prediction");
             println!("---------|----------");
-            
+
             // Safe way to print predictions
             let num_rows = predictions.shape().get(0).cloned().unwrap_or(0);
-            let num_cols = if predictions.ndim() > 1 { predictions.shape()[1] } else { 1 };
-            
+            let num_cols = if predictions.ndim() > 1 {
+                predictions.shape()[1]
+            } else {
+                1
+            };
+
             for i in 0..std::cmp::min(4, num_rows) {
                 if predictions.ndim() == 2 && num_cols > 0 {
                     println!(
@@ -67,7 +71,7 @@ fn main() {
                 } else {
                     println!(
                         "{:.0}, {:.0}    | Unable to get prediction (dimension mismatch)",
-                        x_data[[i, 0]], 
+                        x_data[[i, 0]],
                         x_data[[i, 1]]
                     );
                 }

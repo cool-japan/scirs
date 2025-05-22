@@ -24,14 +24,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.1.0-alpha.3"
+scirs2-io = "0.1.0-alpha.4"
 ```
 
 To enable specific features:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.1.0-alpha.3", features = ["matlab", "image", "compression"] }
+scirs2-io = { version = "0.1.0-alpha.4", features = ["matlab", "image", "compression"] }
 ```
 
 Available features:

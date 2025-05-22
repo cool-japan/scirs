@@ -54,7 +54,7 @@ pub enum TimeSeriesError {
     #[error("Failed to converge after {iterations} iterations")]
     ConvergenceError {
         /// Number of iterations attempted
-        iterations: usize
+        iterations: usize,
     },
 
     /// Numerical instability
@@ -71,7 +71,7 @@ pub enum TimeSeriesError {
         /// Expected dimension
         expected: usize,
         /// Actual dimension
-        actual: usize
+        actual: usize,
     },
 
     /// Invalid parameter value
@@ -80,7 +80,7 @@ pub enum TimeSeriesError {
         /// Parameter name
         name: String,
         /// Error message
-        message: String
+        message: String,
     },
 
     /// Not implemented

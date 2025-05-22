@@ -603,8 +603,9 @@ impl OptimizedFFT {
                 .slice(ndarray::s![i, ..cols])
                 .iter()
                 .map(|&val| {
-                    let val_f64 = NumCast::from(val)
-                        .ok_or_else(|| FFTError::ValueError(format!("Could not convert to f64")))?;
+                    let val_f64 = NumCast::from(val).ok_or_else(|| {
+                        FFTError::ValueError("Could not convert to f64".to_string())
+                    })?;
                     Ok(Complex64::new(val_f64, 0.0))
                 })
                 .collect::<FFTResult<Vec<_>>>()?;

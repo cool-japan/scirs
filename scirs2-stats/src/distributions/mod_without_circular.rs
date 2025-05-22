@@ -142,7 +142,7 @@ where
 /// ```
 pub fn t<F>(df: F, loc: F, scale: F) -> StatsResult<StudentT<F>>
 where
-    F: num_traits::Float + num_traits::NumCast + std::marker::Send + std::marker::Sync,
+    F: num_traits::Float + num_traits::NumCast + std::marker::Send + std::marker::Sync + 'static,
 {
     StudentT::new(df, loc, scale)
 }
@@ -173,7 +173,7 @@ where
 /// ```
 pub fn chi2<F>(df: F, loc: F, scale: F) -> StatsResult<ChiSquare<F>>
 where
-    F: num_traits::Float + num_traits::NumCast + std::marker::Send + std::marker::Sync,
+    F: num_traits::Float + num_traits::NumCast + std::marker::Send + std::marker::Sync + 'static,
 {
     ChiSquare::new(df, loc, scale)
 }
@@ -270,7 +270,8 @@ where
         + num_traits::NumCast
         + std::fmt::Debug
         + std::marker::Send
-        + std::marker::Sync,
+        + std::marker::Sync
+        + 'static,
 {
     Gamma::new(shape, scale, loc)
 }

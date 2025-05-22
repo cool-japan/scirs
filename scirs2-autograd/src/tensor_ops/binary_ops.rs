@@ -160,7 +160,7 @@ impl<T: Float> op::Op<T> for AddOp {
             ctx.append_output(dummy);
             return Ok(());
         }
-        
+
         let ret = add_forward(&ctx.input(0), &ctx.input(1));
         ctx.append_output(ret);
         Ok(())

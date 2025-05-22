@@ -55,3 +55,10 @@ impl From<std::io::Error> for TextError {
         TextError::IoError(err.to_string())
     }
 }
+
+/// Implement From trait for converting CoreError to TextError
+impl From<scirs2_core::CoreError> for TextError {
+    fn from(err: scirs2_core::CoreError) -> Self {
+        TextError::RuntimeError(err.to_string())
+    }
+}

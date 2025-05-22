@@ -1,0 +1,7 @@
+//! Evaluation utilities and visualizations for model performance
+//!
+//! This module has been refactored into sub-modules, and this file re-exports
+//! all the types for backwards compatibility.
+
+// Re-export from new module structure
+pub use self::evaluation::*;

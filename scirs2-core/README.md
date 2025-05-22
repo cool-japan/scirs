@@ -23,10 +23,11 @@ Core utilities and common functionality for the SciRS2 library. This crate provi
 - **Caching**: Memoization with TTL (Time-To-Live) support (via `cache` feature)
 - **SIMD Acceleration**: CPU vector instructions for faster array operations (via `simd` feature)
 - **Parallel Processing**: Multi-core support for improved performance (via `parallel` feature)
-- **GPU Acceleration**: Support for GPU computation via CUDA, WebGPU, Metal (via `gpu` feature)
+- **GPU Acceleration**: Support for GPU computation via CUDA, OpenCL, WebGPU, Metal (via `gpu` feature)
 - **Memory Management**: Efficient memory usage for large-scale computations (via `memory_management` feature)
 - **Memory-Efficient Operations**: Chunked processing, lazy evaluation, and out-of-core arrays (via `memory_efficient` feature)
 - **Scientific Arrays**: Masked arrays and record arrays for scientific computing (via `array` feature)
+- **Array Protocol**: Extensible protocol for third-party array implementations (via `array_protocol` feature)
 
 ### Development Support
 
@@ -46,7 +47,7 @@ Add the following to your `Cargo.toml`, including only the features you need:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.1.0-alpha.3", features = ["validation", "simd", "parallel", "cache"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "simd", "parallel", "cache"] }
 ```
 
 Basic usage examples:
@@ -94,45 +95,126 @@ let max_ab = maximum(&a, &b);  // [[4.0, 3.0], [3.0, 4.0]]
 
 The core module uses feature flags to enable optional functionality:
 
+### Basic Features
+
 - `validation`: Enable validation utilities (recommended for all modules)
 - `simd`: Enable SIMD acceleration (requires the `wide` crate)
 - `parallel`: Enable parallel processing (requires `rayon` and `ndarray/rayon`)
 - `cache`: Enable caching and memoization functionality (requires `cached` crate)
 - `logging`: Enable structured logging and diagnostics
-- `gpu`: Enable GPU acceleration abstractions
-- `cuda`: Enable CUDA-specific GPU acceleration (requires `gpu` feature)
-- `memory_management`: Enable advanced memory management tools
-- `memory_efficient`: Enable memory-efficient operations (chunking, lazy evaluation, out-of-core processing)
-- `array`: Enable scientific array types (MaskedArray, RecordArray)
-- `memory_metrics`: Enable detailed memory usage tracking and analysis
-- `memory_visualization`: Enable memory usage visualization capabilities
-- `memory_call_stack`: Enable call stack tracking for memory operations
 - `profiling`: Enable performance profiling tools
 - `random`: Enable random number generation utilities
 - `types`: Enable type conversion utilities
 - `ufuncs`: Enable universal functions for array operations
+
+### GPU Acceleration
+
+- `gpu`: Enable GPU acceleration abstractions
+- `cuda`: CUDA-specific GPU acceleration (requires `gpu` feature)
+- `opencl`: OpenCL-specific GPU acceleration (requires `gpu` feature)
+- `metal`: Metal-specific GPU acceleration for Apple platforms (requires `gpu` feature)
+- `wgpu`: WebGPU-specific GPU acceleration (requires `gpu` feature)
+
+### Memory Management
+
+- `memory_management`: Enable advanced memory management tools
+- `memory_efficient`: Enable memory-efficient operations (chunking, lazy evaluation, out-of-core processing)
+- `memory_compression`: Enable compressed memory-mapped arrays
+- `memory_metrics`: Enable detailed memory usage tracking and analysis
+- `memory_visualization`: Enable memory usage visualization capabilities
+- `memory_call_stack`: Enable call stack tracking for memory operations
+
+### Array Protocol
+
+- `array`: Enable scientific array types (MaskedArray, RecordArray)
+- `array_protocol`: Enable Array Protocol for third-party array implementations
+- `array_protocol_jit`: Enable JIT compilation for Array Protocol (requires `array_protocol` feature)
+- `array_protocol_gpu`: Enable GPU support for Array Protocol (requires `array_protocol` and `gpu` features)
+- `array_protocol_cuda`: Enable CUDA support for Array Protocol (requires `array_protocol_gpu` feature)
+- `array_protocol_opencl`: Enable OpenCL support for Array Protocol (requires `array_protocol_gpu` feature)
+- `array_protocol_metal`: Enable Metal support for Array Protocol (requires `array_protocol_gpu` feature)
+- `array_protocol_wgpu`: Enable WebGPU support for Array Protocol (requires `array_protocol_gpu` feature)
+- `array_protocol_distributed`: Enable distributed computing for Array Protocol (requires `array_protocol` and `parallel` features)
+- `array_protocol_all`: Enable all Array Protocol features
+
+### Linear Algebra
+
 - `linalg`: Enable linear algebra with BLAS/LAPACK bindings
+- `openblas`: Use OpenBLAS backend (requires `linalg` feature)
+- `intel-mkl`: Use Intel MKL backend (requires `linalg` feature)
+- `netlib`: Use Netlib backend (requires `linalg` feature)
+
+### Combined Features
+
 - `all`: Enable all features except backend-specific ones
 
 Each module should enable only the features it requires:
 
 ```toml
 # For modules performing numerical computations
-scirs2-core = { version = "0.1.0-alpha.3", features = ["validation", "simd"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "simd"] }
 
 # For modules with parallel operations and caching
-scirs2-core = { version = "0.1.0-alpha.3", features = ["validation", "parallel", "cache"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "parallel", "cache"] }
 
 # For AI/ML modules that need GPU acceleration
-scirs2-core = { version = "0.1.0-alpha.3", features = ["validation", "gpu", "memory_management", "random"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "gpu", "cuda", "memory_management", "random"] }
+
+# For modules needing array protocol with CUDA support
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "array_protocol", "array_protocol_cuda"] }
+
+# For modules needing JIT compilation with the array protocol
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "array_protocol", "array_protocol_jit"] }
 
 # For development and testing
-scirs2-core = { version = "0.1.0-alpha.3", features = ["validation", "logging", "profiling"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["validation", "logging", "profiling"] }
 ```
 
 ## Core Module Components
 
 ### New Components
+
+#### Array Protocol
+
+The Array Protocol allows third-party array implementations to work seamlessly with SciRS2 functions:
+
+```rust
+use scirs2_core::array_protocol::{self, matmul, GPUBackend, GPUConfig, GPUNdarray, NdarrayWrapper};
+use ndarray::Array2;
+
+// Initialize the array protocol system
+array_protocol::init();
+
+// Create regular arrays
+let a = Array2::<f64>::eye(3);
+let b = Array2::<f64>::ones((3, 3));
+
+// Wrap in NdarrayWrapper for CPU operations
+let wrapped_a = NdarrayWrapper::new(a.clone());
+let wrapped_b = NdarrayWrapper::new(b.clone());
+
+// Perform operations on CPU
+let result = matmul(&wrapped_a, &wrapped_b)?;
+
+// Create GPU arrays using CUDA backend
+let gpu_config = GPUConfig {
+    backend: GPUBackend::CUDA,
+    device_id: 0,
+    async_ops: false,
+    mixed_precision: false,
+    memory_fraction: 0.8,
+};
+
+// Move arrays to GPU
+let gpu_a = GPUNdarray::new(a.clone(), gpu_config.clone());
+let gpu_b = GPUNdarray::new(b.clone(), gpu_config);
+
+// Perform operations on GPU
+let gpu_result = matmul(&gpu_a, &gpu_b)?;
+
+// Convert result back to CPU
+let cpu_result = gpu_result.to_cpu()?;
+```
 
 #### GPU Acceleration
 
@@ -570,6 +652,70 @@ impl DataLoader {
         data
     }
 }
+```
+
+## Examples
+
+### Array Protocol with Different Backends
+
+The Array Protocol allows you to use the same code with different array implementations:
+
+```rust
+use scirs2_core::array_protocol::{
+    self, matmul, add, NdarrayWrapper, GPUNdarray, GPUBackend, GPUConfig,
+    DistributedNdarray, DistributedConfig, DistributionStrategy, DistributedBackend
+};
+use ndarray::Array2;
+
+// Initialize the array protocol system
+array_protocol::init();
+
+// Create arrays
+let a = Array2::<f64>::eye(3);
+let b = Array2::<f64>::ones((3, 3));
+
+// 1. CPU operations
+let cpu_a = NdarrayWrapper::new(a.clone());
+let cpu_b = NdarrayWrapper::new(b.clone());
+let cpu_result = matmul(&cpu_a, &cpu_b)?;
+
+// 2. GPU operations with CUDA
+let cuda_config = GPUConfig {
+    backend: GPUBackend::CUDA,
+    device_id: 0,
+    async_ops: false,
+    mixed_precision: false,
+    memory_fraction: 0.9,
+};
+let cuda_a = GPUNdarray::new(a.clone(), cuda_config.clone());
+let cuda_b = GPUNdarray::new(b.clone(), cuda_config);
+let cuda_result = matmul(&cuda_a, &cuda_b)?;
+
+// 3. GPU operations with OpenCL (same code, different backend)
+let opencl_config = GPUConfig {
+    backend: GPUBackend::OpenCL,
+    device_id: 0,
+    async_ops: false,
+    mixed_precision: false,
+    memory_fraction: 0.9,
+};
+let opencl_a = GPUNdarray::new(a.clone(), opencl_config.clone());
+let opencl_b = GPUNdarray::new(b.clone(), opencl_config);
+let opencl_result = matmul(&opencl_a, &opencl_b)?;
+
+// 4. Distributed operations
+let dist_config = DistributedConfig {
+    chunks: 2,
+    balance: true,
+    strategy: DistributionStrategy::RowWise,
+    backend: DistributedBackend::Threaded,
+};
+let dist_a = DistributedNdarray::from_array(a.clone(), dist_config.clone());
+let dist_b = DistributedNdarray::from_array(b.clone(), dist_config);
+let dist_result = matmul(&dist_a, &dist_b)?;
+
+// 5. Mix and match different array types
+let mixed_result = add(&cuda_a, &dist_b)?;
 ```
 
 ## Current Status

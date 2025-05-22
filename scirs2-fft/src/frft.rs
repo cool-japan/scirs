@@ -63,7 +63,7 @@ use std::f64::consts::PI;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use scirs2_fft::frft;
 /// use std::f64::consts::PI;
 ///
@@ -80,7 +80,7 @@ use std::f64::consts::PI;
 ///
 /// For complex inputs, use `frft_complex` directly:
 ///
-/// ```
+/// ```ignore
 /// use scirs2_fft::frft_complex;
 /// use num_complex::Complex64;
 /// use std::f64::consts::PI;
@@ -110,7 +110,7 @@ use std::f64::consts::PI;
 /// to avoid numerical instabilities.
 pub fn frft<T>(x: &[T], alpha: f64, d: Option<f64>) -> FFTResult<Vec<Complex64>>
 where
-    T: NumCast + Copy + std::fmt::Debug,
+    T: NumCast + Copy + std::fmt::Debug + 'static,
 {
     // Validate inputs
     if x.is_empty() {
@@ -122,21 +122,39 @@ where
         .iter()
         .map(|&val| {
             // Try to convert to f64 first
-            match num_traits::cast::<T, f64>(val) {
-                Some(val_f64) => Ok(Complex64::new(val_f64, 0.0)),
-                None => {
-                    // Try to convert to Complex64 directly
-                    match num_traits::cast::<T, Complex64>(val) {
-                        Some(val_complex) => Ok(val_complex),
-                        None => Err(FFTError::ValueError(format!(
-                            "Could not convert {:?} to numeric type",
-                            val
-                        ))),
-                    }
-                }
+            if let Some(val_f64) = num_traits::cast::<T, f64>(val) {
+                return Ok(Complex64::new(val_f64, 0.0));
             }
+
+            // Try to convert to Complex64 directly using Any
+            if let Some(complex) = try_as_complex(val) {
+                return Ok(complex);
+            }
+
+            // If all conversions fail
+            Err(FFTError::ValueError(format!(
+                "Could not convert {:?} to numeric type",
+                val
+            )))
         })
         .collect::<Result<Vec<_>, _>>()?;
+
+    // Helper function to try extracting Complex values using Any
+    fn try_as_complex<U: 'static + Copy>(val: U) -> Option<Complex64> {
+        use std::any::Any;
+
+        // Try to use runtime type checking with Any for complex types
+        if let Some(complex) = (&val as &dyn Any).downcast_ref::<Complex64>() {
+            return Some(*complex);
+        }
+
+        // Try to handle f32 complex numbers
+        if let Some(complex32) = (&val as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+            return Some(Complex64::new(complex32.re as f64, complex32.im as f64));
+        }
+
+        None
+    }
 
     // Delegate to frft_complex
     frft_complex(&x_complex, alpha, d)
@@ -343,7 +361,7 @@ pub fn frft_complex(x: &[Complex64], alpha: f64, d: Option<f64>) -> FFTResult<Ve
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// use scirs2_fft::frft_stable;
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];

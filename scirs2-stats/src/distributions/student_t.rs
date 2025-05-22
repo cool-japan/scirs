@@ -22,7 +22,7 @@ pub struct StudentT<F: Float + Send + Sync> {
     rand_distr: RandStudentT<f64>,
 }
 
-impl<F: Float + NumCast + Send + Sync> StudentT<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> StudentT<F> {
     /// Create a new Student's t distribution with given degrees of freedom, location, and scale
     ///
     /// # Arguments
@@ -259,8 +259,11 @@ impl<F: Float + NumCast + Send + Sync> StudentT<F> {
             let mut rng = rand::rng();
             let rand_distr = RandStudentT::new(df_f64).unwrap();
             let sample = rand_distr.sample(&mut rng);
-            F::from(sample).unwrap() * scale + loc
-        });
+            Ok(F::from(sample).unwrap() * scale + loc)
+        })
+        .map_err(|e| {
+            StatsError::ComputationError(format!("Failed to generate samples in parallel: {}", e))
+        })?;
 
         Ok(samples)
     }
@@ -363,7 +366,7 @@ fn regularized_beta<F: Float>(x: F, a: F, b: F) -> F {
 }
 
 /// Implementation of Distribution trait for StudentT
-impl<F: Float + NumCast + Send + Sync> ScirsDist<F> for StudentT<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> ScirsDist<F> for StudentT<F> {
     fn mean(&self) -> F {
         // Mean is 0 for df > 1, undefined for df <= 1
         if self.df <= F::one() {
@@ -424,7 +427,7 @@ impl<F: Float + NumCast + Send + Sync> ScirsDist<F> for StudentT<F> {
 }
 
 /// Implementation of ContinuousDistribution trait for StudentT
-impl<F: Float + NumCast + Send + Sync> ContinuousDistribution<F> for StudentT<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> ContinuousDistribution<F> for StudentT<F> {
     fn pdf(&self, x: F) -> F {
         // Call the implementation from the struct
         StudentT::pdf(self, x)
@@ -509,7 +512,7 @@ impl<F: Float + NumCast + Send + Sync> ContinuousDistribution<F> for StudentT<F>
 }
 
 /// Implementation of SampleableDistribution for StudentT
-impl<F: Float + NumCast + Send + Sync> SampleableDistribution<F> for StudentT<F> {
+impl<F: Float + NumCast + Send + Sync + 'static> SampleableDistribution<F> for StudentT<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
         self.rvs_vec(size)
     }

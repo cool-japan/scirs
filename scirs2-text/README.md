@@ -70,7 +70,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-text = "0.1.0-alpha.3"
+scirs2-text = "0.1.0-alpha.4"
 ```
 
 ## Quick Start

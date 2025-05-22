@@ -36,7 +36,7 @@ fn main() {
 
         // Execute FFT with specific number of workers
         let _result = with_workers(num_workers, || {
-            fft2(&signal.view(), None, None, None).unwrap()
+            fft2(&signal.to_owned(), None, None, None).unwrap()
         });
 
         let duration = start.elapsed();
@@ -50,7 +50,7 @@ fn main() {
     pool.set_enabled(false);
 
     let start = Instant::now();
-    let _result = fft2(&signal.view(), None, None, None).unwrap();
+    let _result = fft2(&signal.to_owned(), None, None, None).unwrap();
     let duration = start.elapsed();
 
     println!("  Time: {:?}", duration);
@@ -71,7 +71,7 @@ fn main() {
     let _result = with_workers(2, || {
         println!("  Inside context: {} workers", 2);
         // Perform FFT operation with 2 workers
-        fft2(&signal.view(), None, None, None).unwrap()
+        fft2(&signal.to_owned(), None, None, None).unwrap()
     });
 
     println!("  After context: {} workers", get_workers());

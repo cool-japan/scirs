@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-metrics"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -8,17 +8,18 @@ description = "Machine Learning evaluation metrics module for SciRS2"
 repository = "https://github.com/cool-japan/scirs"
 keywords = ["metrics", "evaluation", "scientific", "ai", "machine-learning"]
 categories = ["science", "mathematics", "algorithms"]
+build = "build.rs"
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
 # Optional dependencies for integration with other modules
 # Optional dependencies temporarily commented out to avoid circular dependency
-# scirs2-neural = { path = "../scirs2-neural", version = "0.1.0-alpha.3", optional = true, default-features = false, features = ["core"] }
-# scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.3", optional = true, default-features = false }
+# scirs2-neural = { path = "../scirs2-neural", version = "0.1.0-alpha.4", optional = true, default-features = false, features = ["core"] }
+# scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.4", optional = true, default-features = false }
 # Temporarily removed for publishing
-# # # scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.3" }
-# # # scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+# # # scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.4" }
+# # # scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
@@ -39,11 +40,15 @@ chrono = { version = "0.4", features = ["serde"] }
 plotters = { version = "0.3.5", optional = true }
 plotly = { version = "0.8.4", optional = true }
 
+# BLAS dependencies for linear algebra operations
+openblas-src = { workspace = true, features = ["cblas", "lapacke"] }
+blas = { workspace = true }
+
 # Future dependency for PandRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
 
 [features]
-default = []
+default = ["plotly_backend"]
 # Integration with other scirs2 modules
 # Integration features 
 neural_common = [] # Common neural functionality without dependency on scirs2-neural

@@ -137,29 +137,35 @@ impl<F: Float> ComputeContext<F> {
     pub fn input(&self, i: usize) -> NdArrayView<F> {
         if self.inputs.is_empty() {
             // Create a dummy array for use when no inputs are available
-            static DUMMY_ARRAY: once_cell::sync::Lazy<NdArray<f32>> = 
+            static DUMMY_ARRAY: once_cell::sync::Lazy<NdArray<f32>> =
                 once_cell::sync::Lazy::new(|| crate::ndarray_ext::zeros(&[1, 1]));
-            
+
             // Safety: This is a read-only view, and we're converting types.
             // This is safe as long as Float has the same memory layout as f32,
             // which isn't guaranteed but works for our concrete types.
             #[allow(clippy::transmute_ptr_to_ref)]
             unsafe {
-                std::mem::transmute::<ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>, ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>>(DUMMY_ARRAY.view())
+                std::mem::transmute::<
+                    ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>,
+                    ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>,
+                >(DUMMY_ARRAY.view())
             }
         } else if i < self.inputs.len() {
             self.inputs[i].view()
         } else {
             eprintln!("Warning: Index out of bounds in ComputeContext::input: the len is {} but the index is {}", 
                      self.inputs.len(), i);
-            
+
             // Return the same dummy array as above
-            static DUMMY_ARRAY: once_cell::sync::Lazy<NdArray<f32>> = 
+            static DUMMY_ARRAY: once_cell::sync::Lazy<NdArray<f32>> =
                 once_cell::sync::Lazy::new(|| crate::ndarray_ext::zeros(&[1, 1]));
-            
+
             #[allow(clippy::transmute_ptr_to_ref)]
             unsafe {
-                std::mem::transmute::<ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>, ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>>(DUMMY_ARRAY.view())
+                std::mem::transmute::<
+                    ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>,
+                    ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>,
+                >(DUMMY_ARRAY.view())
             }
         }
     }

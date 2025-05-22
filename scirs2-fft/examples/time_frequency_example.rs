@@ -6,27 +6,27 @@ fn main() {
     println!("---------------------------------------");
     println!("This example is currently disabled as the time_frequency module is not available.");
     println!("Please use other examples in this directory for FFT functionality.");
-    
+
     // Explain what time-frequency analysis is about
     println!("\nTime-frequency analysis transforms include:");
     println!("1. Short-Time Fourier Transform (STFT)");
     println!("2. Continuous Wavelet Transform (CWT)");
     println!("3. Wigner-Ville Distribution");
     println!("4. Synchrosqueezing Transform");
-    
+
     println!("\nWindow functions available:");
     println!("- Rectangular");
     println!("- Hann");
     println!("- Hamming");
     println!("- Blackman");
     println!("- Tukey");
-    
+
     println!("\nWavelet types supported:");
     println!("- Morlet");
     println!("- Mexican Hat");
     println!("- Daubechies");
     println!("- Symlet");
-    
+
     println!("\nApplications:");
     println!("- Audio signal analysis");
     println!("- Biomedical signal processing");

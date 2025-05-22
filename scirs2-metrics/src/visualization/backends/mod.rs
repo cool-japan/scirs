@@ -9,9 +9,11 @@ use std::path::Path;
 use crate::visualization::{VisualizationData, VisualizationMetadata, VisualizationOptions};
 
 mod plotly;
+mod plotly_interactive;
 mod plotters;
 
 pub use self::plotly::PlotlyBackend;
+pub use self::plotly_interactive::{PlotlyInteractiveBackend, PlotlyInteractiveBackendInterface};
 pub use self::plotters::PlottersBackend;
 
 /// A trait for plotting backends
@@ -140,6 +142,22 @@ pub fn default_backend() -> impl PlottingBackend {
 
         NoopBackend
     }
+}
+
+/// Create the default interactive plotting backend
+///
+/// This function returns the default interactive plotting backend.
+/// Currently, only Plotly is supported for interactive visualizations.
+///
+/// # Example
+///
+/// ```
+/// use scirs2_metrics::visualization::backends;
+///
+/// let backend = backends::default_interactive_backend();
+/// ```
+pub fn default_interactive_backend() -> PlotlyInteractiveBackend {
+    PlotlyInteractiveBackend::new()
 }
 
 /// Enhance a visualization data structure with additional data

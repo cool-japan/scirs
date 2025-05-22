@@ -111,7 +111,7 @@ fn bench_quantized_ops(c: &mut Criterion) {
             let qa_params_clone = qa_params.clone();
             let qb_clone = qb.clone();
             let qb_params_clone = qb_params.clone();
-            
+
             group.bench_with_input(
                 BenchmarkId::new("QuantizedMatMul", &id_string),
                 &size,
@@ -134,19 +134,15 @@ fn bench_quantized_ops(c: &mut Criterion) {
             // Create another clone for the matrix-vector multiplication benchmark
             let qa_clone2 = qa.clone();
             let qa_params_clone2 = qa_params.clone();
-            
+
             group.bench_with_input(
                 BenchmarkId::new("QuantizedMatVec", &id_string),
                 &size,
                 |b, _| {
                     b.iter(|| {
                         black_box(
-                            simd_quantized_matvec(
-                                &qa_clone2,
-                                &qa_params_clone2,
-                                &vector.view(),
-                            )
-                            .unwrap(),
+                            simd_quantized_matvec(&qa_clone2, &qa_params_clone2, &vector.view())
+                                .unwrap(),
                         )
                     })
                 },
@@ -192,32 +188,20 @@ fn bench_calibration(c: &mut Criterion) {
         let minmax_config_clone = minmax_config.clone();
         let percentile_config_clone = percentile_config.clone();
         let ema_config_clone = ema_config.clone();
-        
+
         // Benchmark different calibration methods
         group.bench_with_input(BenchmarkId::new("MinMax", size), &size, |b, _| {
-            b.iter(|| {
-                black_box(
-                    calibrate_matrix(&matrix.view(), 8, &minmax_config_clone)
-                        .unwrap(),
-                )
-            })
+            b.iter(|| black_box(calibrate_matrix(&matrix.view(), 8, &minmax_config_clone).unwrap()))
         });
 
         group.bench_with_input(BenchmarkId::new("Percentile", size), &size, |b, _| {
             b.iter(|| {
-                black_box(
-                    calibrate_matrix(&matrix.view(), 8, &percentile_config_clone)
-                        .unwrap(),
-                )
+                black_box(calibrate_matrix(&matrix.view(), 8, &percentile_config_clone).unwrap())
             })
         });
 
         group.bench_with_input(BenchmarkId::new("EMA", size), &size, |b, _| {
-            b.iter(|| {
-                black_box(
-                    calibrate_matrix(&matrix.view(), 8, &ema_config_clone).unwrap(),
-                )
-            })
+            b.iter(|| black_box(calibrate_matrix(&matrix.view(), 8, &ema_config_clone).unwrap()))
         });
     }
 

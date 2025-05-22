@@ -199,7 +199,7 @@ pub mod roots;
 pub mod roots_anderson;
 pub mod roots_krylov;
 pub mod scalar;
-pub mod sparse_numdiff;
+pub mod sparse_numdiff; // Refactored into a module with submodules
 pub mod unconstrained;
 
 // Common optimization result structure

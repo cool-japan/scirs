@@ -207,7 +207,7 @@ where
     let (n_rows_out, _n_cols_out) = shape.unwrap_or((n_rows, n_cols));
 
     // Compute 2D FFT, then extract the relevant portion for real input
-    let full_fft = crate::fft::fft2(x, shape, None, None)?;
+    let full_fft = crate::fft::fft2(&x.to_owned(), shape, None, None)?;
 
     // For real input 2D FFT, we only need the first n_rows//2 + 1 rows
     let n_rows_result = n_rows_out / 2 + 1;
@@ -322,7 +322,7 @@ where
     // For the RFFT tests to pass correctly, the ifft2 needs to
     // be called with the desired output shape
     let complex_output = crate::fft::ifft2(
-        &full_spectrum.view(),
+        &full_spectrum.to_owned(),
         Some((n_rows_out, n_cols_out)),
         None,
         None,
@@ -466,7 +466,14 @@ where
     T: NumCast + Copy + Debug + 'static,
 {
     // Delegate to fftn, but reshape the result for real input
-    let full_result = crate::fft::fftn(x, shape.clone(), axes.clone(), norm, overwrite_x, workers)?;
+    let full_result = crate::fft::fftn(
+        &x.to_owned(),
+        shape.clone(),
+        axes.clone(),
+        norm,
+        overwrite_x,
+        workers,
+    )?;
 
     // Determine which axes to transform
     let n_dims = x.ndim();
@@ -688,7 +695,7 @@ where
 
     // Compute the inverse FFT
     let complex_output = crate::fft::ifftn(
-        &full_spectrum.view(),
+        &full_spectrum.to_owned(),
         Some(out_shape.clone()),
         Some(axes_to_transform.clone()),
         norm,

@@ -1,14 +1,12 @@
-# SciRS2 0.1.0-alpha.3 Release Notes
+# SciRS2 0.1.0-alpha.4 Release Notes
+
+## 0.1.0-alpha.4 (May 2025)
 
 ## 0.1.0-alpha.3 (May 2025)
 
-This release fixes issues with the memory metrics snapshot system in scirs2-core and improves thread safety in tests.
+## 0.1.0-alpha.2 (May 2025)
 
-### Bug Fixes
-
-- Fixed thread-safety issues in memory snapshot tests
-- Improved mutex lock handling to prevent poisoning
-- Enhanced test robustness for memory tracking
+## 0.1.0-alpha.1 (April 2025)
 
 # SciRS2 0.1.0 Release Notes
 
@@ -104,23 +102,23 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0-alpha.3"  # Import the whole library
+scirs2 = "0.1.0-alpha.4"  # Import the whole library
 ```
 
 Or select only the modules you need:
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.1.0-alpha.3"     # Linear algebra only
-scirs2-stats = "0.1.0-alpha.3"      # Statistics only
-scirs2-optimize = "0.1.0-alpha.3"   # Optimization only
+scirs2-linalg = "0.1.0-alpha.4"     # Linear algebra only
+scirs2-stats = "0.1.0-alpha.4"      # Statistics only
+scirs2-optimize = "0.1.0-alpha.4"   # Optimization only
 ```
 
 You can also enable specific features:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.1.0-alpha.3", features = ["simd", "parallel"] }
+scirs2-core = { version = "0.1.0-alpha.4", features = ["simd", "parallel"] }
 ```
 
 ## Usage Examples

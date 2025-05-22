@@ -164,23 +164,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn test_lamb_on_rastrigin() {
     // Instead of using the Rastrigin function which is highly non-convex
     // and may not converge predictably, let's use a simple quadratic function
-    
+
     // Optimize a simple quadratic function: f(x) = x^2 + y^2
     // This function has a single global minimum at (0,0)
     let mut optimizer = LAMB::new(0.1);
     let mut params = Array1::from_vec(vec![2.0, 1.5]);
-    
+
     // Gradient of x^2 + y^2 is (2x, 2y)
-    let grad_fn = |x: &Array1<f64>| -> Array1<f64> {
-        Array1::from_vec(vec![2.0 * x[0], 2.0 * x[1]])
-    };
-    
+    let grad_fn =
+        |x: &Array1<f64>| -> Array1<f64> { Array1::from_vec(vec![2.0 * x[0], 2.0 * x[1]]) };
+
     // Optimize for multiple iterations
     for _ in 0..100 {
         let gradients = grad_fn(&params);
         params = optimizer.step(&params, &gradients).unwrap();
     }
-    
+
     // With this simpler function, we can expect better convergence
     assert!(params[0].abs() < 0.1);
     assert!(params[1].abs() < 0.1);

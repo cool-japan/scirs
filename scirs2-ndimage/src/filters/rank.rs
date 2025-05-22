@@ -2,8 +2,7 @@
 
 use ndarray::{Array, Array1, Array2, Dimension};
 use num_traits::{Float, FromPrimitive, Zero};
-use scirs2_core::parallel;
-use scirs2_core::simd;
+use scirs2_core::{parallel, simd, CoreError};
 use std::fmt::Debug;
 
 use super::{pad_array, BorderMode};
@@ -335,7 +334,7 @@ where
     // Use parallel processing for large arrays
     // Parallel processing is enabled via Cargo.toml features
     if input.len() > 1000 {
-        let process_window = |i: &usize| {
+        let process_window = move |i: &usize| -> std::result::Result<T, CoreError> {
             let mut window = vec![T::zero(); size];
             let center = *i + radius;
 
@@ -346,11 +345,11 @@ where
 
             // Sort window and find element at specified rank
             window.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            window[rank]
+            Ok(window[rank])
         };
 
         let indices: Vec<usize> = (0..input.len()).collect();
-        let parallel_results = parallel::parallel_map(&indices, process_window);
+        let parallel_results = parallel::parallel_map(&indices, process_window)?;
 
         // Copy the results to the output array
         for (i, val) in parallel_results.iter().enumerate() {
@@ -643,7 +642,7 @@ where
     // We'll use parallel processing for larger arrays
     // Parallel processing for size 5 filters
     {
-        let process_window = |i: &usize| {
+        let process_window = move |i: &usize| -> std::result::Result<(usize, f32), CoreError> {
             let center = *i + radius;
 
             // Extract 5 elements
@@ -659,11 +658,11 @@ where
             sort5(&mut window);
 
             // Return index and value
-            (*i, window[rank])
+            Ok((*i, window[rank]))
         };
 
         let indices: Vec<usize> = (0..input.len()).collect();
-        let results = parallel::parallel_map(&indices, process_window);
+        let results = parallel::parallel_map(&indices, process_window)?;
 
         // Apply results to output array
         for (idx, val) in results {
@@ -709,8 +708,11 @@ where
     // Use memory-efficient parallel processing for large arrays
     // Parallel processing for 2D arrays
     if rows * cols > 10000 {
+        // Clone the size parameter to avoid lifetime issues with parallel_map
+        let size_clone = size.to_vec();
+
         // Process rows in parallel using scirs2-core's parallel module
-        let process_row = |i: &usize| {
+        let process_row = move |i: &usize| -> std::result::Result<Vec<T>, CoreError> {
             let mut row_results = Vec::with_capacity(cols);
             let mut window = vec![T::zero(); window_size];
 
@@ -721,8 +723,8 @@ where
 
                 // Extract window
                 let mut window_idx = 0;
-                for ky in 0..size[0] {
-                    for kx in 0..size[1] {
+                for ky in 0..size_clone[0] {
+                    for kx in 0..size_clone[1] {
                         let y = center_y - radius_y + ky;
                         let x = center_x - radius_x + kx;
                         window[window_idx] = padded_input[[y, x]];
@@ -735,11 +737,11 @@ where
                 row_results.push(window[rank]);
             }
 
-            row_results
+            Ok(row_results)
         };
 
         let row_indices: Vec<usize> = (0..rows).collect();
-        let results = parallel::parallel_map(&row_indices, process_row);
+        let results = parallel::parallel_map(&row_indices, process_row)?;
 
         // Copy the results to the output array
         for (i, row) in results.iter().enumerate() {

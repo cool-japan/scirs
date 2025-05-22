@@ -358,7 +358,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use ndarray::{array, Array2};
 
     #[test]

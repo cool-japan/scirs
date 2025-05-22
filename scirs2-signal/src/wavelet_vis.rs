@@ -1095,7 +1095,7 @@ mod tests {
         // depending on the distribution of values in the array
         let normalized_value = norm_perc[[1, 3]];
         assert!(
-            normalized_value >= 0.0 && normalized_value <= 1.0,
+            (0.0..=1.0).contains(&normalized_value),
             "Normalized value {} should be between 0 and 1",
             normalized_value
         );

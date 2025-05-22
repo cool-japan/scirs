@@ -103,7 +103,11 @@ fn thin_plate_spline_example(img: &DynamicImage) -> Result<(), Box<dyn Error>> {
         result.save(format!("output/tps_smile_lambda_{}.png", lambda))?;
 
         // Add to composite
-        let pos_x = if i == 0 { width } else { width * (i % 2) as u32 };
+        let pos_x = if i == 0 {
+            width
+        } else {
+            width * (i % 2) as u32
+        };
         let pos_y = if i < 2 { 0 } else { height };
 
         for y in 0..height {

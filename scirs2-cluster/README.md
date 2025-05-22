@@ -49,7 +49,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.1.0-alpha.3"
+scirs2-cluster = "0.1.0-alpha.4"
 ndarray = "0.15"
 ```
 
@@ -57,7 +57,7 @@ To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.1.0-alpha.3", features = ["parallel", "simd"] }
+scirs2-cluster = { version = "0.1.0-alpha.4", features = ["parallel", "simd"] }
 ```
 
 ## Usage

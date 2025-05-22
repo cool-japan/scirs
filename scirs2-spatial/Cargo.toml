@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-spatial"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Spatial algorithms module for SciRS2"
@@ -24,7 +24,7 @@ qhull = "0.4.0"
 rand = "0.9.0"
 
 # Linear algebra dependencies
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.3" }
+scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
 ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
 
 [features]

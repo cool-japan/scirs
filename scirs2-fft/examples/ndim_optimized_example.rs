@@ -25,7 +25,7 @@ fn main() {
 
         // Time standard FFT
         let start = Instant::now();
-        let _result_std = fftn(&array.view().into_dyn(), None, None, None, None, None).unwrap();
+        let _result_std = fftn(&array.to_owned().into_dyn(), None, None, None, None, None).unwrap();
         let time_standard = start.elapsed();
 
         // Time optimized FFT
@@ -117,8 +117,15 @@ fn main() {
         (i as f64 * 0.1) + (j as f64 * 0.01) + (k as f64 * 0.001)
     });
 
-    let result_standard =
-        fftn(&test_array.view().into_dyn(), None, None, None, None, None).unwrap();
+    let result_standard = fftn(
+        &test_array.to_owned().into_dyn(),
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
     let result_optimized = fftn_optimized(&test_array.view(), None, None).unwrap();
 
     // Compare results

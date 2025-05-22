@@ -159,7 +159,6 @@
   - Use string methods like `.to_string()` instead of `format!()` for simple strings
   - Use `match` statements rather than `if/else if` chains for comparisons
 - Run `cargo clippy` before every commit and address all warnings
-- NEVER use `cargo clippy --fix` - all warnings must be fixed manually to avoid introducing new errors
 - When fixing Clippy warnings, look for patterns and fix similar issues across the codebase
 - For unavoidable Clippy warnings, use targeted `#[allow(clippy::specific_lint)]` annotations with comments explaining why
 

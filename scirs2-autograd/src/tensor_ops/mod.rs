@@ -36,6 +36,12 @@ mod scalar_ops;
 mod solver_ops;
 mod special_matrices;
 
+// Memory optimization modules
+mod checkpoint_ops;
+
+// Debugging modules
+mod debug_ops;
+
 // ---------------------------------------
 // -- Ops to manipulate `Tensor` object --
 // ---------------------------------------
@@ -3138,15 +3144,22 @@ impl<'g, F: Float> Tensor<'g, F> {
 }
 
 // Re-export linear algebra functions
+pub use debug_ops::{debug_identity_with_gradient, debug_scalar_one};
 pub use decomposition_ops::{qr, svd};
 pub use eigen_ops::{eigen, eigenvalues};
 pub use linalg_ops::{diag, extract_diag, eye, trace};
 pub use matrix_functions::{matrix_exp, matrix_log, matrix_pow, matrix_sqrt};
 pub use matrix_ops::{determinant, matrix_inverse, pseudo_inverse as matrix_pseudo_inverse};
-pub use norm_ops::frobenius_norm;
+pub use norm_ops::{frobenius_norm, nuclear_norm, spectral_norm};
 pub use scalar_ops::scalar_mul;
 pub use solver_ops::{lstsq, solve};
 pub use special_matrices::{band_matrix, cholesky, symmetrize, tril, triu};
+
+// Memory optimization functions
+pub use checkpoint_ops::{
+    adaptive_checkpoint, checkpoint, checkpoint_segment, checkpoint_segment_flex, detach,
+    CheckpointGroup, CheckpointProfiler,
+};
 
 /// Creates a variable tensor from an array
 ///

@@ -22,7 +22,7 @@ pub struct Gamma<F: Float + Send + Sync> {
     rand_distr: RandGamma<f64>,
 }
 
-impl<F: Float + NumCast + Debug + Send + Sync> Gamma<F> {
+impl<F: Float + NumCast + Debug + Send + Sync + 'static> Gamma<F> {
     /// Create a new gamma distribution with given shape, scale, and location parameters
     ///
     /// # Arguments
@@ -329,8 +329,11 @@ impl<F: Float + NumCast + Debug + Send + Sync> Gamma<F> {
             let mut rng = rand::rng();
             let rand_distr = RandGamma::new(shape_f64, 1.0 / scale_f64).unwrap();
             let sample = rand_distr.sample(&mut rng);
-            F::from(sample).unwrap() + loc
-        });
+            Ok(F::from(sample).unwrap() + loc)
+        })
+        .map_err(|e| {
+            StatsError::ComputationError(format!("Failed to generate samples in parallel: {}", e))
+        })?;
 
         Ok(samples)
     }
@@ -512,7 +515,7 @@ fn one_minus_p<F: Float>(p: F) -> F {
 }
 
 /// Implementation of the Distribution trait for Gamma
-impl<F: Float + NumCast + Debug + Send + Sync> ScirsDist<F> for Gamma<F> {
+impl<F: Float + NumCast + Debug + Send + Sync + 'static> ScirsDist<F> for Gamma<F> {
     fn mean(&self) -> F {
         // For Gamma distribution, mean = shape * scale
         self.shape * self.scale
@@ -557,7 +560,7 @@ impl<F: Float + NumCast + Debug + Send + Sync> ScirsDist<F> for Gamma<F> {
 }
 
 /// Implementation of the ContinuousDistribution trait for Gamma
-impl<F: Float + NumCast + Debug + Send + Sync> ContinuousDistribution<F> for Gamma<F> {
+impl<F: Float + NumCast + Debug + Send + Sync + 'static> ContinuousDistribution<F> for Gamma<F> {
     fn pdf(&self, x: F) -> F {
         // Call the implementation from the struct
         Gamma::pdf(self, x)
@@ -575,7 +578,7 @@ impl<F: Float + NumCast + Debug + Send + Sync> ContinuousDistribution<F> for Gam
 }
 
 /// Implementation of SampleableDistribution for Gamma
-impl<F: Float + NumCast + Debug + Send + Sync> SampleableDistribution<F> for Gamma<F> {
+impl<F: Float + NumCast + Debug + Send + Sync + 'static> SampleableDistribution<F> for Gamma<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
         self.rvs_vec(size)
     }

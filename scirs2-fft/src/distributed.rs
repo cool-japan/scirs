@@ -293,7 +293,7 @@ impl DistributedFFT {
                     }
                 }
 
-                if all_match && output.len() > 0 && exchanged_data.len() > 0 {
+                if all_match && !output.is_empty() && !exchanged_data.is_empty() {
                     // Copy data to output
                     let flat_output = output.as_slice_mut().unwrap();
                     for (i, &val) in exchanged_data.iter().enumerate().take(flat_output.len()) {
@@ -303,7 +303,7 @@ impl DistributedFFT {
                     // Shapes don't match (due to size limits), so we need to copy what we can
                     // This is a simplified approach for testing
                     // For multidimensional arrays, this would be more complex
-                    if output.len() > 0 && exchanged_data.len() > 0 {
+                    if !output.is_empty() && !exchanged_data.is_empty() {
                         let flat_output = output.as_slice_mut().unwrap();
                         let copy_len = flat_output.len().min(exchanged_data.len());
 

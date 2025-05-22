@@ -6,7 +6,7 @@ use ndarray::Array1;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::decomposition::{exponential_decomposition, DecompositionModel};
+use crate::decomposition::{common::DecompositionModel, exponential::exponential_decomposition};
 use crate::error::{Result, TimeSeriesError};
 use crate::utils::{is_stationary, transform_to_stationary};
 

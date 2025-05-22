@@ -76,26 +76,26 @@ extern "C" __global__ void norm_l2(
     int n
 ) {
     __shared__ float sdata[256];
-    
+
     // Each block loads data into shared memory
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * blockDim.x * 2 + threadIdx.x;
-    
+
     // Initialize with identity value
     sdata[tid] = 0.0f;
-    
+
     // Load and square first element
     if (i < n) {
         sdata[tid] = input[i] * input[i];
     }
-    
+
     // Load and square second element
     if (i + blockDim.x < n) {
         sdata[tid] += input[i + blockDim.x] * input[i + blockDim.x];
     }
-    
+
     __syncthreads();
-    
+
     // Reduce within block
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
         if (tid < s) {
@@ -103,7 +103,7 @@ extern "C" __global__ void norm_l2(
         }
         __syncthreads();
     }
-    
+
     // Write result for this block to output
     if (tid == 0) {
         output[blockIdx.x] = sdata[0];
@@ -132,33 +132,33 @@ fn norm_l2(
 ) {
     let tid = local_id.x;
     let i = workgroup_id.x * 256u * 2u + local_id.x;
-    
+
     // Initialize
     sdata[tid] = 0.0;
-    
+
     // Load and square first element
     if (i < uniforms.n) {
         sdata[tid] = input[i] * input[i];
     }
-    
+
     // Load and square second element
     if (i + 256u < uniforms.n) {
         sdata[tid] = sdata[tid] + input[i + 256u] * input[i + 256u];
     }
-    
+
     workgroupBarrier();
-    
+
     // Do reduction in shared memory
     var s = 256u / 2u;
     for (var j = 0u; s > 0u; j = j + 1u) {
         if (tid < s) {
             sdata[tid] = sdata[tid] + sdata[tid + s];
         }
-        
+
         s = s / 2u;
         workgroupBarrier();
     }
-    
+
     // Write result for this workgroup
     if (tid == 0u) {
         output[workgroup_id.x] = sdata[0];
@@ -181,34 +181,34 @@ kernel void norm_l2(
     uint group_id [[threadgroup_position_in_grid]])
 {
     threadgroup float sdata[256];
-    
+
     uint tid = local_id;
     uint i = group_id * 256 * 2 + local_id;
-    
+
     // Initialize
     sdata[tid] = 0.0f;
-    
+
     // Load and square first element
     if (i < n) {
         sdata[tid] = input[i] * input[i];
     }
-    
+
     // Load and square second element
     if (i + 256 < n) {
         sdata[tid] += input[i + 256] * input[i + 256];
     }
-    
+
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    
+
     // Do reduction in shared memory
     for (uint s = 256 / 2; s > 0; s >>= 1) {
         if (tid < s) {
             sdata[tid] += sdata[tid + s];
         }
-        
+
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
-    
+
     // Write result for this threadgroup
     if (tid == 0) {
         output[group_id] = sdata[0];
@@ -225,34 +225,34 @@ __kernel void norm_l2(
     const int n)
 {
     __local float sdata[256];
-    
+
     unsigned int tid = get_local_id(0);
     unsigned int i = get_group_id(0) * get_local_size(0) * 2 + get_local_id(0);
-    
+
     // Initialize
     sdata[tid] = 0.0f;
-    
+
     // Load and square first element
     if (i < n) {
         sdata[tid] = input[i] * input[i];
     }
-    
+
     // Load and square second element
     if (i + get_local_size(0) < n) {
         sdata[tid] += input[i + get_local_size(0)] * input[i + get_local_size(0)];
     }
-    
+
     barrier(CLK_LOCAL_MEM_FENCE);
-    
+
     // Do reduction in shared memory
     for (unsigned int s = get_local_size(0) / 2; s > 0; s >>= 1) {
         if (tid < s) {
             sdata[tid] += sdata[tid + s];
         }
-        
+
         barrier(CLK_LOCAL_MEM_FENCE);
     }
-    
+
     // Write result for this workgroup
     if (tid == 0) {
         output[get_group_id(0)] = sdata[0];

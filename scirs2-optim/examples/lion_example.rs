@@ -93,7 +93,8 @@ fn test_lion_convergence() {
     let mut params = Array1::from_vec(vec![10.0, -5.0]);
 
     // Optimize x^2 + y^2
-    for _ in 0..1000 { // Increased iterations significantly
+    for _ in 0..1000 {
+        // Increased iterations significantly
         let gradients = Array1::from_vec(vec![2.0 * params[0], 2.0 * params[1]]);
         params = optimizer.step(&params, &gradients).unwrap();
     }

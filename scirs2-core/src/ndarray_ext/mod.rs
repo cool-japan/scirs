@@ -14,7 +14,7 @@ pub use ndarray::{
 /// Advanced indexing operations (NumPy-like boolean masking, fancy indexing, etc.)
 pub mod indexing;
 
-/// Basic statistical functions for ndarray arrays (mean, median, variance, etc.)
+/// Statistical functions for ndarray arrays (mean, median, variance, correlation, etc.)
 pub mod stats;
 
 /// Matrix operations (eye, diag, kron, etc.)

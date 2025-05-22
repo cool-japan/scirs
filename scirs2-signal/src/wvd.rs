@@ -621,8 +621,8 @@ mod tests {
         let spwvd_ridges = extract_ridges(&spwvd, &freqs, 2, 0.3);
 
         // Both should detect the two components
-        assert!(wvd_ridges.len() >= 1);
-        assert!(spwvd_ridges.len() >= 1);
+        assert!(!wvd_ridges.is_empty());
+        assert!(!spwvd_ridges.is_empty());
 
         // Check that frequencies are close to expected values (10Hz and 30Hz)
         if spwvd_ridges.len() >= 2 {

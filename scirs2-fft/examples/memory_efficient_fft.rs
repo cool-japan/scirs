@@ -214,7 +214,7 @@ fn memory_efficient_2d_fft() {
 
     // Verify against standard FFT
     println!("\nVerifying against standard 2D FFT...");
-    let standard_2d = scirs2_fft::fft2(&data.view(), None, None, None).unwrap();
+    let standard_2d = scirs2_fft::fft2(&data.to_owned(), None, None, None).unwrap();
 
     println!("Standard 2D FFT result (showing magnitudes):");
     for i in 0..standard_2d.shape()[0] {

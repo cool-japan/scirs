@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-special"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Special functions module for SciRS2"
@@ -11,7 +11,7 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3", features = ["validation"] }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["validation"] }
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"

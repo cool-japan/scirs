@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-core"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Core utilities and common functionality for SciRS2"
@@ -30,6 +30,9 @@ memmap2 = { version = "0.7.1", optional = true }  # For memory-mapped arrays
 # Feature-gated dependencies
 wide = { workspace = true, optional = true }  # SIMD acceleration
 rayon = { workspace = true, optional = true }  # Parallel processing
+crossbeam-utils = { version = "0.8.19", optional = true }  # Used in parallel scheduler
+crossbeam-deque = { version = "0.8.3", optional = true }  # Used in parallel scheduler
+num_cpus = { version = "1.16.0", optional = true }  # CPU count detection
 
 # Compression libraries
 lz4 = { version = "1.24.0", optional = true }   # LZ4 compression
@@ -38,10 +41,14 @@ snap = { version = "1.1.0", optional = true }   # Snappy compression
 
 # System monitoring for resource-aware prefetching
 libc = { version = "0.2.153", optional = true }  # System calls for resource monitoring
-num_cpus = { version = "1.16.0", optional = true }  # CPU count detection
 
 # BLAS/LAPACK dependencies for linear algebra operations
 ndarray-linalg = { workspace = true, optional = true }  # LAPACK bindings for ndarray
+
+# JIT compilation for Array Protocol
+cranelift-module = { version = "0.118.0", optional = true }  # JIT compilation module
+cranelift-jit = { version = "0.118.0", optional = true }  # JIT compiler (previously simplejit)
+cranelift-frontend = { version = "0.118.0", optional = true }  # JIT compiler frontend
 
 [dev-dependencies]
 approx = "0.5.1"
@@ -51,14 +58,25 @@ tempfile.workspace = true
 [features]
 default = ["array", "serialization"]  # Enable array module by default
 simd = ["wide"]  # SIMD operations
-parallel = ["rayon", "ndarray/rayon"]  # Parallel processing with rayon
+parallel = ["rayon", "ndarray/rayon", "crossbeam-utils", "crossbeam-deque", "num_cpus"]  # Parallel processing with rayon
 cache = ["cached"]  # Caching and memoization functionality
 validation = []  # Validation utilities
 logging = []  # Structured logging and diagnostics
 gpu = []  # GPU acceleration abstractions
 cuda = ["gpu"]  # CUDA-specific GPU acceleration
+opencl = ["gpu"]  # OpenCL-specific GPU acceleration
+metal = ["gpu"]  # Metal-specific GPU acceleration (Apple)
+wgpu = ["gpu"]  # WebGPU-specific GPU acceleration
 memory_management = []  # Advanced memory management
 memory_efficient = ["tempfile", "bincode", "memmap2", "rayon"]  # Memory-efficient operations
+memory_efficient_all_types = ["memory_efficient", "float32", "float64", "all_ints"]  # Full type support for memory-efficient operations
+float32 = []  # Support for f32 in zero-copy operations
+float64 = []  # Support for f64 in zero-copy operations
+int32 = []    # Support for i32 in zero-copy operations
+int64 = []    # Support for i64 in zero-copy operations
+uint32 = []   # Support for u32 in zero-copy operations
+uint64 = []   # Support for u64 in zero-copy operations
+all_ints = [] # Support for all integer types in zero-copy operations
 memory_compression = ["memory_efficient", "lz4", "zstd", "snap", "serde", "serde_json", "libc", "num_cpus"]  # Compressed memory-mapped arrays
 memory_metrics = ["memory_management", "serde", "serde_json"]  # Enhanced memory metrics tracking
 serialization = ["serde", "serde_json"]  # Serialization support
@@ -73,10 +91,20 @@ linalg = ["ndarray-linalg"]  # Linear algebra with BLAS/LAPACK bindings
 openblas = ["ndarray-linalg/openblas-system"]  # Use OpenBLAS backend
 intel-mkl = ["ndarray-linalg/intel-mkl"]  # Use Intel MKL backend
 netlib = ["ndarray-linalg/netlib"]  # Use Netlib backend
+array_protocol = []  # Array Protocol for third-party array implementations
+array_protocol_jit = ["array_protocol", "cranelift-module", "cranelift-jit", "cranelift-frontend"]  # JIT compilation for Array Protocol
+array_protocol_gpu = ["array_protocol", "gpu"]  # GPU support for Array Protocol
+array_protocol_cuda = ["array_protocol_gpu", "cuda"]  # CUDA support for Array Protocol
+array_protocol_opencl = ["array_protocol_gpu", "opencl"]  # OpenCL support for Array Protocol
+array_protocol_metal = ["array_protocol_gpu", "metal"]  # Metal support for Array Protocol
+array_protocol_wgpu = ["array_protocol_gpu", "wgpu"]  # WebGPU support for Array Protocol
+array_protocol_distributed = ["array_protocol", "parallel"]  # Distributed computing for Array Protocol
+array_protocol_all = ["array_protocol", "array_protocol_jit", "array_protocol_cuda", "array_protocol_distributed"]  # All Array Protocol features
 all = [
     "simd", "parallel", "cache", "validation", "logging",
-    "gpu", "memory_management", "memory_efficient", "memory_compression",
-    "array", "profiling", "random", "types", "linalg", "ufuncs"
+    "gpu", "cuda", "memory_management", "memory_efficient", "memory_compression",
+    "array", "profiling", "random", "types", "linalg", "ufuncs",
+    "array_protocol_all"
 ]  # Enable all features except backend-specific ones
 
 [[example]]
@@ -200,6 +228,11 @@ path = "examples/memory_mapped_zerocopy.rs"
 required-features = ["memory_efficient"]
 
 [[example]]
+name = "memory_mapped_zerocopy_serialization"
+path = "examples/memory_mapped_zerocopy_serialization.rs"
+required-features = ["memory_efficient", "serialization"]
+
+[[example]]
 name = "scientific_arrays_example"
 path = "examples/scientific_arrays_example.rs"
 required-features = ["array"]
@@ -244,3 +277,33 @@ required-features = ["memory_compression"]
 name = "advanced_prefetching_example"
 path = "examples/advanced_prefetching_example.rs"
 required-features = ["memory_compression"]
+
+[[example]]
+name = "array_protocol_operations"
+path = "examples/array_protocol_operations.rs"
+required-features = ["array_protocol"]
+
+[[example]]
+name = "array_protocol_advanced"
+path = "examples/array_protocol_advanced.rs"
+required-features = ["array_protocol"]
+
+[[example]]
+name = "array_protocol_backpropagation"
+path = "examples/array_protocol_backpropagation.rs"
+required-features = ["array_protocol"]
+
+[[example]]
+name = "array_protocol_distributed_training"
+path = "examples/array_protocol_distributed_training.rs"
+required-features = ["array_protocol_distributed"]
+
+[[example]]
+name = "array_protocol_gpu"
+path = "examples/array_protocol_gpu.rs"
+required-features = ["array_protocol_cuda"]
+
+[[example]]
+name = "custom_array_protocol"
+path = "examples/custom_array_protocol.rs"
+required-features = ["array_protocol"]

@@ -36,14 +36,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.1.0-alpha.3"
+scirs2-spatial = "0.1.0-alpha.4"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.1.0-alpha.3", features = ["parallel"] }
+scirs2-spatial = { version = "0.1.0-alpha.4", features = ["parallel"] }
 ```
 
 ## Usage

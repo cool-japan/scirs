@@ -19,7 +19,7 @@ pub struct OptimizationOptions<F> {
     pub initial_step: F,
     /// Line search parameter alpha
     pub line_search_alpha: F,
-    /// Line search parameter beta 
+    /// Line search parameter beta
     pub line_search_beta: F,
     /// Gradient tolerance
     pub grad_tolerance: F,

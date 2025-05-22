@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-io"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -11,7 +11,7 @@ categories = ["science", "encoding"]
 
 [dependencies]
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.3" }
+scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
 byteorder = "1.4"
 image = "0.24"
 serde = { version = "1.0", features = ["derive"] }

@@ -125,10 +125,10 @@ pub fn procrustes(
 
     // Apply the rotation and scaling to mtx2
     let r = u.dot(&vt);
-    
+
     // Check if matrices are effectively identical (after centering and normalization)
     let is_identical = squared_error(&mtx1, &mtx2) < 1e-10;
-    
+
     let (transformed_mtx2, disparity) = if is_identical {
         // For identical matrices, just use mtx1 and set disparity to 0
         (mtx1.clone(), 0.0)
