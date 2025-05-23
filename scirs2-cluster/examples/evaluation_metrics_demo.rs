@@ -52,13 +52,18 @@ fn main() {
         }
 
         // 5. Normalized Mutual Information (needs ground truth)
-        match normalized_mutual_info::<f64>(true_labels.view(), pred_labels_i32.view(), "arithmetic") {
+        match normalized_mutual_info::<f64>(
+            true_labels.view(),
+            pred_labels_i32.view(),
+            "arithmetic",
+        ) {
             Ok(nmi) => println!("  Normalized MI (arith): {:.3}", nmi),
             Err(_) => println!("  Normalized MI (arith): N/A"),
         }
 
         // 6. Homogeneity, Completeness, V-measure (needs ground truth)
-        match homogeneity_completeness_v_measure::<f64>(true_labels.view(), pred_labels_i32.view()) {
+        match homogeneity_completeness_v_measure::<f64>(true_labels.view(), pred_labels_i32.view())
+        {
             Ok((h, c, v)) => {
                 println!("  Homogeneity:          {:.3}", h);
                 println!("  Completeness:         {:.3}", c);
@@ -106,7 +111,11 @@ fn main() {
         Err(_) => println!("  ARI between runs:      N/A"),
     }
 
-    match normalized_mutual_info::<f64>(clustering1_i32.view(), clustering2_i32.view(), "arithmetic") {
+    match normalized_mutual_info::<f64>(
+        clustering1_i32.view(),
+        clustering2_i32.view(),
+        "arithmetic",
+    ) {
         Ok(nmi) => println!("  NMI between runs:      {:.3}", nmi),
         Err(_) => println!("  NMI between runs:      N/A"),
     }

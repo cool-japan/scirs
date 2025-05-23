@@ -13,6 +13,12 @@ use std::iter::Sum;
 use crate::error::{ClusteringError, Result};
 use crate::vq::kmeans_plus_plus;
 
+/// Type alias for GMM parameters
+type GMMParams<F> = (Array1<F>, Array2<F>, Vec<Array2<F>>);
+
+/// Type alias for GMM fit result
+type GMMFitResult<F> = (Array1<F>, Array2<F>, Vec<Array2<F>>, F, usize, bool);
+
 /// Covariance type for GMM
 #[derive(Debug, Clone, Copy)]
 pub enum CovarianceType {
@@ -141,10 +147,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
     }
 
     /// Single run of EM algorithm
-    fn fit_single(
-        &self,
-        data: ArrayView2<F>,
-    ) -> Result<(Array1<F>, Array2<F>, Vec<Array2<F>>, F, usize, bool)> {
+    fn fit_single(&self, data: ArrayView2<F>) -> Result<GMMFitResult<F>> {
         let _n_samples = data.shape()[0];
         let _n_features = data.shape()[1];
         let _n_components = self.options.n_components;
@@ -189,10 +192,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
     }
 
     /// Initialize GMM parameters
-    fn initialize_params(
-        &self,
-        data: ArrayView2<F>,
-    ) -> Result<(Array1<F>, Array2<F>, Vec<Array2<F>>)> {
+    fn initialize_params(&self, data: ArrayView2<F>) -> Result<GMMParams<F>> {
         let n_samples = data.shape()[0];
         let n_features = data.shape()[1];
         let n_components = self.options.n_components;
@@ -281,11 +281,11 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
         let mut log_prob = Array2::zeros((n_samples, n_components));
 
         // Compute log probabilities for each component
-        for k in 0..n_components {
+        for (k, covariance) in covariances.iter().enumerate().take(n_components) {
             let log_prob_k = self.log_multivariate_normal_density(
                 data,
                 means.slice(s![k, ..]).view(),
-                &covariances[k],
+                covariance,
             )?;
             log_prob.slice_mut(s![.., k]).assign(&log_prob_k);
         }
@@ -316,11 +316,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
     }
 
     /// M-step: update parameters
-    fn m_step(
-        &self,
-        data: ArrayView2<F>,
-        resp: Array2<F>,
-    ) -> Result<(Array1<F>, Array2<F>, Vec<Array2<F>>)> {
+    fn m_step(&self, data: ArrayView2<F>, resp: Array2<F>) -> Result<GMMParams<F>> {
         let n_samples = data.shape()[0];
         let n_features = data.shape()[1];
         let n_components = self.options.n_components;

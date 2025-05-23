@@ -841,7 +841,7 @@ mod tests {
         // all members of each true class are contained within single predicted clusters
         // Homogeneity is lower because predicted clusters contain multiple true classes
         assert!(h2 > 0.0 && h2 < 1.0); // Reduced homogeneity
-        assert!(c2 > 0.9); // High completeness 
+        assert!(c2 > 0.9); // High completeness
         assert!(v2 > 0.0 && v2 < 1.0); // V-measure between 0 and 1
     }
 }

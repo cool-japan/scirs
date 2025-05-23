@@ -4,7 +4,8 @@
 //! for representing and working with graphs.
 
 use ndarray::{Array1, Array2};
-use petgraph::graph::{Graph as PetGraph, IndexType, NodeIndex};
+pub use petgraph::graph::IndexType;
+use petgraph::graph::{Graph as PetGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Directed, Undirected};
 use std::collections::HashMap;

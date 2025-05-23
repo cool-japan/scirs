@@ -72,47 +72,47 @@ struct TanhSinhRule {
 }
 
 impl TanhSinhRule {
-    /// Generate a new rule at the specified level
+    /// Generate a rule at the specified level
+    /// This generates ALL points up to and including this level
     fn new(level: usize) -> Self {
-        // Base step size
-        let h = 2.0_f64.powi(-(level as i32));
-
-        // Precompute tanh-sinh formula points and weights
-        // π/2 * cosh(t) / cosh(π/2 * sinh(t))²
-        //
-        // We want points in (-1, 1)
         let mut points = Vec::new();
         let mut weights = Vec::new();
 
-        // We sample at t = j*h for j = -m,...,m
-        // where m is chosen such that the weights at the endpoints are negligible
-        let max_j = Self::determine_max_j(level);
-
-        // println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
-
+        // Base step size for this level
+        let h = 1.0 / (1 << level) as f64;
+        
+        // Maximum value of j*h before weights become negligible
+        let max_t = 3.5;
+        let max_j = (max_t / h) as i32;
+        
+        // Generate points for j = 0, ±1, ±2, ...
         for j in -max_j..=max_j {
-            // For levels > 0, only include odd values of j
-            // This ensures we only get new points not in previous levels
-            if level > 0 && j % 2 == 0 {
-                continue;
-            }
-            
             let t = j as f64 * h;
-
+            
             // Compute x = tanh(π/2 * sinh(t))
             let sinh_t = t.sinh();
             let arg = std::f64::consts::FRAC_PI_2 * sinh_t;
+            
+            // Skip if argument would cause overflow
+            if arg.abs() > 100.0 {
+                continue;
+            }
+            
             let x = arg.tanh();
-
-            // Compute the weight
-            // w = (π/2) * cosh(t) / cosh(π/2 * sinh(t))²
+            
+            // Compute weight w = h * (π/2) * cosh(t) / cosh(π/2 * sinh(t))²
             let cosh_t = t.cosh();
             let cosh_arg = arg.cosh();
-            let w = std::f64::consts::FRAC_PI_2 * cosh_t / (cosh_arg * cosh_arg);
-
-            // Only add the point if it's not too close to the endpoints
-            // and the weight is not too small
-            if x.abs() < 1.0 - f64::EPSILON && w > f64::EPSILON {
+            
+            // Avoid overflow
+            if cosh_arg > 1e100 {
+                continue;
+            }
+            
+            let w = h * std::f64::consts::FRAC_PI_2 * cosh_t / (cosh_arg * cosh_arg);
+            
+            // Only add if weight is significant
+            if w > 1e-15 && x.abs() < 1.0 - 1e-10 {
                 points.push(x);
                 weights.push(w);
             }
@@ -121,20 +121,6 @@ impl TanhSinhRule {
         Self { points, weights }
     }
 
-    /// Determine the maximum number of points to use based on level
-    fn determine_max_j(level: usize) -> isize {
-        // At higher levels, we need fewer points per level
-        // since we concentrate on refinement near endpoints
-        // Also limit maximum points to avoid excessive recursion
-        match level {
-            0 => 1,
-            1 => 2,
-            2 => 4,
-            3 => 8,
-            // Cap at 128 to avoid stack overflow in recursive calls
-            _ => (2_isize.pow((level as u32).min(8) - 1)).min(128),
-        }
-    }
 
     /// Get points and weights transformed to the interval [a, b]
     fn get_transformed(&self, a: f64, b: f64) -> (Vec<f64>, Vec<f64>) {
@@ -206,7 +192,7 @@ impl RuleCache {
 /// ```
 /// use scirs2_integrate::tanhsinh::{tanhsinh, TanhSinhOptions};
 ///
-/// // Integrate x^2 from 0 to 1
+/// // Integrate x^2 from 0 to 1 (exact result: 1/3)
 /// let result = tanhsinh(|x| x * x, 0.0, 1.0, None).unwrap();
 /// assert!((result.integral - 1.0/3.0).abs() < 1e-6);
 /// ```
@@ -265,27 +251,19 @@ where
     };
 
     // Main integration loop
-    let mut accumulated_sum = 0.0;
-    
     for level in 0..=options.max_level {
-        // Get the rule for this level
+        // Get the rule for this level (contains ALL points)
         let rule = cache.get_rule(level);
 
-        // Evaluate integral with current rule (this gets contribution from new points only)
-        evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
-        
-        // The contribution from this level
-        let level_contribution = state.estimate;
-        
-        // Add this level's contribution to the accumulated sum
-        accumulated_sum += level_contribution;
-        
-        // Update state with accumulated values
+        // Store previous estimate
         state.prev_estimate = state.estimate;
-        state.estimate = accumulated_sum;
+        
+        // Evaluate the integral with all points at current level
+        evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
 
         // Debug output
-        println!("Level {}: contribution = {}, accumulated = {}", level, level_contribution, accumulated_sum);
+        // println!("Level {}: estimate = {}, prev = {}, n_points = {}", 
+        //          level, state.estimate, state.prev_estimate, rule.points.len());
 
         // Check for convergence
         if level >= options.min_level {

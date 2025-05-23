@@ -187,9 +187,9 @@ impl<F: Float + FromPrimitive> Default for HDBSCANOptions<F> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
-/// use scirs2_cluster::density::hdbscan;
+/// use scirs2_cluster::{hdbscan, HDBSCANOptions};
 ///
 /// // Example data with two clusters
 /// let data = Array2::from_shape_vec((10, 2), vec![
@@ -437,9 +437,9 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
-/// use scirs2_cluster::density::hdbscan;
+/// use scirs2_cluster::{hdbscan, dbscan_clustering};
 ///
 /// // Example data with two clusters
 /// let data = Array2::from_shape_vec((10, 2), vec![

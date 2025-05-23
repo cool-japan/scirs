@@ -102,7 +102,7 @@ struct CFNode<F: Float> {
     /// CFs stored in this node
     cfs: Vec<ClusteringFeature<F>>,
     /// Child nodes (only for non-leaf nodes)
-    children: Vec<Box<CFNode<F>>>,
+    children: Vec<CFNode<F>>,
     /// Parent node reference (would need Rc<RefCell> in real implementation)
     parent_index: Option<usize>,
 }

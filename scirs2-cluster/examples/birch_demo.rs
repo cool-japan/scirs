@@ -73,7 +73,7 @@ fn main() {
 
     // Process data in batches
     let batch_size = 50;
-    let n_batches = (data.shape()[0] + batch_size - 1) / batch_size;
+    let n_batches = data.shape()[0].div_ceil(batch_size);
 
     println!("Processing {} batches of size {}", n_batches, batch_size);
 

@@ -29,3 +29,7 @@ ordered-float = "4.2"
 
 [features]
 default = []
+
+[[example]]
+name = "graph_demo"
+path = "examples/graph_demo.rs"

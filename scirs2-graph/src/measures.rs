@@ -5,6 +5,7 @@
 //! and other graph metrics.
 
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 use ndarray::{Array1, Array2};
 
@@ -904,26 +905,27 @@ where
 {
     let nodes: Vec<N> = graph.nodes().collect();
     let n = nodes.len();
-    
+
     if n == 0 {
         return Ok(HitsScores {
             authorities: HashMap::new(),
             hubs: HashMap::new(),
         });
     }
-    
+
     // Initialize scores
     let mut authorities = vec![1.0 / (n as f64).sqrt(); n];
     let mut hubs = vec![1.0 / (n as f64).sqrt(); n];
     let mut new_authorities = vec![0.0; n];
     let mut new_hubs = vec![0.0; n];
-    
+
     // Create node index mapping
-    let node_to_idx: HashMap<N, usize> = nodes.iter()
+    let node_to_idx: HashMap<N, usize> = nodes
+        .iter()
         .enumerate()
         .map(|(i, n)| (n.clone(), i))
         .collect();
-    
+
     // Iterate until convergence
     for _ in 0..max_iter {
         // Update authority scores
@@ -938,7 +940,7 @@ where
                 }
             }
         }
-        
+
         // Update hub scores
         new_hubs.fill(0.0);
         for (i, node) in nodes.iter().enumerate() {
@@ -951,52 +953,56 @@ where
                 }
             }
         }
-        
+
         // Normalize scores
         let auth_norm: f64 = new_authorities.iter().map(|x| x * x).sum::<f64>().sqrt();
         let hub_norm: f64 = new_hubs.iter().map(|x| x * x).sum::<f64>().sqrt();
-        
+
         if auth_norm > 0.0 {
             for score in &mut new_authorities {
                 *score /= auth_norm;
             }
         }
-        
+
         if hub_norm > 0.0 {
             for score in &mut new_hubs {
                 *score /= hub_norm;
             }
         }
-        
+
         // Check convergence
-        let auth_diff: f64 = authorities.iter()
+        let auth_diff: f64 = authorities
+            .iter()
             .zip(&new_authorities)
             .map(|(old, new)| (old - new).abs())
             .sum();
-        let hub_diff: f64 = hubs.iter()
+        let hub_diff: f64 = hubs
+            .iter()
             .zip(&new_hubs)
             .map(|(old, new)| (old - new).abs())
             .sum();
-        
+
         if auth_diff < tolerance && hub_diff < tolerance {
             break;
         }
-        
+
         // Update scores
         authorities.copy_from_slice(&new_authorities);
         hubs.copy_from_slice(&new_hubs);
     }
-    
+
     // Convert to HashMap
-    let authority_map = nodes.iter()
+    let authority_map = nodes
+        .iter()
         .enumerate()
         .map(|(i, n)| (n.clone(), authorities[i]))
         .collect();
-    let hub_map = nodes.iter()
+    let hub_map = nodes
+        .iter()
         .enumerate()
         .map(|(i, n)| (n.clone(), hubs[i]))
         .collect();
-    
+
     Ok(HitsScores {
         authorities: authority_map,
         hubs: hub_map,
@@ -1308,7 +1314,7 @@ mod tests {
         // C and D should have high authority scores
         assert!(hits.authorities[&'C'] > hits.authorities[&'A']);
         assert!(hits.authorities[&'D'] > hits.authorities[&'A']);
-        
+
         // A and B should have high hub scores
         assert!(hits.hubs[&'A'] > hits.hubs[&'C']);
         assert!(hits.hubs[&'B'] > hits.hubs[&'C']);

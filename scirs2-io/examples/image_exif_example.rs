@@ -1,344 +1,218 @@
 //! Image EXIF metadata example
 //!
-//! This example demonstrates the enhanced image capabilities with EXIF metadata:
-//! - Reading EXIF data from JPEG and TIFF files
-//! - Extracting camera settings and technical metadata
-//! - Parsing GPS coordinates from images
-//! - Working with datetime information
-//! - Analyzing image metadata comprehensively
+//! This example demonstrates working with EXIF metadata:
+//! - Reading EXIF data from JPEG files (when available)
+//! - Understanding EXIF metadata structure
+//! - Working with GPS coordinates and camera settings
 
-use ndarray::{Array2, Array3};
+use ndarray::Array3;
 use scirs2_io::error::Result;
 use scirs2_io::image::{
-    read_enhanced_metadata, read_exif_metadata, read_image, write_image, ColorMode, ImageFormat,
+    load_image, read_exif_metadata, save_image, ColorMode, ImageData, ImageFormat, ImageMetadata,
 };
 use std::fs;
 
 fn main() -> Result<()> {
-    println!("=== Image EXIF Metadata Example ===");
+    println!("=== Image EXIF Metadata Example ===\n");
 
-    // Example 1: Create a sample image for testing
-    create_sample_image()?;
+    // Example 1: Create sample images for testing
+    create_sample_images()?;
 
-    // Example 2: Demonstrate EXIF metadata extraction
-    demonstrate_exif_extraction()?;
+    // Example 2: Demonstrate EXIF metadata reading
+    demonstrate_exif_reading()?;
 
-    // Example 3: Show enhanced metadata reading
-    demonstrate_enhanced_metadata()?;
+    // Example 3: Show metadata structure
+    show_metadata_structure()?;
 
-    // Example 4: Analyze different image formats
-    analyze_image_formats()?;
+    // Clean up
+    cleanup_files()?;
 
-    println!("Image EXIF example completed successfully!");
-    println!("Note: EXIF data extraction requires images with embedded metadata.");
     Ok(())
 }
 
-fn create_sample_image() -> Result<()> {
-    println!("\n1. Creating sample images for testing...");
+fn create_sample_images() -> Result<()> {
+    println!("1. Creating Sample Images");
+    println!("-------------------------");
 
-    // Create a simple test image (RGB pattern)
-    let height = 200;
-    let width = 300;
-    let mut image_data = Array3::<u8>::zeros((height, width, 3));
+    // Create a test image
+    let mut test_array = Array3::zeros((200, 300, 3));
 
     // Create a gradient pattern
-    for y in 0..height {
-        for x in 0..width {
-            let r = ((x as f64 / width as f64) * 255.0) as u8;
-            let g = ((y as f64 / height as f64) * 255.0) as u8;
-            let b = (((x + y) as f64 / (width + height) as f64) * 255.0) as u8;
-
-            image_data[[y, x, 0]] = r;
-            image_data[[y, x, 1]] = g;
-            image_data[[y, x, 2]] = b;
+    for y in 0..200 {
+        for x in 0..300 {
+            test_array[[y, x, 0]] = ((x as f32 / 300.0) * 255.0) as u8;
+            test_array[[y, x, 1]] = ((y as f32 / 200.0) * 255.0) as u8;
+            test_array[[y, x, 2]] = (((x + y) as f32 / 500.0) * 255.0) as u8;
         }
     }
 
-    // Save as different formats
-    write_image("test_image.png", &image_data, Some(ImageFormat::PNG), None)?;
-    write_image("test_image.jpg", &image_data, Some(ImageFormat::JPEG), None)?;
-    write_image("test_image.bmp", &image_data, Some(ImageFormat::BMP), None)?;
+    let metadata = ImageMetadata {
+        width: 300,
+        height: 200,
+        color_mode: ColorMode::RGB,
+        format: ImageFormat::JPEG,
+        file_size: 0,
+        exif: None,
+    };
 
-    println!("  Created test images:");
-    println!("    - test_image.png");
-    println!("    - test_image.jpg");
-    println!("    - test_image.bmp");
+    let image_data = ImageData {
+        data: test_array,
+        metadata,
+    };
 
+    // Save as JPEG (which can contain EXIF)
+    save_image(&image_data, "test_exif.jpg", Some(ImageFormat::JPEG))?;
+    println!("✓ Created test_exif.jpg");
+
+    // Save as PNG (typically no EXIF)
+    save_image(&image_data, "test_no_exif.png", Some(ImageFormat::PNG))?;
+    println!("✓ Created test_no_exif.png");
+
+    println!();
     Ok(())
 }
 
-fn demonstrate_exif_extraction() -> Result<()> {
-    println!("\n2. Demonstrating EXIF metadata extraction...");
+fn demonstrate_exif_reading() -> Result<()> {
+    println!("2. Reading EXIF Metadata");
+    println!("------------------------");
 
-    // Try to read EXIF from our test JPEG
-    println!("  Reading EXIF from test_image.jpg...");
-    match read_exif_metadata("test_image.jpg")? {
+    // Try to read EXIF from JPEG
+    println!("Checking test_exif.jpg for EXIF data...");
+    match read_exif_metadata("test_exif.jpg")? {
         Some(exif) => {
-            println!("    EXIF data found:");
+            println!("EXIF metadata found:");
 
-            // Display datetime information
-            if let Some(datetime) = exif.datetime {
-                println!(
-                    "      Date/Time: {}",
-                    datetime.format("%Y-%m-%d %H:%M:%S UTC")
-                );
-            } else {
-                println!("      Date/Time: Not available");
+            // DateTime
+            if let Some(datetime) = &exif.datetime {
+                println!("  - DateTime: {}", datetime);
             }
 
-            // Display camera information
-            println!("      Camera Information:");
+            // Camera information
             if let Some(make) = &exif.camera.make {
-                println!("        Make: {}", make);
+                println!("  - Camera Make: {}", make);
             }
             if let Some(model) = &exif.camera.model {
-                println!("        Model: {}", model);
-            }
-            if let Some(lens) = &exif.camera.lens_model {
-                println!("        Lens: {}", lens);
+                println!("  - Camera Model: {}", model);
             }
 
-            // Display technical settings
-            println!("      Technical Settings:");
+            // Camera settings
             if let Some(iso) = exif.camera.iso {
-                println!("        ISO: {}", iso);
+                println!("  - ISO: {}", iso);
             }
             if let Some(aperture) = exif.camera.aperture {
-                println!("        Aperture: f/{:.1}", aperture);
+                println!("  - Aperture: f/{}", aperture);
             }
             if let Some(shutter) = exif.camera.shutter_speed {
-                println!("        Shutter Speed: 1/{:.0} sec", 1.0 / shutter);
-            }
-            if let Some(focal) = exif.camera.focal_length {
-                println!("        Focal Length: {:.0}mm", focal);
+                println!("  - Shutter Speed: {}", shutter);
             }
 
-            // Display GPS information
+            // GPS data
             if let Some(gps) = &exif.gps {
-                println!("      GPS Information:");
-                println!(
-                    "        Latitude: {:.6}° {}",
-                    gps.latitude, gps.latitude_ref
-                );
-                println!(
-                    "        Longitude: {:.6}° {}",
-                    gps.longitude, gps.longitude_ref
-                );
-                if let Some(altitude) = gps.altitude {
-                    println!("        Altitude: {:.1}m", altitude);
+                if let (Some(lat), Some(lon)) = (gps.latitude, gps.longitude) {
+                    println!("  - GPS Coordinates: {:.6}, {:.6}", lat, lon);
                 }
-            } else {
-                println!("      GPS: Not available");
+                if let Some(alt) = gps.altitude {
+                    println!("  - Altitude: {:.1}m", alt);
+                }
             }
 
-            // Display other metadata
+            // Other metadata
+            if let Some(orientation) = exif.orientation {
+                println!("  - Orientation: {}", orientation);
+            }
             if let Some(software) = &exif.software {
-                println!("      Software: {}", software);
-            }
-            if let Some(artist) = &exif.artist {
-                println!("      Artist: {}", artist);
-            }
-            if let Some(copyright) = &exif.copyright {
-                println!("      Copyright: {}", copyright);
-            }
-
-            // Show raw EXIF tags
-            if !exif.raw_tags.is_empty() {
-                println!("      Raw EXIF Tags ({} total):", exif.raw_tags.len());
-                let mut tags: Vec<_> = exif.raw_tags.iter().collect();
-                tags.sort_by_key(|(k, _)| *k);
-                for (tag, value) in tags.iter().take(10) {
-                    println!("        {}: {}", tag, value);
-                }
-                if exif.raw_tags.len() > 10 {
-                    println!("        ... and {} more tags", exif.raw_tags.len() - 10);
-                }
+                println!("  - Software: {}", software);
             }
         }
         None => {
-            println!("    No EXIF data found (expected for generated test image)");
+            println!("No EXIF metadata found (this is expected for newly created images)");
         }
     }
 
+    // Try to read EXIF from PNG
+    println!("\nChecking test_no_exif.png for EXIF data...");
+    match read_exif_metadata("test_no_exif.png")? {
+        Some(_) => {
+            println!("EXIF metadata found (unexpected for PNG)");
+        }
+        None => {
+            println!("No EXIF metadata found (expected for PNG files)");
+        }
+    }
+
+    println!();
     Ok(())
 }
 
-fn demonstrate_enhanced_metadata() -> Result<()> {
-    println!("\n3. Demonstrating enhanced metadata reading...");
+fn show_metadata_structure() -> Result<()> {
+    println!("3. Understanding Metadata Structure");
+    println!("-----------------------------------");
 
-    let test_files = ["test_image.png", "test_image.jpg", "test_image.bmp"];
+    // Load an image and examine its metadata
+    let image_data = load_image("test_exif.jpg")?;
 
-    for filename in &test_files {
-        println!("  Analyzing {}...", filename);
+    println!("Basic Image Metadata:");
+    println!("  - Width: {} pixels", image_data.metadata.width);
+    println!("  - Height: {} pixels", image_data.metadata.height);
+    println!("  - Color Mode: {:?}", image_data.metadata.color_mode);
+    println!("  - Format: {:?}", image_data.metadata.format);
+    println!("  - File Size: {} bytes", image_data.metadata.file_size);
 
-        match read_enhanced_metadata(filename) {
-            Ok(metadata) => {
-                println!("    Basic Properties:");
-                println!("      Dimensions: {}x{}", metadata.width, metadata.height);
+    println!("\nEXIF Metadata Structure:");
+    println!("  ExifMetadata {");
+    println!("    datetime: Option<DateTime<Utc>>,");
+    println!("    gps: Option<GpsCoordinates>,");
+    println!("    camera: CameraSettings,");
+    println!("    orientation: Option<u32>,");
+    println!("    software: Option<String>,");
+    println!("    copyright: Option<String>,");
+    println!("    artist: Option<String>,");
+    println!("    description: Option<String>,");
+    println!("    raw_tags: HashMap<String, String>");
+    println!("  }");
 
-                if let Some(color_mode) = metadata.color_mode {
-                    println!(
-                        "      Color Mode: {} ({} channels)",
-                        color_mode.as_str(),
-                        color_mode.channels()
-                    );
-                }
+    println!("\nGPS Coordinates Structure:");
+    println!("  GpsCoordinates {");
+    println!("    latitude: Option<f64>,   // Decimal degrees");
+    println!("    longitude: Option<f64>,  // Decimal degrees");
+    println!("    altitude: Option<f64>    // Meters");
+    println!("  }");
 
-                if let Some(bits) = metadata.bits_per_channel {
-                    println!("      Bits per Channel: {}", bits);
-                }
+    println!("\nCamera Settings Structure:");
+    println!("  CameraSettings {");
+    println!("    make: Option<String>,");
+    println!("    model: Option<String>,");
+    println!("    lens_model: Option<String>,");
+    println!("    iso: Option<u32>,");
+    println!("    aperture: Option<f64>,      // f-number");
+    println!("    shutter_speed: Option<f64>, // seconds");
+    println!("    focal_length: Option<f64>,  // mm");
+    println!("    flash: Option<bool>,");
+    println!("    white_balance: Option<String>,");
+    println!("    exposure_mode: Option<String>,");
+    println!("    metering_mode: Option<String>");
+    println!("  }");
 
-                if let Some(format) = &metadata.format {
-                    println!("      Format: {}", format);
-                }
+    println!("\nNote: EXIF reading is currently limited in this implementation.");
+    println!("Full EXIF support would require proper kamadak-exif integration.");
 
-                if let Some(dpi) = metadata.dpi {
-                    println!("      DPI: {}x{}", dpi.0, dpi.1);
-                }
-
-                // Check for EXIF data
-                if let Some(exif) = &metadata.exif {
-                    println!("    EXIF Metadata: Available");
-                    if let Some(datetime) = exif.datetime {
-                        println!(
-                            "      Created: {}",
-                            datetime.format("%Y-%m-%d %H:%M:%S UTC")
-                        );
-                    }
-                    if exif.camera.make.is_some() || exif.camera.model.is_some() {
-                        println!(
-                            "      Camera: {:?} {:?}",
-                            exif.camera.make, exif.camera.model
-                        );
-                    }
-                } else {
-                    println!("    EXIF Metadata: Not available");
-                }
-
-                // Show custom metadata
-                if !metadata.custom.is_empty() {
-                    println!("    Custom Metadata:");
-                    for (key, value) in &metadata.custom {
-                        println!("      {}: {}", key, value);
-                    }
-                }
-            }
-            Err(e) => {
-                println!("    Error reading metadata: {}", e);
-            }
-        }
-        println!();
-    }
-
+    println!();
     Ok(())
 }
 
-fn analyze_image_formats() -> Result<()> {
-    println!("4. Analyzing different image format capabilities...");
+fn cleanup_files() -> Result<()> {
+    println!("4. Cleaning Up");
+    println!("--------------");
 
-    let formats = [
-        (ImageFormat::PNG, "PNG", "Lossless, supports transparency"),
-        (
-            ImageFormat::JPEG,
-            "JPEG",
-            "Lossy compression, supports EXIF",
-        ),
-        (ImageFormat::BMP, "BMP", "Uncompressed, simple format"),
-        (
-            ImageFormat::TIFF,
-            "TIFF",
-            "Flexible, supports EXIF and multiple pages",
-        ),
-    ];
+    let files = vec!["test_exif.jpg", "test_no_exif.png"];
 
-    for (format, name, description) in &formats {
-        println!("  {}:", name);
-        println!("    Description: {}", description);
-        println!("    Extension: .{}", format.extension());
-
-        // Analyze EXIF support
-        let exif_support = matches!(format, ImageFormat::JPEG | ImageFormat::TIFF);
-        println!(
-            "    EXIF Support: {}",
-            if exif_support { "Yes" } else { "No" }
-        );
-
-        // Test with our sample file
-        let filename = format!("test_image.{}", format.extension());
-        if std::path::Path::new(&filename).exists() {
-            match read_enhanced_metadata(&filename) {
-                Ok(metadata) => {
-                    println!(
-                        "    File Size: {} bytes",
-                        fs::metadata(&filename).map(|m| m.len()).unwrap_or(0)
-                    );
-                    println!("    Dimensions: {}x{}", metadata.width, metadata.height);
-
-                    if let Some(color_mode) = metadata.color_mode {
-                        println!("    Color Mode: {}", color_mode.as_str());
-                    }
-                }
-                Err(e) => {
-                    println!("    Error: {}", e);
-                }
-            }
-        } else {
-            println!("    Test file not found");
+    for file in files {
+        if std::path::Path::new(file).exists() {
+            fs::remove_file(file)?;
+            println!("✓ Removed {}", file);
         }
-        println!();
     }
 
+    println!("\n✓ All examples completed successfully!");
     Ok(())
-}
-
-/// Utility function to display GPS coordinates in human-readable format
-#[allow(dead_code)]
-fn format_gps_coordinate(degrees: f64, is_latitude: bool) -> String {
-    let abs_degrees = degrees.abs();
-    let deg = abs_degrees.floor() as u32;
-    let min_float = (abs_degrees - deg as f64) * 60.0;
-    let min = min_float.floor() as u32;
-    let sec = (min_float - min as f64) * 60.0;
-
-    let direction = if is_latitude {
-        if degrees >= 0.0 {
-            "N"
-        } else {
-            "S"
-        }
-    } else {
-        if degrees >= 0.0 {
-            "E"
-        } else {
-            "W"
-        }
-    };
-
-    format!("{}°{:02}'{:06.3}\"{}", deg, min, sec, direction)
-}
-
-/// Utility function to calculate image file size efficiency
-#[allow(dead_code)]
-fn calculate_compression_ratio(
-    width: usize,
-    height: usize,
-    channels: usize,
-    file_size: u64,
-) -> f64 {
-    let uncompressed_size = (width * height * channels) as u64;
-    if file_size > 0 {
-        uncompressed_size as f64 / file_size as f64
-    } else {
-        0.0
-    }
-}
-
-/// Clean up test files
-#[allow(dead_code)]
-fn cleanup_test_files() {
-    let files = ["test_image.png", "test_image.jpg", "test_image.bmp"];
-    for file in &files {
-        let _ = fs::remove_file(file);
-    }
 }

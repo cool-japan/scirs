@@ -7,11 +7,11 @@
 //! - Managing NetCDF file structure
 
 use ndarray::{Array1, Array2, Array3};
-use scirs2_core::error::CoreResult;
+use scirs2_io::error::Result;
 use scirs2_io::netcdf::{NetCDFDataType, NetCDFFile, NetCDFOptions};
 use std::f64::consts::PI;
 
-fn main() -> CoreResult<()> {
+fn main() -> Result<()> {
     println!("=== Enhanced NetCDF Example ===");
 
     // Example 1: Create a simple climate dataset structure
@@ -29,7 +29,7 @@ fn main() -> CoreResult<()> {
     Ok(())
 }
 
-fn create_climate_dataset_structure() -> CoreResult<()> {
+fn create_climate_dataset_structure() -> Result<()> {
     println!("\n1. Creating climate dataset structure...");
 
     // Create a new NetCDF file for climate data
@@ -105,7 +105,7 @@ fn create_climate_dataset_structure() -> CoreResult<()> {
     Ok(())
 }
 
-fn create_scientific_dataset_structure() -> CoreResult<()> {
+fn create_scientific_dataset_structure() -> Result<()> {
     println!("\n2. Creating scientific measurement dataset structure...");
 
     // Create a new NetCDF file for scientific measurements
@@ -218,7 +218,7 @@ fn create_scientific_dataset_structure() -> CoreResult<()> {
     Ok(())
 }
 
-fn demonstrate_metadata_features() -> CoreResult<()> {
+fn demonstrate_metadata_features() -> Result<()> {
     println!("\n3. Demonstrating metadata and attribute features...");
 
     let mut nc_file = NetCDFFile::create("metadata_demo.nc")?;

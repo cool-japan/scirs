@@ -8,11 +8,10 @@
 //! - Memory efficiency analysis
 //! - Performance comparison between formats
 
-use ndarray::{Array1, Array2};
 use scirs2_io::error::Result;
 use scirs2_io::serialize::{
     deserialize_enhanced_sparse_matrix, serialize_enhanced_sparse_matrix, sparse_ops,
-    SerializationFormat, SparseFormat, SparseMatrix, SparseMatrixCOO,
+    SerializationFormat, SparseMatrix,
 };
 use std::time::Instant;
 
@@ -109,19 +108,21 @@ fn demonstrate_format_conversion() -> Result<()> {
         let start = Instant::now();
         let csr = sparse.to_csr()?;
         let csr_time = start.elapsed();
+        let csr_nnz = csr.nnz();
 
         // Time COO -> CSC conversion
         let start = Instant::now();
         let csc = sparse.to_csc()?;
         let csc_time = start.elapsed();
+        let csc_nnz = csc.nnz();
 
-        println!("    COO -> CSR: {:?} ({} nnz)", csr_time, csr.nnz());
-        println!("    COO -> CSC: {:?} ({} nnz)", csc_time, csc.nnz());
+        println!("    COO -> CSR: {:?} ({} nnz)", csr_time, csr_nnz);
+        println!("    COO -> CSC: {:?} ({} nnz)", csc_time, csc_nnz);
 
         // Test row access in CSR
         let start = Instant::now();
         for i in 0..std::cmp::min(100, size) {
-            if let Some((cols, vals)) = csr.row(i) {
+            if let Some((cols, _vals)) = csr.row(i) {
                 let _row_nnz = cols.len();
             }
         }
@@ -130,7 +131,7 @@ fn demonstrate_format_conversion() -> Result<()> {
         // Test column access in CSC
         let start = Instant::now();
         for j in 0..std::cmp::min(100, size) {
-            if let Some((rows, vals)) = csc.column(j) {
+            if let Some((rows, _vals)) = csc.column(j) {
                 let _col_nnz = rows.len();
             }
         }

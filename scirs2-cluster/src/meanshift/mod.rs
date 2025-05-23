@@ -103,7 +103,7 @@ impl<T: Float> Hash for FloatPoint<T> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_cluster::meanshift::estimate_bandwidth;
 ///
@@ -364,7 +364,7 @@ fn mean_shift_single_seed<
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_cluster::meanshift::{mean_shift, MeanShiftOptions};
 ///
