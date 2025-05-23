@@ -11,17 +11,17 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["validation", "parallel"] }
-scirs2-interpolate = { path = "../scirs2-interpolate", version = "0.1.0-alpha.4" }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-thiserror = "2.0.12"
-ndarray-rand = "0.15.0"
-approx = "0.5.1"
-cached = "0.48.1"
+scirs2-core = { workspace = true, features = ["validation", "parallel"] }
+scirs2-interpolate = { workspace = true }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+ndarray-rand = { workspace = true }
+approx = { workspace = true }
+cached = { workspace = true }
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = { workspace = true }
 
 # Temporarily commented out for publishing
 # [[bench]]

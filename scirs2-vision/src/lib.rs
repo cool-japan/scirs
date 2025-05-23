@@ -5,6 +5,9 @@
 
 #![warn(missing_docs)]
 
+// Re-export image crate with the expected name
+extern crate image_025 as image;
+
 pub mod color;
 pub mod error;
 pub mod feature;

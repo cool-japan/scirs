@@ -46,7 +46,9 @@ categories = ["science", "mathematics", "algorithms", "ai"]
 [workspace.dependencies]
 ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
 ndarray-stats = "0.6.0"
+ndarray-stats-05 = { package = "ndarray-stats", version = "0.5.0" }
 ndarray-rand = "0.15.0"
+ndarray-rand-014 = { package = "ndarray-rand", version = "0.14.0" }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 num-integer = "0.1.46"
@@ -79,6 +81,7 @@ sprs = "0.11.3"
 serde = { version = "1.0", features = ["derive"] }
 csv = "1.2"
 image = "0.24"
+image-025 = { package = "image", version = "0.25", features = ["jpeg", "png", "gif"] }
 
 # IO and file handling
 flate2 = "1.0"
@@ -109,6 +112,7 @@ rustc-hash = "1.1.0"
 matrixmultiply = "0.3.2"
 num = "0.4.0"
 special = "0.10.2"
+special-11 = { package = "special", version = "0.11.4" }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.10"
 lazy_static = "1.4"
@@ -120,10 +124,35 @@ blas-src = { version = "0.8", default-features = false }
 intel-mkl-src = { version = "0.8.1", default-features = false }
 cblas-sys = { version = "0.1.4", default-features = false }
 
-
+# Additional dependencies for modules
+half = { version = "2.4.0", features = ["num-traits", "serde", "alloc"] }
+crossbeam-utils = { version = "0.8.19" }
+crossbeam-deque = { version = "0.8.3" }
+num_cpus = { version = "1.16.0" }
+memmap2 = { version = "0.7.1" }
+snap = { version = "1.1.0" }
+cranelift-module = { version = "0.118.0" }
+cranelift-jit = { version = "0.118.0" }
+cranelift-frontend = { version = "0.118.0" }
+plotly = { version = "0.12.1" }
+plotters = { version = "0.3.5" }
+reqwest = { version = "0.11", features = ["blocking", "json"] }
 
 # Math libraries
 libm = "0.2"
+array-init = "2.1.0"
+netcdf3 = "0.5.2"
+sobol = "1.0.2"
+halton = "0.2.1"
+ordered-float = "3.9.2"
+friedrich = "0.5.0"
+ureq = "2.9"
+qhull = "0.4.0"
+parking_lot = "0.12.1"
+serde_yaml = "0.9"
+toml = "0.8"
+ciborium = "0.2"
+serde_cbor = "0.11.2"
 
 # Base scirs2 crates
 scirs2-core = { path = "./scirs2-core" }
@@ -150,7 +179,7 @@ scirs2-neural = { path = "./scirs2-neural" }
 scirs2-optim = { path = "./scirs2-optim" }
 scirs2-graph = { path = "./scirs2-graph" }
 scirs2-transform = { path = "./scirs2-transform" }
-scirs2-metrics = { path = "./scirs2-metrics" }
+scirs2-metrics = { path = "./scirs2-metrics", default-features = false }
 scirs2-text = { path = "./scirs2-text" }
 scirs2-vision = { path = "./scirs2-vision" }
 scirs2-series = { path = "./scirs2-series" }

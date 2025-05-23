@@ -11,45 +11,45 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core module - always included
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["cache", "logging", "profiling", "memory_management"] }
+scirs2-core = { workspace = true, features = ["cache", "logging", "profiling", "memory_management"] }
 
 # Basic utility dependencies
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "1.0.69"
-rand = "0.9.0"
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
 
 # Standard modules
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4", optional = true }
-scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.4", optional = true }
-scirs2-integrate = { path = "../scirs2-integrate", version = "0.1.0-alpha.4", optional = true }
-scirs2-interpolate = { path = "../scirs2-interpolate", version = "0.1.0-alpha.4", optional = true }
-scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.4", optional = true }
-scirs2-fft = { path = "../scirs2-fft", version = "0.1.0-alpha.4", optional = true }
-scirs2-special = { path = "../scirs2-special", version = "0.1.0-alpha.4", optional = true }
-scirs2-signal = { path = "../scirs2-signal", version = "0.1.0-alpha.4", optional = true }
-scirs2-sparse = { path = "../scirs2-sparse", version = "0.1.0-alpha.4", optional = true }
-scirs2-spatial = { path = "../scirs2-spatial", version = "0.1.0-alpha.4", optional = true }
-scirs2-cluster = { path = "../scirs2-cluster", version = "0.1.0-alpha.4", optional = true }
-scirs2-transform = { path = "../scirs2-transform", version = "0.1.0-alpha.4", optional = true }
-scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.4", optional = true }
+scirs2-linalg = { workspace = true, optional = true }
+scirs2-stats = { workspace = true, optional = true }
+scirs2-integrate = { workspace = true, optional = true }
+scirs2-interpolate = { workspace = true, optional = true }
+scirs2-optimize = { workspace = true, optional = true }
+scirs2-fft = { workspace = true, optional = true }
+scirs2-special = { workspace = true, optional = true }
+scirs2-signal = { workspace = true, optional = true }
+scirs2-sparse = { workspace = true, optional = true }
+scirs2-spatial = { workspace = true, optional = true }
+scirs2-cluster = { workspace = true, optional = true }
+scirs2-transform = { workspace = true, optional = true }
+scirs2-metrics = { workspace = true, optional = true, default-features = true }
 
 # Preview/experimental modules
-scirs2-ndimage = { path = "../scirs2-ndimage", version = "0.1.0-alpha.4", optional = true }
-scirs2-neural = { path = "../scirs2-neural", version = "0.1.0-alpha.4", optional = true }
-scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.4", optional = true }
-scirs2-series = { path = "../scirs2-series", version = "0.1.0-alpha.4", optional = true }
-scirs2-text = { path = "../scirs2-text", version = "0.1.0-alpha.4", optional = true }
-scirs2-io = { path = "../scirs2-io", version = "0.1.0-alpha.4", optional = true }
-scirs2-datasets = { path = "../scirs2-datasets", version = "0.1.0-alpha.4", optional = true }
-scirs2-graph = { path = "../scirs2-graph", version = "0.1.0-alpha.4", optional = true }
-scirs2-vision = { path = "../scirs2-vision", version = "0.1.0-alpha.4", optional = true }
-scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.4", optional = true }
+scirs2-ndimage = { workspace = true, optional = true }
+scirs2-neural = { workspace = true, optional = true }
+scirs2-optim = { workspace = true, optional = true }
+scirs2-series = { workspace = true, optional = true }
+scirs2-text = { workspace = true, optional = true }
+scirs2-io = { workspace = true, optional = true }
+scirs2-datasets = { workspace = true, optional = true }
+scirs2-graph = { workspace = true, optional = true }
+scirs2-vision = { workspace = true, optional = true }
+scirs2-autograd = { workspace = true, optional = true }
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = "0.5.1"
+approx = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = ["standard"]

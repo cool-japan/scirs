@@ -20,30 +20,30 @@ never = [] # Used to conditionally disable tests during development
 
 [dependencies]
 # Core dependencies
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "1.0.69"
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["simd", "parallel"] }
-rayon = { version = "1.10.0", optional = true }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+scirs2-core = { workspace = true, features = ["simd", "parallel"] }
+rayon = { workspace = true, optional = true }
 
 # FFT specific dependencies
 rustfft = { workspace = true }
-rand = "0.9.0"
+rand = { workspace = true }
 
 # Serialization dependencies
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 # System info and benchmarking
-num_cpus = "1.16.0"
-tempfile = "3.10.0"
-rand_distr.workspace = true
+num_cpus = { workspace = true }
+tempfile = { workspace = true }
+rand_distr = { workspace = true }
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = { version = "0.5.1", features = ["html_reports"] }
-plotly = "0.8.4"
+approx = { workspace = true }
+criterion = { workspace = true }
+plotly = { workspace = true }
 
 [[bench]]
 name = "fft_benchmarks"
