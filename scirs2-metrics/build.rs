@@ -6,7 +6,7 @@ fn main() {
         println!("cargo:rustc-link-lib=pthread");
         println!("cargo:rustc-link-lib=gfortran");
         println!("cargo:rustc-link-lib=gomp");
-        
+
         // Link OpenBLAS explicitly for BLAS/LAPACK functionality
         println!("cargo:rustc-link-lib=openblas");
     }
@@ -26,7 +26,7 @@ fn main() {
     println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu");
     println!("cargo:rustc-link-search=native=/lib/x86_64-linux-gnu");
     println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/openblas-pthread");
-    
+
     // Add end-group to balance start-group
     #[cfg(target_os = "linux")]
     println!("cargo:rustc-link-arg=-Wl,--end-group");

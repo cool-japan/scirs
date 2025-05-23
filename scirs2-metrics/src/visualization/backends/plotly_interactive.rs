@@ -45,14 +45,14 @@ impl PlotlyInteractiveBackend {
         let width = options.width;
         let height = options.height;
         let mut layout = Layout::new()
-            .title(plotly::common::Title::new(metadata.title.as_str()))
+            .title(plotly::common::Title::with_text(metadata.title.as_str()))
             .x_axis(
                 plotly::layout::Axis::new()
-                    .title(plotly::common::Title::new(metadata.x_label.as_str())),
+                    .title(plotly::common::Title::with_text(metadata.x_label.as_str())),
             )
             .y_axis(
                 plotly::layout::Axis::new()
-                    .title(plotly::common::Title::new(metadata.y_label.as_str())),
+                    .title(plotly::common::Title::with_text(metadata.y_label.as_str())),
             )
             .width(width)
             .height(height);
@@ -248,14 +248,14 @@ impl super::PlottingBackend for PlotlyInteractiveBackend {
                 plot.add_trace(trace);
 
                 let layout = Layout::new()
-                    .title(plotly::common::Title::new(&metadata.title))
+                    .title(plotly::common::Title::with_text(&metadata.title))
                     .x_axis(
                         plotly::layout::Axis::new()
-                            .title(plotly::common::Title::new(&metadata.x_label)),
+                            .title(plotly::common::Title::with_text(&metadata.x_label)),
                     )
                     .y_axis(
                         plotly::layout::Axis::new()
-                            .title(plotly::common::Title::new(&metadata.y_label)),
+                            .title(plotly::common::Title::with_text(&metadata.y_label)),
                     )
                     .width(options.width)
                     .height(options.height);
