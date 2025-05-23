@@ -4,7 +4,7 @@ use scirs2_cluster::metrics::silhouette_score;
 
 fn main() {
     println!("BIRCH (Balanced Iterative Reducing and Clustering using Hierarchies) Demo");
-    println!("=".repeat(70));
+    println!("{}", "=".repeat(70));
 
     // Generate synthetic data with multiple clusters
     let data = generate_clustered_data();
@@ -63,7 +63,7 @@ fn main() {
 
     // Demonstrate incremental nature of BIRCH
     println!("\n\nIncremental clustering demonstration:");
-    println!("-".repeat(40));
+    println!("{}", "-".repeat(40));
 
     let options = BirchOptions {
         threshold: 1.0,

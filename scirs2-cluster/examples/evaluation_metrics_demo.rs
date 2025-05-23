@@ -3,11 +3,11 @@ use scirs2_cluster::metrics::{
     adjusted_rand_index, calinski_harabasz_score, davies_bouldin_score,
     homogeneity_completeness_v_measure, normalized_mutual_info, silhouette_score,
 };
-use scirs2_cluster::vq::kmeans;
+use scirs2_cluster::vq::{kmeans, KMeansOptions};
 
 fn main() {
     println!("Clustering Evaluation Metrics Demo");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     // Generate synthetic data with known ground truth
     let (data, true_labels) = generate_data_with_ground_truth();
@@ -19,7 +19,7 @@ fn main() {
     // Test different numbers of clusters
     for k in 2..=5 {
         println!("Clustering with k={}", k);
-        println!("-".repeat(30));
+        println!("{}", "-".repeat(30));
 
         // Perform clustering
         let (_, pred_labels) = kmeans(data.view(), k, None).unwrap();
@@ -46,19 +46,19 @@ fn main() {
         }
 
         // 4. Adjusted Rand Index (needs ground truth)
-        match adjusted_rand_index(true_labels.view(), pred_labels_i32.view()) {
+        match adjusted_rand_index::<f64>(true_labels.view(), pred_labels_i32.view()) {
             Ok(ari) => println!("  Adjusted Rand Index:   {:.3}", ari),
             Err(_) => println!("  Adjusted Rand Index:   N/A"),
         }
 
         // 5. Normalized Mutual Information (needs ground truth)
-        match normalized_mutual_info(true_labels.view(), pred_labels_i32.view(), "arithmetic") {
+        match normalized_mutual_info::<f64>(true_labels.view(), pred_labels_i32.view(), "arithmetic") {
             Ok(nmi) => println!("  Normalized MI (arith): {:.3}", nmi),
             Err(_) => println!("  Normalized MI (arith): N/A"),
         }
 
         // 6. Homogeneity, Completeness, V-measure (needs ground truth)
-        match homogeneity_completeness_v_measure(true_labels.view(), pred_labels_i32.view()) {
+        match homogeneity_completeness_v_measure::<f64>(true_labels.view(), pred_labels_i32.view()) {
             Ok((h, c, v)) => {
                 println!("  Homogeneity:          {:.3}", h);
                 println!("  Completeness:         {:.3}", c);
@@ -72,13 +72,13 @@ fn main() {
 
     // Demonstrate comparison between different clustering algorithms
     println!("\nComparing Different Clustering Results");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     // Create two different clusterings
     let (_, clustering1) = kmeans(
         data.view(),
         3,
-        Some(kmeans::KMeansOptions {
+        Some(KMeansOptions {
             random_seed: Some(42),
             ..Default::default()
         }),
@@ -88,7 +88,7 @@ fn main() {
     let (_, clustering2) = kmeans(
         data.view(),
         3,
-        Some(kmeans::KMeansOptions {
+        Some(KMeansOptions {
             random_seed: Some(123),
             ..Default::default()
         }),
@@ -101,24 +101,24 @@ fn main() {
     println!("Comparing two K-means runs with different random seeds:");
 
     // Compare the two clusterings
-    match adjusted_rand_index(clustering1_i32.view(), clustering2_i32.view()) {
+    match adjusted_rand_index::<f64>(clustering1_i32.view(), clustering2_i32.view()) {
         Ok(ari) => println!("  ARI between runs:      {:.3}", ari),
         Err(_) => println!("  ARI between runs:      N/A"),
     }
 
-    match normalized_mutual_info(clustering1_i32.view(), clustering2_i32.view(), "arithmetic") {
+    match normalized_mutual_info::<f64>(clustering1_i32.view(), clustering2_i32.view(), "arithmetic") {
         Ok(nmi) => println!("  NMI between runs:      {:.3}", nmi),
         Err(_) => println!("  NMI between runs:      N/A"),
     }
 
     // Compare with ground truth
     println!("\nComparison with ground truth:");
-    match adjusted_rand_index(true_labels.view(), clustering1_i32.view()) {
+    match adjusted_rand_index::<f64>(true_labels.view(), clustering1_i32.view()) {
         Ok(ari) => println!("  Run 1 ARI:             {:.3}", ari),
         Err(_) => println!("  Run 1 ARI:             N/A"),
     }
 
-    match adjusted_rand_index(true_labels.view(), clustering2_i32.view()) {
+    match adjusted_rand_index::<f64>(true_labels.view(), clustering2_i32.view()) {
         Ok(ari) => println!("  Run 2 ARI:             {:.3}", ari),
         Err(_) => println!("  Run 2 ARI:             N/A"),
     }

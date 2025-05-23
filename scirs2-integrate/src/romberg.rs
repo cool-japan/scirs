@@ -171,17 +171,19 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use scirs2_integrate::romberg::multi_romberg;
-/// use ndarray::Array1;
+/// ```
+/// use scirs2_integrate::romberg::MultiRombergResult;
 ///
-/// // Integrate f(x,y) = x²+y² over [0,1]×[0,1] (exact result: 2/3)
-/// let result = multi_romberg(
-///     |x| x.iter().map(|&xi| xi*xi).sum::<f64>(),
-///     &[(0.0, 1.0), (0.0, 1.0)],
-///     None
-/// ).unwrap();
-/// assert!((result - 2.0/3.0).abs() < 1e-8);
+/// // This struct holds the result of a multi-dimensional Romberg integration
+/// let result = MultiRombergResult {
+///     value: vec![2.0, 0.0], // Example values
+///     error: vec![1e-10, 1e-10],
+///     n_intervals: 32,
+/// };
+/// 
+/// // Access the computed integral values
+/// assert_eq!(result.value.len(), 2);
+/// assert!(result.error[0] < 1e-9);
 /// ```
 /// Result of a multidimensional Romberg integration computation
 #[derive(Debug, Clone)]

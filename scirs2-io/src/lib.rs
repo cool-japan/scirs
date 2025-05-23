@@ -51,6 +51,15 @@ pub mod compression;
 /// - Column-based operations with flexible configuration
 pub mod csv;
 pub mod error;
+/// HDF5 file format module
+///
+/// Provides functionality for reading and writing HDF5 (Hierarchical Data Format) files:
+/// - Reading and writing HDF5 groups and datasets
+/// - Support for attributes on groups and datasets
+/// - Multiple datatypes (integers, floats, strings, compound types)
+/// - Chunking and compression options
+/// - Integration with ndarray for efficient array operations
+pub mod hdf5;
 /// Image file format module
 ///
 /// Provides functionality for reading and writing common image formats:

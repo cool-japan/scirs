@@ -11,6 +11,7 @@ use ndarray::{Array1, Array2};
 use crate::algorithms::{shortest_path, shortest_path_digraph};
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
 use crate::error::{GraphError, Result};
+use petgraph::graph::IndexType;
 
 /// Centrality measure type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -869,6 +870,139 @@ where
     Ok(result)
 }
 
+/// HITS (Hyperlink-Induced Topic Search) algorithm result
+#[derive(Debug, Clone)]
+pub struct HitsScores<N: Node> {
+    /// Authority scores for each node
+    pub authorities: HashMap<N, f64>,
+    /// Hub scores for each node
+    pub hubs: HashMap<N, f64>,
+}
+
+/// Compute HITS algorithm for a directed graph
+///
+/// The HITS algorithm computes two scores for each node:
+/// - Authority score: nodes that are pointed to by many hubs
+/// - Hub score: nodes that point to many authorities
+///
+/// # Arguments
+/// * `graph` - The directed graph
+/// * `max_iter` - Maximum number of iterations
+/// * `tolerance` - Convergence tolerance
+///
+/// # Returns
+/// * HitsScores containing authority and hub scores for each node
+pub fn hits_algorithm<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+    max_iter: usize,
+    tolerance: f64,
+) -> Result<HitsScores<N>>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().collect();
+    let n = nodes.len();
+    
+    if n == 0 {
+        return Ok(HitsScores {
+            authorities: HashMap::new(),
+            hubs: HashMap::new(),
+        });
+    }
+    
+    // Initialize scores
+    let mut authorities = vec![1.0 / (n as f64).sqrt(); n];
+    let mut hubs = vec![1.0 / (n as f64).sqrt(); n];
+    let mut new_authorities = vec![0.0; n];
+    let mut new_hubs = vec![0.0; n];
+    
+    // Create node index mapping
+    let node_to_idx: HashMap<N, usize> = nodes.iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), i))
+        .collect();
+    
+    // Iterate until convergence
+    for _ in 0..max_iter {
+        // Update authority scores
+        new_authorities.fill(0.0);
+        for (i, node) in nodes.iter().enumerate() {
+            // Authority score is sum of hub scores of nodes pointing to it
+            if let Ok(predecessors) = graph.predecessors(node) {
+                for pred in predecessors {
+                    if let Some(&pred_idx) = node_to_idx.get(&pred) {
+                        new_authorities[i] += hubs[pred_idx];
+                    }
+                }
+            }
+        }
+        
+        // Update hub scores
+        new_hubs.fill(0.0);
+        for (i, node) in nodes.iter().enumerate() {
+            // Hub score is sum of authority scores of nodes it points to
+            if let Ok(successors) = graph.successors(node) {
+                for succ in successors {
+                    if let Some(&succ_idx) = node_to_idx.get(&succ) {
+                        new_hubs[i] += authorities[succ_idx];
+                    }
+                }
+            }
+        }
+        
+        // Normalize scores
+        let auth_norm: f64 = new_authorities.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let hub_norm: f64 = new_hubs.iter().map(|x| x * x).sum::<f64>().sqrt();
+        
+        if auth_norm > 0.0 {
+            for score in &mut new_authorities {
+                *score /= auth_norm;
+            }
+        }
+        
+        if hub_norm > 0.0 {
+            for score in &mut new_hubs {
+                *score /= hub_norm;
+            }
+        }
+        
+        // Check convergence
+        let auth_diff: f64 = authorities.iter()
+            .zip(&new_authorities)
+            .map(|(old, new)| (old - new).abs())
+            .sum();
+        let hub_diff: f64 = hubs.iter()
+            .zip(&new_hubs)
+            .map(|(old, new)| (old - new).abs())
+            .sum();
+        
+        if auth_diff < tolerance && hub_diff < tolerance {
+            break;
+        }
+        
+        // Update scores
+        authorities.copy_from_slice(&new_authorities);
+        hubs.copy_from_slice(&new_hubs);
+    }
+    
+    // Convert to HashMap
+    let authority_map = nodes.iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), authorities[i]))
+        .collect();
+    let hub_map = nodes.iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), hubs[i]))
+        .collect();
+    
+    Ok(HitsScores {
+        authorities: authority_map,
+        hubs: hub_map,
+    })
+}
+
 /// Calculates PageRank centrality for nodes in a directed graph
 ///
 /// # Arguments
@@ -1148,5 +1282,41 @@ mod tests {
         for value in pagerank_result.values() {
             assert!(*value > 0.0);
         }
+    }
+
+    #[test]
+    fn test_hits_algorithm() {
+        let mut graph: DiGraph<char, f64> = DiGraph::new();
+
+        // Create a small web graph
+        // A and B are hubs (point to many pages)
+        // C and D are authorities (pointed to by many pages)
+        graph.add_edge('A', 'C', 1.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        graph.add_edge('B', 'D', 1.0).unwrap();
+        // E is both a hub and authority
+        graph.add_edge('E', 'C', 1.0).unwrap();
+        graph.add_edge('B', 'E', 1.0).unwrap();
+
+        let hits = hits_algorithm(&graph, 100, 1e-6).unwrap();
+
+        // Check that we have scores for all nodes
+        assert_eq!(hits.authorities.len(), 5);
+        assert_eq!(hits.hubs.len(), 5);
+
+        // C and D should have high authority scores
+        assert!(hits.authorities[&'C'] > hits.authorities[&'A']);
+        assert!(hits.authorities[&'D'] > hits.authorities[&'A']);
+        
+        // A and B should have high hub scores
+        assert!(hits.hubs[&'A'] > hits.hubs[&'C']);
+        assert!(hits.hubs[&'B'] > hits.hubs[&'C']);
+
+        // Check that scores are normalized (sum of squares = 1)
+        let auth_norm: f64 = hits.authorities.values().map(|&x| x * x).sum::<f64>();
+        let hub_norm: f64 = hits.hubs.values().map(|&x| x * x).sum::<f64>();
+        assert!((auth_norm - 1.0).abs() < 0.01);
+        assert!((hub_norm - 1.0).abs() < 0.01);
     }
 }

@@ -4,7 +4,7 @@ use scirs2_cluster::metrics::silhouette_score;
 
 fn main() {
     println!("Gaussian Mixture Models (GMM) Demo");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     // Generate synthetic data
     let data = generate_gaussian_mixture_data();
@@ -60,7 +60,7 @@ fn main() {
 
     // Test different numbers of components
     println!("\nTesting different numbers of components:");
-    println!("-".repeat(40));
+    println!("{}", "-".repeat(40));
 
     for n_components in 2..=5 {
         let options = GMMOptions {
@@ -94,7 +94,7 @@ fn main() {
 
     // Compare initialization methods
     println!("\n\nComparing initialization methods:");
-    println!("-".repeat(40));
+    println!("{}", "-".repeat(40));
 
     let init_methods = vec![(GMMInit::KMeans, "K-means++"), (GMMInit::Random, "Random")];
 

@@ -4,7 +4,7 @@ use std::time::Instant;
 
 fn main() {
     println!("Parallel K-means Clustering Demo");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     // Test with different dataset sizes
     let dataset_sizes = vec![1_000, 5_000, 10_000, 50_000];
@@ -16,7 +16,7 @@ fn main() {
             "\nDataset size: {} samples × {} features",
             n_samples, n_features
         );
-        println!("-".repeat(40));
+        println!("{}", "-".repeat(40));
 
         // Generate synthetic data
         let data = generate_clustered_data(n_samples, n_features, k);
@@ -67,7 +67,7 @@ fn main() {
 
     // Test with different numbers of threads
     println!("\n\nTesting different thread counts");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     let n_samples = 20_000;
     let data = generate_clustered_data(n_samples, n_features, k);
@@ -90,7 +90,7 @@ fn main() {
 
     // Test scaling with number of clusters
     println!("\n\nScaling with number of clusters");
-    println!("=".repeat(50));
+    println!("{}", "=".repeat(50));
 
     let n_samples = 10_000;
     let data = generate_clustered_data(n_samples, n_features, 20);
@@ -134,7 +134,7 @@ fn generate_clustered_data(n_samples: usize, n_features: usize, n_clusters: usiz
     for i in 0..n_samples {
         let cluster = i % n_clusters;
 
-        for j in 0..n_features {
+        for _j in 0..n_features {
             // Base value for cluster separation
             let base = (cluster * 10) as f64;
 

@@ -837,8 +837,11 @@ mod tests {
         let (h2, c2, v2): (f64, f64, f64) =
             homogeneity_completeness_v_measure(labels_true.view(), labels_pred2.view()).unwrap();
 
-        assert!(h2 > 0.5); // Good homogeneity (each cluster is relatively pure)
-        assert!(c2 < h2); // Lower completeness (not all members of each class in same cluster)
+        // When classes are merged, completeness is actually perfect (1.0) because
+        // all members of each true class are contained within single predicted clusters
+        // Homogeneity is lower because predicted clusters contain multiple true classes
+        assert!(h2 > 0.0 && h2 < 1.0); // Reduced homogeneity
+        assert!(c2 > 0.9); // High completeness 
         assert!(v2 > 0.0 && v2 < 1.0); // V-measure between 0 and 1
     }
 }

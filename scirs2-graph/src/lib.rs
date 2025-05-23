@@ -21,20 +21,22 @@ pub mod base;
 pub mod error;
 pub mod generators;
 pub mod io;
+pub mod layout;
 pub mod measures;
 pub mod spectral;
 
 // Re-export important types and functions
 pub use algorithms::{
     articulation_points, astar_search, astar_search_digraph, breadth_first_search,
-    breadth_first_search_digraph, bridges, chromatic_number, connected_components,
-    depth_first_search, depth_first_search_digraph, eulerian_type, find_eulerian_circuit,
-    find_subgraph_matches, floyd_warshall, floyd_warshall_digraph, greedy_coloring,
+    breadth_first_search_digraph, bridges, center_nodes, chromatic_number, connected_components,
+    depth_first_search, depth_first_search_digraph, diameter, eulerian_type, find_eulerian_circuit,
+    find_motifs, find_subgraph_matches, floyd_warshall, floyd_warshall_digraph, greedy_coloring,
     has_hamiltonian_circuit, has_hamiltonian_path, is_bipartite, is_isomorphic,
-    k_core_decomposition, louvain_communities, max_flow, maximum_bipartite_matching,
-    minimum_spanning_tree, shortest_path, shortest_path_digraph, strongly_connected_components,
-    topological_sort, AStarResult, BipartiteMatching, BipartiteResult, CommunityStructure,
-    EulerianType, GraphColoring, MaxFlowResult,
+    k_core_decomposition, k_shortest_paths, label_propagation, louvain_communities, max_flow,
+    maximum_bipartite_matching, minimum_cut, minimum_spanning_tree,
+    minimum_weight_bipartite_matching, radius, shortest_path, shortest_path_digraph,
+    strongly_connected_components, topological_sort, AStarResult, BipartiteMatching,
+    BipartiteResult, CommunityStructure, EulerianType, GraphColoring, MaxFlowResult, MotifType,
 };
 pub use base::{DiGraph, Edge, EdgeWeight, Graph, Node};
 pub use error::{GraphError, Result};
@@ -43,7 +45,9 @@ pub use generators::{
     path_graph, star_graph, watts_strogatz_graph,
 };
 pub use measures::{
-    centrality, clustering_coefficient, graph_density, katz_centrality, katz_centrality_digraph,
-    pagerank_centrality, pagerank_centrality_digraph, CentralityType,
+    centrality, clustering_coefficient, graph_density, hits_algorithm, katz_centrality,
+    katz_centrality_digraph, pagerank_centrality, pagerank_centrality_digraph, CentralityType,
+    HitsScores,
 };
+pub use layout::{circular_layout, hierarchical_layout, spectral_layout, spring_layout, Position};
 pub use spectral::{laplacian, normalized_cut, spectral_radius};

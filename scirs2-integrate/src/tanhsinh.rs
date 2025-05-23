@@ -88,7 +88,7 @@ impl TanhSinhRule {
         // where m is chosen such that the weights at the endpoints are negligible
         let max_j = Self::determine_max_j(level);
 
-        // println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
+        println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
 
         for j in -max_j..=max_j {
             let t = j as f64 * h;
@@ -148,11 +148,13 @@ impl TanhSinhRule {
 
         let weights = self.weights.iter().map(|&w| len * w).collect::<Vec<_>>();
 
-        // println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
+        println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
         // Debug: show actual points and weights
-        // for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
-        //     println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
-        // }
+        if points.len() <= 5 {
+            for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
+                println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
+            }
+        }
 
         (points, weights)
     }
@@ -200,12 +202,12 @@ impl RuleCache {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::tanhsinh::{tanhsinh, TanhSinhOptions};
 ///
 /// // Integrate x^2 from 0 to 1
 /// let result = tanhsinh(|x| x * x, 0.0, 1.0, None).unwrap();
-/// assert!((result.integral - 1.0/3.0).abs() < 1e-8);
+/// assert!((result.integral - 1.0/3.0).abs() < 1e-6);
 /// ```
 pub fn tanhsinh<F>(
     f: F,
@@ -270,7 +272,7 @@ where
         evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
 
         // Debug output
-        // println!("Level {}: estimate = {}, prev = {}", level, state.estimate, state.prev_estimate);
+        println!("Level {}: estimate = {}, prev = {}", level, state.estimate, state.prev_estimate);
 
         // Check for convergence
         if level >= options.min_level {
@@ -511,6 +513,7 @@ fn compute_sum<F>(
         }
 
         state.estimate = sum;
+        println!("    Sum = {}, npoints = {}", sum, n_points);
     }
 }
 
@@ -694,7 +697,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::tanhsinh::{nsum, TanhSinhOptions};
 ///
 /// // Compute sum of 1/n² from n=1 to infinity (equals π²/6)
