@@ -323,6 +323,7 @@ where
 
 /// Compute squared Euclidean distance between two vectors (for performance)
 #[inline]
+#[allow(dead_code)]
 fn squared_euclidean_distance<F>(x: ArrayView1<F>, y: ArrayView1<F>) -> F
 where
     F: Float + FromPrimitive,

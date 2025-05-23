@@ -29,14 +29,15 @@ pub mod spectral;
 pub use algorithms::{
     articulation_points, astar_search, astar_search_digraph, breadth_first_search,
     breadth_first_search_digraph, bridges, center_nodes, chromatic_number, connected_components,
-    depth_first_search, depth_first_search_digraph, diameter, eulerian_type, find_eulerian_circuit,
-    find_motifs, find_subgraph_matches, floyd_warshall, floyd_warshall_digraph, greedy_coloring,
-    has_hamiltonian_circuit, has_hamiltonian_path, is_bipartite, is_isomorphic,
-    k_core_decomposition, k_shortest_paths, label_propagation, louvain_communities, max_flow,
-    maximum_bipartite_matching, minimum_cut, minimum_spanning_tree,
-    minimum_weight_bipartite_matching, radius, shortest_path, shortest_path_digraph,
-    strongly_connected_components, topological_sort, AStarResult, BipartiteMatching,
-    BipartiteResult, CommunityStructure, EulerianType, GraphColoring, MaxFlowResult, MotifType,
+    cosine_similarity, depth_first_search, depth_first_search_digraph, diameter, eulerian_type,
+    find_eulerian_circuit, find_motifs, find_subgraph_matches, floyd_warshall,
+    floyd_warshall_digraph, graph_edit_distance, greedy_coloring, has_hamiltonian_circuit,
+    has_hamiltonian_path, is_bipartite, is_isomorphic, jaccard_similarity, k_core_decomposition,
+    k_shortest_paths, label_propagation, louvain_communities, max_flow, maximum_bipartite_matching,
+    minimum_cut, minimum_spanning_tree, minimum_weight_bipartite_matching, personalized_pagerank,
+    radius, random_walk, shortest_path, shortest_path_digraph, strongly_connected_components,
+    topological_sort, transition_matrix, AStarResult, BipartiteMatching, BipartiteResult,
+    CommunityStructure, EulerianType, GraphColoring, MaxFlowResult, MotifType,
 };
 pub use base::{DiGraph, Edge, EdgeWeight, Graph, Node};
 pub use error::{GraphError, Result};

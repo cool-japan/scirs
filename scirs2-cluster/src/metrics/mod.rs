@@ -363,7 +363,7 @@ where
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 /// let labels_pred = Array1::from_vec(vec![0, 0, 2, 2, 1, 1]);
 ///
-/// let ari = adjusted_rand_index(labels_true.view(), labels_pred.view()).unwrap();
+/// let ari: f64 = adjusted_rand_index(labels_true.view(), labels_pred.view()).unwrap();
 /// assert!(ari > 0.0);  // Should be positive for similar clusterings
 /// ```
 pub fn adjusted_rand_index<F>(
@@ -486,7 +486,7 @@ where
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
 /// let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
 ///
-/// let nmi = normalized_mutual_info(labels_true.view(), labels_pred.view(), "arithmetic").unwrap();
+/// let nmi: f64 = normalized_mutual_info(labels_true.view(), labels_pred.view(), "arithmetic").unwrap();
 /// assert!((nmi - 1.0).abs() < 1e-6);  // Perfect agreement
 /// ```
 pub fn normalized_mutual_info<F>(
@@ -658,9 +658,9 @@ fn build_contingency_matrix(
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 /// let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
 ///
-/// let (h, c, v) = homogeneity_completeness_v_measure(labels_true.view(), labels_pred.view()).unwrap();
+/// let (h, c, v): (f64, f64, f64) = homogeneity_completeness_v_measure(labels_true.view(), labels_pred.view()).unwrap();
 /// assert!(h > 0.5);  // Good homogeneity
-/// assert!(c < h);    // Lower completeness (class 1 and 2 merged)
+/// assert!(c > 0.9);  // High completeness (all members of each class in single clusters)
 /// ```
 pub fn homogeneity_completeness_v_measure<F>(
     labels_true: ArrayView1<i32>,

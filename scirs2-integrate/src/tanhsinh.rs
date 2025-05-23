@@ -88,15 +88,16 @@ impl TanhSinhRule {
         // where m is chosen such that the weights at the endpoints are negligible
         let max_j = Self::determine_max_j(level);
 
-        println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
+        // println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
 
         for j in -max_j..=max_j {
-            let t = j as f64 * h;
-
-            // Skip the point at t=0 for levels > 0 to avoid duplication
-            if j == 0 && level > 0 {
+            // For levels > 0, only include odd values of j
+            // This ensures we only get new points not in previous levels
+            if level > 0 && j % 2 == 0 {
                 continue;
             }
+            
+            let t = j as f64 * h;
 
             // Compute x = tanh(π/2 * sinh(t))
             let sinh_t = t.sinh();
@@ -148,13 +149,13 @@ impl TanhSinhRule {
 
         let weights = self.weights.iter().map(|&w| len * w).collect::<Vec<_>>();
 
-        println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
+        // println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
         // Debug: show actual points and weights
-        if points.len() <= 5 {
-            for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
-                println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
-            }
-        }
+        // if points.len() <= 5 {
+        //     for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
+        //         println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
+        //     }
+        // }
 
         (points, weights)
     }
@@ -253,7 +254,7 @@ where
         prev_estimate: 0.0,
         error: f64::INFINITY,
         nfev: 0,
-        level: options.min_level.max(1),
+        level: 0,  // Start from level 0
     };
 
     // Transform for improper integrals
@@ -264,15 +265,27 @@ where
     };
 
     // Main integration loop
-    for level in state.level..=options.max_level {
+    let mut accumulated_sum = 0.0;
+    
+    for level in 0..=options.max_level {
         // Get the rule for this level
         let rule = cache.get_rule(level);
 
-        // Evaluate integral with current rule
+        // Evaluate integral with current rule (this gets contribution from new points only)
         evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
+        
+        // The contribution from this level
+        let level_contribution = state.estimate;
+        
+        // Add this level's contribution to the accumulated sum
+        accumulated_sum += level_contribution;
+        
+        // Update state with accumulated values
+        state.prev_estimate = state.estimate;
+        state.estimate = accumulated_sum;
 
         // Debug output
-        println!("Level {}: estimate = {}, prev = {}", level, state.estimate, state.prev_estimate);
+        println!("Level {}: contribution = {}, accumulated = {}", level, level_contribution, accumulated_sum);
 
         // Check for convergence
         if level >= options.min_level {
@@ -296,7 +309,6 @@ where
 
         // Update state for next level
         state.level = level + 1;
-        state.prev_estimate = state.estimate;
     }
 
     // Didn't converge, but return best estimate
@@ -513,7 +525,6 @@ fn compute_sum<F>(
         }
 
         state.estimate = sum;
-        println!("    Sum = {}, npoints = {}", sum, n_points);
     }
 }
 

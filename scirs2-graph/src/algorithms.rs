@@ -3215,6 +3215,287 @@ where
         .collect()
 }
 
+/// Perform a random walk on the graph
+///
+/// Returns a sequence of nodes visited during the walk.
+pub fn random_walk<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    start: &N,
+    steps: usize,
+    restart_probability: f64,
+) -> Result<Vec<N>>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    if !graph.contains_node(start) {
+        return Err(GraphError::NodeNotFound);
+    }
+    
+    let mut walk = vec![start.clone()];
+    let mut current = start.clone();
+    let mut rng = rand::rng();
+    
+    use rand::Rng;
+    
+    for _ in 0..steps {
+        // With restart_probability, jump back to start
+        if rng.random::<f64>() < restart_probability {
+            current = start.clone();
+            walk.push(current.clone());
+            continue;
+        }
+        
+        // Otherwise, move to a random neighbor
+        if let Ok(neighbors) = graph.neighbors(&current) {
+            let neighbor_vec: Vec<N> = neighbors.collect();
+            
+            if !neighbor_vec.is_empty() {
+                let idx = rng.random_range(0..neighbor_vec.len());
+                current = neighbor_vec[idx].clone();
+                walk.push(current.clone());
+            } else {
+                // No neighbors, restart
+                current = start.clone();
+                walk.push(current.clone());
+            }
+        }
+    }
+    
+    Ok(walk)
+}
+
+/// Compute the transition matrix for random walks on the graph
+///
+/// Returns a row-stochastic matrix where entry (i,j) is the probability
+/// of transitioning from node i to node j.
+pub fn transition_matrix<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+) -> Result<(Vec<N>, Array2<f64>)>
+where
+    N: Node + Clone,
+    E: EdgeWeight + Into<f64>,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().collect();
+    let n = nodes.len();
+    
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+    
+    let mut matrix = Array2::<f64>::zeros((n, n));
+    
+    for (i, node) in nodes.iter().enumerate() {
+        if let Ok(neighbors) = graph.neighbors(node) {
+            let neighbor_weights: Vec<(usize, f64)> = neighbors
+                .filter_map(|neighbor| {
+                    nodes.iter().position(|n| n == &neighbor).and_then(|j| {
+                        graph.edge_weight(node, &neighbor).ok().map(|w| (j, w.into()))
+                    })
+                })
+                .collect();
+            
+            let total_weight: f64 = neighbor_weights.iter().map(|(_, w)| w).sum();
+            
+            if total_weight > 0.0 {
+                for (j, weight) in neighbor_weights {
+                    matrix[[i, j]] = weight / total_weight;
+                }
+            } else {
+                // If no outgoing edges, make it a uniform distribution
+                for j in 0..n {
+                    matrix[[i, j]] = 1.0 / n as f64;
+                }
+            }
+        }
+    }
+    
+    Ok((nodes, matrix))
+}
+
+/// Compute personalized PageRank from a given source node
+///
+/// This is useful for measuring node similarity and influence.
+pub fn personalized_pagerank<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    source: &N,
+    damping: f64,
+    tolerance: f64,
+    max_iter: usize,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight + Into<f64>,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().collect();
+    let n = nodes.len();
+    
+    if n == 0 || !graph.contains_node(source) {
+        return Err(GraphError::NodeNotFound);
+    }
+    
+    // Find source index
+    let source_idx = nodes.iter().position(|n| n == source).unwrap();
+    
+    // Get transition matrix
+    let (_, trans_matrix) = transition_matrix(graph)?;
+    
+    // Initialize PageRank vector
+    let mut pr = Array1::<f64>::zeros(n);
+    pr[source_idx] = 1.0;
+    
+    // Personalization vector (all mass on source)
+    let mut personalization = Array1::<f64>::zeros(n);
+    personalization[source_idx] = 1.0;
+    
+    // Power iteration
+    for _ in 0..max_iter {
+        let new_pr = damping * trans_matrix.t().dot(&pr) + (1.0 - damping) * &personalization;
+        
+        // Check convergence
+        let diff: f64 = (&new_pr - &pr).iter().map(|x| x.abs()).sum();
+        if diff < tolerance {
+            break;
+        }
+        
+        pr = new_pr;
+    }
+    
+    // Convert to HashMap
+    Ok(nodes.into_iter()
+        .enumerate()
+        .map(|(i, node)| (node, pr[i]))
+        .collect())
+}
+
+/// Compute the Jaccard similarity between two nodes based on their neighbors
+///
+/// Jaccard similarity is the size of the intersection divided by the size of the union
+/// of the neighbor sets.
+pub fn jaccard_similarity<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    node1: &N,
+    node2: &N,
+) -> Result<f64>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    if !graph.contains_node(node1) || !graph.contains_node(node2) {
+        return Err(GraphError::NodeNotFound);
+    }
+    
+    let neighbors1: HashSet<N> = graph.neighbors(node1).unwrap_or_default();
+    let neighbors2: HashSet<N> = graph.neighbors(node2).unwrap_or_default();
+    
+    if neighbors1.is_empty() && neighbors2.is_empty() {
+        return Ok(1.0); // Both have no neighbors, consider them similar
+    }
+    
+    let intersection = neighbors1.intersection(&neighbors2).count();
+    let union = neighbors1.union(&neighbors2).count();
+    
+    Ok(intersection as f64 / union as f64)
+}
+
+/// Compute the cosine similarity between two nodes based on their adjacency vectors
+pub fn cosine_similarity<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    node1: &N,
+    node2: &N,
+) -> Result<f64>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight + Into<f64>,
+    Ix: IndexType,
+{
+    if !graph.contains_node(node1) || !graph.contains_node(node2) {
+        return Err(GraphError::NodeNotFound);
+    }
+    
+    let nodes: Vec<N> = graph.nodes().collect();
+    let n = nodes.len();
+    
+    // Build adjacency vectors
+    let mut vec1 = vec![0.0; n];
+    let mut vec2 = vec![0.0; n];
+    
+    for (i, node) in nodes.iter().enumerate() {
+        if let Ok(weight) = graph.edge_weight(node1, node) {
+            vec1[i] = weight.into();
+        }
+        if let Ok(weight) = graph.edge_weight(node2, node) {
+            vec2[i] = weight.into();
+        }
+    }
+    
+    // Compute cosine similarity
+    let dot_product: f64 = vec1.iter().zip(&vec2).map(|(a, b)| a * b).sum();
+    let norm1: f64 = vec1.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let norm2: f64 = vec2.iter().map(|x| x * x).sum::<f64>().sqrt();
+    
+    if norm1 == 0.0 || norm2 == 0.0 {
+        return Ok(0.0);
+    }
+    
+    Ok(dot_product / (norm1 * norm2))
+}
+
+/// Compute the graph edit distance between two graphs
+///
+/// This is a simplified version that counts the number of edge additions/deletions
+/// needed to transform one graph into another.
+pub fn graph_edit_distance<N, E, Ix>(
+    graph1: &Graph<N, E, Ix>,
+    graph2: &Graph<N, E, Ix>,
+) -> usize
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let mut edges1 = HashSet::new();
+    let mut edges2 = HashSet::new();
+    
+    // Collect all edges from graph1
+    for node in graph1.nodes() {
+        if let Ok(neighbors) = graph1.neighbors(&node) {
+            for neighbor in neighbors {
+                let edge = if node < neighbor {
+                    (node.clone(), neighbor.clone())
+                } else {
+                    (neighbor.clone(), node.clone())
+                };
+                edges1.insert(edge);
+            }
+        }
+    }
+    
+    // Collect all edges from graph2
+    for node in graph2.nodes() {
+        if let Ok(neighbors) = graph2.neighbors(&node) {
+            for neighbor in neighbors {
+                let edge = if node < neighbor {
+                    (node.clone(), neighbor.clone())
+                } else {
+                    (neighbor.clone(), node.clone())
+                };
+                edges2.insert(edge);
+            }
+        }
+    }
+    
+    // Count symmetric difference
+    let only_in_1 = edges1.difference(&edges2).count();
+    let only_in_2 = edges2.difference(&edges1).count();
+    
+    only_in_1 + only_in_2
+}
+
 /// K-core decomposition of a graph
 /// 
 /// The k-core of a graph is the maximal subgraph where every node has degree at least k.
@@ -4933,5 +5214,178 @@ mod tests {
         // Count unique labels
         let unique_labels: HashSet<_> = labels.values().cloned().collect();
         assert!(unique_labels.len() <= 2); // Should converge to at most 2 communities
+    }
+
+    #[test]
+    fn test_random_walk() {
+        let mut graph: Graph<char, f64> = Graph::new();
+        
+        // Create a simple path: A -> B -> C
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        
+        // Perform random walk
+        let walk = random_walk(&graph, &'A', 10, 0.1).unwrap();
+        
+        // Walk should start at A
+        assert_eq!(walk[0], 'A');
+        
+        // Walk should have 11 nodes (start + 10 steps)
+        assert_eq!(walk.len(), 11);
+        
+        // All nodes in walk should be valid
+        for node in &walk {
+            assert!(graph.contains_node(node));
+        }
+        
+        // Test with isolated node
+        let mut isolated: Graph<i32, f64> = Graph::new();
+        isolated.add_node(1).unwrap();
+        
+        let isolated_walk = random_walk(&isolated, &1, 5, 0.0).unwrap();
+        // All steps should stay at node 1
+        assert_eq!(isolated_walk, vec![1, 1, 1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn test_transition_matrix() {
+        let mut graph: Graph<char, f64> = Graph::new();
+        
+        // Create a triangle with different edge weights
+        graph.add_edge('A', 'B', 2.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        graph.add_edge('C', 'A', 1.0).unwrap();
+        
+        let (nodes, matrix) = transition_matrix(&graph).unwrap();
+        
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(matrix.shape(), &[3, 3]);
+        
+        // Each row should sum to 1 (stochastic matrix)
+        for i in 0..3 {
+            let row_sum: f64 = (0..3).map(|j| matrix[[i, j]]).sum();
+            assert!((row_sum - 1.0).abs() < 1e-10);
+        }
+        
+        // Check specific transition probabilities
+        let a_idx = nodes.iter().position(|n| n == &'A').unwrap();
+        let b_idx = nodes.iter().position(|n| n == &'B').unwrap();
+        
+        // From A, we can only go to B (weight 2.0)
+        assert_eq!(matrix[[a_idx, b_idx]], 1.0);
+    }
+
+    #[test]
+    fn test_personalized_pagerank() {
+        let mut graph: Graph<char, f64> = Graph::new();
+        
+        // Create a star graph with A at center
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('A', 'C', 1.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+        
+        let ppr = personalized_pagerank(&graph, &'A', 0.85, 1e-6, 100).unwrap();
+        
+        assert_eq!(ppr.len(), 4);
+        
+        // A should have the highest personalized PageRank when starting from A
+        assert!(ppr[&'A'] > ppr[&'B']);
+        assert!(ppr[&'A'] > ppr[&'C']);
+        assert!(ppr[&'A'] > ppr[&'D']);
+        
+        // All values should be non-negative
+        for value in ppr.values() {
+            assert!(*value >= 0.0);
+        }
+        
+        // Values should sum to approximately 1
+        let sum: f64 = ppr.values().sum();
+        assert!((sum - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_jaccard_similarity() {
+        let mut graph: Graph<char, f64> = Graph::new();
+        
+        // Create a graph where A and B share some neighbors
+        graph.add_edge('A', 'C', 1.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+        graph.add_edge('A', 'E', 1.0).unwrap();
+        
+        graph.add_edge('B', 'D', 1.0).unwrap();
+        graph.add_edge('B', 'E', 1.0).unwrap();
+        graph.add_edge('B', 'F', 1.0).unwrap();
+        
+        let similarity = jaccard_similarity(&graph, &'A', &'B').unwrap();
+        
+        // A neighbors: {C, D, E}
+        // B neighbors: {D, E, F}
+        // Intersection: {D, E} = 2
+        // Union: {C, D, E, F} = 4
+        // Jaccard = 2/4 = 0.5
+        assert_eq!(similarity, 0.5);
+        
+        // Test same node
+        let self_similarity = jaccard_similarity(&graph, &'A', &'A').unwrap();
+        assert_eq!(self_similarity, 1.0);
+        
+        // Test nodes with no common neighbors
+        graph.add_edge('G', 'H', 1.0).unwrap();
+        let no_common = jaccard_similarity(&graph, &'A', &'G').unwrap();
+        assert_eq!(no_common, 0.0);
+    }
+
+    #[test]
+    fn test_cosine_similarity() {
+        let mut graph: Graph<char, f64> = Graph::new();
+        
+        // Create weighted edges
+        graph.add_edge('A', 'C', 2.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+        
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        graph.add_edge('B', 'D', 2.0).unwrap();
+        
+        let similarity = cosine_similarity(&graph, &'A', &'B').unwrap();
+        
+        // A vector for edges to C,D: [2.0, 1.0]
+        // B vector for edges to C,D: [1.0, 2.0]
+        // Dot product: 2*1 + 1*2 = 4
+        // Norm A: sqrt(4 + 1) = sqrt(5)
+        // Norm B: sqrt(1 + 4) = sqrt(5)
+        // Cosine = 4/5 = 0.8
+        assert!((similarity - 0.8).abs() < 1e-10);
+        
+        // Test identical nodes
+        let self_similarity = cosine_similarity(&graph, &'A', &'A').unwrap();
+        assert_eq!(self_similarity, 1.0);
+    }
+
+    #[test]
+    fn test_graph_edit_distance() {
+        let mut graph1: Graph<char, f64> = Graph::new();
+        graph1.add_edge('A', 'B', 1.0).unwrap();
+        graph1.add_edge('B', 'C', 1.0).unwrap();
+        
+        let mut graph2: Graph<char, f64> = Graph::new();
+        graph2.add_edge('A', 'B', 1.0).unwrap();
+        graph2.add_edge('B', 'C', 1.0).unwrap();
+        graph2.add_edge('C', 'A', 1.0).unwrap();
+        
+        // Need to add one edge (C-A) to transform graph1 to graph2
+        let distance = graph_edit_distance(&graph1, &graph2);
+        assert_eq!(distance, 1);
+        
+        // Same graph should have distance 0
+        let self_distance = graph_edit_distance(&graph1, &graph1);
+        assert_eq!(self_distance, 0);
+        
+        // Completely different graphs
+        let mut graph3: Graph<char, f64> = Graph::new();
+        graph3.add_edge('X', 'Y', 1.0).unwrap();
+        graph3.add_edge('Y', 'Z', 1.0).unwrap();
+        
+        let different_distance = graph_edit_distance(&graph1, &graph3);
+        assert_eq!(different_distance, 4); // Remove 2 edges, add 2 edges
     }
 }

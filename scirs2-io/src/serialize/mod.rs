@@ -11,12 +11,12 @@
 //! - Compression support for sparse matrices
 //! - Memory-efficient sparse matrix operations
 
-use ndarray::{Array, ArrayBase, Array2, IxDyn};
+use ndarray::{Array, Array2, ArrayBase, IxDyn};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::path::Path;
-use std::collections::HashMap;
 
 use crate::error::{IoError, Result};
 
@@ -694,7 +694,7 @@ impl<A: Clone> SparseMatrix<A> {
     {
         let nnz = self.coo_data.nnz();
         let rows = self.shape.0;
-        
+
         if nnz == 0 {
             return Ok(SparseMatrixCSR {
                 rows,
@@ -707,13 +707,15 @@ impl<A: Clone> SparseMatrix<A> {
         }
 
         // Sort by row then column
-        let mut triplets: Vec<(usize, usize, A)> = self.coo_data.row_indices
+        let mut triplets: Vec<(usize, usize, A)> = self
+            .coo_data
+            .row_indices
             .iter()
             .zip(self.coo_data.col_indices.iter())
             .zip(self.coo_data.values.iter())
             .map(|((&r, &c), v)| (r, c, v.clone()))
             .collect();
-        
+
         triplets.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
 
         // Build CSR structure
@@ -722,14 +724,14 @@ impl<A: Clone> SparseMatrix<A> {
         let mut values = Vec::with_capacity(nnz);
 
         let mut current_row = 0;
-        
+
         for (i, (row, col, val)) in triplets.iter().enumerate() {
             // Fill row_ptrs for empty rows
             while current_row < *row {
                 current_row += 1;
                 row_ptrs[current_row] = i;
             }
-            
+
             col_indices.push(*col);
             values.push(val.clone());
         }
@@ -757,7 +759,7 @@ impl<A: Clone> SparseMatrix<A> {
     {
         let nnz = self.coo_data.nnz();
         let cols = self.shape.1;
-        
+
         if nnz == 0 {
             return Ok(SparseMatrixCSC {
                 rows: self.shape.0,
@@ -770,13 +772,15 @@ impl<A: Clone> SparseMatrix<A> {
         }
 
         // Sort by column then row
-        let mut triplets: Vec<(usize, usize, A)> = self.coo_data.row_indices
+        let mut triplets: Vec<(usize, usize, A)> = self
+            .coo_data
+            .row_indices
             .iter()
             .zip(self.coo_data.col_indices.iter())
             .zip(self.coo_data.values.iter())
             .map(|((&r, &c), v)| (r, c, v.clone()))
             .collect();
-        
+
         triplets.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
 
         // Build CSC structure
@@ -785,14 +789,14 @@ impl<A: Clone> SparseMatrix<A> {
         let mut values = Vec::with_capacity(nnz);
 
         let mut current_col = 0;
-        
+
         for (i, (row, col, val)) in triplets.iter().enumerate() {
             // Fill col_ptrs for empty columns
             while current_col < *col {
                 current_col += 1;
                 col_ptrs[current_col] = i;
             }
-            
+
             row_indices.push(*row);
             values.push(val.clone());
         }
@@ -819,15 +823,17 @@ impl<A: Clone> SparseMatrix<A> {
         A: Clone + Default,
     {
         let mut dense = Array2::default(self.shape);
-        
-        for ((row, col), value) in self.coo_data.row_indices
+
+        for ((row, col), value) in self
+            .coo_data
+            .row_indices
             .iter()
             .zip(self.coo_data.col_indices.iter())
             .zip(self.coo_data.values.iter())
         {
             dense[[*row, *col]] = value.clone();
         }
-        
+
         dense
     }
 
@@ -843,24 +849,25 @@ impl<A: Clone> SparseMatrix<A> {
 
     /// Get memory usage estimate in bytes
     pub fn memory_usage(&self) -> usize {
-        let coo_size = self.coo_data.values.len() * (std::mem::size_of::<A>() + 2 * std::mem::size_of::<usize>());
-        
+        let coo_size = self.coo_data.values.len()
+            * (std::mem::size_of::<A>() + 2 * std::mem::size_of::<usize>());
+
         let csr_size = if let Some(ref csr) = self.csr_data {
-            csr.values.len() * std::mem::size_of::<A>() + 
-            csr.col_indices.len() * std::mem::size_of::<usize>() +
-            csr.row_ptrs.len() * std::mem::size_of::<usize>()
+            csr.values.len() * std::mem::size_of::<A>()
+                + csr.col_indices.len() * std::mem::size_of::<usize>()
+                + csr.row_ptrs.len() * std::mem::size_of::<usize>()
         } else {
             0
         };
-        
+
         let csc_size = if let Some(ref csc) = self.csc_data {
-            csc.values.len() * std::mem::size_of::<A>() + 
-            csc.row_indices.len() * std::mem::size_of::<usize>() +
-            csc.col_ptrs.len() * std::mem::size_of::<usize>()
+            csc.values.len() * std::mem::size_of::<A>()
+                + csc.row_indices.len() * std::mem::size_of::<usize>()
+                + csc.col_ptrs.len() * std::mem::size_of::<usize>()
         } else {
             0
         };
-        
+
         coo_size + csr_size + csc_size
     }
 }
@@ -893,14 +900,11 @@ impl<A: Clone> SparseMatrixCSR<A> {
         if row >= self.rows {
             return None;
         }
-        
+
         let start = self.row_ptrs[row];
         let end = self.row_ptrs[row + 1];
-        
-        Some((
-            &self.col_indices[start..end],
-            &self.values[start..end]
-        ))
+
+        Some((&self.col_indices[start..end], &self.values[start..end]))
     }
 }
 
@@ -932,14 +936,11 @@ impl<A: Clone> SparseMatrixCSC<A> {
         if col >= self.cols {
             return None;
         }
-        
+
         let start = self.col_ptrs[col];
         let end = self.col_ptrs[col + 1];
-        
-        Some((
-            &self.row_indices[start..end],
-            &self.values[start..end]
-        ))
+
+        Some((&self.row_indices[start..end], &self.values[start..end]))
     }
 }
 
@@ -974,17 +975,28 @@ where
     A: Clone,
 {
     let mut coo = SparseMatrixCOO::new(mm_matrix.rows, mm_matrix.cols);
-    
+
     for entry in &mm_matrix.entries {
         coo.push(entry.row, entry.col, entry.value.clone());
     }
-    
+
     let mut sparse = SparseMatrix::from_coo(coo);
-    sparse.metadata.insert("source".to_string(), "Matrix Market".to_string());
-    sparse.metadata.insert("format".to_string(), format!("{:?}", mm_matrix.header.format));
-    sparse.metadata.insert("data_type".to_string(), format!("{:?}", mm_matrix.header.data_type));
-    sparse.metadata.insert("symmetry".to_string(), format!("{:?}", mm_matrix.header.symmetry));
-    
+    sparse
+        .metadata
+        .insert("source".to_string(), "Matrix Market".to_string());
+    sparse.metadata.insert(
+        "format".to_string(),
+        format!("{:?}", mm_matrix.header.format),
+    );
+    sparse.metadata.insert(
+        "data_type".to_string(),
+        format!("{:?}", mm_matrix.header.data_type),
+    );
+    sparse.metadata.insert(
+        "symmetry".to_string(),
+        format!("{:?}", mm_matrix.header.symmetry),
+    );
+
     sparse
 }
 
@@ -1000,18 +1012,20 @@ where
         symmetry: crate::matrix_market::MMSymmetry::General, // Default
         comments: vec!["Converted from enhanced sparse matrix".to_string()],
     };
-    
-    let entries = sparse.coo_data.row_indices
+
+    let entries = sparse
+        .coo_data
+        .row_indices
         .iter()
         .zip(sparse.coo_data.col_indices.iter())
         .zip(sparse.coo_data.values.iter())
         .map(|((&row, &col), value)| crate::matrix_market::SparseEntry {
             row,
-            col, 
+            col,
             value: value.clone(),
         })
         .collect();
-    
+
     crate::matrix_market::MMSparseMatrix {
         header,
         rows: sparse.shape.0,
@@ -1024,29 +1038,35 @@ where
 /// Sparse matrix operations utilities
 pub mod sparse_ops {
     use super::*;
-    
+
     /// Add two sparse matrices (COO format)
     pub fn add_coo<A>(a: &SparseMatrixCOO<A>, b: &SparseMatrixCOO<A>) -> Result<SparseMatrixCOO<A>>
     where
         A: Clone + std::ops::Add<Output = A> + Default + PartialEq,
     {
         if a.rows != b.rows || a.cols != b.cols {
-            return Err(IoError::ValidationError("Matrix dimensions must match".to_string()));
+            return Err(IoError::ValidationError(
+                "Matrix dimensions must match".to_string(),
+            ));
         }
-        
+
         let mut result = SparseMatrixCOO::new(a.rows, a.cols);
         let mut indices_map: HashMap<(usize, usize), A> = HashMap::new();
-        
+
         // Add entries from matrix a
-        for ((row, col), value) in a.row_indices.iter()
+        for ((row, col), value) in a
+            .row_indices
+            .iter()
             .zip(a.col_indices.iter())
             .zip(a.values.iter())
         {
             indices_map.insert((*row, *col), value.clone());
         }
-        
+
         // Add entries from matrix b
-        for ((row, col), value) in b.row_indices.iter()
+        for ((row, col), value) in b
+            .row_indices
+            .iter()
             .zip(b.col_indices.iter())
             .zip(b.values.iter())
         {
@@ -1057,32 +1077,35 @@ pub mod sparse_ops {
                 indices_map.insert(key, value.clone());
             }
         }
-        
+
         // Convert back to COO format
         for ((row, col), value) in indices_map {
-            if value != A::default() { // Only store non-zero values
+            if value != A::default() {
+                // Only store non-zero values
                 result.push(row, col, value);
             }
         }
-        
+
         Ok(result)
     }
-    
+
     /// Matrix-vector multiplication for CSR format
     pub fn csr_matvec<A>(matrix: &SparseMatrixCSR<A>, vector: &[A]) -> Result<Vec<A>>
     where
         A: Clone + std::ops::Add<Output = A> + std::ops::Mul<Output = A> + Default,
     {
         if vector.len() != matrix.cols {
-            return Err(IoError::ValidationError("Vector dimension must match matrix columns".to_string()));
+            return Err(IoError::ValidationError(
+                "Vector dimension must match matrix columns".to_string(),
+            ));
         }
-        
+
         let mut result = vec![A::default(); matrix.rows];
-        
+
         for row in 0..matrix.rows {
             let start = matrix.row_ptrs[row];
             let end = matrix.row_ptrs[row + 1];
-            
+
             let mut sum = A::default();
             for i in start..end {
                 let col = matrix.col_indices[i];
@@ -1091,24 +1114,26 @@ pub mod sparse_ops {
             }
             result[row] = sum;
         }
-        
+
         Ok(result)
     }
-    
+
     /// Transpose a COO sparse matrix
     pub fn transpose_coo<A>(matrix: &SparseMatrixCOO<A>) -> SparseMatrixCOO<A>
     where
         A: Clone,
     {
         let mut result = SparseMatrixCOO::new(matrix.cols, matrix.rows);
-        
-        for ((row, col), value) in matrix.row_indices.iter()
+
+        for ((row, col), value) in matrix
+            .row_indices
+            .iter()
             .zip(matrix.col_indices.iter())
             .zip(matrix.values.iter())
         {
             result.push(*col, *row, value.clone());
         }
-        
+
         result
     }
 }

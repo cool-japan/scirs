@@ -175,7 +175,7 @@ impl NetCDFFile {
             mode: "w".to_string(),
             ..Default::default()
         };
-        
+
         let path_str = path.as_ref().to_string_lossy().to_string();
 
         // Create parent directories if they don't exist
@@ -276,13 +276,18 @@ impl NetCDFFile {
             ));
         }
 
-        let var_info = self.variables.get(name)
+        let var_info = self
+            .variables
+            .get(name)
             .ok_or_else(|| IoError::ValidationError(format!("Variable '{}' not found", name)))?;
 
         // Calculate shape from dimensions
-        let shape: Vec<usize> = var_info.dimensions.iter()
+        let shape: Vec<usize> = var_info
+            .dimensions
+            .iter()
             .map(|dim_name| {
-                self.dimensions.get(dim_name)
+                self.dimensions
+                    .get(dim_name)
                     .unwrap_or(&Some(1))
                     .unwrap_or(1)
             })
@@ -291,7 +296,7 @@ impl NetCDFFile {
         // Create a default array (placeholder implementation)
         let total_size = shape.iter().product();
         let data = vec![T::default(); total_size];
-        
+
         Array::from_shape_vec(shape, data)
             .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)))
     }
@@ -356,14 +361,15 @@ impl NetCDFFile {
             ));
         }
 
-        let var_info = self.variables.get_mut(var_name)
-            .ok_or_else(|| IoError::ValidationError(format!("Variable '{}' not defined", var_name)))?;
+        let var_info = self.variables.get_mut(var_name).ok_or_else(|| {
+            IoError::ValidationError(format!("Variable '{}' not defined", var_name))
+        })?;
 
         var_info.attributes.insert(
-            attr_name.to_string(), 
-            AttributeValue::String(value.to_string())
+            attr_name.to_string(),
+            AttributeValue::String(value.to_string()),
         );
-        
+
         Ok(())
     }
 
@@ -384,11 +390,9 @@ impl NetCDFFile {
             ));
         }
 
-        self.attributes.insert(
-            name.to_string(), 
-            AttributeValue::String(value.to_string())
-        );
-        
+        self.attributes
+            .insert(name.to_string(), AttributeValue::String(value.to_string()));
+
         Ok(())
     }
 
@@ -419,10 +423,15 @@ impl NetCDFFile {
     /// # Returns
     ///
     /// * `Result<(NetCDFDataType, Vec<String>, HashMap<String, String>)>` - Tuple of (data type, dimensions, attributes)
-    pub fn variable_info(&self, name: &str) -> Result<(NetCDFDataType, Vec<String>, HashMap<String, String>)> {
-        let var_info = self.variables.get(name)
+    pub fn variable_info(
+        &self,
+        name: &str,
+    ) -> Result<(NetCDFDataType, Vec<String>, HashMap<String, String>)> {
+        let var_info = self
+            .variables
+            .get(name)
             .ok_or_else(|| IoError::ValidationError(format!("Variable '{}' not found", name)))?;
-        
+
         let mut attributes = HashMap::new();
         for (attr_name, attr_value) in &var_info.attributes {
             let value = match attr_value {
@@ -440,7 +449,7 @@ impl NetCDFFile {
             };
             attributes.insert(attr_name.clone(), value);
         }
-        
+
         Ok((var_info.data_type, var_info.dimensions.clone(), attributes))
     }
 
@@ -450,7 +459,8 @@ impl NetCDFFile {
     ///
     /// * `HashMap<String, String>` - Map of attribute names to string representations of values
     pub fn global_attributes(&self) -> HashMap<String, String> {
-        self.attributes.iter()
+        self.attributes
+            .iter()
             .map(|(name, value)| {
                 let value_str = match value {
                     AttributeValue::String(s) => s.clone(),
@@ -548,7 +558,8 @@ mod tests {
     fn test_attributes() {
         let mut file = NetCDFFile::create("test.nc").unwrap();
         file.create_dimension("x", Some(10)).unwrap();
-        file.create_variable("data", NetCDFDataType::Double, &["x"]).unwrap();
+        file.create_variable("data", NetCDFDataType::Double, &["x"])
+            .unwrap();
 
         // Test global attributes
         file.add_global_attribute("title", "Test Dataset").unwrap();
@@ -561,8 +572,10 @@ mod tests {
         assert_eq!(global_attrs["author"], "SciRS2 Test");
 
         // Test variable attributes
-        file.add_variable_attribute("data", "units", "meters").unwrap();
-        file.add_variable_attribute("data", "long_name", "measurement data").unwrap();
+        file.add_variable_attribute("data", "units", "meters")
+            .unwrap();
+        file.add_variable_attribute("data", "long_name", "measurement data")
+            .unwrap();
 
         let (dtype, dims, var_attrs) = file.variable_info("data").unwrap();
         assert_eq!(dtype, NetCDFDataType::Double);
@@ -578,7 +591,8 @@ mod tests {
         let mut file = NetCDFFile::create("test.nc").unwrap();
         file.create_dimension("x", Some(3)).unwrap();
         file.create_dimension("y", Some(2)).unwrap();
-        file.create_variable("data", NetCDFDataType::Float, &["x", "y"]).unwrap();
+        file.create_variable("data", NetCDFDataType::Float, &["x", "y"])
+            .unwrap();
 
         // Test writing data
         let data = Array2::<f32>::zeros((3, 2));

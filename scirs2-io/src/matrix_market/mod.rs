@@ -248,17 +248,17 @@ impl MMHeader {
 pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>> {
     let file = File::open(path).map_err(|e| IoError::FileError(e.to_string()))?;
     let reader = BufReader::new(file);
-    
+
     let mut lines = reader.lines();
-    
+
     // Read header line
     let header_line = lines
         .next()
         .ok_or_else(|| IoError::FormatError("Empty file".to_string()))?
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     let mut header = MMHeader::parse_header(&header_line)?;
-    
+
     // Read comments
     for line in &mut lines {
         let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
@@ -268,11 +268,9 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
             // This is the size line, put it back
             let size_parts: Vec<&str> = line.split_whitespace().collect();
             if size_parts.len() < 2 {
-                return Err(IoError::FormatError(
-                    "Invalid size line format".to_string(),
-                ));
+                return Err(IoError::FormatError("Invalid size line format".to_string()));
             }
-            
+
             let rows = size_parts[0]
                 .parse::<usize>()
                 .map_err(|_| IoError::FormatError("Invalid row count".to_string()))?;
@@ -287,30 +285,28 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
                 // For array format, nnz is rows * cols
                 rows * cols
             };
-            
+
             if header.format != MMFormat::Coordinate {
                 return Err(IoError::FormatError(
                     "Only coordinate format is supported for sparse matrices".to_string(),
                 ));
             }
-            
+
             // Read entries
             let mut entries = Vec::with_capacity(nnz);
-            
+
             for line in lines {
                 let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
                 let line = line.trim();
                 if line.is_empty() {
                     continue;
                 }
-                
+
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() < 2 {
-                    return Err(IoError::FormatError(
-                        "Invalid entry format".to_string(),
-                    ));
+                    return Err(IoError::FormatError("Invalid entry format".to_string()));
                 }
-                
+
                 let row = parts[0]
                     .parse::<usize>()
                     .map_err(|_| IoError::FormatError("Invalid row index".to_string()))?
@@ -319,7 +315,7 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
                     .parse::<usize>()
                     .map_err(|_| IoError::FormatError("Invalid column index".to_string()))?
                     - 1; // Convert to 0-based
-                
+
                 let value = if header.data_type == MMDataType::Pattern {
                     1.0 // Pattern matrices have implicit value of 1
                 } else if parts.len() > 2 {
@@ -331,10 +327,10 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
                         "Missing value for non-pattern matrix".to_string(),
                     ));
                 };
-                
+
                 entries.push(SparseEntry { row, col, value });
             }
-            
+
             return Ok(MMSparseMatrix {
                 header,
                 rows,
@@ -344,7 +340,7 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
             });
         }
     }
-    
+
     Err(IoError::FormatError("Missing size information".to_string()))
 }
 
@@ -390,21 +386,20 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
 pub fn write_sparse_matrix<P: AsRef<Path>>(path: P, matrix: &MMSparseMatrix<f64>) -> Result<()> {
     let file = File::create(path).map_err(|e| IoError::FileError(e.to_string()))?;
     let mut writer = BufWriter::new(file);
-    
+
     // Write header
     writeln!(writer, "{}", matrix.header.to_header_line())
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     // Write comments
     for comment in &matrix.header.comments {
-        writeln!(writer, "%{}", comment)
-            .map_err(|e| IoError::FileError(e.to_string()))?;
+        writeln!(writer, "%{}", comment).map_err(|e| IoError::FileError(e.to_string()))?;
     }
-    
+
     // Write size line
     writeln!(writer, "{} {} {}", matrix.rows, matrix.cols, matrix.nnz)
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     // Write entries
     for entry in &matrix.entries {
         if matrix.header.data_type == MMDataType::Pattern {
@@ -413,13 +408,21 @@ pub fn write_sparse_matrix<P: AsRef<Path>>(path: P, matrix: &MMSparseMatrix<f64>
                 .map_err(|e| IoError::FileError(e.to_string()))?;
         } else {
             // Write row, column, and value (convert to 1-based indexing)
-            writeln!(writer, "{} {} {}", entry.row + 1, entry.col + 1, entry.value)
-                .map_err(|e| IoError::FileError(e.to_string()))?;
+            writeln!(
+                writer,
+                "{} {} {}",
+                entry.row + 1,
+                entry.col + 1,
+                entry.value
+            )
+            .map_err(|e| IoError::FileError(e.to_string()))?;
         }
     }
-    
-    writer.flush().map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
+    writer
+        .flush()
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
     Ok(())
 }
 
@@ -435,23 +438,23 @@ pub fn write_sparse_matrix<P: AsRef<Path>>(path: P, matrix: &MMSparseMatrix<f64>
 pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> {
     let file = File::open(path).map_err(|e| IoError::FileError(e.to_string()))?;
     let reader = BufReader::new(file);
-    
+
     let mut lines = reader.lines();
-    
+
     // Read header line
     let header_line = lines
         .next()
         .ok_or_else(|| IoError::FormatError("Empty file".to_string()))?
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     let mut header = MMHeader::parse_header(&header_line)?;
-    
+
     if header.format != MMFormat::Array {
         return Err(IoError::FormatError(
             "Only array format is supported for dense matrices".to_string(),
         ));
     }
-    
+
     // Read comments
     for line in &mut lines {
         let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
@@ -461,34 +464,32 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
             // This is the size line
             let size_parts: Vec<&str> = line.split_whitespace().collect();
             if size_parts.len() < 2 {
-                return Err(IoError::FormatError(
-                    "Invalid size line format".to_string(),
-                ));
+                return Err(IoError::FormatError("Invalid size line format".to_string()));
             }
-            
+
             let rows = size_parts[0]
                 .parse::<usize>()
                 .map_err(|_| IoError::FormatError("Invalid row count".to_string()))?;
             let cols = size_parts[1]
                 .parse::<usize>()
                 .map_err(|_| IoError::FormatError("Invalid column count".to_string()))?;
-            
+
             // Read matrix data (column-major order)
             let mut data = Vec::with_capacity(rows * cols);
-            
+
             for line in lines {
                 let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
                 let line = line.trim();
                 if line.is_empty() {
                     continue;
                 }
-                
+
                 let value = line
                     .parse::<f64>()
                     .map_err(|_| IoError::FormatError("Invalid matrix value".to_string()))?;
                 data.push(value);
             }
-            
+
             if data.len() != rows * cols {
                 return Err(IoError::FormatError(format!(
                     "Expected {} values, got {}",
@@ -496,7 +497,7 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
                     data.len()
                 )));
             }
-            
+
             // Convert to Array2 (column-major to row-major)
             let mut matrix_data = Array2::zeros((rows, cols));
             for col in 0..cols {
@@ -504,7 +505,7 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
                     matrix_data[[row, col]] = data[col * rows + row];
                 }
             }
-            
+
             return Ok(MMDenseMatrix {
                 header,
                 rows,
@@ -513,7 +514,7 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
             });
         }
     }
-    
+
     Err(IoError::FormatError("Missing size information".to_string()))
 }
 
@@ -530,21 +531,20 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
 pub fn write_dense_matrix<P: AsRef<Path>>(path: P, matrix: &MMDenseMatrix<f64>) -> Result<()> {
     let file = File::create(path).map_err(|e| IoError::FileError(e.to_string()))?;
     let mut writer = BufWriter::new(file);
-    
+
     // Write header
     writeln!(writer, "{}", matrix.header.to_header_line())
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     // Write comments
     for comment in &matrix.header.comments {
-        writeln!(writer, "%{}", comment)
-            .map_err(|e| IoError::FileError(e.to_string()))?;
+        writeln!(writer, "%{}", comment).map_err(|e| IoError::FileError(e.to_string()))?;
     }
-    
+
     // Write size line
     writeln!(writer, "{} {}", matrix.rows, matrix.cols)
         .map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
     // Write matrix data in column-major order
     for col in 0..matrix.cols {
         for row in 0..matrix.rows {
@@ -552,9 +552,11 @@ pub fn write_dense_matrix<P: AsRef<Path>>(path: P, matrix: &MMDenseMatrix<f64>) 
                 .map_err(|e| IoError::FileError(e.to_string()))?;
         }
     }
-    
-    writer.flush().map_err(|e| IoError::FileError(e.to_string()))?;
-    
+
+    writer
+        .flush()
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
     Ok(())
 }
 
@@ -571,12 +573,8 @@ pub fn sparse_to_coo(matrix: &MMSparseMatrix<f64>) -> (Array1<usize>, Array1<usi
     let rows: Vec<usize> = matrix.entries.iter().map(|e| e.row).collect();
     let cols: Vec<usize> = matrix.entries.iter().map(|e| e.col).collect();
     let values: Vec<f64> = matrix.entries.iter().map(|e| e.value).collect();
-    
-    (
-        Array1::from(rows),
-        Array1::from(cols),
-        Array1::from(values),
-    )
+
+    (Array1::from(rows), Array1::from(cols), Array1::from(values))
 }
 
 /// Create a sparse matrix from ndarray coordinate format
@@ -605,7 +603,7 @@ pub fn coo_to_sparse(
         .zip(values.iter())
         .map(|((&row, &col), &value)| SparseEntry { row, col, value })
         .collect();
-    
+
     MMSparseMatrix {
         header,
         rows: shape.0,
@@ -619,18 +617,18 @@ pub fn coo_to_sparse(
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    
+
     #[test]
     fn test_header_parsing() {
         let header_line = "%%MatrixMarket matrix coordinate real general";
         let header = MMHeader::parse_header(header_line).unwrap();
-        
+
         assert_eq!(header.object, "matrix");
         assert_eq!(header.format, MMFormat::Coordinate);
         assert_eq!(header.data_type, MMDataType::Real);
         assert_eq!(header.symmetry, MMSymmetry::General);
     }
-    
+
     #[test]
     fn test_header_generation() {
         let header = MMHeader {
@@ -640,11 +638,11 @@ mod tests {
             symmetry: MMSymmetry::General,
             comments: vec!["Test comment".to_string()],
         };
-        
+
         let header_line = header.to_header_line();
         assert_eq!(header_line, "%%MatrixMarket matrix coordinate real general");
     }
-    
+
     #[test]
     fn test_sparse_matrix_creation() {
         let header = MMHeader {
@@ -654,12 +652,24 @@ mod tests {
             symmetry: MMSymmetry::General,
             comments: Vec::new(),
         };
-        
+
         let mut entries = Vec::new();
-        entries.push(SparseEntry { row: 0, col: 0, value: 1.0 });
-        entries.push(SparseEntry { row: 1, col: 1, value: 2.0 });
-        entries.push(SparseEntry { row: 0, col: 1, value: 3.0 });
-        
+        entries.push(SparseEntry {
+            row: 0,
+            col: 0,
+            value: 1.0,
+        });
+        entries.push(SparseEntry {
+            row: 1,
+            col: 1,
+            value: 2.0,
+        });
+        entries.push(SparseEntry {
+            row: 0,
+            col: 1,
+            value: 3.0,
+        });
+
         let matrix = MMSparseMatrix {
             header,
             rows: 2,
@@ -667,13 +677,13 @@ mod tests {
             nnz: 3,
             entries,
         };
-        
+
         assert_eq!(matrix.rows, 2);
         assert_eq!(matrix.cols, 2);
         assert_eq!(matrix.nnz, 3);
         assert_eq!(matrix.entries.len(), 3);
     }
-    
+
     #[test]
     fn test_sparse_to_coo_conversion() {
         let header = MMHeader {
@@ -683,12 +693,20 @@ mod tests {
             symmetry: MMSymmetry::General,
             comments: Vec::new(),
         };
-        
+
         let entries = vec![
-            SparseEntry { row: 0, col: 0, value: 1.0 },
-            SparseEntry { row: 1, col: 1, value: 2.0 },
+            SparseEntry {
+                row: 0,
+                col: 0,
+                value: 1.0,
+            },
+            SparseEntry {
+                row: 1,
+                col: 1,
+                value: 2.0,
+            },
         ];
-        
+
         let matrix = MMSparseMatrix {
             header,
             rows: 2,
@@ -696,9 +714,9 @@ mod tests {
             nnz: 2,
             entries,
         };
-        
+
         let (rows, cols, values) = sparse_to_coo(&matrix);
-        
+
         assert_eq!(rows.len(), 2);
         assert_eq!(cols.len(), 2);
         assert_eq!(values.len(), 2);

@@ -13,6 +13,7 @@ use crate::vq::euclidean_distance;
 
 /// Clustering Feature for summarizing a cluster
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ClusteringFeature<F: Float> {
     /// Number of data points in the cluster
     n: usize,
@@ -22,6 +23,7 @@ struct ClusteringFeature<F: Float> {
     squared_sum: F,
 }
 
+#[allow(dead_code)]
 impl<F: Float + FromPrimitive + ScalarOperand> ClusteringFeature<F> {
     /// Create a new CF from a single data point
     fn new(data_point: ArrayView1<F>) -> Self {
@@ -93,6 +95,7 @@ impl<F: Float + FromPrimitive + ScalarOperand> ClusteringFeature<F> {
 
 /// Node in the CF-tree
 #[derive(Debug)]
+#[allow(dead_code)]
 struct CFNode<F: Float> {
     /// Whether this is a leaf node
     is_leaf: bool,
@@ -104,6 +107,7 @@ struct CFNode<F: Float> {
     parent_index: Option<usize>,
 }
 
+#[allow(dead_code)]
 impl<F: Float + FromPrimitive + ScalarOperand> CFNode<F> {
     /// Create a new leaf node
     fn new_leaf() -> Self {
