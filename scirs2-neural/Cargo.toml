@@ -21,7 +21,7 @@ scirs2-metrics = { workspace = true, optional = true, default-features = false, 
 ndarray = { workspace = true }
 ndarray-stats-05 = { workspace = true }
 ndarray-linalg = { workspace = true }
-ndarray-rand-014 = { workspace = true }
+ndarray-rand = { workspace = true }
 num-integer = { workspace = true }
 approx = { workspace = true }
 num-traits = { workspace = true }

@@ -253,9 +253,9 @@ fn create_comparison_plot(
     time_plot.add_trace(time_trace);
     time_plot.set_layout(
         Layout::new()
-            .title(Title::new("Time Domain Signal"))
-            .x_axis(Axis::new().title(Title::new("Time")))
-            .y_axis(Axis::new().title(Title::new("Amplitude"))),
+            .title(Title::with_text("Time Domain Signal"))
+            .x_axis(Axis::new().title(Title::with_text("Time")))
+            .y_axis(Axis::new().title(Title::with_text("Amplitude"))),
     );
 
     time_plot.write_html("cuda_sparse_fft_time_domain.html");
@@ -319,9 +319,9 @@ fn create_comparison_plot(
     freq_plot.add_trace(cuda_trace);
     freq_plot.set_layout(
         Layout::new()
-            .title(Title::new("Frequency Domain Comparison"))
-            .x_axis(Axis::new().title(Title::new("Frequency Bin")))
-            .y_axis(Axis::new().title(Title::new("Magnitude"))),
+            .title(Title::with_text("Frequency Domain Comparison"))
+            .x_axis(Axis::new().title(Title::with_text("Frequency Bin")))
+            .y_axis(Axis::new().title(Title::with_text("Magnitude"))),
     );
 
     freq_plot.write_html("cuda_sparse_fft_frequency_domain.html");

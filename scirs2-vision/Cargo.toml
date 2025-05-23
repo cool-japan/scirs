@@ -22,7 +22,7 @@ thiserror = { workspace = true }
 rand = { workspace = true }
 
 # Vision specific dependencies
-image-025 = { workspace = true }
+image = { workspace = true }
 
 [features]
 default = []
