@@ -11,13 +11,13 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["validation"] }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "2.0.12"
-approx = "0.5.1"
-lazy_static = "1.4.0"
+scirs2-core = { workspace = true, features = ["validation"] }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+approx = { workspace = true }
+lazy_static = { workspace = true }
 
 [features]
 default = []
@@ -25,4 +25,4 @@ parallel = ["scirs2-core/parallel", "ndarray/rayon"]
 simd = ["scirs2-core/simd"]
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = { workspace = true }

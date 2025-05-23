@@ -11,30 +11,30 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
-ndarray = { version = "0.16.1", features = ["serde", "rayon", "blas"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "2.0.12"
+scirs2-core = { workspace = true }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
 openblas-src = { workspace = true }
 
 # Signal processing specific dependencies
-rustfft = { version = "6.2.0", default-features = false, features = [] }
-scirs2-fft = { path = "../scirs2-fft", version = "0.1.0-alpha.4" }
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
-scirs2-special = { path = "../scirs2-special", version = "0.1.0-alpha.4" }
-rand = "0.9.0"
-rand_distr = "0.5.0"
-plotly = "0.12.1"
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
-ndarray-rand = "0.15.0"
+rustfft = { workspace = true }
+scirs2-fft = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-special = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+plotly = { workspace = true }
+ndarray-linalg = { workspace = true }
+ndarray-rand = { workspace = true }
 # Optional rayon dependency for parallel processing
-rayon = { version = "1.8.1", optional = true }
+rayon = { workspace = true, optional = true }
 
 [features]
 default = []
 parallel = ["rayon"]
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = "0.5.1"
+approx = { workspace = true }
+criterion = { workspace = true }

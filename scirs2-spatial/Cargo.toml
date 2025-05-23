@@ -11,28 +11,28 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "2.0.12"
-rayon = "1.9.0"
-num = "0.4.1"
-approx = "0.5.1"
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true }
+num = { workspace = true }
+approx = { workspace = true }
 
 # Computational geometry
-qhull = "0.4.0"
-rand = "0.9.0"
+qhull = { workspace = true }
+rand = { workspace = true }
 
 # Linear algebra dependencies
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
-ndarray-linalg = { version = "0.16.0", features = ["openblas-static"] }
+scirs2-linalg = { workspace = true }
+ndarray-linalg = { workspace = true }
 
 [features]
 default = []
 parallel = []
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = "0.5.1"
-rand_chacha = "0.9.0"
-plotters = "0.3.5"
+approx = { workspace = true }
+criterion = { workspace = true }
+rand_chacha = { workspace = true }
+plotters = { workspace = true }

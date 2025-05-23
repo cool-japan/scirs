@@ -11,49 +11,49 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "2.0.12"
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
 once_cell.workspace = true
 cached = { workspace = true, optional = true }  # Memoization and caching
 chrono = { workspace = true, features = ["serde"] }
-rand = "0.9.0"
-rand_distr.workspace = true
-serde = { version = "1.0", features = ["derive"], optional = true }  # Serialization
-serde_json = { version = "1.0", optional = true }  # JSON serialization
-uuid = { version = "1.7.0", features = ["v4"] }  # Used for unique identifiers
+rand = { workspace = true }
+rand_distr = { workspace = true }
+serde = { workspace = true, optional = true }  # Serialization
+serde_json = { workspace = true, optional = true }  # JSON serialization
+uuid = { workspace = true }  # Used for unique identifiers
 tempfile = { workspace = true, optional = true }  # For temporary files in memory_efficient
 bincode = { workspace = true, optional = true }  # For serialization in memory_efficient
-memmap2 = { version = "0.7.1", optional = true }  # For memory-mapped arrays
+memmap2 = { workspace = true, optional = true }  # For memory-mapped arrays
 
 # Feature-gated dependencies
 wide = { workspace = true, optional = true }  # SIMD acceleration
 rayon = { workspace = true, optional = true }  # Parallel processing
-crossbeam-utils = { version = "0.8.19", optional = true }  # Used in parallel scheduler
-crossbeam-deque = { version = "0.8.3", optional = true }  # Used in parallel scheduler
-num_cpus = { version = "1.16.0", optional = true }  # CPU count detection
+crossbeam-utils = { workspace = true, optional = true }  # Used in parallel scheduler
+crossbeam-deque = { workspace = true, optional = true }  # Used in parallel scheduler
+num_cpus = { workspace = true, optional = true }  # CPU count detection
 
 # Compression libraries
-lz4 = { version = "1.24.0", optional = true }   # LZ4 compression
-zstd = { version = "0.13.0", optional = true }  # Zstandard compression
-snap = { version = "1.1.0", optional = true }   # Snappy compression
+lz4 = { workspace = true, optional = true }   # LZ4 compression
+zstd = { workspace = true, optional = true }  # Zstandard compression
+snap = { workspace = true, optional = true }   # Snappy compression
 
 # System monitoring for resource-aware prefetching
-libc = { version = "0.2.153", optional = true }  # System calls for resource monitoring
+libc = { workspace = true, optional = true }  # System calls for resource monitoring
 
 # BLAS/LAPACK dependencies for linear algebra operations
 ndarray-linalg = { workspace = true, optional = true }  # LAPACK bindings for ndarray
 
 # JIT compilation for Array Protocol
-cranelift-module = { version = "0.118.0", optional = true }  # JIT compilation module
-cranelift-jit = { version = "0.118.0", optional = true }  # JIT compiler (previously simplejit)
-cranelift-frontend = { version = "0.118.0", optional = true }  # JIT compiler frontend
+cranelift-module = { workspace = true, optional = true }  # JIT compilation module
+cranelift-jit = { workspace = true, optional = true }  # JIT compiler (previously simplejit)
+cranelift-frontend = { workspace = true, optional = true }  # JIT compiler frontend
 
 [dev-dependencies]
-approx = "0.5.1"
-criterion = "0.5.1"
-tempfile.workspace = true
+approx = { workspace = true }
+criterion = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = ["array", "serialization"]  # Enable array module by default
