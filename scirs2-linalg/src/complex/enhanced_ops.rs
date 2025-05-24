@@ -1020,7 +1020,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use num_complex::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::schur;

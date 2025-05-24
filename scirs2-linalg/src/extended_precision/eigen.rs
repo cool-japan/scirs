@@ -747,9 +747,9 @@ where
 {
     let n = a.nrows();
     let mut d = Array1::zeros(n); // Diagonal elements
-    let mut e = Array1::zeros(n); // Off-diagonal elements
+    let mut e = Array1::zeros(n - 1); // Off-diagonal elements
 
-    // Extract diagonal and off-diagonal elements
+    // Extract diagonal and off-diagonal elements from tridiagonal matrix
     for i in 0..n {
         d[i] = a[[i, i]];
         if i < n - 1 {
@@ -757,62 +757,91 @@ where
         }
     }
 
-    // Apply QR algorithm specialized for symmetric tridiagonal matrices
-    // This is a simplified implementation
+    // Apply implicit QL algorithm for symmetric tridiagonal matrices
+    // This is more stable than explicit QR for eigenvalues
 
-    for _ in 0..max_iter {
-        let mut converged = true;
-
-        for i in 0..n - 1 {
-            if e[i].abs() > tol * (d[i].abs() + d[i + 1].abs()) {
-                converged = false;
-                break;
-            }
-        }
-
-        if converged {
-            break;
-        }
-
-        for i in 0..n - 1 {
-            // These will be computed later based on the Givens rotation
-            let h = d[i + 1] - d[i];
-            let t = if h.abs() < tol {
-                I::one()
-            } else {
-                I::from(2.0).unwrap() * e[i] / h
-            };
-
-            let r = (t * t + I::one()).sqrt();
-            let c = I::one() / r;
-            let s = t * c;
-
-            // Update diagonal and off-diagonal elements
-            let h = s * e[i];
-            let temp = c * e[i];
-
-            // Use addition/subtraction separately to avoid overflow
-            d[i] -= h;
-            d[i + 1] += h;
-
-            // Update off-diagonal
-            if i > 0 {
-                // Use separate steps to avoid potential overflow
-                let term1 = c * e[i - 1];
-                let term2 = s * temp;
-                e[i - 1] = term1 - term2;
+    for l in 0..n {
+        let mut iter = 0;
+        loop {
+            // Find small off-diagonal element
+            let mut m = l;
+            for i in l..n - 1 {
+                let dd = d[i].abs() + d[i + 1].abs();
+                if e[i].abs() <= tol * dd {
+                    m = i;
+                    break;
+                }
+                m = n - 1;
             }
 
-            if i < n - 2 {
-                e[i + 1] = c * e[i + 1];
+            if m == n - 1 {
+                break; // Converged for this eigenvalue
             }
 
-            e[i] = I::zero();
+            iter += 1;
+            if iter > max_iter {
+                break; // Max iterations reached
+            }
+
+            // Form shift
+            let g = (d[l + 1] - d[l]) / (I::from(2.0).unwrap() * e[l]);
+            let mut r = (g * g + I::one()).sqrt();
+            let mut g = d[m] - d[l] + e[l] / (g + if g >= I::zero() { r } else { -r });
+
+            let mut s = I::one();
+            let mut c = I::one();
+            let mut p = I::zero();
+
+            // Perform the transformation
+            for i in (l..m).rev() {
+                let f = s * e[i];
+                let b = c * e[i];
+
+                if f.abs() >= g.abs() {
+                    c = g / f;
+                    r = (c * c + I::one()).sqrt();
+                    e[i + 1] = f * r;
+                    s = I::one() / r;
+                    c = c * s;
+                } else {
+                    s = f / g;
+                    r = (s * s + I::one()).sqrt();
+                    e[i + 1] = g * r;
+                    c = I::one() / r;
+                    s = s * c;
+                }
+
+                g = d[i + 1] - p;
+                r = (d[i] - g) * s + I::from(2.0).unwrap() * c * b;
+                p = s * r;
+                d[i + 1] = g + p;
+                g = c * r - b;
+            }
+
+            d[l] = d[l] - p;
+            e[l] = g;
+            e[m] = I::zero();
         }
     }
 
-    // Return diagonal elements (eigenvalues)
-    d
+    // Sort eigenvalues in ascending order
+    let mut indices: Vec<usize> = (0..n).collect();
+    indices.sort_by(|&i, &j| {
+        if d[i] < d[j] {
+            std::cmp::Ordering::Less
+        } else if d[i] > d[j] {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
+
+    let mut sorted_d = Array1::zeros(n);
+    for (new_idx, &old_idx) in indices.iter().enumerate() {
+        sorted_d[new_idx] = d[old_idx];
+    }
+
+    sorted_d
 }
 
 // QR algorithm for symmetric tridiagonal matrices with eigenvector computation
@@ -971,7 +1000,6 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // Temporarily ignore this test as the function is just a placeholder for now
     fn test_extended_eigvalsh_small() {
         // Create identity matrix which will have all eigenvalues = 1
         let n = 3;
@@ -984,10 +1012,11 @@ mod tests {
         let eigenvalues = extended_eigvalsh::<_, f64>(&a.view(), Some(1000), Some(1e-10)).unwrap();
 
         // All eigenvalues should be approximately 1.0
-        for val in eigenvalues.iter() {
+        for (i, val) in eigenvalues.iter().enumerate() {
             assert!(
                 (val - 1.0).abs() < 0.1,
-                "Expected eigenvalue of 1.0, got {}",
+                "Eigenvalue {} = {}, expected 1.0",
+                i,
                 val
             );
         }

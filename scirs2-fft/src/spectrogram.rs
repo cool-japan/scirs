@@ -45,7 +45,7 @@ use std::f64::consts::PI;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::spectrogram::stft;
 /// use scirs2_fft::window::Window;
 /// use std::f64::consts::PI;

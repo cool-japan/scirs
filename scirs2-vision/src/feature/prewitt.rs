@@ -25,12 +25,15 @@ use ndarray::Array2;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use scirs2_vision::feature::prewitt_edges;
 /// use image::DynamicImage;
 ///
-/// let img = image::open("input.jpg").unwrap();
+/// # fn main() -> scirs2_vision::error::Result<()> {
+/// let img = image::open("examples/input/input.jpg").unwrap();
 /// let edges = prewitt_edges(&img, 0.1)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn prewitt_edges(img: &DynamicImage, threshold: f32) -> Result<GrayImage> {
     let array = image_to_array(img)?;
