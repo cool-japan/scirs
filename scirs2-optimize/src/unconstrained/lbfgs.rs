@@ -61,8 +61,38 @@ where
         let g_old = g.clone();
         let f_old = f;
 
+        // For L-BFGS-B, we need to identify free variables
+        let mut free_vars = vec![true; n];
+        if let Some(bounds) = bounds {
+            for i in 0..n {
+                // Check if at lower bound with positive gradient
+                // (descent direction -g would be negative, can't go lower)
+                if let Some(lb) = bounds.lower[i] {
+                    if (x[i] - lb).abs() < 1e-10 && g[i] > 0.0 {
+                        free_vars[i] = false;
+                        continue;
+                    }
+                }
+                // Check if at upper bound with negative gradient
+                // (descent direction -g would be positive, can't go higher)
+                if let Some(ub) = bounds.upper[i] {
+                    if (x[i] - ub).abs() < 1e-10 && g[i] < 0.0 {
+                        free_vars[i] = false;
+                        continue;
+                    }
+                }
+            }
+        }
+
         // Compute the search direction using the L-BFGS two-loop recursion
-        let mut search_direction = -g.clone();
+        let mut search_direction = Array1::zeros(n);
+
+        // Initialize with projected gradient for free variables
+        for i in 0..n {
+            if free_vars[i] {
+                search_direction[i] = -g[i];
+            }
+        }
 
         // L-BFGS two-loop recursion to compute a search direction
         let mut alpha_values = Vec::with_capacity(s_vectors.len());
@@ -107,8 +137,20 @@ where
         // Make the search direction negative for minimization
         search_direction = -search_direction;
 
-        // Project the search direction to ensure we don't violate bounds
-        project_direction(&mut search_direction, &x, bounds);
+        // Zero out non-free variables
+        for i in 0..n {
+            if !free_vars[i] {
+                search_direction[i] = 0.0;
+            }
+        }
+
+        // If all variables are constrained, use projected gradient
+        if search_direction.dot(&search_direction) < 1e-10 {
+            for i in 0..n {
+                search_direction[i] = -g[i];
+            }
+            project_direction(&mut search_direction, &x, bounds);
+        }
 
         // Line search to find a step size that satisfies the Armijo condition
         let (alpha, f_new) =
@@ -120,7 +162,14 @@ where
         }
 
         // Update position
-        let x_new = &x + &(&search_direction * alpha);
+        let mut x_new = &x + &(&search_direction * alpha);
+
+        // Ensure new position is within bounds
+        if let Some(bounds) = bounds {
+            let mut x_new_vec = x_new.to_vec();
+            bounds.project(&mut x_new_vec);
+            x_new = Array1::from_vec(x_new_vec);
+        }
 
         // Calculate new gradient
         calculate_gradient(&mut fun, &x_new, &mut g, eps, bounds, &mut nfev);
@@ -495,16 +544,16 @@ fn projected_gradient_norm(x: &Array1<f64>, g: &Array1<f64>, bounds: Option<&Bou
         if let Some(bounds) = bounds {
             // Check if the point is at a bound and the gradient points outward
             if let Some(lb) = bounds.lower[i] {
-                if xi <= lb && gi < 0.0 {
-                    // At lower bound with gradient pointing outward
+                if (xi - lb).abs() < 1e-10 && gi > 0.0 {
+                    // At lower bound with gradient pointing outward (away from feasible region)
                     pg[i] = 0.0;
                     continue;
                 }
             }
 
             if let Some(ub) = bounds.upper[i] {
-                if xi >= ub && gi > 0.0 {
-                    // At upper bound with gradient pointing outward
+                if (xi - ub).abs() < 1e-10 && gi < 0.0 {
+                    // At upper bound with gradient pointing outward (away from feasible region)
                     pg[i] = 0.0;
                     continue;
                 }
@@ -533,14 +582,14 @@ fn project_direction(direction: &mut Array1<f64>, x: &Array1<f64>, bounds: Optio
 
         // Check if we're at a bound
         if let Some(lb) = bounds.lower[i] {
-            if xi <= lb && direction[i] < 0.0 {
+            if (xi - lb).abs() < 1e-10 && direction[i] < 0.0 {
                 // At lower bound and moving in negative direction
                 direction[i] = 0.0;
             }
         }
 
         if let Some(ub) = bounds.upper[i] {
-            if xi >= ub && direction[i] > 0.0 {
+            if (xi - ub).abs() < 1e-10 && direction[i] > 0.0 {
                 // At upper bound and moving in positive direction
                 direction[i] = 0.0;
             }
@@ -675,7 +724,6 @@ mod tests {
     use approx::assert_abs_diff_eq;
 
     #[test]
-    #[ignore] // FIXME: Algorithm reports result.success = false, fails to converge
     fn test_lbfgs_quadratic() {
         let quadratic = |x: &ArrayView1<f64>| -> f64 { x[0] * x[0] + 4.0 * x[1] * x[1] };
 
@@ -690,7 +738,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Bounded optimization gets stuck at (0.0, y) instead of (1.0, 1.0)
     fn test_lbfgsb_with_bounds() {
         let quadratic =
             |x: &ArrayView1<f64>| -> f64 { (x[0] - 2.0).powi(2) + (x[1] - 3.0).powi(2) };

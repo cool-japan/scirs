@@ -146,11 +146,13 @@ pub fn hough_lines(edges: &GrayImage, params: &HoughParams) -> Result<Vec<HoughL
 /// Line segment with endpoints
 #[derive(Debug, Clone, Copy)]
 pub struct LineSegment {
-    /// Start point
+    /// X coordinate of start point
     pub x1: f32,
+    /// Y coordinate of start point
     pub y1: f32,
-    /// End point
+    /// X coordinate of end point
     pub x2: f32,
+    /// Y coordinate of end point
     pub y2: f32,
     /// Line strength
     pub strength: f32,

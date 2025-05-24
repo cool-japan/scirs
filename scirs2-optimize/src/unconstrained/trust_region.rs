@@ -932,7 +932,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Algorithm gets stuck at (0.0, y) instead of converging to (1.0, 1.0)
     fn test_trust_krylov_rosenbrock() {
         let rosenbrock = |x: &ArrayView1<f64>| -> f64 {
             let a = 1.0;

@@ -216,7 +216,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Algorithm reports result.success = false on Rosenbrock function
     fn test_bfgs_rosenbrock() {
         let rosenbrock = |x: &ArrayView1<f64>| -> f64 {
             let a = 1.0;

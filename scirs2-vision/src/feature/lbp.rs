@@ -15,11 +15,26 @@ pub enum LBPType {
     /// Original LBP with fixed 3x3 neighborhood
     Original,
     /// Extended LBP with configurable radius and points
-    Extended { radius: f32, points: usize },
+    Extended {
+        /// Radius of the circular pattern
+        radius: f32,
+        /// Number of sampling points
+        points: usize,
+    },
     /// Uniform LBP (patterns with at most 2 transitions)
-    Uniform { radius: f32, points: usize },
+    Uniform {
+        /// Radius of the circular pattern
+        radius: f32,
+        /// Number of sampling points
+        points: usize,
+    },
     /// Rotation invariant LBP
-    RotationInvariant { radius: f32, points: usize },
+    RotationInvariant {
+        /// Radius of the circular pattern
+        radius: f32,
+        /// Number of sampling points
+        points: usize,
+    },
 }
 
 /// Compute Local Binary Pattern for an image

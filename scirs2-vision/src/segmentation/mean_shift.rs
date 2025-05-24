@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, Rgb, RgbImage};
-use ndarray::{Array1, Array2, Array3};
+use ndarray::{Array1, Array2};
 use rayon::prelude::*;
 use std::collections::HashMap;
 

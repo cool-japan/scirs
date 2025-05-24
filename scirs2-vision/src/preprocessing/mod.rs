@@ -12,7 +12,7 @@ pub mod morphology;
 pub mod nlm_denoise;
 
 pub use bilateral::{
-    bilateral_filter, fast_bilateral_filter, joint_bilateral_filter, BilateralParams,
+    bilateral_filter_advanced, fast_bilateral_filter, joint_bilateral_filter, BilateralParams,
 };
 pub use gamma::{adaptive_gamma_correction, auto_gamma_correction, gamma_correction};
 pub use guided_filter::{fast_guided_filter, guided_filter, guided_filter_color};

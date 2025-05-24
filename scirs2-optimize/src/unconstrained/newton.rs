@@ -70,6 +70,20 @@ where
         // If the bounds are provided, project the search direction
         if let Some(bounds) = bounds {
             project_direction(&mut p, &x, Some(bounds));
+
+            // If the projected direction is zero or too small, use the projected gradient
+            let dir_norm = p.dot(&p).sqrt();
+            if dir_norm < 1e-10 {
+                // Try using the projected gradient instead
+                p = -g.clone();
+                project_direction(&mut p, &x, Some(bounds));
+
+                // If even the projected gradient is zero, we're at a constrained optimum
+                let pg_norm = p.dot(&p).sqrt();
+                if pg_norm < 1e-10 {
+                    break;
+                }
+            }
         }
 
         // Line search along the direction to determine the step size
@@ -286,14 +300,14 @@ fn project_direction(direction: &mut Array1<f64>, x: &Array1<f64>, bounds: Optio
 
         // Check if we're at a bound
         if let Some(lb) = bounds.lower[i] {
-            if xi <= lb && direction[i] < 0.0 {
+            if (xi - lb).abs() < 1e-10 && direction[i] < 0.0 {
                 // At lower bound and moving in negative direction
                 direction[i] = 0.0;
             }
         }
 
         if let Some(ub) = bounds.upper[i] {
-            if xi >= ub && direction[i] > 0.0 {
+            if (xi - ub).abs() < 1e-10 && direction[i] > 0.0 {
                 // At upper bound and moving in positive direction
                 direction[i] = 0.0;
             }
@@ -321,7 +335,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Bounded optimization gets stuck at (0.0, y) instead of (1.0, 1.0)
     fn test_newton_cg_with_bounds() {
         let quadratic =
             |x: &ArrayView1<f64>| -> f64 { (x[0] - 2.0).powi(2) + (x[1] - 3.0).powi(2) };

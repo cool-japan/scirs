@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
-use ndarray::{s, Array2, Array3};
+use ndarray::{s, Array2};
 
 /// Optical flow vector at a point
 #[derive(Debug, Clone, Copy)]
@@ -442,10 +442,10 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
 pub fn farneback_flow(
     img1: &DynamicImage,
     img2: &DynamicImage,
-    pyr_scale: f32,
-    levels: usize,
+    _pyr_scale: f32,
+    _levels: usize,
     winsize: usize,
-    iterations: usize,
+    _iterations: usize,
 ) -> Result<Array2<FlowVector>> {
     let gray1 = img1.to_luma8();
     let gray2 = img2.to_luma8();

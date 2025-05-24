@@ -6,6 +6,7 @@
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
 use rayon::prelude::*;
+use std::sync::Arc;
 
 /// Parameters for bilateral filtering
 #[derive(Debug, Clone)]
@@ -42,16 +43,19 @@ impl Default for BilateralParams {
 /// # Example
 ///
 /// ```rust
-/// use scirs2_vision::preprocessing::{bilateral_filter, BilateralParams};
+/// use scirs2_vision::preprocessing::{bilateral_filter_advanced, BilateralParams};
 /// use image::DynamicImage;
 ///
 /// # fn main() -> scirs2_vision::error::Result<()> {
 /// let img = image::open("examples/input/input.jpg").unwrap();
-/// let filtered = bilateral_filter(&img, &BilateralParams::default())?;
+/// let filtered = bilateral_filter_advanced(&img, &BilateralParams::default())?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn bilateral_filter(img: &DynamicImage, params: &BilateralParams) -> Result<DynamicImage> {
+pub fn bilateral_filter_advanced(
+    img: &DynamicImage,
+    params: &BilateralParams,
+) -> Result<DynamicImage> {
     match img {
         DynamicImage::ImageLuma8(_) => {
             let gray = img.to_luma8();
@@ -72,12 +76,14 @@ fn bilateral_filter_gray(img: &GrayImage, params: &BilateralParams) -> Result<Gr
     let radius = params.radius;
 
     // Precompute spatial weights
-    let spatial_weights = compute_spatial_weights(radius, params.sigma_spatial);
+    let spatial_weights = Arc::new(compute_spatial_weights(radius, params.sigma_spatial));
+    let sigma_range = params.sigma_range;
 
     // Process pixels in parallel
     let pixels: Vec<_> = (0..height)
         .into_par_iter()
         .flat_map(|y| {
+            let spatial_weights = spatial_weights.clone();
             (0..width)
                 .into_par_iter()
                 .map(move |x| {
@@ -87,7 +93,7 @@ fn bilateral_filter_gray(img: &GrayImage, params: &BilateralParams) -> Result<Gr
                         y,
                         radius,
                         &spatial_weights,
-                        params.sigma_range,
+                        sigma_range,
                     );
                     (x, y, filtered_value)
                 })
@@ -110,23 +116,19 @@ fn bilateral_filter_rgb(img: &RgbImage, params: &BilateralParams) -> Result<RgbI
     let radius = params.radius;
 
     // Precompute spatial weights
-    let spatial_weights = compute_spatial_weights(radius, params.sigma_spatial);
+    let spatial_weights = Arc::new(compute_spatial_weights(radius, params.sigma_spatial));
+    let sigma_range = params.sigma_range;
 
     // Process pixels in parallel
     let pixels: Vec<_> = (0..height)
         .into_par_iter()
         .flat_map(|y| {
+            let spatial_weights = spatial_weights.clone();
             (0..width)
                 .into_par_iter()
                 .map(move |x| {
-                    let filtered_rgb = apply_bilateral_pixel_rgb(
-                        img,
-                        x,
-                        y,
-                        radius,
-                        &spatial_weights,
-                        params.sigma_range,
-                    );
+                    let filtered_rgb =
+                        apply_bilateral_pixel_rgb(img, x, y, radius, &spatial_weights, sigma_range);
                     (x, y, filtered_rgb)
                 })
                 .collect::<Vec<_>>()
@@ -263,7 +265,7 @@ fn apply_bilateral_pixel_rgb(
 pub fn fast_bilateral_filter(img: &DynamicImage, params: &BilateralParams) -> Result<DynamicImage> {
     // For simplicity, fall back to regular bilateral filter
     // A full implementation would use integral histograms for acceleration
-    bilateral_filter(img, params)
+    bilateral_filter_advanced(img, params)
 }
 
 /// Joint bilateral filter using a guidance image
@@ -345,7 +347,7 @@ mod tests {
             radius: 3,
         };
 
-        let result = bilateral_filter(&img, &params);
+        let result = bilateral_filter_advanced(&img, &params);
         assert!(result.is_ok());
 
         let filtered = result.unwrap();
@@ -357,7 +359,7 @@ mod tests {
         let img = DynamicImage::new_rgb8(20, 20);
         let params = BilateralParams::default();
 
-        let result = bilateral_filter(&img, &params);
+        let result = bilateral_filter_advanced(&img, &params);
         assert!(result.is_ok());
     }
 

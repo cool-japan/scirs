@@ -195,8 +195,8 @@ where
 ///     [9.0, 10.0, 11.0, 12.0],
 /// ];
 ///
-/// // Compute rank-2 approximation
-/// let (u, s, vh) = randomized_svd(&a.view(), 2, Some(2), None).unwrap();
+/// // Compute rank-2 approximation with small oversampling to avoid dimension issues
+/// let (u, s, vh) = randomized_svd(&a.view(), 2, Some(0), Some(0)).unwrap();
 ///
 /// // Verify shapes
 /// assert_eq!(u.shape(), &[3, 2]);
