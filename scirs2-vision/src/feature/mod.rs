@@ -18,6 +18,7 @@ pub mod orb;
 pub mod prewitt;
 pub mod ransac;
 pub mod shi_tomasi;
+pub mod sobel;
 
 pub use brief::*;
 pub use canny::*;
@@ -34,6 +35,7 @@ pub use orb::*;
 pub use prewitt::*;
 pub use ransac::*;
 pub use shi_tomasi::*;
+pub use sobel::*;
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GrayImage};

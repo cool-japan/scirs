@@ -42,7 +42,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::nmf;
 ///
@@ -477,7 +477,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::cur_decomposition;
 ///
@@ -793,7 +793,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::rank_revealing_qr;
 ///
@@ -1000,7 +1000,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::utv_decomposition;
 ///

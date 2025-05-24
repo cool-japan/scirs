@@ -5,7 +5,10 @@ use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
 use ndarray::Array2;
 
+pub mod guided_filter;
 pub mod morphology;
+
+pub use guided_filter::{fast_guided_filter, guided_filter, guided_filter_color};
 pub use morphology::{
     black_hat, closing, dilate, erode, morphological_gradient, opening, top_hat, StructuringElement,
 };

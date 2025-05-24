@@ -61,7 +61,7 @@ This module provides computer vision functionality for scientific computing appl
   - [x] Canny edge detector
   - [x] Prewitt operator
   - [x] Laplacian operator (including LoG and zero-crossing)
-  - [ ] Oriented gradient algorithms
+  - [x] Oriented gradient algorithms (Sobel with orientation)
   - [ ] Multi-scale edge detection
 - [x] Corner detection
   - [x] FAST corner detector
@@ -131,7 +131,7 @@ This module provides computer vision functionality for scientific computing appl
   - [x] Bilateral filtering (grayscale and color support)
   - [ ] Wavelet denoising
   - [ ] BM3D algorithm
-  - [ ] Guided filtering
+  - [x] Guided filtering
   - [x] Median filtering
   - [x] Gaussian blur
 - [x] Contrast enhancement

@@ -17,7 +17,7 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{Array1, array};
 //! use scirs2_linalg::structured::{ToeplitzMatrix, StructuredMatrix};
 //!
@@ -34,7 +34,7 @@
 //!
 //! // Apply to a vector efficiently without forming the full matrix
 //! let x = array![1.0, 2.0, 3.0];
-//! let y = toeplitz.matvec(&x).unwrap();
+//! let y = toeplitz.matvec(&x.view()).unwrap();
 //! ```
 
 use crate::error::LinalgResult;

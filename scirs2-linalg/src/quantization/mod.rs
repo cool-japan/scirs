@@ -15,7 +15,7 @@
 //!
 //! Basic quantization:
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{Array2, array};
 //! use scirs2_linalg::quantization::{quantize_matrix, dequantize_matrix, QuantizationMethod};
 //!
@@ -34,7 +34,7 @@
 //!
 //! Quantized matrix multiplication:
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{Array2, array};
 //! use scirs2_linalg::quantization::{quantize_matrix, QuantizationMethod, quantized_matmul};
 //!
