@@ -55,7 +55,7 @@ fn create_structured_matrix(n: usize) -> Array2<f64> {
     for i in 0..n {
         for j in 0..n {
             // Distance from diagonal determines value
-            let d = (i as isize - j as isize).abs() as usize;
+            let d = (i as isize - j as isize).unsigned_abs();
 
             if d == 0 {
                 a[[i, j]] = 2.0;

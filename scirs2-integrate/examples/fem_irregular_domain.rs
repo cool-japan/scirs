@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
-        println!(""); // Empty line between radii
+        println!(); // Empty line between radii
     }
 
     Ok(())

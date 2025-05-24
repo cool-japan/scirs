@@ -199,23 +199,21 @@ impl<F: Float + Debug> Activation<F> for LeakyReLU {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example (not compiled due to generic type issues):
-/// // use scirs2_neural::activations::ELU;
-/// // use scirs2_neural::activations::Activation;
-/// // use ndarray::Array;
-/// //
-/// // let elu = ELU::new(1.0);
-/// // let input = Array::from_vec(vec![1.0, -1.0, 2.0, -2.0]).into_dyn();
-/// // let output = elu.forward(&input).unwrap();
-/// //
-/// // // Check that positive values pass through unchanged
-/// // assert!((output[[0]] - 1.0).abs() < 1e-6);
-/// // assert!((output[[2]] - 2.0).abs() < 1e-6);
-/// //
-/// // // Check that negative values are transformed with ELU formula
-/// // assert!((output[[1]] - (-0.6321205588285577)).abs() < 1e-6); // alpha * (exp(-1) - 1) ≈ -0.632
-/// // assert!((output[[3]] - (-0.8646647167633873)).abs() < 1e-6); // alpha * (exp(-2) - 1) ≈ -0.865
+/// ```
+/// use scirs2_neural::activations::{ELU, Activation};
+/// use ndarray::Array;
+///
+/// let elu = ELU::new(1.0);
+/// let input = Array::from_vec(vec![1.0f64, -1.0, 2.0, -2.0]).into_dyn();
+/// let output = elu.forward(&input).unwrap();
+///
+/// // Check that positive values pass through unchanged
+/// assert!((output[[0]] - 1.0).abs() < 1e-6);
+/// assert!((output[[2]] - 2.0).abs() < 1e-6);
+///
+/// // Check that negative values are transformed with ELU formula
+/// assert!((output[[1]] - (-0.6321205588285577)).abs() < 1e-6); // alpha * (exp(-1) - 1) ≈ -0.632
+/// assert!((output[[3]] - (-0.8646647167633873)).abs() < 1e-6); // alpha * (exp(-2) - 1) ≈ -0.865
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ELU {

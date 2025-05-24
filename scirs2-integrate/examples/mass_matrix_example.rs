@@ -62,8 +62,8 @@ fn main() -> IntegrateResult<()> {
     };
 
     // Solve using both methods
-    let result_rk45 = solve_ivp(f.clone(), [0.0, 10.0], y0.clone(), Some(options_rk45))?;
-    let result_radau = solve_ivp(f.clone(), [0.0, 10.0], y0.clone(), Some(options_radau))?;
+    let result_rk45 = solve_ivp(f, [0.0, 10.0], y0.clone(), Some(options_rk45))?;
+    let result_radau = solve_ivp(f, [0.0, 10.0], y0.clone(), Some(options_radau))?;
 
     // Compare the results
     println!("\nComparison of methods for constant mass matrix:");
@@ -160,8 +160,8 @@ fn main() -> IntegrateResult<()> {
     };
 
     // Solve using both methods
-    let result_rk45 = solve_ivp(f.clone(), [0.0, 10.0], y0.clone(), Some(options_rk45))?;
-    let result_radau = solve_ivp(f.clone(), [0.0, 10.0], y0.clone(), Some(options_radau))?;
+    let result_rk45 = solve_ivp(f, [0.0, 10.0], y0.clone(), Some(options_rk45))?;
+    let result_radau = solve_ivp(f, [0.0, 10.0], y0.clone(), Some(options_radau))?;
 
     // Compare the results
     println!("\nComparison of methods for time-dependent mass matrix:");

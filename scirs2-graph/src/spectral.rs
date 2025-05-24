@@ -421,7 +421,7 @@ where
     let mut vol_a = 0.0;
     let mut vol_b = 0.0;
 
-    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let _nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
 
     for i in 0..n {
         for j in 0..n {

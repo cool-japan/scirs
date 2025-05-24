@@ -135,7 +135,7 @@ fn benchmark_jacobian_strategies(
     // Combine strategies
     let all_strategies: Vec<_> = strategies
         .into_iter()
-        .chain(sparse_strategies.into_iter())
+        .chain(sparse_strategies)
         .collect();
 
     // Time to compute one Jacobian with each strategy

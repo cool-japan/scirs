@@ -9,7 +9,7 @@
 use rand::prelude::*;
 use std::collections::HashSet;
 
-use crate::base::{Graph, DiGraph};
+use crate::base::{DiGraph, Graph};
 use crate::error::{GraphError, Result};
 
 /// Create a new empty undirected graph

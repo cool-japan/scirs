@@ -15,16 +15,23 @@ use std::fmt::Debug;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: This test fails currently due to issues with softmax axis handling
-/// use scirs2_neural::activations::Softmax;
-/// use scirs2_neural::activations::Activation;
-/// use ndarray::{Array, arr2};
+/// ```
+/// use scirs2_neural::activations::{Softmax, Activation};
+/// use ndarray::arr1;
 ///
-/// // For now we'll just demonstrate basic usage
-/// let softmax = Softmax::new(0); // Set appropriate axis
-/// let input = arr2(&[[1.0f64, 2.0, 3.0]]).into_dyn();
-/// let _output = softmax.forward(&input).unwrap();
+/// // Create softmax activation for 1D array (axis 0)
+/// let softmax = Softmax::new(0);
+/// let input = arr1(&[1.0f64, 2.0, 3.0]).into_dyn();
+/// let output = softmax.forward(&input).unwrap();
+///
+/// // Check that the output sums to 1.0
+/// let sum: f64 = output.sum();
+/// assert!((sum - 1.0).abs() < 1e-6);
+///
+/// // Check that all values are between 0 and 1
+/// for val in output.iter() {
+///     assert!(*val >= 0.0 && *val <= 1.0);
+/// }
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Softmax {

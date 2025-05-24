@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 time, x, numerical, exact, error
             );
         }
-        println!(""); // Empty line between time points
+        println!(); // Empty line between time points
     }
 
     // Calculate maximum error

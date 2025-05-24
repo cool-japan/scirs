@@ -193,7 +193,7 @@ where
 
     // Initialize each node with its own label
     let mut labels: Vec<usize> = (0..n).collect();
-    let mut node_to_idx: HashMap<N, usize> = nodes
+    let node_to_idx: HashMap<N, usize> = nodes
         .iter()
         .enumerate()
         .map(|(i, n)| (n.clone(), i))

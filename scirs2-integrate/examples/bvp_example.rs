@@ -63,7 +63,7 @@ fn main() {
                 );
             }
 
-            println!("");
+            println!();
             println!("Number of iterations: {}", result.n_iter);
             println!("Residual norm: {:.6e}", result.residual_norm);
             println!("Successful convergence: {}", result.success);
@@ -111,7 +111,7 @@ fn main() {
                         );
                     }
 
-                    println!("");
+                    println!();
                     println!("Number of iterations: {}", result2.n_iter);
                     println!("Residual norm: {:.6e}", result2.residual_norm);
                     println!("Successful convergence: {}", result2.success);

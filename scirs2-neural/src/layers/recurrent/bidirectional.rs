@@ -15,29 +15,29 @@ use std::fmt::Debug;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example usage of Bidirectional layer (ignored due to test failures):
-/// // use scirs2_neural::layers::{Bidirectional, RNN, Layer, RecurrentActivation};
-/// // use ndarray::{Array, Array3};
-/// // use rand::rngs::SmallRng;
-/// // use rand::SeedableRng;
-/// //
-/// // // Create an RNN layer with 10 input features and 20 hidden units
-/// // let mut rng = SmallRng::seed_from_u64(42);
-/// // let rnn = RNN::new(10, 20, RecurrentActivation::Tanh, &mut rng).unwrap();
-/// //
-/// // // Wrap it in a bidirectional layer
-/// // let birnn = Bidirectional::new(Box::new(rnn), None).unwrap();
-/// //
-/// // // Forward pass with a batch of 2 samples, sequence length 5, and 10 features
-/// // let batch_size = 2;
-/// // let seq_len = 5;
-/// // let input_size = 10;
-/// // let input = Array3::<f64>::from_elem((batch_size, seq_len, input_size), 0.1).into_dyn();
-/// // let output = birnn.forward(&input).unwrap();
-/// //
-/// // // Output should have dimensions [batch_size, seq_len, hidden_size*2]
-/// // assert_eq!(output.shape(), &[batch_size, seq_len, 40]);
+/// ```
+/// use scirs2_neural::layers::{Bidirectional, RNN, Layer, RecurrentActivation};
+/// use ndarray::{Array, Array3};
+/// use rand::rngs::SmallRng;
+/// use rand::SeedableRng;
+///
+/// // Create an RNN layer with 10 input features and 20 hidden units
+/// let mut rng = SmallRng::seed_from_u64(42);
+/// let rnn = RNN::new(10, 20, RecurrentActivation::Tanh, &mut rng).unwrap();
+///
+/// // Wrap it in a bidirectional layer
+/// let birnn = Bidirectional::new(Box::new(rnn), None).unwrap();
+///
+/// // Forward pass with a batch of 2 samples, sequence length 5, and 10 features
+/// let batch_size = 2;
+/// let seq_len = 5;
+/// let input_size = 10;
+/// let input = Array3::<f64>::from_elem((batch_size, seq_len, input_size), 0.1).into_dyn();
+/// let output = birnn.forward(&input).unwrap();
+///
+/// // TODO: Currently returns only forward output. Should be [batch_size, seq_len, hidden_size*2]
+/// // when backward layer is properly implemented
+/// assert_eq!(output.shape(), &[batch_size, seq_len, 20]);
 /// ```
 pub struct Bidirectional<F: Float + Debug> {
     /// Forward direction layer

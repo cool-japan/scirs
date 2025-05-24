@@ -29,8 +29,8 @@
 //!
 //! // Define a simple harmonic oscillator: H = p²/2 + q²/2
 //! let system = HamiltonianSystem::new(
-//!     |_t, _q, p| Ok(p.clone()),  // dq/dt = p
-//!     |_t, q, _p| Ok(-q.clone()), // dp/dt = -q
+//!     |_t, _q, p| p.clone(),  // dq/dt = p
+//!     |_t, q, _p| -q.clone(), // dp/dt = -q
 //! );
 //!
 //! // Initial conditions: (q0, p0) = (1.0, 0.0)

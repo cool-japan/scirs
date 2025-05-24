@@ -74,7 +74,7 @@ fn main() -> IntegrateResult<()> {
 
         // Solve with timing
         let start_time = Instant::now();
-        let result = solve_ivp(f.clone(), t_span, y0.clone(), Some(options))?;
+        let result = solve_ivp(f, t_span, y0.clone(), Some(options))?;
         let elapsed = start_time.elapsed();
 
         // Print statistics
