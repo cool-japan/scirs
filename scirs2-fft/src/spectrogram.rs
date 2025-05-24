@@ -52,8 +52,8 @@ use std::f64::consts::PI;
 ///
 /// // Generate a chirp signal
 /// let fs = 1000.0; // 1 kHz sampling rate
-/// let t = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
-/// let chirp = t.iter().map(|&ti| (2.0 * PI * (10.0 + 10.0 * ti) * ti).sin()).collect::<Vec<_>>();
+/// let time = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
+/// let chirp = time.iter().map(|&ti| (2.0 * PI * (10.0 + 10.0 * ti) * ti).sin()).collect::<Vec<_>>();
 ///
 /// // Compute STFT
 /// let (f, t, zxx) = spectrogram_stft(
@@ -288,8 +288,8 @@ where
 ///
 /// // Generate a chirp signal
 /// let fs = 1000.0; // 1 kHz sampling rate
-/// let t = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
-/// let chirp = t.iter().map(|&ti| (2.0 * PI * (10.0 + 50.0 * ti) * ti).sin()).collect::<Vec<_>>();
+/// let time = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
+/// let chirp = time.iter().map(|&ti| (2.0 * PI * (10.0 + 50.0 * ti) * ti).sin()).collect::<Vec<_>>();
 ///
 /// // Compute spectrogram
 /// let (f, t, sxx) = spectrogram(
@@ -438,8 +438,8 @@ where
 ///
 /// // Generate a chirp signal
 /// let fs = 1000.0; // 1 kHz sampling rate
-/// let t = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
-/// let chirp = t.iter().map(|&ti| (2.0 * PI * (10.0 + 50.0 * ti) * ti).sin()).collect::<Vec<_>>();
+/// let time = (0..1000).map(|i| i as f64 / fs).collect::<Vec<_>>();
+/// let chirp = time.iter().map(|&ti| (2.0 * PI * (10.0 + 50.0 * ti) * ti).sin()).collect::<Vec<_>>();
 ///
 /// // Compute normalized spectrogram
 /// let (f, t, sxx_norm) = spectrogram_normalized(
