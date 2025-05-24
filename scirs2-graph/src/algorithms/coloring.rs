@@ -84,13 +84,7 @@ where
     }
 
     // Try coloring with 1, 2, 3, ... colors
-    for num_colors in 1..=max_colors {
-        if can_color_with_k_colors(graph, num_colors) {
-            return Some(num_colors);
-        }
-    }
-
-    None
+    (1..=max_colors).find(|&num_colors| can_color_with_k_colors(graph, num_colors))
 }
 
 /// Helper function to check if a graph can be colored with k colors
@@ -125,13 +119,12 @@ where
             // Check if this color is valid (no adjacent node has the same color)
             let mut valid = true;
             for (i, &other_node) in nodes.iter().enumerate().take(node_idx) {
-                if graph.inner().contains_edge(node, other_node)
-                    || graph.inner().contains_edge(other_node, node)
+                if (graph.inner().contains_edge(node, other_node)
+                    || graph.inner().contains_edge(other_node, node))
+                    && coloring[i] == color
                 {
-                    if coloring[i] == color {
-                        valid = false;
-                        break;
-                    }
+                    valid = false;
+                    break;
                 }
             }
 
@@ -152,7 +145,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use petgraph::graph::UnGraph;
+    use crate::generators::create_graph;
 
     #[test]
     fn test_greedy_coloring() {
@@ -174,17 +167,13 @@ mod tests {
     #[test]
     fn test_bipartite_graph_coloring() {
         // Create a bipartite graph (needs only 2 colors)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-        let n3 = graph.add_node(3);
-
+        let mut graph = create_graph::<i32, ()>();
+        
         // Bipartite structure: 0-1, 0-3, 2-1, 2-3
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n0, n3, ());
-        graph.add_edge(n2, n1, ());
-        graph.add_edge(n2, n3, ());
+        graph.add_edge(0, 1, ()).unwrap();
+        graph.add_edge(0, 3, ()).unwrap();
+        graph.add_edge(2, 1, ()).unwrap();
+        graph.add_edge(2, 3, ()).unwrap();
 
         let coloring = greedy_coloring(&graph);
         assert!(coloring.num_colors <= 2);
@@ -193,33 +182,26 @@ mod tests {
     #[test]
     fn test_chromatic_number() {
         // Triangle graph needs exactly 3 colors
-        let mut triangle = UnGraph::<i32, ()>::new_undirected();
-        let n0 = triangle.add_node(0);
-        let n1 = triangle.add_node(1);
-        let n2 = triangle.add_node(2);
-
-        triangle.add_edge(n0, n1, ());
-        triangle.add_edge(n1, n2, ());
-        triangle.add_edge(n2, n0, ());
+        let mut triangle = create_graph::<i32, ()>();
+        
+        triangle.add_edge(0, 1, ()).unwrap();
+        triangle.add_edge(1, 2, ()).unwrap();
+        triangle.add_edge(2, 0, ()).unwrap();
 
         assert_eq!(chromatic_number(&triangle, 5), Some(3));
 
         // Bipartite graph needs exactly 2 colors
-        let mut bipartite = UnGraph::<i32, ()>::new_undirected();
-        let m0 = bipartite.add_node(0);
-        let m1 = bipartite.add_node(1);
-        let m2 = bipartite.add_node(2);
-        let m3 = bipartite.add_node(3);
-
-        bipartite.add_edge(m0, m1, ());
-        bipartite.add_edge(m1, m2, ());
-        bipartite.add_edge(m2, m3, ());
-        bipartite.add_edge(m3, m0, ());
+        let mut bipartite = create_graph::<i32, ()>();
+        
+        bipartite.add_edge(0, 1, ()).unwrap();
+        bipartite.add_edge(1, 2, ()).unwrap();
+        bipartite.add_edge(2, 3, ()).unwrap();
+        bipartite.add_edge(3, 0, ()).unwrap();
 
         assert_eq!(chromatic_number(&bipartite, 5), Some(2));
 
         // Empty graph needs 0 colors
-        let empty = UnGraph::<i32, ()>::new_undirected();
+        let empty = create_graph::<i32, ()>();
         assert_eq!(chromatic_number(&empty, 5), Some(0));
     }
 }

@@ -106,27 +106,29 @@ where
             }
 
             // If neighbor is unmatched, we found an augmenting path
-            if !reverse_matching.contains_key(&neighbor) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                reverse_matching.entry(neighbor.clone())
+            {
                 matching.insert(node.clone(), neighbor.clone());
-                reverse_matching.insert(neighbor, node.clone());
+                e.insert(node.clone());
                 return true;
             }
 
             // Otherwise, try to augment through the matched node
             let matched_node = reverse_matching[&neighbor].clone();
-            if !visited.contains(&matched_node) {
-                if augment_path(
+            if !visited.contains(&matched_node)
+                && augment_path(
                     graph,
                     &matched_node,
                     matching,
                     reverse_matching,
                     visited,
                     coloring,
-                ) {
-                    matching.insert(node.clone(), neighbor.clone());
-                    reverse_matching.insert(neighbor, node.clone());
-                    return true;
-                }
+                )
+            {
+                matching.insert(node.clone(), neighbor.clone());
+                reverse_matching.insert(neighbor, node.clone());
+                return true;
             }
         }
     }
@@ -259,8 +261,8 @@ where
         let mut best_j = None;
         let mut best_cost = f64::INFINITY;
 
-        for j in 0..n {
-            if !used_right[j] && cost_matrix[i][j] < best_cost {
+        for (j, &used) in used_right.iter().enumerate().take(n) {
+            if !used && cost_matrix[i][j] < best_cost {
                 best_cost = cost_matrix[i][j];
                 best_j = Some(j);
             }

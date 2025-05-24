@@ -22,7 +22,7 @@ where
 
     // Initialize degrees
     for node in graph.nodes() {
-        degrees.insert(node.clone(), graph.neighbors(&node).unwrap().len());
+        degrees.insert(node.clone(), graph.neighbors(node).unwrap().len());
     }
 
     // Create a sorted list of nodes by degree
@@ -32,7 +32,7 @@ where
 
     // Process nodes in order of increasing degree
     let mut remaining_nodes: HashSet<N> = graph.nodes().into_iter().cloned().collect();
-    let mut current_core = 0;
+    let mut current_core;
 
     while !remaining_nodes.is_empty() {
         // Find minimum degree among remaining nodes
@@ -77,7 +77,6 @@ mod tests {
     use super::*;
     use crate::error::Result as GraphResult;
     use crate::generators::create_graph;
-    use petgraph::graph::UnGraph;
 
     #[test]
     fn test_k_core_decomposition() -> GraphResult<()> {
@@ -111,19 +110,14 @@ mod tests {
     }
 
     #[test]
-    fn test_k_core_star_graph() {
+    fn test_k_core_star_graph() -> GraphResult<()> {
         // Star graph: all leaves have core number 1
-        let mut star = UnGraph::<i32, ()>::new_undirected();
-        let center = star.add_node(0);
-        let leaf1 = star.add_node(1);
-        let leaf2 = star.add_node(2);
-        let leaf3 = star.add_node(3);
-        let leaf4 = star.add_node(4);
-
-        star.add_edge(center, leaf1, ());
-        star.add_edge(center, leaf2, ());
-        star.add_edge(center, leaf3, ());
-        star.add_edge(center, leaf4, ());
+        let mut star = create_graph::<i32, ()>();
+        
+        star.add_edge(0, 1, ())?;
+        star.add_edge(0, 2, ())?;
+        star.add_edge(0, 3, ())?;
+        star.add_edge(0, 4, ())?;
 
         let core_numbers = k_core_decomposition(&star);
 
@@ -133,6 +127,8 @@ mod tests {
         assert_eq!(core_numbers[&2], 1);
         assert_eq!(core_numbers[&3], 1);
         assert_eq!(core_numbers[&4], 1);
+        
+        Ok(())
     }
 
     #[test]

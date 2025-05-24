@@ -24,7 +24,7 @@ where
         + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -71,7 +71,7 @@ where
         + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -125,7 +125,7 @@ where
         + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {

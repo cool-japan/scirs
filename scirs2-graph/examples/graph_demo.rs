@@ -2,7 +2,6 @@
 
 use scirs2_graph::algorithms::*;
 use scirs2_graph::generators::*;
-use rand::prelude::*;
 
 fn main() {
     println!("=== SciRS2 Graph Module Demo ===\n");
@@ -18,17 +17,20 @@ fn main() {
     graph.add_edge("David", "Alice", 0.5).unwrap();
     graph.add_edge("Alice", "Charlie", 0.3).unwrap();
 
-    println!("   Created graph with {} nodes and {} edges", 
-             graph.node_count(), graph.edge_count());
+    println!(
+        "   Created graph with {} nodes and {} edges",
+        graph.node_count(),
+        graph.edge_count()
+    );
 
     // 2. Basic traversal algorithms
     println!("\n2. Graph Traversal");
-    
+
     // Breadth-first search
     let bfs_result = breadth_first_search(&graph, &"Alice").unwrap();
     println!("   BFS from Alice: {} nodes visited", bfs_result.len());
-    
-    // Depth-first search  
+
+    // Depth-first search
     let dfs_result = depth_first_search(&graph, &"Alice").unwrap();
     println!("   DFS from Alice: {} nodes visited", dfs_result.len());
 
@@ -48,7 +50,7 @@ fn main() {
     println!("\n4. Connectivity Analysis");
     let components = connected_components(&graph);
     println!("   Number of connected components: {}", components.len());
-    
+
     // Check for articulation points (critical nodes)
     let articulation_pts = articulation_points(&graph);
     println!("   Articulation points: {:?}", articulation_pts);
@@ -64,7 +66,7 @@ fn main() {
 
     // 6. Graph properties
     println!("\n6. Graph Properties");
-    
+
     // Diameter and radius
     if let Some(d) = diameter(&graph) {
         println!("   Graph diameter: {:.2}", d);
@@ -72,7 +74,7 @@ fn main() {
     if let Some(r) = radius(&graph) {
         println!("   Graph radius: {:.2}", r);
     }
-    
+
     // Center nodes
     let centers = center_nodes(&graph);
     println!("   Center nodes: {:?}", centers);
@@ -90,19 +92,21 @@ fn main() {
 
     // 8. Random graph generation
     println!("\n8. Random Graph Generation");
-    
+
     let mut rng = rand::rng();
-    
+
     // Erdős-Rényi random graph
     let random_graph = erdos_renyi_graph(10, 0.3, &mut rng).unwrap();
-    println!("   Erdős-Rényi graph: {} nodes, {} edges",
+    println!(
+        "   Erdős-Rényi graph: {} nodes, {} edges",
         random_graph.node_count(),
         random_graph.edge_count()
     );
-    
+
     // Barabási-Albert preferential attachment
     let ba_graph = barabasi_albert_graph(20, 2, &mut rng).unwrap();
-    println!("   Barabási-Albert graph: {} nodes, {} edges",
+    println!(
+        "   Barabási-Albert graph: {} nodes, {} edges",
         ba_graph.node_count(),
         ba_graph.edge_count()
     );
@@ -110,19 +114,19 @@ fn main() {
     // 9. Directed graph operations
     println!("\n9. Directed Graph Operations");
     let mut digraph = create_digraph::<&str, f64>();
-    
+
     // Create a directed graph with cycles
     digraph.add_edge("A", "B", 1.0).unwrap();
     digraph.add_edge("B", "C", 1.0).unwrap();
     digraph.add_edge("C", "A", 1.0).unwrap();
     digraph.add_edge("B", "D", 1.0).unwrap();
-    
+
     // Topological sort (will fail due to cycle)
     match topological_sort(&digraph) {
         Ok(sorted) => println!("   Topological order: {:?}", sorted),
         Err(_) => println!("   Graph has cycles, cannot perform topological sort"),
     }
-    
+
     // PageRank
     let pagerank = pagerank(&digraph, 0.85, 1e-6, 100);
     println!("   PageRank scores:");

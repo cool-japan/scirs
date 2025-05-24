@@ -211,97 +211,86 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use petgraph::graph::UnGraph;
+    use crate::generators::create_graph;
+    use crate::error::Result as GraphResult;
 
     #[test]
-    fn test_eulerian_circuit() {
+    fn test_eulerian_circuit() -> GraphResult<()> {
         // Create a square (all vertices have even degree)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-        let n3 = graph.add_node(3);
-
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n2, n3, ());
-        graph.add_edge(n3, n0, ());
+        let mut graph = create_graph::<i32, ()>();
+        
+        graph.add_edge(0, 1, ())?;
+        graph.add_edge(1, 2, ())?;
+        graph.add_edge(2, 3, ())?;
+        graph.add_edge(3, 0, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::Circuit);
+        
+        Ok(())
     }
 
     #[test]
-    fn test_eulerian_path() {
+    fn test_eulerian_path() -> GraphResult<()> {
         // Create a path graph (2 vertices with odd degree)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
+        let mut graph = create_graph::<i32, ()>();
+        
+        graph.add_edge(0, 1, ())?;
+        graph.add_edge(1, 2, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::Path);
+        
+        Ok(())
     }
 
     #[test]
-    fn test_no_eulerian() {
+    fn test_no_eulerian() -> GraphResult<()> {
         // Create a triangle (3 vertices with odd degree)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n2, n0, ());
+        let mut graph = create_graph::<i32, ()>();
+        
+        graph.add_edge(0, 1, ())?;
+        graph.add_edge(1, 2, ())?;
+        graph.add_edge(2, 0, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::None);
+        
+        Ok(())
     }
 
     #[test]
-    fn test_hamiltonian_path() {
+    fn test_hamiltonian_path() -> GraphResult<()> {
         // Create a path graph (has Hamiltonian path)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-        let n3 = graph.add_node(3);
-
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n2, n3, ());
+        let mut graph = create_graph::<i32, ()>();
+        
+        graph.add_edge(0, 1, ())?;
+        graph.add_edge(1, 2, ())?;
+        graph.add_edge(2, 3, ())?;
 
         assert!(has_hamiltonian_path(&graph));
+        
+        Ok(())
     }
 
     #[test]
-    fn test_hamiltonian_circuit() {
+    fn test_hamiltonian_circuit() -> GraphResult<()> {
         // Create a square (has Hamiltonian circuit)
-        let mut graph = UnGraph::<i32, ()>::new_undirected();
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-        let n3 = graph.add_node(3);
-
-        graph.add_edge(n0, n1, ());
-        graph.add_edge(n1, n2, ());
-        graph.add_edge(n2, n3, ());
-        graph.add_edge(n3, n0, ());
+        let mut graph = create_graph::<i32, ()>();
+        
+        graph.add_edge(0, 1, ())?;
+        graph.add_edge(1, 2, ())?;
+        graph.add_edge(2, 3, ())?;
+        graph.add_edge(3, 0, ())?;
 
         assert!(has_hamiltonian_circuit(&graph));
 
         // Star graph (no Hamiltonian circuit)
-        let mut star = UnGraph::<i32, ()>::new_undirected();
-        let center = star.add_node(0);
-        let p1 = star.add_node(1);
-        let p2 = star.add_node(2);
-        let p3 = star.add_node(3);
-
-        star.add_edge(center, p1, ());
-        star.add_edge(center, p2, ());
-        star.add_edge(center, p3, ());
+        let mut star = create_graph::<i32, ()>();
+        
+        star.add_edge(0, 1, ())?;
+        star.add_edge(0, 2, ())?;
+        star.add_edge(0, 3, ())?;
 
         assert!(!has_hamiltonian_circuit(&star));
+        
+        Ok(())
     }
 }

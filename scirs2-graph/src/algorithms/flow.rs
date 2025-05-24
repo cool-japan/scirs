@@ -33,8 +33,8 @@ where
         // Try all possible bipartitions (except empty and full sets)
         for mask in 1..(1 << n) - 1 {
             let mut partition = vec![false; n];
-            for i in 0..n {
-                partition[i] = (mask & (1 << i)) != 0;
+            for (i, p) in partition.iter_mut().enumerate().take(n) {
+                *p = (mask & (1 << i)) != 0;
             }
 
             // Calculate cut value
@@ -148,7 +148,7 @@ mod tests {
         assert!((cut_value - 1.0).abs() < 1e-6);
 
         // Check that the partition separates the two clusters
-        let nodes: Vec<&str> = graph.nodes().collect();
+        let nodes: Vec<&str> = graph.nodes().into_iter().cloned().collect();
         let cluster1: Vec<bool> = nodes.iter().map(|n| ["A", "B", "C"].contains(n)).collect();
         let cluster2: Vec<bool> = nodes.iter().map(|n| ["D", "E", "F"].contains(n)).collect();
 

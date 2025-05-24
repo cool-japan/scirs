@@ -52,7 +52,7 @@ where
         communities.insert(node_idx, i);
         let mut weight = 0.0;
         for edge in graph.inner().edges(node_idx) {
-            weight += edge.weight().clone().into();
+            weight += (*edge.weight()).into();
         }
         node_weights.insert(node_idx, weight);
         community_weights.insert(i, weight);
@@ -74,7 +74,7 @@ where
             for edge in graph.inner().edges(node_idx) {
                 let neighbor_idx = edge.target();
                 let neighbor_community = communities[&neighbor_idx];
-                let edge_weight: f64 = edge.weight().clone().into();
+                let edge_weight: f64 = (*edge.weight()).into();
                 *neighbor_communities
                     .entry(neighbor_community)
                     .or_insert(0.0) += edge_weight;
@@ -150,7 +150,7 @@ where
         let target_comm = communities[&edge.target()];
 
         if source_comm == target_comm {
-            let weight: f64 = edge.weight().clone().into();
+            let weight: f64 = (*edge.weight()).into();
             modularity += weight / total_weight;
         }
     }
@@ -162,7 +162,7 @@ where
         let degree: f64 = graph
             .inner()
             .edges(node_idx)
-            .map(|e| e.weight().clone().into())
+            .map(|e| (*e.weight()).into())
             .sum();
         *community_degrees.entry(comm).or_insert(0.0) += degree;
     }
@@ -261,34 +261,24 @@ where
 mod tests {
     use super::*;
     use crate::error::Result as GraphResult;
-    use petgraph::graph::UnGraph;
+    use crate::generators::create_graph;
 
     #[test]
-    fn test_louvain_communities() {
+    fn test_louvain_communities() -> GraphResult<()> {
         // Create a graph with two clear communities
-        let mut graph = UnGraph::<i32, f64>::new_undirected();
-
-        // Community 1
-        let n0 = graph.add_node(0);
-        let n1 = graph.add_node(1);
-        let n2 = graph.add_node(2);
-
-        // Community 2
-        let n3 = graph.add_node(3);
-        let n4 = graph.add_node(4);
-        let n5 = graph.add_node(5);
+        let mut graph = create_graph::<i32, f64>();
 
         // Dense connections within communities
-        graph.add_edge(n0, n1, 1.0);
-        graph.add_edge(n1, n2, 1.0);
-        graph.add_edge(n2, n0, 1.0);
+        graph.add_edge(0, 1, 1.0)?;
+        graph.add_edge(1, 2, 1.0)?;
+        graph.add_edge(2, 0, 1.0)?;
 
-        graph.add_edge(n3, n4, 1.0);
-        graph.add_edge(n4, n5, 1.0);
-        graph.add_edge(n5, n3, 1.0);
+        graph.add_edge(3, 4, 1.0)?;
+        graph.add_edge(4, 5, 1.0)?;
+        graph.add_edge(5, 3, 1.0)?;
 
         // Sparse connection between communities
-        graph.add_edge(n2, n3, 0.1);
+        graph.add_edge(2, 3, 0.1)?;
 
         let communities = louvain_communities(&graph);
 
@@ -319,6 +309,8 @@ mod tests {
 
         // Modularity should be positive for good community structure
         assert!(communities.modularity > 0.0);
+        
+        Ok(())
     }
 
     #[test]

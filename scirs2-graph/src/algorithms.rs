@@ -87,7 +87,7 @@ where
     edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
     // Use Union-Find to detect cycles
-    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let mut parent: HashMap<N, N> = nodes.iter().map(|n| (n.clone(), n.clone())).collect();
     let mut rank: HashMap<N, usize> = nodes.iter().map(|n| (n.clone(), 0)).collect();
 
@@ -197,8 +197,8 @@ where
     // Iterate until convergence
     for _ in 0..max_iterations {
         // Reset new PageRank values
-        for i in 0..n {
-            new_pr[i] = (1.0 - damping_factor) / n as f64;
+        for pr in new_pr.iter_mut().take(n) {
+            *pr = (1.0 - damping_factor) / n as f64;
         }
 
         // Calculate contributions from incoming edges
@@ -219,8 +219,8 @@ where
             } else {
                 // Dangling node: distribute equally to all nodes
                 let contribution = damping_factor * pr[i] / n as f64;
-                for j in 0..n {
-                    new_pr[j] += contribution;
+                for pr_val in new_pr.iter_mut().take(n) {
+                    *pr_val += contribution;
                 }
             }
         }
@@ -297,10 +297,7 @@ where
                     // Shortest path to w via v?
                     if dist[&w] == Some(dist[&v].unwrap() + 1.0) {
                         *sigma.get_mut(&w).unwrap() += sigma[&v];
-                        paths
-                            .entry(w.clone())
-                            .or_insert_with(Vec::new)
-                            .push(v.clone());
+                        paths.entry(w.clone()).or_default().push(v.clone());
                     }
                 }
             }

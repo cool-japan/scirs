@@ -32,7 +32,7 @@ pub fn create_digraph<N: crate::base::Node, E: crate::base::EdgeWeight>() -> DiG
 /// # Returns
 /// * `Result<Graph<usize, f64>>` - The generated graph with node IDs 0..n-1
 pub fn erdos_renyi_graph<R: Rng>(n: usize, p: f64, rng: &mut R) -> Result<Graph<usize, f64>> {
-    if p < 0.0 || p > 1.0 {
+    if !(0.0..=1.0).contains(&p) {
         return Err(GraphError::InvalidGraph(
             "Probability must be between 0 and 1".to_string(),
         ));
@@ -297,7 +297,7 @@ pub fn watts_strogatz_graph<R: Rng>(
             "k must be even and less than n".to_string(),
         ));
     }
-    if p < 0.0 || p > 1.0 {
+    if !(0.0..=1.0).contains(&p) {
         return Err(GraphError::InvalidGraph(
             "Probability must be between 0 and 1".to_string(),
         ));

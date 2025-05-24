@@ -441,11 +441,11 @@ where
         if let Ok(neighbors) = graph.neighbors(current) {
             for neighbor in neighbors {
                 if let Ok(edge_weight) = graph.edge_weight(current, &neighbor) {
-                    let tentative_g = current_g.clone() + edge_weight;
+                    let tentative_g = current_g + edge_weight;
 
                     if tentative_g < *g_score.get(&neighbor).unwrap_or(&E::zero()) {
                         came_from.insert(neighbor.clone(), current.clone());
-                        g_score.insert(neighbor.clone(), tentative_g.clone());
+                        g_score.insert(neighbor.clone(), tentative_g);
 
                         let mut new_path = current_state.path.clone();
                         new_path.push(neighbor.clone());
@@ -510,11 +510,11 @@ where
         if let Ok(successors) = graph.successors(current) {
             for neighbor in successors {
                 if let Ok(edge_weight) = graph.edge_weight(current, &neighbor) {
-                    let tentative_g = current_g.clone() + edge_weight;
+                    let tentative_g = current_g + edge_weight;
 
                     if tentative_g < *g_score.get(&neighbor).unwrap_or(&E::zero()) {
                         came_from.insert(neighbor.clone(), current.clone());
-                        g_score.insert(neighbor.clone(), tentative_g.clone());
+                        g_score.insert(neighbor.clone(), tentative_g);
 
                         let mut new_path = current_state.path.clone();
                         new_path.push(neighbor.clone());
@@ -598,10 +598,8 @@ where
 
             // Remove edges that are part of previous paths with same root
             for (_, path) in &paths {
-                if path.len() > j && &path[..=j] == root_path {
-                    if j + 1 < path.len() {
-                        removed_edges.push((path[j].clone(), path[j + 1].clone()));
-                    }
+                if path.len() > j && &path[..=j] == root_path && j + 1 < path.len() {
+                    removed_edges.push((path[j].clone(), path[j + 1].clone()));
                 }
             }
 
@@ -684,7 +682,7 @@ where
             return Ok((dist, path));
         }
 
-        if distances.get(&node).map_or(true, |&d| dist > d) {
+        if distances.get(&node).is_none_or(|&d| dist > d) {
             continue;
         }
 
