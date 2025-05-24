@@ -180,7 +180,7 @@ where
 ///     abs_error: 1e-10,
 ///     method: IntegrationMethod::Romberg,
 /// };
-/// 
+///
 /// // Access the computed integral value
 /// assert!(result.value > 0.0);
 /// assert!(result.abs_error < 1e-9);

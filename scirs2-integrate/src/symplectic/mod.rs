@@ -44,7 +44,7 @@
 //!
 //! // Take one step
 //! let (q1, p1) = integrator.step(&system, t, &q0, &p0, dt).unwrap();
-//! 
+//!
 //! // Energy should be conserved (approximately)
 //! let initial_energy = 0.5_f64 * p0.dot(&p0) + 0.5_f64 * q0.dot(&q0);
 //! let final_energy = 0.5_f64 * p1.dot(&p1) + 0.5_f64 * q1.dot(&q1);

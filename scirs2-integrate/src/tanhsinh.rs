@@ -80,37 +80,37 @@ impl TanhSinhRule {
 
         // Base step size for this level
         let h = 1.0 / (1 << level) as f64;
-        
+
         // Maximum value of j*h before weights become negligible
         let max_t = 3.5;
         let max_j = (max_t / h) as i32;
-        
+
         // Generate points for j = 0, ±1, ±2, ...
         for j in -max_j..=max_j {
             let t = j as f64 * h;
-            
+
             // Compute x = tanh(π/2 * sinh(t))
             let sinh_t = t.sinh();
             let arg = std::f64::consts::FRAC_PI_2 * sinh_t;
-            
+
             // Skip if argument would cause overflow
             if arg.abs() > 100.0 {
                 continue;
             }
-            
+
             let x = arg.tanh();
-            
+
             // Compute weight w = h * (π/2) * cosh(t) / cosh(π/2 * sinh(t))²
             let cosh_t = t.cosh();
             let cosh_arg = arg.cosh();
-            
+
             // Avoid overflow
             if cosh_arg > 1e100 {
                 continue;
             }
-            
+
             let w = h * std::f64::consts::FRAC_PI_2 * cosh_t / (cosh_arg * cosh_arg);
-            
+
             // Only add if weight is significant
             if w > 1e-15 && x.abs() < 1.0 - 1e-10 {
                 points.push(x);
@@ -120,7 +120,6 @@ impl TanhSinhRule {
 
         Self { points, weights }
     }
-
 
     /// Get points and weights transformed to the interval [a, b]
     fn get_transformed(&self, a: f64, b: f64) -> (Vec<f64>, Vec<f64>) {
@@ -240,7 +239,7 @@ where
         prev_estimate: 0.0,
         error: f64::INFINITY,
         nfev: 0,
-        level: 0,  // Start from level 0
+        level: 0, // Start from level 0
     };
 
     // Transform for improper integrals
@@ -257,12 +256,12 @@ where
 
         // Store previous estimate
         state.prev_estimate = state.estimate;
-        
+
         // Evaluate the integral with all points at current level
         evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
 
         // Debug output
-        // println!("Level {}: estimate = {}, prev = {}, n_points = {}", 
+        // println!("Level {}: estimate = {}, prev = {}, n_points = {}",
         //          level, state.estimate, state.prev_estimate, rule.points.len());
 
         // Check for convergence

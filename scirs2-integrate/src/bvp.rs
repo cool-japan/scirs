@@ -210,12 +210,12 @@ where
         // Fill boundary condition rows
         for j in 0..n_bc {
             residuals[j] = bc_res[j];
-            
+
             // For the harmonic oscillator example: bc = [ya[0], yb[0]]
             // So we need derivatives of bc with respect to y variables
             // For now, use finite differences to approximate the Jacobian
             let eps = F::from_f64(1e-8).unwrap();
-            
+
             // Derivatives with respect to ya (first point)
             for k in 0..n_dim {
                 let mut ya_pert = y[0].clone();
@@ -223,7 +223,7 @@ where
                 let bc_pert = bc(ya_pert.view(), y[n_points - 1].view());
                 jac[[j, k]] = (bc_pert[j] - bc_res[j]) / eps;
             }
-            
+
             // Derivatives with respect to yb (last point)
             for k in 0..n_dim {
                 let mut yb_pert = y[n_points - 1].clone();
