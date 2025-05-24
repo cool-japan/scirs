@@ -542,7 +542,7 @@ where
     // Make the matrix explicitly tridiagonal
     for i in 0..n {
         for j in 0..n {
-            if j < i - 1 || j > i + 1 {
+            if (i > 0 && j < i - 1) || j > i + 1 {
                 a[[i, j]] = I::zero();
             }
         }

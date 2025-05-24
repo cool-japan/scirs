@@ -189,7 +189,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use scirs2_fft::fft::{fft, ifft};
+/// use scirs2_fft::{fft, ifft};
 /// use num_complex::Complex64;
 ///
 /// // Generate a simple signal

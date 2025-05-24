@@ -3,6 +3,14 @@
 //! This module provides functionality for segmenting images into regions
 //! or partitioning images into meaningful parts.
 
+pub mod slic;
+pub mod watershed;
+
+pub use slic::{draw_superpixel_boundaries, slic};
+pub use watershed::{
+    compute_gradient_magnitude, labels_to_color_image, watershed, watershed_markers,
+};
+
 use crate::error::{Result, VisionError};
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};

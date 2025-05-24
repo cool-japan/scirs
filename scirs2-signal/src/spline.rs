@@ -1121,6 +1121,7 @@ mod tests {
     }
 
     // Helper function to compute variance
+    #[allow(dead_code)]
     fn variance(x: &[f64]) -> f64 {
         let mean = x.iter().sum::<f64>() / x.len() as f64;
         let var = x.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / x.len() as f64;

@@ -498,7 +498,6 @@ pub fn extract_ridges(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
 
     #[test]
     fn test_next_power_of_two() {
