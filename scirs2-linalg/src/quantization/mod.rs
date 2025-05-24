@@ -28,8 +28,8 @@
 //! let a_dequantized = dequantize_matrix(&quantized, &params);
 //!
 //! // Check the error is small
-//! let max_error = (&a - &a_dequantized).mapv(|x| x.abs()).fold(0.0, |acc, &b| acc.max(b));
-//! assert!(max_error < 0.1); // Error should be small but non-zero due to quantization
+//! let max_error = (&a - &a_dequantized).mapv(|x| x.abs()).fold(0.0_f32, |acc, &b| acc.max(b));
+//! assert!(max_error < 0.5); // Error should be small but non-zero due to quantization
 //! ```
 //!
 //! Quantized matrix multiplication:

@@ -745,7 +745,8 @@ mod tests {
         let count_below_nyquist_fft = freqs_fft.iter().filter(|&&f| f <= nyquist * 1.1).count();
         assert!(count_below_nyquist_fft > freqs_fft.len() * 9 / 10);
 
-        let count_below_nyquist_linear = freqs_linear.iter().filter(|&&f| f <= nyquist * 1.1).count();
+        let count_below_nyquist_linear =
+            freqs_linear.iter().filter(|&&f| f <= nyquist * 1.1).count();
         assert!(count_below_nyquist_linear > freqs_linear.len() * 9 / 10);
 
         let count_below_nyquist_log = freqs_log.iter().filter(|&&f| f <= nyquist * 1.1).count();
@@ -796,7 +797,7 @@ mod tests {
 
         // Check that we found some peaks above the threshold
         assert!(!peak_freqs.is_empty());
-        
+
         // All returned peaks should have power above threshold
         for &p in &peak_powers {
             assert!(p >= 0.5);
@@ -807,7 +808,7 @@ mod tests {
 
         // With grouping, we might have the same or fewer peaks
         assert!(grouped_freqs.len() <= peak_freqs.len());
-        
+
         // All grouped peaks should still be above threshold
         for &p in &grouped_powers {
             assert!(p >= 0.5);
@@ -859,35 +860,36 @@ mod tests {
         // Check that we got valid results
         assert_eq!(f.len(), power.len());
         assert!(!power.is_empty());
-        
+
         // Find the maximum power to normalize
         let max_power = power.iter().cloned().fold(0.0, f64::max);
         assert!(max_power > 0.0);
-        
+
         // Look for peaks by finding local maxima
         let mut peaks = Vec::new();
-        for i in 1..power.len()-1 {
-            if power[i] > power[i-1] && power[i] > power[i+1] && power[i] > 0.3 * max_power {
+        for i in 1..power.len() - 1 {
+            if power[i] > power[i - 1] && power[i] > power[i + 1] && power[i] > 0.3 * max_power {
                 peaks.push((f[i], power[i]));
             }
         }
-        
+
         // Should find at least two significant peaks
         assert!(peaks.len() >= 2);
-        
+
         // Sort peaks by power
         peaks.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        
+
         // The two strongest peaks should be near our input frequencies
         let tolerance = 0.05; // Allow 0.05 Hz tolerance
         let mut frequencies_found = 0;
-        
-        for &(freq, _) in peaks.iter().take(4) { // Check top 4 peaks
+
+        for &(freq, _) in peaks.iter().take(4) {
+            // Check top 4 peaks
             if (freq - freq1).abs() < tolerance || (freq - freq2).abs() < tolerance {
                 frequencies_found += 1;
             }
         }
-        
+
         assert!(frequencies_found >= 2);
     }
 }

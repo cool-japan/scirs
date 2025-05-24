@@ -41,6 +41,10 @@ pub enum VisionError {
     /// Linear algebra error
     #[error("Linear algebra error: {0}")]
     LinAlgError(String),
+
+    /// Dimension mismatch error
+    #[error("Dimension mismatch: {0}")]
+    DimensionMismatch(String),
 }
 
 /// Result type for vision operations

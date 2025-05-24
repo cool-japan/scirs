@@ -16,6 +16,7 @@ pub mod feature;
 /// Includes operations like filtering, histogram manipulation,
 /// and morphological operations.
 pub mod preprocessing;
+pub mod quality;
 pub mod segmentation;
 pub mod transform;
 

@@ -564,11 +564,13 @@ pub fn compute_conv_indices(
         )));
     }
 
-    // Calculate total number of elements in the output
-    let output_size = batch_size * out_channels * output_h * output_w;
+    // Calculate total number of elements
+    // Each output element can be computed from in_channels * kernel_h * kernel_w input elements
+    let total_elements =
+        batch_size * out_channels * output_h * output_w * in_channels * kernel_h * kernel_w;
 
-    // Allocate array for indices
-    let mut indices = ndarray::Array1::<usize>::zeros(output_size * 5);
+    // Allocate array for indices (5 values per element)
+    let mut indices = ndarray::Array1::<usize>::zeros(total_elements * 5);
 
     // Compute indices for batch matmul
     let mut idx = 0;

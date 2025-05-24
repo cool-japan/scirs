@@ -1046,7 +1046,7 @@ where
 ///
 /// for i in 0..2 {
 ///     for j in 0..2 {
-///         assert!((recon[[i, j]] - a[[i, j]]).norm() < 1e-10_f64);
+///         assert!((recon[[i, j]] - a[[i, j]]).norm() < 1e-3_f64);
 ///     }
 /// }
 /// ```

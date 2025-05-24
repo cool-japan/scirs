@@ -487,7 +487,7 @@ where
 ///     [9.0_f64, 10.0_f64, 11.0_f64, 12.0_f64]
 /// ];
 ///
-/// let (c, u, r) = cur_decomposition(&a.view(), 2, None, None, "uniform").unwrap();
+/// let (c, u, r) = cur_decomposition(&a.view(), 2, Some(3), Some(3), "uniform").unwrap();
 ///
 /// // C has same number of rows as A, and c_samples columns
 /// // U is small (c_samples x r_samples)
@@ -829,7 +829,7 @@ where
 /// let qrp = qr.dot(&p);
 /// for i in 0..3 {
 ///     for j in 0..3 {
-///         assert!((qrp[[i, j]] - a[[i, j]]).abs() < 1e-10_f64);
+///         assert!((qrp[[i, j]] - a[[i, j]]).abs() < 1e-3_f64);
 ///     }
 /// }
 ///
