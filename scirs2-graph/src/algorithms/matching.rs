@@ -40,7 +40,7 @@ where
     // Create a mapping from nodes to indices
     let mut node_to_idx: HashMap<N, petgraph::graph::NodeIndex<Ix>> = HashMap::new();
     for node_idx in graph.inner().node_indices() {
-        node_to_idx.insert(graph[node_idx].clone(), node_idx);
+        node_to_idx.insert(graph.inner()[node_idx].clone(), node_idx);
     }
 
     // Separate nodes into left and right sets based on coloring
@@ -99,7 +99,7 @@ where
 
     // Try all neighbors
     if let Ok(neighbors) = graph.neighbors(node) {
-        for neighbor in neighbors.into_iter().cloned() {
+        for neighbor in neighbors {
             // Skip if same color (not bipartite edge)
             if coloring.get(node) == coloring.get(&neighbor) {
                 continue;

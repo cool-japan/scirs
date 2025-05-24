@@ -12,11 +12,11 @@ use std::hash::Hash;
 /// Returns None if the graph is disconnected.
 pub fn diameter<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Option<f64>
 where
-    N: Node + Clone + Hash + Eq,
-    E: EdgeWeight + Into<f64> + Clone,
+    N: Node + Clone + Hash + Eq + std::fmt::Debug,
+    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -30,7 +30,7 @@ where
         for j in i + 1..n {
             match shortest_path(graph, &nodes[i], &nodes[j]) {
                 Ok(Some(path)) => {
-                    let distance: f64 = path.cost.into();
+                    let distance: f64 = path.total_weight.into();
                     if distance > max_distance {
                         max_distance = distance;
                     }
@@ -51,11 +51,11 @@ where
 /// Returns None if the graph is disconnected.
 pub fn radius<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Option<f64>
 where
-    N: Node + Clone + Hash + Eq,
-    E: EdgeWeight + Into<f64> + Clone,
+    N: Node + Clone + Hash + Eq + std::fmt::Debug,
+    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -72,7 +72,7 @@ where
             if i != j {
                 match shortest_path(graph, &nodes[i], &nodes[j]) {
                     Ok(Some(path)) => {
-                        let distance: f64 = path.cost.into();
+                        let distance: f64 = path.total_weight.into();
                         if distance > max_distance_from_i {
                             max_distance_from_i = distance;
                         }
@@ -97,11 +97,11 @@ where
 /// Returns empty vector if the graph is disconnected.
 pub fn center_nodes<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Vec<N>
 where
-    N: Node + Clone + Hash + Eq,
-    E: EdgeWeight + Into<f64> + Clone,
+    N: Node + Clone + Hash + Eq + std::fmt::Debug,
+    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -119,7 +119,7 @@ where
             if i != j {
                 match shortest_path(graph, &nodes[i], &nodes[j]) {
                     Ok(Some(path)) => {
-                        let distance: f64 = path.cost.into();
+                        let distance: f64 = path.total_weight.into();
                         if distance > max_distance_from_i {
                             max_distance_from_i = distance;
                         }

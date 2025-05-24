@@ -114,7 +114,7 @@ where
     // For each node as center, find if it has exactly 3 neighbors that aren't connected
     for center in &nodes {
         if let Ok(neighbors) = graph.neighbors(center) {
-            let neighbor_list: Vec<N> = neighbors.into_iter().cloned().collect();
+            let neighbor_list: Vec<N> = neighbors;
 
             if neighbor_list.len() >= 3 {
                 // Check all combinations of 3 neighbors

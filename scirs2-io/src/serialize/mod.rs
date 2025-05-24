@@ -1102,7 +1102,7 @@ pub mod sparse_ops {
 
         let mut result = vec![A::default(); matrix.rows];
 
-        for row in 0..matrix.rows {
+        for (row, result_elem) in result.iter_mut().enumerate() {
             let start = matrix.row_ptrs[row];
             let end = matrix.row_ptrs[row + 1];
 
@@ -1112,7 +1112,7 @@ pub mod sparse_ops {
                 let val = matrix.values[i].clone();
                 sum = sum + (val * vector[col].clone());
             }
-            result[row] = sum;
+            *result_elem = sum;
         }
 
         Ok(result)

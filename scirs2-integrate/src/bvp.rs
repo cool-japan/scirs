@@ -219,7 +219,7 @@ where
             // Derivatives with respect to ya (first point)
             for k in 0..n_dim {
                 let mut ya_pert = y[0].clone();
-                ya_pert[k] = ya_pert[k] + eps;
+                ya_pert[k] += eps;
                 let bc_pert = bc(ya_pert.view(), y[n_points - 1].view());
                 jac[[j, k]] = (bc_pert[j] - bc_res[j]) / eps;
             }
@@ -227,7 +227,7 @@ where
             // Derivatives with respect to yb (last point)
             for k in 0..n_dim {
                 let mut yb_pert = y[n_points - 1].clone();
-                yb_pert[k] = yb_pert[k] + eps;
+                yb_pert[k] += eps;
                 let bc_pert = bc(y[0].view(), yb_pert.view());
                 jac[[j, (n_points - 1) * n_dim + k]] = (bc_pert[j] - bc_res[j]) / eps;
             }

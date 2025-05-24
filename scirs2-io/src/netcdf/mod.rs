@@ -41,6 +41,7 @@ pub enum NetCDFDataType {
 #[derive(Debug)]
 pub struct NetCDFFile {
     /// File path
+    #[allow(dead_code)]
     path: String,
     /// File mode ('r' for read, 'w' for write)
     mode: String,
@@ -56,6 +57,7 @@ pub struct NetCDFFile {
 #[derive(Debug, Clone)]
 struct VariableInfo {
     /// Name of the variable
+    #[allow(dead_code)]
     name: String,
     /// Data type of the variable
     data_type: NetCDFDataType,
@@ -67,6 +69,7 @@ struct VariableInfo {
 
 /// Value of an attribute
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum AttributeValue {
     /// String value
     String(String),

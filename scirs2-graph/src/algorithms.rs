@@ -88,7 +88,7 @@ where
     edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
     // Use Union-Find to detect cycles
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.node_weights().cloned().collect();
     let mut parent: HashMap<N, N> = nodes.iter().map(|n| (n.clone(), n.clone())).collect();
     let mut rank: HashMap<N, usize> = nodes.iter().map(|n| (n.clone(), 0)).collect();
 
@@ -258,7 +258,8 @@ where
     E: EdgeWeight,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
     let n = nodes.len();
     let mut centrality: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
 
@@ -336,7 +337,8 @@ where
     E: EdgeWeight + Into<f64>,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
     let n = nodes.len();
     let mut centrality = HashMap::new();
 
@@ -384,7 +386,8 @@ where
     E: EdgeWeight + Into<f64>,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
     let n = nodes.len();
 
     if n == 0 {

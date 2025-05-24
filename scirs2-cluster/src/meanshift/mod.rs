@@ -510,6 +510,12 @@ impl<
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
         });
+        
+        // Debug: print number of centers before deduplication
+        #[cfg(debug_assertions)]
+        if sorted_by_intensity.len() > 1 {
+            eprintln!("DEBUG: Found {} centers before deduplication", sorted_by_intensity.len());
+        }
 
         // Convert to Array2
         let mut sorted_centers = Array2::zeros((sorted_by_intensity.len(), n_features));
@@ -538,13 +544,12 @@ impl<
                         ClusteringError::ComputationError(format!("Failed to query KDTree: {}", e))
                     })?;
 
-                // Mark all neighbors as non-unique
+                // Mark all neighbors as non-unique, except the current point
                 for &idx in indices.iter() {
-                    unique[idx] = false;
+                    if idx != i {
+                        unique[idx] = false;
+                    }
                 }
-
-                // But keep the current point as unique
-                unique[i] = true;
             }
         }
 

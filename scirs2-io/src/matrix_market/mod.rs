@@ -263,7 +263,7 @@ pub fn read_sparse_matrix<P: AsRef<Path>>(path: P) -> Result<MMSparseMatrix<f64>
     for line in &mut lines {
         let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
         if line.starts_with('%') {
-            header.comments.push(line[1..].trim().to_string());
+            header.comments.push(line.strip_prefix('%').unwrap().trim().to_string());
         } else {
             // This is the size line, put it back
             let size_parts: Vec<&str> = line.split_whitespace().collect();
@@ -459,7 +459,7 @@ pub fn read_dense_matrix<P: AsRef<Path>>(path: P) -> Result<MMDenseMatrix<f64>> 
     for line in &mut lines {
         let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
         if line.starts_with('%') {
-            header.comments.push(line[1..].trim().to_string());
+            header.comments.push(line.strip_prefix('%').unwrap().trim().to_string());
         } else {
             // This is the size line
             let size_parts: Vec<&str> = line.split_whitespace().collect();

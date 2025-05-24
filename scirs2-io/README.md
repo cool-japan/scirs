@@ -8,15 +8,26 @@ Input/Output module for the SciRS2 scientific computing library. This module pro
 
 ## Features
 
+### File Format Support
 - **MATLAB Support**: Read and write MATLAB `.mat` files
-- **WAV File Support**: Read and write WAV audio files
+- **WAV File Support**: Read and write WAV audio files  
 - **ARFF Support**: Read and write Weka ARFF files
 - **CSV Support**: Read and write CSV files with flexible configuration options
-- **Image Support**: Read and write common image formats (PNG, JPEG, BMP, TIFF)
-- **Data Serialization**: Serialize and deserialize arrays, structs, and sparse matrices
+- **NetCDF Support**: Read and write NetCDF scientific data files with dimensions, variables, and attributes
+- **HDF5 Support**: Hierarchical data format with groups, datasets, and compression options
+- **Matrix Market**: Read and write sparse and dense matrices in Matrix Market format
+
+### Data Processing
+- **Image Support**: Read and write common image formats (PNG, JPEG, BMP, TIFF) with basic EXIF metadata
+- **Data Serialization**: Serialize and deserialize arrays, structs, and enhanced sparse matrices (COO, CSR, CSC)
 - **Data Compression**: Compress and decompress data using multiple algorithms (GZIP, ZSTD, LZ4, BZIP2)
 - **Data Validation**: Verify data integrity through checksums and format validation
+- **Sparse Matrix Operations**: Advanced sparse matrix support with format conversion and operations
+
+### Additional Features
 - **Error Handling**: Robust error handling with detailed error information
+- **Memory Efficiency**: Chunked processing for large files
+- **Type Safety**: Strong typing with Rust's type system
 
 ## Installation
 
@@ -436,6 +447,65 @@ The validation module provides:
   - Validation reports with machine-readable output
   - Checksum file generation and verification
   - Directory traversal and recursive validation
+
+### NetCDF File Format
+
+The NetCDF module supports:
+- NetCDF3 Classic format:
+  - Dimensions (fixed and unlimited)
+  - Variables with multiple dimensions
+  - Global and variable attributes
+  - Common data types (byte, short, int, float, double)
+- Features:
+  - Create new NetCDF files with hierarchical structure
+  - Define dimensions and variables
+  - Write array data to variables
+  - Add metadata through attributes
+  - Read existing NetCDF files
+
+### HDF5 File Format
+
+The HDF5 module provides:
+- Hierarchical data organization:
+  - Groups (similar to directories)
+  - Datasets (n-dimensional arrays)
+  - Attributes on groups and datasets
+- Data types:
+  - Integers, floats, strings
+  - Compound types and arrays
+- Advanced features:
+  - Compression options (gzip, szip, lzf)
+  - Chunked storage for large datasets
+  - Fletcher32 checksums
+  - Metadata management
+
+### Matrix Market Format
+
+The Matrix Market module supports:
+- Sparse matrix formats:
+  - Coordinate (COO) format
+  - Support for symmetric, hermitian, and skew-symmetric matrices
+- Data types:
+  - Real, complex, integer, and pattern matrices
+- Features:
+  - Read and write Matrix Market files
+  - Automatic format detection
+  - Conversion between 0-based and 1-based indexing
+  - Integration with sparse matrix operations
+
+### Enhanced Sparse Matrix Support
+
+The serialization module now includes:
+- Multiple sparse matrix formats:
+  - COO (Coordinate) - flexible, easy to construct
+  - CSR (Compressed Sparse Row) - efficient row operations
+  - CSC (Compressed Sparse Column) - efficient column operations
+- Features:
+  - Automatic format conversion with caching
+  - Sparse matrix operations (addition, transpose, multiplication)
+  - Memory efficiency analysis
+  - Integration with Matrix Market format
+  - Serialization in multiple formats (binary, JSON, MessagePack)
 
 ## Contributing
 

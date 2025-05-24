@@ -42,7 +42,7 @@ where
 
         // Otherwise, move to a random neighbor
         if let Ok(neighbors) = graph.neighbors(&current) {
-            let neighbor_vec: Vec<N> = neighbors.into_iter().cloned().collect();
+            let neighbor_vec: Vec<N> = neighbors;
 
             if !neighbor_vec.is_empty() {
                 let idx = rng.random_range(0..neighbor_vec.len());
@@ -81,6 +81,7 @@ where
     for (i, node) in nodes.iter().enumerate() {
         if let Ok(neighbors) = graph.neighbors(node) {
             let neighbor_weights: Vec<(usize, f64)> = neighbors
+                .into_iter()
                 .filter_map(|neighbor| {
                     nodes.iter().position(|n| n == &neighbor).and_then(|j| {
                         graph

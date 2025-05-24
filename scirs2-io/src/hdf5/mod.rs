@@ -66,7 +66,7 @@ pub enum StringEncoding {
 }
 
 /// HDF5 compression options
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CompressionOptions {
     /// Enable gzip compression
     pub gzip: Option<u8>,
@@ -78,19 +78,8 @@ pub struct CompressionOptions {
     pub shuffle: bool,
 }
 
-impl Default for CompressionOptions {
-    fn default() -> Self {
-        Self {
-            gzip: None,
-            szip: None,
-            lzf: false,
-            shuffle: false,
-        }
-    }
-}
-
 /// HDF5 dataset creation options
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DatasetOptions {
     /// Chunk size for chunked storage
     pub chunk_size: Option<Vec<usize>>,
@@ -102,24 +91,15 @@ pub struct DatasetOptions {
     pub fletcher32: bool,
 }
 
-impl Default for DatasetOptions {
-    fn default() -> Self {
-        Self {
-            chunk_size: None,
-            compression: CompressionOptions::default(),
-            fill_value: None,
-            fletcher32: false,
-        }
-    }
-}
-
 /// HDF5 file handle
 pub struct HDF5File {
     /// File path
+    #[allow(dead_code)]
     path: String,
     /// Root group
     root: Group,
     /// File access mode
+    #[allow(dead_code)]
     mode: FileMode,
 }
 
@@ -287,7 +267,7 @@ impl HDF5File {
         }
 
         // Convert array to dataset
-        let shape: Vec<usize> = array.shape().iter().cloned().collect();
+        let shape: Vec<usize> = array.shape().to_vec();
         let flat_data: Vec<f64> = array.iter().map(|x| x.clone().into()).collect();
 
         let dataset = Dataset {
