@@ -99,7 +99,7 @@ where
 
     // Try all neighbors
     if let Ok(neighbors) = graph.neighbors(node) {
-        for neighbor in neighbors {
+        for neighbor in neighbors.into_iter().cloned() {
             // Skip if same color (not bipartite edge)
             if coloring.get(node) == coloring.get(&neighbor) {
                 continue;

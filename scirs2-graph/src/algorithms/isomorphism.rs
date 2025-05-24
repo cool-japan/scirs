@@ -19,8 +19,8 @@ where
     E: EdgeWeight,
     Ix: IndexType,
 {
-    let pattern_nodes: Vec<N1> = pattern.nodes().collect();
-    let target_nodes: Vec<N2> = target.nodes().collect();
+    let pattern_nodes: Vec<N1> = pattern.nodes().into_iter().cloned().collect();
+    let target_nodes: Vec<N2> = target.nodes().into_iter().cloned().collect();
 
     if pattern_nodes.is_empty() || pattern_nodes.len() > target_nodes.len() {
         return vec![];
@@ -94,7 +94,7 @@ fn find_matches_recursive<N1, N2, E, Ix>(
             }
 
             // Also try non-neighbors
-            for next_target in &target.nodes().collect::<Vec<_>>() {
+            for next_target in &target.nodes().into_iter().cloned().collect::<Vec<_>>() {
                 if !current_mapping.values().any(|n| n == next_target) {
                     find_matches_recursive(
                         pattern_nodes,

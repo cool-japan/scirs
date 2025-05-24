@@ -116,7 +116,7 @@ where
             loop {
                 let w = state.stack.pop().unwrap();
                 state.on_stack.remove(&w);
-                component.insert(graph[w].clone());
+                component.insert(graph.inner()[w].clone());
                 if w == v {
                     break;
                 }
@@ -203,7 +203,7 @@ where
                 if (state.parent.get(&u).unwrap().is_none() && children > 1)
                     || (state.parent.get(&u).unwrap().is_some() && v_low >= u_disc)
                 {
-                    articulation_points.insert(graph[u].clone());
+                    articulation_points.insert(graph.inner()[u].clone());
                 }
             } else if state.parent.get(&u).unwrap() != &Some(v) {
                 // Update low[u] for back edge
@@ -296,7 +296,7 @@ where
     // Convert node indices to actual nodes
     let node_coloring: HashMap<N, u8> = coloring
         .into_iter()
-        .map(|(idx, color)| (graph[idx].clone(), color))
+        .map(|(idx, color)| (graph.inner()[idx].clone(), color))
         .collect();
 
     BipartiteResult {
@@ -356,7 +356,7 @@ where
                 // If low[v] > disc[u], then (u, v) is a bridge
                 let u_disc = *state.disc.get(&u).unwrap();
                 if v_low > u_disc {
-                    bridges.push((graph[u].clone(), graph[v].clone()));
+                    bridges.push((graph.inner()[u].clone(), graph.inner()[v].clone()));
                 }
             } else if state.parent.get(&u).unwrap() != &Some(v) {
                 // Update low[u] for back edge

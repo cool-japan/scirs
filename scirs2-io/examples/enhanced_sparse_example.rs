@@ -110,15 +110,6 @@ fn demonstrate_format_conversion() -> Result<()> {
         let csr_time = start.elapsed();
         let csr_nnz = csr.nnz();
 
-        // Time COO -> CSC conversion
-        let start = Instant::now();
-        let csc = sparse.to_csc()?;
-        let csc_time = start.elapsed();
-        let csc_nnz = csc.nnz();
-
-        println!("    COO -> CSR: {:?} ({} nnz)", csr_time, csr_nnz);
-        println!("    COO -> CSC: {:?} ({} nnz)", csc_time, csc_nnz);
-
         // Test row access in CSR
         let start = Instant::now();
         for i in 0..std::cmp::min(100, size) {
@@ -127,6 +118,15 @@ fn demonstrate_format_conversion() -> Result<()> {
             }
         }
         let row_access_time = start.elapsed();
+
+        // Drop CSR reference before getting CSC
+        drop(csr);
+
+        // Time COO -> CSC conversion
+        let start = Instant::now();
+        let csc = sparse.to_csc()?;
+        let csc_time = start.elapsed();
+        let csc_nnz = csc.nnz();
 
         // Test column access in CSC
         let start = Instant::now();
@@ -137,6 +137,8 @@ fn demonstrate_format_conversion() -> Result<()> {
         }
         let col_access_time = start.elapsed();
 
+        println!("    COO -> CSR: {:?} ({} nnz)", csr_time, csr_nnz);
+        println!("    COO -> CSC: {:?} ({} nnz)", csc_time, csc_nnz);
         println!("    CSR row access (100 rows): {:?}", row_access_time);
         println!("    CSC column access (100 cols): {:?}", col_access_time);
         println!();

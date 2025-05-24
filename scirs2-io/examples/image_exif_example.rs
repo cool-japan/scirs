@@ -159,7 +159,7 @@ fn show_metadata_structure() -> Result<()> {
     println!("  - File Size: {} bytes", image_data.metadata.file_size);
 
     println!("\nEXIF Metadata Structure:");
-    println!("  ExifMetadata {");
+    println!("  ExifMetadata {{");
     println!("    datetime: Option<DateTime<Utc>>,");
     println!("    gps: Option<GpsCoordinates>,");
     println!("    camera: CameraSettings,");
@@ -169,17 +169,17 @@ fn show_metadata_structure() -> Result<()> {
     println!("    artist: Option<String>,");
     println!("    description: Option<String>,");
     println!("    raw_tags: HashMap<String, String>");
-    println!("  }");
+    println!("  }}");
 
     println!("\nGPS Coordinates Structure:");
-    println!("  GpsCoordinates {");
+    println!("  GpsCoordinates {{");
     println!("    latitude: Option<f64>,   // Decimal degrees");
     println!("    longitude: Option<f64>,  // Decimal degrees");
     println!("    altitude: Option<f64>    // Meters");
-    println!("  }");
+    println!("  }}");
 
     println!("\nCamera Settings Structure:");
-    println!("  CameraSettings {");
+    println!("  CameraSettings {{");
     println!("    make: Option<String>,");
     println!("    model: Option<String>,");
     println!("    lens_model: Option<String>,");
@@ -191,7 +191,7 @@ fn show_metadata_structure() -> Result<()> {
     println!("    white_balance: Option<String>,");
     println!("    exposure_mode: Option<String>,");
     println!("    metering_mode: Option<String>");
-    println!("  }");
+    println!("  }}");
 
     println!("\nNote: EXIF reading is currently limited in this implementation.");
     println!("Full EXIF support would require proper kamadak-exif integration.");

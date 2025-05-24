@@ -123,7 +123,7 @@ where
     // Convert to final result
     let node_communities: HashMap<N, usize> = communities
         .into_iter()
-        .map(|(idx, comm)| (graph[idx].clone(), comm))
+        .map(|(idx, comm)| (graph.inner()[idx].clone(), comm))
         .collect();
 
     CommunityStructure {

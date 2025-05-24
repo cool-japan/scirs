@@ -172,18 +172,18 @@ where
 /// # Examples
 ///
 /// ```
-/// use scirs2_integrate::romberg::MultiRombergResult;
+/// use scirs2_integrate::romberg::{MultiRombergResult, IntegrationMethod};
 ///
 /// // This struct holds the result of a multi-dimensional Romberg integration
 /// let result = MultiRombergResult {
-///     value: vec![2.0, 0.0], // Example values
-///     error: vec![1e-10, 1e-10],
-///     n_intervals: 32,
+///     value: 2.0, // Example value
+///     abs_error: 1e-10,
+///     method: IntegrationMethod::Romberg,
 /// };
 /// 
-/// // Access the computed integral values
-/// assert_eq!(result.value.len(), 2);
-/// assert!(result.error[0] < 1e-9);
+/// // Access the computed integral value
+/// assert!(result.value > 0.0);
+/// assert!(result.abs_error < 1e-9);
 /// ```
 /// Result of a multidimensional Romberg integration computation
 #[derive(Debug, Clone)]

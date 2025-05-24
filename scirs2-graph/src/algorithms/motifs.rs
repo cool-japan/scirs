@@ -43,7 +43,7 @@ where
     Ix: IndexType,
 {
     let mut triangles = Vec::new();
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
 
     // For each triplet of nodes, check if they form a triangle
     for i in 0..nodes.len() {
@@ -69,7 +69,7 @@ where
     Ix: IndexType,
 {
     let mut squares = Vec::new();
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
 
     // For each quadruplet of nodes, check if they form a square
     for i in 0..nodes.len() {
@@ -109,12 +109,12 @@ where
     Ix: IndexType,
 {
     let mut stars = Vec::new();
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
 
     // For each node as center, find if it has exactly 3 neighbors that aren't connected
     for center in &nodes {
         if let Ok(neighbors) = graph.neighbors(center) {
-            let neighbor_list: Vec<N> = neighbors.collect();
+            let neighbor_list: Vec<N> = neighbors.into_iter().cloned().collect();
 
             if neighbor_list.len() >= 3 {
                 // Check all combinations of 3 neighbors
@@ -150,7 +150,7 @@ where
     Ix: IndexType,
 {
     let mut cliques = Vec::new();
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
 
     // For each quadruplet of nodes, check if they form a complete graph
     for i in 0..nodes.len() {

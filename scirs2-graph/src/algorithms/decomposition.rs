@@ -31,7 +31,7 @@ where
     nodes_by_degree.sort_by_key(|&(_, d)| d);
 
     // Process nodes in order of increasing degree
-    let mut remaining_nodes: HashSet<N> = graph.nodes().collect();
+    let mut remaining_nodes: HashSet<N> = graph.nodes().into_iter().cloned().collect();
     let mut current_core = 0;
 
     while !remaining_nodes.is_empty() {

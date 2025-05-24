@@ -42,7 +42,7 @@ where
 
         // Otherwise, move to a random neighbor
         if let Ok(neighbors) = graph.neighbors(&current) {
-            let neighbor_vec: Vec<N> = neighbors.collect();
+            let neighbor_vec: Vec<N> = neighbors.into_iter().cloned().collect();
 
             if !neighbor_vec.is_empty() {
                 let idx = rng.random_range(0..neighbor_vec.len());
@@ -69,7 +69,7 @@ where
     E: EdgeWeight + Into<f64>,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -124,7 +124,7 @@ where
     E: EdgeWeight + Into<f64>,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 || !graph.contains_node(source) {

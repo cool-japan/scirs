@@ -51,7 +51,7 @@ where
             color += 1;
         }
 
-        let node = graph[node_idx].clone();
+        let node = graph.inner()[node_idx].clone();
         coloring.insert(node, color);
         max_color = max_color.max(color);
     }

@@ -45,7 +45,7 @@ where
         return Err(GraphError::NodeNotFound);
     }
 
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     // Build adjacency vectors
