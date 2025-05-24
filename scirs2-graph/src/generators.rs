@@ -9,8 +9,18 @@
 use rand::prelude::*;
 use std::collections::HashSet;
 
-use crate::base::Graph;
+use crate::base::{Graph, DiGraph};
 use crate::error::{GraphError, Result};
+
+/// Create a new empty undirected graph
+pub fn create_graph<N: crate::base::Node, E: crate::base::EdgeWeight>() -> Graph<N, E> {
+    Graph::new()
+}
+
+/// Create a new empty directed graph
+pub fn create_digraph<N: crate::base::Node, E: crate::base::EdgeWeight>() -> DiGraph<N, E> {
+    DiGraph::new()
+}
 
 /// Generates an Erdős–Rényi random graph
 ///

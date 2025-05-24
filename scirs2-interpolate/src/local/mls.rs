@@ -235,7 +235,7 @@ where
         let basis_functions = self.create_basis_functions(&indices, x)?;
 
         // Weighted least squares solution
-        let result = self.solve_weighted_least_squares(&indices, &weights, &basis_functions)?;
+        let result = self.solve_weighted_least_squares(&indices, &weights, &basis_functions, x)?;
 
         Ok(result)
     }
@@ -483,6 +483,7 @@ where
         indices: &[usize],
         weights: &Array1<F>,
         basis: &Array2<F>,
+        x: &ArrayView1<F>,
     ) -> InterpolateResult<F> {
         let n_points = indices.len();
         let n_basis = basis.shape()[1];
@@ -558,10 +559,10 @@ where
             }
 
             result
-        }; // Evaluate at the query point by creating the basis for it
-           // Convert the index to the actual point for basis creation
-        let query_point = self.points.row(indices[0]).to_owned();
-        let query_basis = self.create_query_basis(&query_point.view())?;
+        };
+
+        // Evaluate at the query point by creating the basis for it
+        let query_basis = self.create_query_basis(x)?;
         let result = query_basis.dot(&coeffs);
 
         Ok(result)
@@ -630,7 +631,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Fails with Ord and PartialOrd changes"]
     fn test_mls_linear_basis() {
         // Simple test with 2D data and linear basis
         let points =
@@ -671,7 +671,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Fails with Ord and PartialOrd changes"]
     fn test_different_weight_functions() {
         // Simple test with 2D data
         let points = Array2::from_shape_vec(

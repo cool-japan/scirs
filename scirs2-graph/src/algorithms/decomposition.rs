@@ -75,7 +75,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::base::GraphResult;
+    use crate::error::Result as GraphResult;
     use crate::generators::create_graph;
     use petgraph::graph::UnGraph;
 
