@@ -21,8 +21,16 @@ where
         return Err(GraphError::NodeNotFound);
     }
 
-    let neighbors1: HashSet<N> = graph.neighbors(node1).unwrap_or_default();
-    let neighbors2: HashSet<N> = graph.neighbors(node2).unwrap_or_default();
+    let neighbors1: HashSet<N> = graph
+        .neighbors(node1)
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    let neighbors2: HashSet<N> = graph
+        .neighbors(node2)
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
 
     if neighbors1.is_empty() && neighbors2.is_empty() {
         return Ok(1.0); // Both have no neighbors, consider them similar
@@ -84,9 +92,17 @@ where
     Ix: IndexType,
 {
     // Get all edges from both graphs
-    let edges1: HashSet<(N, N)> = graph1.edges().map(|(src, dst, _)| (src, dst)).collect();
+    let edges1: HashSet<(N, N)> = graph1
+        .edges()
+        .into_iter()
+        .map(|edge| (edge.source, edge.target))
+        .collect();
 
-    let edges2: HashSet<(N, N)> = graph2.edges().map(|(src, dst, _)| (src, dst)).collect();
+    let edges2: HashSet<(N, N)> = graph2
+        .edges()
+        .into_iter()
+        .map(|edge| (edge.source, edge.target))
+        .collect();
 
     // Count edges only in graph1 (need to be deleted)
     let edges_to_delete = edges1.difference(&edges2).count();

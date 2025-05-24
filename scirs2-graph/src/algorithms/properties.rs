@@ -13,7 +13,15 @@ use std::hash::Hash;
 pub fn diameter<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Option<f64>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
+    E: EdgeWeight
+        + Into<f64>
+        + Clone
+        + num_traits::Zero
+        + num_traits::One
+        + std::cmp::PartialOrd
+        + std::fmt::Debug
+        + Copy
+        + Default,
     Ix: IndexType,
 {
     let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
@@ -36,7 +44,7 @@ where
                     }
                 }
                 Ok(None) => return None, // No path exists
-                Err(_) => return None, // Graph is disconnected
+                Err(_) => return None,   // Graph is disconnected
             }
         }
     }
@@ -52,7 +60,15 @@ where
 pub fn radius<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Option<f64>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
+    E: EdgeWeight
+        + Into<f64>
+        + Clone
+        + num_traits::Zero
+        + num_traits::One
+        + std::cmp::PartialOrd
+        + std::fmt::Debug
+        + Copy
+        + Default,
     Ix: IndexType,
 {
     let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
@@ -78,7 +94,7 @@ where
                         }
                     }
                     Ok(None) => return None, // No path exists
-                    Err(_) => return None, // Graph is disconnected
+                    Err(_) => return None,   // Graph is disconnected
                 }
             }
         }
@@ -98,7 +114,15 @@ where
 pub fn center_nodes<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Vec<N>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::cmp::PartialOrd + std::fmt::Debug + Copy + Default,
+    E: EdgeWeight
+        + Into<f64>
+        + Clone
+        + num_traits::Zero
+        + num_traits::One
+        + std::cmp::PartialOrd
+        + std::fmt::Debug
+        + Copy
+        + Default,
     Ix: IndexType,
 {
     let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
@@ -125,7 +149,7 @@ where
                         }
                     }
                     Ok(None) => return vec![], // No path exists
-                    Err(_) => return vec![], // Graph is disconnected
+                    Err(_) => return vec![],   // Graph is disconnected
                 }
             }
         }

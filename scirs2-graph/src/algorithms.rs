@@ -51,11 +51,10 @@ pub use traversal::*;
 
 // Additional algorithms that haven't been moved to submodules yet
 
-use crate::base::{EdgeWeight, Node};
+use crate::base::{DiGraph, EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
 use ndarray::{Array1, Array2};
 use petgraph::algo::toposort as petgraph_toposort;
-use petgraph::graph::{DiGraph, Graph, IndexType};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use std::cmp::Ordering;
@@ -78,8 +77,8 @@ where
         .inner()
         .edge_references()
         .map(|e| {
-            let source = graph[e.source()].clone();
-            let target = graph[e.target()].clone();
+            let source = graph.inner()[e.source()].clone();
+            let target = graph.inner()[e.target()].clone();
             let weight = e.weight().clone();
             (source, target, weight)
         })
@@ -88,7 +87,7 @@ where
     edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
     // Use Union-Find to detect cycles
-    let nodes: Vec<N> = graph.node_weights().cloned().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().map(|n| n.clone()).collect();
     let mut parent: HashMap<N, N> = nodes.iter().map(|n| (n.clone(), n.clone())).collect();
     let mut rank: HashMap<N, usize> = nodes.iter().map(|n| (n.clone(), 0)).collect();
 
@@ -157,7 +156,10 @@ where
     // Use petgraph's topological sort
     match petgraph_toposort(graph.inner(), None) {
         Ok(indices) => {
-            let sorted_nodes = indices.into_iter().map(|idx| graph[idx].clone()).collect();
+            let sorted_nodes = indices
+                .into_iter()
+                .map(|idx| graph.inner()[idx].clone())
+                .collect();
             Ok(sorted_nodes)
         }
         Err(_) => Err(GraphError::CycleDetected),
@@ -242,7 +244,7 @@ where
     nodes
         .iter()
         .enumerate()
-        .map(|(i, &node_idx)| (graph[node_idx].clone(), pr[i]))
+        .map(|(i, &node_idx)| (graph.inner()[node_idx].clone(), pr[i]))
         .collect()
 }
 
@@ -259,7 +261,10 @@ where
     Ix: IndexType,
 {
     let node_indices: Vec<_> = graph.inner().node_indices().collect();
-    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
     let n = nodes.len();
     let mut centrality: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
 
@@ -333,12 +338,23 @@ where
 /// Measures how close a node is to all other nodes in the graph.
 pub fn closeness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>, normalized: bool) -> HashMap<N, f64>
 where
-    N: Node,
-    E: EdgeWeight + Into<f64>,
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + std::marker::Copy
+        + std::fmt::Debug
+        + std::default::Default,
     Ix: IndexType,
 {
     let node_indices: Vec<_> = graph.inner().node_indices().collect();
-    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
     let n = nodes.len();
     let mut centrality = HashMap::new();
 
@@ -350,7 +366,7 @@ where
         for other in &nodes {
             if node != other {
                 if let Ok(Some(path)) = shortest_path(graph, node, other) {
-                    let distance: f64 = path.cost.into();
+                    let distance: f64 = path.total_weight.into();
                     total_distance += distance;
                     reachable_count += 1;
                 }
@@ -387,7 +403,10 @@ where
     Ix: IndexType,
 {
     let node_indices: Vec<_> = graph.inner().node_indices().collect();
-    let nodes: Vec<N> = node_indices.iter().map(|&idx| graph.inner()[idx].clone()).collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
     let n = nodes.len();
 
     if n == 0 {

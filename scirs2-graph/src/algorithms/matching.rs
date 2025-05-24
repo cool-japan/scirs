@@ -113,11 +113,11 @@ where
             }
 
             // Otherwise, try to augment through the matched node
-            let matched_node = &reverse_matching[&neighbor];
-            if !visited.contains(matched_node) {
+            let matched_node = reverse_matching[&neighbor].clone();
+            if !visited.contains(&matched_node) {
                 if augment_path(
                     graph,
-                    matched_node,
+                    &matched_node,
                     matching,
                     reverse_matching,
                     visited,

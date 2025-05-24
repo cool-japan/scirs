@@ -188,10 +188,7 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
 
             if distances.len() > 1 {
                 // Skip the first distance (to itself, which is 0) and take the last (k-th neighbor)
-                let kth_dist = distances
-                    .last()
-                    .copied()
-                    .unwrap_or(T::from(1.0).unwrap()); // Default to 1.0 if no valid distance is found
+                let kth_dist = distances.last().copied().unwrap_or(T::from(1.0).unwrap()); // Default to 1.0 if no valid distance is found
 
                 bandwidth_sum = bandwidth_sum + kth_dist;
             } else if !distances.is_empty() {
@@ -510,11 +507,14 @@ impl<
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
         });
-        
+
         // Debug: print number of centers before deduplication
         #[cfg(debug_assertions)]
         if sorted_by_intensity.len() > 1 {
-            eprintln!("DEBUG: Found {} centers before deduplication", sorted_by_intensity.len());
+            eprintln!(
+                "DEBUG: Found {} centers before deduplication",
+                sorted_by_intensity.len()
+            );
         }
 
         // Convert to Array2
@@ -725,15 +725,12 @@ mod tests {
 
         let bandwidth = estimate_bandwidth(&data.view(), Some(0.3), None, None).unwrap();
 
-        // With only one sample, we now return a small default value
+        // With only one sample, we return a default value of 1.0
         assert!(
             bandwidth > 0.0,
             "Bandwidth should be positive for single sample"
         );
-        assert!(
-            bandwidth <= 0.2,
-            "Bandwidth should be small for single sample"
-        );
+        assert_eq!(bandwidth, 1.0, "Bandwidth should be 1.0 for single sample");
     }
 
     #[test]

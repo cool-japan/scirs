@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
-use ndarray::Array2;
 use rand::Rng;
 
 use crate::base::{EdgeWeight, Graph, Node};
@@ -259,7 +258,7 @@ where
     }
 
     // Get the Laplacian matrix
-    let lap = laplacian(graph, LaplacianType::Normalized)?;
+    let _lap = laplacian(graph, LaplacianType::Normalized)?;
 
     // For a proper implementation, we would compute eigenvectors here
     // For now, use a simple approximation based on node degrees
@@ -267,7 +266,7 @@ where
 
     // Use node degrees to spread out nodes
     let degrees: Vec<usize> = (0..n)
-        .map(|i| graph.neighbors(&nodes[i]).unwrap_or_default().count())
+        .map(|i| graph.neighbors(&nodes[i]).unwrap_or_default().len())
         .collect();
 
     let max_degree = *degrees.iter().max().unwrap_or(&1) as f64;

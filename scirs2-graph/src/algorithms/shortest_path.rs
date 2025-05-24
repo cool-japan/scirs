@@ -50,7 +50,9 @@ impl<N: Node, E: EdgeWeight> PartialEq for AStarState<N, E> {
 
 impl<N: Node, E: EdgeWeight> Eq for AStarState<N, E> {}
 
-impl<N: Node, E: EdgeWeight + std::ops::Add<Output = E> + Copy + PartialOrd> Ord for AStarState<N, E> {
+impl<N: Node, E: EdgeWeight + std::ops::Add<Output = E> + Copy + PartialOrd> Ord
+    for AStarState<N, E>
+{
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse order for min-heap behavior
         let self_total = self.cost + self.heuristic;
@@ -67,7 +69,9 @@ impl<N: Node, E: EdgeWeight + std::ops::Add<Output = E> + Copy + PartialOrd> Ord
     }
 }
 
-impl<N: Node, E: EdgeWeight + std::ops::Add<Output = E> + Copy + PartialOrd> PartialOrd for AStarState<N, E> {
+impl<N: Node, E: EdgeWeight + std::ops::Add<Output = E> + Copy + PartialOrd> PartialOrd
+    for AStarState<N, E>
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -401,7 +405,7 @@ pub fn astar_search<N, E, Ix, H>(
 ) -> Result<AStarResult<N, E>>
 where
     N: Node + Clone + Hash + Eq,
-    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd,
+    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd + Copy,
     Ix: petgraph::graph::IndexType,
     H: Fn(&N) -> E,
 {
@@ -470,7 +474,7 @@ pub fn astar_search_digraph<N, E, Ix, H>(
 ) -> Result<AStarResult<N, E>>
 where
     N: Node + Clone + Hash + Eq,
-    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd,
+    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd + Copy,
     Ix: petgraph::graph::IndexType,
     H: Fn(&N) -> E,
 {
@@ -542,7 +546,16 @@ pub fn k_shortest_paths<N, E, Ix>(
 ) -> Result<Vec<(f64, Vec<N>)>>
 where
     N: Node + Clone + Hash + Eq + Ord + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + Clone + num_traits::Zero + num_traits::One + std::ops::Add<Output = E> + PartialOrd + std::marker::Copy + std::fmt::Debug + std::default::Default,
+    E: EdgeWeight
+        + Into<f64>
+        + Clone
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + std::marker::Copy
+        + std::fmt::Debug
+        + std::default::Default,
     Ix: petgraph::graph::IndexType,
 {
     if k == 0 {
@@ -649,8 +662,8 @@ where
 {
     use std::cmp::Reverse;
 
-    let mut distances = HashMap::new();
-    let mut previous = HashMap::new();
+    let mut distances: HashMap<N, f64> = HashMap::new();
+    let mut previous: HashMap<N, N> = HashMap::new();
     let mut heap = BinaryHeap::new();
 
     distances.insert(start.clone(), 0.0);

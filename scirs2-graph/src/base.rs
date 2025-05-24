@@ -180,10 +180,9 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> Graph<N, E, Ix> {
 
     /// Check if an edge exists between two nodes
     pub fn has_edge(&self, source: &N, target: &N) -> bool {
-        if let (Some(&src_idx), Some(&tgt_idx)) = (
-            self.node_indices.get(source),
-            self.node_indices.get(target),
-        ) {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
             self.graph.contains_edge(src_idx, tgt_idx)
         } else {
             false
@@ -195,10 +194,9 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> Graph<N, E, Ix> {
     where
         E: Clone,
     {
-        if let (Some(&src_idx), Some(&tgt_idx)) = (
-            self.node_indices.get(source),
-            self.node_indices.get(target),
-        ) {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
             if let Some(edge_ref) = self.graph.find_edge(src_idx, tgt_idx) {
                 Ok(self.graph[edge_ref].clone())
             } else {
@@ -390,10 +388,9 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> DiGraph<N, E, Ix> {
 
     /// Check if an edge exists between two nodes
     pub fn has_edge(&self, source: &N, target: &N) -> bool {
-        if let (Some(&src_idx), Some(&tgt_idx)) = (
-            self.node_indices.get(source),
-            self.node_indices.get(target),
-        ) {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
             self.graph.contains_edge(src_idx, tgt_idx)
         } else {
             false
@@ -405,10 +402,9 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> DiGraph<N, E, Ix> {
     where
         E: Clone,
     {
-        if let (Some(&src_idx), Some(&tgt_idx)) = (
-            self.node_indices.get(source),
-            self.node_indices.get(target),
-        ) {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
             if let Some(edge_ref) = self.graph.find_edge(src_idx, tgt_idx) {
                 Ok(self.graph[edge_ref].clone())
             } else {
