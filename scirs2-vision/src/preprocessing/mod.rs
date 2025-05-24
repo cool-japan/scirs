@@ -10,6 +10,7 @@ pub mod gamma;
 pub mod guided_filter;
 pub mod morphology;
 pub mod nlm_denoise;
+pub mod retinex;
 
 pub use bilateral::{
     bilateral_filter_advanced, fast_bilateral_filter, joint_bilateral_filter, BilateralParams,
@@ -20,6 +21,9 @@ pub use morphology::{
     black_hat, closing, dilate, erode, morphological_gradient, opening, top_hat, StructuringElement,
 };
 pub use nlm_denoise::{nlm_denoise, nlm_denoise_color, nlm_denoise_parallel};
+pub use retinex::{
+    adaptive_retinex, msrcr, multi_scale_retinex, retinex_with_clahe, single_scale_retinex,
+};
 
 /// Convert an image to grayscale
 ///

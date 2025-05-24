@@ -26,6 +26,7 @@ pub mod prewitt;
 pub mod ransac;
 pub mod shi_tomasi;
 pub mod sobel;
+pub mod tamura;
 pub mod template_matching;
 
 pub use brief::*;
@@ -51,6 +52,7 @@ pub use prewitt::*;
 pub use ransac::*;
 pub use shi_tomasi::*;
 pub use sobel::*;
+pub use tamura::*;
 pub use template_matching::*;
 
 use crate::error::{Result, VisionError};
