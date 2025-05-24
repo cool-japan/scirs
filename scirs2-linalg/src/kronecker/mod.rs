@@ -34,7 +34,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kron;
 ///
@@ -91,7 +91,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array1};
 /// use scirs2_linalg::kronecker::kron_matvec;
 ///
@@ -171,7 +171,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kron_matmul;
 ///
@@ -243,7 +243,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::{kron, kron_factorize};
 ///
@@ -383,7 +383,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kfac_factorization;
 ///
@@ -500,7 +500,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::{kfac_factorization, kfac_update};
 /// use scirs2_linalg::inv;

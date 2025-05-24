@@ -23,6 +23,7 @@ rand = { workspace = true }
 
 # Vision specific dependencies
 image = { workspace = true }
+rayon = { workspace = true }
 
 [features]
 default = []

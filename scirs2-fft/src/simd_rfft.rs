@@ -100,8 +100,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use scirs2_fft::simd_rfft::{rfft_simd, irfft_simd};
+/// ```
+/// use scirs2_fft::{rfft_simd, irfft_simd};
 /// use scirs2_fft::simd_fft::NormMode;
 ///
 /// // Generate a simple signal

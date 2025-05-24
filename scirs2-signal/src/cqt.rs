@@ -791,7 +791,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_cqt_kernel() {
         // Test kernel generation
         let f_min = 55.0; // A1
@@ -819,7 +818,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_constant_q_transform() {
         // Generate a simple sine wave
         let fs = 22050.0;
@@ -878,7 +876,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_cqt_spectrogram() {
         // Generate a chirp signal
         let fs = 22050.0;
@@ -922,7 +919,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_chromagram() {
         // Generate a C major chord (C4, E4, G4)
         let fs = 22050.0;

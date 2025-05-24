@@ -30,7 +30,7 @@
 //!
 //! ## Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{array, ArrayView1};
 //! use scirs2_linalg::matrix_calculus::gradient;
 //! use scirs2_linalg::error::LinalgResult;

@@ -46,7 +46,7 @@ use std::f64::consts::PI;
 /// # Examples
 ///
 /// ```
-/// use scirs2_fft::spectrogram::stft;
+/// use scirs2_fft::spectrogram_stft;
 /// use scirs2_fft::window::Window;
 /// use std::f64::consts::PI;
 ///
@@ -56,7 +56,7 @@ use std::f64::consts::PI;
 /// let chirp = t.iter().map(|&ti| (2.0 * PI * (10.0 + 10.0 * ti) * ti).sin()).collect::<Vec<_>>();
 ///
 /// // Compute STFT
-/// let (f, t, zxx) = stft(
+/// let (f, t, zxx) = spectrogram_stft(
 ///     &chirp,
 ///     Window::Hann,
 ///     256,
@@ -281,8 +281,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use scirs2_fft::spectrogram::spectrogram;
+/// ```
+/// use scirs2_fft::spectrogram;
 /// use scirs2_fft::window::Window;
 /// use std::f64::consts::PI;
 ///
@@ -432,8 +432,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use scirs2_fft::spectrogram::spectrogram_normalized;
+/// ```
+/// use scirs2_fft::spectrogram_normalized;
 /// use std::f64::consts::PI;
 ///
 /// // Generate a chirp signal

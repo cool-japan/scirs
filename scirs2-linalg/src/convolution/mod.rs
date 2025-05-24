@@ -913,7 +913,7 @@ where
 /// // Simple example with smaller dimensions
 /// let input = Array4::<f32>::zeros((1, 1, 4, 4));
 /// let kernel_shape = (1, 1, 2, 2);
-/// 
+///
 /// // Forward pass to get output shape
 /// let kernel = Array4::<f32>::zeros(kernel_shape);
 /// let output = conv2d_im2col(

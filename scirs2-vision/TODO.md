@@ -127,7 +127,7 @@ This module provides computer vision functionality for scientific computing appl
 ## Image Enhancement and Restoration
 
 - [x] Noise reduction
-  - [ ] Non-local means denoising
+  - [x] Non-local means denoising (with parallel version)
   - [x] Bilateral filtering (grayscale and color support)
   - [ ] Wavelet denoising
   - [ ] BM3D algorithm
@@ -137,7 +137,7 @@ This module provides computer vision functionality for scientific computing appl
 - [x] Contrast enhancement
   - [x] CLAHE (Contrast Limited Adaptive Histogram Equalization)
   - [x] Histogram equalization
-  - [ ] Gamma correction
+  - [x] Gamma correction (with auto and adaptive variants)
   - [ ] Retinex algorithms
   - [ ] HDR tone mapping
 - [x] Edge enhancement
@@ -159,7 +159,7 @@ This module provides computer vision functionality for scientific computing appl
   - [ ] Expanded color space support (CMYK, YCbCr, etc.)
   - [ ] ICC profile handling
   - [ ] Color constancy algorithms
-  - [ ] Gamma correction utilities
+  - [x] Gamma correction (with auto and adaptive variants) utilities
 - [ ] Color quantization
   - [ ] Median cut algorithm
   - [ ] K-means color quantization

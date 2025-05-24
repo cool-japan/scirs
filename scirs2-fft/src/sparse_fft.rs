@@ -1463,7 +1463,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::{sparse_fft, reconstruct_spectrum};
 ///
 /// // Generate a sparse signal
@@ -1504,7 +1504,7 @@ pub fn reconstruct_spectrum(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::{sparse_fft, reconstruct_time_domain};
 /// use num_complex::Complex64;
 ///
@@ -1557,7 +1557,7 @@ pub fn reconstruct_time_domain(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::{sparse_fft, reconstruct_high_resolution};
 ///
 /// // Generate a sparse signal
@@ -1600,7 +1600,7 @@ pub fn reconstruct_high_resolution(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::{sparse_fft, reconstruct_filtered};
 ///
 /// // Generate a sparse signal

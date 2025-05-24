@@ -60,8 +60,7 @@ impl Default for WvdConfig {
 ///
 /// # Example
 ///
-/// ```ignore
-/// # FIXME: FFT library expects f64 values but we're passing Complex64
+/// ```
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{wigner_ville, WvdConfig};
 ///
@@ -105,8 +104,7 @@ pub fn wigner_ville(signal: &Array1<f64>, config: WvdConfig) -> SignalResult<Arr
 ///
 /// # Example
 ///
-/// ```ignore
-/// # FIXME: FFT library expects f64 values but we're passing Complex64
+/// ```
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{cross_wigner_ville, WvdConfig};
 ///
@@ -170,8 +168,7 @@ pub fn cross_wigner_ville(
 ///
 /// # Example
 ///
-/// ```ignore
-/// # FIXME: FFT library expects f64 values but we're passing Complex64
+/// ```
 /// use ndarray::{Array1, Array2};
 /// use scirs2_signal::wvd::{smoothed_pseudo_wigner_ville, WvdConfig};
 /// use scirs2_signal::window;
@@ -284,7 +281,7 @@ fn compute_cross_wvd(
     // Analyze each time point
     for t in 0..n {
         // Compute the instantaneous autocorrelation
-        let mut acorr = Array1::zeros(n_fft);
+        let mut acorr = Array1::<Complex64>::zeros(n_fft);
 
         // Determine analysis window range (accounting for boundaries)
         let window_half_length = match &time_window {
@@ -482,7 +479,6 @@ mod tests {
     use std::f64::consts::PI;
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_wigner_ville_chirp() {
         // Create a chirp signal
         let n = 128;
@@ -536,7 +532,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_cross_wigner_ville() {
         // Create two related signals
         let n = 128;
@@ -584,7 +579,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: FFT computation returns complex values that cannot be converted to f64
     fn test_smoothed_pseudo_wigner_ville() {
         // Create a multi-component signal (sum of two sinusoids)
         let n = 128;

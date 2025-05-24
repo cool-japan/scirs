@@ -726,7 +726,6 @@ mod tests {
     use approx::assert_relative_eq;
 
     #[test]
-    #[ignore] // FIXME: Hamming window peak value not exactly 1.0 at center
     fn test_hamming_window() {
         let window = hamming(10, true).unwrap();
         assert_eq!(window.len(), 10);
@@ -738,11 +737,12 @@ mod tests {
 
         // Test specific values
         assert_relative_eq!(window[0], 0.08, epsilon = 0.01);
-        assert_relative_eq!(window[5], 1.0, epsilon = 0.01);
+        // The peak is at indices 4 and 5 for a 10-point symmetric window
+        assert!(window[4] > 0.95);
+        assert!(window[5] > 0.95);
     }
 
     #[test]
-    #[ignore] // FIXME: Hann window peak value not exactly 1.0 at center
     fn test_hann_window() {
         let window = hann(10, true).unwrap();
         assert_eq!(window.len(), 10);
@@ -754,7 +754,9 @@ mod tests {
 
         // Test specific values
         assert_relative_eq!(window[0], 0.0, epsilon = 0.01);
-        assert_relative_eq!(window[5], 1.0, epsilon = 0.01);
+        // The peak is at indices 4 and 5 for a 10-point symmetric window
+        assert!(window[4] > 0.95);
+        assert!(window[5] > 0.95);
     }
 
     #[test]
@@ -769,7 +771,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Bartlett window peak value not exactly 1.0 at center
     fn test_bartlett_window() {
         let window = bartlett(10, true).unwrap();
         assert_eq!(window.len(), 10);
@@ -781,6 +782,8 @@ mod tests {
 
         // Test specific values
         assert_relative_eq!(window[0], 0.0, epsilon = 0.01);
+        // The peak is at indices 4 and 5 for a 10-point symmetric window
+        assert_relative_eq!(window[4], 1.0, epsilon = 0.01);
         assert_relative_eq!(window[5], 1.0, epsilon = 0.01);
     }
 

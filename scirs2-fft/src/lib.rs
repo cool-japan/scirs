@@ -32,7 +32,7 @@
 //!
 //! ## Examples
 //!
-//! ```ignore
+//! ```
 //! use scirs2_fft::{fft, ifft};
 //! use num_complex::Complex64;
 //!
@@ -372,7 +372,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::hilbert;
 /// use std::f64::consts::PI;
 ///

@@ -17,7 +17,7 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::array;
 //! use scirs2_linalg::extended_precision::eigen::{extended_eigvalsh, extended_eigh};
 //!
@@ -224,7 +224,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eigvalsh;
 ///
@@ -322,7 +322,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eigh;
 ///
@@ -818,7 +818,7 @@ where
                 g = c * r - b;
             }
 
-            d[l] = d[l] - p;
+            d[l] -= p;
             e[l] = g;
             e[m] = I::zero();
         }

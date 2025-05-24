@@ -18,7 +18,7 @@
 //!
 //! Basic operations:
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{array, ArrayView2, ArrayView1};
 //! use scirs2_linalg::extended_precision::{extended_matmul, extended_matvec};
 //!
@@ -36,7 +36,7 @@
 //!
 //! Matrix factorizations with extended precision:
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{array, ArrayView2};
 //! use scirs2_linalg::extended_precision::factorizations::{extended_lu, extended_qr, extended_cholesky};
 //!

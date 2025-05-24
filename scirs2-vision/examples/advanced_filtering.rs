@@ -77,7 +77,8 @@ fn demonstrate_guided_filter(img: &DynamicImage) -> Result<()> {
             fast_output.put_pixel(x, y, Luma([val]));
         }
     }
-    fast_output.save("examples/output/fast_guided_filter.png")
+    fast_output
+        .save("examples/output/fast_guided_filter.png")
         .expect("Failed to save fast guided filter output");
 
     // Demonstrate color guided filter
@@ -110,7 +111,8 @@ fn demonstrate_guided_filter(img: &DynamicImage) -> Result<()> {
                 color_output.put_pixel(x, y, Rgb([r, g, b]));
             }
         }
-        color_output.save("examples/output/guided_filter_color.png")
+        color_output
+            .save("examples/output/guided_filter_color.png")
             .expect("Failed to save color guided filter output");
     }
 
@@ -123,7 +125,8 @@ fn demonstrate_oriented_gradients(img: &DynamicImage) -> Result<()> {
     // Basic Sobel edge detection
     println!("  - Computing Sobel edges");
     let (edges, orientations) = sobel_edges_oriented(img, 0.1, true)?;
-    edges.save("examples/output/sobel_edges.png")
+    edges
+        .save("examples/output/sobel_edges.png")
         .expect("Failed to save Sobel edges");
 
     // Compute raw gradients
@@ -141,13 +144,15 @@ fn demonstrate_oriented_gradients(img: &DynamicImage) -> Result<()> {
             mag_img.put_pixel(x as u32, y as u32, Luma([val]));
         }
     }
-    mag_img.save("examples/output/gradient_magnitude.png")
+    mag_img
+        .save("examples/output/gradient_magnitude.png")
         .expect("Failed to save gradient magnitude");
 
     // Visualize gradient orientation with color coding
     println!("  - Creating color-coded orientation visualization");
     let orientation_vis = visualize_gradient_orientation(&magnitude, &orientation, 0.05)?;
-    orientation_vis.save("examples/output/gradient_orientation.png")
+    orientation_vis
+        .save("examples/output/gradient_orientation.png")
         .expect("Failed to save gradient orientation");
 
     // Create orientation visualization with different thresholds
@@ -155,7 +160,8 @@ fn demonstrate_oriented_gradients(img: &DynamicImage) -> Result<()> {
     for threshold in thresholds {
         let vis = visualize_gradient_orientation(&magnitude, &orientation, threshold)?;
         let path = format!("examples/output/gradient_orientation_t{}.png", threshold);
-        vis.save(&path).expect("Failed to save orientation visualization");
+        vis.save(&path)
+            .expect("Failed to save orientation visualization");
         println!(
             "    Saved orientation visualization with threshold={}: {}",
             threshold, path

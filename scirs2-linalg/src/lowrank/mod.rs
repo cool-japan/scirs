@@ -30,7 +30,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::lowrank::truncated_svd;
 ///
@@ -49,7 +49,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// assert_eq!(u.shape(), &[4, 2]);
 /// assert_eq!(s.len(), 2);
 /// assert_eq!(vh.shape(), &[2, 4]);
-/// ```ignore
+/// ```
 pub fn truncated_svd<F>(
     a: &ArrayView2<F>,
     k: usize,
@@ -100,7 +100,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::lowrank::pca;
 ///
@@ -119,7 +119,7 @@ where
 /// assert_eq!(transformed.shape(), &[4, 2]);
 /// assert_eq!(components.shape(), &[2, 3]);
 /// assert_eq!(explained_var.len(), 2);
-/// ```ignore
+/// ```
 pub fn pca<F>(
     x: &ArrayView2<F>,
     n_components: usize,
@@ -184,7 +184,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::lowrank::randomized_svd;
 ///
@@ -203,7 +203,7 @@ where
 /// assert_eq!(u.shape(), &[4, 2]);
 /// assert_eq!(s.len(), 2);
 /// assert_eq!(vh.shape(), &[2, 4]);
-/// ```ignore
+/// ```
 pub fn randomized_svd<F>(
     a: &ArrayView2<F>,
     k: usize,
@@ -314,7 +314,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::lowrank::nmf;
 ///
@@ -335,7 +335,7 @@ where
 /// // Check non-negativity
 /// assert!(w.iter().all(|&x| x >= 0.0));
 /// assert!(h.iter().all(|&x| x >= 0.0));
-/// ```ignore
+/// ```
 pub fn nmf<F>(
     x: &ArrayView2<F>,
     k: usize,

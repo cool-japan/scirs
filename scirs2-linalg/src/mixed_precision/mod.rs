@@ -1302,7 +1302,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_linalg::mixed_precision::mixed_precision_lu;
 ///

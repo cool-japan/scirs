@@ -53,7 +53,7 @@ pub enum WindowType {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::fft::windowing::{create_window, WindowType};
 ///
 /// // Create a Hann window of length 10
@@ -204,7 +204,7 @@ pub fn create_window(window_type: WindowType, length: usize) -> FFTResult<Vec<f6
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::fft::windowing::{apply_window, create_window, WindowType};
 ///
 /// // Create a simple signal

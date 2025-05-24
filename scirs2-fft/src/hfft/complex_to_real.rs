@@ -34,9 +34,9 @@ use super::utility::try_as_complex;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use num_complex::Complex64;
-/// use scirs2_fft::hfft::hfft;
+/// use scirs2_fft::hfft;
 ///
 /// // Create a simple Hermitian-symmetric array (DC component is real)
 /// let x = vec![
