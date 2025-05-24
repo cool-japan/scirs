@@ -616,7 +616,6 @@ pub fn coo_to_sparse(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     #[test]
     fn test_header_parsing() {

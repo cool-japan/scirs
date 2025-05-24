@@ -208,7 +208,7 @@ fn cleanup_files() -> Result<()> {
 
     for file in files {
         if std::path::Path::new(file).exists() {
-            fs::remove_file(file)?;
+            fs::remove_file(file).map_err(|e| scirs2_io::error::IoError::FileError(e.to_string()))?;
             println!("✓ Removed {}", file);
         }
     }

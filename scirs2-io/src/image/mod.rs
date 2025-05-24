@@ -589,7 +589,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
 
     #[test]
     fn test_image_format_from_extension() {

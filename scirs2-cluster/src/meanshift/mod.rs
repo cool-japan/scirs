@@ -187,18 +187,16 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
             })?;
 
             if distances.len() > 1 {
-                // Skip the first distance (to itself, which is 0) and take the max
-                let max_dist_val = distances
-                    .iter()
-                    .skip(1)
-                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                // Skip the first distance (to itself, which is 0) and take the last (k-th neighbor)
+                let kth_dist = distances
+                    .last()
                     .copied()
-                    .unwrap_or(T::from(0.1).unwrap()); // Default to a small positive value if no valid distance is found
+                    .unwrap_or(T::from(1.0).unwrap()); // Default to 1.0 if no valid distance is found
 
-                bandwidth_sum = bandwidth_sum + max_dist_val;
+                bandwidth_sum = bandwidth_sum + kth_dist;
             } else if !distances.is_empty() {
-                // If we only have one distance (to itself), use a small default value
-                bandwidth_sum = bandwidth_sum + T::from(0.1).unwrap();
+                // If we only have one distance (to itself), use a larger default value
+                bandwidth_sum = bandwidth_sum + T::from(1.0).unwrap();
             }
         }
     }
@@ -529,10 +527,13 @@ impl<
             ClusteringError::ComputationError(format!("Failed to build KDTree: {}", e))
         })?;
 
+        // Use a smaller threshold for merging centers (typically bandwidth/10 or less)
+        let merge_threshold = bandwidth * T::from(0.1).unwrap();
+
         for i in 0..sorted_centers.nrows() {
             if unique[i] {
                 let (indices, _) = kdtree
-                    .query_radius(&sorted_centers.row(i).to_vec(), bandwidth)
+                    .query_radius(&sorted_centers.row(i).to_vec(), merge_threshold)
                     .map_err(|e| {
                         ClusteringError::ComputationError(format!("Failed to query KDTree: {}", e))
                     })?;

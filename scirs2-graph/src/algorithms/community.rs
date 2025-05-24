@@ -217,10 +217,12 @@ where
             // Count labels of neighbors
             let mut label_counts: HashMap<usize, usize> = HashMap::new();
 
-            for neighbor in graph.neighbors(node.clone()) {
-                if let Some(&neighbor_idx) = node_to_idx.get(&neighbor) {
-                    let neighbor_label = labels[neighbor_idx];
-                    *label_counts.entry(neighbor_label).or_insert(0) += 1;
+            if let Ok(neighbors) = graph.neighbors(node) {
+                for neighbor in neighbors {
+                    if let Some(&neighbor_idx) = node_to_idx.get(&neighbor) {
+                        let neighbor_label = labels[neighbor_idx];
+                        *label_counts.entry(neighbor_label).or_insert(0) += 1;
+                    }
                 }
             }
 

@@ -44,7 +44,7 @@ where
     E: EdgeWeight,
     Ix: petgraph::graph::IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
     let mut layout = HashMap::new();
 
@@ -78,7 +78,7 @@ where
     E: EdgeWeight + Into<f64>,
     Ix: petgraph::graph::IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {
@@ -180,7 +180,7 @@ where
 ///
 /// Nodes are arranged in layers based on their topological ordering.
 pub fn hierarchical_layout<N, E, Ix>(
-    graph: &Graph<N, E, Ix>,
+    graph: &crate::base::DiGraph<N, E, Ix>,
     layer_height: f64,
     node_spacing: f64,
 ) -> Result<HashMap<N, Position>>
@@ -204,16 +204,10 @@ where
         let mut max_pred_layer = 0;
 
         // Find maximum layer of predecessors
-        if let Ok(neighbors) = graph.neighbors(node) {
-            for neighbor in neighbors {
-                // In undirected graph, check if this is actually a predecessor
-                // by checking if it appears before in topological order
-                if let Some(pos) = topo_order.iter().position(|n| n == &neighbor) {
-                    if pos < topo_order.iter().position(|n| n == node).unwrap() {
-                        if let Some(&pred_layer) = node_to_layer.get(&neighbor) {
-                            max_pred_layer = max_pred_layer.max(pred_layer + 1);
-                        }
-                    }
+        if let Ok(predecessors) = graph.predecessors(node) {
+            for predecessor in predecessors {
+                if let Some(&pred_layer) = node_to_layer.get(&predecessor) {
+                    max_pred_layer = max_pred_layer.max(pred_layer + 1);
                 }
             }
         }
@@ -253,7 +247,7 @@ where
 {
     use crate::spectral::{laplacian, LaplacianType};
 
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n < 2 {
@@ -336,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_hierarchical_layout() {
-        let mut graph: Graph<char, f64> = Graph::new();
+        let mut graph: crate::base::DiGraph<char, f64> = crate::base::DiGraph::new();
         // Create a DAG
         graph.add_edge('A', 'B', 1.0).unwrap();
         graph.add_edge('A', 'C', 1.0).unwrap();

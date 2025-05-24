@@ -29,11 +29,13 @@ where
     for i in 0..n {
         for j in i + 1..n {
             match shortest_path(graph, &nodes[i], &nodes[j]) {
-                Ok((distance, _)) => {
+                Ok(Some(path)) => {
+                    let distance: f64 = path.cost.into();
                     if distance > max_distance {
                         max_distance = distance;
                     }
                 }
+                Ok(None) => return None, // No path exists
                 Err(_) => return None, // Graph is disconnected
             }
         }
@@ -69,11 +71,13 @@ where
         for j in 0..n {
             if i != j {
                 match shortest_path(graph, &nodes[i], &nodes[j]) {
-                    Ok((distance, _)) => {
+                    Ok(Some(path)) => {
+                        let distance: f64 = path.cost.into();
                         if distance > max_distance_from_i {
                             max_distance_from_i = distance;
                         }
                     }
+                    Ok(None) => return None, // No path exists
                     Err(_) => return None, // Graph is disconnected
                 }
             }
@@ -114,11 +118,13 @@ where
         for j in 0..n {
             if i != j {
                 match shortest_path(graph, &nodes[i], &nodes[j]) {
-                    Ok((distance, _)) => {
+                    Ok(Some(path)) => {
+                        let distance: f64 = path.cost.into();
                         if distance > max_distance_from_i {
                             max_distance_from_i = distance;
                         }
                     }
+                    Ok(None) => return vec![], // No path exists
                     Err(_) => return vec![], // Graph is disconnected
                 }
             }

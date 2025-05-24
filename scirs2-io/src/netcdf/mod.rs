@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_create_netcdf() {
-        let mut file = NetCDFFile::create("test.nc").unwrap();
+        let file = NetCDFFile::create("test.nc").unwrap();
         assert_eq!(file.mode, "w");
         assert_eq!(file.path, "test.nc");
         assert!(file.dimensions.is_empty());

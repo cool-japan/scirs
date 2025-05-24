@@ -903,7 +903,7 @@ where
     E: EdgeWeight,
     Ix: IndexType,
 {
-    let nodes: Vec<N> = graph.nodes().collect();
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
     let n = nodes.len();
 
     if n == 0 {

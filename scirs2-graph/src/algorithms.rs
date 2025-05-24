@@ -347,7 +347,8 @@ where
         // Calculate shortest paths to all other nodes
         for other in &nodes {
             if node != other {
-                if let Ok((distance, _)) = shortest_path(graph, node, other) {
+                if let Ok(Some(path)) = shortest_path(graph, node, other) {
+                    let distance: f64 = path.cost.into();
                     total_distance += distance;
                     reachable_count += 1;
                 }

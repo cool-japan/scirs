@@ -17,6 +17,10 @@ pub enum GraphError {
     #[error("Edge not found")]
     EdgeNotFound,
 
+    /// No path found
+    #[error("No path found")]
+    NoPath,
+
     /// Algorithm error
     #[error("Algorithm error: {0}")]
     AlgorithmError(String),
