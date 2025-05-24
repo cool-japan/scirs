@@ -957,8 +957,16 @@ mod tests {
         let result = loess.fit_at_point(&query.view()).unwrap();
 
         // Confidence interval should exist and contain the true value (6.25)
-        let (lower, upper) = result.confidence_interval.unwrap();
-        assert!(lower < 6.25);
-        assert!(upper > 6.25);
+        // Note: confidence intervals require the linalg feature
+        #[cfg(feature = "linalg")]
+        {
+            let (lower, upper) = result.confidence_interval.unwrap();
+            assert!(lower < 6.25);
+            assert!(upper > 6.25);
+        }
+        #[cfg(not(feature = "linalg"))]
+        {
+            assert!(result.confidence_interval.is_none());
+        }
     }
 }

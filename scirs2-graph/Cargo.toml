@@ -33,3 +33,7 @@ default = []
 [[example]]
 name = "graph_demo"
 path = "examples/graph_demo.rs"
+
+[[example]]
+name = "refactor_demo"
+path = "examples/refactor_demo.rs"

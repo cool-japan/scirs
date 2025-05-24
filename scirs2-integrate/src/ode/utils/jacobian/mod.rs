@@ -537,7 +537,13 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                 {
                     // Try using adaptive_jacobian which handles autodiff with proper bounds
                     let f_current = f(t, y.view());
-                    self.jacobian = Some(adaptive_jacobian(f, t, y, &f_current, scale.unwrap_or(F::one()))?);
+                    self.jacobian = Some(adaptive_jacobian(
+                        f,
+                        t,
+                        y,
+                        &f_current,
+                        scale.unwrap_or(F::one()),
+                    )?);
                 }
                 #[cfg(not(feature = "autodiff"))]
                 {

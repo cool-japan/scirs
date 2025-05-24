@@ -207,7 +207,7 @@ where
                 // For a Gaussian peak with scale 's', radius ~ 3/sqrt(s) covers >99% of the mass
                 let estimated_radius = 3.0 / scale.sqrt();
                 // Clamp to reasonable bounds
-                estimated_radius.min(0.3).max(0.02)
+                estimated_radius.clamp(0.02, 0.3)
             } else {
                 // Otherwise use CV-based heuristic
                 match cv {

@@ -6,7 +6,7 @@
 //! accuracy and performance for complex ODE systems.
 
 use crate::common::IntegrateFloat;
-use crate::error::{IntegrateResult, IntegrateError};
+use crate::error::{IntegrateError, IntegrateResult};
 use ndarray::{Array1, Array2, ArrayView1};
 
 /// Compute Jacobian matrix using automatic differentiation

@@ -157,14 +157,10 @@ mod tests {
     #[test]
     fn test_greedy_coloring() {
         // Create a triangle (needs 3 colors with greedy)
-        let mut graph = UnGraph::<char, ()>::new_undirected();
-        let a = graph.add_node('A');
-        let b = graph.add_node('B');
-        let c = graph.add_node('C');
-
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, c, ());
-        graph.add_edge(c, a, ());
+        let mut graph = create_graph::<char, ()>();
+        graph.add_edge('A', 'B', ()).unwrap();
+        graph.add_edge('B', 'C', ()).unwrap();
+        graph.add_edge('C', 'A', ()).unwrap();
 
         let coloring = greedy_coloring(&graph);
         assert_eq!(coloring.num_colors, 3);
