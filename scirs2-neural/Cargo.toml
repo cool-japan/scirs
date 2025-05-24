@@ -11,40 +11,40 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", optional = true, features = ["linalg", "openblas"] }
+scirs2-core = { workspace = true, optional = true, features = ["linalg", "openblas"] }
 # Temporarily commented out for publishing
-# scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4", optional = true }
-# scirs2-optimize = { path = "../scirs2-optimize", version = "0.1.0-alpha.4", optional = true }
-# scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.4", optional = true }
+# scirs2-linalg = { workspace = true, optional = true }
+# scirs2-optimize = { workspace = true, optional = true }
+# scirs2-optim = { workspace = true, optional = true }
 # Integration with other scirs2 modules
-scirs2-metrics = { path = "../scirs2-metrics", version = "0.1.0-alpha.4", optional = true, default-features = false, features = ["neural_common"] }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-ndarray-stats = "0.5.0"
-ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
-ndarray-rand = "0.14.0"
-num-integer = "0.1.46"
-approx = "0.5.1"
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "1.0.69"
-rand = "0.9.0"
-rand_distr = "0.5.0"
-blas = "0.23.0"
-openblas-src = "0.10.11"
+scirs2-metrics = { workspace = true, optional = true, default-features = false, features = ["neural_common"] }
+ndarray = { workspace = true }
+ndarray-stats-05 = { workspace = true }
+ndarray-linalg = { workspace = true }
+ndarray-rand = { workspace = true }
+num-integer = { workspace = true }
+approx = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+blas = { workspace = true }
+openblas-src = { workspace = true }
 
 # AI/ML specific dependencies
-autograd = "1.1.1"
+autograd = { workspace = true }
 # Temporarily commented out for publishing
-# scirs2-autograd = { path = "../scirs2-autograd", version = "0.1.0-alpha.4" }
+# scirs2-autograd = { workspace = true }
 
 # Note: clip_example.rs and feature_fusion_example.rs were removed due to BLAS linking issues
 
 # Serialization dependencies
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-serde_cbor = "0.11.2"
-rmp-serde = "1.0.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+serde_cbor = { workspace = true }
+rmp-serde = { workspace = true }
 
 # Future dependency for PandRS and NumRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }

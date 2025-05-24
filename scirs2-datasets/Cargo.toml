@@ -11,26 +11,26 @@ categories = ["science", "data-structures", "algorithms"]
 
 [dependencies]
 # Core dependencies
-ndarray = { version = "0.16.1", features = ["serde"] }
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4", features = ["cache"] }
-rand = "0.9.0"
-rand_distr = "0.5.1"
-thiserror = "1.0.69"
+ndarray = { workspace = true }
+scirs2-core = { workspace = true, features = ["cache"] }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+thiserror = { workspace = true }
 
 # Data handling
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-csv = "1.2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+csv = { workspace = true }
 
 # Datasets specific dependencies
-reqwest = { version = "0.11", features = ["blocking", "json"], optional = true }
-dirs = "5.0"
-flate2 = "1.0"
-zip = "0.6"
-blake3 = "1.5"
-lazy_static = "1.4"
-ureq = "2.9"
-tempfile = "3.10"
+reqwest = { workspace = true, optional = true }
+dirs = { workspace = true }
+flate2 = { workspace = true }
+zip = { workspace = true }
+blake3 = { workspace = true }
+lazy_static = { workspace = true }
+ureq = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = []

@@ -74,15 +74,15 @@ fn create_performance_plot(data: &[BenchmarkData]) -> Result<(), Box<dyn Error>>
     }
 
     let layout = Layout::new()
-        .title(Title::new("FFT Performance Comparison"))
+        .title(Title::with_text("FFT Performance Comparison"))
         .x_axis(
             Axis::new()
-                .title(Title::new("Input Size"))
+                .title(Title::with_text("Input Size"))
                 .type_(AxisType::Log),
         )
         .y_axis(
             Axis::new()
-                .title(Title::new("Time (ms)"))
+                .title(Title::with_text("Time (ms)"))
                 .type_(AxisType::Log),
         );
 
@@ -124,15 +124,15 @@ fn create_memory_plot(data: &[BenchmarkData]) -> Result<(), Box<dyn Error>> {
     }
 
     let layout = Layout::new()
-        .title(Title::new("FFT Memory Usage Comparison"))
+        .title(Title::with_text("FFT Memory Usage Comparison"))
         .x_axis(
             Axis::new()
-                .title(Title::new("Input Size"))
+                .title(Title::with_text("Input Size"))
                 .type_(AxisType::Log),
         )
         .y_axis(
             Axis::new()
-                .title(Title::new("Memory (KB)"))
+                .title(Title::with_text("Memory (KB)"))
                 .type_(AxisType::Log),
         );
 
@@ -174,13 +174,17 @@ fn create_accuracy_plot(data: &[BenchmarkData]) -> Result<(), Box<dyn Error>> {
     }
 
     let layout = Layout::new()
-        .title(Title::new("FFT Accuracy Comparison"))
+        .title(Title::with_text("FFT Accuracy Comparison"))
         .x_axis(
             Axis::new()
-                .title(Title::new("Input Size"))
+                .title(Title::with_text("Input Size"))
                 .type_(AxisType::Log),
         )
-        .y_axis(Axis::new().title(Title::new("Error")).type_(AxisType::Log));
+        .y_axis(
+            Axis::new()
+                .title(Title::with_text("Error"))
+                .type_(AxisType::Log),
+        );
 
     plot.set_layout(layout);
     plot.write_html("benchmark_results/accuracy_comparison.html");

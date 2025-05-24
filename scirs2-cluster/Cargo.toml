@@ -11,15 +11,15 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
-scirs2-spatial = { path = "../scirs2-spatial", version = "0.1.0-alpha.4" }
-scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
-scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.4" }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
+scirs2-core = { workspace = true }
+scirs2-spatial = { workspace = true }
+scirs2-linalg = { workspace = true }
+scirs2-stats = { workspace = true }
+ndarray = { workspace = true }
 ndarray-linalg = { workspace = true }
-num-traits = "0.2.19"
-thiserror = "2.0.12"
-rand = "0.9.0"
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
 rand_distr = { workspace = true }
-approx = "0.5.1"
-rayon = "1.10"
+approx = { workspace = true }
+rayon = { workspace = true }

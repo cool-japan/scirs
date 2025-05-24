@@ -1,5 +1,8 @@
 use num_complex::Complex64;
-use plotly::{common::Mode, Layout, Plot, Scatter};
+use plotly::{
+    common::{Mode, Title},
+    Layout, Plot, Scatter,
+};
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand_distr::{Distribution, Normal};
@@ -241,16 +244,16 @@ fn run_algorithm_comparison(n: usize, sparsity: usize, noise_level: f64) {
     // Set plot layouts
     time_domain_plot.set_layout(
         Layout::new()
-            .title("<b>Time Domain Signal</b>".into())
-            .x_axis(plotly::layout::Axis::new().title("Sample".into()))
-            .y_axis(plotly::layout::Axis::new().title("Amplitude".into())),
+            .title(Title::with_text("<b>Time Domain Signal</b>"))
+            .x_axis(plotly::layout::Axis::new().title(Title::with_text("Sample")))
+            .y_axis(plotly::layout::Axis::new().title(Title::with_text("Amplitude"))),
     );
 
     frequency_domain_plot.set_layout(
         Layout::new()
-            .title("<b>Frequency Domain Components</b>".into())
-            .x_axis(plotly::layout::Axis::new().title("Frequency Bin".into()))
-            .y_axis(plotly::layout::Axis::new().title("Magnitude".into())),
+            .title(Title::with_text("<b>Frequency Domain Components</b>"))
+            .x_axis(plotly::layout::Axis::new().title(Title::with_text("Frequency Bin")))
+            .y_axis(plotly::layout::Axis::new().title(Title::with_text("Magnitude"))),
     );
 
     // Save plots
@@ -523,11 +526,13 @@ fn run_iteration_comparison() {
     // Set plot layout
     plot.set_layout(
         Layout::new()
-            .title("<b>Effect of Iterations on Iterative Sparse FFT Accuracy</b>".into())
-            .x_axis(plotly::layout::Axis::new().title("Number of Iterations".into()))
+            .title(Title::with_text(
+                "<b>Effect of Iterations on Iterative Sparse FFT Accuracy</b>",
+            ))
+            .x_axis(plotly::layout::Axis::new().title(Title::with_text("Number of Iterations")))
             .y_axis(
                 plotly::layout::Axis::new()
-                    .title("Recall (%)".into())
+                    .title(Title::with_text("Recall (%)"))
                     .range(vec![0.0, 100.0]),
             ),
     );

@@ -12,33 +12,33 @@ build = "build.rs"
 
 [dependencies]
 # Core dependencies
-scirs2-core = { path = "../scirs2-core", version = "0.1.0-alpha.4" }
+scirs2-core = { workspace = true }
 # Optional dependencies for integration with other modules
 # Optional dependencies temporarily commented out to avoid circular dependency
-# scirs2-neural = { path = "../scirs2-neural", version = "0.1.0-alpha.4", optional = true, default-features = false, features = ["core"] }
-# scirs2-optim = { path = "../scirs2-optim", version = "0.1.0-alpha.4", optional = true, default-features = false }
+# scirs2-neural = { workspace = true, optional = true, default-features = false, features = ["core"] }
+# scirs2-optim = { workspace = true, optional = true, default-features = false }
 # Temporarily removed for publishing
-# # # scirs2-stats = { path = "../scirs2-stats", version = "0.1.0-alpha.4" }
-# # # scirs2-linalg = { path = "../scirs2-linalg", version = "0.1.0-alpha.4" }
-ndarray = { version = "0.16.1", features = ["serde", "rayon"] }
-num-traits = "0.2.19"
-num-complex = "0.4.6"
-thiserror = "2.0.12"
-approx = "0.5.1"
-rand = "0.9.0"
-rand_distr = "0.4.3"
-rayon = "1.9.0"
-parking_lot = "0.12.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-toml = "0.8"
-ciborium = "0.2"  # CBOR serialization
-chrono = { version = "0.4", features = ["serde"] }
+# # # scirs2-stats = { workspace = true }
+# # # scirs2-linalg = { workspace = true }
+ndarray = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+approx = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+rayon = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+ciborium = { workspace = true }  # CBOR serialization
+chrono = { workspace = true }
 
 # Visualization dependencies (optional)
-plotters = { version = "0.3.5", optional = true }
-plotly = { version = "0.8.4", optional = true }
+plotters = { workspace = true, optional = true }
+plotly = { workspace = true, optional = true }
 
 # BLAS dependencies for linear algebra operations
 openblas-src = { workspace = true, features = ["cblas", "lapacke"] }

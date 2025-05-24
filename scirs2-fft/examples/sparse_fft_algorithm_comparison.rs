@@ -1,4 +1,7 @@
-use plotly::{common::Mode, Layout, Plot, Scatter};
+use plotly::{
+    common::{Mode, Title},
+    Layout, Plot, Scatter,
+};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rand_distr::{Distribution, Normal};
@@ -275,22 +278,24 @@ fn analyze_algorithm_accuracy() {
     // Set layouts
     accuracy_plot.set_layout(
         Layout::new()
-            .title("<b>Algorithm Accuracy vs Noise Level</b>".into())
-            .x_axis(plotly::layout::Axis::new().title("Noise Level (σ)".into()))
+            .title(Title::with_text("<b>Algorithm Accuracy vs Noise Level</b>"))
+            .x_axis(plotly::layout::Axis::new().title(Title::with_text("Noise Level (σ)")))
             .y_axis(
                 plotly::layout::Axis::new()
-                    .title("Frequency Error (%)".into())
+                    .title(Title::with_text("Frequency Error (%)"))
                     .range(vec![0.0, 30.0]),
             ),
     );
 
     time_plot.set_layout(
         Layout::new()
-            .title("<b>Algorithm Execution Time vs Noise Level</b>".into())
-            .x_axis(plotly::layout::Axis::new().title("Noise Level (σ)".into()))
+            .title(Title::with_text(
+                "<b>Algorithm Execution Time vs Noise Level</b>",
+            ))
+            .x_axis(plotly::layout::Axis::new().title(Title::with_text("Noise Level (σ)")))
             .y_axis(
                 plotly::layout::Axis::new()
-                    .title("Execution Time (ms)".into())
+                    .title(Title::with_text("Execution Time (ms)"))
                     .type_(plotly::layout::AxisType::Log),
             ),
     );
@@ -391,15 +396,17 @@ fn analyze_scaling_behavior() {
     // Set layout
     scaling_plot.set_layout(
         Layout::new()
-            .title("<b>Algorithm Scaling with Signal Size</b>".into())
+            .title(Title::with_text(
+                "<b>Algorithm Scaling with Signal Size</b>",
+            ))
             .x_axis(
                 plotly::layout::Axis::new()
-                    .title("Signal Size (samples)".into())
+                    .title(Title::with_text("Signal Size (samples)"))
                     .type_(plotly::layout::AxisType::Log),
             )
             .y_axis(
                 plotly::layout::Axis::new()
-                    .title("Execution Time (ms)".into())
+                    .title(Title::with_text("Execution Time (ms)"))
                     .type_(plotly::layout::AxisType::Log),
             ),
     );
