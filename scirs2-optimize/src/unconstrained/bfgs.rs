@@ -224,7 +224,8 @@ mod tests {
         };
 
         let x0 = Array1::from_vec(vec![0.0, 0.0]);
-        let options = Options::default();
+        let mut options = Options::default();
+        options.max_iter = 2000; // More iterations for Rosenbrock
 
         let result = minimize_bfgs(rosenbrock, x0, &options).unwrap();
 

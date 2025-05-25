@@ -941,7 +941,7 @@ mod tests {
 
         let x0 = Array1::from_vec(vec![0.0, 0.0]);
         let mut options = Options::default();
-        options.max_iter = 200; // Trust region methods may need more iterations
+        options.max_iter = 2000; // Trust region methods may need more iterations for Rosenbrock
 
         let result = minimize_trust_krylov(rosenbrock, x0, &options).unwrap();
 

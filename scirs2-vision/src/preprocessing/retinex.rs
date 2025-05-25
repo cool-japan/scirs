@@ -4,7 +4,7 @@
 //! algorithms for dynamic range compression and color constancy.
 
 use crate::error::Result;
-use image::{DynamicImage, RgbImage};
+use image::{DynamicImage, GenericImageView, RgbImage};
 use ndarray::{Array2, Array3};
 
 /// Single-Scale Retinex (SSR)
