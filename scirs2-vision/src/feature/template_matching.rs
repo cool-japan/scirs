@@ -28,8 +28,11 @@ pub enum MatchMethod {
 /// Match result containing position and score
 #[derive(Debug, Clone)]
 pub struct MatchResult {
+    /// X coordinate of the match
     pub x: u32,
+    /// Y coordinate of the match
     pub y: u32,
+    /// Match score (higher is better)
     pub score: f32,
 }
 

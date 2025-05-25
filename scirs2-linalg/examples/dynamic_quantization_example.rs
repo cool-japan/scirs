@@ -67,9 +67,7 @@ fn create_drifting_data_sequence(num_matrices: usize, drift_factor: f32) -> Vec<
 
         // Drift the distribution parameters
         mean += drift_factor * rng.random_range(-1.0..1.0);
-        std_dev = (std_dev + drift_factor * rng.random_range(-0.1..0.3))
-            .max(0.5)
-            .min(3.0);
+        std_dev = (std_dev + drift_factor * rng.random_range(-0.1..0.3)).clamp(0.5, 3.0);
     }
 
     result
@@ -176,7 +174,7 @@ fn compare_ema_factors(data_sequence: &[Array2<f32>], bits: u8) {
 
         // Initialize with first batch
         let params =
-            calibrate_matrix(&data_sequence[0].view(), bits, &configs.last().unwrap()).unwrap();
+            calibrate_matrix(&data_sequence[0].view(), bits, configs.last().unwrap()).unwrap();
         params_list.push(params);
     }
 
