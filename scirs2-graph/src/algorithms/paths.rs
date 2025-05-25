@@ -211,21 +211,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generators::create_graph;
     use crate::error::Result as GraphResult;
+    use crate::generators::create_graph;
 
     #[test]
     fn test_eulerian_circuit() -> GraphResult<()> {
         // Create a square (all vertices have even degree)
         let mut graph = create_graph::<i32, ()>();
-        
+
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
         graph.add_edge(2, 3, ())?;
         graph.add_edge(3, 0, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::Circuit);
-        
+
         Ok(())
     }
 
@@ -233,26 +233,31 @@ mod tests {
     fn test_eulerian_path() -> GraphResult<()> {
         // Create a path graph (2 vertices with odd degree)
         let mut graph = create_graph::<i32, ()>();
-        
+
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::Path);
-        
+
         Ok(())
     }
 
     #[test]
     fn test_no_eulerian() -> GraphResult<()> {
-        // Create a triangle (3 vertices with odd degree)
+        // Create a graph with 4 vertices of odd degree (no Eulerian path/circuit possible)
         let mut graph = create_graph::<i32, ()>();
-        
+
+        // Create a graph like: 0-1-2
+        //                         X
+        //                       3-4-5
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
-        graph.add_edge(2, 0, ())?;
+        graph.add_edge(1, 4, ())?; // Bridge
+        graph.add_edge(3, 4, ())?;
+        graph.add_edge(4, 5, ())?;
 
         assert_eq!(eulerian_type(&graph), EulerianType::None);
-        
+
         Ok(())
     }
 
@@ -260,13 +265,13 @@ mod tests {
     fn test_hamiltonian_path() -> GraphResult<()> {
         // Create a path graph (has Hamiltonian path)
         let mut graph = create_graph::<i32, ()>();
-        
+
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
         graph.add_edge(2, 3, ())?;
 
         assert!(has_hamiltonian_path(&graph));
-        
+
         Ok(())
     }
 
@@ -274,7 +279,7 @@ mod tests {
     fn test_hamiltonian_circuit() -> GraphResult<()> {
         // Create a square (has Hamiltonian circuit)
         let mut graph = create_graph::<i32, ()>();
-        
+
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
         graph.add_edge(2, 3, ())?;
@@ -284,13 +289,13 @@ mod tests {
 
         // Star graph (no Hamiltonian circuit)
         let mut star = create_graph::<i32, ()>();
-        
+
         star.add_edge(0, 1, ())?;
         star.add_edge(0, 2, ())?;
         star.add_edge(0, 3, ())?;
 
         assert!(!has_hamiltonian_circuit(&star));
-        
+
         Ok(())
     }
 }

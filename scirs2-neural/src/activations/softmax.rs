@@ -70,21 +70,21 @@ impl<F: Float + Debug> Activation<F> for Softmax {
         if input.ndim() == 1 && self.axis == 0 {
             // Find max for numerical stability
             let max_val = input.fold(F::neg_infinity(), |a, &b| a.max(b));
-            
+
             // Compute exp(x - max)
             let mut output = input.clone();
             for val in output.iter_mut() {
                 *val = (*val - max_val).exp();
             }
-            
+
             // Compute sum
             let sum = output.fold(F::zero(), |a, &b| a + b);
-            
+
             // Normalize
             for val in output.iter_mut() {
                 *val = *val / sum;
             }
-            
+
             return Ok(output);
         }
 
@@ -127,37 +127,39 @@ impl<F: Float + Debug> Activation<F> for Softmax {
     ) -> Result<Array<F, ndarray::IxDyn>> {
         // Softmax backward pass: grad_input = softmax * (grad_output - sum(grad_output * softmax))
         // This implements the full Jacobian-vector product for softmax
-        
+
         // Special case for 1D arrays
         if output.ndim() == 1 && self.axis == 0 {
             // Compute dot product of grad_output and output (softmax values)
-            let dot_product = grad_output.iter()
+            let dot_product = grad_output
+                .iter()
                 .zip(output.iter())
                 .map(|(&g, &s)| g * s)
                 .fold(F::zero(), |a, b| a + b);
-            
+
             // Compute gradient: s * (grad_output - dot_product)
-            let grad_input = output.iter()
+            let grad_input = output
+                .iter()
                 .zip(grad_output.iter())
                 .map(|(&s, &g)| s * (g - dot_product))
                 .collect::<Vec<_>>();
-            
+
             return Ok(Array::from_vec(grad_input).into_dyn());
         }
 
         // General case for multi-dimensional arrays
         // Compute sum(grad_output * softmax) along the softmax axis
         let weighted_sum = (grad_output * output).sum_axis(Axis(self.axis));
-        
+
         // Broadcast the weighted sum back to original shape
         let mut sum_shape = output.shape().to_vec();
         sum_shape[self.axis] = 1;
         let weighted_sum_reshaped = weighted_sum.into_shape_with_order(sum_shape)?;
         let weighted_sum_broadcast = weighted_sum_reshaped.broadcast(output.shape()).unwrap();
-        
+
         // Compute gradient: softmax * (grad_output - weighted_sum)
         let grad_input = output * (grad_output - &weighted_sum_broadcast);
-        
+
         Ok(grad_input)
     }
 }

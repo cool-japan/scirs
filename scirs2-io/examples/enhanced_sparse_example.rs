@@ -120,7 +120,7 @@ fn demonstrate_format_conversion() -> Result<()> {
         let row_access_time = start.elapsed();
 
         // Drop CSR reference before getting CSC
-        drop(csr);
+        let _ = csr;
 
         // Time COO -> CSC conversion
         let start = Instant::now();

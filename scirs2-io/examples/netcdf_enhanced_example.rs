@@ -6,10 +6,8 @@
 //! - Working with different data types
 //! - Managing NetCDF file structure
 
-use ndarray::{Array1, Array2, Array3};
 use scirs2_io::error::Result;
-use scirs2_io::netcdf::{NetCDFDataType, NetCDFFile, NetCDFOptions};
-use std::f64::consts::PI;
+use scirs2_io::netcdf::{NetCDFDataType, NetCDFFile};
 
 fn main() -> Result<()> {
     println!("=== Enhanced NetCDF Example ===");

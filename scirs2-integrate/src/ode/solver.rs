@@ -68,8 +68,7 @@ use ndarray::{Array1, ArrayView1};
 ///
 /// ```
 /// use ndarray::{array, Array2, ArrayView1};
-/// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
-/// use scirs2_integrate::ode::utils::mass_matrix::MassMatrix;
+/// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions, MassMatrix};
 ///
 /// // Define a constant mass matrix for the ODE system
 /// let mut mass_matrix = Array2::<f64>::eye(2);

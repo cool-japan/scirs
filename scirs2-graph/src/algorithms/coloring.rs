@@ -168,7 +168,7 @@ mod tests {
     fn test_bipartite_graph_coloring() {
         // Create a bipartite graph (needs only 2 colors)
         let mut graph = create_graph::<i32, ()>();
-        
+
         // Bipartite structure: 0-1, 0-3, 2-1, 2-3
         graph.add_edge(0, 1, ()).unwrap();
         graph.add_edge(0, 3, ()).unwrap();
@@ -183,7 +183,7 @@ mod tests {
     fn test_chromatic_number() {
         // Triangle graph needs exactly 3 colors
         let mut triangle = create_graph::<i32, ()>();
-        
+
         triangle.add_edge(0, 1, ()).unwrap();
         triangle.add_edge(1, 2, ()).unwrap();
         triangle.add_edge(2, 0, ()).unwrap();
@@ -192,7 +192,7 @@ mod tests {
 
         // Bipartite graph needs exactly 2 colors
         let mut bipartite = create_graph::<i32, ()>();
-        
+
         bipartite.add_edge(0, 1, ()).unwrap();
         bipartite.add_edge(1, 2, ()).unwrap();
         bipartite.add_edge(2, 3, ()).unwrap();

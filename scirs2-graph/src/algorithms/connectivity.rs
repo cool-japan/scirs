@@ -389,14 +389,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generators::create_graph;
     use crate::error::Result as GraphResult;
+    use crate::generators::create_graph;
 
     #[test]
     fn test_connected_components() -> GraphResult<()> {
         // Create a graph with two components: {0, 1, 2} and {3, 4}
         let mut graph = create_graph::<i32, ()>();
-        
+
         graph.add_edge(0, 1, ())?;
         graph.add_edge(1, 2, ())?;
         graph.add_edge(3, 4, ())?;
@@ -408,7 +408,7 @@ mod tests {
         let sizes: Vec<usize> = components.iter().map(|c| c.len()).collect();
         assert!(sizes.contains(&3));
         assert!(sizes.contains(&2));
-        
+
         Ok(())
     }
 
@@ -416,12 +416,12 @@ mod tests {
     fn test_strongly_connected_components() -> GraphResult<()> {
         // Create a directed graph with SCCs
         let mut graph = crate::base::DiGraph::<&str, ()>::new();
-        
+
         // Create a cycle A -> B -> C -> A
         graph.add_edge("A", "B", ())?;
         graph.add_edge("B", "C", ())?;
         graph.add_edge("C", "A", ())?;
-        
+
         // Add isolated node D by adding an edge from D to E
         graph.add_edge("D", "E", ())?;
 
@@ -432,7 +432,7 @@ mod tests {
         let sizes: Vec<usize> = sccs.iter().map(|c| c.len()).collect();
         assert!(sizes.contains(&3));
         assert_eq!(sizes.iter().filter(|&&s| s == 1).count(), 2);
-        
+
         Ok(())
     }
 
@@ -440,7 +440,7 @@ mod tests {
     fn test_articulation_points() -> GraphResult<()> {
         // Create a graph where node 1 is an articulation point
         let mut graph = create_graph::<i32, ()>();
-        
+
         // Structure: 0 - 1 - 2
         //                |
         //                3
@@ -451,7 +451,7 @@ mod tests {
         let aps = articulation_points(&graph);
         assert_eq!(aps.len(), 1);
         assert!(aps.contains(&1));
-        
+
         Ok(())
     }
 
@@ -459,7 +459,7 @@ mod tests {
     fn test_is_bipartite() -> GraphResult<()> {
         // Create a bipartite graph (square)
         let mut bipartite = create_graph::<i32, ()>();
-        
+
         bipartite.add_edge(0, 1, ())?;
         bipartite.add_edge(1, 2, ())?;
         bipartite.add_edge(2, 3, ())?;
@@ -471,14 +471,14 @@ mod tests {
 
         // Create a non-bipartite graph (triangle)
         let mut non_bipartite = create_graph::<i32, ()>();
-        
+
         non_bipartite.add_edge(0, 1, ())?;
         non_bipartite.add_edge(1, 2, ())?;
         non_bipartite.add_edge(2, 0, ())?;
 
         let result = is_bipartite(&non_bipartite);
         assert!(!result.is_bipartite);
-        
+
         Ok(())
     }
 
@@ -496,9 +496,10 @@ mod tests {
         // Bridge: 2-3
         graph.add_edge(2, 3, ())?;
 
-        // Triangle 2: 3-4
+        // Add another triangle to make bridge more obvious
         graph.add_edge(3, 4, ())?;
-        graph.add_edge(4, 3, ())?; // Just a double edge, still makes 3-4 connected
+        graph.add_edge(4, 5, ())?;
+        graph.add_edge(5, 3, ())?;
 
         let bridges_found = bridges(&graph);
         assert_eq!(bridges_found.len(), 1);
@@ -506,7 +507,7 @@ mod tests {
         // The bridge should be (2, 3) or (3, 2)
         let bridge = &bridges_found[0];
         assert!((bridge.0 == 2 && bridge.1 == 3) || (bridge.0 == 3 && bridge.1 == 2));
-        
+
         Ok(())
     }
 }

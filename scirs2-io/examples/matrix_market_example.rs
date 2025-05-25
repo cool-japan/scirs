@@ -193,7 +193,7 @@ fn read_and_analyze_matrices() -> Result<()> {
 
     // Show some entries
     println!("      First 5 non-zero entries:");
-    for (i, entry) in sparse_matrix.entries.iter().take(5).enumerate() {
+    for (_i, entry) in sparse_matrix.entries.iter().take(5).enumerate() {
         println!(
             "        ({}, {}) = {}",
             entry.row + 1,
