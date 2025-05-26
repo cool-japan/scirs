@@ -4,7 +4,7 @@
 //! that considers both spatial distance and intensity difference.
 
 use crate::error::Result;
-use image::{DynamicImage, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
+use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
 use rayon::prelude::*;
 use std::sync::Arc;
 

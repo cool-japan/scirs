@@ -44,7 +44,7 @@ fn demonstrate_guided_filter(img: &DynamicImage) -> Result<()> {
     let radii = vec![2, 5, 10];
     let epsilons = vec![0.01, 0.1, 0.5];
 
-    for (i, (&radius, &epsilon)) in radii.iter().zip(epsilons.iter()).enumerate() {
+    for (_i, (&radius, &epsilon)) in radii.iter().zip(epsilons.iter()).enumerate() {
         println!(
             "  - Applying guided filter with radius={}, epsilon={}",
             radius, epsilon
@@ -124,7 +124,7 @@ fn demonstrate_oriented_gradients(img: &DynamicImage) -> Result<()> {
 
     // Basic Sobel edge detection
     println!("  - Computing Sobel edges");
-    let (edges, orientations) = sobel_edges_oriented(img, 0.1, true)?;
+    let (edges, _orientations) = sobel_edges_oriented(img, 0.1, true)?;
     edges
         .save("examples/output/sobel_edges.png")
         .expect("Failed to save Sobel edges");

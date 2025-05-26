@@ -1,7 +1,8 @@
 //! Comprehensive demonstration of vision module features
 
+use image::GenericImageView;
 use scirs2_vision::feature::{
-    canny_edge_detection, gabor_filter, hough_lines, lbp, template_match, GaborParams, HoughParams,
+    canny, gabor_filter, hough_lines, lbp, template_match, GaborParams, HoughParams,
     LBPType, MatchMethod,
 };
 use scirs2_vision::quality::{psnr, ssim, SSIMParams};
@@ -17,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Edge Detection and Line Detection
     println!("\n1. Edge Detection and Line Detection");
-    let edges = canny_edge_detection(&img, 50.0, 100.0)?;
+    let edges = canny(&img, 1.0, 0.05, 0.1, 20, 10)?;
     edges.save("examples/output/demo_edges.jpg")?;
 
     let lines = hough_lines(&edges, &HoughParams::default())?;

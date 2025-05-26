@@ -20,6 +20,7 @@ num-traits = { workspace = true }
 num-complex = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
+rand_distr = { workspace = true }
 
 # Vision specific dependencies
 image = { workspace = true }
