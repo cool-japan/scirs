@@ -195,7 +195,6 @@ fn demonstrate_gamma_correction(img: &DynamicImage) -> Result<()> {
 
 /// Add Gaussian noise to an image
 fn add_gaussian_noise(img: &DynamicImage, noise_level: f32) -> DynamicImage {
-    use rand::Rng;
     use rand_distr::{Distribution, Normal};
 
     let mut rng = rand::rng();

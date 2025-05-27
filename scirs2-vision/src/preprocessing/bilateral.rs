@@ -4,6 +4,7 @@
 //! that considers both spatial distance and intensity difference.
 
 use crate::error::Result;
+#[allow(unused_imports)] // GenericImageView is used for the dimensions() method
 use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -150,12 +151,12 @@ fn compute_spatial_weights(radius: usize, sigma: f32) -> Vec<Vec<f32>> {
     let mut weights = vec![vec![0.0; size]; size];
     let sigma2 = sigma * sigma;
 
-    for dy in 0..size {
-        for dx in 0..size {
+    for (dy, row) in weights.iter_mut().enumerate() {
+        for (dx, weight) in row.iter_mut().enumerate() {
             let y = dy as f32 - radius as f32;
             let x = dx as f32 - radius as f32;
             let dist2 = x * x + y * y;
-            weights[dy][dx] = (-dist2 / (2.0 * sigma2)).exp();
+            *weight = (-dist2 / (2.0 * sigma2)).exp();
         }
     }
 
@@ -178,8 +179,8 @@ fn apply_bilateral_pixel_gray(
     let mut weighted_sum = 0.0f32;
     let mut weight_sum = 0.0f32;
 
-    for dy in 0..2 * radius + 1 {
-        for dx in 0..2 * radius + 1 {
+    for (dy, spatial_row) in spatial_weights.iter().enumerate() {
+        for (dx, &spatial_weight) in spatial_row.iter().enumerate() {
             let x = cx as i32 + dx as i32 - radius as i32;
             let y = cy as i32 + dy as i32 - radius as i32;
 
@@ -192,7 +193,7 @@ fn apply_bilateral_pixel_gray(
                 let range_weight = (-(range_diff * range_diff) / (2.0 * sigma_range2)).exp();
 
                 // Combined weight
-                let weight = spatial_weights[dy][dx] * range_weight;
+                let weight = spatial_weight * range_weight;
 
                 weighted_sum += pixel_value * weight;
                 weight_sum += weight;
@@ -223,8 +224,8 @@ fn apply_bilateral_pixel_rgb(
     let mut weighted_sum = [0.0f32; 3];
     let mut weight_sum = 0.0f32;
 
-    for dy in 0..2 * radius + 1 {
-        for dx in 0..2 * radius + 1 {
+    for (dy, spatial_row) in spatial_weights.iter().enumerate() {
+        for (dx, &spatial_weight) in spatial_row.iter().enumerate() {
             let x = cx as i32 + dx as i32 - radius as i32;
             let y = cy as i32 + dy as i32 - radius as i32;
 
@@ -240,7 +241,7 @@ fn apply_bilateral_pixel_rgb(
                 let range_weight = (-range_dist2 / (2.0 * sigma_range2)).exp();
 
                 // Combined weight
-                let weight = spatial_weights[dy][dx] * range_weight;
+                let weight = spatial_weight * range_weight;
 
                 weighted_sum[0] += pixel[0] as f32 * weight;
                 weighted_sum[1] += pixel[1] as f32 * weight;
@@ -300,8 +301,8 @@ pub fn joint_bilateral_filter(
             let mut weighted_sum = 0.0f32;
             let mut weight_sum = 0.0f32;
 
-            for dy in 0..2 * radius + 1 {
-                for dx in 0..2 * radius + 1 {
+            for (dy, spatial_row) in spatial_weights.iter().enumerate() {
+                for (dx, &spatial_weight) in spatial_row.iter().enumerate() {
                     let x = cx as i32 + dx as i32 - radius as i32;
                     let y = cy as i32 + dy as i32 - radius as i32;
 
@@ -314,7 +315,7 @@ pub fn joint_bilateral_filter(
                         let range_weight =
                             (-(range_diff * range_diff) / (2.0 * sigma_range2)).exp();
 
-                        let weight = spatial_weights[dy][dx] * range_weight;
+                        let weight = spatial_weight * range_weight;
                         weighted_sum += input_value * weight;
                         weight_sum += weight;
                     }

@@ -1,6 +1,6 @@
 # SciRS2 0.1.0-alpha.4 Release Notes
 
-## 0.1.0-alpha.4 (May 2025)
+## 0.1.0-alpha.4 (June 2025)
 
 ## 0.1.0-alpha.3 (May 2025)
 
