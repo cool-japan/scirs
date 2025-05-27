@@ -7,7 +7,7 @@ fn main() {
     println!("----------------------------");
     println!("This example demonstrates the enhanced LSODA implementation");
     println!("which features improved stiffness detection and method switching.");
-    println!("");
+    println!();
 
     // First, test standard vs enhanced LSODA on a simple test problem
     println!("Simple Problem: Exponential Decay");
@@ -19,7 +19,7 @@ fn main() {
     // Solve with standard LSODA
     let standard_start = Instant::now();
     let standard_result = solve_ivp(
-        decay.clone(),
+        decay,
         [0.0, 10.0],
         array![1.0],
         Some(ODEOptions {
@@ -35,7 +35,7 @@ fn main() {
     // Solve with enhanced LSODA
     let enhanced_start = Instant::now();
     let enhanced_result = solve_ivp(
-        decay.clone(),
+        decay,
         [0.0, 10.0],
         array![1.0],
         Some(ODEOptions {
@@ -86,7 +86,7 @@ fn main() {
     // Solve with standard LSODA
     let vdp_standard_start = Instant::now();
     let vdp_standard_result = solve_ivp(
-        van_der_pol.clone(),
+        van_der_pol,
         [0.0, 3000.0],
         array![2.0, 0.0],
         Some(ODEOptions {
@@ -102,7 +102,7 @@ fn main() {
     // Solve with enhanced LSODA
     let vdp_enhanced_start = Instant::now();
     let vdp_enhanced_result = solve_ivp(
-        van_der_pol.clone(),
+        van_der_pol,
         [0.0, 3000.0],
         array![2.0, 0.0],
         Some(ODEOptions {

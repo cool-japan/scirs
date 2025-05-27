@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 time, x, numerical, exact, error
             );
         }
-        println!(""); // Empty line between time points
+        println!(); // Empty line between time points
     }
 
     // Plot spatial profile at final time (if plotting library available)

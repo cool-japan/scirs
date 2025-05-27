@@ -21,15 +21,11 @@ use std::iter::Sum;
 ///
 /// The matrix exponential exp(A) as a sparse matrix
 ///
-/// # TODO
+/// # Implementation Details
 ///
-/// The current implementation uses 6th order Padé approximation which provides
-/// reasonable accuracy for most cases but may have ~1-2% error for matrices
-/// with larger eigenvalues. Future improvements could include:
-/// - Implementing higher order Padé approximants (e.g., order 13)
-/// - Better scaling strategies based on the matrix norm
-/// - Adaptive error control and order selection
-/// - Specialized algorithms for structured matrices
+/// Uses 13th order Padé approximation for high accuracy (machine precision).
+/// The algorithm automatically selects the appropriate scaling factor based
+/// on the matrix norm to ensure numerical stability.
 pub fn expm<F>(a: &CsrMatrix<F>) -> SparseResult<CsrMatrix<F>>
 where
     F: Float + NumAssign + Sum + 'static + std::fmt::Debug,
@@ -44,18 +40,21 @@ where
     // Compute the matrix infinity norm
     let a_norm = matrix_inf_norm(a)?;
 
-    // If the matrix is small enough, use direct Padé approximation
-    if a_norm <= F::from(1.0).unwrap() {
-        return pade_approximation(a, 6);
+    // Constants for order 13 Padé approximation
+    let theta_13 = F::from(5.371920351148152).unwrap();
+
+    // If the norm is small enough, use direct Padé approximation
+    if a_norm <= theta_13 {
+        return pade_approximation(a, 13);
     }
 
     // Otherwise, use scaling and squaring
-    // Find s such that ||A/2^s|| < 1
+    // Find s such that ||A/2^s|| <= theta_13
     let mut s = 0;
     let mut scaled_norm = a_norm;
     let two = F::from(2.0).unwrap();
 
-    while scaled_norm > F::one() {
+    while scaled_norm > theta_13 {
         s += 1;
         scaled_norm /= two;
     }
@@ -65,7 +64,7 @@ where
     let scaled_a = scale_matrix(a, F::one() / scale_factor)?;
 
     // Compute exp(A/2^s) using Padé approximation
-    let mut exp_scaled = pade_approximation(&scaled_a, 6)?;
+    let mut exp_scaled = pade_approximation(&scaled_a, 13)?;
 
     // Square the result s times to get exp(A)
     for _ in 0..s {
@@ -95,7 +94,7 @@ where
         a_powers.push(power);
     }
 
-    // Compute Padé coefficients for order 6
+    // Compute Padé coefficients
     let pade_coeffs = match p {
         6 => vec![
             F::from(1.0).unwrap(),
@@ -106,6 +105,38 @@ where
             F::from(1.0 / 358800.0).unwrap(),
             F::from(1.0 / 17297280.0).unwrap(),
         ],
+        13 => {
+            // Compute coefficients for Padé (13,13) approximant
+            // c_k = (2p-k)! p! / ((2p)! k! (p-k)!) for k = 0, 1, ..., p
+            let two_p = 26i64;
+            let p = 13i64;
+            let mut coeffs = Vec::with_capacity(14);
+
+            for k in 0..=p {
+                let mut num = 1.0;
+                let mut den = 1.0;
+
+                // (2p-k)! / (2p)!
+                for i in (two_p - k + 1)..=two_p {
+                    den *= i as f64;
+                }
+
+                // p! / (p-k)!
+                for i in (p - k + 1)..=p {
+                    num *= i as f64;
+                }
+
+                // 1 / k!
+                let mut k_fact = 1.0;
+                for i in 1..=k {
+                    k_fact *= i as f64;
+                }
+
+                coeffs.push(F::from(num / (den * k_fact)).unwrap());
+            }
+
+            coeffs
+        }
         _ => {
             // General formula for Padé coefficients
             let mut coeffs = vec![F::zero(); p + 1];
@@ -323,8 +354,8 @@ mod tests {
     #[test]
     fn test_expm_diagonal() {
         // For diagonal matrix D, exp(D) is diagonal with exp(d_ii) on diagonal
-        let n = 1;
-        let diag_values = vec![0.5];
+        let n = 3;
+        let diag_values = vec![0.5, 1.0, 2.0];
         let mut rows = Vec::new();
         let mut cols = Vec::new();
         let mut values = Vec::new();
@@ -338,12 +369,11 @@ mod tests {
         let diag_matrix = CsrMatrix::new(values, rows, cols, (n, n)).unwrap();
         let exp_diag = expm(&diag_matrix).unwrap();
 
-        // Check diagonal values with appropriate tolerance
-        // TODO: Current Padé approximation has ~3% error for values near 1
+        // Check diagonal values with high precision
         for (i, &val) in diag_values.iter().enumerate() {
             let expected = val.exp();
             let actual = exp_diag.get(i, i);
-            assert_relative_eq!(actual, expected, epsilon = 3e-2);
+            assert_relative_eq!(actual, expected, epsilon = 1e-10);
         }
 
         // Check off-diagonal values are zero
@@ -355,5 +385,24 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_expm_small_matrix() {
+        // Test on a small 2x2 matrix with known exponential
+        // A = [[0, 1], [0, 0]]
+        // exp(A) = [[1, 1], [0, 1]]
+        let rows = vec![0, 1];
+        let cols = vec![1, 0];
+        let values = vec![1.0, 0.0];
+
+        let a = CsrMatrix::new(values, rows, cols, (2, 2)).unwrap();
+        let exp_a = expm(&a).unwrap();
+
+        // Check the result
+        assert_relative_eq!(exp_a.get(0, 0), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(exp_a.get(0, 1), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(exp_a.get(1, 0), 0.0, epsilon = 1e-10);
+        assert_relative_eq!(exp_a.get(1, 1), 1.0, epsilon = 1e-10);
     }
 }

@@ -50,8 +50,10 @@
 #![warn(missing_docs)]
 
 pub mod affinity;
+pub mod birch;
 pub mod density;
 pub mod error;
+pub mod gmm;
 pub mod hierarchy;
 /// Mean Shift clustering implementation.
 ///
@@ -70,15 +72,19 @@ pub mod vq;
 
 // Re-exports
 pub use affinity::{affinity_propagation, AffinityPropagationOptions};
+pub use birch::{birch, Birch, BirchOptions};
 pub use density::hdbscan::{
     dbscan_clustering, hdbscan, ClusterSelectionMethod, HDBSCANOptions, HDBSCANResult, StoreCenter,
 };
 pub use density::optics::{extract_dbscan_clustering, extract_xi_clusters, OPTICSResult};
 pub use density::*;
+pub use gmm::{gaussian_mixture, CovarianceType, GMMInit, GMMOptions, GaussianMixture};
 pub use hierarchy::*;
 pub use meanshift::{estimate_bandwidth, get_bin_seeds, mean_shift, MeanShift, MeanShiftOptions};
 pub use metrics::{
-    calinski_harabasz_score, davies_bouldin_score, silhouette_samples, silhouette_score,
+    adjusted_rand_index, calinski_harabasz_score, davies_bouldin_score,
+    homogeneity_completeness_v_measure, normalized_mutual_info, silhouette_samples,
+    silhouette_score,
 };
 pub use preprocess::{min_max_scale, normalize, standardize, whiten, NormType};
 pub use spectral::{

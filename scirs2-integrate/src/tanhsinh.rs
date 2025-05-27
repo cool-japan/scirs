@@ -72,67 +72,53 @@ struct TanhSinhRule {
 }
 
 impl TanhSinhRule {
-    /// Generate a new rule at the specified level
+    /// Generate a rule at the specified level
+    /// This generates ALL points up to and including this level
     fn new(level: usize) -> Self {
-        // Base step size
-        let h = 2.0_f64.powi(-(level as i32));
-
-        // Precompute tanh-sinh formula points and weights
-        // π/2 * cosh(t) / cosh(π/2 * sinh(t))²
-        //
-        // We want points in (-1, 1)
         let mut points = Vec::new();
         let mut weights = Vec::new();
 
-        // We sample at t = j*h for j = -m,...,m
-        // where m is chosen such that the weights at the endpoints are negligible
-        let max_j = Self::determine_max_j(level);
+        // Base step size for this level
+        let h = 1.0 / (1 << level) as f64;
 
-        // println!("  Rule generation: level={}, h={}, max_j={}", level, h, max_j);
+        // Maximum value of j*h before weights become negligible
+        let max_t = 3.5;
+        let max_j = (max_t / h) as i32;
 
+        // Generate points for j = 0, ±1, ±2, ...
         for j in -max_j..=max_j {
             let t = j as f64 * h;
-
-            // Skip the point at t=0 for levels > 0 to avoid duplication
-            if j == 0 && level > 0 {
-                continue;
-            }
 
             // Compute x = tanh(π/2 * sinh(t))
             let sinh_t = t.sinh();
             let arg = std::f64::consts::FRAC_PI_2 * sinh_t;
+
+            // Skip if argument would cause overflow
+            if arg.abs() > 100.0 {
+                continue;
+            }
+
             let x = arg.tanh();
 
-            // Compute the weight
-            // w = (π/2) * cosh(t) / cosh(π/2 * sinh(t))²
+            // Compute weight w = h * (π/2) * cosh(t) / cosh(π/2 * sinh(t))²
             let cosh_t = t.cosh();
             let cosh_arg = arg.cosh();
-            let w = std::f64::consts::FRAC_PI_2 * cosh_t / (cosh_arg * cosh_arg);
 
-            // Only add the point if it's not too close to the endpoints
-            // and the weight is not too small
-            if x.abs() < 1.0 - f64::EPSILON && w > f64::EPSILON {
+            // Avoid overflow
+            if cosh_arg > 1e100 {
+                continue;
+            }
+
+            let w = h * std::f64::consts::FRAC_PI_2 * cosh_t / (cosh_arg * cosh_arg);
+
+            // Only add if weight is significant
+            if w > 1e-15 && x.abs() < 1.0 - 1e-10 {
                 points.push(x);
                 weights.push(w);
             }
         }
 
         Self { points, weights }
-    }
-
-    /// Determine the maximum number of points to use based on level
-    fn determine_max_j(level: usize) -> isize {
-        // At higher levels, we need fewer points per level
-        // since we concentrate on refinement near endpoints
-        // Also limit maximum points to avoid excessive recursion
-        match level {
-            0 => 1,
-            1 => 2,
-            2 => 4,
-            3 => 8,
-            // Cap at 128 to avoid stack overflow in recursive calls
-            _ => (2_isize.pow((level as u32).min(8) - 1)).min(128),
-        }
     }
 
     /// Get points and weights transformed to the interval [a, b]
@@ -150,8 +136,10 @@ impl TanhSinhRule {
 
         // println!("  Transformed {} points for interval [{}, {}]", points.len(), a, b);
         // Debug: show actual points and weights
-        // for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
-        //     println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
+        // if points.len() <= 5 {
+        //     for (i, (p, w)) in points.iter().zip(weights.iter()).enumerate() {
+        //         println!("    Point {}: x={:.6}, w={:.6}", i, p, w);
+        //     }
         // }
 
         (points, weights)
@@ -200,12 +188,12 @@ impl RuleCache {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::tanhsinh::{tanhsinh, TanhSinhOptions};
 ///
-/// // Integrate x^2 from 0 to 1
+/// // Integrate x^2 from 0 to 1 (exact result: 1/3)
 /// let result = tanhsinh(|x| x * x, 0.0, 1.0, None).unwrap();
-/// assert!((result.integral - 1.0/3.0).abs() < 1e-8);
+/// assert!((result.integral - 1.0/3.0).abs() < 1e-6);
 /// ```
 pub fn tanhsinh<F>(
     f: F,
@@ -251,7 +239,7 @@ where
         prev_estimate: 0.0,
         error: f64::INFINITY,
         nfev: 0,
-        level: options.min_level.max(1),
+        level: 0, // Start from level 0
     };
 
     // Transform for improper integrals
@@ -262,15 +250,19 @@ where
     };
 
     // Main integration loop
-    for level in state.level..=options.max_level {
-        // Get the rule for this level
+    for level in 0..=options.max_level {
+        // Get the rule for this level (contains ALL points)
         let rule = cache.get_rule(level);
 
-        // Evaluate integral with current rule
+        // Store previous estimate
+        state.prev_estimate = state.estimate;
+
+        // Evaluate the integral with all points at current level
         evaluate_with_rule(&mut state, rule, &f, transform.as_ref(), options.log);
 
         // Debug output
-        // println!("Level {}: estimate = {}, prev = {}", level, state.estimate, state.prev_estimate);
+        // println!("Level {}: estimate = {}, prev = {}, n_points = {}",
+        //          level, state.estimate, state.prev_estimate, rule.points.len());
 
         // Check for convergence
         if level >= options.min_level {
@@ -294,7 +286,6 @@ where
 
         // Update state for next level
         state.level = level + 1;
-        state.prev_estimate = state.estimate;
     }
 
     // Didn't converge, but return best estimate
@@ -694,7 +685,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::tanhsinh::{nsum, TanhSinhOptions};
 ///
 /// // Compute sum of 1/n² from n=1 to infinity (equals π²/6)

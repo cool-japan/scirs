@@ -545,27 +545,26 @@ impl<F: Float + Debug + ScalarOperand + 'static> ParamLayer<F> for LayerNorm<F> 
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example usage of BatchNorm layer (ignored due to doctest issues):
-/// // use scirs2_neural::layers::{BatchNorm, Layer};
-/// // use ndarray::{Array, Array4};
-/// // use rand::rngs::SmallRng;
-/// // use rand::SeedableRng;
-/// //
-/// // // Create a batch normalization layer for a 64-dimensional feature space
-/// // let mut rng = SmallRng::seed_from_u64(42);
-/// // let batch_norm = BatchNorm::new(64, 0.9, 1e-5, &mut rng).unwrap();
-/// //
-/// // // Forward pass with a batch of 2 samples, 3 channels, 4x4 spatial dimensions
-/// // let batch_size = 2;
-/// // let channels = 3;
-/// // let height = 4;
-/// // let width = 4;
-/// // let input = Array4::<f64>::from_elem((batch_size, channels, height, width), 0.1).into_dyn();
-/// // let output = batch_norm.forward(&input).unwrap();
-/// //
-/// // // Output shape should match input shape
-/// // assert_eq!(output.shape(), input.shape());
+/// ```
+/// use scirs2_neural::layers::{BatchNorm, Layer};
+/// use ndarray::{Array, Array4};
+/// use rand::rngs::SmallRng;
+/// use rand::SeedableRng;
+///
+/// // Create a batch normalization layer for 3 channels
+/// let mut rng = SmallRng::seed_from_u64(42);
+/// let batch_norm = BatchNorm::new(3, 0.9, 1e-5, &mut rng).unwrap();
+///
+/// // Forward pass with a batch of 2 samples, 3 channels, 4x4 spatial dimensions
+/// let batch_size = 2;
+/// let channels = 3;
+/// let height = 4;
+/// let width = 4;
+/// let input = Array4::<f64>::from_elem((batch_size, channels, height, width), 0.1).into_dyn();
+/// let output = batch_norm.forward(&input).unwrap();
+///
+/// // Output shape should match input shape
+/// assert_eq!(output.shape(), input.shape());
 /// ```
 #[derive(Debug, Clone)]
 pub struct BatchNorm<F: Float + Debug + Send + Sync> {

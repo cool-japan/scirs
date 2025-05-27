@@ -438,7 +438,7 @@ where
         let mut combined_variance = 0.0;
 
         // Weight for the initial estimate (decreases as coverage increases)
-        let initial_weight = (1.0 - coverage_ratio).max(0.0).min(0.5);
+        let initial_weight = (1.0 - coverage_ratio).clamp(0.0, 0.5);
         combined_integral += initial_result.integral * initial_weight;
         combined_variance += (initial_result.standard_error * initial_weight).powi(2);
 

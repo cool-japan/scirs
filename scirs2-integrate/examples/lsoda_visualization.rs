@@ -244,7 +244,7 @@ fn main() {
     println!("   - Step size relative to minimum (h / min_step)");
     println!("3. Method switching events with reason for switching");
     println!("4. Order adaptivity information (changing formula order within a method)");
-    println!("");
+    println!();
     println!("This information would enable creation of detailed visualizations showing:");
     println!("- When and why the solver switches methods");
     println!("- How the solution, stiffness, and step size correlate");

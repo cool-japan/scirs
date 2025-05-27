@@ -17,7 +17,7 @@
 //! ## Semi-explicit Form
 //!
 //! Semi-explicit DAEs have the form:
-//! ```ignore
+//! ```text
 //! x' = f(x, y, t)
 //! 0 = g(x, y, t)
 //! ```
@@ -26,7 +26,7 @@
 //! ## Fully-implicit Form
 //!
 //! Fully-implicit DAEs have the form:
-//! ```ignore
+//! ```text
 //! F(t, y, y') = 0
 //! ```
 //! where all variables are treated uniformly and the system equations

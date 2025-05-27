@@ -61,13 +61,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mol_solver = MOLParabolicSolver1D::new(
             domain.clone(),
             time_range,
-            move |x, t, u| diffusion_coeff(x, t, u),
+            diffusion_coeff,
             initial_condition,
             boundary_conditions.clone(),
             Some(mol_options),
         )?
-        .with_advection(move |x, t, u| advection_coeff(x, t, u))
-        .with_reaction(move |x, t, u| reaction_term(x, t, u));
+        .with_advection(advection_coeff)
+        .with_reaction(reaction_term);
 
         println!("\nWith dt = {}", dt_exp);
         match mol_solver.solve() {

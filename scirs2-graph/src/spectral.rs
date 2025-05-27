@@ -296,6 +296,160 @@ where
     Ok(eigenvalues[1])
 }
 
+/// Computes the spectral radius of a graph
+///
+/// The spectral radius is the largest eigenvalue of the adjacency matrix.
+/// For undirected graphs, it provides bounds on various graph properties.
+///
+/// # Arguments
+/// * `graph` - The graph to analyze
+///
+/// # Returns
+/// * The spectral radius as a f64
+pub fn spectral_radius<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<f64>
+where
+    N: Node,
+    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    Ix: petgraph::graph::IndexType,
+{
+    let n = graph.node_count();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    // Get adjacency matrix
+    let adj_mat = graph.adjacency_matrix();
+    let mut adj_f64 = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+        }
+    }
+
+    // Power iteration method to approximate the largest eigenvalue
+    let mut v = Array1::<f64>::ones(n);
+    let mut lambda = 0.0;
+    let max_iter = 100;
+    let tolerance = 1e-10;
+
+    for _ in 0..max_iter {
+        // v_new = A * v
+        let mut v_new = Array1::<f64>::zeros(n);
+        for i in 0..n {
+            for j in 0..n {
+                v_new[i] += adj_f64[[i, j]] * v[j];
+            }
+        }
+
+        // Normalize v_new
+        let norm: f64 = v_new.iter().map(|x| x * x).sum::<f64>().sqrt();
+        if norm < tolerance {
+            break;
+        }
+
+        for i in 0..n {
+            v_new[i] /= norm;
+        }
+
+        // Compute eigenvalue approximation
+        let mut lambda_new = 0.0;
+        for i in 0..n {
+            let mut av_i = 0.0;
+            for j in 0..n {
+                av_i += adj_f64[[i, j]] * v_new[j];
+            }
+            lambda_new += av_i * v_new[i];
+        }
+
+        // Check convergence
+        if (lambda_new - lambda).abs() < tolerance {
+            return Ok(lambda_new);
+        }
+
+        lambda = lambda_new;
+        v = v_new;
+    }
+
+    Ok(lambda)
+}
+
+/// Computes the normalized cut value for a given partition
+///
+/// The normalized cut is a measure of how good a graph partition is.
+/// Lower values indicate better partitions.
+///
+/// # Arguments
+/// * `graph` - The graph to analyze
+/// * `partition` - A boolean vector indicating which nodes belong to set A (true) or set B (false)
+///
+/// # Returns
+/// * The normalized cut value as a f64
+pub fn normalized_cut<N, E, Ix>(graph: &Graph<N, E, Ix>, partition: &[bool]) -> Result<f64>
+where
+    N: Node,
+    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    Ix: petgraph::graph::IndexType,
+{
+    let n = graph.node_count();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    if partition.len() != n {
+        return Err(GraphError::InvalidGraph(
+            "Partition size does not match graph size".to_string(),
+        ));
+    }
+
+    // Count nodes in each partition
+    let count_a = partition.iter().filter(|&&x| x).count();
+    let count_b = n - count_a;
+
+    if count_a == 0 || count_b == 0 {
+        return Err(GraphError::InvalidGraph(
+            "Partition must have nodes in both sets".to_string(),
+        ));
+    }
+
+    // Get adjacency matrix
+    let adj_mat = graph.adjacency_matrix();
+
+    // Compute cut(A,B), vol(A), and vol(B)
+    let mut cut_ab = 0.0;
+    let mut vol_a = 0.0;
+    let mut vol_b = 0.0;
+
+    let _nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+
+    for i in 0..n {
+        for j in 0..n {
+            let weight: f64 = adj_mat[[i, j]].into();
+
+            if partition[i] && !partition[j] {
+                // Edge from A to B
+                cut_ab += weight;
+            }
+
+            if partition[i] {
+                vol_a += weight;
+            } else {
+                vol_b += weight;
+            }
+        }
+    }
+
+    // Normalized cut = cut(A,B)/vol(A) + cut(A,B)/vol(B)
+    let ncut = if vol_a > 0.0 && vol_b > 0.0 {
+        cut_ab / vol_a + cut_ab / vol_b
+    } else {
+        f64::INFINITY
+    };
+
+    Ok(ncut)
+}
+
 /// Performs spectral clustering on a graph
 ///
 /// # Arguments
@@ -443,5 +597,61 @@ mod tests {
 
         // Our mock implementation always returns 1.0 as the second eigenvalue
         assert_eq!(conn, 1.0);
+    }
+
+    #[test]
+    fn test_spectral_radius() {
+        // Test with a complete graph K3
+        let mut graph: Graph<i32, f64> = Graph::new();
+        graph.add_edge(0, 1, 1.0).unwrap();
+        graph.add_edge(1, 2, 1.0).unwrap();
+        graph.add_edge(2, 0, 1.0).unwrap();
+
+        let radius = spectral_radius(&graph).unwrap();
+        // For K3, spectral radius should be 2.0
+        assert!((radius - 2.0).abs() < 0.1);
+
+        // Test with a star graph S3 (3 leaves)
+        let mut star: Graph<i32, f64> = Graph::new();
+        star.add_edge(0, 1, 1.0).unwrap();
+        star.add_edge(0, 2, 1.0).unwrap();
+        star.add_edge(0, 3, 1.0).unwrap();
+
+        let radius_star = spectral_radius(&star).unwrap();
+        // For S3, spectral radius should be sqrt(3) ≈ 1.732
+        assert!(radius_star > 1.5 && radius_star < 2.0);
+    }
+
+    #[test]
+    fn test_normalized_cut() {
+        // Create a graph with two clear clusters
+        let mut graph: Graph<i32, f64> = Graph::new();
+
+        // Cluster 1: 0, 1, 2 (complete)
+        graph.add_edge(0, 1, 1.0).unwrap();
+        graph.add_edge(1, 2, 1.0).unwrap();
+        graph.add_edge(2, 0, 1.0).unwrap();
+
+        // Cluster 2: 3, 4, 5 (complete)
+        graph.add_edge(3, 4, 1.0).unwrap();
+        graph.add_edge(4, 5, 1.0).unwrap();
+        graph.add_edge(5, 3, 1.0).unwrap();
+
+        // Bridge between clusters
+        graph.add_edge(2, 3, 1.0).unwrap();
+
+        // Perfect partition
+        let partition = vec![true, true, true, false, false, false];
+        let ncut = normalized_cut(&graph, &partition).unwrap();
+
+        // This should be a good cut with low normalized cut value
+        assert!(ncut < 0.5);
+
+        // Bad partition (splits a cluster)
+        let bad_partition = vec![true, true, false, false, false, false];
+        let bad_ncut = normalized_cut(&graph, &bad_partition).unwrap();
+
+        // This should have a higher normalized cut value
+        assert!(bad_ncut > ncut);
     }
 }

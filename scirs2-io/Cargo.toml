@@ -35,3 +35,4 @@ num-complex = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
 netcdf3 = { workspace = true }
+kamadak-exif = { workspace = true }

@@ -8,7 +8,7 @@
 mod silhouette;
 pub use silhouette::{silhouette_samples, silhouette_score};
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -337,6 +337,416 @@ where
     silhouette_score(data, labels)
 }
 
+/// Adjusted Rand Index for comparing two clusterings.
+///
+/// The Adjusted Rand Index (ARI) is a measure of the similarity between two data clusterings,
+/// adjusted for chance. It has a value between -1 and 1, where:
+/// - 1 indicates perfect agreement
+/// - 0 indicates agreement no better than random chance
+/// - Negative values indicate agreement worse than random chance
+///
+/// # Arguments
+///
+/// * `labels_true` - Ground truth cluster labels
+/// * `labels_pred` - Predicted cluster labels
+///
+/// # Returns
+///
+/// The Adjusted Rand Index score
+///
+/// # Example
+///
+/// ```
+/// use ndarray::Array1;
+/// use scirs2_cluster::metrics::adjusted_rand_index;
+///
+/// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+/// let labels_pred = Array1::from_vec(vec![0, 0, 2, 2, 1, 1]);
+///
+/// let ari: f64 = adjusted_rand_index(labels_true.view(), labels_pred.view()).unwrap();
+/// assert!(ari > 0.0);  // Should be positive for similar clusterings
+/// ```
+pub fn adjusted_rand_index<F>(
+    labels_true: ArrayView1<i32>,
+    labels_pred: ArrayView1<i32>,
+) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    if labels_true.len() != labels_pred.len() {
+        return Err(ClusteringError::InvalidInput(
+            "Labels arrays must have the same length".to_string(),
+        ));
+    }
+
+    let n = labels_true.len();
+    if n == 0 {
+        return Err(ClusteringError::InvalidInput(
+            "Empty labels arrays".to_string(),
+        ));
+    }
+
+    // Build contingency table
+    let mut true_labels = std::collections::HashSet::new();
+    let mut pred_labels = std::collections::HashSet::new();
+
+    for &label in labels_true.iter() {
+        true_labels.insert(label);
+    }
+    for &label in labels_pred.iter() {
+        pred_labels.insert(label);
+    }
+
+    let n_true = true_labels.len();
+    let n_pred = pred_labels.len();
+
+    // Create mapping from labels to indices
+    let true_label_map: std::collections::HashMap<_, _> = true_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+    let pred_label_map: std::collections::HashMap<_, _> = pred_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+
+    // Build contingency table
+    let mut contingency = Array2::<usize>::zeros((n_true, n_pred));
+    for i in 0..n {
+        let true_idx = true_label_map[&labels_true[i]];
+        let pred_idx = pred_label_map[&labels_pred[i]];
+        contingency[[true_idx, pred_idx]] += 1;
+    }
+
+    // Calculate sums
+    let sum_comb_c = contingency
+        .iter()
+        .map(|&n_ij| {
+            if n_ij >= 2 {
+                (n_ij * (n_ij - 1)) / 2
+            } else {
+                0
+            }
+        })
+        .sum::<usize>();
+
+    let sum_a = contingency
+        .sum_axis(Axis(1))
+        .iter()
+        .map(|&n_i| if n_i >= 2 { (n_i * (n_i - 1)) / 2 } else { 0 })
+        .sum::<usize>();
+
+    let sum_b = contingency
+        .sum_axis(Axis(0))
+        .iter()
+        .map(|&n_j| if n_j >= 2 { (n_j * (n_j - 1)) / 2 } else { 0 })
+        .sum::<usize>();
+
+    let n_choose_2 = if n >= 2 { (n * (n - 1)) / 2 } else { 0 };
+
+    // Calculate expected index
+    let expected_index =
+        F::from(sum_a).unwrap() * F::from(sum_b).unwrap() / F::from(n_choose_2).unwrap();
+    let max_index = (F::from(sum_a).unwrap() + F::from(sum_b).unwrap()) / F::from(2.0).unwrap();
+    let index = F::from(sum_comb_c).unwrap();
+
+    // Handle edge cases
+    if max_index == expected_index {
+        return Ok(F::zero());
+    }
+
+    // Calculate ARI
+    let ari = (index - expected_index) / (max_index - expected_index);
+    Ok(ari)
+}
+
+/// Normalized Mutual Information (NMI) for comparing two clusterings.
+///
+/// Normalized Mutual Information is a normalization of the Mutual Information (MI) score
+/// to scale the results between 0 (no mutual information) and 1 (perfect correlation).
+///
+/// # Arguments
+///
+/// * `labels_true` - Ground truth cluster labels
+/// * `labels_pred` - Predicted cluster labels
+/// * `average_method` - Method to compute the normalizer ('geometric', 'arithmetic', 'min', 'max')
+///
+/// # Returns
+///
+/// The Normalized Mutual Information score
+///
+/// # Example
+///
+/// ```
+/// use ndarray::Array1;
+/// use scirs2_cluster::metrics::normalized_mutual_info;
+///
+/// let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
+/// let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
+///
+/// let nmi: f64 = normalized_mutual_info(labels_true.view(), labels_pred.view(), "arithmetic").unwrap();
+/// assert!((nmi - 1.0).abs() < 1e-6);  // Perfect agreement
+/// ```
+pub fn normalized_mutual_info<F>(
+    labels_true: ArrayView1<i32>,
+    labels_pred: ArrayView1<i32>,
+    average_method: &str,
+) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    if labels_true.len() != labels_pred.len() {
+        return Err(ClusteringError::InvalidInput(
+            "Labels arrays must have the same length".to_string(),
+        ));
+    }
+
+    let n = labels_true.len();
+    if n == 0 {
+        return Ok(F::one());
+    }
+
+    // Compute mutual information
+    let mi = mutual_info::<F>(labels_true, labels_pred)?;
+
+    // Compute entropies
+    let h_true = entropy::<F>(labels_true)?;
+    let h_pred = entropy::<F>(labels_pred)?;
+
+    // Handle edge cases
+    if h_true == F::zero() && h_pred == F::zero() {
+        return Ok(F::one());
+    }
+
+    // Compute normalization
+    let normalizer = match average_method {
+        "arithmetic" => (h_true + h_pred) / F::from(2.0).unwrap(),
+        "geometric" => (h_true * h_pred).sqrt(),
+        "min" => h_true.min(h_pred),
+        "max" => h_true.max(h_pred),
+        _ => {
+            return Err(ClusteringError::InvalidInput(
+                "Invalid average method. Use 'arithmetic', 'geometric', 'min', or 'max'"
+                    .to_string(),
+            ))
+        }
+    };
+
+    if normalizer == F::zero() {
+        return Ok(F::zero());
+    }
+
+    Ok(mi / normalizer)
+}
+
+/// Compute mutual information between two label assignments.
+fn mutual_info<F>(labels_true: ArrayView1<i32>, labels_pred: ArrayView1<i32>) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    let n = labels_true.len() as f64;
+    let contingency = build_contingency_matrix(labels_true, labels_pred)?;
+
+    let mut mi = F::zero();
+    let n_rows = contingency.shape()[0];
+    let n_cols = contingency.shape()[1];
+
+    // Compute marginal sums
+    let row_sums = contingency.sum_axis(Axis(1));
+    let col_sums = contingency.sum_axis(Axis(0));
+
+    for i in 0..n_rows {
+        for j in 0..n_cols {
+            let n_ij = contingency[[i, j]] as f64;
+            if n_ij > 0.0 {
+                let n_i = row_sums[i] as f64;
+                let n_j = col_sums[j] as f64;
+                let term = n_ij / n * (n_ij / (n_i * n_j / n)).ln();
+                mi = mi + F::from(term).unwrap();
+            }
+        }
+    }
+
+    Ok(mi)
+}
+
+/// Compute entropy of a label assignment.
+fn entropy<F>(labels: ArrayView1<i32>) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    let n = labels.len() as f64;
+    let mut label_counts = std::collections::HashMap::new();
+
+    for &label in labels.iter() {
+        *label_counts.entry(label).or_insert(0) += 1;
+    }
+
+    let mut h = F::zero();
+    for &count in label_counts.values() {
+        if count > 0 {
+            let p = count as f64 / n;
+            h = h - F::from(p * p.ln()).unwrap();
+        }
+    }
+
+    Ok(h)
+}
+
+/// Build contingency matrix for two label assignments.
+fn build_contingency_matrix(
+    labels_true: ArrayView1<i32>,
+    labels_pred: ArrayView1<i32>,
+) -> Result<Array2<usize>> {
+    let mut true_labels = std::collections::BTreeSet::new();
+    let mut pred_labels = std::collections::BTreeSet::new();
+
+    for &label in labels_true.iter() {
+        true_labels.insert(label);
+    }
+    for &label in labels_pred.iter() {
+        pred_labels.insert(label);
+    }
+
+    let true_label_map: std::collections::HashMap<_, _> = true_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+    let pred_label_map: std::collections::HashMap<_, _> = pred_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+
+    let mut contingency = Array2::<usize>::zeros((true_labels.len(), pred_labels.len()));
+    for i in 0..labels_true.len() {
+        let true_idx = true_label_map[&labels_true[i]];
+        let pred_idx = pred_label_map[&labels_pred[i]];
+        contingency[[true_idx, pred_idx]] += 1;
+    }
+
+    Ok(contingency)
+}
+
+/// Homogeneity, completeness and V-measure metrics for clustering evaluation.
+///
+/// These metrics are useful to evaluate the quality of clustering when ground truth is available.
+/// - Homogeneity: each cluster contains only members of a single class.
+/// - Completeness: all members of a given class are assigned to the same cluster.
+/// - V-measure: harmonic mean of homogeneity and completeness.
+///
+/// All scores are between 0 and 1, where 1 indicates perfect clustering.
+///
+/// # Arguments
+///
+/// * `labels_true` - Ground truth cluster labels
+/// * `labels_pred` - Predicted cluster labels
+///
+/// # Returns
+///
+/// Tuple of (homogeneity, completeness, v_measure)
+///
+/// # Example
+///
+/// ```
+/// use ndarray::Array1;
+/// use scirs2_cluster::metrics::homogeneity_completeness_v_measure;
+///
+/// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+/// let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
+///
+/// let (h, c, v): (f64, f64, f64) = homogeneity_completeness_v_measure(labels_true.view(), labels_pred.view()).unwrap();
+/// assert!(h > 0.5);  // Good homogeneity
+/// assert!(c > 0.9);  // High completeness (all members of each class in single clusters)
+/// ```
+pub fn homogeneity_completeness_v_measure<F>(
+    labels_true: ArrayView1<i32>,
+    labels_pred: ArrayView1<i32>,
+) -> Result<(F, F, F)>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    if labels_true.len() != labels_pred.len() {
+        return Err(ClusteringError::InvalidInput(
+            "Labels arrays must have the same length".to_string(),
+        ));
+    }
+
+    let n = labels_true.len();
+    if n == 0 {
+        return Ok((F::one(), F::one(), F::one()));
+    }
+
+    // Compute entropies
+    let h_true = entropy::<F>(labels_true)?;
+    let h_pred = entropy::<F>(labels_pred)?;
+
+    // Edge cases
+    if h_true == F::zero() {
+        return Ok((F::one(), F::one(), F::one()));
+    }
+    if h_pred == F::zero() {
+        return Ok((F::one(), F::one(), F::one()));
+    }
+
+    // Compute conditional entropies
+    let h_true_given_pred = conditional_entropy::<F>(labels_true, labels_pred)?;
+    let h_pred_given_true = conditional_entropy::<F>(labels_pred, labels_true)?;
+
+    // Compute homogeneity
+    let homogeneity = if h_pred == F::zero() {
+        F::one()
+    } else {
+        F::one() - h_true_given_pred / h_true
+    };
+
+    // Compute completeness
+    let completeness = if h_true == F::zero() {
+        F::one()
+    } else {
+        F::one() - h_pred_given_true / h_pred
+    };
+
+    // Compute V-measure
+    let v_measure = if homogeneity + completeness == F::zero() {
+        F::zero()
+    } else {
+        F::from(2.0).unwrap() * homogeneity * completeness / (homogeneity + completeness)
+    };
+
+    Ok((homogeneity, completeness, v_measure))
+}
+
+/// Compute conditional entropy H(X|Y).
+fn conditional_entropy<F>(labels_x: ArrayView1<i32>, labels_y: ArrayView1<i32>) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + 'static,
+{
+    let n = labels_x.len() as f64;
+    let contingency = build_contingency_matrix(labels_x, labels_y)?;
+
+    let mut h_xy = F::zero();
+    let col_sums = contingency.sum_axis(Axis(0));
+
+    for j in 0..contingency.shape()[1] {
+        let n_j = col_sums[j] as f64;
+        if n_j > 0.0 {
+            for i in 0..contingency.shape()[0] {
+                let n_ij = contingency[[i, j]] as f64;
+                if n_ij > 0.0 {
+                    let term = n_ij / n * (n_ij / n_j).ln();
+                    h_xy = h_xy - F::from(term).unwrap();
+                }
+            }
+        }
+    }
+
+    Ok(h_xy)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +776,72 @@ mod tests {
 
         let score = calinski_harabasz_score(data.view(), labels.view()).unwrap();
         assert!(score > 50.0); // Should be high for well-separated clusters
+    }
+
+    #[test]
+    fn test_adjusted_rand_index() {
+        // Perfect agreement
+        let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+        let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+        let ari: f64 = adjusted_rand_index(labels_true.view(), labels_pred.view()).unwrap();
+        assert!((ari - 1.0).abs() < 1e-6);
+
+        // Label permutation (still perfect agreement)
+        let labels_pred2 = Array1::from_vec(vec![1, 1, 2, 2, 0, 0]);
+        let ari2: f64 = adjusted_rand_index(labels_true.view(), labels_pred2.view()).unwrap();
+        assert!((ari2 - 1.0).abs() < 1e-6);
+
+        // Partial agreement
+        let labels_pred3 = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
+        let ari3: f64 = adjusted_rand_index(labels_true.view(), labels_pred3.view()).unwrap();
+        assert!(ari3 > 0.0 && ari3 < 1.0);
+    }
+
+    #[test]
+    fn test_normalized_mutual_info() {
+        // Perfect agreement
+        let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
+        let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
+
+        let nmi: f64 =
+            normalized_mutual_info(labels_true.view(), labels_pred.view(), "arithmetic").unwrap();
+        assert!((nmi - 1.0).abs() < 1e-6);
+
+        // Test different normalizations
+        let labels_true2 = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+        let labels_pred2 = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
+
+        let nmi_arith: f64 =
+            normalized_mutual_info(labels_true2.view(), labels_pred2.view(), "arithmetic").unwrap();
+        let nmi_geom: f64 =
+            normalized_mutual_info(labels_true2.view(), labels_pred2.view(), "geometric").unwrap();
+
+        assert!(nmi_arith > 0.0 && nmi_arith < 1.0);
+        assert!(nmi_geom > 0.0 && nmi_geom < 1.0);
+    }
+
+    #[test]
+    fn test_homogeneity_completeness_v_measure() {
+        // Perfect clustering
+        let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+        let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
+
+        let (h, c, v): (f64, f64, f64) =
+            homogeneity_completeness_v_measure(labels_true.view(), labels_pred.view()).unwrap();
+        assert!((h - 1.0).abs() < 1e-6);
+        assert!((c - 1.0).abs() < 1e-6);
+        assert!((v - 1.0).abs() < 1e-6);
+
+        // Imperfect clustering - classes 1 and 2 merged
+        let labels_pred2 = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
+        let (h2, c2, v2): (f64, f64, f64) =
+            homogeneity_completeness_v_measure(labels_true.view(), labels_pred2.view()).unwrap();
+
+        // When classes are merged, completeness is actually perfect (1.0) because
+        // all members of each true class are contained within single predicted clusters
+        // Homogeneity is lower because predicted clusters contain multiple true classes
+        assert!(h2 > 0.0 && h2 < 1.0); // Reduced homogeneity
+        assert!(c2 > 0.9); // High completeness
+        assert!(v2 > 0.0 && v2 < 1.0); // V-measure between 0 and 1
     }
 }

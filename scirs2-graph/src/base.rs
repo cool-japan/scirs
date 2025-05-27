@@ -4,13 +4,15 @@
 //! for representing and working with graphs.
 
 use ndarray::{Array1, Array2};
-use petgraph::graph::{Graph as PetGraph, IndexType, NodeIndex};
+pub use petgraph::graph::IndexType;
+use petgraph::graph::{Graph as PetGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Directed, Undirected};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::error::Result;
+use crate::error::{GraphError, Result};
 
 /// A trait representing a node in a graph
 pub trait Node: Clone + Eq + Hash + Send + Sync {}
@@ -159,6 +161,57 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> Graph<N, E, Ix> {
         self.node_indices.contains_key(node)
     }
 
+    /// Get neighbors of a node
+    pub fn neighbors(&self, node: &N) -> Result<Vec<N>>
+    where
+        N: Clone,
+    {
+        if let Some(&idx) = self.node_indices.get(node) {
+            let neighbors: Vec<N> = self
+                .graph
+                .neighbors(idx)
+                .map(|neighbor_idx| self.graph[neighbor_idx].clone())
+                .collect();
+            Ok(neighbors)
+        } else {
+            Err(GraphError::NodeNotFound)
+        }
+    }
+
+    /// Check if an edge exists between two nodes
+    pub fn has_edge(&self, source: &N, target: &N) -> bool {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
+            self.graph.contains_edge(src_idx, tgt_idx)
+        } else {
+            false
+        }
+    }
+
+    /// Get the weight of an edge between two nodes
+    pub fn edge_weight(&self, source: &N, target: &N) -> Result<E>
+    where
+        E: Clone,
+    {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
+            if let Some(edge_ref) = self.graph.find_edge(src_idx, tgt_idx) {
+                Ok(self.graph[edge_ref].clone())
+            } else {
+                Err(GraphError::EdgeNotFound)
+            }
+        } else {
+            Err(GraphError::NodeNotFound)
+        }
+    }
+
+    /// Check if the graph contains a specific node
+    pub fn contains_node(&self, node: &N) -> bool {
+        self.node_indices.contains_key(node)
+    }
+
     /// Get the internal petgraph structure for more advanced operations
     pub fn inner(&self) -> &PetGraph<N, E, Undirected, Ix> {
         &self.graph
@@ -296,6 +349,74 @@ impl<N: Node, E: EdgeWeight, Ix: IndexType> DiGraph<N, E, Ix> {
 
     /// Check if the graph has a node
     pub fn has_node(&self, node: &N) -> bool {
+        self.node_indices.contains_key(node)
+    }
+
+    /// Get successors (outgoing neighbors) of a node
+    pub fn successors(&self, node: &N) -> Result<Vec<N>>
+    where
+        N: Clone,
+    {
+        if let Some(&idx) = self.node_indices.get(node) {
+            let successors: Vec<N> = self
+                .graph
+                .neighbors_directed(idx, petgraph::Direction::Outgoing)
+                .map(|neighbor_idx| self.graph[neighbor_idx].clone())
+                .collect();
+            Ok(successors)
+        } else {
+            Err(GraphError::NodeNotFound)
+        }
+    }
+
+    /// Get predecessors (incoming neighbors) of a node
+    pub fn predecessors(&self, node: &N) -> Result<Vec<N>>
+    where
+        N: Clone,
+    {
+        if let Some(&idx) = self.node_indices.get(node) {
+            let predecessors: Vec<N> = self
+                .graph
+                .neighbors_directed(idx, petgraph::Direction::Incoming)
+                .map(|neighbor_idx| self.graph[neighbor_idx].clone())
+                .collect();
+            Ok(predecessors)
+        } else {
+            Err(GraphError::NodeNotFound)
+        }
+    }
+
+    /// Check if an edge exists between two nodes
+    pub fn has_edge(&self, source: &N, target: &N) -> bool {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
+            self.graph.contains_edge(src_idx, tgt_idx)
+        } else {
+            false
+        }
+    }
+
+    /// Get the weight of an edge between two nodes
+    pub fn edge_weight(&self, source: &N, target: &N) -> Result<E>
+    where
+        E: Clone,
+    {
+        if let (Some(&src_idx), Some(&tgt_idx)) =
+            (self.node_indices.get(source), self.node_indices.get(target))
+        {
+            if let Some(edge_ref) = self.graph.find_edge(src_idx, tgt_idx) {
+                Ok(self.graph[edge_ref].clone())
+            } else {
+                Err(GraphError::EdgeNotFound)
+            }
+        } else {
+            Err(GraphError::NodeNotFound)
+        }
+    }
+
+    /// Check if the graph contains a specific node
+    pub fn contains_node(&self, node: &N) -> bool {
         self.node_indices.contains_key(node)
     }
 

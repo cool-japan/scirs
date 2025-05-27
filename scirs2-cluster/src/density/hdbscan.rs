@@ -187,9 +187,9 @@ impl<F: Float + FromPrimitive> Default for HDBSCANOptions<F> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
-/// use scirs2_cluster::density::hdbscan;
+/// use scirs2_cluster::{hdbscan, HDBSCANOptions};
 ///
 /// // Example data with two clusters
 /// let data = Array2::from_shape_vec((10, 2), vec![
@@ -437,9 +437,9 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
-/// use scirs2_cluster::density::hdbscan;
+/// use scirs2_cluster::{hdbscan, dbscan_clustering};
 ///
 /// // Example data with two clusters
 /// let data = Array2::from_shape_vec((10, 2), vec![
@@ -1074,9 +1074,9 @@ where
             sizes.push(left_size);
         } else if left >= 0 && left < n_samples as i32 {
             // Left child is a leaf node (original point)
-            // Direct link from leaf to parent
+            // Use negative index for individual points
             parent.push(current_parent as i32);
-            child.push(left);
+            child.push(-(left + 1)); // Convert to negative index
             lambda_val.push(current_lambda);
             sizes.push(1);
         }
@@ -1097,9 +1097,9 @@ where
             sizes.push(right_size);
         } else if right >= 0 && right < n_samples as i32 {
             // Right child is a leaf node (original point)
-            // Direct link from leaf to parent
+            // Use negative index for individual points
             parent.push(current_parent as i32);
-            child.push(right);
+            child.push(-(right + 1)); // Convert to negative index
             lambda_val.push(current_lambda);
             sizes.push(1);
         }
@@ -1357,8 +1357,8 @@ where
 
     // For each point, find its maximum lambda path to any cluster
     for point_idx in 0..n_samples {
-        // In the current implementation, points have positive indices from 0 to n_samples-1
-        let point_label = point_idx as i32;
+        // Points are stored with negative indices in the condensed tree
+        let point_label = -(point_idx as i32 + 1);
 
         // Find all edges connecting this point to the tree
         let point_edges: Vec<(i32, F)> = condensed_tree

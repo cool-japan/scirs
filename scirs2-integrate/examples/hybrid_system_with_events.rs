@@ -19,6 +19,8 @@ use scirs2_integrate::ode::{
     solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec, ODEMethod,
     ODEOptions, ODEOptionsWithEvents,
 };
+
+type EventFunc = Box<dyn Fn(f64, ArrayView1<f64>) -> f64>;
 use std::fs::File;
 use std::io::Write;
 
@@ -108,14 +110,15 @@ fn main() -> IntegrateResult<()> {
         };
 
         // Define event functions based on current mode
+        let t_end = t_span[1]; // Capture the value to avoid lifetime issues
         let (event_funcs, event_specs) = match current_mode {
             HeaterMode::Off => {
                 // When heater is OFF, detect if temperature drops below HEATER_ON_THRESHOLD
-                let event_funcs: Vec<Box<dyn Fn(f64, ArrayView1<f64>) -> f64>> = vec![
+                let event_funcs: Vec<EventFunc> = vec![
                     // Event 1: Temperature drops below heater-on threshold
                     Box::new(|_t: f64, y: ArrayView1<f64>| y[0] - HEATER_ON_THRESHOLD),
                     // Event 2: End of simulation
-                    Box::new(|t: f64, _y: ArrayView1<f64>| t - t_span[1]),
+                    Box::new(move |t: f64, _y: ArrayView1<f64>| t - t_end),
                 ];
 
                 let event_specs = vec![
@@ -136,11 +139,11 @@ fn main() -> IntegrateResult<()> {
             }
             HeaterMode::On => {
                 // When heater is ON, detect if temperature rises above HEATER_OFF_THRESHOLD
-                let event_funcs: Vec<Box<dyn Fn(f64, ArrayView1<f64>) -> f64>> = vec![
+                let event_funcs: Vec<EventFunc> = vec![
                     // Event 1: Temperature rises above heater-off threshold
                     Box::new(|_t: f64, y: ArrayView1<f64>| y[0] - HEATER_OFF_THRESHOLD),
                     // Event 2: End of simulation
-                    Box::new(|t: f64, _y: ArrayView1<f64>| t - t_span[1]),
+                    Box::new(move |t: f64, _y: ArrayView1<f64>| t - t_end),
                 ];
 
                 let event_specs = vec![

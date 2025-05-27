@@ -88,9 +88,9 @@ fn main() {
     let exp_decay = |_t: f64, y: ArrayView1<f64>| array![-y[0]];
 
     // Compare different methods
-    let methods = vec![ODEMethod::RK23, ODEMethod::RK45, ODEMethod::DOP853];
+    let methods = [ODEMethod::RK23, ODEMethod::RK45, ODEMethod::DOP853];
 
-    let method_names = vec!["RK23 (order 3)", "RK45 (order 5)", "DOP853 (order 8)"];
+    let method_names = ["RK23 (order 3)", "RK45 (order 5)", "DOP853 (order 8)"];
 
     println!(
         "\n{:>15} {:>12} {:>12} {:>15} {:>15}",

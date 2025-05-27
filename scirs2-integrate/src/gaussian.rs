@@ -249,7 +249,7 @@ impl<F: IntegrateFloat> GaussLegendreQuadrature<F> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::gaussian::gauss_legendre;
 ///
 /// // Integrate f(x) = x² from 0 to 1 (exact result: 1/3)
@@ -279,13 +279,13 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::gaussian::multi_gauss_legendre;
-/// use ndarray::Array1;
+/// use ndarray::{Array1, ArrayView1};
 ///
 /// // Integrate f(x,y) = x²+y² over [0,1]×[0,1] (exact result: 2/3)
 /// let result = multi_gauss_legendre(
-///     |x| x.iter().map(|&xi| xi*xi).sum::<f64>(),
+///     |x: ArrayView1<f64>| x.iter().map(|&xi| xi*xi).sum::<f64>(),
 ///     &[(0.0, 1.0), (0.0, 1.0)],
 ///     5
 /// ).unwrap();

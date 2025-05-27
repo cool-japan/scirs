@@ -5,7 +5,7 @@ use std::time::Instant;
 
 /// This example demonstrates simulation of complex chemical reaction networks
 /// using scirs2-integrate's enhanced ODE solvers.
-
+///
 /// Stiff biochemical system: MAPK cascade model
 ///
 /// This is a simplified model of the mitogen-activated protein kinase (MAPK) cascade,
@@ -293,7 +293,7 @@ where
             println!("\nRelative Performance (lower is better):");
 
             // Find the fastest method
-            let mut best_time = std::f64::MAX;
+            let mut best_time = f64::MAX;
             for (_, time, _) in &method_results {
                 let t = time.as_secs_f64();
                 if t < best_time {

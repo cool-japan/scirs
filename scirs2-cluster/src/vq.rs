@@ -40,9 +40,11 @@ use crate::error::{ClusteringError, Result};
 mod kmeans;
 mod kmeans2;
 mod minibatch_kmeans;
+mod parallel_kmeans;
 pub use kmeans::*;
 pub use kmeans2::{kmeans2, MinitMethod, MissingMethod};
 pub use minibatch_kmeans::*;
+pub use parallel_kmeans::{parallel_kmeans, ParallelKMeansOptions};
 
 /// Computes the Euclidean distance between two vectors
 pub fn euclidean_distance<F>(x: ArrayView1<F>, y: ArrayView1<F>) -> F

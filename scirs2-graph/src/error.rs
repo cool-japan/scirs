@@ -9,9 +9,29 @@ pub enum GraphError {
     #[error("Invalid graph: {0}")]
     InvalidGraph(String),
 
+    /// Node not found
+    #[error("Node not found")]
+    NodeNotFound,
+
+    /// Edge not found
+    #[error("Edge not found")]
+    EdgeNotFound,
+
+    /// No path found
+    #[error("No path found")]
+    NoPath,
+
     /// Algorithm error
     #[error("Algorithm error: {0}")]
     AlgorithmError(String),
+
+    /// Cycle detected
+    #[error("Cycle detected in graph")]
+    CycleDetected,
+
+    /// Computation error
+    #[error("Computation error: {0}")]
+    ComputationError(String),
 
     /// IO error
     #[error("IO error: {0}")]

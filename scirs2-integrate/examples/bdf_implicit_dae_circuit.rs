@@ -161,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("Capacitor Voltage")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     // Draw the current
     chart
@@ -174,7 +174,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("Inductor Current")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     // Draw the input voltage
     chart
@@ -183,12 +183,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &BLUE,
         ))?
         .label("Input Voltage")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     // Plot the energy over time

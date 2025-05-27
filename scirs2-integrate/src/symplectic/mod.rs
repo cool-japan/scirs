@@ -21,38 +21,34 @@
 //!
 //! # Basic Usage
 //!
-//! ```rust,ignore
-//! use scirs2_integrate::symplectic::{symplectic_euler, StormerVerlet, HamiltonianSystem};
+//! ```
+//! use scirs2_integrate::symplectic::potential::HamiltonianSystem;
+//! use scirs2_integrate::symplectic::leapfrog::StormerVerlet;
+//! use scirs2_integrate::symplectic::SymplecticIntegrator;
 //! use ndarray::array;
 //!
-//! // Define a simple harmonic oscillator: H(q, p) = 0.5 * p^2 + 0.5 * q^2
-//! let harmonic_oscillator = HamiltonianSystem::new(
-//!     // dq/dt = ∂H/∂p = p
-//!     |_t, q, p| p.clone(),
-//!     // dp/dt = -∂H/∂q = -q
-//!     |_t, q, _p| -q.clone(),
+//! // Define a simple harmonic oscillator: H = p²/2 + q²/2
+//! let system = HamiltonianSystem::new(
+//!     |_t, _q, p| p.clone(),  // dq/dt = p
+//!     |_t, q, _p| -q.clone(), // dp/dt = -q
 //! );
 //!
 //! // Initial conditions: (q0, p0) = (1.0, 0.0)
 //! let q0 = array![1.0];
 //! let p0 = array![0.0];
-//! let t0 = 0.0;
+//! let t = 0.0;
 //! let dt = 0.1;
-//! let t_end = 10.0;
 //!
-//! // Integrate using Störmer-Verlet
-//! let integrator = StormerVerlet::new();
-//! let result = integrator.integrate(
-//!     &harmonic_oscillator,
-//!     t0, t_end, dt,
-//!     q0, p0,
-//! ).unwrap();
+//! // Create integrator
+//! let integrator = StormerVerlet::<f64>::new();
 //!
-//! // Check results
-//! println!("t: {:?}", result.t);
-//! println!("q: {:?}", result.q);
-//! println!("p: {:?}", result.p);
-//! println!("Energy conservation: {:.2e}", result.energy_relative_error);
+//! // Take one step
+//! let (q1, p1) = integrator.step(&system, t, &q0, &p0, dt).unwrap();
+//!
+//! // Energy should be conserved (approximately)
+//! let initial_energy = 0.5_f64 * p0.dot(&p0) + 0.5_f64 * q0.dot(&q0);
+//! let final_energy = 0.5_f64 * p1.dot(&p1) + 0.5_f64 * q1.dot(&q1);
+//! assert!((initial_energy - final_energy).abs() < 1e-10);
 //! ```
 
 // Public sub-modules
