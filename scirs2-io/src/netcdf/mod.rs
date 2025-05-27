@@ -507,7 +507,6 @@ impl NetCDFFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
 
     #[test]
     fn test_create_netcdf() {
@@ -591,18 +590,41 @@ mod tests {
 
     #[test]
     fn test_read_write_variable() {
+        // Test writing functionality
         let mut file = NetCDFFile::create("test.nc").unwrap();
         file.create_dimension("x", Some(3)).unwrap();
         file.create_dimension("y", Some(2)).unwrap();
         file.create_variable("data", NetCDFDataType::Float, &["x", "y"])
             .unwrap();
 
-        // Test writing data
-        let data = Array2::<f32>::zeros((3, 2));
+        // Test writing data (placeholder implementation just validates)
+        let data = Array::<f32, _>::zeros((3, 2));
         file.write_variable("data", &data).unwrap();
 
-        // Test reading data (will be default/zero values in this placeholder implementation)
-        let read_data: ArrayD<f32> = file.read_variable("data").unwrap();
+        // Since this is a placeholder implementation that doesn't persist,
+        // we can't test actual reading from a written file.
+        // Instead, test reading functionality with a mock setup by creating
+        // a file in write mode and then changing its mode
+        let mut read_test_file = NetCDFFile::create("test_read.nc").unwrap();
+        
+        // Change mode to read for testing
+        read_test_file.mode = "r".to_string();
+        
+        // Manually set up the file structure for testing read
+        read_test_file.dimensions.insert("x".to_string(), Some(3));
+        read_test_file.dimensions.insert("y".to_string(), Some(2));
+        read_test_file.variables.insert(
+            "data".to_string(),
+            VariableInfo {
+                name: "data".to_string(),
+                data_type: NetCDFDataType::Float,
+                dimensions: vec!["x".to_string(), "y".to_string()],
+                attributes: HashMap::new(),
+            },
+        );
+        
+        // Now test reading
+        let read_data: ArrayD<f32> = read_test_file.read_variable("data").unwrap();
         assert_eq!(read_data.shape(), &[3, 2]);
     }
 }

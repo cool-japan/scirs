@@ -43,82 +43,105 @@ where
 
     // Initialize each node in its own community
     let mut communities: HashMap<petgraph::graph::NodeIndex<Ix>, usize> = HashMap::new();
-    let mut community_weights: HashMap<usize, f64> = HashMap::new();
-    let mut node_weights: HashMap<petgraph::graph::NodeIndex<Ix>, f64> = HashMap::new();
+    let mut node_degrees: HashMap<petgraph::graph::NodeIndex<Ix>, f64> = HashMap::new();
 
-    // Calculate total weight and node weights
-    let mut total_weight = 0.0;
-    for (i, node_idx) in graph.inner().node_indices().enumerate() {
-        communities.insert(node_idx, i);
-        let mut weight = 0.0;
+    // Calculate node degrees and total weight
+    let mut m = 0.0; // Total weight of edges (sum of all edge weights)
+    for edge in graph.inner().edge_references() {
+        m += (*edge.weight()).into();
+    }
+
+    // Handle edge case
+    if m == 0.0 {
+        m = 1.0;
+    }
+
+    // Calculate node degrees
+    for node_idx in graph.inner().node_indices() {
+        let mut degree = 0.0;
         for edge in graph.inner().edges(node_idx) {
-            weight += (*edge.weight()).into();
+            degree += (*edge.weight()).into();
         }
-        node_weights.insert(node_idx, weight);
-        community_weights.insert(i, weight);
-        total_weight += weight;
+        node_degrees.insert(node_idx, degree);
+        communities.insert(node_idx, node_idx.index());
     }
 
     // Optimization phase
     let mut improved = true;
-    while improved {
+    let mut iterations = 0;
+    const MAX_ITERATIONS: usize = 100;
+
+    while improved && iterations < MAX_ITERATIONS {
         improved = false;
+        iterations += 1;
 
         // For each node, try to find a better community
         for node_idx in graph.inner().node_indices() {
             let current_community = communities[&node_idx];
-            let node_weight = node_weights[&node_idx];
+            let k_i = node_degrees[&node_idx]; // Degree of node i
 
-            // Calculate weight to each neighboring community
-            let mut neighbor_communities: HashMap<usize, f64> = HashMap::new();
+            // Remove node from its community first
+            communities.insert(node_idx, node_idx.index());
+
+            // Calculate sum of weights to each neighboring community
+            let mut community_weights: HashMap<usize, f64> = HashMap::new();
             for edge in graph.inner().edges(node_idx) {
                 let neighbor_idx = edge.target();
                 let neighbor_community = communities[&neighbor_idx];
                 let edge_weight: f64 = (*edge.weight()).into();
-                *neighbor_communities
-                    .entry(neighbor_community)
-                    .or_insert(0.0) += edge_weight;
+                *community_weights.entry(neighbor_community).or_insert(0.0) += edge_weight;
             }
 
-            // Find best community to move to
-            let mut best_community = current_community;
-            let mut best_gain = 0.0;
+            // Add current node as a possible community
+            community_weights.entry(node_idx.index()).or_insert(0.0);
 
-            for (&community, &weight_to_community) in &neighbor_communities {
-                if community == current_community {
-                    continue;
+            // Find best community
+            let mut best_community = node_idx.index();
+            let mut best_delta_q = 0.0;
+
+            for (&community, &k_i_in) in &community_weights {
+                // Calculate sum of degrees of nodes in this community
+                let mut sigma_tot = 0.0;
+                for (&other_node, &other_community) in &communities {
+                    if other_community == community && other_node != node_idx {
+                        sigma_tot += node_degrees[&other_node];
+                    }
                 }
 
                 // Calculate modularity gain
-                let community_weight = community_weights[&community];
-                let current_comm_weight = community_weights[&current_community];
+                let delta_q = k_i_in / m - (sigma_tot * k_i) / (2.0 * m * m);
 
-                let gain = 2.0 * weight_to_community / total_weight
-                    - 2.0 * node_weight * community_weight / (total_weight * total_weight)
-                    + 2.0 * node_weight * (current_comm_weight - node_weight)
-                        / (total_weight * total_weight);
-
-                if gain > best_gain {
-                    best_gain = gain;
+                if delta_q > best_delta_q {
+                    best_delta_q = delta_q;
                     best_community = community;
                 }
             }
 
-            // Move node if beneficial
+            // Move node to best community
             if best_community != current_community {
                 improved = true;
-                communities.insert(node_idx, best_community);
-
-                // Update community weights
-                let node_w = node_weights[&node_idx];
-                *community_weights.get_mut(&current_community).unwrap() -= node_w;
-                *community_weights.get_mut(&best_community).unwrap() += node_w;
             }
+            communities.insert(node_idx, best_community);
         }
     }
 
+    // Renumber communities to be consecutive
+    let mut community_map: HashMap<usize, usize> = HashMap::new();
+    let mut next_id = 0;
+    for &comm in communities.values() {
+        if let std::collections::hash_map::Entry::Vacant(e) = community_map.entry(comm) {
+            e.insert(next_id);
+            next_id += 1;
+        }
+    }
+
+    // Apply renumbering
+    for comm in communities.values_mut() {
+        *comm = community_map[comm];
+    }
+
     // Calculate final modularity
-    let modularity = calculate_modularity(graph, &communities, total_weight);
+    let modularity = calculate_modularity(graph, &communities, m);
 
     // Convert to final result
     let node_communities: HashMap<N, usize> = communities
@@ -136,7 +159,7 @@ where
 fn calculate_modularity<N, E, Ix>(
     graph: &Graph<N, E, Ix>,
     communities: &HashMap<petgraph::graph::NodeIndex<Ix>, usize>,
-    total_weight: f64,
+    m: f64,
 ) -> f64
 where
     N: Node,
@@ -145,33 +168,39 @@ where
 {
     let mut modularity = 0.0;
 
-    for edge in graph.inner().edge_references() {
-        let source_comm = communities[&edge.source()];
-        let target_comm = communities[&edge.target()];
-
-        if source_comm == target_comm {
-            let weight: f64 = (*edge.weight()).into();
-            modularity += weight / total_weight;
-        }
-    }
-
-    // Subtract expected edges
-    let mut community_degrees: HashMap<usize, f64> = HashMap::new();
+    // Calculate node degrees
+    let mut node_degrees: HashMap<petgraph::graph::NodeIndex<Ix>, f64> = HashMap::new();
     for node_idx in graph.inner().node_indices() {
-        let comm = communities[&node_idx];
         let degree: f64 = graph
             .inner()
             .edges(node_idx)
             .map(|e| (*e.weight()).into())
             .sum();
-        *community_degrees.entry(comm).or_insert(0.0) += degree;
+        node_degrees.insert(node_idx, degree);
     }
 
-    for &degree in community_degrees.values() {
-        modularity -= (degree / total_weight).powi(2);
+    // Sum over all pairs of nodes
+    for node_i in graph.inner().node_indices() {
+        for node_j in graph.inner().node_indices() {
+            if communities[&node_i] == communities[&node_j] {
+                // Check if edge exists between i and j
+                let mut a_ij = 0.0;
+                for edge in graph.inner().edges(node_i) {
+                    if edge.target() == node_j {
+                        a_ij = (*edge.weight()).into();
+                        break;
+                    }
+                }
+
+                let k_i = node_degrees[&node_i];
+                let k_j = node_degrees[&node_j];
+
+                modularity += a_ij - (k_i * k_j) / (2.0 * m);
+            }
+        }
     }
 
-    modularity
+    modularity / (2.0 * m)
 }
 
 /// Label propagation algorithm for community detection

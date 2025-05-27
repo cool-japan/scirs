@@ -344,7 +344,7 @@ mod tests {
 
         // Verify it's a valid matching
         let mut used_right = HashSet::new();
-        for (_, right) in &matching.matching {
+        for right in matching.matching.values() {
             assert!(!used_right.contains(right));
             used_right.insert(right);
         }

@@ -135,6 +135,6 @@ mod tests {
     #[test]
     fn test_stub_implementation() {
         // Just a placeholder to ensure the tests compile
-        assert!(true);
+        // This test passes trivially
     }
 }

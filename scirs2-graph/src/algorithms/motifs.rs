@@ -256,7 +256,7 @@ mod tests {
         let mut graph = create_graph::<&str, ()>();
 
         // Create a complete graph K4
-        let nodes = vec!["A", "B", "C", "D"];
+        let nodes = ["A", "B", "C", "D"];
         for i in 0..nodes.len() {
             for j in i + 1..nodes.len() {
                 graph.add_edge(nodes[i], nodes[j], ())?;

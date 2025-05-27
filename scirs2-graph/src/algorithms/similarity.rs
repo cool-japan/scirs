@@ -155,7 +155,7 @@ mod tests {
 
         // Test cosine similarity between connected nodes
         let similarity = cosine_similarity(&graph, &"A", &"B")?;
-        assert!(similarity >= 0.0 && similarity <= 1.0);
+        assert!((0.0..=1.0).contains(&similarity));
 
         // Node with itself should have similarity 1.0
         let self_similarity = cosine_similarity(&graph, &"A", &"A")?;

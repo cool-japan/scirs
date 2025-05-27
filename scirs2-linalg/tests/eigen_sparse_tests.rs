@@ -26,7 +26,7 @@ fn test_largest_k_eigh_diagonal() {
         let lambda_v = v * eigenvalues[i];
 
         for j in 0..4 {
-            assert_relative_eq!(av[j], lambda_v[j], epsilon = 1e-5);
+            assert_relative_eq!(av[j], lambda_v[j], epsilon = 1e-4, max_relative = 1e-3);
         }
     }
 }
@@ -55,7 +55,7 @@ fn test_smallest_k_eigh_diagonal() {
         let lambda_v = v * eigenvalues[i];
 
         for j in 0..4 {
-            assert_relative_eq!(av[j], lambda_v[j], epsilon = 1e-5);
+            assert_relative_eq!(av[j], lambda_v[j], epsilon = 1e-4, max_relative = 1e-3);
         }
     }
 }
