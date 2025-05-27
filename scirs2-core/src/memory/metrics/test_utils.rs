@@ -6,7 +6,7 @@
 use std::sync::Mutex;
 
 /// Global test mutex to ensure memory metrics tests run in isolation
-/// 
+///
 /// Since memory metrics uses a global static collector, tests must be synchronized
 /// to prevent interference when running in parallel.
 pub static MEMORY_METRICS_TEST_MUTEX: Mutex<()> = Mutex::new(());

@@ -292,8 +292,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::test_utils::MEMORY_METRICS_TEST_MUTEX;
+    use super::*;
 
     #[test]
     fn test_global_memory_metrics() {
