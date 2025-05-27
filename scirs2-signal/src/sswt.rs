@@ -546,9 +546,11 @@ mod tests {
         let scales = log_scales(1.0, 16.0, 32);
 
         // Configure the transform
-        let mut config = SynchroCwtConfig::default();
-        config.frequencies = frequency_bins(1.0, 10.0, 64);
-        config.return_cwt = true;
+        let config = SynchroCwtConfig {
+            frequencies: frequency_bins(1.0, 10.0, 64),
+            return_cwt: true,
+            ..Default::default()
+        };
 
         // Compute the synchrosqueezed transform with properly wrapped wavelet function
         let result = synchrosqueezed_cwt(

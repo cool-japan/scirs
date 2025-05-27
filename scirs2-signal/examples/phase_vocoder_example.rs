@@ -36,10 +36,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  - Time stretch factor: {:.1}", factor);
 
         // Create a phase vocoder configuration
-        let mut config = PhaseVocoderConfig::default();
-        config.time_stretch = factor;
-        config.window_size = 2048;
-        config.hop_size = 512;
+        let config = PhaseVocoderConfig {
+            time_stretch: factor,
+            window_size: 2048,
+            hop_size: 512,
+            ..Default::default()
+        };
 
         // Apply phase vocoder
         let result = phase_vocoder(&signal, &config)?;
@@ -85,11 +87,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Combined time stretching and pitch shifting example
     println!("\nCombining time stretching and pitch shifting:");
 
-    let mut config = PhaseVocoderConfig::default();
-    config.time_stretch = 1.5; // 50% longer
-    config.pitch_shift = Some(7.0); // Perfect fifth up
-    config.window_size = 2048;
-    config.hop_size = 512;
+    let config = PhaseVocoderConfig {
+        time_stretch: 1.5, // 50% longer
+        pitch_shift: Some(7.0), // Perfect fifth up
+        window_size: 2048,
+        hop_size: 512,
+        ..Default::default()
+    };
 
     // Apply phase vocoder
     let result = phase_vocoder(&signal, &config)?;
@@ -111,12 +115,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Formant preservation example
     println!("\nPitch shifting with formant preservation:");
 
-    let mut config = PhaseVocoderConfig::default();
-    config.time_stretch = 1.0;
-    config.pitch_shift = Some(12.0); // One octave up
-    config.preserve_formants = true;
-    config.window_size = 2048;
-    config.hop_size = 512;
+    let config = PhaseVocoderConfig {
+        time_stretch: 1.0,
+        pitch_shift: Some(12.0), // One octave up
+        preserve_formants: true,
+        window_size: 2048,
+        hop_size: 512,
+        ..Default::default()
+    };
 
     // Apply phase vocoder
     let result = phase_vocoder(&signal, &config)?;

@@ -425,7 +425,22 @@ mod tests {
 
     #[test]
     fn test_region_growing_basic() {
-        let img = DynamicImage::new_luma8(50, 50);
+        // Create an image with two distinct regions
+        let mut img_buf = image::GrayImage::new(50, 50);
+        
+        // Create two regions with different intensities
+        for y in 0..50 {
+            for x in 0..50 {
+                if x < 25 {
+                    img_buf.put_pixel(x, y, image::Luma([50u8]));
+                } else {
+                    img_buf.put_pixel(x, y, image::Luma([200u8]));
+                }
+            }
+        }
+        
+        let img = DynamicImage::ImageLuma8(img_buf);
+        
         let seeds = vec![
             SeedPoint {
                 x: 10,
@@ -445,9 +460,13 @@ mod tests {
         let labels = result.unwrap();
         assert_eq!(labels.dim(), (50, 50));
 
-        // Seeds should be labeled
+        // Seeds should be labeled (note: array indexing is [y, x])
         assert_eq!(labels[[10, 10]], 1);
         assert_eq!(labels[[30, 30]], 2);
+        
+        // Check that regions are properly segmented
+        assert_eq!(labels[[10, 5]], 1);  // Left region
+        assert_eq!(labels[[30, 40]], 2); // Right region
     }
 
     #[test]

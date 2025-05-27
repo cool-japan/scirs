@@ -179,11 +179,17 @@ fn compute_contrast(img: &GrayImage) -> Result<f32> {
     }
 
     variance /= n;
+    
+    // Handle uniform images (zero variance)
+    if variance < 1e-10 {
+        return Ok(0.0);
+    }
+    
     kurtosis = kurtosis / n / variance.powi(2);
 
     // Contrast formula
     let sigma = variance.sqrt();
-    let alpha4 = kurtosis;
+    let alpha4 = kurtosis.max(0.01); // Avoid division by zero or negative values
 
     Ok(sigma / alpha4.powf(0.25))
 }

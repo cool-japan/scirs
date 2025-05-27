@@ -504,8 +504,7 @@ mod tests {
         let mut min_points = Vec::new();
 
         // Identify max and min points of the expected modulation
-        for i in n / 10..9 * n / 10 {
-            let ti = t[i];
+        for (i, &ti) in t.iter().enumerate().skip(n / 10).take(8 * n / 10) {
             let phase = 2.0 * PI * modulation_freq * ti;
 
             // Peaks of the modulation (cos(phase) ≈ 1)

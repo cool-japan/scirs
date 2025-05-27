@@ -521,11 +521,13 @@ mod tests {
         let signal = t.mapv(|ti| (2.0 * PI * (50.0 * ti + 200.0 * ti * ti)).sin());
 
         // Configure the reassigned spectrogram
-        let mut config = ReassignedConfig::default();
-        config.window = Array1::from(window::hann(128, true).unwrap());
-        config.hop_size = 32;
-        config.fs = fs;
-        config.return_spectrogram = true;
+        let config = ReassignedConfig {
+            window: Array1::from(window::hann(128, true).unwrap()),
+            hop_size: 32,
+            fs,
+            return_spectrogram: true,
+            ..Default::default()
+        };
 
         // Compute the reassigned spectrogram
         let result = reassigned_spectrogram(&signal, config).unwrap();
@@ -562,10 +564,12 @@ mod tests {
         let signal = t.mapv(|ti| (2.0 * PI * 50.0 * ti).sin());
 
         // Configure the reassigned spectrogram
-        let mut config = ReassignedConfig::default();
-        config.window = Array1::from(window::hann(64, true).unwrap());
-        config.hop_size = 16;
-        config.fs = fs;
+        let config = ReassignedConfig {
+            window: Array1::from(window::hann(64, true).unwrap()),
+            hop_size: 16,
+            fs,
+            ..Default::default()
+        };
 
         // Compute both standard and smoothed reassigned spectrograms
         let standard = reassigned_spectrogram(&signal, config.clone()).unwrap();

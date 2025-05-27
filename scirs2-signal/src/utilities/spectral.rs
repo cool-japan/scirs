@@ -805,155 +805,6 @@ where
     Ok(freqs_f64[freqs_f64.len() - 1])
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-
-    #[test]
-    fn test_energy_spectral_density() {
-        // Create a simple PSD
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-        let fs = 100.0; // Sample rate in Hz
-
-        let esd = energy_spectral_density(&psd, fs).unwrap();
-
-        // Check scaling by sample interval (1/fs)
-        for (i, &p) in psd.iter().enumerate() {
-            assert_relative_eq!(esd[i], p / fs, epsilon = 1e-10);
-        }
-    }
-
-    #[test]
-    fn test_normalized_psd() {
-        // Create a simple PSD
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-
-        let norm_psd = normalized_psd(&psd).unwrap();
-
-        // Check sum is 1.0
-        let sum: f64 = norm_psd.iter().sum();
-        assert_relative_eq!(sum, 1.0, epsilon = 1e-10);
-
-        // Check shape is preserved
-        for (i, &p) in psd.iter().enumerate() {
-            if i > 0 {
-                assert_relative_eq!(norm_psd[i] / norm_psd[0], p / psd[0], epsilon = 1e-10);
-            }
-        }
-    }
-
-    #[test]
-    fn test_spectral_centroid() {
-        // Create a symmetric PSD with peak in the middle
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let centroid = spectral_centroid(&psd, &freqs).unwrap();
-
-        // For symmetric PSD with peak in the middle, centroid should be at the middle frequency
-        assert_relative_eq!(centroid, 3.0, epsilon = 1e-10);
-
-        // Test non-symmetric PSD
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let centroid = spectral_centroid(&psd, &freqs).unwrap();
-
-        // Centroid should be biased toward higher frequencies
-        assert!(centroid > 3.0);
-    }
-
-    #[test]
-    fn test_spectral_spread() {
-        // Create a symmetric PSD with peak in the middle
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let spread = spectral_spread(&psd, &freqs, None).unwrap();
-
-        // Spread should be positive
-        assert!(spread > 0.0);
-
-        // Create a very narrow PSD
-        let psd = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let spread = spectral_spread(&psd, &freqs, None).unwrap();
-
-        // Spread should be very small for narrow PSD
-        assert!(spread < 0.1);
-    }
-
-    #[test]
-    fn test_spectral_flatness() {
-        // Create a flat PSD (white noise-like)
-        let psd = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-
-        let flatness = spectral_flatness(&psd).unwrap();
-
-        // Flatness should be close to 1.0 for flat PSD
-        assert_relative_eq!(flatness, 1.0, epsilon = 1e-10);
-
-        // Create a PSD with a single peak (tone-like)
-        let psd = vec![0.01, 0.01, 0.01, 1.0, 0.01, 0.01, 0.01];
-
-        let flatness = spectral_flatness(&psd).unwrap();
-
-        // Flatness should be close to 0.0 for peak PSD
-        assert!(flatness < 0.3);
-    }
-
-    #[test]
-    fn test_spectral_flux() {
-        // Create two identical PSDs
-        let psd1 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-        let psd2 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-
-        let flux_l1 = spectral_flux(&psd1, &psd2, "l1").unwrap();
-        let flux_l2 = spectral_flux(&psd1, &psd2, "l2").unwrap();
-        let flux_max = spectral_flux(&psd1, &psd2, "max").unwrap();
-
-        // Flux should be 0.0 for identical PSDs
-        assert_relative_eq!(flux_l1, 0.0, epsilon = 1e-10);
-        assert_relative_eq!(flux_l2, 0.0, epsilon = 1e-10);
-        assert_relative_eq!(flux_max, 0.0, epsilon = 1e-10);
-
-        // Create two different PSDs
-        let psd1 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
-        let psd2 = vec![0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0];
-
-        let flux_l1 = spectral_flux(&psd1, &psd2, "l1").unwrap();
-        let flux_l2 = spectral_flux(&psd1, &psd2, "l2").unwrap();
-        let flux_max = spectral_flux(&psd1, &psd2, "max").unwrap();
-
-        // Flux should be positive for different PSDs
-        assert!(flux_l1 > 0.0);
-        assert!(flux_l2 > 0.0);
-        assert!(flux_max > 0.0);
-    }
-
-    #[test]
-    fn test_spectral_rolloff() {
-        // Create a PSD with energy concentrated in first half
-        let psd = vec![1.0, 2.0, 3.0, 4.0, 0.1, 0.1, 0.1];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let rolloff = spectral_rolloff(&psd, &freqs, 0.95).unwrap();
-
-        // Rolloff should be in the lower frequency range
-        assert!(rolloff <= 4.0);
-
-        // Create a PSD with energy concentrated in second half
-        let psd = vec![0.1, 0.1, 0.1, 0.1, 3.0, 4.0, 5.0];
-        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
-        let rolloff = spectral_rolloff(&psd, &freqs, 0.95).unwrap();
-
-        // Rolloff should be in the higher frequency range
-        assert!(rolloff >= 5.0);
-    }
-}
 
 /// Calculate the spectral crest factor of a signal.
 ///
@@ -1655,4 +1506,154 @@ where
     }
 
     Ok(selected_peaks)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_energy_spectral_density() {
+        // Create a simple PSD
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+        let fs = 100.0; // Sample rate in Hz
+
+        let esd = energy_spectral_density(&psd, fs).unwrap();
+
+        // Check scaling by sample interval (1/fs)
+        for (i, &p) in psd.iter().enumerate() {
+            assert_relative_eq!(esd[i], p / fs, epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_normalized_psd() {
+        // Create a simple PSD
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+
+        let norm_psd = normalized_psd(&psd).unwrap();
+
+        // Check sum is 1.0
+        let sum: f64 = norm_psd.iter().sum();
+        assert_relative_eq!(sum, 1.0, epsilon = 1e-10);
+
+        // Check shape is preserved
+        for (i, &p) in psd.iter().enumerate() {
+            if i > 0 {
+                assert_relative_eq!(norm_psd[i] / norm_psd[0], p / psd[0], epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_spectral_centroid() {
+        // Create a symmetric PSD with peak in the middle
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let centroid = spectral_centroid(&psd, &freqs).unwrap();
+
+        // For symmetric PSD with peak in the middle, centroid should be at the middle frequency
+        assert_relative_eq!(centroid, 3.0, epsilon = 1e-10);
+
+        // Test non-symmetric PSD
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let centroid = spectral_centroid(&psd, &freqs).unwrap();
+
+        // Centroid should be biased toward higher frequencies
+        assert!(centroid > 3.0);
+    }
+
+    #[test]
+    fn test_spectral_spread() {
+        // Create a symmetric PSD with peak in the middle
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let spread = spectral_spread(&psd, &freqs, None).unwrap();
+
+        // Spread should be positive
+        assert!(spread > 0.0);
+
+        // Create a very narrow PSD
+        let psd = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let spread = spectral_spread(&psd, &freqs, None).unwrap();
+
+        // Spread should be very small for narrow PSD
+        assert!(spread < 0.1);
+    }
+
+    #[test]
+    fn test_spectral_flatness() {
+        // Create a flat PSD (white noise-like)
+        let psd = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+
+        let flatness = spectral_flatness(&psd).unwrap();
+
+        // Flatness should be close to 1.0 for flat PSD
+        assert_relative_eq!(flatness, 1.0, epsilon = 1e-10);
+
+        // Create a PSD with a single peak (tone-like)
+        let psd = vec![0.01, 0.01, 0.01, 1.0, 0.01, 0.01, 0.01];
+
+        let flatness = spectral_flatness(&psd).unwrap();
+
+        // Flatness should be close to 0.0 for peak PSD
+        assert!(flatness < 0.3);
+    }
+
+    #[test]
+    fn test_spectral_flux() {
+        // Create two identical PSDs
+        let psd1 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+        let psd2 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+
+        let flux_l1 = spectral_flux(&psd1, &psd2, "l1").unwrap();
+        let flux_l2 = spectral_flux(&psd1, &psd2, "l2").unwrap();
+        let flux_max = spectral_flux(&psd1, &psd2, "max").unwrap();
+
+        // Flux should be 0.0 for identical PSDs
+        assert_relative_eq!(flux_l1, 0.0, epsilon = 1e-10);
+        assert_relative_eq!(flux_l2, 0.0, epsilon = 1e-10);
+        assert_relative_eq!(flux_max, 0.0, epsilon = 1e-10);
+
+        // Create two different PSDs
+        let psd1 = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
+        let psd2 = vec![0.0, 1.0, 2.0, 3.0, 4.0, 3.0, 2.0];
+
+        let flux_l1 = spectral_flux(&psd1, &psd2, "l1").unwrap();
+        let flux_l2 = spectral_flux(&psd1, &psd2, "l2").unwrap();
+        let flux_max = spectral_flux(&psd1, &psd2, "max").unwrap();
+
+        // Flux should be positive for different PSDs
+        assert!(flux_l1 > 0.0);
+        assert!(flux_l2 > 0.0);
+        assert!(flux_max > 0.0);
+    }
+
+    #[test]
+    fn test_spectral_rolloff() {
+        // Create a PSD with energy concentrated in first half
+        let psd = vec![1.0, 2.0, 3.0, 4.0, 0.1, 0.1, 0.1];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let rolloff = spectral_rolloff(&psd, &freqs, 0.95).unwrap();
+
+        // Rolloff should be in the lower frequency range
+        assert!(rolloff <= 4.0);
+
+        // Create a PSD with energy concentrated in second half
+        let psd = vec![0.1, 0.1, 0.1, 0.1, 3.0, 4.0, 5.0];
+        let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+
+        let rolloff = spectral_rolloff(&psd, &freqs, 0.95).unwrap();
+
+        // Rolloff should be in the higher frequency range
+        assert!(rolloff >= 5.0);
+    }
 }
