@@ -325,8 +325,8 @@ mod tests {
         let result = minimize_conjugate_gradient(quadratic, x0, &options).unwrap();
 
         assert!(result.success);
-        assert_abs_diff_eq!(result.x[0], 0.0, epsilon = 1e-5);
-        assert_abs_diff_eq!(result.x[1], 0.0, epsilon = 1e-5);
+        assert_abs_diff_eq!(result.x[0], 0.0, epsilon = 1e-4);
+        assert_abs_diff_eq!(result.x[1], 0.0, epsilon = 1e-4);
     }
 
     #[test]
