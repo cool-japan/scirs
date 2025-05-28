@@ -37,7 +37,7 @@
 //! let q0 = array![1.0];
 //! let p0 = array![0.0];
 //! let t = 0.0;
-//! let dt = 0.1;
+//! let dt = 0.01;
 //!
 //! // Create integrator
 //! let integrator = StormerVerlet::<f64>::new();

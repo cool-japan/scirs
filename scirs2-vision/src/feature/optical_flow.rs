@@ -57,11 +57,12 @@ impl Default for LucasKanadeParams {
 ///
 /// ```rust
 /// use scirs2_vision::feature::{lucas_kanade_flow, LucasKanadeParams};
-/// use image::DynamicImage;
+/// use image::{DynamicImage, RgbImage};
 ///
 /// # fn main() -> scirs2_vision::error::Result<()> {
-/// let frame1 = image::open("frame1.jpg").unwrap();
-/// let frame2 = image::open("frame2.jpg").unwrap();
+/// // Create simple test images
+/// let frame1 = DynamicImage::ImageRgb8(RgbImage::new(64, 64));
+/// let frame2 = DynamicImage::ImageRgb8(RgbImage::new(64, 64));
 /// let flow = lucas_kanade_flow(&frame1, &frame2, None, &LucasKanadeParams::default())?;
 /// # Ok(())
 /// # }

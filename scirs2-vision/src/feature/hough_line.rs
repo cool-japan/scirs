@@ -61,12 +61,12 @@ impl Default for HoughParams {
 /// # Example
 ///
 /// ```rust
-/// use scirs2_vision::feature::{hough_lines, canny_edge_detection, HoughParams};
+/// use scirs2_vision::feature::{hough_lines, canny, HoughParams, PreprocessMode};
 /// use image::DynamicImage;
 ///
 /// # fn main() -> scirs2_vision::error::Result<()> {
 /// let img = image::open("examples/input/input.jpg").unwrap();
-/// let edges = canny_edge_detection(&img, 50.0, 100.0)?;
+/// let edges = canny(&img, 1.0, Some(50.0), Some(100.0), None, false, PreprocessMode::Constant(0.0))?;
 /// let lines = hough_lines(&edges, &HoughParams::default())?;
 /// # Ok(())
 /// # }
