@@ -369,7 +369,7 @@ fn main() {
     }
 
     // Add a section specifically for float16 and bfloat16 demonstrations
-    println!("");
+    println!();
     println!("16-bit Floating-Point Quantization");
     println!("----------------------------------");
 
@@ -377,14 +377,14 @@ fn main() {
     let wide_range = Array1::from_shape_vec(
         8,
         vec![
-            0.000001,  // Very small positive
-            123456.0,  // Large positive
-            -0.000002, // Very small negative
-            -98765.0,  // Large negative
-            3.14159,   // Pi
-            2.71828,   // e
-            0.0,       // Zero
-            1.0,       // One
+            0.000001,             // Very small positive
+            123456.0,             // Large positive
+            -0.000002,            // Very small negative
+            -98765.0,             // Large negative
+            std::f32::consts::PI, // Pi
+            std::f32::consts::E,  // e
+            0.0,                  // Zero
+            1.0,                  // One
         ],
     )
     .unwrap();
@@ -419,7 +419,7 @@ fn main() {
             );
         }
     }
-    println!("");
+    println!();
 
     // Test bfloat16 precision
     let (bf16_quantized, bf16_params) =
@@ -448,7 +448,7 @@ fn main() {
             );
         }
     }
-    println!("");
+    println!();
 
     // Demonstrate matrix operations with float16
     println!("Float16 Matrix Operations");

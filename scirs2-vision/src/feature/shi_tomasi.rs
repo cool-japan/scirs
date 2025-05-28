@@ -28,12 +28,15 @@ use ndarray::Array2;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use scirs2_vision::feature::shi_tomasi_corners;
 /// use image::DynamicImage;
 ///
-/// let img = image::open("input.jpg").unwrap();
+/// # fn main() -> scirs2_vision::error::Result<()> {
+/// let img = image::open("examples/input/input.jpg").unwrap();
 /// let corners = shi_tomasi_corners(&img, 3, 0.01, 100, 10)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn shi_tomasi_corners(
     img: &DynamicImage,

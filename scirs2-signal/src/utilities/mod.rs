@@ -9,10 +9,6 @@
 
 pub mod spectral;
 
-// Module with tests for utilities
-#[cfg(test)]
-mod tests;
-
 // Re-export commonly used functions from submodules
 pub use spectral::{
     dominant_frequencies, dominant_frequency, energy_spectral_density, normalized_psd,
@@ -20,3 +16,7 @@ pub use spectral::{
     spectral_flatness, spectral_flux, spectral_kurtosis, spectral_rolloff, spectral_skewness,
     spectral_slope, spectral_spread,
 };
+
+// Module with tests for utilities
+#[cfg(test)]
+mod tests;

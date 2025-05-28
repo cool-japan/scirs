@@ -100,8 +100,8 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use scirs2_fft::simd_rfft::{rfft_simd, irfft_simd};
+/// ```
+/// use scirs2_fft::{rfft_simd, irfft_simd};
 /// use scirs2_fft::simd_fft::NormMode;
 ///
 /// // Generate a simple signal
@@ -156,9 +156,19 @@ where
 
     // Add the conjugate symmetric values (except the DC and Nyquist components)
     if n_output > input_len {
-        for i in 1..input_len - 1 {
-            let conj_val = complex_input[input_len - i].conj();
-            full_spectrum.push(conj_val);
+        // Determine the limit based on whether n_output is even or odd
+        let limit = if n_output % 2 == 0 {
+            input_len - 1 // For even n_output, skip the Nyquist frequency
+        } else {
+            input_len // For odd n_output, include all frequencies
+        };
+
+        for i in 1..limit {
+            let idx = limit - i;
+            if idx < complex_input.len() {
+                let conj_val = complex_input[idx].conj();
+                full_spectrum.push(conj_val);
+            }
         }
 
         // Pad with zeros if needed

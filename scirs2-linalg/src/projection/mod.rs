@@ -40,7 +40,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_linalg::projection::gaussian_random_matrix;
 ///
@@ -101,7 +101,7 @@ pub fn gaussian_random_matrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_linalg::projection::sparse_random_matrix;
 ///
@@ -174,7 +174,7 @@ pub fn sparse_random_matrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_linalg::projection::very_sparse_random_matrix;
 ///
@@ -239,7 +239,7 @@ pub fn very_sparse_random_matrix<F: Float + NumAssign + Zero + Sum + ScalarOpera
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array, Array2};
 /// use scirs2_linalg::projection::{gaussian_random_matrix, project};
 ///
@@ -294,7 +294,7 @@ pub fn project<F: Float + NumAssign + Sum + ScalarOperand>(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array, Array2};
 /// use scirs2_linalg::projection::johnson_lindenstrauss_transform;
 ///

@@ -69,11 +69,26 @@ mod tests {
             let j0_val: f64 = j0(*x);
             let j1_val: f64 = j1(*x);
             let j2_val: f64 = jn(2, *x);
-            
+
             // Check that values are finite (not NaN or infinite)
-            assert!(j0_val.is_finite(), "J0({}) = {} should be finite", x, j0_val);
-            assert!(j1_val.is_finite(), "J1({}) = {} should be finite", x, j1_val);
-            assert!(j2_val.is_finite(), "J2({}) = {} should be finite", x, j2_val);
+            assert!(
+                j0_val.is_finite(),
+                "J0({}) = {} should be finite",
+                x,
+                j0_val
+            );
+            assert!(
+                j1_val.is_finite(),
+                "J1({}) = {} should be finite",
+                x,
+                j1_val
+            );
+            assert!(
+                j2_val.is_finite(),
+                "J2({}) = {} should be finite",
+                x,
+                j2_val
+            );
 
             // Modified functions should be positive for positive inputs
             assert!(i0(*x) > 0.0);

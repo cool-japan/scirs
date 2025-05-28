@@ -3,6 +3,20 @@
 //! This module provides functionality for segmenting images into regions
 //! or partitioning images into meaningful parts.
 
+pub mod mean_shift;
+pub mod region_growing;
+pub mod slic;
+pub mod watershed;
+
+pub use mean_shift::{mean_shift, MeanShiftParams};
+pub use region_growing::{
+    adaptive_region_growing, region_growing, region_labels_to_color, RegionGrowingParams, SeedPoint,
+};
+pub use slic::{draw_superpixel_boundaries, slic};
+pub use watershed::{
+    compute_gradient_magnitude, labels_to_color_image, watershed, watershed_markers,
+};
+
 use crate::error::{Result, VisionError};
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};

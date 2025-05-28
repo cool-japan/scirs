@@ -336,12 +336,15 @@ fn nonmaximum_suppression(
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use scirs2_vision::feature::canny;
+/// ```rust
+/// use scirs2_vision::feature::{canny, PreprocessMode};
 /// use image::DynamicImage;
 ///
-/// let img = image::open("input.jpg").unwrap();
+/// # fn main() -> scirs2_vision::error::Result<()> {
+/// let img = image::open("examples/input/input.jpg").unwrap();
 /// let edges = canny(&img, 1.0, None, None, None, false, PreprocessMode::Constant(0.0))?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn canny(
     image: &DynamicImage,

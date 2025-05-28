@@ -135,7 +135,7 @@ pub fn extract_dbscan_clustering(optics_result: &OPTICSResult, eps: f64) -> Arra
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::density::{optics, DistanceMetric};
 ///
@@ -154,15 +154,11 @@ pub fn extract_dbscan_clustering(optics_result: &OPTICSResult, eps: f64) -> Arra
 /// ]).unwrap();
 ///
 /// // Run OPTICS with min_samples=2
-/// let result = optics(data.view(), 2, None, Some(DistanceMetric::Euclidean)).unwrap();
+/// let result = optics::optics(data.view(), 2, None, Some(DistanceMetric::Euclidean)).unwrap();
 ///
 /// // Access the ordering and reachability distances
 /// println!("Ordering: {:?}", result.ordering);
 /// println!("Reachability: {:?}", result.reachability);
-///
-/// println!("Ordering: {:?}", result.ordering);
-/// println!("Reachability: {:?}", result.reachability);
-/// println!("Cluster assignments: {:?}", labels);
 /// ```
 pub fn optics<F: Float + FromPrimitive + Debug + PartialOrd>(
     data: ArrayView2<F>,

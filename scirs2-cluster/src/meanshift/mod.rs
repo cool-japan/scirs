@@ -103,7 +103,7 @@ impl<T: Float> Hash for FloatPoint<T> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_cluster::meanshift::estimate_bandwidth;
 ///
@@ -187,18 +187,13 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
             })?;
 
             if distances.len() > 1 {
-                // Skip the first distance (to itself, which is 0) and take the max
-                let max_dist_val = distances
-                    .iter()
-                    .skip(1)
-                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                    .copied()
-                    .unwrap_or(T::from(0.1).unwrap()); // Default to a small positive value if no valid distance is found
+                // Skip the first distance (to itself, which is 0) and take the last (k-th neighbor)
+                let kth_dist = distances.last().copied().unwrap_or(T::from(1.0).unwrap()); // Default to 1.0 if no valid distance is found
 
-                bandwidth_sum = bandwidth_sum + max_dist_val;
+                bandwidth_sum = bandwidth_sum + kth_dist;
             } else if !distances.is_empty() {
-                // If we only have one distance (to itself), use a small default value
-                bandwidth_sum = bandwidth_sum + T::from(0.1).unwrap();
+                // If we only have one distance (to itself), use a larger default value
+                bandwidth_sum = bandwidth_sum + T::from(1.0).unwrap();
             }
         }
     }
@@ -364,7 +359,7 @@ fn mean_shift_single_seed<
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_cluster::meanshift::{mean_shift, MeanShiftOptions};
 ///
@@ -513,6 +508,15 @@ impl<
             })
         });
 
+        // Debug: print number of centers before deduplication
+        #[cfg(debug_assertions)]
+        if sorted_by_intensity.len() > 1 {
+            eprintln!(
+                "DEBUG: Found {} centers before deduplication",
+                sorted_by_intensity.len()
+            );
+        }
+
         // Convert to Array2
         let mut sorted_centers = Array2::zeros((sorted_by_intensity.len(), n_features));
         for (i, (center, _)) in sorted_by_intensity.iter().enumerate() {
@@ -529,21 +533,23 @@ impl<
             ClusteringError::ComputationError(format!("Failed to build KDTree: {}", e))
         })?;
 
+        // Use a smaller threshold for merging centers (typically bandwidth/10 or less)
+        let merge_threshold = bandwidth * T::from(0.1).unwrap();
+
         for i in 0..sorted_centers.nrows() {
             if unique[i] {
                 let (indices, _) = kdtree
-                    .query_radius(&sorted_centers.row(i).to_vec(), bandwidth)
+                    .query_radius(&sorted_centers.row(i).to_vec(), merge_threshold)
                     .map_err(|e| {
                         ClusteringError::ComputationError(format!("Failed to query KDTree: {}", e))
                     })?;
 
-                // Mark all neighbors as non-unique
+                // Mark all neighbors as non-unique, except the current point
                 for &idx in indices.iter() {
-                    unique[idx] = false;
+                    if idx != i {
+                        unique[idx] = false;
+                    }
                 }
-
-                // But keep the current point as unique
-                unique[i] = true;
             }
         }
 
@@ -719,15 +725,12 @@ mod tests {
 
         let bandwidth = estimate_bandwidth(&data.view(), Some(0.3), None, None).unwrap();
 
-        // With only one sample, we now return a small default value
+        // With only one sample, we return a default value of 1.0
         assert!(
             bandwidth > 0.0,
             "Bandwidth should be positive for single sample"
         );
-        assert!(
-            bandwidth <= 0.2,
-            "Bandwidth should be small for single sample"
-        );
+        assert_eq!(bandwidth, 1.0, "Bandwidth should be 1.0 for single sample");
     }
 
     #[test]

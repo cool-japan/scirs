@@ -33,6 +33,9 @@ mod gpu;
 mod reporter;
 mod snapshot;
 
+#[cfg(test)]
+mod test_utils;
+
 pub use collector::{
     AllocationStats, ComponentMemoryStats, MemoryMetricsCollector, MemoryMetricsConfig,
     MemoryReport,
@@ -289,10 +292,16 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::test_utils::MEMORY_METRICS_TEST_MUTEX;
     use super::*;
 
     #[test]
     fn test_global_memory_metrics() {
+        // Lock the mutex to ensure test isolation
+        let _lock = MEMORY_METRICS_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+
         // Reset metrics to start with clean state
         reset_memory_metrics();
 

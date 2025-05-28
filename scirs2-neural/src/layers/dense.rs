@@ -16,25 +16,22 @@ use std::fmt::Debug;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example usage of Dense layer (ignored due to type issues with doctest):
-/// // use scirs2_neural::layers::Dense;
-/// // use scirs2_neural::activations::ReLU;
-/// // use scirs2_neural::layers::Layer;
-/// // use ndarray::{Array, Array2};
-/// // use rand::rngs::SmallRng;
-/// // use rand::SeedableRng;
-/// //
-/// // // Create a dense layer with 2 input neurons, 3 output neurons, and ReLU activation
-/// // let mut rng = SmallRng::seed_from_u64(42);
-/// // let dense = Dense::new(2, 3, Some(Box::new(ReLU::new())), &mut rng).unwrap();
-/// //
-/// // // Forward pass with a batch of 2 samples
-/// // let input = Array2::from_shape_vec((2, 2), vec![1.0f64, 2.0, 3.0, 4.0]).unwrap().into_dyn();
-/// // let output = dense.forward(&input).unwrap();
-/// //
-/// // // Output shape should be (2, 3) - 2 samples with 3 features each
-/// // assert_eq!(output.shape(), &[2, 3]);
+/// ```
+/// use scirs2_neural::layers::{Dense, Layer};
+/// use ndarray::{Array, Array2};
+/// use rand::rngs::SmallRng;
+/// use rand::SeedableRng;
+///
+/// // Create a dense layer with 2 input neurons, 3 output neurons, and ReLU activation
+/// let mut rng = SmallRng::seed_from_u64(42);
+/// let dense = Dense::new(2, 3, Some("relu"), &mut rng).unwrap();
+///
+/// // Forward pass with a batch of 2 samples
+/// let input = Array2::from_shape_vec((2, 2), vec![1.0f64, 2.0, 3.0, 4.0]).unwrap().into_dyn();
+/// let output = dense.forward(&input).unwrap();
+///
+/// // Output shape should be (2, 3) - 2 samples with 3 features each
+/// assert_eq!(output.shape(), &[2, 3]);
 /// ```
 /// Dense (fully connected) layer for neural networks.
 ///

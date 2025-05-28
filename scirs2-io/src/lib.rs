@@ -18,6 +18,8 @@
 //! - `csv`: Support for CSV (Comma-Separated Values) files
 //! - `image`: Support for image file formats (PNG, JPEG, BMP, TIFF)
 //! - `matlab`: Support for MATLAB (.mat) files
+//! - `matrix_market`: Support for Matrix Market sparse and dense matrix files
+//! - `netcdf`: Support for NetCDF scientific data files
 //! - `serialize`: Utilities for data serialization and deserialization
 //! - `validation`: Utilities for data validation and integrity checking
 //! - `wavfile`: Support for WAV audio files
@@ -49,6 +51,15 @@ pub mod compression;
 /// - Column-based operations with flexible configuration
 pub mod csv;
 pub mod error;
+/// HDF5 file format module
+///
+/// Provides functionality for reading and writing HDF5 (Hierarchical Data Format) files:
+/// - Reading and writing HDF5 groups and datasets
+/// - Support for attributes on groups and datasets
+/// - Multiple datatypes (integers, floats, strings, compound types)
+/// - Chunking and compression options
+/// - Integration with ndarray for efficient array operations
+pub mod hdf5;
 /// Image file format module
 ///
 /// Provides functionality for reading and writing common image formats:
@@ -58,6 +69,15 @@ pub mod error;
 /// - Basic image processing operations
 pub mod image;
 pub mod matlab;
+/// Matrix Market file format module
+///
+/// Provides functionality for reading and writing Matrix Market files:
+/// - Support for sparse matrix coordinate format (COO)
+/// - Support for dense array format
+/// - Real, complex, integer, and pattern data types
+/// - Different matrix symmetry types (general, symmetric, hermitian, skew-symmetric)
+/// - Integration with ndarray for efficient matrix operations
+pub mod matrix_market;
 /// NetCDF file format module
 ///
 /// Provides functionality for reading and writing NetCDF files:

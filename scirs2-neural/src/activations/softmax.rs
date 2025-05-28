@@ -15,16 +15,23 @@ use std::fmt::Debug;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: This test fails currently due to issues with softmax axis handling
-/// use scirs2_neural::activations::Softmax;
-/// use scirs2_neural::activations::Activation;
-/// use ndarray::{Array, arr2};
+/// ```
+/// use scirs2_neural::activations::{Softmax, Activation};
+/// use ndarray::arr1;
 ///
-/// // For now we'll just demonstrate basic usage
-/// let softmax = Softmax::new(0); // Set appropriate axis
-/// let input = arr2(&[[1.0f64, 2.0, 3.0]]).into_dyn();
-/// let _output = softmax.forward(&input).unwrap();
+/// // Create softmax activation for 1D array (axis 0)
+/// let softmax = Softmax::new(0);
+/// let input = arr1(&[1.0f64, 2.0, 3.0]).into_dyn();
+/// let output = softmax.forward(&input).unwrap();
+///
+/// // Check that the output sums to 1.0
+/// let sum: f64 = output.sum();
+/// assert!((sum - 1.0).abs() < 1e-6);
+///
+/// // Check that all values are between 0 and 1
+/// for val in output.iter() {
+///     assert!(*val >= 0.0 && *val <= 1.0);
+/// }
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Softmax {
@@ -59,6 +66,29 @@ impl<F: Float + Debug> Activation<F> for Softmax {
             )));
         }
 
+        // Special case for 1D arrays
+        if input.ndim() == 1 && self.axis == 0 {
+            // Find max for numerical stability
+            let max_val = input.fold(F::neg_infinity(), |a, &b| a.max(b));
+
+            // Compute exp(x - max)
+            let mut output = input.clone();
+            for val in output.iter_mut() {
+                *val = (*val - max_val).exp();
+            }
+
+            // Compute sum
+            let sum = output.fold(F::zero(), |a, &b| a + b);
+
+            // Normalize
+            for val in output.iter_mut() {
+                *val = *val / sum;
+            }
+
+            return Ok(output);
+        }
+
+        // General case for multi-dimensional arrays
         // Numerical stability: subtract the maximum value to avoid overflow
         let max_vals = input.map_axis(Axis(self.axis), |view| {
             view.fold(F::neg_infinity(), |a, &b| a.max(b))
@@ -93,15 +123,43 @@ impl<F: Float + Debug> Activation<F> for Softmax {
     fn backward(
         &self,
         grad_output: &Array<F, ndarray::IxDyn>,
-        _output: &Array<F, ndarray::IxDyn>,
+        output: &Array<F, ndarray::IxDyn>,
     ) -> Result<Array<F, ndarray::IxDyn>> {
-        // Note: This backward pass implementation is a simplification.
-        // The full Jacobian matrix for softmax is complex.
-        // This implementation assumes the gradient is coming from categorical cross-entropy loss,
-        // which simplifies the softmax gradient to (output - target).
-        // For general case, we'd need to implement the full Jacobian-vector product.
+        // Softmax backward pass: grad_input = softmax * (grad_output - sum(grad_output * softmax))
+        // This implements the full Jacobian-vector product for softmax
 
-        // For now, just pass through the gradient
-        Ok(grad_output.clone())
+        // Special case for 1D arrays
+        if output.ndim() == 1 && self.axis == 0 {
+            // Compute dot product of grad_output and output (softmax values)
+            let dot_product = grad_output
+                .iter()
+                .zip(output.iter())
+                .map(|(&g, &s)| g * s)
+                .fold(F::zero(), |a, b| a + b);
+
+            // Compute gradient: s * (grad_output - dot_product)
+            let grad_input = output
+                .iter()
+                .zip(grad_output.iter())
+                .map(|(&s, &g)| s * (g - dot_product))
+                .collect::<Vec<_>>();
+
+            return Ok(Array::from_vec(grad_input).into_dyn());
+        }
+
+        // General case for multi-dimensional arrays
+        // Compute sum(grad_output * softmax) along the softmax axis
+        let weighted_sum = (grad_output * output).sum_axis(Axis(self.axis));
+
+        // Broadcast the weighted sum back to original shape
+        let mut sum_shape = output.shape().to_vec();
+        sum_shape[self.axis] = 1;
+        let weighted_sum_reshaped = weighted_sum.into_shape_with_order(sum_shape)?;
+        let weighted_sum_broadcast = weighted_sum_reshaped.broadcast(output.shape()).unwrap();
+
+        // Compute gradient: softmax * (grad_output - weighted_sum)
+        let grad_input = output * (grad_output - &weighted_sum_broadcast);
+
+        Ok(grad_input)
     }
 }

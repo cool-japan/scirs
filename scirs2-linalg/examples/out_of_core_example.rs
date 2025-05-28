@@ -7,7 +7,7 @@ use ndarray::{Array1, Array2};
 use rand::Rng;
 use scirs2_linalg::quantization::{out_of_core::ChunkedQuantizedMatrix, QuantizationMethod};
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 fn main() {
@@ -35,7 +35,7 @@ fn main() {
 }
 
 /// Example using a small matrix to demonstrate basic functionality
-fn example_small_matrix(file_path: &PathBuf) {
+fn example_small_matrix(file_path: &Path) {
     println!("Creating a small 10x10 matrix...");
     let matrix = create_random_spd_matrix(10);
 
@@ -79,7 +79,7 @@ fn example_small_matrix(file_path: &PathBuf) {
 }
 
 /// Example solving a linear system with a medium-sized matrix
-fn example_medium_matrix(file_path: &PathBuf) {
+fn example_medium_matrix(file_path: &Path) {
     let size = 100;
     println!("Creating a medium {}x{} matrix...", size, size);
     let matrix = create_random_spd_matrix(size);
@@ -127,7 +127,7 @@ fn example_medium_matrix(file_path: &PathBuf) {
 }
 
 /// Example comparing performance with a large matrix
-fn example_large_matrix_performance(file_path: &PathBuf) {
+fn example_large_matrix_performance(file_path: &Path) {
     let size = 1000;
     println!(
         "Creating a large {}x{} matrix (this would be much larger in a real scenario)...",

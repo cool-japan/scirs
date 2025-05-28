@@ -35,7 +35,7 @@ use ndarray::{Array1, ArrayView1};
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
 /// use ndarray::{array, ArrayView1};
 /// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 ///
@@ -66,7 +66,7 @@ use ndarray::{Array1, ArrayView1};
 /// This function can also handle ODEs with mass matrices by specifying a mass matrix
 /// in the options. For example:
 ///
-/// ```rust,ignore
+/// ```
 /// use ndarray::{array, Array2, ArrayView1};
 /// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions, MassMatrix};
 ///
@@ -381,11 +381,13 @@ where
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
 /// use ndarray::{array, ArrayView1};
 /// use scirs2_integrate::ode::{
-///     solve_ivp_with_events, ODEMethod, ODEOptions, EventSpec,
-///     EventDirection, ODEOptionsWithEvents
+///     solve_ivp_with_events, ODEMethod, ODEOptions
+/// };
+/// use scirs2_integrate::ode::utils::events::{
+///     EventSpec, EventDirection, EventAction, ODEOptionsWithEvents
 /// };
 ///
 /// // Define ODE system: simple harmonic oscillator

@@ -68,7 +68,8 @@ fn bench_inplace_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("inplace_add", size), size, |bench, _| {
             bench.iter(|| {
                 let mut a_copy = a.clone();
-                black_box(inplace_add(&mut a_copy.view_mut(), &b.view()).unwrap());
+                inplace_add(&mut a_copy.view_mut(), &b.view()).unwrap();
+                black_box(&a_copy);
             });
         });
 

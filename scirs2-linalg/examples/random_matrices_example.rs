@@ -193,7 +193,7 @@ fn demo_correlation_matrix<R: rand::Rng>(rng: &mut R) -> LinalgResult<()> {
     // Check values in [-1, 1]
     let mut range_ok = true;
     for &val in corr_matrix.iter() {
-        if val < -1.0 || val > 1.0 {
+        if !(-1.0..=1.0).contains(&val) {
             range_ok = false;
             break;
         }

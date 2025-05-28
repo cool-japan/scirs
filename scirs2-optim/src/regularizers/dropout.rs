@@ -17,10 +17,9 @@ use crate::regularizers::Regularizer;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # NOTE: Dimension type inference issues with the Regularizer trait implementation
+/// ```
 /// use ndarray::Array1;
-/// use scirs2_optim::regularizers::{Dropout, Regularizer};
+/// use scirs2_optim::regularizers::Dropout;
 /// use rand::SeedableRng;
 /// use rand::rngs::SmallRng;
 ///
@@ -32,13 +31,12 @@ use crate::regularizers::Regularizer;
 /// // Set to training mode
 /// dropout.train();
 ///
-/// // Parameters and gradients
-/// let params = Array1::<f64>::from_vec(vec![0.5, -0.3, 0.0, 0.2]);
-/// let mut gradients = Array1::<f64>::from_vec(vec![0.1, 0.2, -0.3, 0.0]);
+/// // Check the dropout rate
+/// assert_eq!(dropout.rate(), 0.5);
 ///
-/// // Apply dropout during training
-/// // Note: The actual implementation requires explicit Dimension type parameters
-/// // which are difficult to express in a doctest
+/// // Set to evaluation mode
+/// dropout.eval();
+/// assert!(!dropout.is_training());
 /// ```
 #[derive(Debug, Clone)]
 pub struct Dropout<A: Float + Debug> {

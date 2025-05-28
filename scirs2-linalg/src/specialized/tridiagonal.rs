@@ -18,7 +18,7 @@ use std::iter::Sum;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array1};
 /// use scirs2_linalg::specialized::TridiagonalMatrix;
 /// use scirs2_linalg::SpecializedMatrix;

@@ -135,14 +135,14 @@ fn run_network_full_precision(network: &[SimpleLayer], input: &Array2<f32>) -> A
     output_bias
 }
 
+type QuantizedLayerPair = (QuantizedMatrix, QuantizedMatrix);
+type QuantizationParamsPair = (QuantizationParams, QuantizationParams);
+
 /// Quantize a neural network
 fn quantize_network(
     network: &[SimpleLayer],
     bits: u8,
-) -> (
-    Vec<(QuantizedMatrix, QuantizedMatrix)>,
-    Vec<(QuantizationParams, QuantizationParams)>,
-) {
+) -> (Vec<QuantizedLayerPair>, Vec<QuantizationParamsPair>) {
     let mut quantized_layers = Vec::new();
     let mut quantization_params = Vec::new();
 

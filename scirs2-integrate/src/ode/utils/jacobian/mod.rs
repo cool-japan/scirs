@@ -533,25 +533,20 @@ impl<F: IntegrateFloat> JacobianManager<F> {
             }
             JacobianStrategy::Adaptive => {
                 // For adaptive strategy, try autodiff first if available
-                if is_autodiff_available() {
-                    // Try using autodiff
+                #[cfg(feature = "autodiff")]
+                {
+                    // Try using adaptive_jacobian which handles autodiff with proper bounds
                     let f_current = f(t, y.view());
-                    match autodiff_jacobian(f, t, y, &f_current, scale.unwrap_or(F::one())) {
-                        Ok(jac) => {
-                            self.jacobian = Some(jac);
-                        }
-                        Err(_) => {
-                            // Fall back to finite differences if autodiff fails
-                            self.jacobian = Some(finite_difference_jacobian(
-                                f,
-                                t,
-                                y,
-                                &f_current,
-                                F::from(1e-8).unwrap(),
-                            ));
-                        }
-                    }
-                } else {
+                    self.jacobian = Some(adaptive_jacobian(
+                        f,
+                        t,
+                        y,
+                        &f_current,
+                        scale.unwrap_or(F::one()),
+                    )?);
+                }
+                #[cfg(not(feature = "autodiff"))]
+                {
                     // Use finite differences directly if autodiff is not available
                     let f_current = f(t, y.view());
                     self.jacobian = Some(finite_difference_jacobian(

@@ -697,10 +697,12 @@ mod tests {
             .collect();
 
         // Create config for time stretching with mild settings
-        let mut config = PhaseVocoderConfig::default();
-        config.time_stretch = 1.5; // Lower stretch factor
-        config.window_size = 32; // Tiny window size
-        config.hop_size = 8; // Tiny hop size
+        let config = PhaseVocoderConfig {
+            time_stretch: 1.5, // Lower stretch factor
+            window_size: 32, // Tiny window size
+            hop_size: 8, // Tiny hop size
+            ..Default::default()
+        };
 
         // Just test that the function runs without errors
         let result = phase_vocoder(&signal, &config).unwrap();

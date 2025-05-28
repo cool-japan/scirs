@@ -18,13 +18,13 @@ use ndarray::{Array1, Array2};
 /// exploits the block structure of semi-explicit DAE systems.
 ///
 /// The semi-explicit DAE system:
-/// ```ignore
+/// ```text
 /// x' = f(x, y, t)
 /// 0 = g(x, y, t)
 /// ```
 ///
 /// leads to a Jacobian matrix of the form:
-/// ```ignore
+/// ```text
 /// | I - h*β*∂f/∂x  -h*β*∂f/∂y |
 /// | ∂g/∂x          ∂g/∂y      |
 /// ```

@@ -42,7 +42,7 @@ fn main() {
         let start = Instant::now();
 
         let result = solve_ivp(
-            van_der_pol.clone(),
+            van_der_pol,
             [0.0, 20.0],
             array![2.0, 0.0],
             Some(ODEOptions {
@@ -105,7 +105,7 @@ fn main() {
         let start = Instant::now();
 
         let result = solve_ivp(
-            stiff_van_der_pol.clone(),
+            stiff_van_der_pol,
             [0.0, 20.0],
             array![2.0, 0.0],
             Some(ODEOptions {

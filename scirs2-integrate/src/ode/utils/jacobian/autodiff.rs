@@ -39,49 +39,49 @@ where
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     use ag::tensor_ops as T;
-    use ag::{Graph, Tensor};
+    use ag::{run, Context, Tensor};
     use scirs2_autograd as ag;
 
     let n = y.len();
     let mut jacobian = Array2::<F>::zeros((n, n));
 
-    // Create a new graph
-    let mut graph = ag::Graph::<F>::new();
-
-    // Create placeholder tensor for input state variables
-    let x = graph.placeholder(&[n]);
-
-    // Build the computation graph for f(t, y)
+    // Clone values needed inside the closure
+    let y_clone = y.clone();
     let f_clone = f.clone();
-    let t_clone = t;
 
-    // Use tensor_map to apply f to x
-    let mut wrapped_f = move |x_tensor: Tensor<F>| {
-        // Convert Tensor to ndarray, apply f, and convert result back
-        let y_ndarray = x_tensor.eval_to_ndarray();
-        let result = f_clone(t_clone, y_ndarray.view());
-        Tensor::constant(result, &graph)
-    };
+    // Use the run function to create a computation context
+    run(|ctx: &mut Context<F>| {
+        // Create variable tensor for input state
+        let x_var = ctx.variable(y_clone.clone());
 
-    // Apply f to x
-    let y_tensor = wrapped_f(x);
+        // Convert variable to tensor for operations
+        let x_tensor: Tensor<F> = x_var.into();
 
-    // For each output variable, compute gradient with respect to inputs
-    for i in 0..n {
-        // Extract the i-th component of the output
-        let y_i = T::slice(y_tensor, &[i..i + 1], &[]);
+        // Apply the ODE function
+        // We need to extract values, apply f, then convert back
+        let x_values = x_tensor.data();
+        let x_array = Array1::from_shape_vec(n, x_values.to_vec()).unwrap();
+        let f_result = f_clone(t, x_array.view());
 
-        // Compute gradient of y_i with respect to all inputs
-        let grads = T::grad(&[y_i], &[x]);
+        // Convert result back to tensor
+        let y_tensor = ctx.constant(f_result);
 
-        // Extract gradient values
-        let grad_i = grads[0].eval_to_ndarray();
+        // For each output variable, compute gradient with respect to inputs
+        for i in 0..n {
+            // Extract the i-th component of the output
+            let indices = ndarray::arr1(&[i as isize]);
+            let y_i = T::gather(&y_tensor, &indices, 0);
 
-        // Fill the i-th row of the Jacobian
-        for j in 0..n {
-            jacobian[[i, j]] = grad_i[j];
+            // Compute gradient of y_i with respect to all inputs
+            let grads = T::grad(&[&y_i], &[&x_tensor]);
+
+            // Extract gradient values and fill the i-th row of the Jacobian
+            let grad_data = grads[0].data();
+            for j in 0..n {
+                jacobian[[i, j]] = grad_data[j];
+            }
         }
-    }
+    });
 
     Ok(jacobian)
 }
@@ -111,6 +111,25 @@ pub fn is_autodiff_available() -> bool {
 
 /// Jacobian strategy that uses autodiff when available and falls back
 /// to finite differences when not
+#[cfg(feature = "autodiff")]
+pub fn adaptive_jacobian<F, Func>(
+    f: &Func,
+    t: F,
+    y: &Array1<F>,
+    f_current: &Array1<F>,
+    perturbation_scale: F,
+) -> IntegrateResult<Array2<F>>
+where
+    F: IntegrateFloat + scirs2_autograd::Float,
+    Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
+{
+    // Use autodiff when available
+    autodiff_jacobian(f, t, y, f_current, perturbation_scale)
+}
+
+/// Jacobian strategy that uses autodiff when available and falls back
+/// to finite differences when not
+#[cfg(not(feature = "autodiff"))]
 pub fn adaptive_jacobian<F, Func>(
     f: &Func,
     t: F,
@@ -122,27 +141,12 @@ where
     F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
-    if is_autodiff_available() {
-        #[cfg(feature = "autodiff")]
-        {
-            // Use autodiff when available
-            autodiff_jacobian(f, t, y, f_current, perturbation_scale)
-        }
-        #[cfg(not(feature = "autodiff"))]
-        {
-            // Fall back to finite differences
-            Err(IntegrateError::NotImplementedError(
-                "Autodiff feature is not enabled".to_string(),
-            ))
-        }
-    } else {
-        // Use finite differences
-        Ok(crate::ode::utils::common::finite_difference_jacobian(
-            f,
-            t,
-            y,
-            f_current,
-            perturbation_scale,
-        ))
-    }
+    // Fall back to finite differences
+    Ok(crate::ode::utils::common::finite_difference_jacobian(
+        f,
+        t,
+        y,
+        f_current,
+        perturbation_scale,
+    ))
 }

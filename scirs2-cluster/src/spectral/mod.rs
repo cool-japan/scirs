@@ -302,7 +302,7 @@ impl<F: Float + FromPrimitive> Default for SpectralClusteringOptions<F> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::spectral::{spectral_clustering, SpectralClusteringOptions, AffinityMode};
 ///

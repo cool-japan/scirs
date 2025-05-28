@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("{:<10.4} {:<15.8e}", x, value);
         }
-        println!(""); // Empty line between time points
+        println!(); // Empty line between time points
     }
 
     // Analyze solution: mass conservation check

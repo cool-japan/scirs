@@ -26,12 +26,15 @@ use ndarray::Array2;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use scirs2_vision::feature::laplacian_edges;
 /// use image::DynamicImage;
 ///
-/// let img = image::open("input.jpg").unwrap();
+/// # fn main() -> scirs2_vision::error::Result<()> {
+/// let img = image::open("examples/input/input.jpg").unwrap();
 /// let edges = laplacian_edges(&img, 0.1, true)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn laplacian_edges(
     img: &DynamicImage,

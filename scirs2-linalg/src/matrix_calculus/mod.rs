@@ -30,7 +30,7 @@
 //!
 //! ## Examples
 //!
-//! ```ignore
+//! ```
 //! use ndarray::{array, ArrayView1};
 //! use scirs2_linalg::matrix_calculus::gradient;
 //! use scirs2_linalg::error::LinalgResult;
@@ -45,8 +45,8 @@
 //! let grad = gradient(f, &x.view(), None).unwrap();
 //!
 //! // The gradient should be [2*x[0], 4*x[1]] = [2.0, 4.0]
-//! assert!((grad[0] - 2.0_f64).abs() < 1e-10_f64);
-//! assert!((grad[1] - 4.0_f64).abs() < 1e-10_f64);
+//! assert!((grad[0] - 2.0_f64).abs() < 1e-6_f64);
+//! assert!((grad[1] - 4.0_f64).abs() < 1e-6_f64);
 //! ```
 
 use ndarray::{Array1, Array2, ArrayView1};

@@ -1,609 +1,528 @@
-//! Graph algorithms implementation
+//! Graph algorithms
 //!
-//! This module provides common graph algorithms such as:
-//! - Shortest path
-//! - Connected components
-//! - Minimum spanning tree
-//! - Traversal algorithms (BFS, DFS)
-//! - Topological sorting
+//! This module provides various algorithms for graph analysis and manipulation.
+//! The algorithms are organized into submodules by category:
+//!
+//! - `traversal`: BFS, DFS, and other traversal algorithms
+//! - `shortest_path`: Dijkstra, A*, Floyd-Warshall, etc.
+//! - `connectivity`: Connected components, articulation points, bridges
+//! - `flow`: Network flow and cut algorithms
+//! - `matching`: Bipartite matching algorithms
+//! - `coloring`: Graph coloring algorithms
+//! - `paths`: Eulerian and Hamiltonian path algorithms
+//! - `community`: Community detection algorithms
+//! - `decomposition`: Graph decomposition algorithms
+//! - `isomorphism`: Graph isomorphism and subgraph matching
+//! - `motifs`: Motif finding algorithms
+//! - `random_walk`: Random walk and PageRank algorithms
+//! - `similarity`: Node and graph similarity measures
+//! - `properties`: Graph properties like diameter, radius, center
 
-use petgraph::algo::dijkstra;
-use petgraph::visit::EdgeRef;
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+pub mod coloring;
+pub mod community;
+pub mod connectivity;
+pub mod decomposition;
+pub mod flow;
+pub mod isomorphism;
+pub mod matching;
+pub mod motifs;
+pub mod paths;
+pub mod properties;
+pub mod random_walk;
+pub mod shortest_path;
+pub mod similarity;
+pub mod traversal;
 
-use crate::base::{DiGraph, Edge, EdgeWeight, Graph, Node};
+// Re-export all public items for convenience
+pub use coloring::*;
+pub use community::*;
+pub use connectivity::*;
+pub use decomposition::*;
+pub use flow::*;
+pub use isomorphism::*;
+pub use matching::*;
+pub use motifs::*;
+pub use paths::*;
+pub use properties::*;
+pub use random_walk::*;
+pub use shortest_path::*;
+pub use similarity::*;
+pub use traversal::*;
+
+// Additional algorithms that haven't been moved to submodules yet
+
+use crate::base::{DiGraph, EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
+use ndarray::{Array1, Array2};
+use petgraph::algo::toposort as petgraph_toposort;
+use petgraph::visit::EdgeRef;
+use petgraph::Direction;
+use std::cmp::Ordering;
+use std::collections::{HashMap, VecDeque};
 
-/// Path between two nodes in a graph
-#[derive(Debug, Clone)]
-pub struct Path<N: Node, E: EdgeWeight> {
-    /// The nodes in the path, in order
-    pub nodes: Vec<N>,
-    /// The total weight of the path
-    pub total_weight: E,
-}
-
-/// Finds the shortest path between source and target nodes using Dijkstra's algorithm
+/// Kruskal's algorithm for finding minimum spanning tree
 ///
-/// # Arguments
-/// * `graph` - The graph to search in
-/// * `source` - The source node
-/// * `target` - The target node
-///
-/// # Returns
-/// * `Ok(Some(Path))` - If a path exists
-/// * `Ok(None)` - If no path exists
-/// * `Err(GraphError)` - If the source or target node is not in the graph
-pub fn shortest_path<N, E, Ix>(
+/// Returns a vector of edges that form the minimum spanning tree.
+/// Only works on undirected graphs.
+pub fn minimum_spanning_tree<N, E, Ix>(
     graph: &Graph<N, E, Ix>,
-    source: &N,
-    target: &N,
-) -> Result<Option<Path<N, E>>>
+) -> Result<Vec<crate::base::Edge<N, E>>>
 where
-    N: Node + std::fmt::Debug,
-    E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
-        + std::ops::Add<Output = E>
-        + PartialOrd
-        + std::marker::Copy
-        + std::fmt::Debug
-        + std::default::Default,
+    N: Node,
+    E: EdgeWeight + Into<f64> + std::cmp::PartialOrd,
     Ix: petgraph::graph::IndexType,
 {
-    // Check if source and target are in the graph
-    if !graph.has_node(source) {
-        return Err(GraphError::InvalidGraph(format!(
-            "Source node {:?} not found",
-            source
-        )));
-    }
-    if !graph.has_node(target) {
-        return Err(GraphError::InvalidGraph(format!(
-            "Target node {:?} not found",
-            target
-        )));
-    }
-
-    let source_idx = graph
+    // Get all edges and sort by weight
+    let mut edges: Vec<_> = graph
         .inner()
-        .node_indices()
-        .find(|&idx| graph.inner()[idx] == *source)
-        .unwrap();
-    let target_idx = graph
-        .inner()
-        .node_indices()
-        .find(|&idx| graph.inner()[idx] == *target)
-        .unwrap();
+        .edge_references()
+        .map(|e| {
+            let source = graph.inner()[e.source()].clone();
+            let target = graph.inner()[e.target()].clone();
+            let weight = e.weight().clone();
+            (source, target, weight)
+        })
+        .collect();
 
-    // Use petgraph's Dijkstra algorithm implementation
-    let results = dijkstra(graph.inner(), source_idx, Some(target_idx), |e| *e.weight());
+    edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
-    // If target is not reachable, return None
-    if !results.contains_key(&target_idx) {
-        return Ok(None);
+    // Use Union-Find to detect cycles
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let mut parent: HashMap<N, N> = nodes.iter().map(|n| (n.clone(), n.clone())).collect();
+    let mut rank: HashMap<N, usize> = nodes.iter().map(|n| (n.clone(), 0)).collect();
+
+    fn find<N: Node>(parent: &mut HashMap<N, N>, node: &N) -> N {
+        if parent[node] != *node {
+            let root = find(parent, &parent[node].clone());
+            parent.insert(node.clone(), root.clone());
+        }
+        parent[node].clone()
     }
 
-    let total_weight = results[&target_idx];
+    fn union<N: Node>(
+        parent: &mut HashMap<N, N>,
+        rank: &mut HashMap<N, usize>,
+        x: &N,
+        y: &N,
+    ) -> bool {
+        let root_x = find(parent, x);
+        let root_y = find(parent, y);
 
-    // Reconstruct the path
-    let mut path = Vec::new();
-    let mut current = target_idx;
+        if root_x == root_y {
+            return false; // Already in same set
+        }
 
-    path.push(graph.inner()[current].clone());
+        // Union by rank
+        match rank[&root_x].cmp(&rank[&root_y]) {
+            Ordering::Less => {
+                parent.insert(root_x, root_y);
+            }
+            Ordering::Greater => {
+                parent.insert(root_y, root_x);
+            }
+            Ordering::Equal => {
+                parent.insert(root_y, root_x.clone());
+                *rank.get_mut(&root_x).unwrap() += 1;
+            }
+        }
+        true
+    }
 
-    // Backtrack to find the path
-    while current != source_idx {
-        let min_prev = graph
-            .inner()
-            .edges_directed(current, petgraph::Direction::Incoming)
-            .filter_map(|e| {
-                let from = e.source();
-                let edge_weight = *e.weight();
+    let mut mst = Vec::new();
 
-                // Check if this node is part of the shortest path
-                if let Some(from_dist) = results.get(&from) {
-                    // If this edge is part of the shortest path
-                    if *from_dist + edge_weight == results[&current] {
-                        return Some((from, *from_dist));
-                    }
-                }
-                None
-            })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
-
-        if let Some((prev, _)) = min_prev {
-            current = prev;
-            path.push(graph.inner()[current].clone());
-        } else {
-            // This shouldn't happen if Dijkstra's algorithm works correctly
-            return Err(GraphError::AlgorithmError(
-                "Failed to reconstruct path".to_string(),
-            ));
+    for (source, target, weight) in edges {
+        if union(&mut parent, &mut rank, &source, &target) {
+            mst.push(crate::base::Edge {
+                source,
+                target,
+                weight,
+            });
         }
     }
 
-    // Reverse the path to get it from source to target
-    path.reverse();
-
-    Ok(Some(Path {
-        nodes: path,
-        total_weight,
-    }))
+    Ok(mst)
 }
 
-/// Finds the shortest path in a directed graph
+/// Topological sort for directed acyclic graphs
 ///
-/// # Arguments
-/// * `graph` - The directed graph
-/// * `source` - The source node
-/// * `target` - The target node
-///
-/// # Returns
-/// * `Ok(Some(Path))` - If a path exists
-/// * `Ok(None)` - If no path exists
-/// * `Err(GraphError)` - If the source or target node is not in the graph
-pub fn shortest_path_digraph<N, E, Ix>(
-    graph: &DiGraph<N, E, Ix>,
-    source: &N,
-    target: &N,
-) -> Result<Option<Path<N, E>>>
-where
-    N: Node + std::fmt::Debug,
-    E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
-        + std::ops::Add<Output = E>
-        + PartialOrd
-        + std::marker::Copy
-        + std::fmt::Debug
-        + std::default::Default,
-    Ix: petgraph::graph::IndexType,
-{
-    // Check if source and target are in the graph
-    if !graph.has_node(source) {
-        return Err(GraphError::InvalidGraph(format!(
-            "Source node {:?} not found",
-            source
-        )));
-    }
-    if !graph.has_node(target) {
-        return Err(GraphError::InvalidGraph(format!(
-            "Target node {:?} not found",
-            target
-        )));
-    }
-
-    let source_idx = graph
-        .inner()
-        .node_indices()
-        .find(|&idx| graph.inner()[idx] == *source)
-        .unwrap();
-    let target_idx = graph
-        .inner()
-        .node_indices()
-        .find(|&idx| graph.inner()[idx] == *target)
-        .unwrap();
-
-    // Use petgraph's Dijkstra algorithm implementation
-    let results = dijkstra(graph.inner(), source_idx, Some(target_idx), |e| *e.weight());
-
-    // If target is not reachable, return None
-    if !results.contains_key(&target_idx) {
-        return Ok(None);
-    }
-
-    let total_weight = results[&target_idx];
-
-    // Reconstruct the path
-    let mut path = Vec::new();
-    let mut current = target_idx;
-
-    path.push(graph.inner()[current].clone());
-
-    // Backtrack to find the path
-    while current != source_idx {
-        let min_prev = graph
-            .inner()
-            .edges_directed(current, petgraph::Direction::Incoming)
-            .filter_map(|e| {
-                let from = e.source();
-                let edge_weight = *e.weight();
-
-                // Check if this node is part of the shortest path
-                if let Some(from_dist) = results.get(&from) {
-                    // If this edge is part of the shortest path
-                    if *from_dist + edge_weight == results[&current] {
-                        return Some((from, *from_dist));
-                    }
-                }
-                None
-            })
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
-
-        if let Some((prev, _)) = min_prev {
-            current = prev;
-            path.push(graph.inner()[current].clone());
-        } else {
-            // This shouldn't happen if Dijkstra's algorithm works correctly
-            return Err(GraphError::AlgorithmError(
-                "Failed to reconstruct path".to_string(),
-            ));
-        }
-    }
-
-    // Reverse the path to get it from source to target
-    path.reverse();
-
-    Ok(Some(Path {
-        nodes: path,
-        total_weight,
-    }))
-}
-
-/// Each connected component is represented as a set of nodes
-pub type Component<N> = HashSet<N>;
-
-/// Finds all connected components in an undirected graph
-///
-/// # Arguments
-/// * `graph` - The graph to analyze
-///
-/// # Returns
-/// * A vector of connected components, where each component is a set of nodes
-pub fn connected_components<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Vec<Component<N>>
+/// Returns nodes in topological order if the graph is a DAG,
+/// otherwise returns an error indicating a cycle was found.
+pub fn topological_sort<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Result<Vec<N>>
 where
     N: Node,
     E: EdgeWeight,
-    Ix: petgraph::graph::IndexType,
+    Ix: IndexType,
 {
-    let mut components: Vec<Component<N>> = Vec::new();
-    let mut visited = HashSet::new();
+    // Use petgraph's topological sort
+    match petgraph_toposort(graph.inner(), None) {
+        Ok(indices) => {
+            let sorted_nodes = indices
+                .into_iter()
+                .map(|idx| graph.inner()[idx].clone())
+                .collect();
+            Ok(sorted_nodes)
+        }
+        Err(_) => Err(GraphError::CycleDetected),
+    }
+}
 
-    // For each node in the graph
-    for node_idx in graph.inner().node_indices() {
-        // Skip if already visited
-        if visited.contains(&node_idx) {
-            continue;
+/// PageRank algorithm for computing node importance
+///
+/// Returns a map from nodes to their PageRank scores.
+pub fn pagerank<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+    damping_factor: f64,
+    tolerance: f64,
+    max_iterations: usize,
+) -> HashMap<N, f64>
+where
+    N: Node,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let nodes: Vec<_> = graph.inner().node_indices().collect();
+    let n = nodes.len();
+
+    if n == 0 {
+        return HashMap::new();
+    }
+
+    // Initialize PageRank values
+    let mut pr = vec![1.0 / n as f64; n];
+    let mut new_pr = vec![0.0; n];
+
+    // Create node index mapping
+    let node_to_idx: HashMap<_, _> = nodes.iter().enumerate().map(|(i, &n)| (n, i)).collect();
+
+    // Iterate until convergence
+    for _ in 0..max_iterations {
+        // Reset new PageRank values
+        for pr in new_pr.iter_mut().take(n) {
+            *pr = (1.0 - damping_factor) / n as f64;
         }
 
-        // New component
-        let mut component = Component::new();
-        let mut queue = VecDeque::new();
-        queue.push_back(node_idx);
-        visited.insert(node_idx);
+        // Calculate contributions from incoming edges
+        for (i, &node_idx) in nodes.iter().enumerate() {
+            let out_degree = graph
+                .inner()
+                .edges_directed(node_idx, Direction::Outgoing)
+                .count();
 
-        // BFS to find all nodes in this component
-        while let Some(curr) = queue.pop_front() {
-            component.insert(graph.inner()[curr].clone());
+            if out_degree > 0 {
+                let contribution = damping_factor * pr[i] / out_degree as f64;
 
-            // Check all neighbors
-            for neighbor in graph.inner().neighbors(curr) {
-                if !visited.contains(&neighbor) {
-                    visited.insert(neighbor);
-                    queue.push_back(neighbor);
+                for edge in graph.inner().edges_directed(node_idx, Direction::Outgoing) {
+                    if let Some(&j) = node_to_idx.get(&edge.target()) {
+                        new_pr[j] += contribution;
+                    }
+                }
+            } else {
+                // Dangling node: distribute equally to all nodes
+                let contribution = damping_factor * pr[i] / n as f64;
+                for pr_val in new_pr.iter_mut().take(n) {
+                    *pr_val += contribution;
                 }
             }
         }
 
-        components.push(component);
+        // Check convergence
+        let diff: f64 = pr
+            .iter()
+            .zip(&new_pr)
+            .map(|(old, new)| (old - new).abs())
+            .sum();
+
+        // Swap vectors
+        std::mem::swap(&mut pr, &mut new_pr);
+
+        if diff < tolerance {
+            break;
+        }
     }
 
-    components
+    // Convert to HashMap
+    nodes
+        .iter()
+        .enumerate()
+        .map(|(i, &node_idx)| (graph.inner()[node_idx].clone(), pr[i]))
+        .collect()
 }
 
-/// Edge for minimum spanning tree
-#[derive(Debug, Clone)]
-struct MstEdge<N: Node, E: EdgeWeight> {
-    source: N,
-    target: N,
-    weight: E,
-}
-
-/// Compare edges by weight
-impl<N: Node, E: EdgeWeight> PartialOrd for MstEdge<N, E> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<N: Node, E: EdgeWeight> PartialEq for MstEdge<N, E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.weight == other.weight
-    }
-}
-
-impl<N: Node, E: EdgeWeight> Eq for MstEdge<N, E> {}
-
-impl<N: Node, E: EdgeWeight> Ord for MstEdge<N, E> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .weight
-            .partial_cmp(&self.weight)
-            .unwrap_or(Ordering::Equal)
-    }
-}
-
-/// Computes a minimum spanning tree of an undirected graph using Kruskal's algorithm
+/// Betweenness centrality for nodes
 ///
-/// # Arguments
-/// * `graph` - The graph to analyze
-///
-/// # Returns
-/// * `Ok(Vec<Edge>)` - The edges in the minimum spanning tree
-/// * `Err(GraphError)` - If the graph is empty or not connected
-pub fn minimum_spanning_tree<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<Vec<Edge<N, E>>>
+/// Measures the extent to which a node lies on paths between other nodes.
+pub fn betweenness_centrality<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    normalized: bool,
+) -> HashMap<N, f64>
 where
     N: Node,
-    E: EdgeWeight + PartialOrd,
-    Ix: petgraph::graph::IndexType,
+    E: EdgeWeight,
+    Ix: IndexType,
 {
-    // Check if the graph is empty
-    if graph.node_count() == 0 {
-        return Err(GraphError::InvalidGraph("Graph is empty".to_string()));
-    }
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
+    let n = nodes.len();
+    let mut centrality: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
 
-    // Check if the graph is connected
-    let components = connected_components(graph);
-    if components.len() > 1 {
-        return Err(GraphError::InvalidGraph(
-            "Graph is not connected".to_string(),
-        ));
-    }
+    // For each source node
+    for s in &nodes {
+        // Single-source shortest paths
+        let mut stack = Vec::new();
+        let mut paths: HashMap<N, Vec<N>> = HashMap::new();
+        let mut sigma: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
+        let mut dist: HashMap<N, Option<f64>> = nodes.iter().map(|n| (n.clone(), None)).collect();
 
-    // Kruskal's algorithm
+        sigma.insert(s.clone(), 1.0);
+        dist.insert(s.clone(), Some(0.0));
 
-    // Create a disjoint-set data structure for tracking components
-    let mut node_to_set: HashMap<N, usize> = HashMap::new();
-    let mut sets: Vec<HashSet<N>> = Vec::new();
+        let mut queue = VecDeque::new();
+        queue.push_back(s.clone());
 
-    // Initialize each node in its own set
-    for i in 0..graph.node_count() {
-        let node = graph
-            .inner()
-            .node_weight(petgraph::graph::NodeIndex::new(i))
-            .unwrap()
-            .clone();
-        let set_idx = sets.len();
-        let mut set = HashSet::new();
-        set.insert(node.clone());
-        sets.push(set);
-        node_to_set.insert(node, set_idx);
-    }
+        // BFS
+        while let Some(v) = queue.pop_front() {
+            stack.push(v.clone());
 
-    // Sort edges by weight (min heap)
-    let mut edges = BinaryHeap::new();
-    for edge in graph.edges() {
-        edges.push(MstEdge {
-            source: edge.source,
-            target: edge.target,
-            weight: edge.weight,
-        });
-    }
+            if let Ok(neighbors) = graph.neighbors(&v) {
+                for w in neighbors {
+                    // First time we reach w?
+                    if dist[&w].is_none() {
+                        dist.insert(w.clone(), Some(dist[&v].unwrap() + 1.0));
+                        queue.push_back(w.clone());
+                    }
 
-    let mut mst_edges = Vec::new();
+                    // Shortest path to w via v?
+                    if dist[&w] == Some(dist[&v].unwrap() + 1.0) {
+                        *sigma.get_mut(&w).unwrap() += sigma[&v];
+                        paths.entry(w.clone()).or_default().push(v.clone());
+                    }
+                }
+            }
+        }
 
-    // Process edges in order of increasing weight
-    while let Some(edge) = edges.pop() {
-        let source_set = node_to_set[&edge.source];
-        let target_set = node_to_set[&edge.target];
+        // Accumulation
+        let mut delta: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
 
-        // If source and target are in different sets, merge them
-        if source_set != target_set {
-            // Add edge to MST
-            mst_edges.push(Edge {
-                source: edge.source.clone(),
-                target: edge.target.clone(),
-                weight: edge.weight.clone(),
-            });
-
-            // Merge sets
-            let (smaller_idx, larger_idx) = if sets[source_set].len() < sets[target_set].len() {
-                (source_set, target_set)
-            } else {
-                (target_set, source_set)
-            };
-
-            // Move all nodes from the smaller set to the larger set
-            let smaller_set = std::mem::take(&mut sets[smaller_idx]);
-            for node in &smaller_set {
-                node_to_set.insert(node.clone(), larger_idx);
-                sets[larger_idx].insert(node.clone());
+        while let Some(w) = stack.pop() {
+            if let Some(predecessors) = paths.get(&w) {
+                for v in predecessors {
+                    *delta.get_mut(v).unwrap() += (sigma[v] / sigma[&w]) * (1.0 + delta[&w]);
+                }
             }
 
-            // If we have n-1 edges, we're done
-            if mst_edges.len() == graph.node_count() - 1 {
-                break;
+            if w != *s {
+                *centrality.get_mut(&w).unwrap() += delta[&w];
             }
         }
     }
 
-    Ok(mst_edges)
+    // Normalization
+    if normalized && n > 2 {
+        let scale = 1.0 / ((n - 1) * (n - 2)) as f64;
+        for value in centrality.values_mut() {
+            *value *= scale;
+        }
+    }
+
+    centrality
+}
+
+/// Closeness centrality for nodes
+///
+/// Measures how close a node is to all other nodes in the graph.
+pub fn closeness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>, normalized: bool) -> HashMap<N, f64>
+where
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + std::marker::Copy
+        + std::fmt::Debug
+        + std::default::Default,
+    Ix: IndexType,
+{
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
+    let n = nodes.len();
+    let mut centrality = HashMap::new();
+
+    for node in &nodes {
+        let mut total_distance = 0.0;
+        let mut reachable_count = 0;
+
+        // Calculate shortest paths to all other nodes
+        for other in &nodes {
+            if node != other {
+                if let Ok(Some(path)) = shortest_path(graph, node, other) {
+                    let distance: f64 = path.total_weight.into();
+                    total_distance += distance;
+                    reachable_count += 1;
+                }
+            }
+        }
+
+        if reachable_count > 0 {
+            let closeness = reachable_count as f64 / total_distance;
+            let value = if normalized && n > 1 {
+                closeness * (reachable_count as f64 / (n - 1) as f64)
+            } else {
+                closeness
+            };
+            centrality.insert(node.clone(), value);
+        } else {
+            centrality.insert(node.clone(), 0.0);
+        }
+    }
+
+    centrality
+}
+
+/// Eigenvector centrality
+///
+/// Computes the eigenvector centrality of nodes using power iteration.
+pub fn eigenvector_centrality<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    max_iter: usize,
+    tolerance: f64,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight + Into<f64>,
+    Ix: IndexType,
+{
+    let node_indices: Vec<_> = graph.inner().node_indices().collect();
+    let nodes: Vec<N> = node_indices
+        .iter()
+        .map(|&idx| graph.inner()[idx].clone())
+        .collect();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Ok(HashMap::new());
+    }
+
+    // Create adjacency matrix
+    let mut adj_matrix = Array2::<f64>::zeros((n, n));
+    for (i, node_i) in nodes.iter().enumerate() {
+        for (j, node_j) in nodes.iter().enumerate() {
+            if let Ok(weight) = graph.edge_weight(node_i, node_j) {
+                adj_matrix[[i, j]] = weight.into();
+            }
+        }
+    }
+
+    // Initialize eigenvector
+    let mut x = Array1::<f64>::from_elem(n, 1.0 / (n as f64).sqrt());
+    let mut converged = false;
+
+    // Power iteration
+    for _ in 0..max_iter {
+        let x_new = adj_matrix.dot(&x);
+
+        // Normalize
+        let norm = x_new.dot(&x_new).sqrt();
+        if norm == 0.0 {
+            return Err(GraphError::ComputationError(
+                "Eigenvector computation failed".to_string(),
+            ));
+        }
+
+        let x_normalized = x_new / norm;
+
+        // Check convergence
+        let diff = (&x_normalized - &x).mapv(f64::abs).sum();
+        if diff < tolerance {
+            converged = true;
+            x = x_normalized;
+            break;
+        }
+
+        x = x_normalized;
+    }
+
+    if !converged {
+        return Err(GraphError::ComputationError(
+            "Eigenvector centrality did not converge".to_string(),
+        ));
+    }
+
+    // Convert to HashMap
+    Ok(nodes
+        .into_iter()
+        .enumerate()
+        .map(|(i, node)| (node, x[i]))
+        .collect())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_shortest_path() {
-        let mut graph: Graph<char, f64> = Graph::new();
-
-        // Create a simple graph:
-        // A -- 1.0 --> B -- 2.0 --> C
-        // |              |
-        // 3.0             4.0
-        // |              |
-        // D -- 5.0 --> E
-
-        graph.add_edge('A', 'B', 1.0).unwrap();
-        graph.add_edge('B', 'C', 2.0).unwrap();
-        graph.add_edge('A', 'D', 3.0).unwrap();
-        graph.add_edge('B', 'E', 4.0).unwrap();
-        graph.add_edge('D', 'E', 5.0).unwrap();
-
-        // Test A to C (should be A -> B -> C with weight 3.0)
-        let path = shortest_path(&graph, &'A', &'C').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['A', 'B', 'C']);
-        assert_eq!(path.total_weight, 3.0);
-
-        // Test A to E (should be A -> B -> E with weight 5.0)
-        let path = shortest_path(&graph, &'A', &'E').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['A', 'B', 'E']);
-        assert_eq!(path.total_weight, 5.0);
-
-        // Test D to C (should be D -> A -> B -> C with weight 6.0)
-        let path = shortest_path(&graph, &'D', &'C').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['D', 'A', 'B', 'C']);
-        assert_eq!(path.total_weight, 6.0);
-    }
-
-    #[test]
-    fn test_connected_components() {
-        let mut graph: Graph<i32, f64> = Graph::new();
-
-        // Component 1: 1 -- 2 -- 3
-        graph.add_edge(1, 2, 1.0).unwrap();
-        graph.add_edge(2, 3, 1.0).unwrap();
-
-        // Component 2: 4 -- 5
-        graph.add_edge(4, 5, 1.0).unwrap();
-
-        // Component 3: 6 (isolated node)
-        graph.add_node(6);
-
-        let components = connected_components(&graph);
-
-        assert_eq!(components.len(), 3);
-
-        // Check component 1
-        let comp1 = components.iter().find(|comp| comp.contains(&1)).unwrap();
-        assert!(comp1.contains(&1));
-        assert!(comp1.contains(&2));
-        assert!(comp1.contains(&3));
-        assert_eq!(comp1.len(), 3);
-
-        // Check component 2
-        let comp2 = components.iter().find(|comp| comp.contains(&4)).unwrap();
-        assert!(comp2.contains(&4));
-        assert!(comp2.contains(&5));
-        assert_eq!(comp2.len(), 2);
-
-        // Check component 3
-        let comp3 = components.iter().find(|comp| comp.contains(&6)).unwrap();
-        assert!(comp3.contains(&6));
-        assert_eq!(comp3.len(), 1);
-    }
+    use crate::generators::create_graph;
 
     #[test]
     fn test_minimum_spanning_tree() {
-        let mut graph: Graph<char, f64> = Graph::new();
-
-        // Create a graph:
-        //     B
-        //    /|\
-        //  2/ | \3
-        //  /  |  \
-        // A   |1  C
-        //  \  |  /
-        //  4\ | /5
-        //    \|/
-        //     D
-
-        graph.add_edge('A', 'B', 2.0).unwrap();
-        graph.add_edge('A', 'D', 4.0).unwrap();
-        graph.add_edge('B', 'C', 3.0).unwrap();
-        graph.add_edge('B', 'D', 1.0).unwrap();
-        graph.add_edge('C', 'D', 5.0).unwrap();
+        let mut graph = create_graph::<&str, f64>();
+        graph.add_edge("A", "B", 1.0).unwrap();
+        graph.add_edge("B", "C", 2.0).unwrap();
+        graph.add_edge("A", "C", 3.0).unwrap();
+        graph.add_edge("C", "D", 1.0).unwrap();
 
         let mst = minimum_spanning_tree(&graph).unwrap();
 
-        // MST should have 3 edges (n-1 where n=4)
+        // MST should have n-1 edges
         assert_eq!(mst.len(), 3);
 
-        // Extract edges as sets to make comparison easier
-        let edge_sets: Vec<_> = mst
-            .iter()
-            .map(|e| {
-                let mut set = HashSet::new();
-                set.insert(e.source);
-                set.insert(e.target);
-                (set, e.weight)
-            })
-            .collect();
-
-        // Check expected edges: B-D (1.0), A-B (2.0), B-C (3.0)
-        let expected_edges = [
-            (
-                {
-                    let mut s = HashSet::new();
-                    s.insert('B');
-                    s.insert('D');
-                    s
-                },
-                1.0,
-            ),
-            (
-                {
-                    let mut s = HashSet::new();
-                    s.insert('A');
-                    s.insert('B');
-                    s
-                },
-                2.0,
-            ),
-            (
-                {
-                    let mut s = HashSet::new();
-                    s.insert('B');
-                    s.insert('C');
-                    s
-                },
-                3.0,
-            ),
-        ];
-
-        for expected in &expected_edges {
-            assert!(edge_sets
-                .iter()
-                .any(|(set, weight)| set == &expected.0 && (*weight - expected.1).abs() < 1e-10));
-        }
+        // Total weight should be 4.0 (AB: 1, BC: 2, CD: 1)
+        let total_weight: f64 = mst.iter().map(|e| e.weight).sum();
+        assert_eq!(total_weight, 4.0);
     }
 
     #[test]
-    fn test_shortest_path_digraph() {
-        let mut graph: DiGraph<char, f64> = DiGraph::new();
+    fn test_topological_sort() {
+        let mut graph = crate::generators::create_digraph::<&str, ()>();
+        graph.add_edge("A", "B", ()).unwrap();
+        graph.add_edge("A", "C", ()).unwrap();
+        graph.add_edge("B", "D", ()).unwrap();
+        graph.add_edge("C", "D", ()).unwrap();
 
-        // Create a directed graph:
-        // A -> B -> C
-        // ^    |
-        // |    v
-        // D <- E
+        let sorted = topological_sort(&graph).unwrap();
 
-        graph.add_edge('A', 'B', 1.0).unwrap();
-        graph.add_edge('B', 'C', 2.0).unwrap();
-        graph.add_edge('B', 'E', 3.0).unwrap();
-        graph.add_edge('E', 'D', 4.0).unwrap();
-        graph.add_edge('D', 'A', 5.0).unwrap();
+        // A should come before B and C
+        let a_pos = sorted.iter().position(|n| n == &"A").unwrap();
+        let b_pos = sorted.iter().position(|n| n == &"B").unwrap();
+        let c_pos = sorted.iter().position(|n| n == &"C").unwrap();
+        let d_pos = sorted.iter().position(|n| n == &"D").unwrap();
 
-        // Test A to C
-        let path = shortest_path_digraph(&graph, &'A', &'C').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['A', 'B', 'C']);
-        assert_eq!(path.total_weight, 3.0);
+        assert!(a_pos < b_pos);
+        assert!(a_pos < c_pos);
+        assert!(b_pos < d_pos);
+        assert!(c_pos < d_pos);
+    }
 
-        // Test A to D
-        let path = shortest_path_digraph(&graph, &'A', &'D').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['A', 'B', 'E', 'D']);
-        assert_eq!(path.total_weight, 8.0);
+    #[test]
+    fn test_pagerank() {
+        let mut graph = crate::generators::create_digraph::<&str, ()>();
+        graph.add_edge("A", "B", ()).unwrap();
+        graph.add_edge("A", "C", ()).unwrap();
+        graph.add_edge("B", "C", ()).unwrap();
+        graph.add_edge("C", "A", ()).unwrap();
 
-        // Test D to C
-        let path = shortest_path_digraph(&graph, &'D', &'C').unwrap().unwrap();
-        assert_eq!(path.nodes, vec!['D', 'A', 'B', 'C']);
-        assert_eq!(path.total_weight, 8.0);
+        let pr = pagerank(&graph, 0.85, 1e-6, 100);
 
-        // Test C to E (should be None as there's no path)
-        let path = shortest_path_digraph(&graph, &'C', &'E').unwrap();
-        assert!(path.is_none());
+        // All nodes should have positive PageRank
+        assert!(pr.values().all(|&v| v > 0.0));
+
+        // Sum should be approximately 1.0
+        let sum: f64 = pr.values().sum();
+        assert!((sum - 1.0).abs() < 0.01);
     }
 }

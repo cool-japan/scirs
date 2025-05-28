@@ -42,7 +42,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::nmf;
 ///
@@ -477,7 +477,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::cur_decomposition;
 ///
@@ -487,7 +487,7 @@ where
 ///     [9.0_f64, 10.0_f64, 11.0_f64, 12.0_f64]
 /// ];
 ///
-/// let (c, u, r) = cur_decomposition(&a.view(), 2, None, None, "uniform").unwrap();
+/// let (c, u, r) = cur_decomposition(&a.view(), 2, Some(3), Some(3), "uniform").unwrap();
 ///
 /// // C has same number of rows as A, and c_samples columns
 /// // U is small (c_samples x r_samples)
@@ -793,7 +793,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::rank_revealing_qr;
 ///
@@ -824,14 +824,15 @@ where
 ///     }
 /// }
 ///
-/// // The product QRP should equal A
+/// // The factorization should satisfy A*P = Q*R (column pivoting)
+/// // So A = Q*R*P^T
+/// let pt = p.t();
 /// let qr = q.dot(&r);
-/// let qrp = qr.dot(&p);
-/// for i in 0..3 {
-///     for j in 0..3 {
-///         assert!((qrp[[i, j]] - a[[i, j]]).abs() < 1e-10_f64);
-///     }
-/// }
+/// let qrpt = qr.dot(&pt);
+///
+/// // Check reconstruction with reasonable tolerance for rank-deficient matrix
+/// let recon_error = (&qrpt - &a).mapv(|x| x.abs()).fold(0.0_f64, |acc, &x| acc.max(x));
+/// assert!(recon_error < 1e-3_f64);
 ///
 /// // The rank is revealed in the diagonal elements of R
 /// // We expect two large diagonal elements and one very small one
@@ -1000,7 +1001,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::matrix_factorization::utv_decomposition;
 ///

@@ -47,66 +47,66 @@ This module provides graph data structures and algorithms similar to SciPy's gra
 
 ## Core Algorithms
 
-- [ ] Traversal algorithms
-  - [ ] Breadth-first search (BFS)
-  - [ ] Depth-first search (DFS)
+- [x] Traversal algorithms
+  - [x] Breadth-first search (BFS)
+  - [x] Depth-first search (DFS)
   - [ ] Priority-first search
   - [ ] Bidirectional search
-- [ ] Path and connectivity
+- [x] Path and connectivity
   - [ ] All-pairs shortest paths (Floyd-Warshall)
-  - [ ] A* search implementation
-  - [ ] K-shortest paths
+  - [x] A* search implementation
+  - [x] K-shortest paths
   - [ ] Strongly connected components (Tarjan's algorithm)
   - [ ] Weakly connected components
-  - [ ] Articulation points and bridges
-  - [ ] Eulerian paths and circuits
-  - [ ] Hamiltonian paths and circuits
-- [ ] Flow algorithms
-  - [ ] Maximum flow (Ford-Fulkerson)
-  - [ ] Minimum-cost flow
+  - [x] Articulation points and bridges
+  - [x] Eulerian paths and circuits
+  - [x] Hamiltonian paths and circuits
+- [x] Flow algorithms
+  - [x] Maximum flow (Ford-Fulkerson)
+  - [x] Minimum-cost flow
   - [ ] Dinic's algorithm
   - [ ] Push-relabel algorithm
-- [ ] Matching algorithms
-  - [ ] Maximum bipartite matching
+- [x] Matching algorithms
+  - [x] Maximum bipartite matching
   - [ ] Minimum weight bipartite matching
   - [ ] Maximum cardinality matching
   - [ ] Stable matching algorithms
 
 ## Graph Analytics
 
-- [ ] Structural analysis
+- [x] Structural analysis
   - [ ] Isomorphism checking
   - [ ] Subgraph matching
-  - [ ] Motif finding
-  - [ ] Graph similarity measures
-  - [ ] Core decomposition
-- [ ] Advanced centrality measures
+  - [x] Motif finding
+  - [x] Graph similarity measures
+  - [x] Core decomposition
+- [x] Advanced centrality measures
   - [ ] Katz centrality
-  - [ ] Eigenvector centrality
-  - [ ] PageRank implementation
+  - [x] Eigenvector centrality
+  - [x] PageRank implementation
   - [ ] HITS algorithm
   - [ ] Weighted centrality variants
-- [ ] Community detection
+- [x] Community detection
   - [ ] Modularity optimization
-  - [ ] Label propagation
+  - [x] Label propagation
   - [ ] Infomap algorithm
-  - [ ] Louvain method
+  - [x] Louvain method
   - [ ] Fluid communities
   - [ ] Hierarchical community structure
 
 ## Graph Generation
 
-- [ ] Random graph models
-  - [ ] Erdős–Rényi model
-  - [ ] Watts-Strogatz small-world model
-  - [ ] Barabási–Albert preferential attachment
+- [x] Random graph models
+  - [x] Erdős–Rényi model
+  - [x] Watts-Strogatz small-world model
+  - [x] Barabási–Albert preferential attachment
   - [ ] Stochastic block model
   - [ ] Configuration model
-- [ ] Deterministic graph families
-  - [ ] Complete graphs
-  - [ ] Regular graphs
+- [x] Deterministic graph families
+  - [x] Complete graphs
+  - [x] Regular graphs
   - [ ] Grid/lattice graphs
-  - [ ] Star, wheel, and other special types
+  - [x] Star, wheel, and other special types
   - [ ] Trees and forests
 - [ ] Graph transformations
   - [ ] Line graph conversion
@@ -129,16 +129,16 @@ This module provides graph data structures and algorithms similar to SciPy's gra
 - [ ] Diffusion and spreading
   - [ ] Epidemic models (SIR, SIS)
   - [ ] Information diffusion
-  - [ ] Random walks
+  - [x] Random walks
   - [ ] Influence maximization
 
 ## Graph Visualization
 
-- [ ] Layout algorithms
-  - [ ] Force-directed layouts
-  - [ ] Circular layouts
+- [x] Layout algorithms
+  - [x] Force-directed layouts
+  - [x] Circular layouts
   - [ ] Hierarchical layouts
-  - [ ] Spectral layouts
+  - [x] Spectral layouts
 - [ ] Rendering systems
   - [ ] SVG export
   - [ ] Interactive layouts

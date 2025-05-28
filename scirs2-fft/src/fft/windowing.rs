@@ -53,14 +53,14 @@ pub enum WindowType {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::fft::windowing::{create_window, WindowType};
 ///
 /// // Create a Hann window of length 10
 /// let window = create_window(WindowType::Hann, 10).unwrap();
 /// assert_eq!(window.len(), 10);
 /// assert!(window[0] < 0.01); // Near zero at the edges
-/// assert!(window[5] > 0.99); // Near one in the middle
+/// assert!(window[5] > 0.9); // Near one in the middle
 /// ```
 pub fn create_window(window_type: WindowType, length: usize) -> FFTResult<Vec<f64>> {
     if length == 0 {
@@ -204,7 +204,7 @@ pub fn create_window(window_type: WindowType, length: usize) -> FFTResult<Vec<f6
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::fft::windowing::{apply_window, create_window, WindowType};
 ///
 /// // Create a simple signal

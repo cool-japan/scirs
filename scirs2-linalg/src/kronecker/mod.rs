@@ -34,7 +34,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kron;
 ///
@@ -91,7 +91,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array1};
 /// use scirs2_linalg::kronecker::kron_matvec;
 ///
@@ -171,7 +171,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kron_matmul;
 ///
@@ -243,7 +243,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::{kron, kron_factorize};
 ///
@@ -383,7 +383,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::kfac_factorization;
 ///
@@ -500,23 +500,24 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_linalg::kronecker::{kfac_factorization, kfac_update};
 /// use scirs2_linalg::inv;
 ///
-/// // Current weights and gradients
-/// let weights = array![[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]];
-/// let gradients = array![[0.01, 0.02], [0.03, 0.04], [0.05, 0.06]];
+/// // Current weights and gradients including bias (input_dim+1 x output_dim)
+/// let weights = array![[0.1, 0.2], [0.3, 0.4], [0.05, 0.1]];  // Including bias row
+/// let gradients = array![[0.01, 0.02], [0.03, 0.04], [0.005, 0.01]];  // Including bias gradients
 ///
-/// // Input activations and output gradients from forward/backward pass
-/// let input_acts = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
-/// let output_grads = array![[0.1, 0.2], [0.3, 0.4]];
+/// // Input activations (batch_size x input_dim) and output gradients (batch_size x output_dim)
+/// let input_acts = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+/// let output_grads = array![[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]];
 ///
 /// // Compute KFAC factors
 /// let (a_cov, s_cov) = kfac_factorization(&input_acts.view(), &output_grads.view(), None).unwrap();
 ///
-/// // Compute inverses
+/// // Note: a_cov has shape (input_dim+1, input_dim+1) due to bias term
+/// // s_cov has shape (output_dim, output_dim)
 /// let a_inv = inv(&a_cov.view()).unwrap();
 /// let s_inv = inv(&s_cov.view()).unwrap();
 ///

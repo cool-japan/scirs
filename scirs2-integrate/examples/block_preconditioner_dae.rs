@@ -246,7 +246,7 @@ fn heat_system_g(
 
     // Left boundary constraint: temperature follows a time-varying profile
     for j in 0..n_y {
-        let _left_idx = 0 * n_y + j;
+        let _left_idx = j;
         let y_pos = j as f64 / (n_y as f64 - 1.0);
 
         // Time-varying boundary temperature with spatial variation

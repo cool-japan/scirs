@@ -63,7 +63,7 @@ use std::f64::consts::PI;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::frft;
 /// use std::f64::consts::PI;
 ///
@@ -80,7 +80,7 @@ use std::f64::consts::PI;
 ///
 /// For complex inputs, use `frft_complex` directly:
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::frft_complex;
 /// use num_complex::Complex64;
 /// use std::f64::consts::PI;
@@ -281,7 +281,7 @@ fn frft_near_special_case(x: &[Complex64], alpha: f64, _d: f64) -> FFTResult<Vec
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::frft_complex;
 /// use num_complex::Complex64;
 /// use std::f64::consts::PI;
@@ -361,7 +361,7 @@ pub fn frft_complex(x: &[Complex64], alpha: f64, d: Option<f64>) -> FFTResult<Ve
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::frft_stable;
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];

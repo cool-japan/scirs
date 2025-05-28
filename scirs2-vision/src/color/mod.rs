@@ -3,9 +3,15 @@
 //! This module provides functionality for working with different color spaces
 //! and performing color transformations.
 
+pub mod octree_quantization;
+pub mod quantization;
+
 use crate::error::Result;
 use image::{DynamicImage, ImageBuffer, Rgb};
 // Note: Array2 might be needed in future implementations
+
+pub use octree_quantization::{adaptive_octree_quantize, extract_palette, octree_quantize};
+pub use quantization::{kmeans_quantize, median_cut_quantize, InitMethod, KMeansParams};
 
 /// Represents a color space
 #[derive(Debug, Clone, Copy, PartialEq)]

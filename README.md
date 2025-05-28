@@ -471,16 +471,16 @@ We are currently working on:
 - Comprehensive documentation and examples
 - API refinement based on community feedback
 
-### Publication Status
+### Publication Status and Plans
 
-All SciRS2 modules have been published to crates.io as alpha releases (0.1.0-alpha.4), making the entire ecosystem available to the Rust community while development continues.
+All SciRS2 modules have been published to crates.io as alpha releases (0.1.0-alpha.3), making the entire ecosystem available to the Rust community while development continues.
 
 - **Alpha Release (0.1.0-alpha.1)**: Initial modules released on crates.io (April 2025)
-- **Alpha Release (0.1.0-alpha.3)**: All modules released on crates.io (May 2025)
+- **Alpha Release (0.1.0-alpha.2)**: All modules released on crates.io (May 2025)
 - **Alpha Release (0.1.0-alpha.3)**: Fixed memory metrics snapshot system and updated tests (May 2025)
-- **Alpha Release (0.1.0-alpha.4)**: Improved autograd implementation and memory efficiency (May 2025)
-- **Beta Release (0.1.0-beta.1)**: Planned after incorporating initial feedback
-- **First Stable Release (0.1.0)**: Targeted after API stabilization and comprehensive testing
+- **Alpha Release (0.1.0-alpha.4)**: Improved unittests and examples (June 2025)
+- **Beta Release (0.1.0-beta.1)**: Planned after incorporating feedbacks (July 2025)
+- **First Stable Release (0.1.0)**: Targeted after API stabilization and comprehensive testing (August 2025)
 
 For a detailed development roadmap, check the [TODO.md](TODO.md) file.
 

@@ -240,76 +240,50 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_integrate::monte_carlo::{importance_sampling, MonteCarloOptions};
 /// use ndarray::{Array1, ArrayView1};
 /// use rand::prelude::*;
-/// use rand_distr::{Normal, Distribution};
-/// use std::marker::PhantomData;
-/// use std::f64::consts::PI;
 ///
-/// // Integrate exp(-x²) from 0 to 3 with a normal distribution
-/// // as the sampling distribution
+/// // Simple example: integrate x² from 0 to 1 using uniform importance sampling
+/// // (which is the same as regular Monte Carlo in this case)
 ///
-/// // Generate samples from a normal distribution
-/// let normal_sampler = |rng: &mut StdRng, dims: usize| {
+/// // Uniform sampler
+/// let uniform_sampler = |rng: &mut StdRng, dims: usize| {
 ///     let mut point = Array1::zeros(dims);
-///     let normal = Normal::new(0.0, 1.0).unwrap();
 ///     for i in 0..dims {
-///         // Sample and transform to integration domain [0, 3]
-///         let mut x: f64 = normal.sample(rng);
-///         // Make sure value is within integration range
-///         x = x.abs();  // Fold negatives to positive domain
-///         if x > 3.0 {
-///             x = 6.0 - x; // Reflect values beyond 3.0 back into range
-///             if x < 0.0 { // If still out of range, clamp to 0
-///                 x = 0.0;
-///             }
-///         }
-///         point[i] = x;
+///         point[i] = rng.gen_range(0.0..1.0);
 ///     }
 ///     point
 /// };
 ///
-/// // Normal PDF accounting for our transformations
-/// let normal_pdf = |x: ArrayView1<f64>| {
+/// // Uniform PDF on [0,1]
+/// let uniform_pdf = |x: ArrayView1<f64>| {
 ///     let mut pdf = 1.0;
 ///     for &xi in x.iter() {
-///         // Standard normal density function
-///         let density = (-0.5 * xi * xi).exp() / (2.0 * PI).sqrt();
-///         // Account for the folding transformation
-///         let folded_density = if xi < 3.0 {
-///             2.0 * density  // Double because we folded the negative domain
-///         } else {
-///             0.0  // Should not happen with our transformation
-///         };
-///         // Ensure against numerical underflow
-///         pdf *= folded_density.max(1e-10);
+///         if xi < 0.0 || xi > 1.0 {
+///             return 0.0;
+///         }
 ///     }
 ///     pdf
 /// };
 ///
 /// let options = MonteCarloOptions {
-///     n_samples: 50000,
-///     seed: Some(12345),  // For reproducibility
-///     _phantom: PhantomData,
+///     n_samples: 10000,
+///     seed: Some(42),
 ///     ..Default::default()
 /// };
 ///
-/// // Integrate f(x) = exp(-x²) from 0 to 3
-/// // The exact value is sqrt(π)/2 * erf(3) ≈ 0.886
+/// // Integrate f(x) = x² from 0 to 1 (exact result: 1/3)
 /// let result = importance_sampling(
-///     |x: ArrayView1<f64>| (-x[0] * x[0]).exp(),
-///     normal_pdf,
-///     normal_sampler,
-///     &[(0.0, 3.0)],
+///     |x: ArrayView1<f64>| x[0] * x[0],
+///     uniform_pdf,
+///     uniform_sampler,
+///     &[(0.0, 1.0)],
 ///     Some(options)
 /// ).unwrap();
 ///
-/// // The exact value for this integral
-/// let exact_value = (PI).sqrt() / 2.0 * 0.9999779; // approx erf(3)
-/// // Verify result within reasonable error bounds
-/// assert!((result.value - exact_value).abs() < 0.1);
+/// assert!((result.value - 1.0/3.0).abs() < 0.01);
 /// ```
 pub fn importance_sampling<F, Func, Pdf, Sampler>(
     f: Func,

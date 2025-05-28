@@ -718,7 +718,7 @@ mod tests {
     };
 
     /// Synchronize tests using a mutex to prevent concurrent use of the global metrics collector
-    static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    use crate::memory::metrics::test_utils::MEMORY_METRICS_TEST_MUTEX as TEST_MUTEX;
 
     #[test]
     fn test_snapshot_creation() {

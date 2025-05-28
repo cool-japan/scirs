@@ -52,7 +52,8 @@ fn main() {
     println!("\n\nExample 2: Integrating Functions with Newton-Cotes");
 
     // Test functions - use type erasure with Box to avoid type mismatch
-    let test_cases: Vec<(&str, Box<dyn Fn(f64) -> f64>, f64, f64, f64)> = vec![
+    type TestCase = (&'static str, Box<dyn Fn(f64) -> f64>, f64, f64, f64);
+    let test_cases: Vec<TestCase> = vec![
         ("x²", Box::new(|x: f64| x * x), 0.0, 1.0, 1.0 / 3.0),
         ("sin(x)", Box::new(|x: f64| x.sin()), 0.0, PI, 2.0),
         (
@@ -133,7 +134,7 @@ fn main() {
             let panel_a = a + i as f64 * panel_width;
             let panel_b = panel_a + panel_width;
             let (panel_result, _) =
-                newton_cotes_integrate(&f, panel_a, panel_b, 2, NewtonCotesType::Closed).unwrap();
+                newton_cotes_integrate(f, panel_a, panel_b, 2, NewtonCotesType::Closed).unwrap();
             trap_sum += panel_result;
         }
 
@@ -144,7 +145,7 @@ fn main() {
                 let panel_a = a + 2.0 * i as f64 * panel_width;
                 let panel_b = panel_a + 2.0 * panel_width;
                 let (panel_result, _) =
-                    newton_cotes_integrate(&f, panel_a, panel_b, 3, NewtonCotesType::Closed)
+                    newton_cotes_integrate(f, panel_a, panel_b, 3, NewtonCotesType::Closed)
                         .unwrap();
                 simp_sum += panel_result;
             }
@@ -189,7 +190,7 @@ fn main() {
                 let exact_integral = 1.0 / (exact_degree as f64 + 1.0);
 
                 let (poly_result, _) =
-                    newton_cotes_integrate(&poly, 0.0, 1.0, n, NewtonCotesType::Closed).unwrap();
+                    newton_cotes_integrate(poly, 0.0, 1.0, n, NewtonCotesType::Closed).unwrap();
                 let poly_error = (poly_result - exact_integral).abs();
 
                 println!("  Integration of x^{} (should be exact):", exact_degree);

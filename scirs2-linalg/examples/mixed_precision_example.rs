@@ -9,7 +9,7 @@ use scirs2_linalg::prelude::*;
 // Simple benchmark function to compare execution times
 fn benchmark_fn<F>(name: &str, mut f: F) -> std::time::Duration
 where
-    F: FnMut() -> (),
+    F: FnMut(),
 {
     use std::time::Instant;
 

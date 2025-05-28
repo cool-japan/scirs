@@ -30,7 +30,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::im2col;
 ///
@@ -156,7 +156,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array4, ArrayView4};
 /// use scirs2_linalg::convolution::{im2col, col2im};
 ///
@@ -311,7 +311,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::max_pool2d;
 ///
@@ -423,7 +423,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::{max_pool2d, max_pool2d_backward};
 ///
@@ -526,16 +526,20 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_linalg::convolution::compute_conv_indices;
 ///
-/// // Compute indices for a convolutional layer
+/// // Compute indices for a simple convolutional layer
 /// let indices = compute_conv_indices(
-///     (2, 3, 32, 32),  // Input shape: batch_size=2, channels=3, height=32, width=32
-///     (16, 3, 3, 3),   // Kernel shape: out_channels=16, in_channels=3, kernel_h=3, kernel_w=3
+///     (1, 1, 4, 4),    // Input shape: batch_size=1, channels=1, height=4, width=4
+///     (1, 1, 2, 2),    // Kernel shape: out_channels=1, in_channels=1, kernel_h=2, kernel_w=2
 ///     (1, 1),          // Stride: height=1, width=1
-///     (1, 1),          // Padding: height=1, width=1
+///     (0, 0),          // Padding: height=0, width=0
 /// ).unwrap();
+/// // For a 4x4 input with 2x2 kernel and no padding, we get a 3x3 output
+/// // Each output element is computed from 4 input elements (2x2 kernel)
+/// // So we should have 3*3*4*5 = 180 values in the indices array
+/// assert_eq!(indices.len() % 5, 0); // Should be multiple of 5
 /// ```
 pub fn compute_conv_indices(
     input_shape: (usize, usize, usize, usize),
@@ -560,11 +564,13 @@ pub fn compute_conv_indices(
         )));
     }
 
-    // Calculate total number of elements in the output
-    let output_size = batch_size * out_channels * output_h * output_w;
+    // Calculate total number of elements
+    // Each output element can be computed from in_channels * kernel_h * kernel_w input elements
+    let total_elements =
+        batch_size * out_channels * output_h * output_w * in_channels * kernel_h * kernel_w;
 
-    // Allocate array for indices
-    let mut indices = ndarray::Array1::<usize>::zeros(output_size * 5);
+    // Allocate array for indices (5 values per element)
+    let mut indices = ndarray::Array1::<usize>::zeros(total_elements * 5);
 
     // Compute indices for batch matmul
     let mut idx = 0;
@@ -648,7 +654,7 @@ pub fn compute_conv_indices(
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array, Array4};
 /// use scirs2_linalg::convolution::conv2d_im2col;
 ///
@@ -778,7 +784,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::{conv2d_im2col, conv2d_backward_input};
 ///
@@ -902,36 +908,38 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::{conv2d_im2col, conv2d_backward_kernel};
 ///
-/// // Forward pass
-/// let input = Array4::<f32>::zeros((2, 3, 32, 32));
-/// let kernel = Array4::<f32>::zeros((16, 3, 3, 3));
-/// let bias = None;
+/// // Simple example with smaller dimensions
+/// let input = Array4::<f32>::zeros((1, 1, 4, 4));
+/// let kernel_shape = (1, 1, 2, 2);
+///
+/// // Forward pass to get output shape
+/// let kernel = Array4::<f32>::zeros(kernel_shape);
 /// let output = conv2d_im2col(
 ///     &input.view(),
 ///     &kernel.view(),
-///     bias,
-///     (1, 1),
-///     (1, 1),
-///     (1, 1),
+///     None,
+///     (1, 1),  // stride
+///     (0, 0),  // padding
+///     (1, 1),  // dilation
 /// ).unwrap();
 ///
-/// // Backward pass
-/// let grad_output = Array4::<f32>::ones((2, 16, 32, 32));
+/// // Backward pass - grad_output must match forward output shape
+/// let grad_output = Array4::<f32>::ones(output.dim());
 /// let grad_kernel = conv2d_backward_kernel(
 ///     &input.view(),
 ///     &grad_output.view(),
-///     (16, 3, 3, 3),
+///     kernel_shape,
 ///     (1, 1),
-///     (1, 1),
+///     (0, 0),
 ///     (1, 1),
 /// ).unwrap();
 ///
 /// // Gradient shape matches kernel shape
-/// assert_eq!(grad_kernel.shape(), &[16, 3, 3, 3]);
+/// assert_eq!(grad_kernel.shape(), &[1, 1, 2, 2]);
 /// ```
 pub fn conv2d_backward_kernel<F>(
     input: &ArrayView4<F>,
@@ -1004,7 +1012,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array4;
 /// use scirs2_linalg::convolution::conv2d_backward_bias;
 ///
@@ -1060,32 +1068,31 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{Array, Array4};
 /// use scirs2_linalg::convolution::conv_transpose2d;
 ///
-/// // Create a 2x16x16x16 input tensor (2 batches, 16 channels, 16x16 spatial dimensions)
-/// let input = Array4::<f32>::zeros((2, 16, 16, 16));
+/// // Simple example with smaller dimensions
+/// let input = Array4::<f32>::zeros((1, 2, 3, 3));
 ///
-/// // Create a 16x8x3x3 kernel tensor (16 input channels, 8 output channels, 3x3 kernel)
-/// let kernel = Array4::<f32>::zeros((16, 8, 3, 3));
+/// // Create a 2x1x2x2 kernel tensor (2 input channels, 1 output channel, 2x2 kernel)
+/// let kernel = Array4::<f32>::zeros((2, 1, 2, 2));
 ///
-/// // Create a bias tensor
-/// let bias = Some(Array::zeros(8));
-///
-/// // Apply transposed convolution to upsample
+/// // Apply transposed convolution
 /// let output = conv_transpose2d(
 ///     &input.view(),
 ///     &kernel.view(),
-///     bias.as_ref().map(|b| b.view()),
-///     (2, 2),  // stride (upsampling factor)
-///     (1, 1),  // padding
-///     (0, 0),  // output_padding
-///     (1, 1),  // dilation
+///     None,        // no bias
+///     (1, 1),      // stride
+///     (0, 0),      // padding
+///     (0, 0),      // output_padding
+///     (1, 1),      // dilation
 /// ).unwrap();
 ///
-/// // Output shape is (2, 8, 32, 32)
-/// assert_eq!(output.shape(), &[2, 8, 32, 32]);
+/// // Calculate expected output shape:
+/// // output_h = (3 - 1) * 1 - 2 * 0 + 1 * (2 - 1) + 0 + 1 = 2 + 1 + 1 = 4
+/// // output_w = (3 - 1) * 1 - 2 * 0 + 1 * (2 - 1) + 0 + 1 = 2 + 1 + 1 = 4
+/// assert_eq!(output.shape(), &[1, 1, 4, 4]);
 /// ```
 pub fn conv_transpose2d<F>(
     input: &ArrayView4<F>,

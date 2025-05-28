@@ -5,12 +5,14 @@
 //! and other graph metrics.
 
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 use ndarray::{Array1, Array2};
 
 use crate::algorithms::{shortest_path, shortest_path_digraph};
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
 use crate::error::{GraphError, Result};
+use petgraph::graph::IndexType;
 
 /// Centrality measure type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +25,10 @@ pub enum CentralityType {
     Closeness,
     /// Eigenvector centrality: nodes connected to important nodes are important
     Eigenvector,
+    /// Katz centrality: influenced by all paths, with exponentially decaying weights
+    Katz,
+    /// PageRank centrality: Google's PageRank algorithm
+    PageRank,
 }
 
 /// Calculates centrality measures for nodes in an undirected graph
@@ -62,6 +68,8 @@ where
         CentralityType::Betweenness => betweenness_centrality(graph),
         CentralityType::Closeness => closeness_centrality(graph),
         CentralityType::Eigenvector => eigenvector_centrality(graph),
+        CentralityType::Katz => katz_centrality(graph, 0.1, 1.0), // Default parameters
+        CentralityType::PageRank => pagerank_centrality(graph, 0.85, 1e-6), // Default parameters
     }
 }
 
@@ -102,6 +110,8 @@ where
         CentralityType::Betweenness => betweenness_centrality_digraph(graph),
         CentralityType::Closeness => closeness_centrality_digraph(graph),
         CentralityType::Eigenvector => eigenvector_centrality_digraph(graph),
+        CentralityType::Katz => katz_centrality_digraph(graph, 0.1, 1.0), // Default parameters
+        CentralityType::PageRank => pagerank_centrality_digraph(graph, 0.85, 1e-6), // Default parameters
     }
 }
 
@@ -635,6 +645,451 @@ where
     Ok(m as f64 / possible_edges as f64)
 }
 
+/// Calculates Katz centrality for nodes in an undirected graph
+///
+/// Katz centrality is a variant of eigenvector centrality that considers all paths between nodes,
+/// with paths of longer length given exponentially decreasing weights.
+///
+/// # Arguments
+/// * `graph` - The graph to analyze
+/// * `alpha` - Attenuation factor (must be smaller than the reciprocal of the largest eigenvalue)
+/// * `beta` - Weight attributed to the immediate neighborhood
+///
+/// # Returns
+/// * `Result<HashMap<N, f64>>` - Katz centrality values
+pub fn katz_centrality<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    alpha: f64,
+    beta: f64,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight + num_traits::Zero + num_traits::One + Into<f64> + Copy,
+    Ix: petgraph::graph::IndexType,
+{
+    let nodes = graph.nodes();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    // Get adjacency matrix
+    let adj_mat = graph.adjacency_matrix();
+    let mut adj_f64 = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+        }
+    }
+
+    // Create identity matrix
+    let mut identity = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        identity[[i, i]] = 1.0;
+    }
+
+    // Compute (I - α*A) - not used in iterative method but kept for reference
+    let _factor_matrix = &identity - &(alpha * &adj_f64);
+
+    // Create beta vector (all entries = beta)
+    let beta_vec = Array1::<f64>::from_elem(n, beta);
+
+    // We need to solve (I - α*A) * c = β*1
+    // For simplicity, we'll use an iterative approach (power method variant)
+    let mut centrality_vec = Array1::<f64>::ones(n);
+    let max_iter = 100;
+    let tol = 1e-6;
+
+    for _ in 0..max_iter {
+        // c_new = α*A*c + β*1
+        let new_centrality = alpha * adj_f64.dot(&centrality_vec) + &beta_vec;
+
+        // Check for convergence
+        let diff = (&new_centrality - &centrality_vec)
+            .iter()
+            .map(|v| v.abs())
+            .sum::<f64>();
+        if diff < tol {
+            centrality_vec = new_centrality;
+            break;
+        }
+
+        centrality_vec = new_centrality;
+    }
+
+    // Convert to HashMap
+    let mut result = HashMap::new();
+    for (i, &node) in nodes.iter().enumerate() {
+        result.insert(node.clone(), centrality_vec[i]);
+    }
+
+    Ok(result)
+}
+
+/// Calculates Katz centrality for nodes in a directed graph
+///
+/// # Arguments
+/// * `graph` - The directed graph to analyze
+/// * `alpha` - Attenuation factor
+/// * `beta` - Weight attributed to the immediate neighborhood
+///
+/// # Returns
+/// * `Result<HashMap<N, f64>>` - Katz centrality values
+pub fn katz_centrality_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+    alpha: f64,
+    beta: f64,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight + num_traits::Zero + num_traits::One + Into<f64> + Copy,
+    Ix: petgraph::graph::IndexType,
+{
+    let nodes = graph.nodes();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    // Get adjacency matrix
+    let adj_mat = graph.adjacency_matrix();
+    let mut adj_f64 = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+        }
+    }
+
+    // Create beta vector
+    let beta_vec = Array1::<f64>::from_elem(n, beta);
+
+    // Iterative approach
+    let mut centrality_vec = Array1::<f64>::ones(n);
+    let max_iter = 100;
+    let tol = 1e-6;
+
+    for _ in 0..max_iter {
+        // c_new = α*A^T*c + β*1 (transpose for incoming links)
+        let new_centrality = alpha * adj_f64.t().dot(&centrality_vec) + &beta_vec;
+
+        // Check for convergence
+        let diff = (&new_centrality - &centrality_vec)
+            .iter()
+            .map(|v| v.abs())
+            .sum::<f64>();
+        if diff < tol {
+            centrality_vec = new_centrality;
+            break;
+        }
+
+        centrality_vec = new_centrality;
+    }
+
+    // Convert to HashMap
+    let mut result = HashMap::new();
+    for (i, &node) in nodes.iter().enumerate() {
+        result.insert(node.clone(), centrality_vec[i]);
+    }
+
+    Ok(result)
+}
+
+/// Calculates PageRank centrality for nodes in an undirected graph
+///
+/// PageRank is Google's famous algorithm for ranking web pages.
+/// For undirected graphs, we treat each edge as bidirectional.
+///
+/// # Arguments
+/// * `graph` - The graph to analyze
+/// * `damping` - Damping parameter (typically 0.85)
+/// * `tolerance` - Convergence tolerance
+///
+/// # Returns
+/// * `Result<HashMap<N, f64>>` - PageRank values
+pub fn pagerank_centrality<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+    damping: f64,
+    tolerance: f64,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight,
+    Ix: petgraph::graph::IndexType,
+{
+    let nodes = graph.nodes();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    // Initialize PageRank values
+    let mut pagerank = Array1::<f64>::from_elem(n, 1.0 / n as f64);
+    let max_iter = 100;
+
+    // Get degree of each node for normalization
+    let degrees = graph.degree_vector();
+
+    for _ in 0..max_iter {
+        let mut new_pagerank = Array1::<f64>::from_elem(n, (1.0 - damping) / n as f64);
+
+        // Calculate PageRank contribution from each node
+        for (i, node_idx) in graph.inner().node_indices().enumerate() {
+            let node_degree = degrees[i] as f64;
+            if node_degree > 0.0 {
+                let contribution = damping * pagerank[i] / node_degree;
+
+                // Distribute to all neighbors
+                for neighbor_idx in graph.inner().neighbors(node_idx) {
+                    let neighbor_i = neighbor_idx.index();
+                    new_pagerank[neighbor_i] += contribution;
+                }
+            }
+        }
+
+        // Check for convergence
+        let diff = (&new_pagerank - &pagerank)
+            .iter()
+            .map(|v| v.abs())
+            .sum::<f64>();
+        if diff < tolerance {
+            pagerank = new_pagerank;
+            break;
+        }
+
+        pagerank = new_pagerank;
+    }
+
+    // Convert to HashMap
+    let mut result = HashMap::new();
+    for (i, &node) in nodes.iter().enumerate() {
+        result.insert(node.clone(), pagerank[i]);
+    }
+
+    Ok(result)
+}
+
+/// HITS (Hyperlink-Induced Topic Search) algorithm result
+#[derive(Debug, Clone)]
+pub struct HitsScores<N: Node> {
+    /// Authority scores for each node
+    pub authorities: HashMap<N, f64>,
+    /// Hub scores for each node
+    pub hubs: HashMap<N, f64>,
+}
+
+/// Compute HITS algorithm for a directed graph
+///
+/// The HITS algorithm computes two scores for each node:
+/// - Authority score: nodes that are pointed to by many hubs
+/// - Hub score: nodes that point to many authorities
+///
+/// # Arguments
+/// * `graph` - The directed graph
+/// * `max_iter` - Maximum number of iterations
+/// * `tolerance` - Convergence tolerance
+///
+/// # Returns
+/// * HitsScores containing authority and hub scores for each node
+pub fn hits_algorithm<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+    max_iter: usize,
+    tolerance: f64,
+) -> Result<HitsScores<N>>
+where
+    N: Node + Clone + Hash + Eq,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Ok(HitsScores {
+            authorities: HashMap::new(),
+            hubs: HashMap::new(),
+        });
+    }
+
+    // Initialize scores
+    let mut authorities = vec![1.0 / (n as f64).sqrt(); n];
+    let mut hubs = vec![1.0 / (n as f64).sqrt(); n];
+    let mut new_authorities = vec![0.0; n];
+    let mut new_hubs = vec![0.0; n];
+
+    // Create node index mapping
+    let node_to_idx: HashMap<N, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), i))
+        .collect();
+
+    // Iterate until convergence
+    for _ in 0..max_iter {
+        // Update authority scores
+        new_authorities.fill(0.0);
+        for (i, node) in nodes.iter().enumerate() {
+            // Authority score is sum of hub scores of nodes pointing to it
+            if let Ok(predecessors) = graph.predecessors(node) {
+                for pred in predecessors {
+                    if let Some(&pred_idx) = node_to_idx.get(&pred) {
+                        new_authorities[i] += hubs[pred_idx];
+                    }
+                }
+            }
+        }
+
+        // Update hub scores
+        new_hubs.fill(0.0);
+        for (i, node) in nodes.iter().enumerate() {
+            // Hub score is sum of authority scores of nodes it points to
+            if let Ok(successors) = graph.successors(node) {
+                for succ in successors {
+                    if let Some(&succ_idx) = node_to_idx.get(&succ) {
+                        new_hubs[i] += authorities[succ_idx];
+                    }
+                }
+            }
+        }
+
+        // Normalize scores
+        let auth_norm: f64 = new_authorities.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let hub_norm: f64 = new_hubs.iter().map(|x| x * x).sum::<f64>().sqrt();
+
+        if auth_norm > 0.0 {
+            for score in &mut new_authorities {
+                *score /= auth_norm;
+            }
+        }
+
+        if hub_norm > 0.0 {
+            for score in &mut new_hubs {
+                *score /= hub_norm;
+            }
+        }
+
+        // Check convergence
+        let auth_diff: f64 = authorities
+            .iter()
+            .zip(&new_authorities)
+            .map(|(old, new)| (old - new).abs())
+            .sum();
+        let hub_diff: f64 = hubs
+            .iter()
+            .zip(&new_hubs)
+            .map(|(old, new)| (old - new).abs())
+            .sum();
+
+        if auth_diff < tolerance && hub_diff < tolerance {
+            break;
+        }
+
+        // Update scores
+        authorities.copy_from_slice(&new_authorities);
+        hubs.copy_from_slice(&new_hubs);
+    }
+
+    // Convert to HashMap
+    let authority_map = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), authorities[i]))
+        .collect();
+    let hub_map = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), hubs[i]))
+        .collect();
+
+    Ok(HitsScores {
+        authorities: authority_map,
+        hubs: hub_map,
+    })
+}
+
+/// Calculates PageRank centrality for nodes in a directed graph
+///
+/// # Arguments
+/// * `graph` - The directed graph to analyze
+/// * `damping` - Damping parameter (typically 0.85)
+/// * `tolerance` - Convergence tolerance
+///
+/// # Returns
+/// * `Result<HashMap<N, f64>>` - PageRank values
+pub fn pagerank_centrality_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+    damping: f64,
+    tolerance: f64,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight,
+    Ix: petgraph::graph::IndexType,
+{
+    let nodes = graph.nodes();
+    let n = nodes.len();
+
+    if n == 0 {
+        return Err(GraphError::InvalidGraph("Empty graph".to_string()));
+    }
+
+    // Initialize PageRank values
+    let mut pagerank = Array1::<f64>::from_elem(n, 1.0 / n as f64);
+    let max_iter = 100;
+
+    // Get out-degree of each node for normalization
+    let out_degrees = graph.out_degree_vector();
+
+    for _ in 0..max_iter {
+        let mut new_pagerank = Array1::<f64>::from_elem(n, (1.0 - damping) / n as f64);
+
+        // Calculate PageRank contribution from each node
+        for (i, node_idx) in graph.inner().node_indices().enumerate() {
+            let node_out_degree = out_degrees[i] as f64;
+            if node_out_degree > 0.0 {
+                let contribution = damping * pagerank[i] / node_out_degree;
+
+                // Distribute to all outgoing neighbors
+                for neighbor_idx in graph
+                    .inner()
+                    .neighbors_directed(node_idx, petgraph::Direction::Outgoing)
+                {
+                    let neighbor_i = neighbor_idx.index();
+                    new_pagerank[neighbor_i] += contribution;
+                }
+            } else {
+                // Handle dangling nodes by distributing equally to all nodes
+                let contribution = damping * pagerank[i] / n as f64;
+                for j in 0..n {
+                    new_pagerank[j] += contribution;
+                }
+            }
+        }
+
+        // Check for convergence
+        let diff = (&new_pagerank - &pagerank)
+            .iter()
+            .map(|v| v.abs())
+            .sum::<f64>();
+        if diff < tolerance {
+            pagerank = new_pagerank;
+            break;
+        }
+
+        pagerank = new_pagerank;
+    }
+
+    // Convert to HashMap
+    let mut result = HashMap::new();
+    for (i, &node) in nodes.iter().enumerate() {
+        result.insert(node.clone(), pagerank[i]);
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -748,5 +1203,126 @@ mod tests {
         // 6 edges out of 6 possible edges
         let density = graph_density(&graph).unwrap();
         assert_eq!(density, 1.0);
+    }
+
+    #[test]
+    fn test_katz_centrality() {
+        let mut graph: Graph<char, f64> = Graph::new();
+
+        // Create a simple star graph with A in the center
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('A', 'C', 1.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+
+        let centrality = katz_centrality(&graph, 0.1, 1.0).unwrap();
+
+        // The center node should have higher Katz centrality
+        assert!(centrality[&'A'] > centrality[&'B']);
+        assert!(centrality[&'A'] > centrality[&'C']);
+        assert!(centrality[&'A'] > centrality[&'D']);
+
+        // All leaf nodes should have similar centrality
+        assert!((centrality[&'B'] - centrality[&'C']).abs() < 0.1);
+        assert!((centrality[&'B'] - centrality[&'D']).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_pagerank_centrality() {
+        let mut graph: Graph<char, f64> = Graph::new();
+
+        // Create a simple triangle
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        graph.add_edge('C', 'A', 1.0).unwrap();
+
+        let centrality = pagerank_centrality(&graph, 0.85, 1e-6).unwrap();
+
+        // All nodes should have equal PageRank in a symmetric triangle
+        let values: Vec<f64> = centrality.values().cloned().collect();
+        let expected = 1.0 / 3.0; // Should sum to 1, so each gets 1/3
+
+        for &value in &values {
+            assert!((value - expected).abs() < 0.1);
+        }
+
+        // Check that PageRank values sum to approximately 1
+        let sum: f64 = values.iter().sum();
+        assert!((sum - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_pagerank_centrality_digraph() {
+        let mut graph: DiGraph<char, f64> = DiGraph::new();
+
+        // Create a directed path: A -> B -> C
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+
+        let centrality = pagerank_centrality_digraph(&graph, 0.85, 1e-6).unwrap();
+
+        // C should have the highest PageRank (receives links but doesn't give any)
+        // A should have the lowest (gives links but doesn't receive any except random jumps)
+        assert!(centrality[&'C'] > centrality[&'B']);
+        assert!(centrality[&'B'] > centrality[&'A']);
+    }
+
+    #[test]
+    fn test_centrality_enum_katz_pagerank() {
+        let mut graph: Graph<char, f64> = Graph::new();
+
+        graph.add_edge('A', 'B', 1.0).unwrap();
+        graph.add_edge('A', 'C', 1.0).unwrap();
+
+        // Test that the enum-based centrality function works for new types
+        let katz_result = centrality(&graph, CentralityType::Katz).unwrap();
+        let pagerank_result = centrality(&graph, CentralityType::PageRank).unwrap();
+
+        // Both should return valid results
+        assert_eq!(katz_result.len(), 3);
+        assert_eq!(pagerank_result.len(), 3);
+
+        // All values should be positive
+        for value in katz_result.values() {
+            assert!(*value > 0.0);
+        }
+        for value in pagerank_result.values() {
+            assert!(*value > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_hits_algorithm() {
+        let mut graph: DiGraph<char, f64> = DiGraph::new();
+
+        // Create a small web graph
+        // A and B are hubs (point to many pages)
+        // C and D are authorities (pointed to by many pages)
+        graph.add_edge('A', 'C', 1.0).unwrap();
+        graph.add_edge('A', 'D', 1.0).unwrap();
+        graph.add_edge('B', 'C', 1.0).unwrap();
+        graph.add_edge('B', 'D', 1.0).unwrap();
+        // E is both a hub and authority
+        graph.add_edge('E', 'C', 1.0).unwrap();
+        graph.add_edge('B', 'E', 1.0).unwrap();
+
+        let hits = hits_algorithm(&graph, 100, 1e-6).unwrap();
+
+        // Check that we have scores for all nodes
+        assert_eq!(hits.authorities.len(), 5);
+        assert_eq!(hits.hubs.len(), 5);
+
+        // C and D should have high authority scores
+        assert!(hits.authorities[&'C'] > hits.authorities[&'A']);
+        assert!(hits.authorities[&'D'] > hits.authorities[&'A']);
+
+        // A and B should have high hub scores
+        assert!(hits.hubs[&'A'] > hits.hubs[&'C']);
+        assert!(hits.hubs[&'B'] > hits.hubs[&'C']);
+
+        // Check that scores are normalized (sum of squares = 1)
+        let auth_norm: f64 = hits.authorities.values().map(|&x| x * x).sum::<f64>();
+        let hub_norm: f64 = hits.hubs.values().map(|&x| x * x).sum::<f64>();
+        assert!((auth_norm - 1.0).abs() < 0.01);
+        assert!((hub_norm - 1.0).abs() < 0.01);
     }
 }

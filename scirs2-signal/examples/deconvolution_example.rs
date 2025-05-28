@@ -61,8 +61,8 @@ fn basic_deconvolution() -> SignalResult<()> {
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let mut noisy_blurred_vec = blurred.to_vec();
-    for i in 0..n {
-        noisy_blurred_vec[i] += normal.sample(&mut rng);
+    for val in &mut noisy_blurred_vec {
+        *val += normal.sample(&mut rng);
     }
     let noisy_blurred = Array1::from(noisy_blurred_vec);
 
@@ -188,8 +188,8 @@ fn compare_synthetic_signals() -> SignalResult<()> {
         let normal = Normal::new(0.0, noise_level).unwrap();
 
         let mut noisy_blurred_vec = blurred.to_vec();
-        for i in 0..n {
-            noisy_blurred_vec[i] += normal.sample(&mut rng);
+        for val in &mut noisy_blurred_vec {
+            *val += normal.sample(&mut rng);
         }
         let noisy_blurred = Array1::from(noisy_blurred_vec);
 
@@ -328,8 +328,8 @@ fn demonstration_with_different_psfs() -> SignalResult<()> {
         let normal = Normal::new(0.0, noise_level).unwrap();
 
         let mut noisy_blurred_vec = blurred.to_vec();
-        for i in 0..n {
-            noisy_blurred_vec[i] += normal.sample(&mut rng);
+        for val in &mut noisy_blurred_vec {
+            *val += normal.sample(&mut rng);
         }
         let noisy_blurred = Array1::from(noisy_blurred_vec);
 
@@ -415,8 +415,8 @@ fn blind_deconvolution_example() -> SignalResult<()> {
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let mut noisy_blurred_vec = blurred.to_vec();
-    for i in 0..n {
-        noisy_blurred_vec[i] += normal.sample(&mut rng);
+    for val in &mut noisy_blurred_vec {
+        *val += normal.sample(&mut rng);
     }
     let noisy_blurred = Array1::from(noisy_blurred_vec);
 
@@ -511,8 +511,8 @@ fn regularization_parameter_selection() -> SignalResult<()> {
     let normal = Normal::new(0.0, noise_level).unwrap();
 
     let mut noisy_blurred_vec = blurred.to_vec();
-    for i in 0..n {
-        noisy_blurred_vec[i] += normal.sample(&mut rng);
+    for val in &mut noisy_blurred_vec {
+        *val += normal.sample(&mut rng);
     }
     let noisy_blurred = Array1::from(noisy_blurred_vec);
 

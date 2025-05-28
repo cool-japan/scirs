@@ -188,7 +188,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_fft::{fft, ifft};
 /// use num_complex::Complex64;
 ///

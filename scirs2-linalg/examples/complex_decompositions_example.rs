@@ -177,7 +177,7 @@ fn demo_complex_cholesky() -> LinalgResult<()> {
 
     // Add identity to ensure positive definiteness
     for i in 0..a.nrows() {
-        a[[i, i]] = a[[i, i]] + C64::new(1.0, 0.0);
+        a[[i, i]] += C64::new(1.0, 0.0);
     }
 
     println!("Positive-definite Hermitian matrix A:");
