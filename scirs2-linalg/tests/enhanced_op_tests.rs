@@ -113,6 +113,96 @@ fn test_complex_matrix_operations() {
     assert_abs_diff_eq!(exp_zero[[1, 0]].im, 0.0, epsilon = 1e-10);
     assert_abs_diff_eq!(exp_zero[[1, 1]].re, 1.0, epsilon = 1e-10);
     assert_abs_diff_eq!(exp_zero[[1, 1]].im, 0.0, epsilon = 1e-10);
+
+    let mut non_trivial = array![
+        [
+            Complex::new(0.25, 0.0),
+            Complex::new(0.0, 0.0),
+            Complex::new(0.0, 0.0),
+            Complex::new(0.0, 0.0)
+        ],
+        [
+            Complex::new(0.0, 0.0),
+            Complex::new(-0.25, 0.0),
+            Complex::new(0.5, 0.0),
+            Complex::new(0.0, 0.0)
+        ],
+        [
+            Complex::new(0.0, 0.0),
+            Complex::new(0.5, 0.0),
+            Complex::new(-0.25, 0.0),
+            Complex::new(0.0, 0.0)
+        ],
+        [
+            Complex::new(0.0, 0.0),
+            Complex::new(0.0, 0.0),
+            Complex::new(0.0, 0.0),
+            Complex::new(0.25, 0.0)
+        ],
+    ];
+    non_trivial *= Complex::new(0.0, -0.05);
+    let exp_non_trivial = matrix_exp(&non_trivial.view()).unwrap();
+
+    assert_abs_diff_eq!(
+        exp_non_trivial[[0, 0]].re,
+        0.9999218760172473575,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[0, 0]].im,
+        -0.01249967448170978893,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[1, 1]].re,
+        0.9996094167054230262,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[1, 1]].im,
+        0.01249576853687523956,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[2, 2]].re,
+        0.9996094167054230262,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[2, 2]].im,
+        0.01249576853687523956,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[3, 3]].re,
+        0.9999218760172473575,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[3, 3]].im,
+        -0.01249967448170978893,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[1, 2]].re,
+        0.0003124593118243262999,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[1, 2]].im,
+        -0.02499544301858503295,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[2, 1]].re,
+        0.0003124593118243262999,
+        epsilon = 1e-10
+    );
+    assert_abs_diff_eq!(
+        exp_non_trivial[[2, 1]].im,
+        -0.02499544301858502848,
+        epsilon = 1e-10
+    );
 }
 
 // Random matrix generation test is disabled until random module

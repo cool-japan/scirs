@@ -905,6 +905,23 @@ where
     Ok((u, p))
 }
 
+// see M. Arioli et. al. 1996 https://doi.org/10.1016/0024-3795(94)00190-1
+// for the Padé approximation coefficients
+fn pade_factors<F>(p: usize, q: usize) -> Vec<F>
+where
+    F: Float + Debug + 'static,
+{
+    // Compute the coefficients for the Padé approximation
+    let mut c = Vec::with_capacity(p + 1);
+    c.push(F::one());
+    let mut factorial = F::one();
+    for j in 0..p {
+        factorial = factorial * F::from(p - j).unwrap() / F::from((p + q - j) * (j + 1)).unwrap();
+        c.push(factorial);
+    }
+    c
+}
+
 /// Compute the exponential of a complex matrix
 ///
 /// Computes e^A for a complex matrix A using the Padé approximation.
@@ -952,15 +969,7 @@ where
     // Order of Padé approximation
     const PADE_ORDER: usize = 6;
 
-    // Compute the coefficients: c_k = p! / (k! * (p-k)!)
-    let mut c = Vec::with_capacity(PADE_ORDER + 1);
-    c.push(F::one());
-
-    let mut factorial = F::one();
-    for k in 1..=PADE_ORDER {
-        factorial = factorial * F::from(k).unwrap();
-        c.push(factorial);
-    }
+    let c = pade_factors::<F>(PADE_ORDER, PADE_ORDER);
 
     // Compute powers of A
     let mut a_powers = Vec::with_capacity(PADE_ORDER + 1);
@@ -998,7 +1007,7 @@ where
 
     // Compute exp(A) = N(A) * D(A)^(-1)
     let den_inv = crate::complex::complex_inverse(&den.view())?;
-    let exp_a = num.dot(&den_inv);
+    let exp_a = den_inv.dot(&num);
 
     Ok(exp_a)
 }
