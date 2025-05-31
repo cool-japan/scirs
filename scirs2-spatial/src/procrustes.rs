@@ -426,24 +426,30 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // The current implementation has issues matching matrices exactly
     fn test_procrustes_basic() {
         // Create two datasets where one is a rotated, scaled, and reflected version of the other
         let a = array![[1.0, 3.0], [1.0, 2.0], [1.0, 1.0], [2.0, 1.0]];
 
         let b = array![[4.0, -2.0], [4.0, -4.0], [4.0, -6.0], [2.0, -6.0]];
 
-        let (mtx1, mtx2, _disparity) = procrustes(&a.view(), &b.view()).unwrap();
-
-        println!("Skipping test_procrustes_basic due to implementation issues");
-        // The current implementation does not correctly handle reflection and rotation
-        // Some values differ significantly (e.g., 0.4 vs -0.22)
+        let (mtx1, mtx2, disparity) = procrustes(&a.view(), &b.view()).unwrap();
 
         // TODO: Fix the procrustes implementation to correctly handle all transformations
-        // and then restore these assertions
+        // For now, we test basic properties that should always hold
 
-        // Check shape equality at least
+        // Check shape equality
         assert_eq!(mtx1.shape(), mtx2.shape());
+        assert_eq!(mtx1.shape(), a.shape());
+
+        // Check that disparity is finite and non-negative
+        assert!(disparity.is_finite());
+        assert!(disparity >= 0.0);
+
+        // Check that the matrices have been centered (mean should be close to 0)
+        let mtx1_mean: f64 = mtx1.iter().sum::<f64>() / mtx1.len() as f64;
+        let mtx2_mean: f64 = mtx2.iter().sum::<f64>() / mtx2.len() as f64;
+        assert!(mtx1_mean.abs() < 1e-10);
+        assert!(mtx2_mean.abs() < 1e-10);
     }
 
     #[test]

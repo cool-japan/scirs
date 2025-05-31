@@ -141,7 +141,7 @@ pub struct SparseKernel {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array1;
 /// use scirs2_signal::cqt::{constant_q_transform, CqtConfig};
 ///
@@ -167,7 +167,7 @@ pub struct SparseKernel {
 /// config.bins_per_octave = 24;  // Quarter-tone resolution
 ///
 /// // Compute the CQT
-/// let result = constant_q_transform(&signal, config).unwrap();
+/// let result = constant_q_transform(&signal, &config).unwrap();
 ///
 /// // result.cqt contains the CQT coefficients
 /// // result.frequencies contains the center frequencies of each bin
@@ -574,7 +574,7 @@ pub fn cqt_phase(cqt: &CqtResult) -> Array2<f64> {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use ndarray::Array1;
 /// use scirs2_signal::cqt::{constant_q_transform, inverse_constant_q_transform, CqtConfig};
 ///
@@ -589,7 +589,7 @@ pub fn cqt_phase(cqt: &CqtResult) -> Array2<f64> {
 /// config.f_min = 55.0;
 /// config.f_max = 2000.0;
 ///
-/// let cqt_result = constant_q_transform(&signal, config).unwrap();
+/// let cqt_result = constant_q_transform(&signal, &config).unwrap();
 ///
 /// // Reconstruct signal
 /// let reconstructed = inverse_constant_q_transform(&cqt_result, Some(signal.len())).unwrap();

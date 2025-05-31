@@ -1,7 +1,7 @@
 //! Tests for the collision module
 
 #[cfg(test)]
-mod tests {
+mod collision_tests {
     use super::super::continuous::*;
     use super::super::narrowphase::*;
     use super::super::shapes::*;

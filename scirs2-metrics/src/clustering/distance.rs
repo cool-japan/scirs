@@ -28,7 +28,7 @@ use crate::error::{MetricsError, Result};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::inter_cluster_distances;
 ///
@@ -148,7 +148,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::intra_cluster_distances;
 ///
@@ -279,7 +279,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::distance_ratio_index;
 ///
@@ -382,7 +382,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::isolation_index;
 ///

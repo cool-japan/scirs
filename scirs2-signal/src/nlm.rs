@@ -11,8 +11,7 @@
 //! - Block-matching variants for improved performance
 //!
 //! # Example
-//! ```ignore
-//! # FIXME: Integer overflow in nlm_denoise functions
+//! ```
 //! use ndarray::{Array1, Array2};
 //! use scirs2_signal::nlm::{nlm_denoise_1d, nlm_denoise_2d, NlmConfig};
 //! use rand::Rng;
@@ -25,10 +24,10 @@
 //! }
 //!
 //! // Add noise
-//! let mut rng = rand::rng();
+//! let mut rng = rand::thread_rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..n {
-//!     noisy_signal[i] += 0.2 * rng.random_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.2 * rng.gen_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Non-Local Means denoising
@@ -94,8 +93,7 @@ impl Default for NlmConfig {
 /// * The denoised signal
 ///
 /// # Example
-/// ```ignore
-/// # FIXME: Integer overflow in nlm_denoise functions
+/// ```
 /// use ndarray::Array1;
 /// use scirs2_signal::nlm::{nlm_denoise_1d, NlmConfig};
 ///
@@ -202,7 +200,9 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
             // Apply spatial distance weighting if enabled
             let dist_weight =
                 if let (true, Some(kernel)) = (config.distance_weighting, &distance_kernel) {
-                    let idx = ((j as isize - center_idx as isize) + half_search as isize) as usize;
+                    // Safe calculation to avoid overflow
+                    let offset = j.saturating_sub(center_idx);
+                    let idx = offset.saturating_add(half_search);
                     if idx < kernel.len() {
                         kernel[idx]
                     } else {
@@ -253,8 +253,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 /// * The denoised image
 ///
 /// # Example
-/// ```ignore
-/// # FIXME: Integer overflow in nlm_denoise functions
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_signal::nlm::{nlm_denoise_2d, NlmConfig};
 ///

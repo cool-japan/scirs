@@ -787,7 +787,7 @@ mod tests {
         // The contains method may not be 100% reliable for points near the hull boundary
         // or with certain QHull configurations
         // Check only that a clearly outside point is detected as outside
-        assert!(!hull.contains(&[2.0, 2.0]).unwrap()); // Definitely outside
+        assert!(!hull.contains([2.0, 2.0]).unwrap()); // Definitely outside
     }
 
     #[test]
@@ -815,8 +815,8 @@ mod tests {
         // Let's remove this strict assertion to make the test more robust.
 
         // Check that the hull contains interior points
-        assert!(hull.contains(&[0.25, 0.25, 0.25]).unwrap()); // Inside
-        assert!(!hull.contains(&[2.0, 2.0, 2.0]).unwrap()); // Outside
+        assert!(hull.contains([0.25, 0.25, 0.25]).unwrap()); // Inside
+        assert!(!hull.contains([2.0, 2.0, 2.0]).unwrap()); // Outside
     }
 
     #[test]
@@ -847,7 +847,7 @@ mod tests {
         let points = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
 
         let hull = ConvexHull::new(&points.view()).unwrap();
-        let result = hull.contains(&[0.5, 0.5, 0.5]);
+        let result = hull.contains([0.5, 0.5, 0.5]);
         assert!(result.is_err());
     }
 
@@ -870,11 +870,11 @@ mod tests {
         // When using QHull, for degenerate cases like a line,
         // points on the line might not always be classified as "inside"
         // Let's relax this test condition
-        let contains_result = hull.contains(&[1.5, 0.0]);
+        let contains_result = hull.contains([1.5, 0.0]);
         // Just verify we get a valid result
         assert!(contains_result.is_ok());
 
         // A point off the line should not be contained
-        assert!(!hull.contains(&[1.5, 0.1]).unwrap());
+        assert!(!hull.contains([1.5, 0.1]).unwrap());
     }
 }

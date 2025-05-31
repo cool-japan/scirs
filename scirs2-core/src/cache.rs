@@ -151,7 +151,7 @@ impl CacheBuilder {
 
 /// Example of how to use the cached attribute
 ///
-/// ```rust,ignore
+/// ```rust
 /// use cached::proc_macro::cached;
 ///
 /// #[cached(size = 100)]
@@ -164,7 +164,7 @@ impl CacheBuilder {
 ///
 /// This example shows how to use the TTL cache for memoizing expensive operations.
 ///
-/// ```rust,ignore
+/// ```rust
 /// use scirs2_core::cache::TTLSizedCache;
 /// use std::time::Duration;
 ///

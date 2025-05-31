@@ -30,9 +30,14 @@ fn rotation_examples() -> SpatialResult<()> {
     println!("Creating rotations using different representations:");
 
     // 1. From quaternion
-    let quat = array![0.7071, 0.7071, 0.0, 0.0]; // 90-degree rotation around X
+    let quat = array![
+        std::f64::consts::FRAC_1_SQRT_2,
+        std::f64::consts::FRAC_1_SQRT_2,
+        0.0,
+        0.0
+    ]; // 90-degree rotation around X
     let rot_quat = Rotation::from_quat(&quat.view())?;
-    println!("  1. From quaternion [0.7071, 0.7071, 0.0, 0.0] (90° around X)");
+    println!("  1. From quaternion [std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2, 0.0, 0.0] (90° around X)");
 
     // 2. From Euler angles
     let euler = array![0.0, 0.0, PI / 2.0]; // 90-degree rotation around Z

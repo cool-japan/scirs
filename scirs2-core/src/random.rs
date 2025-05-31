@@ -11,7 +11,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use scirs2_core::random::{Random, DistributionExt};
 //! use rand_distr::{Normal, Uniform};
 //!
@@ -20,7 +20,7 @@
 //!
 //! // Generate random values from various distributions
 //! let normal_value = rng.sample(Normal::new(0.0_f64, 1.0_f64).unwrap());
-//! let uniform_value = rng.sample(Uniform::new(0.0_f64, 1.0_f64).unwrap());
+//! let uniform_value = rng.sample(Uniform::new(0.0_f64, 1.0_f64));
 //!
 //! // Generate a random array using the distribution extension trait
 //! let shape = vec![10, 10];
@@ -28,7 +28,7 @@
 //!
 //! // Create a seeded random generator for reproducible results
 //! let mut seeded_rng = Random::with_seed(42);
-//! let reproducible_value = seeded_rng.sample(Uniform::new(0.0_f64, 1.0_f64).unwrap());
+//! let reproducible_value = seeded_rng.sample(Uniform::new(0.0_f64, 1.0_f64));
 //! ```
 
 use ndarray::{Array, Dimension, IxDyn};

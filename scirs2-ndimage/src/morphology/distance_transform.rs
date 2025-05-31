@@ -67,7 +67,7 @@ pub enum DistanceMetric {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_edt;
 ///
@@ -211,7 +211,7 @@ where
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_cdt;
 ///
@@ -360,7 +360,7 @@ where
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_bf;
 ///

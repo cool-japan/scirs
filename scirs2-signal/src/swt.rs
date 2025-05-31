@@ -154,8 +154,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: Numerical precision issues in SWT reconstruction
+/// ```rust
 /// use scirs2_signal::swt::{swt_decompose, swt_reconstruct};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -169,6 +168,7 @@ where
 /// let reconstructed = swt_reconstruct(&ca, &cd, Wavelet::Haar, 1).unwrap();
 ///
 /// // Check that the reconstruction is close to the original
+/// # assert_eq!(reconstructed.len(), signal.len());
 /// for (x, y) in signal.iter().zip(reconstructed.iter()) {
 ///     assert!((x - y).abs() < 1e-10);
 /// }
@@ -357,8 +357,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: Numerical precision issues in SWT reconstruction
+/// ```rust
 /// use scirs2_signal::swt::{swt, iswt};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -372,6 +371,7 @@ where
 /// let reconstructed = iswt(&details, &approx, Wavelet::Haar).unwrap();
 ///
 /// // Check that the reconstruction is close to the original
+/// # assert_eq!(reconstructed.len(), signal.len());
 /// for (x, y) in signal.iter().zip(reconstructed.iter()) {
 ///     assert!((x - y).abs() < 1e-10);
 /// }

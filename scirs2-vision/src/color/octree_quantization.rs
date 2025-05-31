@@ -262,11 +262,25 @@ fn color_distance_squared(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> u32
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```rust
 /// use scirs2_vision::color::octree_quantize;
+/// use image::{DynamicImage, RgbImage, Rgb};
 ///
-/// let img = image::open("input.jpg").unwrap();
-/// let quantized = octree_quantize(&img, 256)?;
+/// // Create a simple test image
+/// let mut img = RgbImage::new(4, 4);
+/// for x in 0..4 {
+///     for y in 0..4 {
+///         let r = (x * 64) as u8;
+///         let g = (y * 64) as u8;
+///         let b = ((x + y) * 32) as u8;
+///         img.put_pixel(x, y, Rgb([r, g, b]));
+///     }
+/// }
+/// 
+/// let dynamic_img = DynamicImage::ImageRgb8(img);
+/// let quantized = octree_quantize(&dynamic_img, 8).unwrap();
+/// assert_eq!(quantized.width(), 4);
+/// assert_eq!(quantized.height(), 4);
 /// ```
 pub fn octree_quantize(img: &DynamicImage, max_colors: usize) -> Result<DynamicImage> {
     let rgb = img.to_rgb8();

@@ -22,12 +22,13 @@ use ndarray::Array2;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```rust
 /// use scirs2_vision::feature::compute_integral_image;
 /// use image::DynamicImage;
 ///
 /// let img = DynamicImage::new_luma8(10, 10);
-/// let integral = compute_integral_image(&img)?;
+/// let integral = compute_integral_image(&img).unwrap();
+/// assert_eq!(integral.dim(), (10, 10));
 /// ```
 pub fn compute_integral_image(img: &DynamicImage) -> Result<Array2<u64>> {
     let gray = img.to_luma8();

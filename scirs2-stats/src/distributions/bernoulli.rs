@@ -308,7 +308,7 @@ impl<F: Float + NumCast + std::fmt::Display> Bernoulli<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::bernoulli::Bernoulli;
     ///
     /// let bern = Bernoulli::new(0.3f64).unwrap();

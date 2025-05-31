@@ -109,9 +109,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Find nearest generator to a point
-    let query_point = array![0.5, 0.5, 0.7071]; // Approximately normalized
+    let query_point = array![0.5, 0.5, std::f64::consts::FRAC_1_SQRT_2]; // Approximately normalized
     let (nearest_idx, dist) = sv.nearest_generator(&query_point.view())?;
-    println!("\nNearest generator to [0.5, 0.5, 0.7071]:");
+    println!("\nNearest generator to [0.5, 0.5, std::f64::consts::FRAC_1_SQRT_2]:");
     println!("  Generator index: {}", nearest_idx);
     println!("  Distance: {:.6}", dist);
 

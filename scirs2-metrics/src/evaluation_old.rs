@@ -173,7 +173,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_metrics::evaluation::k_fold_cross_validation;
 ///
 /// let splits = k_fold_cross_validation(10, 3, false, None).unwrap();

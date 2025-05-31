@@ -34,8 +34,8 @@ impl<T: Clone> RTree<T> {
         // Insert the entry and handle node splits
         self.insert_entry(&entry, 0)?;
 
-        // Size is automatically incremented in the insert_entry method
-        // (would normally be self.size += 1 here)
+        // Increment the size after successful insertion
+        self.increment_size();
 
         Ok(())
     }
@@ -46,81 +46,109 @@ impl<T: Clone> RTree<T> {
         entry: &Entry<T>,
         level: usize,
     ) -> SpatialResult<Option<Node<T>>> {
-        // If we're inserting at a level that doesn't exist yet, we need to grow the tree
-        if level > self.root.level {
-            // Create a new root
-            let old_root = std::mem::replace(&mut self.root, Node::new(false, level));
-            let mut new_root = Node::new(false, level);
-
-            // Add the old root as a child
-            if let Some(old_root_mbr) = old_root.mbr() {
-                new_root.entries.push(Entry::NonLeaf {
-                    mbr: old_root_mbr,
-                    child: Box::new(old_root),
-                });
-            }
-
-            self.root = new_root;
-            // Height would be updated here (would normally be self.height = level + 1)
-        }
-
-        // If we're at the target level, add the entry to this node
-        if level == self.root.level {
+        // For leaf entries, we should insert at level 0
+        // If the root is a leaf node (level 0), insert directly
+        if self.root.is_leaf && level == 0 {
             self.root.entries.push(entry.clone());
 
             // If the node overflows, split it
             if self.root.size() > self.max_entries {
-                let root_ptr = &mut self.root as *mut Node<T>;
-                let (new_root, split_node) = self.split_node(unsafe { &mut *root_ptr })?;
+                // Take ownership of the root temporarily
+                let mut root = std::mem::replace(&mut self.root, Node::new(true, 0));
+                let (node1, node2) = self.split_node(&mut root)?;
+
+                // Create a new root
+                let mut new_root = Node::new(false, 1);
+
+                // Add both split nodes as children
+                if let Some(mbr1) = node1.mbr() {
+                    new_root.entries.push(Entry::NonLeaf {
+                        mbr: mbr1,
+                        child: Box::new(node1),
+                    });
+                }
+
+                if let Some(mbr2) = node2.mbr() {
+                    new_root.entries.push(Entry::NonLeaf {
+                        mbr: mbr2,
+                        child: Box::new(node2),
+                    });
+                }
+
                 self.root = new_root;
-                return Ok(Some(split_node));
+                self.increment_height();
             }
 
             return Ok(None);
         }
 
-        // Choose the best subtree to insert into
-        let subtree_index = self.choose_subtree(&self.root, entry.mbr(), level)?;
+        // If root is not a leaf, we need to insert recursively
+        if !self.root.is_leaf {
+            // Choose the best subtree to insert into
+            let subtree_index = self.choose_subtree(&self.root, entry.mbr(), level)?;
 
-        // Get the subtree
-        let child = match &mut self.root.entries[subtree_index] {
-            Entry::NonLeaf { child, .. } => child,
-            _ => {
-                return Err(crate::error::SpatialError::ComputationError(
-                    "Expected a non-leaf entry".into(),
-                ))
-            }
-        };
+            // Get the subtree
+            let child = match &mut self.root.entries[subtree_index] {
+                Entry::NonLeaf { child, .. } => child,
+                _ => {
+                    return Err(crate::error::SpatialError::ComputationError(
+                        "Expected a non-leaf entry".into(),
+                    ))
+                }
+            };
 
-        // Get child as mutable raw pointer to avoid borrowing conflicts
-        let child_ptr = Box::as_mut(child) as *mut Node<T>;
+            // Get child as mutable raw pointer to avoid borrowing conflicts
+            let child_ptr = Box::as_mut(child) as *mut Node<T>;
 
-        // Recursively insert into the subtree
-        let maybe_split = unsafe { self.insert_entry_recursive(entry, level, &mut *child_ptr) }?;
+            // Recursively insert into the subtree
+            let maybe_split =
+                unsafe { self.insert_entry_recursive(entry, level, &mut *child_ptr) }?;
 
-        // If the child was split, add the new node as a sibling
-        if let Some(split_node) = maybe_split {
-            // Create a new entry for the split node
-            if let Some(mbr) = split_node.mbr() {
-                self.root.entries.push(Entry::NonLeaf {
-                    mbr,
-                    child: Box::new(split_node),
-                });
+            // If the child was split, add the new node as a sibling
+            if let Some(split_node) = maybe_split {
+                // Create a new entry for the split node
+                if let Some(mbr) = split_node.mbr() {
+                    self.root.entries.push(Entry::NonLeaf {
+                        mbr,
+                        child: Box::new(split_node),
+                    });
 
-                // If the node overflows, split it
-                if self.root.size() > self.max_entries {
-                    let root_ptr = &mut self.root as *mut Node<T>;
-                    let (new_root, split_node) = self.split_node(unsafe { &mut *root_ptr })?;
-                    self.root = new_root;
-                    return Ok(Some(split_node));
+                    // If the node overflows, split it
+                    if self.root.size() > self.max_entries {
+                        // Take ownership of the root temporarily
+                        let mut root = std::mem::replace(&mut self.root, Node::new(false, 1));
+                        let root_level = root.level;
+                        let (node1, node2) = self.split_node(&mut root)?;
+
+                        // Create a new root
+                        let mut new_root = Node::new(false, root_level + 1);
+
+                        // Add both split nodes as children
+                        if let Some(mbr1) = node1.mbr() {
+                            new_root.entries.push(Entry::NonLeaf {
+                                mbr: mbr1,
+                                child: Box::new(node1),
+                            });
+                        }
+
+                        if let Some(mbr2) = node2.mbr() {
+                            new_root.entries.push(Entry::NonLeaf {
+                                mbr: mbr2,
+                                child: Box::new(node2),
+                            });
+                        }
+
+                        self.root = new_root;
+                        self.increment_height();
+                    }
                 }
             }
-        }
 
-        // Update the MBR of the parent entry
-        if let Entry::NonLeaf { mbr, child } = &mut self.root.entries[subtree_index] {
-            if let Some(child_mbr) = child.mbr() {
-                *mbr = child_mbr;
+            // Update the MBR of the parent entry
+            if let Entry::NonLeaf { mbr, child } = &mut self.root.entries[subtree_index] {
+                if let Some(child_mbr) = child.mbr() {
+                    *mbr = child_mbr;
+                }
             }
         }
 
@@ -200,31 +228,32 @@ impl<T: Clone> RTree<T> {
         &self,
         node: &Node<T>,
         mbr: &Rectangle,
-        level: usize,
+        _level: usize,
     ) -> SpatialResult<usize> {
         let mut min_enlargement = f64::MAX;
         let mut min_area = f64::MAX;
         let mut chosen_index = 0;
 
+        // If this is a leaf node, we shouldn't be choosing a subtree
+        if node.is_leaf {
+            return Err(crate::error::SpatialError::ComputationError(
+                "Cannot choose subtree in a leaf node".into(),
+            ));
+        }
+
         for (i, entry) in node.entries.iter().enumerate() {
-            // Only consider entries that lead to the desired level
-            match entry {
-                Entry::NonLeaf { child, .. } if child.level >= level => {
-                    let entry_mbr = entry.mbr();
+            let entry_mbr = entry.mbr();
 
-                    // Calculate the enlargement needed to include the new entry
-                    let enlargement = entry_mbr.enlargement_area(mbr)?;
+            // Calculate the enlargement needed to include the new entry
+            let enlargement = entry_mbr.enlargement_area(mbr)?;
 
-                    // Choose the entry with the minimum enlargement
-                    if enlargement < min_enlargement
-                        || (enlargement == min_enlargement && entry_mbr.area() < min_area)
-                    {
-                        min_enlargement = enlargement;
-                        min_area = entry_mbr.area();
-                        chosen_index = i;
-                    }
-                }
-                _ => {}
+            // Choose the entry with the minimum enlargement
+            if enlargement < min_enlargement
+                || (enlargement == min_enlargement && entry_mbr.area() < min_area)
+            {
+                min_enlargement = enlargement;
+                min_area = entry_mbr.area();
+                chosen_index = i;
             }
         }
 
@@ -356,7 +385,6 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // This test is failing due to implementation issues and should be fixed later
     fn test_rtree_insert_and_search() {
         // Create a new R-tree
         let mut rtree: RTree<i32> = RTree::new(2, 2, 4).unwrap();

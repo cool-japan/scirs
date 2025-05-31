@@ -329,7 +329,7 @@ impl<F: Float + NumCast> Geometric<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::geometric::Geometric;
     ///
     /// let geom = Geometric::new(0.3f64).unwrap();

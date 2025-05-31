@@ -38,8 +38,7 @@ use std::fmt::Debug;
 ///
 /// You can also use it with complex signals:
 ///
-/// ```ignore
-/// # FIXME: Type conversion issue with Complex64
+/// ```rust
 /// use scirs2_signal::wavelets::{cwt, morlet};
 /// use num_complex::Complex64;
 ///

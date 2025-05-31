@@ -870,24 +870,55 @@ where
 
 /// Convenience macro for defining array protocol functions.
 ///
+/// This macro creates a function and registers it with the array protocol system.
+/// The function can then be overridden by array types that implement the ArrayProtocol trait.
+///
 /// Example usage:
-/// ```ignore
-/// // Defining a function
-/// array_function_def!(
-///     fn sum(array: &ndarray::Array<f64, ndarray::Ix2>) -> f64 {
-///         array.sum()
-///     },
-///     "scirs2::sum"
-/// );
+/// ```rust
+/// use scirs2_core::array_protocol::{ArrayFunction, ArrayFunctionRegistry};
+/// use std::sync::Arc;
+/// use std::collections::HashMap;
+/// use std::any::Any;
+///
+/// // Define and register a sum function
+/// fn register_sum_function() {
+///     let implementation = Arc::new(
+///         move |args: &[Box<dyn Any>], _kwargs: &HashMap<String, Box<dyn Any>>| {
+///             if let Some(array) = args.get(0)
+///                 .and_then(|arg| arg.downcast_ref::<ndarray::Array<f64, ndarray::Ix2>>()) {
+///                 let sum = array.sum();
+///                 Ok(Box::new(sum) as Box<dyn Any>)
+///             } else {
+///                 Err(scirs2_core::error::CoreError::InvalidArgument(
+///                     scirs2_core::error::ErrorContext::new(
+///                         "Expected Array2<f64> as first argument".to_string()
+///                     )
+///                 ))
+///             }
+///         }
+///     );
+///     
+///     let func = ArrayFunction {
+///         name: "scirs2::sum",
+///         implementation,
+///     };
+///     
+///     // Register the function
+///     if let Ok(mut registry) = ArrayFunctionRegistry::global().write() {
+///         registry.register(func);
+///     }
+/// }
 /// ```
 #[macro_export]
 macro_rules! array_function_def {
     (fn $name:ident $(<$($gen:ident),*>)? ($($arg:ident : $arg_ty:ty),*) -> $ret:ty $body:block, $func_name:expr) => {
-        fn $name $(<$($gen),*>)? ($($arg : $arg_ty),*) -> $ret $body
-
-        #[allow(non_upper_case_globals)]
-        const $name: $crate::array_protocol::ArrayProtocolFunction<_> =
-            $crate::array_protocol::ArrayProtocolFunction::new($name, $func_name);
+        {
+            // Define the function
+            fn $name $(<$($gen),*>)? ($($arg : $arg_ty),*) -> $ret $body
+            
+            // Return the function so it can be used
+            $name
+        }
     };
 }
 

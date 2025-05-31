@@ -413,7 +413,7 @@ impl<F: Float + NumCast> Binomial<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::binomial::Binomial;
     ///
     /// let binom = Binomial::new(10, 0.3f64).unwrap();

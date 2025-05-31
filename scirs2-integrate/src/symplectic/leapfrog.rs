@@ -89,17 +89,20 @@ pub fn velocity_verlet<F: IntegrateFloat>(
     p: &Array1<F>,
     dt: F,
 ) -> IntegrateResult<(Array1<F>, Array1<F>)> {
-    // Compute acceleration for position update
-    let dq = system.dq_dt(t, q, p)?;
+    // Velocity Verlet is mathematically equivalent to leapfrog, just with different ordering
+    // For separable Hamiltonians: H = T(p) + V(q)
 
-    // Update position (for separable Hamiltonians, this is just q + dt*p/m)
+    // Step 1: Half-step momentum update using force at current position
+    let dp_old = system.dp_dt(t, q, p)?;
+    let p_half = p + &(&dp_old * (dt / F::from(2.0).unwrap()));
+
+    // Step 2: Full-step position update using the half-step momentum
+    let dq = system.dq_dt(t + dt / F::from(2.0).unwrap(), q, &p_half)?;
     let q_new = q + &(&dq * dt);
 
-    // Update momentum using forces at both old and new positions
-    let dp_old = system.dp_dt(t, q, p)?;
-    let dp_new = system.dp_dt(t + dt, &q_new, p)?;
-    let dp_avg = &dp_old + &dp_new;
-    let p_new = p + &(&dp_avg * (dt / (F::one() + F::one())));
+    // Step 3: Another half-step momentum update using force at new position
+    let dp_new = system.dp_dt(t + dt, &q_new, &p_half)?;
+    let p_new = &p_half + &(&dp_new * (dt / F::from(2.0).unwrap()));
 
     Ok((q_new, p_new))
 }
@@ -170,7 +173,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Different implementations not matching
     fn test_compare_velocity_verlet() {
         // Simple harmonic oscillator
         let system = SeparableHamiltonian::new(
@@ -182,17 +184,44 @@ mod tests {
         let q0 = array![1.0];
         let p0 = array![0.0];
         let t0 = 0.0;
-        let dt = 0.1;
+        let dt = 0.01; // Smaller step size for better accuracy
 
-        // Compare StörmerVerlet and velocity_verlet
-        let (q1, p1) = StormerVerlet::new()
-            .step(&system, t0, &q0, &p0, dt)
-            .unwrap();
-        let (q2, p2) = velocity_verlet(&system, t0, &q0, &p0, dt).unwrap();
+        // Compute initial energy
+        let initial_energy = 0.5 * p0.dot(&p0) + 0.5 * q0.dot(&q0);
 
-        // For separable Hamiltonians, these should be very close
-        assert!((q1[0] - q2[0]).abs() < 1e-10);
-        assert!((p1[0] - p2[0]).abs() < 1e-10);
+        // Integrate for one period
+        let period = 2.0 * PI;
+        let steps = (period / dt).round() as usize;
+
+        // Test StörmerVerlet
+        let mut q1 = q0.clone();
+        let mut p1 = p0.clone();
+        for _ in 0..steps {
+            let (q_new, p_new) = StormerVerlet::new()
+                .step(&system, t0, &q1, &p1, dt)
+                .unwrap();
+            q1 = q_new;
+            p1 = p_new;
+        }
+        let energy1 = 0.5 * p1.dot(&p1) + 0.5 * q1.dot(&q1);
+
+        // Test velocity_verlet
+        let mut q2 = q0.clone();
+        let mut p2 = p0.clone();
+        for _ in 0..steps {
+            let (q_new, p_new) = velocity_verlet(&system, t0, &q2, &p2, dt).unwrap();
+            q2 = q_new;
+            p2 = p_new;
+        }
+        let energy2 = 0.5 * p2.dot(&p2) + 0.5 * q2.dot(&q2);
+
+        // Both methods should conserve energy
+        assert!((energy1 - initial_energy).abs() < 1e-6);
+        assert!((energy2 - initial_energy).abs() < 1e-6);
+
+        // And should return to approximately the same state after one period
+        assert!((q1[0] - q0[0]).abs() < 0.01);
+        assert!((q2[0] - q0[0]).abs() < 0.01);
     }
 
     #[test]

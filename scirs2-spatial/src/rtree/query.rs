@@ -279,7 +279,6 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // This test is failing due to implementation issues and should be fixed later
     fn test_rtree_nearest_neighbors() {
         // Create a new R-tree
         let mut rtree: RTree<i32> = RTree::new(2, 2, 4).unwrap();
@@ -316,16 +315,19 @@ mod tests {
         assert_eq!(nn_results.len(), 3);
 
         // The results should be sorted by distance
-        assert_eq!(nn_results[0].1, 0); // (0.0, 0.0)
+        assert_eq!(nn_results[0].1, 0); // (0.0, 0.0) - distance 0
+        assert_eq!(nn_results[1].1, 4); // (0.5, 0.5) - distance ~0.707
 
-        // The next two could be either (1.0, 0.0) or (0.0, 1.0) since they're the same distance
-        // Just check that they have the right indices
-        let indices = vec![nn_results[1].1, nn_results[2].1];
-        assert!(indices.contains(&1) && indices.contains(&2));
+        // The third one could be either (1.0, 0.0) or (0.0, 1.0) - distance 1.0
+        assert!(nn_results[2].1 == 1 || nn_results[2].1 == 2);
 
         // Check distances
         assert_relative_eq!(nn_results[0].2, 0.0);
-        assert_relative_eq!(nn_results[1].2, 1.0);
+        assert_relative_eq!(
+            nn_results[1].2,
+            (0.5_f64.powi(2) + 0.5_f64.powi(2)).sqrt(),
+            epsilon = 1e-10
+        );
         assert_relative_eq!(nn_results[2].2, 1.0);
 
         // Test k=0
@@ -377,7 +379,7 @@ mod tests {
             .unwrap();
 
         // There should be multiple pairs since several rectangles intersect
-        assert!(join_results.len() > 0);
+        assert!(!join_results.is_empty());
 
         // Test a more restrictive join predicate
         let strict_join_results = rtree1

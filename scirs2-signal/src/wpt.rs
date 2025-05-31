@@ -415,8 +415,7 @@ impl WaveletPacketTree {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example is ignored until the doctest is fixed
+/// ```rust
 /// use scirs2_signal::wpt::wp_decompose;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -468,8 +467,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example is ignored until the doctest is fixed
+/// ```rust
 /// use scirs2_signal::wpt::{wp_decompose, get_level_coefficients};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -508,8 +506,7 @@ pub fn get_level_coefficients(tree: &WaveletPacketTree, level: usize) -> Vec<Vec
 ///
 /// # Examples
 ///
-/// ```ignore
-/// // Example is ignored until the doctest is fixed
+/// ```rust
 /// use scirs2_signal::wpt::{wp_decompose, reconstruct_from_nodes};
 /// use scirs2_signal::dwt::Wavelet;
 ///

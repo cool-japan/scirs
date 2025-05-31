@@ -28,7 +28,7 @@ use crate::error::{MetricsError, Result};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::local_density_factor;
 ///
@@ -183,7 +183,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::relative_density_index;
 ///
@@ -333,7 +333,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::density_based_cluster_validity;
 ///

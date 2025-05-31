@@ -49,17 +49,35 @@ impl Default for MeanShiftParams {
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// # FIXME: This test is ignored because mean_shift can be computationally expensive
-/// # and takes too long for doc tests. Should be replaced with a smaller example.
+/// ```rust
 /// use scirs2_vision::segmentation::{mean_shift, MeanShiftParams};
-/// use image::DynamicImage;
+/// use image::{DynamicImage, RgbImage, Rgb};
 ///
-/// # fn main() -> scirs2_vision::error::Result<()> {
-/// let img = image::open("examples/input/input.jpg").unwrap();
-/// let labels = mean_shift(&img, &MeanShiftParams::default())?;
-/// # Ok(())
-/// # }
+/// // Create a small test image with distinct regions
+/// let mut img = RgbImage::new(10, 10);
+/// // Top half - red region
+/// for y in 0..5 {
+///     for x in 0..10 {
+///         img.put_pixel(x, y, Rgb([255, 0, 0]));
+///     }
+/// }
+/// // Bottom half - blue region
+/// for y in 5..10 {
+///     for x in 0..10 {
+///         img.put_pixel(x, y, Rgb([0, 0, 255]));
+///     }
+/// }
+///
+/// let params = MeanShiftParams {
+///     spatial_bandwidth: 5.0,
+///     color_bandwidth: 10.0,
+///     min_region_size: 10,
+///     max_iterations: 5,
+///     convergence_threshold: 0.5,
+/// };
+///
+/// let labels = mean_shift(&DynamicImage::ImageRgb8(img), &params).unwrap();
+/// assert_eq!(labels.dim(), (10, 10));
 /// ```
 pub fn mean_shift(img: &DynamicImage, params: &MeanShiftParams) -> Result<Array2<u32>> {
     let rgb = img.to_rgb8();

@@ -77,7 +77,7 @@ fn main() {
     println!("  3D Hull has {} facets", hull_3d.simplices().len());
 
     // Check if the center point is inside
-    let inside_3d = hull_3d.contains(&[0.5, 0.5, 0.5]).unwrap();
+    let inside_3d = hull_3d.contains([0.5, 0.5, 0.5]).unwrap();
     println!(
         "  Center point [0.5, 0.5, 0.5] is {}",
         if inside_3d { "INSIDE" } else { "OUTSIDE" }

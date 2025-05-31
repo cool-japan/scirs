@@ -41,8 +41,7 @@ impl<T: Clone> RTree<T> {
 
         // If a point was deleted, decrement the size
         if result {
-            // Size is decremented here (would normally use self.size -= 1)
-            // Using a different approach since size is private
+            self.decrement_size();
 
             // If the root has only one child and it's not a leaf, make the child the new root
             if !self.root.is_leaf && self.root.size() == 1 {
@@ -227,7 +226,6 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // This test is failing due to implementation issues and should be fixed later
     fn test_rtree_delete() {
         // Create a new R-tree
         let mut rtree: RTree<i32> = RTree::new(2, 2, 4).unwrap();

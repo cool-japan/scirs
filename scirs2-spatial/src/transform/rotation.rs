@@ -81,7 +81,7 @@ impl EulerConvention {
 /// use std::f64::consts::PI;
 ///
 /// // Create a rotation from a quaternion [w, x, y, z]
-/// let quat = array![0.7071, 0.7071, 0.0, 0.0]; // 90 degree rotation around X
+/// let quat = array![std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2, 0.0, 0.0]; // 90 degree rotation around X
 /// let rot = Rotation::from_quat(&quat.view()).unwrap();
 ///
 /// // Apply the rotation to a vector
@@ -136,7 +136,7 @@ impl Rotation {
     /// use ndarray::array;
     ///
     /// // Create a quaternion for a 90-degree rotation around the x-axis
-    /// let quat = array![0.7071, 0.7071, 0.0, 0.0];
+    /// let quat = array![std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2, 0.0, 0.0];
     /// let rot = Rotation::from_quat(&quat.view()).unwrap();
     /// ```
     pub fn from_quat(quat: &ArrayView1<f64>) -> SpatialResult<Self> {
@@ -302,18 +302,24 @@ impl Rotation {
         match conv {
             EulerConvention::Xyz => {
                 // Intrinsic rotation around X, then Y, then Z
-                quat[0] = ca * cb * cc - sa * cb * sc;
-                quat[1] = sa * cb * cc + ca * cb * sc;
-                quat[2] = ca * sb * cc - sa * sb * sc;
-                quat[3] = ca * cb * sc + sa * sb * cc;
+                // Quaternion multiplication order: Qz * Qy * Qx
+                quat[0] = cc * cb * ca + sc * sb * sa;
+                quat[1] = cc * cb * sa - sc * sb * ca;
+                quat[2] = cc * sb * ca + sc * cb * sa;
+                quat[3] = sc * cb * ca - cc * sb * sa;
             }
             EulerConvention::Zyx => {
                 // Intrinsic rotation around Z, then Y, then X
-                // (same as extrinsic XYZ)
-                quat[0] = ca * cb * cc + sa * sb * sc;
-                quat[1] = sa * cb * cc - ca * sb * sc;
-                quat[2] = ca * sb * cc + sa * cb * sc;
-                quat[3] = ca * cb * sc - sa * sb * cc;
+                // For ZYX: angles[0] = Z, angles[1] = Y, angles[2] = X
+                // So: ca = cos(Z/2), sa = sin(Z/2)
+                //     cb = cos(Y/2), sb = sin(Y/2)
+                //     cc = cos(X/2), sc = sin(X/2)
+                // Quaternion multiplication order: Qx * Qy * Qz
+                // Formula: Qx(cc,sc) * Qy(cb,sb) * Qz(ca,sa)
+                quat[0] = cc * cb * ca - sc * sb * sa;
+                quat[1] = cc * sb * sa + sc * cb * ca;
+                quat[2] = cc * sb * ca - sc * cb * sa;
+                quat[3] = cc * cb * sa + sc * sb * ca;
             }
             EulerConvention::Xyx => {
                 quat[0] = ca * cb * cc - sa * cb * sc;
@@ -494,28 +500,50 @@ impl Rotation {
 
         match conv {
             EulerConvention::Xyz => {
+                // For intrinsic XYZ: R = Rz(c) * Ry(b) * Rx(a)
                 // Extract angles using arctan2 to handle singularities
                 angles[1] = (-matrix[[2, 0]]).asin();
 
-                if angles[1].abs() < PI / 2.0 - 1e-6 {
-                    angles[0] = (matrix[[2, 1]]).atan2(matrix[[2, 2]]);
-                    angles[2] = (matrix[[1, 0]]).atan2(matrix[[0, 0]]);
+                if angles[1].cos().abs() > 1e-6 {
+                    // Not in gimbal lock
+                    angles[0] = matrix[[2, 1]].atan2(matrix[[2, 2]]);
+                    angles[2] = matrix[[1, 0]].atan2(matrix[[0, 0]]);
                 } else {
                     // Gimbal lock case
                     angles[0] = 0.0;
-                    angles[2] = (matrix[[0, 1]]).atan2(matrix[[1, 1]]);
+                    if matrix[[2, 0]] < 0.0 {
+                        // sin(beta) = 1, beta = pi/2
+                        angles[2] = (-matrix[[0, 1]]).atan2(matrix[[1, 1]]);
+                    } else {
+                        // sin(beta) = -1, beta = -pi/2
+                        angles[2] = matrix[[0, 1]].atan2(matrix[[1, 1]]);
+                    }
                 }
             }
             EulerConvention::Zyx => {
-                angles[1] = (-matrix[[0, 2]]).asin();
+                // For intrinsic ZYX: First rotate around Z, then around new Y, then around new X
+                // This is equivalent to extrinsic rotations in reverse order: Rx * Ry * Rz
+                // The combined matrix has elements:
+                // R[0,2] = sin(Y)
+                // So we need to extract Y from arcsin(R[0,2]), not arcsin(-R[0,2])
+                angles[1] = matrix[[0, 2]].asin();
 
-                if angles[1].abs() < PI / 2.0 - 1e-6 {
-                    angles[0] = (matrix[[1, 2]]).atan2(matrix[[2, 2]]);
-                    angles[2] = (matrix[[0, 1]]).atan2(matrix[[0, 0]]);
+                if angles[1].cos().abs() > 1e-6 {
+                    // Not in gimbal lock
+                    // R[0,1]/cos(Y) = -sin(Z), R[0,0]/cos(Y) = cos(Z)
+                    angles[0] = (-matrix[[0, 1]]).atan2(matrix[[0, 0]]);
+                    // R[1,2]/cos(Y) = -sin(X), R[2,2]/cos(Y) = cos(X)
+                    angles[2] = (-matrix[[1, 2]]).atan2(matrix[[2, 2]]);
                 } else {
                     // Gimbal lock case
                     angles[0] = 0.0;
-                    angles[2] = (matrix[[1, 0]]).atan2(matrix[[1, 1]]);
+                    if matrix[[0, 2]] > 0.0 {
+                        // sin(Y) = 1, Y = pi/2
+                        angles[2] = matrix[[1, 0]].atan2(matrix[[1, 1]]);
+                    } else {
+                        // sin(Y) = -1, Y = -pi/2
+                        angles[2] = (-matrix[[1, 0]]).atan2(matrix[[1, 1]]);
+                    }
                 }
             }
             EulerConvention::Xyx => {
@@ -896,7 +924,12 @@ mod tests {
     #[test]
     fn test_rotation_from_quat() {
         // A quaternion for 90 degrees rotation around X axis
-        let quat = array![0.7071067811865475, 0.7071067811865475, 0.0, 0.0];
+        let quat = array![
+            std::f64::consts::FRAC_1_SQRT_2,
+            std::f64::consts::FRAC_1_SQRT_2,
+            0.0,
+            0.0
+        ];
         let rot = Rotation::from_quat(&quat.view()).unwrap();
 
         let vec = array![0.0, 1.0, 0.0];
