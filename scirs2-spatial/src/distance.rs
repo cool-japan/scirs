@@ -866,7 +866,7 @@ pub fn jaccard<T: Float>(point1: &[T], point2: &[T]) -> T {
 /// assert_eq!(dist_matrix.shape(), &[3, 3]);
 /// assert!((dist_matrix[(0, 1)] - 1.0f64).abs() < 1e-6);
 /// assert!((dist_matrix[(0, 2)] - 1.0f64).abs() < 1e-6);
-/// assert!((dist_matrix[(1, 2)] - 1.4142135623730951f64).abs() < 1e-6);
+/// assert!((dist_matrix[(1, 2)] - std::f64::consts::SQRT_2).abs() < 1e-6);
 /// ```
 pub fn pdist<T, F>(x: &Array2<T>, metric: F) -> Array2<T>
 where
@@ -915,7 +915,7 @@ where
 ///
 /// assert_eq!(dist_matrix.shape(), &[2, 2]);
 /// assert!((dist_matrix[(0, 0)] - 1.0f64).abs() < 1e-6);
-/// assert!((dist_matrix[(0, 1)] - 1.4142135623730951f64).abs() < 1e-6);
+/// assert!((dist_matrix[(0, 1)] - std::f64::consts::SQRT_2).abs() < 1e-6);
 /// assert!((dist_matrix[(1, 0)] - 1.0f64).abs() < 1e-6);
 /// assert!((dist_matrix[(1, 1)] - 1.0f64).abs() < 1e-6);
 /// ```
@@ -1067,184 +1067,6 @@ pub fn squareform_to_condensed<T: Float>(distances: &Array2<T>) -> Vec<T> {
     }
 
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use ndarray::arr2;
-
-    #[test]
-    fn test_euclidean_distance() {
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[4.0, 5.0, 6.0];
-
-        assert_relative_eq!(euclidean(point1, point2), 5.196152422706632, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_manhattan_distance() {
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[4.0, 5.0, 6.0];
-
-        assert_relative_eq!(manhattan(point1, point2), 9.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_chebyshev_distance() {
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[4.0, 5.0, 6.0];
-
-        assert_relative_eq!(chebyshev(point1, point2), 3.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_minkowski_distance() {
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[4.0, 5.0, 6.0];
-
-        // p = 1 (Manhattan)
-        assert_relative_eq!(minkowski(point1, point2, 1.0), 9.0, epsilon = 1e-6);
-
-        // p = 2 (Euclidean)
-        assert_relative_eq!(
-            minkowski(point1, point2, 2.0),
-            5.196152422706632,
-            epsilon = 1e-6
-        );
-
-        // p = infinity (Chebyshev)
-        assert_relative_eq!(
-            minkowski(point1, point2, f64::INFINITY),
-            3.0,
-            epsilon = 1e-6
-        );
-
-        // p = 3
-        assert_relative_eq!(minkowski(point1, point2, 3.0), 4.3267, epsilon = 1e-4);
-    }
-
-    #[test]
-    fn test_canberra_distance() {
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[4.0, 5.0, 6.0];
-
-        assert_relative_eq!(canberra(point1, point2), 1.5, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_cosine_distance() {
-        // Orthogonal vectors should have distance 1
-        let point1 = &[1.0, 0.0];
-        let point2 = &[0.0, 1.0];
-
-        assert_relative_eq!(cosine(point1, point2), 1.0, epsilon = 1e-6);
-
-        // Parallel vectors should have distance 0
-        let point3 = &[1.0, 2.0];
-        let point4 = &[2.0, 4.0];
-
-        assert_relative_eq!(cosine(point3, point4), 0.0, epsilon = 1e-6);
-
-        // 45 degree angle should have distance 1 - sqrt(2)/2
-        let point5 = &[1.0, 1.0];
-        let point6 = &[1.0, 0.0];
-
-        assert_relative_eq!(cosine(point5, point6), 0.2928932188134525, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_correlation_distance() {
-        // Perfectly anti-correlated should have distance 2
-        let point1 = &[1.0, 2.0, 3.0];
-        let point2 = &[3.0, 2.0, 1.0];
-
-        assert_relative_eq!(correlation(point1, point2), 2.0, epsilon = 1e-6);
-
-        // Perfectly correlated should have distance 0
-        let point3 = &[1.0, 2.0, 3.0];
-        let point4 = &[2.0, 4.0, 6.0];
-
-        assert_relative_eq!(correlation(point3, point4), 0.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_jaccard_distance() {
-        let point1 = &[1.0, 0.0, 1.0];
-        let point2 = &[0.0, 1.0, 1.0];
-
-        // 1 element in common, 2 elements different = 2/3
-        assert_relative_eq!(jaccard(point1, point2), 2.0 / 3.0, epsilon = 1e-6);
-
-        // Empty sets should have distance 0
-        let point3 = &[0.0, 0.0, 0.0];
-        let point4 = &[0.0, 0.0, 0.0];
-
-        assert_relative_eq!(jaccard(point3, point4), 0.0, epsilon = 1e-6);
-
-        // No elements in common should have distance 1
-        let point5 = &[1.0, 1.0, 0.0];
-        let point6 = &[0.0, 0.0, 1.0];
-
-        assert_relative_eq!(jaccard(point5, point6), 1.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_pdist() {
-        let points = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-
-        let dist_matrix = pdist(&points, euclidean);
-
-        assert_eq!(dist_matrix.shape(), &[3, 3]);
-
-        // Check diagonal is zero
-        assert_relative_eq!(dist_matrix[(0, 0)], 0.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(1, 1)], 0.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(2, 2)], 0.0, epsilon = 1e-6);
-
-        // Check off-diagonal elements
-        assert_relative_eq!(dist_matrix[(0, 1)], 1.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(0, 2)], 1.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(1, 2)], 1.4142135623730951, epsilon = 1e-6);
-
-        // Check symmetry
-        assert_relative_eq!(dist_matrix[(1, 0)], dist_matrix[(0, 1)], epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(2, 0)], dist_matrix[(0, 2)], epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(2, 1)], dist_matrix[(1, 2)], epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_cdist() {
-        let x_a = arr2(&[[0.0, 0.0], [1.0, 0.0]]);
-
-        let x_b = arr2(&[[0.0, 1.0], [1.0, 1.0]]);
-
-        let dist_matrix = cdist(&x_a, &x_b, euclidean);
-
-        assert_eq!(dist_matrix.shape(), &[2, 2]);
-
-        assert_relative_eq!(dist_matrix[(0, 0)], 1.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(0, 1)], 1.4142135623730951, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(1, 0)], 1.0, epsilon = 1e-6);
-        assert_relative_eq!(dist_matrix[(1, 1)], 1.0, epsilon = 1e-6);
-    }
-
-    #[test]
-    fn test_squareform() {
-        // Test conversion from condensed to square form
-        let condensed = vec![1.0, 2.0, 3.0];
-        let square = squareform(&condensed);
-
-        assert_eq!(square.shape(), &[3, 3]);
-        assert_relative_eq!(square[(0, 1)], 1.0, epsilon = 1e-6);
-        assert_relative_eq!(square[(0, 2)], 2.0, epsilon = 1e-6);
-        assert_relative_eq!(square[(1, 2)], 3.0, epsilon = 1e-6);
-
-        // Test conversion from square to condensed form
-        let condensed2 = squareform_to_condensed(&square);
-        assert_eq!(condensed2, condensed);
-    }
 }
 
 /// Dice distance between two boolean vectors
@@ -1611,5 +1433,191 @@ pub fn yule<T: Float>(point1: &[bool], point2: &[bool]) -> T {
         num / denom
     } else {
         T::zero()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use ndarray::arr2;
+
+    #[test]
+    fn test_euclidean_distance() {
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[4.0, 5.0, 6.0];
+
+        assert_relative_eq!(euclidean(point1, point2), 5.196152422706632, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_manhattan_distance() {
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[4.0, 5.0, 6.0];
+
+        assert_relative_eq!(manhattan(point1, point2), 9.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_chebyshev_distance() {
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[4.0, 5.0, 6.0];
+
+        assert_relative_eq!(chebyshev(point1, point2), 3.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_minkowski_distance() {
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[4.0, 5.0, 6.0];
+
+        // p = 1 (Manhattan)
+        assert_relative_eq!(minkowski(point1, point2, 1.0), 9.0, epsilon = 1e-6);
+
+        // p = 2 (Euclidean)
+        assert_relative_eq!(
+            minkowski(point1, point2, 2.0),
+            5.196152422706632,
+            epsilon = 1e-6
+        );
+
+        // p = infinity (Chebyshev)
+        assert_relative_eq!(
+            minkowski(point1, point2, f64::INFINITY),
+            3.0,
+            epsilon = 1e-6
+        );
+
+        // p = 3
+        assert_relative_eq!(minkowski(point1, point2, 3.0), 4.3267, epsilon = 1e-4);
+    }
+
+    #[test]
+    fn test_canberra_distance() {
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[4.0, 5.0, 6.0];
+
+        assert_relative_eq!(canberra(point1, point2), 1.5, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_cosine_distance() {
+        // Orthogonal vectors should have distance 1
+        let point1 = &[1.0, 0.0];
+        let point2 = &[0.0, 1.0];
+
+        assert_relative_eq!(cosine(point1, point2), 1.0, epsilon = 1e-6);
+
+        // Parallel vectors should have distance 0
+        let point3 = &[1.0, 2.0];
+        let point4 = &[2.0, 4.0];
+
+        assert_relative_eq!(cosine(point3, point4), 0.0, epsilon = 1e-6);
+
+        // 45 degree angle should have distance 1 - sqrt(2)/2
+        let point5 = &[1.0, 1.0];
+        let point6 = &[1.0, 0.0];
+
+        assert_relative_eq!(cosine(point5, point6), 0.2928932188134525, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_correlation_distance() {
+        // Perfectly anti-correlated should have distance 2
+        let point1 = &[1.0, 2.0, 3.0];
+        let point2 = &[3.0, 2.0, 1.0];
+
+        assert_relative_eq!(correlation(point1, point2), 2.0, epsilon = 1e-6);
+
+        // Perfectly correlated should have distance 0
+        let point3 = &[1.0, 2.0, 3.0];
+        let point4 = &[2.0, 4.0, 6.0];
+
+        assert_relative_eq!(correlation(point3, point4), 0.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_jaccard_distance() {
+        let point1 = &[1.0, 0.0, 1.0];
+        let point2 = &[0.0, 1.0, 1.0];
+
+        // 1 element in common, 2 elements different = 2/3
+        assert_relative_eq!(jaccard(point1, point2), 2.0 / 3.0, epsilon = 1e-6);
+
+        // Empty sets should have distance 0
+        let point3 = &[0.0, 0.0, 0.0];
+        let point4 = &[0.0, 0.0, 0.0];
+
+        assert_relative_eq!(jaccard(point3, point4), 0.0, epsilon = 1e-6);
+
+        // No elements in common should have distance 1
+        let point5 = &[1.0, 1.0, 0.0];
+        let point6 = &[0.0, 0.0, 1.0];
+
+        assert_relative_eq!(jaccard(point5, point6), 1.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_pdist() {
+        let points = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+
+        let dist_matrix = pdist(&points, euclidean);
+
+        assert_eq!(dist_matrix.shape(), &[3, 3]);
+
+        // Check diagonal is zero
+        assert_relative_eq!(dist_matrix[(0, 0)], 0.0, epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(1, 1)], 0.0, epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(2, 2)], 0.0, epsilon = 1e-6);
+
+        // Check off-diagonal elements
+        assert_relative_eq!(dist_matrix[(0, 1)], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(0, 2)], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(
+            dist_matrix[(1, 2)],
+            std::f64::consts::SQRT_2,
+            epsilon = 1e-6
+        );
+
+        // Check symmetry
+        assert_relative_eq!(dist_matrix[(1, 0)], dist_matrix[(0, 1)], epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(2, 0)], dist_matrix[(0, 2)], epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(2, 1)], dist_matrix[(1, 2)], epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_cdist() {
+        let x_a = arr2(&[[0.0, 0.0], [1.0, 0.0]]);
+
+        let x_b = arr2(&[[0.0, 1.0], [1.0, 1.0]]);
+
+        let dist_matrix = cdist(&x_a, &x_b, euclidean);
+
+        assert_eq!(dist_matrix.shape(), &[2, 2]);
+
+        assert_relative_eq!(dist_matrix[(0, 0)], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(
+            dist_matrix[(0, 1)],
+            std::f64::consts::SQRT_2,
+            epsilon = 1e-6
+        );
+        assert_relative_eq!(dist_matrix[(1, 0)], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(dist_matrix[(1, 1)], 1.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_squareform() {
+        // Test conversion from condensed to square form
+        let condensed = vec![1.0, 2.0, 3.0];
+        let square = squareform(&condensed);
+
+        assert_eq!(square.shape(), &[3, 3]);
+        assert_relative_eq!(square[(0, 1)], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(square[(0, 2)], 2.0, epsilon = 1e-6);
+        assert_relative_eq!(square[(1, 2)], 3.0, epsilon = 1e-6);
+
+        // Test conversion from square to condensed form
+        let condensed2 = squareform_to_condensed(&square);
+        assert_eq!(condensed2, condensed);
     }
 }

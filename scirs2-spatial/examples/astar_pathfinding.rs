@@ -1,5 +1,7 @@
 //! Example demonstrating A* search algorithm for pathfinding
 
+#![allow(clippy::needless_range_loop)]
+
 use scirs2_spatial::error::SpatialResult;
 use scirs2_spatial::pathplanning::{ContinuousAStarPlanner, GridAStarPlanner};
 

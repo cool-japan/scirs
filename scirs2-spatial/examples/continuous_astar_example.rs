@@ -28,7 +28,7 @@ fn main() -> SpatialResult<()> {
     let planner = ContinuousAStarPlanner::new(obstacles, 0.1, 0.1);
 
     // Test cases with different start and goal positions
-    let test_cases = vec![
+    let test_cases = [
         ([1.0, 1.0], [9.0, 9.0], "around multiple obstacles"),
         ([2.5, 1.0], [2.5, 7.0], "around rectangle obstacle"),
         ([4.0, 4.0], [8.0, 6.0], "around triangle obstacle"),

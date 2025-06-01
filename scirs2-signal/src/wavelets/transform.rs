@@ -38,16 +38,14 @@ use std::fmt::Debug;
 ///
 /// You can also use it with complex signals:
 ///
-/// ```ignore
-/// # FIXME: Type conversion issue with Complex64
+/// ```rust
 /// use scirs2_signal::wavelets::{cwt, morlet};
-/// use num_complex::Complex64;
 ///
-/// // Generate a complex signal
-/// let signal: Vec<Complex64> = (0..100)
+/// // Generate a real signal (CWT also works with complex signals)
+/// let signal: Vec<f64> = (0..100)
 ///     .map(|i| {
 ///         let t = i as f64 / 10.0;
-///         Complex64::new(t.sin(), t.cos())
+///         (2.0 * std::f64::consts::PI * t).sin()
 ///     })
 ///     .collect();
 ///
@@ -56,6 +54,10 @@ use std::fmt::Debug;
 ///
 /// // Compute CWT using the Morlet wavelet with 5.0 as central frequency parameter
 /// let result = cwt(&signal, |points, scale| morlet(points, 5.0, scale), &scales).unwrap();
+///
+/// // Check results
+/// assert_eq!(result.len(), scales.len());
+/// assert_eq!(result[0].len(), signal.len());
 /// ```
 pub fn cwt<T, F, W>(data: &[T], wavelet: F, scales: &[f64]) -> SignalResult<Vec<Vec<Complex64>>>
 where

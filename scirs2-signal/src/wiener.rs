@@ -11,7 +11,7 @@
 //! - Iterative Wiener filtering for improved restoration
 //!
 //! # Example
-//! ```ignore
+//! ```
 //! use ndarray::Array1;
 //! use scirs2_signal::wiener::wiener_filter;
 //! use scirs2_signal::waveforms;
@@ -19,10 +19,13 @@
 //!
 //! // Create a test signal
 //! let fs = 1000.0;
-//! let t = Array1::linspace(0.0, 1.0, 1000);
-//! let clean_signal = waveforms::chirp(
-//!     &t, 10.0, 1.0, 100.0, Some("linear")
+//! let t: Vec<f64> = (0..1000).map(|i| i as f64 / fs).collect();
+//! let clean_signal_vec = waveforms::chirp(
+//!     &t, 10.0, 1.0, 100.0, "linear", 0.0
 //! ).unwrap();
+//!
+//! // Convert to ndarray
+//! let clean_signal = Array1::from_vec(clean_signal_vec);
 //!
 //! // Add noise
 //! let mut rng = rand::rng();

@@ -45,7 +45,7 @@ fn rotation_from_euler(x: f64, y: f64, z: f64, convention: &str) -> SpatialResul
 /// // Apply the rotation to a point
 /// let point = array![1.0, 0.0, 0.0];
 /// let rotated = rot_half.apply(&point.view());
-/// // Should be approximately [0.7071, 0.7071, 0.0]
+/// // Should be approximately [std::f64::consts::FRAC_1_SQRT_2, std::f64::consts::FRAC_1_SQRT_2, 0.0]
 /// ```
 #[derive(Clone, Debug)]
 pub struct Slerp {
@@ -305,7 +305,16 @@ mod tests {
     fn test_slerp_negative_dot() {
         // Create two rotations with negative dot product
         let rot1 = Rotation::from_quat(&array![1.0, 0.0, 0.0, 0.0].view()).unwrap();
-        let rot2 = Rotation::from_quat(&array![-0.7071, 0.0, 0.0, 0.7071].view()).unwrap();
+        let rot2 = Rotation::from_quat(
+            &array![
+                -std::f64::consts::FRAC_1_SQRT_2,
+                0.0,
+                0.0,
+                std::f64::consts::FRAC_1_SQRT_2
+            ]
+            .view(),
+        )
+        .unwrap();
 
         // This should not fail due to our internal handling
         let slerp = Slerp::new(rot1, rot2).unwrap();

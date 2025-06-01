@@ -11,9 +11,10 @@
 //!
 //! ## Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use scirs2_core::random::{Random, DistributionExt};
 //! use rand_distr::{Normal, Uniform};
+//! use ndarray::IxDyn;
 //!
 //! // Get a thread-local random number generator
 //! let mut rng = Random::default();
@@ -23,7 +24,7 @@
 //! let uniform_value = rng.sample(Uniform::new(0.0_f64, 1.0_f64).unwrap());
 //!
 //! // Generate a random array using the distribution extension trait
-//! let shape = vec![10, 10];
+//! let shape = IxDyn(&[10, 10]);
 //! let normal_array = Normal::new(0.0_f64, 1.0_f64).unwrap().random_array(&mut rng, shape);
 //!
 //! // Create a seeded random generator for reproducible results

@@ -960,13 +960,25 @@ mod tests {
             [0.0, -0.5], // Interior point
             // Add the circle points
             [1.0, 0.0],
-            [0.7071, 0.7071],
+            [
+                std::f64::consts::FRAC_1_SQRT_2,
+                std::f64::consts::FRAC_1_SQRT_2
+            ],
             [0.0, 1.0],
-            [-0.7071, 0.7071],
+            [
+                -std::f64::consts::FRAC_1_SQRT_2,
+                std::f64::consts::FRAC_1_SQRT_2
+            ],
             [-1.0, 0.0],
-            [-0.7071, -0.7071],
+            [
+                -std::f64::consts::FRAC_1_SQRT_2,
+                -std::f64::consts::FRAC_1_SQRT_2
+            ],
             [0.0, -1.0],
-            [0.7071, -0.7071],
+            [
+                std::f64::consts::FRAC_1_SQRT_2,
+                -std::f64::consts::FRAC_1_SQRT_2
+            ],
         ];
 
         let hull = convex_hull_graham(&all_points.view());

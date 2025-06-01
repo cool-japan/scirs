@@ -31,24 +31,25 @@ use std::fmt::Debug;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use scirs2_signal::lombscargle::{lombscargle, AutoFreqMethod};
 /// use ndarray::Array1;
 /// use std::f64::consts::PI;
+/// use rand::Rng;
 ///
 /// // Generate unevenly sampled data with a 1 Hz sinusoid
 /// let n = 100;
-/// let rng = rand::rng();
+/// let mut rng = rand::thread_rng();
 /// let mut t = Array1::linspace(0.0, 10.0, n);
 /// // Add some random noise to make sampling uneven
 /// for i in 0..n {
-///     t[i] += 0.1 * rand::random::<f64>();
+///     t[i] += 0.1 * rng.gen_range(0.0..1.0);
 /// }
 /// let y: Vec<f64> = t.iter().map(|&ti| (2.0 * PI * 1.0 * ti).sin()).collect();
 ///
 /// // Compute Lomb-Scargle periodogram
 /// let (freqs, power) = lombscargle(
-///     &t,
+///     t.as_slice().unwrap(),
 ///     &y,
 ///     None,
 ///     Some("standard"),

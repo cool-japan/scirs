@@ -1046,11 +1046,11 @@ mod tests {
         for &val in values.iter() {
             assert!(val.is_finite());
         }
-        
+
         // Also test evaluation at intermediate points
         let x_mid: Vec<f64> = vec![0.5, 1.5, 2.5, 3.5];
         let values_mid = bspline_evaluate(&coeffs, &x_mid, SplineOrder::Cubic).unwrap();
-        
+
         for &val in values_mid.iter() {
             assert!(val.is_finite());
         }
@@ -1078,13 +1078,13 @@ mod tests {
         for &val in &smoothed {
             assert!(val.is_finite());
         }
-        
+
         // Test with zero smoothing (should return original signal)
         let no_smooth = bspline_smooth(&signal, SplineOrder::Cubic, 0.0).unwrap();
         for i in 0..signal.len() {
             assert_relative_eq!(no_smooth[i], signal[i], epsilon = 1e-10);
         }
-        
+
         // Test with high smoothing (should approach mean)
         let high_smooth = bspline_smooth(&signal, SplineOrder::Cubic, 1e7).unwrap();
         let mean = signal.iter().sum::<f64>() / signal.len() as f64;

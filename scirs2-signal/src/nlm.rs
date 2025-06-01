@@ -11,8 +11,7 @@
 //! - Block-matching variants for improved performance
 //!
 //! # Example
-//! ```ignore
-//! # FIXME: Integer overflow in nlm_denoise functions
+//! ```
 //! use ndarray::{Array1, Array2};
 //! use scirs2_signal::nlm::{nlm_denoise_1d, nlm_denoise_2d, NlmConfig};
 //! use rand::Rng;
@@ -94,8 +93,7 @@ impl Default for NlmConfig {
 /// * The denoised signal
 ///
 /// # Example
-/// ```ignore
-/// # FIXME: Integer overflow in nlm_denoise functions
+/// ```
 /// use ndarray::Array1;
 /// use scirs2_signal::nlm::{nlm_denoise_1d, NlmConfig};
 ///
@@ -202,7 +200,9 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
             // Apply spatial distance weighting if enabled
             let dist_weight =
                 if let (true, Some(kernel)) = (config.distance_weighting, &distance_kernel) {
-                    let idx = ((j as isize - center_idx as isize) + half_search as isize) as usize;
+                    // Safe calculation to avoid overflow
+                    let offset = j.saturating_sub(center_idx);
+                    let idx = offset.saturating_add(half_search);
                     if idx < kernel.len() {
                         kernel[idx]
                     } else {
@@ -216,7 +216,11 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
             let weight = (-dist / h_adjusted).exp() * dist_weight;
 
             // Accumulate weighted contribution
-            let idx = j - (if config.boundary { half_search } else { 0 });
+            let idx = if config.boundary {
+                j.saturating_sub(half_search)
+            } else {
+                j
+            };
             if idx < padded_signal.len() {
                 weighted_sum += weight * padded_signal[idx];
                 weight_sum += weight;
@@ -253,8 +257,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 /// * The denoised image
 ///
 /// # Example
-/// ```ignore
-/// # FIXME: Integer overflow in nlm_denoise functions
+/// ```
 /// use ndarray::Array2;
 /// use scirs2_signal::nlm::{nlm_denoise_2d, NlmConfig};
 ///
@@ -396,8 +399,16 @@ pub fn nlm_denoise_2d(image: &Array2<f64>, config: &NlmConfig) -> SignalResult<A
                     let weight = (-dist / h_adjusted).exp() * dist_weight;
 
                     // Accumulate weighted contribution
-                    let idx_i = si - (if config.boundary { half_search } else { 0 });
-                    let idx_j = sj - (if config.boundary { half_search } else { 0 });
+                    let idx_i = if config.boundary {
+                        si.saturating_sub(half_search)
+                    } else {
+                        si
+                    };
+                    let idx_j = if config.boundary {
+                        sj.saturating_sub(half_search)
+                    } else {
+                        sj
+                    };
 
                     if idx_i < padded_image.dim().0 && idx_j < padded_image.dim().1 {
                         weighted_sum += weight * padded_image[[idx_i, idx_j]];

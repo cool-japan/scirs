@@ -699,8 +699,8 @@ mod tests {
         // Create config for time stretching with mild settings
         let config = PhaseVocoderConfig {
             time_stretch: 1.5, // Lower stretch factor
-            window_size: 32, // Tiny window size
-            hop_size: 8, // Tiny hop size
+            window_size: 32,   // Tiny window size
+            hop_size: 8,       // Tiny hop size
             ..Default::default()
         };
 

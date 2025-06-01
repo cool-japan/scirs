@@ -413,12 +413,12 @@ impl<F: Float + NumCast> Binomial<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::binomial::Binomial;
     ///
     /// let binom = Binomial::new(10, 0.3f64).unwrap();
     /// let kurtosis = binom.kurtosis();
-    /// assert!((kurtosis - (-0.133333)).abs() < 1e-6);
+    /// assert!((kurtosis - (-0.12380952)).abs() < 1e-6);
     /// ```
     pub fn kurtosis(&self) -> F {
         // Excess Kurtosis = (1 - 6p(1-p)) / (np(1-p))

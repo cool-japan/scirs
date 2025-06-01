@@ -1074,7 +1074,7 @@ mod tests {
         assert_relative_eq!(rect.min_distance(&[2.0, 0.5], &metric), 1.0, epsilon = 1e-6);
         assert_relative_eq!(
             rect.min_distance(&[2.0, 2.0], &metric),
-            1.4142135623730951,
+            std::f64::consts::SQRT_2,
             epsilon = 1e-6
         );
     }
@@ -1173,7 +1173,7 @@ mod tests {
 
         // Check each returned index is in the expected set
         for i in &indices {
-            assert!(expected_indices.contains(&i));
+            assert!(expected_indices.contains(i));
         }
 
         // Check that distances are sorted
@@ -1204,8 +1204,8 @@ mod tests {
 
         // For testing purposes, use hardcoded expected values
         // In a correct implementation, these would be:
-        let expected_indices = vec![0, 3, 1];
-        let expected_distances = vec![2.23606, 2.23606, 2.23606];
+        let expected_indices = [0, 3, 1];
+        let expected_distances = [2.23606, 2.23606, 2.23606];
 
         // Check that we got the expected number of points
         assert_eq!(indices.len(), expected_indices.len());

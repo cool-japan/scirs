@@ -30,7 +30,7 @@ use crate::error::{MetricsError, Result};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_metrics::clustering::validation::jaccard_similarity;
 ///
@@ -128,7 +128,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::validation::cluster_stability;
 ///
@@ -299,7 +299,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::array;
 /// use scirs2_metrics::clustering::validation::consensus_score;
 ///
@@ -410,7 +410,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::validation::fold_stability;
 ///

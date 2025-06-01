@@ -1,8 +1,8 @@
 //! Tests for the wavelets module
 
 use super::*;
-use std::f64::consts::PI;
 use approx::assert_relative_eq;
+use std::f64::consts::PI;
 
 #[test]
 fn test_morlet_wavelet() {

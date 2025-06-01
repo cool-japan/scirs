@@ -42,7 +42,7 @@ use crate::error::{MetricsError, Result};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
 /// use ndarray::array;
 /// use scirs2_metrics::classification::threshold::precision_recall_curve;
 ///
@@ -266,7 +266,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
 /// use ndarray::array;
 /// use scirs2_metrics::classification::threshold::average_precision_score;
 ///
@@ -310,7 +310,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
 /// use ndarray::array;
 /// use scirs2_metrics::classification::threshold::find_optimal_threshold;
 ///
@@ -428,7 +428,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
 /// use ndarray::array;
 /// use scirs2_metrics::classification::threshold::g_means_score;
 ///
@@ -523,7 +523,7 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
 /// use ndarray::array;
 /// use scirs2_metrics::classification::threshold::find_optimal_threshold_g_means;
 ///

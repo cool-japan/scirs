@@ -554,7 +554,7 @@ mod tests {
 
         // Basic size check
         assert_eq!(xwvd.shape()[1], n);
-        
+
         // Check that all values are finite
         for i in 0..xwvd.shape()[0] {
             for j in 0..xwvd.shape()[1] {
@@ -562,7 +562,7 @@ mod tests {
                 assert!(xwvd[[i, j]].im.is_finite());
             }
         }
-        
+
         // Check that there's non-zero energy in the result
         let mut total_energy = 0.0;
         for i in 0..xwvd.shape()[0] {
@@ -600,18 +600,18 @@ mod tests {
 
         // Both should have the same dimensions
         assert_eq!(wvd.shape(), spwvd.shape());
-        
+
         // Check that all values are finite
         for i in 0..spwvd.shape()[0] {
             for j in 0..spwvd.shape()[1] {
                 assert!(spwvd[[i, j]].is_finite());
             }
         }
-        
+
         // Check that smoothing reduces total variation (smoother result)
         let mut wvd_variation = 0.0;
         let mut spwvd_variation = 0.0;
-        
+
         // Calculate variation along time axis
         for i in 0..wvd.shape()[0] {
             for j in 1..wvd.shape()[1] {
@@ -619,7 +619,7 @@ mod tests {
                 spwvd_variation += (spwvd[[i, j]] - spwvd[[i, j - 1]]).abs();
             }
         }
-        
+
         // SPWVD should have less variation (be smoother) than WVD
         // But since we're using a simple sine wave, the difference might be small
         // Just check that both have finite variation

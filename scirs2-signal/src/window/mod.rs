@@ -783,11 +783,11 @@ mod tests {
         // Test endpoints - Bartlett window has zero at endpoints
         assert_relative_eq!(window[0], 0.0, epsilon = 1e-10);
         assert_relative_eq!(window[9], 0.0, epsilon = 1e-10);
-        
+
         // Test that it increases from start to middle
         assert!(window[1] > window[0]);
         assert!(window[2] > window[1]);
-        
+
         // Test middle values are close to 1
         let mid_val = window[4];
         assert!(mid_val > 0.8 && mid_val <= 1.0);

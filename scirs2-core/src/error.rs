@@ -244,13 +244,14 @@ impl From<crate::array_protocol::OperationError> for CoreError {
 ///
 /// # Example
 ///
-/// ```ignore
-/// // This is a placeholder example
+/// ```rust
 /// use scirs2_core::error_context;
+/// use scirs2_core::error::{CoreResult, CoreError};
 ///
-/// fn example() -> scirs2_core::error::CoreResult<()> {
-///     if false {
-///         return Err(error_context!("An error occurred"));
+/// fn example() -> CoreResult<()> {
+///     let condition = false;
+///     if condition {
+///         return Err(CoreError::ComputationError(error_context!("An error occurred")));
 ///     }
 ///     Ok(())
 /// }

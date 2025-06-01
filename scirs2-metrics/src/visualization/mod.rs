@@ -8,7 +8,7 @@
 //!
 //! # Basic Usage
 //!
-//! ```ignore
+//! ```
 //! use scirs2_metrics::visualization::{
 //!     VisualizationData, VisualizationMetadata, PlotType, PlottingBackend, backends
 //! };
@@ -35,7 +35,7 @@
 //!
 //! The module provides specialized visualizers for common metrics visualizations:
 //!
-//! ```ignore
+//! ```
 //! use ndarray::array;
 //! use scirs2_metrics::classification::confusion_matrix;
 //! use scirs2_metrics::visualization::{

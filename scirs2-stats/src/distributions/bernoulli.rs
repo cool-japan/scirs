@@ -308,12 +308,12 @@ impl<F: Float + NumCast + std::fmt::Display> Bernoulli<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::bernoulli::Bernoulli;
     ///
     /// let bern = Bernoulli::new(0.3f64).unwrap();
     /// let skewness = bern.skewness();
-    /// assert!((skewness - 0.874425).abs() < 1e-5);
+    /// assert!((skewness - 0.87287156).abs() < 1e-5);
     /// ```
     pub fn skewness(&self) -> F {
         // Skewness = (1 - 2p) / sqrt(p * (1 - p))

@@ -108,7 +108,7 @@ pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec
             let mut sum = 0.0;
             // Add DC component
             sum += kaiser_win[0];
-            
+
             // Add positive frequencies
             for j in 1..(n / 2) {
                 let idx = j;
@@ -117,14 +117,18 @@ pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec
                     sum += 2.0 * kaiser_win[idx] * angle.cos();
                 }
             }
-            
+
             // Add Nyquist
             if n / 2 < kaiser_win.len() {
                 let angle = PI * i as f64;
                 sum += kaiser_win[n / 2] * angle.cos();
             }
 
-            *item = if sum > 0.0 { (sum / n as f64).sqrt() } else { 0.0 };
+            *item = if sum > 0.0 {
+                (sum / n as f64).sqrt()
+            } else {
+                0.0
+            };
         }
     } else {
         // Odd
@@ -138,7 +142,11 @@ pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec
                 }
             }
 
-            *item = if sum > 0.0 { (sum / n as f64).sqrt() } else { 0.0 };
+            *item = if sum > 0.0 {
+                (sum / n as f64).sqrt()
+            } else {
+                0.0
+            };
         }
     }
 
@@ -175,11 +183,11 @@ mod tests {
         for &val in window.iter() {
             assert!(val.is_finite());
         }
-        
+
         // Test that window has reasonable values (between 0 and some maximum)
         let max_val = window.iter().fold(0.0f64, |a, &b| f64::max(a, b.abs()));
         assert!(max_val > 0.0 && max_val < 10.0);
-        
+
         // The Kaiser-Bessel derived window may not be perfectly symmetric due to
         // FFT-based computation, so we skip strict symmetry test
     }

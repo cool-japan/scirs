@@ -572,6 +572,31 @@ impl<T: Clone> RTree<T> {
         self.size = 0;
         self.height = 1;
     }
+
+    /// Increment the size of the tree (internal use only)
+    pub(crate) fn increment_size(&mut self) {
+        self.size += 1;
+    }
+
+    /// Decrement the size of the tree (internal use only)
+    pub(crate) fn decrement_size(&mut self) {
+        if self.size > 0 {
+            self.size -= 1;
+        }
+    }
+
+    /// Increment the height of the tree (internal use only)
+    pub(crate) fn increment_height(&mut self) {
+        self.height += 1;
+    }
+
+    /// Decrement the height of the tree (internal use only)
+    #[allow(dead_code)]
+    pub(crate) fn decrement_height(&mut self) {
+        if self.height > 0 {
+            self.height -= 1;
+        }
+    }
 }
 
 #[cfg(test)]

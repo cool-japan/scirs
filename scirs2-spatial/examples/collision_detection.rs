@@ -316,9 +316,8 @@ fn main() {
                 println!("  Spheres will collide at time {:.2?}", collision_time);
 
                 // Extract the collision time as a float (the first element of the tuple)
-                let collision_time_float = match collision_time {
-                    (t, _, _) => t,
-                };
+                let (t, _, _) = collision_time;
+                let collision_time_float = t;
 
                 // Calculate positions at collision time
                 let position1 = [

@@ -5,7 +5,6 @@ use std::f64::consts::PI;
 use scirs2_spatial::transform::{Rotation, RotationSpline, Slerp};
 
 #[test]
-#[ignore] // The implementation has precision issues
 fn test_rotation_basic() {
     // Create a rotation from various representations
     let rot_identity = Rotation::identity();
@@ -45,7 +44,6 @@ fn test_rotation_basic() {
 }
 
 #[test]
-#[ignore] // The implementation has issues with numerical precision
 fn test_rotation_euler_conventions() {
     let test_conventions = ["xyz", "zyx", "xyx", "xzx", "yxy", "yzy", "zxz", "zyz"];
 
@@ -84,7 +82,6 @@ fn test_rotation_euler_conventions() {
 }
 
 #[test]
-#[ignore] // The implementation has issues with sign handling
 fn test_slerp_basic() {
     // Create two rotations
     let rot1 = Rotation::identity();
@@ -125,7 +122,6 @@ fn test_slerp_basic() {
 }
 
 #[test]
-#[ignore] // The implementation has precision issues
 fn test_rotation_spline_slerp() {
     // Create a rotation spline
     let rotations = vec![
@@ -182,13 +178,29 @@ fn test_rotation_spline_slerp() {
 
     // Check that they produce expected intermediate rotations
     // t=0.5 should be 45 degrees around Z
-    assert_relative_eq!(rotated_05[0], 0.7071, epsilon = 0.001);
-    assert_relative_eq!(rotated_05[1], 0.7071, epsilon = 0.001);
+    assert_relative_eq!(
+        rotated_05[0],
+        std::f64::consts::FRAC_1_SQRT_2,
+        epsilon = 0.001
+    );
+    assert_relative_eq!(
+        rotated_05[1],
+        std::f64::consts::FRAC_1_SQRT_2,
+        epsilon = 0.001
+    );
     assert_relative_eq!(rotated_05[2], 0.0, epsilon = 0.001);
 
     // t=1.5 should be 135 degrees around Z
-    assert_relative_eq!(rotated_15[0], -0.7071, epsilon = 0.001);
-    assert_relative_eq!(rotated_15[1], 0.7071, epsilon = 0.001);
+    assert_relative_eq!(
+        rotated_15[0],
+        -std::f64::consts::FRAC_1_SQRT_2,
+        epsilon = 0.001
+    );
+    assert_relative_eq!(
+        rotated_15[1],
+        std::f64::consts::FRAC_1_SQRT_2,
+        epsilon = 0.001
+    );
     assert_relative_eq!(rotated_15[2], 0.0, epsilon = 0.001);
 }
 

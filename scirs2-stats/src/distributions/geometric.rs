@@ -329,12 +329,12 @@ impl<F: Float + NumCast> Geometric<F> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use scirs2_stats::distributions::geometric::Geometric;
     ///
     /// let geom = Geometric::new(0.3f64).unwrap();
     /// let skewness = geom.skewness();
-    /// assert!((skewness - 2.019129).abs() < 1e-6);
+    /// assert!((skewness - 2.0318891).abs() < 1e-6);
     /// ```
     pub fn skewness(&self) -> F {
         // Skewness = (2-p) / sqrt(1-p)

@@ -54,13 +54,12 @@ const EULER_MASCHERONI: f64 = 0.577_215_664_901_532_9;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// # FIXME: This function isn't exported
+/// ```
 /// use num_complex::Complex64;
-/// use scirs2_special::wright::wright_omega;
+/// use scirs2_special::wright_omega;
 ///
 /// let z = Complex64::new(0.0, 0.0);
-/// let omega = wright_omega(z, Some(1e-8)).unwrap();
+/// let omega = wright_omega(z, 1e-8).unwrap();
 /// // Test known value at z=0
 /// assert!((omega.re - 0.567143).abs() < 1e-6);
 /// assert!(omega.im.abs() < 1e-10);

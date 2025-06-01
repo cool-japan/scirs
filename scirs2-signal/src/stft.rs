@@ -1474,19 +1474,19 @@ mod tests {
             // Check a few samples in the middle (avoiding edge effects)
             let start = window_length;
             let end = signal.len().saturating_sub(window_length);
-            
+
             if end > start {
                 // Calculate reconstruction error in the stable region
                 let mut error_sum = 0.0;
                 let mut count = 0;
-                
+
                 for i in start..end {
                     if i < reconstructed.len() {
                         error_sum += (reconstructed[i] - signal[i]).abs();
                         count += 1;
                     }
                 }
-                
+
                 if count > 0 {
                     let avg_error = error_sum / count as f64;
                     // Just check that average error is reasonable

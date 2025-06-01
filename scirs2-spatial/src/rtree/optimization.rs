@@ -180,7 +180,6 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    #[ignore] // This test is failing due to implementation issues and should be fixed later
     fn test_rtree_optimize() {
         // Create a new R-tree
         let mut rtree: RTree<i32> = RTree::new(2, 2, 4).unwrap();
@@ -219,7 +218,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // This test is failing due to implementation issues and should be fixed later
     fn test_rtree_bulk_load() {
         // Create points
         let points = vec![
