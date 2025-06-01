@@ -19,16 +19,19 @@
 //!
 //! // Create a test signal
 //! let fs = 1000.0;
-//! let t = Array1::linspace(0.0, 1.0, 1000);
-//! let clean_signal = waveforms::chirp(
-//!     &t, 10.0, 1.0, 100.0, Some("linear")
+//! let t: Vec<f64> = (0..1000).map(|i| i as f64 / fs).collect();
+//! let clean_signal_vec = waveforms::chirp(
+//!     &t, 10.0, 1.0, 100.0, "linear", 0.0
 //! ).unwrap();
 //!
+//! // Convert to ndarray
+//! let clean_signal = Array1::from_vec(clean_signal_vec);
+//!
 //! // Add noise
-//! let mut rng = rand::thread_rng();
+//! let mut rng = rand::rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..noisy_signal.len() {
-//!     noisy_signal[i] += 0.5 * rng.gen_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.5 * rng.random_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Wiener filter

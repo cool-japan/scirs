@@ -297,18 +297,34 @@ impl ParallelCorpusProcessor {
         let errors = Arc::new(Mutex::new(Vec::new()));
 
         pool.install(|| {
-            corpus
+            // Collect results with indices to preserve order
+            let indexed_results: Vec<_> = corpus
                 .par_chunks(self.batch_size)
-                .for_each(|batch| match processor(batch) {
-                    Ok(batch_results) => {
-                        let mut results = results.lock().unwrap();
-                        results.extend(batch_results);
-                    }
-                    Err(e) => {
-                        let mut errors = errors.lock().unwrap();
-                        errors.push(e);
-                    }
-                });
+                .enumerate()
+                .map(|(idx, batch)| match processor(batch) {
+                    Ok(batch_results) => Ok((idx, batch_results)),
+                    Err(e) => Err(e),
+                })
+                .collect();
+
+            // Check for errors
+            for result in &indexed_results {
+                if let Err(e) = result {
+                    let mut errors = errors.lock().unwrap();
+                    errors.push(e.clone());
+                    return;
+                }
+            }
+
+            // Sort by index and flatten results
+            let mut sorted_results: Vec<_> =
+                indexed_results.into_iter().filter_map(|r| r.ok()).collect();
+            sorted_results.sort_by_key(|(idx, _)| *idx);
+
+            let mut results_guard = results.lock().unwrap();
+            for (_, batch_results) in sorted_results {
+                results_guard.extend(batch_results);
+            }
         });
 
         // Check for errors
@@ -337,44 +353,57 @@ impl ParallelCorpusProcessor {
         F: Fn(&[&str]) -> Result<Vec<R>> + Send + Sync,
         R: Send,
     {
-        let results = Arc::new(Mutex::new(Vec::new()));
         let errors = Arc::new(Mutex::new(Vec::new()));
         let processed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let total = corpus.len();
 
         let batches: Vec<_> = corpus.chunks(self.batch_size).collect();
 
-        batches.into_par_iter().for_each(|batch| {
-            match processor(batch) {
-                Ok(batch_results) => {
-                    let mut results = results.lock().unwrap();
-                    results.extend(batch_results);
-                }
-                Err(e) => {
-                    let mut errors = errors.lock().unwrap();
-                    errors.push(e);
-                }
-            }
+        // Collect results with indices to preserve order
+        let indexed_results: Vec<_> = batches
+            .into_par_iter()
+            .enumerate()
+            .map(|(idx, batch)| {
+                let result = match processor(batch) {
+                    Ok(batch_results) => Ok((idx, batch_results)),
+                    Err(e) => Err(e),
+                };
 
-            // Update progress
-            let current =
-                processed.fetch_add(batch.len(), std::sync::atomic::Ordering::SeqCst) + batch.len();
-            progress_callback(current, total);
-        });
+                // Update progress
+                let current = processed.fetch_add(batch.len(), std::sync::atomic::Ordering::SeqCst)
+                    + batch.len();
+                progress_callback(current, total);
+
+                result
+            })
+            .collect();
+
+        // Check for errors
+        for result in &indexed_results {
+            if let Err(e) = result {
+                let mut errors = errors.lock().unwrap();
+                errors.push(e.clone());
+            }
+        }
 
         // Check for errors
         let errors = errors.lock().unwrap();
         if !errors.is_empty() {
             return Err(errors[0].clone());
         }
+        drop(errors);
 
-        // Return results
-        let results = Arc::try_unwrap(results)
-            .unwrap_or_else(|_| panic!("Failed to unwrap results Arc"))
-            .into_inner()
-            .unwrap_or_else(|_| panic!("Failed to unwrap results Mutex"));
+        // Sort by index and flatten results
+        let mut sorted_results: Vec<_> =
+            indexed_results.into_iter().filter_map(|r| r.ok()).collect();
+        sorted_results.sort_by_key(|(idx, _)| *idx);
 
-        Ok(results)
+        let mut final_results = Vec::new();
+        for (_, batch_results) in sorted_results {
+            final_results.extend(batch_results);
+        }
+
+        Ok(final_results)
     }
 }
 

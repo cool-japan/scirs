@@ -805,7 +805,6 @@ where
     Ok(freqs_f64[freqs_f64.len() - 1])
 }
 
-
 /// Calculate the spectral crest factor of a signal.
 ///
 /// The spectral crest factor is the ratio of the maximum value to the arithmetic mean

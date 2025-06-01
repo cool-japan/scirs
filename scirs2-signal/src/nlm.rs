@@ -24,10 +24,10 @@
 //! }
 //!
 //! // Add noise
-//! let mut rng = rand::thread_rng();
+//! let mut rng = rand::rng();
 //! let mut noisy_signal = clean_signal.clone();
 //! for i in 0..n {
-//!     noisy_signal[i] += 0.2 * rng.gen_range(-1.0..1.0);
+//!     noisy_signal[i] += 0.2 * rng.random_range(-1.0..1.0);
 //! }
 //!
 //! // Apply Non-Local Means denoising
@@ -216,7 +216,11 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
             let weight = (-dist / h_adjusted).exp() * dist_weight;
 
             // Accumulate weighted contribution
-            let idx = j - (if config.boundary { half_search } else { 0 });
+            let idx = if config.boundary {
+                j.saturating_sub(half_search)
+            } else {
+                j
+            };
             if idx < padded_signal.len() {
                 weighted_sum += weight * padded_signal[idx];
                 weight_sum += weight;
@@ -395,8 +399,16 @@ pub fn nlm_denoise_2d(image: &Array2<f64>, config: &NlmConfig) -> SignalResult<A
                     let weight = (-dist / h_adjusted).exp() * dist_weight;
 
                     // Accumulate weighted contribution
-                    let idx_i = si - (if config.boundary { half_search } else { 0 });
-                    let idx_j = sj - (if config.boundary { half_search } else { 0 });
+                    let idx_i = if config.boundary {
+                        si.saturating_sub(half_search)
+                    } else {
+                        si
+                    };
+                    let idx_j = if config.boundary {
+                        sj.saturating_sub(half_search)
+                    } else {
+                        sj
+                    };
 
                     if idx_i < padded_image.dim().0 && idx_j < padded_image.dim().1 {
                         weighted_sum += weight * padded_image[[idx_i, idx_j]];

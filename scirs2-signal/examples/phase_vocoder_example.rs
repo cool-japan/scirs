@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nCombining time stretching and pitch shifting:");
 
     let config = PhaseVocoderConfig {
-        time_stretch: 1.5, // 50% longer
+        time_stretch: 1.5,      // 50% longer
         pitch_shift: Some(7.0), // Perfect fifth up
         window_size: 2048,
         hop_size: 512,
