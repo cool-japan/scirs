@@ -24,8 +24,8 @@ blas = { workspace = true }
 # Graph processing specific dependencies
 petgraph = { workspace = true }
 rand = { workspace = true }
-itertools = "0.13"
-ordered-float = "3.9"
+itertools = "0.14"
+ordered-float = "5.0"
 
 [features]
 default = []
