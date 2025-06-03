@@ -4,7 +4,7 @@
 //!
 //! ### Basic usages
 //!
-//! ```ignore
+//! ```
 //! use scirs2_autograd as ag;
 //! use ag::ndarray_ext;
 //! use ag::variable::{VariableID, NamespaceTrait};
@@ -44,12 +44,12 @@
 //! // Collecting var names in a specific namespace.
 //! let names_: Vec<&str> = env.default_namespace().current_var_names();
 //! let names_: Vec<&str> = env.namespace("my_namespace").current_var_names();
-//! ```ignore
+//! ```
 //!
 //! See also neural network examples in `examples` directory.
 //!
 //! # Model persistence
-//! ```ignore
+//! ```
 //! use scirs2_autograd as ag;
 //! use std::fs;
 //! use std::error::Error;
@@ -57,7 +57,7 @@
 //! let dir = "/tmp/rust-autograd/test/model_persistence";
 //! fs::create_dir_all(dir).unwrap();
 //! let path = format!("{}/model.json", dir);
-//! let rng = ag::ndarray_ext::ArrayRng::<f64>::default();
+//! let mut rng = ag::ndarray_ext::ArrayRng::<f64>::default();
 //!
 //! let mut env = ag::VariableEnvironment::new();
 //! env.slot().name("a").set(rng.standard_normal(&[2, 3]));
@@ -74,7 +74,7 @@
 //! let _: Result<(), Box<dyn Error>> = new_env.initialize(path);
 //!
 //! // new_env.run(...
-//! ```ignore
+//! ```
 use crate::graph::Context;
 use crate::{uuid::Uuid, Float, FxHashMap, Graph, NdArray, NdArrayView, NdArrayViewMut, Tensor};
 use serde::{Deserialize, Serialize};

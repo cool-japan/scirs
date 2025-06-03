@@ -77,130 +77,93 @@ where
                 // scalar ones for every operation
                 for i in 0..num_inputs {
                     let x_tensor = y_tensor.get_backprop_input(i);
-                    let x_shape = match x_tensor.inner().known_shape {
+                    let _x_shape = match x_tensor.inner().known_shape {
                         Some(ref shape) => shape.get().to_vec(),
                         None => vec![1], // Default to scalar if shape unknown
                     };
 
                     // Check operation type to produce appropriate gradient
-                    match op_name {
-                        // For elementwise operations, pass through the gradient
-                        "Add" | "Sub" | "Mul" | "Div" | "AddOp" | "SubOp" | "MulOp" | "DivOp" => {
-                            let grad = Some(gy);
-                            gxs.push(grad);
+                    // Handle both short names and fully qualified names
+                    let grad = if op_name.ends_with("AddOp") || op_name == "Add" {
+                        // For addition, gradient passes through unchanged
+                        Some(gy)
+                    } else if op_name.ends_with("SubOp") || op_name == "Sub" {
+                        // For subtraction, first input gets positive gradient, second gets negative
+                        if i == 0 {
+                            Some(gy)
+                        } else {
+                            Some(T::neg(gy))
                         }
-
-                        // For reduction operations (like sum), create ones tensor with input shape
-                        "Sum" | "SumAll" | "SumOp" | "Mean" | "MeanOp" => {
-                            let shape_tensor = T::convert_to_tensor(
-                                ndarray::Array::from_shape_vec(
-                                    ndarray::IxDyn(&[x_shape.len()]),
-                                    x_shape
-                                        .iter()
-                                        .map(
-                                            |&x| if x > 0 { F::from(x).unwrap() } else { F::one() },
-                                        )
-                                        .collect::<Vec<_>>(),
-                                )
-                                .unwrap(),
-                                g,
-                            );
-                            let ones = T::ones(&shape_tensor, g);
-                            gxs.push(Some(ones));
+                    } else if op_name.ends_with("MulOp") || op_name == "Mul" {
+                        // For multiplication: d(a*b)/da = b*grad_out, d(a*b)/db = a*grad_out
+                        if i == 0 {
+                            // d(a*b)/da = b * grad_out
+                            let b = y_tensor.get_backprop_input(1);
+                            Some(T::mul(b, gy))
+                        } else {
+                            // d(a*b)/db = a * grad_out
+                            let a = y_tensor.get_backprop_input(0);
+                            Some(T::mul(a, gy))
                         }
-
-                        // For matrix operations, create appropriate shape tensors
-                        "MatMul" | "MatMulOp" => {
-                            if i == 0 {
-                                // For first input in matmul (A in A*B), shape depends on B
-                                let grad = Some(gy);
-                                gxs.push(grad);
-                            } else {
-                                // For second input in matmul (B in A*B), shape depends on A
-                                let grad = Some(gy);
-                                gxs.push(grad);
-                            }
+                    } else if op_name.ends_with("DivOp") || op_name == "Div" {
+                        // For division: d(a/b)/da = grad_out/b, d(a/b)/db = -a*grad_out/b^2
+                        if i == 0 {
+                            // d(a/b)/da = grad_out / b
+                            let b = y_tensor.get_backprop_input(1);
+                            Some(T::div(gy, b))
+                        } else {
+                            // d(a/b)/db = -a * grad_out / b^2
+                            let a = y_tensor.get_backprop_input(0);
+                            let b = y_tensor.get_backprop_input(1);
+                            let b_squared = T::mul(b, b);
+                            let neg_a = T::neg(a);
+                            let neg_a_gy = T::mul(neg_a, gy);
+                            Some(T::div(neg_a_gy, b_squared))
                         }
-
-                        // For activation functions with specific gradient patterns
-                        "Sigmoid" => {
-                            // For sigmoid: dy/dx = y * (1 - y)
-                            // Without evaluating tensors, approximate the gradient
-                            let one = T::scalar(F::one(), g);
-                            let one_minus_y = T::sub(one, gy);
-                            let dy_dx = T::mul(gy, one_minus_y);
-                            let grad = Some(dy_dx);
-                            gxs.push(grad);
+                    } else if op_name.contains("ReduceSumToScalar") || op_name.contains("Sum") || op_name.contains("Mean") {
+                        // For reduction operations, gradient is broadcast back
+                        // For sum, gradient passes through; for mean, it's divided by count
+                        Some(gy)
+                    } else if op_name.ends_with("MatMulOp") || op_name == "MatMul" {
+                        // For matrix multiplication
+                        if i == 0 {
+                            // For first input in matmul (A in A*B), grad_A = grad_out * B^T
+                            let b = y_tensor.get_backprop_input(1);
+                            Some(T::matmul(gy, T::transpose(b, &[-1, -2])))
+                        } else {
+                            // For second input in matmul (B in A*B), grad_B = A^T * grad_out
+                            let a = y_tensor.get_backprop_input(0);
+                            Some(T::matmul(T::transpose(a, &[-1, -2]), gy))
                         }
-
-                        "ReLU" => {
-                            // For ReLU: dy/dx = x > 0 ? 1 : 0
-                            // Use tensor operations to approximate the gradient
-                            // Since we can't evaluate x_tensor directly, use a pass-through approach
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        "Tanh" => {
-                            // For tanh: dy/dx = 1 - y^2
-                            // Use tensor operations to approximate the gradient
-                            // Approximating output squared with a simplified approach
-                            // Just pass the gradient through with a scaling factor
-                            let half = T::scalar(F::from(0.5).unwrap(), g);
-                            let grad = Some(T::mul(gy, half));
-                            gxs.push(grad);
-                        }
-
-                        "Softmax" => {
-                            // For softmax: complex gradient, approximated as pass-through
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        // For norm operations
-                        "FrobeniusNorm" => {
-                            // For Frobenius norm: dy/dx = x / ||x||
-                            // Since we can't directly evaluate tensors here, provide a reasonable approximation
-                            // For Frobenius norm, the gradient should normalize the input
-                            // Since we can't access the normalized input directly, we'll use a pass-through
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        "SpectralNorm" | "NuclearNorm" => {
-                            // For matrix norms, approximate with identity matrix for simplicity
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        // For convolution operations
-                        "Conv2D" | "Conv2DTranspose" => {
-                            // Convolution gradients are complex, pass through for now
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        // For pooling operations
-                        "MaxPool2D" => {
-                            // For max pooling, we should ideally only backprop through the max elements
-                            // For now, we'll approximate with an evenly distributed gradient
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        // For checkpoint operations
-                        "CheckpointOp" => {
-                            // For checkpoint operations, pass through the gradient
-                            let grad = Some(gy);
-                            gxs.push(grad);
-                        }
-
-                        // Default case for other operations
-                        _ => {
-                            let grad = Some(T::scalar(F::one(), g));
-                            gxs.push(grad);
-                        }
-                    }
+                    } else if op_name.contains("Sigmoid") {
+                        // For sigmoid: dy/dx = sigmoid * (1 - sigmoid) * grad_out
+                        // Since we can't evaluate the output, we approximate
+                        let one = T::scalar(F::one(), g);
+                        let one_minus_y = T::sub(one, y_tensor);
+                        let dy_dx = T::mul(T::mul(y_tensor, one_minus_y), gy);
+                        Some(dy_dx)
+                    } else if op_name.contains("ReLU") {
+                        // For ReLU: dy/dx = (x > 0) * grad_out
+                        // Since we can't evaluate x, we pass through for now
+                        Some(gy)
+                    } else if op_name.contains("Tanh") {
+                        // For tanh: dy/dx = (1 - tanh^2) * grad_out
+                        let one = T::scalar(F::one(), g);
+                        let y_squared = T::mul(y_tensor, y_tensor);
+                        let one_minus_y_squared = T::sub(one, y_squared);
+                        Some(T::mul(one_minus_y_squared, gy))
+                    } else if op_name.contains("Softmax") {
+                        // For softmax: complex gradient, approximated as pass-through
+                        Some(gy)
+                    } else if op_name.contains("CheckpointOp") {
+                        // For checkpoint operations, pass through the gradient
+                        Some(gy)
+                    } else {
+                        // Default case - return scalar one for unknown operations
+                        Some(T::scalar(F::one(), g))
+                    };
+                    
+                    gxs.push(grad);
                 }
 
                 gxs

@@ -379,7 +379,15 @@ fn argx_helper<T: Float>(
         let reduction_len = x_shape[axis];
         ndarray_ext::roll_axis(&mut mask, ndarray::Axis(0), ndarray::Axis(axis));
         let shape2d = (reduction_len, mask.len() / reduction_len);
-        let mut mask = mask.into_shape_with_order(shape2d).unwrap();
+        let mut mask = if mask.is_standard_layout() {
+            mask.into_shape_with_order(shape2d).unwrap()
+        } else {
+            // Convert to standard layout first if needed
+            mask.as_standard_layout()
+                .to_owned()
+                .into_shape_with_order(shape2d)
+                .unwrap()
+        };
         mask.swap_axes(0, 1);
         mask
     };

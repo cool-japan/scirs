@@ -962,7 +962,6 @@ mod tests {
     use ndarray::Array2;
 
     #[test]
-    #[ignore = "Needs proper array operation implementation"]
     fn test_linear_layer() {
         // Initialize the array protocol system
         array_protocol::init();
@@ -993,7 +992,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Needs proper array operation implementation"]
     fn test_sequential_model() {
         // Initialize the array protocol system
         array_protocol::init();

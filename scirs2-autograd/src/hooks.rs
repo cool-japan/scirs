@@ -1,5 +1,5 @@
 //! You can register hooks on `ag::Tensor` objects for debugging.
-//! ```ignore
+//! ```
 //! use scirs2_autograd as ag;
 //! use ag::tensor_ops as T;
 //!
@@ -27,7 +27,7 @@
 //!       .raw_hook(|x| println!("{:?}", x.shape()));
 //! });
 //!
-//! ```ignore
+//! ```
 use super::*;
 use crate::ndarray_ext::NdArrayView;
 use std::marker::PhantomData;

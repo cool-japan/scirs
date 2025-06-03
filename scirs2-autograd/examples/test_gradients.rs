@@ -1,91 +1,56 @@
-use ag::tensor_ops::*;
+use ndarray;
 use scirs2_autograd as ag;
-
-fn test_frobenius_gradient() {
-    ag::run::<f64, _, _>(|ctx| {
-        // Create test matrices
-        let a = ag::tensor_ops::random_normal(&[3, 3], 0.0, 1.0, ctx);
-        let b = ag::tensor_ops::random_normal(&[3, 3], 0.0, 1.0, ctx);
-
-        // Compute matrix product and norm
-        let c = ag::tensor_ops::matmul(&a, &b);
-        let norm = frobenius_norm(&c);
-
-        // Compute gradients - these should be non-zero
-        let grads = ag::tensor_ops::grad(&[norm], &[&a, &b]);
-
-        println!("Gradient w.r.t. A:\n{:?}", grads[0].eval(ctx));
-        println!("Gradient w.r.t. B:\n{:?}", grads[1].eval(ctx));
-
-        // Test trace gradient
-        let tr = trace(&c);
-        let trace_grads = ag::tensor_ops::grad(&[tr], &[&a, &b]);
-
-        println!("Trace gradient w.r.t. A:\n{:?}", trace_grads[0].eval(ctx));
-        println!("Trace gradient w.r.t. B:\n{:?}", trace_grads[1].eval(ctx));
-    });
-}
-
-fn test_decomposition_gradients() {
-    ag::run::<f64, _, _>(|ctx| {
-        let a = ag::tensor_ops::random_normal(&[4, 4], 0.0, 1.0, ctx);
-
-        // Test QR decomposition
-        let (q, r) = qr(&a);
-        let loss_qr = frobenius_norm(&q) + frobenius_norm(&r);
-        let grad_qr = ag::tensor_ops::grad(&[loss_qr], &[&a]);
-        println!("QR gradient:\n{:?}", grad_qr[0].eval(ctx));
-
-        // Test LU decomposition
-        // let (_p, l, u) = lu(&a);
-        // let loss_lu = frobenius_norm(&l) + frobenius_norm(&u);
-        // let grad_lu = ag::tensor_ops::grad(&[loss_lu], &[&a]);
-        // println!("LU gradient:\n{:?}", grad_lu[0].eval(ctx));
-
-        // Test SVD
-        let (_u, s, _v) = svd(&a);
-        let loss_svd = ag::tensor_ops::reduce_sum(&s, &[0], false);
-        let grad_svd = ag::tensor_ops::grad(&[loss_svd], &[&a]);
-        println!("SVD gradient:\n{:?}", grad_svd[0].eval(ctx));
-    });
-}
-
-fn test_linear_algebra_operations() {
-    ag::run::<f64, _, _>(|ctx| {
-        // Test eye matrix
-        let eye_matrix = eye(4, ctx);
-        println!("Identity matrix:\n{:?}", eye_matrix.eval(ctx));
-
-        // Test trace
-        let a = ag::tensor_ops::convert_to_tensor(
-            ndarray::array![[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]].into_dyn(),
-            ctx,
-        );
-        let tr = a.trace();
-        println!("Trace of matrix: {:?}", tr.eval(ctx));
-
-        // Test diagonal operations
-        let diag_values =
-            ag::tensor_ops::convert_to_tensor(ndarray::array![10., 20., 30.].into_dyn(), ctx);
-        let diag_matrix = diag(&diag_values);
-        println!("Diagonal matrix:\n{:?}", diag_matrix.eval(ctx));
-
-        let extracted = diag_matrix.diag();
-        println!("Extracted diagonal: {:?}", extracted.eval(ctx));
-
-        // Test scalar multiplication
-        let scaled = a.scalar_mul(2.0);
-        println!("Scaled matrix:\n{:?}", scaled.eval(ctx));
-    });
-}
+use ag::tensor_ops as T;
 
 fn main() {
-    println!("Testing linear algebra operations:");
-    test_linear_algebra_operations();
-
-    println!("\nTesting Frobenius norm gradient:");
-    test_frobenius_gradient();
-
-    println!("\nTesting decomposition gradients:");
-    test_decomposition_gradients();
+    println!("Testing gradient computation for z = 2x^2 + 3y + 1");
+    
+    ag::run(|ctx| {
+        let x = ctx.placeholder("x", &[]);
+        let y = ctx.placeholder("y", &[]);
+        
+        // Build the expression z = 2x^2 + 3y + 1
+        let x_squared = x * x;
+        let two_x_squared = 2. * x_squared;
+        let three_y = 3. * y;
+        let z = two_x_squared + three_y + 1.;
+        
+        // Compute gradients
+        let gy = T::grad(&[z], &[y])[0];
+        let gx = T::grad(&[z], &[x])[0];
+        
+        // Evaluate dz/dy (should be 3)
+        let gy_result = gy.eval(ctx).unwrap();
+        println!("dz/dy = {:?} (expected: 3.0)", gy_result[ndarray::IxDyn(&[])]);
+        
+        // Evaluate dz/dx at x=2 (should be 2*2*x = 8)
+        let gx_result = ctx.evaluator()
+            .push(&gx)
+            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .run();
+        println!("dz/dx at x=2 = {:?} (expected: 8.0)", gx_result[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
+        
+        // Let's also trace the intermediate values
+        println!("\nTracing intermediate values:");
+        
+        // Test individual gradient computations
+        let g_three_y = T::grad(&[three_y], &[y])[0];
+        println!("d(3y)/dy = {:?} (expected: 3.0)", g_three_y.eval(ctx).unwrap()[ndarray::IxDyn(&[])]);
+        
+        // Test gradient of x^2
+        let g_x_squared = T::grad(&[x_squared], &[x])[0];
+        let g_x_squared_at_2 = ctx.evaluator()
+            .push(&g_x_squared)
+            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .run();
+        println!("d(x^2)/dx at x=2 = {:?} (expected: 4.0)", g_x_squared_at_2[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
+        
+        // Test gradient of 2*x^2
+        let g_two_x_squared = T::grad(&[two_x_squared], &[x])[0];
+        let g_two_x_squared_at_2 = ctx.evaluator()
+            .push(&g_two_x_squared)
+            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .run();
+        println!("d(2x^2)/dx at x=2 = {:?} (expected: 8.0)", g_two_x_squared_at_2[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
+    });
 }

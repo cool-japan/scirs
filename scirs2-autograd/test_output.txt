@@ -1,0 +1,646 @@
+
+running 82 tests
+test scirs2-autograd/src/evaluation.rs - evaluation::Feeder (line 197) ... FAILED
+test scirs2-autograd/src/op.rs - op (line 7) ... ok
+test scirs2-autograd/src/optimizers/adam.rs - optimizers::adam::Adam (line 12) ... ok
+test scirs2-autograd/src/hooks.rs - hooks (line 2) ... ok
+test scirs2-autograd/src/lib.rs - (line 83) ... ok
+test scirs2-autograd/src/graph.rs - graph::Context<'env,F>::placeholder (line 387) ... ok
+test scirs2-autograd/src/evaluation.rs - evaluation::Evaluator (line 40) ... ok
+test scirs2-autograd/src/optimizers/momentum_sgd.rs - optimizers::momentum_sgd::MomentumSGD (line 13) ... ok
+test scirs2-autograd/src/lib.rs - (line 19) ... ok
+test scirs2-autograd/src/optimizers/sgd.rs - optimizers::sgd::SGD (line 11) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::eval (line 88) ... FAILED
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::print (line 286) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::map (line 165) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor (line 28) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::raw_hook (line 303) ... ok
+test scirs2-autograd/src/lib.rs - (line 48) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::depends_on (line 112) ... FAILED
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::register_hook (line 182) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::show (line 209) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::show_prefixed (line 229) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::show_prefixed_shape (line 268) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::show_shape (line 251) ... ok
+test scirs2-autograd/src/tensor.rs - tensor::TensorBuilder (line 613) ... ok
+test scirs2-autograd/src/tensor_ops/checkpoint_ops.rs - tensor_ops::checkpoint_ops::adaptive_checkpoint (line 489) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::Tensor<'graph,F>::access_elem (line 54) ... ok
+test scirs2-autograd/src/tensor_ops/checkpoint_ops.rs - tensor_ops::checkpoint_ops::checkpoint (line 171) ... ok
+test scirs2-autograd/src/tensor_ops/checkpoint_ops.rs - tensor_ops::checkpoint_ops::CheckpointProfiler (line 574) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::add_n (line 834) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::abs (line 1405) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmin (line 935) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmax (line 961) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::batch_matmul_t (line 1971) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::ceil (line 1572) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::batch_matmul (line 2011) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::clip (line 1069) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::convert_to_tensor (line 2393) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::concat (line 2220) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::equal (line 874) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::flatten (line 1352) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::expand_dims (line 987) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::batch_norm (line 2364) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::floor (line 1433) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::jacobians (line 185) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather (line 2295) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather_common (line 2257) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::matmul (line 1875) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::inv (line 1516) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::grad (line 81) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::inv_sqrt (line 1544) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::maximum (line 778) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::neg (line 1461) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::mean_all (line 1180) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::minimum (line 805) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::not_equal (line 906) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::ones (line 2744) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::rank (line 327) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::normalize (line 2327) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_max (line 1094) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_min (line 1126) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_sum (line 1202) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reshape (line 1326) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_mean (line 1234) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_prod (line 1266) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::scalar (line 2437) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reduce_variance (line 1298) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::shape (line 274) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::sign (line 1377) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::setdiff1d (line 2046) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::size (line 301) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::tensordot (line 1928) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2166) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::tensordot (line 1918) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2178) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::split (line 2113) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::squeeze (line 1014) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::square (line 1488) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::sum_all (line 1156) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::zeros (line 2717) ... FAILED
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::transpose (line 2082) ... FAILED
+test scirs2-autograd/src/variable.rs - variable (line 7) ... ok
+test scirs2-autograd/src/variable.rs - variable (line 52) ... ok
+test scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::tile (line 1042) ... ok
+
+failures:
+
+---- scirs2-autograd/src/evaluation.rs - evaluation::Feeder (line 197) stdout ----
+error[E0308]: mismatched types
+  --> scirs2-autograd/src/evaluation.rs:208:12
+   |
+14 |      .push(expr)
+   |       ---- ^^^^ expected `&_`, found `Tensor<'_, _>`
+   |       |
+   |       arguments to this method are incorrect
+   |
+   = note: expected reference `&_`
+                 found struct `Tensor<'_, _>`
+note: method defined here
+  --> /media/kitasan/Backup/scirs/scirs2-autograd/src/evaluation.rs:83:12
+   |
+83 |     pub fn push<'t, T>(mut self, tensor: &'t T) -> Self
+   |            ^^^^
+help: consider borrowing here
+   |
+14 |      .push(&expr)
+   |            +
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0308`.
+Couldn't compile the test.
+---- scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::eval (line 88) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor.rs:11:1:
+assertion `left == right` failed
+  left: Ok([[0.0, 0.0],
+ [0.0, 0.0]], shape=[2, 2], strides=[2, 1], layout=Cc (0x5), dynamic ndim=2)
+ right: Ok([0.0, 0.0], shape=[2], strides=[1], layout=CFcf (0xf), dynamic ndim=1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::depends_on (line 112) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [1], ndim: 1
+DEBUG: Created tensor with shape: [1], ndim: 1
+DEBUG: Vector tensor first element: 2
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/op.rs:176:9:
+input_mut is not supported in the new ComputeContext implementation
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmin (line 935) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 3
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 3
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/reduction_ops.rs:382:60:
+called `Result::unwrap()` on an `Err` value: ShapeError/IncompatibleLayout: incompatible memory layout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmax (line 961) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 3
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 3
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/reduction_ops.rs:382:60:
+called `Result::unwrap()` on an `Err` value: ShapeError/IncompatibleLayout: incompatible memory layout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::batch_matmul_t (line 1971) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/dot_ops.rs:527:53:
+called `Option::unwrap()` on a `None` value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::concat (line 2220) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:14:1:
+assertion `left == right` failed
+  left: [6, 2]
+ right: [9, 2]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::flatten (line 1352) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:11:1:
+assertion `left == right` failed
+  left: [4]
+ right: [12]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::expand_dims (line 987) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2], ndim: 1
+DEBUG: Created tensor with shape: [2], ndim: 1
+DEBUG: Vector tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:11:1:
+assertion `left == right` failed
+  left: [1, 2, 1, 2]
+ right: [1, 3, 1]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::jacobians (line 185) stdout ----
+error[E0596]: cannot borrow `rng` as mutable, as it is not declared as mutable
+  --> scirs2-autograd/src/tensor_ops/mod.rs:193:5
+   |
+11 | let rng = ag::ndarray_ext::ArrayRng::<f32>::default();
+   |     ^^^ not mutable
+12 | let a = env.set(rng.standard_normal(&[4, 2]));
+   |                 --- cannot borrow as mutable
+13 | let b = env.set(rng.standard_normal(&[2, 3]));
+   |                 --- cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+11 | let mut rng = ag::ndarray_ext::ArrayRng::<f32>::default();
+   |     +++
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0596`.
+Couldn't compile the test.
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather (line 2295) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 3], ndim: 2
+DEBUG: Created tensor with shape: [2, 3], ndim: 2
+DEBUG: Matrix tensor first element: 5
+ConvertToTensor: Input array shape: [2, 3], ndim: 2
+DEBUG: Created tensor with shape: [2, 3], ndim: 2
+DEBUG: Matrix tensor first element: 5
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/array_ops.rs:377:48:
+range start index 3 out of range for slice of length 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather_common (line 2257) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 3], ndim: 2
+DEBUG: Created tensor with shape: [2, 3], ndim: 2
+DEBUG: Matrix tensor first element: 5
+ConvertToTensor: Input array shape: [2, 3], ndim: 2
+DEBUG: Created tensor with shape: [2, 3], ndim: 2
+DEBUG: Matrix tensor first element: 5
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/array_ops.rs:377:48:
+range start index 3 out of range for slice of length 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::matmul (line 1875) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:12:1:
+assertion `left == right` failed
+  left: [2, 2]
+ right: [4, 3]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::grad (line 81) stdout ----
+Test executable failed (exit status: 101).
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:24:2:
+assertion `left == right` failed
+  left: 3.0
+ right: 1.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::rank (line 327) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:12:1:
+assertion `left == right` failed
+  left: 3.0
+ right: 2.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reshape (line 1326) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2], ndim: 1
+DEBUG: Created tensor with shape: [2], ndim: 1
+DEBUG: Vector tensor first element: 3
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:12:1:
+assertion `left == right` failed
+  left: Err(OpError(RuntimeError("Failed to compute tensor 3")))
+ right: Ok([[0.0, 0.0, 0.0, 0.0],
+ [0.0, 0.0, 0.0, 0.0],
+ [0.0, 0.0, 0.0, 0.0]], shape=[3, 4], strides=[4, 1], layout=Cc (0x5), dynamic ndim=2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::shape (line 274) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:11:1:
+assertion `left == right` failed
+  left: [2.0, 3.0]
+ right: [2.0, 2.0]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::size (line 301) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:13:1:
+assertion `left == right` failed
+  left: 12.0
+ right: 4.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::tensordot (line 1928) stdout ----
+error: expected one of `!`, `.`, `::`, `;`, `?`, `{`, `}`, or an operator, found `detailed`
+ --> scirs2-autograd/src/tensor_ops/mod.rs:1930:5
+  |
+4 | For detailed description,
+  |     ^^^^^^^^ expected one of 8 possible tokens
+  |
+help: write keyword `for` in lowercase (notice the capitalization difference)
+  |
+4 - For detailed description,
+4 + for detailed description,
+  |
+
+error: aborting due to 1 previous error
+
+Couldn't compile the test.
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2166) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:12:1:
+assertion `left == right` failed
+  left: [2, 2]
+ right: [4, 2]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2178) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:12:1:
+assertion `left == right` failed
+  left: [1, 2]
+ right: [3, 2]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::split (line 2113) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at /home/kitasan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ndarray-0.16.1/src/impl_methods.rs:620:22:
+Slice end 5 is past end of axis of length 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::squeeze (line 1014) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2], ndim: 1
+DEBUG: Created tensor with shape: [2], ndim: 1
+DEBUG: Vector tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at /media/kitasan/Backup/scirs/scirs2-autograd/src/tensor_ops/array_ops.rs:869:13:
+assertion `left == right` failed: Can't squeeze a dim whose size != 1
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::zeros (line 2717) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:11:1:
+assertion `left == right` failed
+  left: Ok([[0.0, 0.0],
+ [0.0, 0.0]], shape=[2, 2], strides=[2, 1], layout=Cc (0x5), dynamic ndim=2)
+ right: Ok([[0.0, 0.0],
+ [0.0, 0.0],
+ [0.0, 0.0],
+ [0.0, 0.0]], shape=[4, 2], strides=[2, 1], layout=Cc (0x5), dynamic ndim=2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+---- scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::transpose (line 2082) stdout ----
+Test executable failed (exit status: 101).
+
+stdout:
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [2, 2], ndim: 2
+DEBUG: Created tensor with shape: [2, 2], ndim: 2
+DEBUG: Matrix tensor first element: 0
+ConvertToTensor: Input array shape: [5], ndim: 1
+DEBUG: Created tensor with shape: [5], ndim: 1
+DEBUG: Vector tensor first element: 4
+
+stderr:
+
+thread 'main' panicked at scirs2-autograd/src/tensor_ops/mod.rs:11:22:
+called `Result::unwrap()` on an `Err` value: OpError(RuntimeError("Failed to compute tensor 3"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+
+failures:
+    scirs2-autograd/src/evaluation.rs - evaluation::Feeder (line 197)
+    scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::depends_on (line 112)
+    scirs2-autograd/src/tensor.rs - tensor::Tensor<'graph,F>::eval (line 88)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmax (line 961)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::argmin (line 935)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::batch_matmul_t (line 1971)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::concat (line 2220)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::expand_dims (line 987)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::flatten (line 1352)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather (line 2295)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::gather_common (line 2257)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::grad (line 81)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::jacobians (line 185)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::matmul (line 1875)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::rank (line 327)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::reshape (line 1326)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::shape (line 274)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::size (line 301)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2166)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::slice (line 2178)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::split (line 2113)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::squeeze (line 1014)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::tensordot (line 1928)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::transpose (line 2082)
+    scirs2-autograd/src/tensor_ops/mod.rs - tensor_ops::zeros (line 2717)
+
+test result: FAILED. 57 passed; 25 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.39s
+

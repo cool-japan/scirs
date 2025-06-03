@@ -51,7 +51,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///
     /// Index `i` can be negative.
     ///
-    ///    ```ignore
+    ///    ```
     /// use ndarray::{self, array};
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
@@ -61,7 +61,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///    let b = a.access_elem(2);
     ///    assert_eq!(b.eval(g).unwrap()[ndarray::IxDyn(&[])], 4.);
     /// });
-    ///    ```ignore
+    ///    ```
     pub fn access_elem(self, i: isize) -> Tensor<'graph, F> {
         let op = array_ops::IndexOp { index: i };
         Tensor::builder(self.graph)
@@ -78,7 +78,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 /// `ys`
 /// See the more useful helper: [crate::optimizers::grad_helper()]
 ///
-///    ```ignoreignore
+///    ```
 /// // Partial derivatives of `z = 2x^2 + 3y + 1`.
 /// use ndarray;
 /// use scirs2_autograd as ag;
@@ -102,13 +102,13 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 ///     assert_eq!(4., ggx.eval(ctx).unwrap()[ndarray::IxDyn(&[])]);
 ///
 ///     // Evaluate dz/dx when x=2:
-///     let gx = ctx.evaluator()
-///         .push(gx)
-///         .feed(x, ndarray::arr0(2.).view())
+///     let gx_result = ctx.evaluator()
+///         .push(&gx)
+///         .feed(x, ndarray::arr0(2.).view().into_dyn())
 ///         .run();
-///     assert_eq!(8., gx[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
+///     assert_eq!(8., gx_result[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn grad<'graph, F: Float, A, B>(ys: &[A], xs: &[B]) -> Vec<Tensor<'graph, F>>
 where
     A: AsRef<Tensor<'graph, F>>,
@@ -182,14 +182,14 @@ where
 ///
 /// Note: the current implementation works correctly but is unoptimized for serious use.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::prelude::*;
 /// use ag::tensor_ops::*;
 ///
 /// let mut env = ag::VariableEnvironment::new();
 ///
-/// let rng = ag::ndarray_ext::ArrayRng::<f32>::default();
+/// let mut rng = ag::ndarray_ext::ArrayRng::<f32>::default();
 /// let a = env.set(rng.standard_normal(&[4, 2]));
 /// let b = env.set(rng.standard_normal(&[2, 3]));
 ///
@@ -202,7 +202,7 @@ where
 ///    assert_eq!(j[0].eval(g).unwrap().shape(), &[4*3, 4*2]);
 ///    assert_eq!(j[1].eval(g).unwrap().shape(), &[4*3, 2*3]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn jacobians<'graph, A, B, F: Float>(
     y_: A,
     xs_: &[B],
@@ -271,7 +271,7 @@ where
 
 /// Returns a `Tensor` representation of the input tensor's shape
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -280,7 +280,7 @@ where
 ///    let s = shape(x);
 ///    assert_eq!(&[2., 3.], s.eval(c).unwrap().as_slice().unwrap());
 /// });
-///    ```ignoreignore
+///    ```
 pub fn shape<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -298,7 +298,7 @@ where
 
 /// Returns the size of the input tensor
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -309,7 +309,7 @@ where
 ///
 ///    assert_eq!(12., b.eval(c).unwrap()[ndarray::IxDyn(&[])]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn size<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -324,7 +324,7 @@ where
 
 /// Returns the rank of the input tensor
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -334,7 +334,7 @@ where
 ///    let r = rank(x);
 ///    assert_eq!(3., r.eval(c).unwrap()[ndarray::IxDyn(&[])]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn rank<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -775,7 +775,7 @@ where
 
 /// Returns the max of x and y (i.e. x > y ? x : y) element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -786,7 +786,7 @@ where
 ///    let c = maximum(a, b);
 ///    assert_eq!(c.eval(g), Ok(array![3., 2., 3.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn maximum<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -802,7 +802,7 @@ where
 
 /// Returns the min of x and y (i.e. x > y ? y : x) element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -813,7 +813,7 @@ where
 ///    let c = minimum(a, b);
 ///    assert_eq!(c.eval(g), Ok(array![1., 2., 1.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn minimum<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -831,7 +831,7 @@ where
 ///
 /// All the input tensors must have same shapes.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -845,7 +845,7 @@ where
 ///    assert_eq!(d.eval(g).unwrap().shape(), &[2, 2]);
 ///    assert_eq!(d.eval(g), Ok(array![[3., 3.], [3., 3.]].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn add_n<'graph, A, F: Float>(xs: &[A]) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -871,7 +871,7 @@ where
 /// # Panics
 /// When broadcast is impossible
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -882,7 +882,7 @@ where
 ///    let c = equal(a, b);
 ///    assert_eq!(c.eval(g), Ok(ndarray::arr1(&[0., 1., 0.]).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn equal<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -903,7 +903,7 @@ where
 /// # Panics
 /// When broadcast is impossible
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -914,7 +914,7 @@ where
 ///    let c = not_equal(a, b);
 ///    assert_eq!(c.eval(g), Ok(array![1., 0., 1.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn not_equal<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -932,7 +932,7 @@ where
 ///
 /// `axis` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -943,7 +943,7 @@ where
 ///
 ///    assert_eq!(y.eval(g), Ok(array![0., 1.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn argmin<'graph, A, F: Float>(x: A, axis: isize, keep_dim: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -958,7 +958,7 @@ where
 ///
 /// `axis` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -969,7 +969,7 @@ where
 ///
 ///    assert_eq!(y.eval(g), Ok(array![1., 0.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn argmax<'graph, A, F: Float>(x: A, axis: isize, keep_dim: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -984,7 +984,7 @@ where
 ///
 /// Each axis can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -993,7 +993,7 @@ where
 ///    let b = expand_dims(a, &[0, 2]);
 ///    assert_eq!(b.eval(g).unwrap().shape(), &[1, 3, 1]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn expand_dims<'graph, A, AT, F: Float>(x: A, axes: &AT) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1011,7 +1011,7 @@ where
 ///
 /// Each axis can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1020,7 +1020,7 @@ where
 ///    let b = squeeze(a, &[0, 2]);
 ///    assert_eq!(b.eval(g).unwrap().shape(), &[3]);
 /// })
-///    ```ignoreignore
+///    ```
 pub fn squeeze<'graph, A, AT, F: Float>(x: A, axes: &AT) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1039,7 +1039,7 @@ where
 /// Tiles input tensor `num` times along `axis`.
 /// `axis` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1053,7 +1053,7 @@ where
 ///        Ok(array![[2., 2.], [3., 3.], [2., 2.], [3., 3.]].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn tile<'graph, A, F: Float>(x: A, axis: isize, num: usize) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1066,7 +1066,7 @@ where
 
 /// Limits all elements of `x` so as to be within `[min, max]`
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1076,7 +1076,7 @@ where
 ///    let y = clip(x, 3., 5.);
 ///    assert_eq!(y.eval(g), Ok(ndarray::arr1(&[3., 4., 5.]).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn clip<'graph, A, F: Float>(x: A, min: F, max: F) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1091,7 +1091,7 @@ where
 ///
 /// Each of element of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1101,7 +1101,7 @@ where
 ///    let y = reduce_max(&x, &[0], false);
 ///    assert_eq!(y.eval(g), Ok(array![3., 4.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_max<'graph, A, AT, F: Float>(x: A, axes: &AT, keep_dims: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1123,7 +1123,7 @@ where
 ///
 /// Each of element of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1133,7 +1133,7 @@ where
 ///    let y = reduce_min(&x, &[0], false);
 ///    assert_eq!(y.eval(g), Ok(array![2., 1.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_min<'graph, A, AT, F: Float>(x: A, axes: &AT, keep_dims: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1153,7 +1153,7 @@ where
 
 /// Sum up all the elements to a scalar value (0-D Tensor).
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1163,7 +1163,7 @@ where
 ///    let y = sum_all(&x);
 ///    assert_eq!(y.eval(g), Ok(ndarray::arr0(10.).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn sum_all<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1177,7 +1177,7 @@ where
 
 /// Average all the elements.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1187,7 +1187,7 @@ where
 ///    let y = mean_all(&x);
 ///    assert_eq!(y.eval(g), Ok(ndarray::arr0(2.5).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn mean_all<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1199,7 +1199,7 @@ where
 ///
 /// Elements of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1209,7 +1209,7 @@ where
 ///    let y = reduce_sum(&x, &[1], false);
 ///    assert_eq!(y.eval(g), Ok(array![6., 4.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_sum<'graph, A, AT, F: Float>(x: A, axes: &AT, keep_dims: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1231,7 +1231,7 @@ where
 ///
 /// Elements of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1241,7 +1241,7 @@ where
 ///    let y = reduce_mean(x, &[1], false);
 ///    assert_eq!(y.eval(g), Ok(array![3., 2.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_mean<'graph, A, AT, F: Float>(x: A, axes: &AT, keep_dims: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1263,7 +1263,7 @@ where
 ///
 /// Elements of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1273,7 +1273,7 @@ where
 ///    let y = reduce_prod(&x, &[1], false);
 ///    assert_eq!(y.eval(g), Ok(array![8., 3.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_prod<'graph, A, AT, F: Float>(x: A, axes: &AT, keep_dims: bool) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1295,7 +1295,7 @@ where
 ///
 /// Elements of `axes` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1305,7 +1305,7 @@ where
 ///    let y = reduce_variance(&x, &[1], false);
 ///    assert_eq!(y.eval(g), Ok(array![0., 0.].into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reduce_variance<'graph, A, AT, F: Float>(
     x: A,
     axes: &AT,
@@ -1323,7 +1323,7 @@ where
 ///
 /// Only one element in `shape` can be `-1`.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1333,7 +1333,7 @@ where
 ///    let y = reshape(&x, &[3, -1]);
 ///    assert_eq!(y.eval(g), Ok(ag::ndarray_ext::zeros::<f32>(&[3, 4])));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn reshape<'graph, A, AT, F: Float>(x: A, shape: &AT) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1349,7 +1349,7 @@ where
 
 /// Flattens the input tensor into 1-ranked (vector) without copy.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1358,7 +1358,7 @@ where
 ///    let z = flatten(x);
 ///    assert_eq!(z.eval(g).unwrap().shape(), &[12]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn flatten<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1374,7 +1374,7 @@ where
 
 /// Returns -1 if x < 0, 0 if x==0, 1 if x > 0, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1387,7 +1387,7 @@ where
 ///        &[-1., 1., 0.]
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn sign<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1402,7 +1402,7 @@ where
 
 /// Returns the largest integer less than or equal to a number, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1415,7 +1415,7 @@ where
 ///        Ok(ndarray::arr1(&[0.2, 0., 0.2]).into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn abs<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1430,7 +1430,7 @@ where
 
 /// Returns the largest integer less than or equal to a number, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1443,7 +1443,7 @@ where
 ///        Ok(array![-2., -2., -1.,  0.,  1.,  1.,  2.].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn floor<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1458,7 +1458,7 @@ where
 
 /// Performs the `-` operation.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1471,7 +1471,7 @@ where
 ///        Ok(array![-2., -3.].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn neg<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1485,7 +1485,7 @@ where
 
 /// Takes square of the input.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1498,7 +1498,7 @@ where
 ///        Ok(array![4., 9.].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn square<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1513,7 +1513,7 @@ where
 
 /// Returns the `1/x`, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1526,7 +1526,7 @@ where
 ///        Ok(array![0.5].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn inv<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1541,7 +1541,7 @@ where
 
 /// Returns the `1/sqrt(x)`, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1554,7 +1554,7 @@ where
 ///        Ok(array![0.5].into_dyn())
 ///    );
 /// });
-///    ```ignoreignore
+///    ```
 pub fn inv_sqrt<'graph, A, F: Float>(x: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1569,7 +1569,7 @@ where
 
 /// Returns the smallest integer greater than or equal to a number, element-wise.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -1583,7 +1583,7 @@ where
 ///    );
 ///
 /// });
-///    ```ignoreignore
+///    ```
 pub fn ceil<'graph, A, F: Float>(a: A) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -1872,7 +1872,7 @@ where
 ///
 /// Both `a` and `b` must be 2-ranked tensors.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1882,7 +1882,7 @@ where
 ///    let c = matmul(a, b);
 ///    assert_eq!(c.eval(g).unwrap().shape(), &[4, 3]);
 /// });
-///    ```ignoreignore
+///    ```
 ///
 /// This function supports only f32 and f64.
 pub fn matmul<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
@@ -1915,7 +1915,7 @@ where
 /// * Each axis number can be negative.
 /// * Supports only f32 and f64.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1925,10 +1925,10 @@ where
 ///    let c = tensordot(a, b, &[1, 0], &[0, 1]);
 ///    assert_eq!(c.eval(g).unwrap().shape(), &[5, 2]);
 /// });
-///    ```ignoreignore
-///
-/// For detailed description,
-/// see <https://docs.scipy.org/doc/numpy/reference/generated/numpy.tensordot.html>.
+///    ```
+//
+// For detailed description,
+// see <https://docs.scipy.org/doc/numpy/reference/generated/numpy.tensordot.html>.
 pub fn tensordot<'graph, A, B, AT1, AT2, F: Float>(
     a: A,
     b: B,
@@ -1968,7 +1968,7 @@ where
 ///
 /// The rank of `a` and `b` must be equals.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1978,7 +1978,7 @@ where
 ///    let c = batch_matmul_t(a, b, true, false);
 ///    assert_eq!(c.eval(g).unwrap().shape(), &[2, 3, 4, 3]);
 /// });
-///    ```ignoreignore
+///    ```
 ///
 /// This function supports only f32 and f64.
 /// For detailed description, see <https://www.tensorflow.org/api_docs/python/tf/matmul>.
@@ -2008,7 +2008,7 @@ where
 ///
 /// The rank of `a` and `b` must be equals.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2018,7 +2018,7 @@ where
 ///    let c = batch_matmul(a, b);
 ///    assert_eq!(c.eval(g).unwrap().shape(), &[2, 3, 4, 3]);
 /// });
-///    ```ignoreignore
+///    ```
 ///
 /// This function supports only f32 and f64.
 /// For detailed description, see <https://www.tensorflow.org/api_docs/python/tf/matmul>.
@@ -2043,7 +2043,7 @@ where
 ///
 /// Returns the sorted, unique values in `a` that are not in `b`.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2057,7 +2057,7 @@ where
 ///        Ok(ndarray::arr1(&[5., 6.]).into_dyn())
 ///    )
 /// });
-///    ```ignoreignore
+///    ```
 ///
 pub fn setdiff1d<'graph, A, B, F: Float>(a: A, b: B) -> Tensor<'graph, F>
 where
@@ -2079,7 +2079,7 @@ where
 /// `x`'s rank (ndim) and `axes.len()` must match.
 ///
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2088,7 +2088,7 @@ where
 ///    let b = transpose(a, &[4, 2, 3, 0, 1]);
 ///    assert_eq!(b.eval(g).unwrap().shape(), &[5, 3, 4, 1, 2]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn transpose<'graph, A, AT, F: Float>(x: A, axes: &AT) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2110,7 +2110,7 @@ where
 /// The size of dimension of each part is `sizes[i]` on `axis`, but is
 /// `x.shape[i]` on other axis (similar to TensorFlow's `split`).
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2127,7 +2127,7 @@ where
 ///    assert_eq!(e1.as_ref().unwrap().shape(), &[3, 3, 5]);
 ///    assert_eq!(e2.as_ref().unwrap().shape(), &[3, 2, 5]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn split<'graph, A, F: Float>(x: A, sizes: &[usize], axis: isize) -> Vec<Tensor<'graph, F>>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2163,7 +2163,7 @@ where
 /// * `ends` - End indices for the dimensions. **Each index is inclusive if it is negative and exclusive if it's not.**
 ///
 /// NOTE: Negative values in `starts` and `ends` are counted from the back of the axis.
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2173,9 +2173,9 @@ where
 ///
 ///    assert_eq!(b.eval(g).unwrap().shape(), &[4, 2]);
 /// });
-///    ```ignoreignore
+///    ```
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2185,7 +2185,7 @@ where
 ///
 ///    assert_eq!(b.eval(g).unwrap().shape(), &[3, 2]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn slice<'graph, A, F: Float>(x: A, starts: &[isize], ends: &[isize]) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2217,7 +2217,7 @@ where
 ///
 /// `axis` can be negative.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2229,7 +2229,7 @@ where
 ///
 ///    assert_eq!(d.eval(g).unwrap().shape(), &[9, 2]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn concat<'graph, A, F: Float>(tensors: &[A], axis: isize) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2254,7 +2254,7 @@ where
 /// # Returns
 /// Tensor with shape `param.shape[..axis] + indices.shape + param.shape[axis+1..]`
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2266,7 +2266,7 @@ where
 ///
 ///    assert_eq!(y.eval(g).unwrap().shape(), &[5, 4, 2, 3, 2])
 /// });
-///    ```ignoreignore
+///    ```
 pub fn gather_common<'graph, A, B, F: Float>(param: A, indices: B, axis: isize) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2292,7 +2292,7 @@ where
 /// # Returns
 /// Tensor with shape `param.shape[..axis] + indices.shape + param.shape[axis+1..]`
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2304,7 +2304,7 @@ where
 ///
 ///    assert_eq!(y.eval(g).unwrap().shape(), &[5, 4, 2, 3, 2])
 /// });
-///    ```ignoreignore
+///    ```
 pub fn gather<'graph, A, B, F: Float>(param: A, indices: B, axis: isize) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2324,7 +2324,7 @@ where
 
 /// Normalizes the input tensor with its mean and variance along specified axis.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2339,7 +2339,7 @@ where
 ///    assert_eq!(e0.as_ref().unwrap().shape(), &[3, 4]);
 ///    assert_eq!(e1.as_ref().unwrap().shape(), &[3, 4]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn normalize<'graph, A, AT, F: Float>(_x: A, _axes: &AT) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2361,7 +2361,7 @@ where
 /// Since normalization is performed along 1st axis of `x`,
 /// both of them should have shape `(1, x.shape[1])`
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 /// use ag::prelude::*;
@@ -2376,7 +2376,7 @@ where
 ///
 ///    assert_eq!(norm.eval(g).unwrap().shape(), &[3, 4]);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn batch_norm<'graph, A, B, C, F: Float>(x: A, scale: B, shift: C) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
@@ -2390,7 +2390,7 @@ use std::marker::PhantomData;
 
 /// Converts an `ndarray::Array` to a `ag::Tensor`.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2400,7 +2400,7 @@ use std::marker::PhantomData;
 ///    let tensor = convert_to_tensor(arr.clone(), g);
 ///    assert_eq!(tensor.eval(g), Ok(arr.into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn convert_to_tensor<F: Float, D>(
     arr: ndarray::Array<F, D>,
     graph: &impl AsGraph<F>,
@@ -2434,7 +2434,7 @@ where
 
 /// Generates a zero-ranked tensor from a scalar value.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -2443,7 +2443,7 @@ where
 ///    println!("{}", a.eval(g).unwrap());  // => 3.
 ///    assert_eq!(a.eval(g).unwrap().shape().len(), 0);
 /// });
-///    ```ignoreignore
+///    ```
 pub fn scalar<F: Float>(val: F, graph: &impl AsGraph<F>) -> Tensor<F> {
     let op = const_gen_ops::Scalar { val };
     // Convert scalar shape to ndarray with the correct type
@@ -2714,7 +2714,7 @@ where
 
 /// Returns zeros with given shape.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2723,25 +2723,20 @@ where
 ///    let a: ag::Tensor<f32> = zeros(&[4, 2], g);
 ///    assert_eq!(a.eval(g), Ok(ndarray::Array2::<f32>::zeros((4, 2)).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn zeros<'graph, A, F: Float>(shape: &A, graph: &'graph impl AsGraph<F>) -> Tensor<'graph, F>
 where
     A: AsTensor<'graph, F>,
 {
-    // Extract actual shape dimensions
-    let _shape_tensor = shape.as_tensor(graph);
-
-    // For testing, create a fixed 2x2 zeros array
-    // This is a temporary fix to debug our shape issues
-    let zeros_array = ndarray::Array2::<F>::zeros((2, 2));
-
-    // Return the tensor directly
-    convert_to_tensor(zeros_array.into_dyn(), graph)
+    let shape_tensor = shape.as_tensor(graph);
+    Tensor::builder(graph)
+        .append_input(shape_tensor, false)
+        .build(const_gen_ops::Zeros)
 }
 
 /// Returns ones with given shape.
 ///
-///    ```ignoreignore
+///    ```
 /// use ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
@@ -2750,7 +2745,7 @@ where
 ///    let a = ones((&[4, 2]), g);
 ///    assert_eq!(a.eval(g), Ok(ndarray::Array2::<f32>::ones((4, 2)).into_dyn()));
 /// });
-///    ```ignoreignore
+///    ```
 pub fn ones<'graph, A, F: Float>(shape: &A, graph: &'graph impl AsGraph<F>) -> Tensor<'graph, F>
 where
     A: AsTensor<'graph, F>,

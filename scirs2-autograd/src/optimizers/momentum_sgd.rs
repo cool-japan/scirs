@@ -10,7 +10,7 @@ use crate::{Context, Float, VariableEnvironment};
 ///
 /// Use `ag::tensor_ops::gradient_descent` for the banilla sgd.
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::prelude::*;
 /// use ag::optimizers;
@@ -25,12 +25,12 @@ use crate::{Context, Float, VariableEnvironment};
 ///
 ///    let mut feeder = ag::Feeder::new();
 ///    let feed = ag::ndarray::arr0(2.);
-///    feeder.push(p, feed.view());
+///    let feeder = feeder.push(p, feed.view().into_dyn());
 ///
 ///    let (params, grads): (&[Tensor], &[Tensor]) = (&[], &[]); // dummy here
 ///    opt.update(params, grads, g, feeder); // do parameter update
 /// });
-///    ```ignoreignore
+///    ```
 pub struct MomentumSGD<F> {
     pub alpha: F,
     pub momentum: F,

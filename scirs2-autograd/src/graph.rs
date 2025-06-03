@@ -1,7 +1,7 @@
 use crate::tensor::{Tensor, TensorInternal};
 
 use crate::error::OpError;
-use crate::ndarray_ext::RawNdArrayView;
+use crate::ndarray_ext::{NdArrayView, RawNdArrayView};
 use crate::op;
 use crate::variable::{VariableID, VariableNamespace};
 use crate::{tensor_ops as T, Evaluator};
@@ -80,19 +80,13 @@ impl<'graph, F: Float> Graph<F> {
         let mut computed_values: HashMap<TensorID, NdArray<F>> = HashMap::new();
 
         // Add feed values to the computed values
-        for &id in feeds.keys() {
-            // Create a simple empty array for now
-            // In a real implementation, we would copy the data from the feed
-            let placeholder_shape = ctx
-                .as_graph()
-                .access_inner(id)
-                .known_shape
-                .as_ref()
-                .map(|s| s.get().iter().map(|&d| d as usize).collect::<Vec<_>>())
-                .unwrap_or_else(|| vec![1]);
-
-            let arr = NdArray::zeros(ndarray::IxDyn(placeholder_shape.as_slice()));
-            computed_values.insert(id, arr);
+        for (&id, &feed_view) in feeds.iter() {
+            // Convert the RawNdArrayView back to a regular NdArrayView and then to owned array
+            unsafe {
+                let view: NdArrayView<F> = std::mem::transmute(feed_view.clone());
+                let owned_array = view.to_owned();
+                computed_values.insert(id, owned_array);
+            }
         }
 
         // Evaluate nodes in topological order
@@ -103,6 +97,30 @@ impl<'graph, F: Float> Graph<F> {
             }
 
             let node = ctx.as_graph().access_inner(node_id);
+
+            // If this is a variable node, fetch its data from the VariableEnvironment
+            if let Some(variable_id) = node.variable_id {
+                // Get the variable data from the environment
+                if let Some(var_array) = ctx.var_env_ref.get_array_by_id(variable_id) {
+                    let borrowed_array = var_array.borrow();
+                    let cloned_array = borrowed_array.clone();
+                    computed_values.insert(node_id, cloned_array);
+                    continue;
+                } else {
+                    let err = OpError::RuntimeError(format!(
+                        "Variable with ID {} not found in VariableEnvironment",
+                        variable_id
+                    ));
+                    
+                    // If this is one of our target tensors, add an error to the result
+                    for tensor in tensors {
+                        if tensor.id == node_id {
+                            results.push(Err(err.clone()));
+                        }
+                    }
+                    continue;
+                }
+            }
 
             // If this is a placeholder but no feed was provided, return an error
             if node.placeholder_name.is_some() && !computed_values.contains_key(&node_id) {
@@ -206,8 +224,16 @@ impl<'graph, F: Float> Graph<F> {
     }
 
     #[inline]
-    pub fn get_tensor_by_name(&self, _name: &'static str) -> Option<TensorID> {
-        // Simple implementation for now
+    pub fn get_tensor_by_name(&self, name: &'static str) -> Option<TensorID> {
+        // Search through all tensors to find one with matching placeholder name
+        let nodes = self.node_set.borrow();
+        for (id, node) in nodes.iter().enumerate() {
+            if let Some(placeholder_name) = node.placeholder_name {
+                if placeholder_name == name {
+                    return Some(id);
+                }
+            }
+        }
         None
     }
 
@@ -382,7 +408,7 @@ impl<'graph, 'env, F: Float> Context<'env, F> {
     /// value or -1 which means an dim of arbitrary size.
     ///
     /// Use [Evaluator::feed] and [Feeder::push] in order to assign ArrayViews to placeholders.
-    ///    ```ignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::ndarray::array;
     ///
@@ -403,31 +429,22 @@ impl<'graph, 'env, F: Float> Context<'env, F> {
     ///         .run();
     ///     assert_eq!(result[0], Ok(arr + arr + arr));
     /// });
-    ///    ```ignore
+    ///    ```
     ///
     /// See also [tensor_ops::convert_to_tensor].
     #[inline]
     pub fn placeholder(&'graph self, name: &'static str, shape: &[isize]) -> Tensor<'graph, F> {
-        let b = Tensor::builder(self).set_placeholder_name(name);
-        let rank = shape.len();
-        let b = if rank == 0 || -1 != shape[0] {
-            let shape = T::convert_to_tensor(
-                NdArray::from_shape_vec(
-                    ndarray::IxDyn(&[rank]),
-                    shape
-                        .iter()
-                        .map(|&x| F::from(x).unwrap())
-                        .collect::<Vec<_>>(),
-                )
-                .unwrap(),
-                self,
-            );
-            b.set_shape(&shape)
-        } else {
-            b
-        };
-        let b = b.set_known_shape(shape);
-        b.build(T::basic_source_ops::Placeholder)
+        // Check if a placeholder with this name already exists
+        if let Some(existing_id) = self.get_tensor_by_name(name) {
+            // Return the existing placeholder
+            return self.tensor(existing_id);
+        }
+
+        // Create a new placeholder tensor with the given name and shape
+        Tensor::builder(self)
+            .set_placeholder_name(name)
+            .set_known_shape(shape)
+            .build(T::basic_source_ops::Placeholder)
     }
 }
 

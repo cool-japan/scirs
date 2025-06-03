@@ -59,6 +59,50 @@ fn multiply(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn 
     crate::array_protocol::operations::multiply(a, b).map_err(|e| e.into())
 }
 
+fn subtract(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
+    crate::array_protocol::operations::subtract(a, b).map_err(|e| e.into())
+}
+
+fn ones_like(a: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
+    // Create an array of ones with the same shape as the input
+    if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+        let shape = a_array.as_array().shape();
+        let ones = Array::<f64, _>::ones(IxDyn(shape));
+        Ok(Box::new(NdarrayWrapper::new(ones)) as Box<dyn ArrayProtocol>)
+    } else {
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "ones_like not implemented for this array type".to_string(),
+        )))
+    }
+}
+
+fn broadcast_to(a: &dyn ArrayProtocol, shape: &[usize]) -> CoreResult<Box<dyn ArrayProtocol>> {
+    // Broadcast the array to the given shape
+    if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+        let array = a_array.as_array();
+        // For simplicity, if the array is a scalar (single element), broadcast it
+        if array.len() == 1 {
+            let value = array.iter().next().cloned().unwrap_or(0.0);
+            let broadcasted = Array::<f64, _>::from_elem(IxDyn(shape), value);
+            Ok(Box::new(NdarrayWrapper::new(broadcasted)) as Box<dyn ArrayProtocol>)
+        } else {
+            // In a full implementation, we would handle general broadcasting
+            // For now, just return a copy if shapes match
+            if array.shape() == shape {
+                Ok(Box::new(NdarrayWrapper::new(array.clone())) as Box<dyn ArrayProtocol>)
+            } else {
+                Err(CoreError::NotImplementedError(ErrorContext::new(
+                    "General broadcasting not implemented yet".to_string(),
+                )))
+            }
+        }
+    } else {
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "broadcast_to not implemented for this array type".to_string(),
+        )))
+    }
+}
+
 /// A node in the computation graph.
 #[derive(Clone)]
 struct Node {
@@ -449,6 +493,152 @@ impl GradientTensor {
                         }
                     }
                 }
+                "subtract" => {
+                    // For subtraction: a - b, grad_a = grad_out, grad_b = -grad_out
+                    if inputs.len() == 2 {
+                        let (a, b) = (&inputs[0], &inputs[1]);
+                        
+                        // Compute grad_a = grad_out
+                        if a.requires_grad() {
+                            let mut a_node = a.node.borrow_mut();
+                            if let Some(a_grad) = &a_node.grad {
+                                // Accumulate gradients
+                                if let Ok(sum) = add(a_grad.as_ref(), node_grad.as_ref()) {
+                                    a_node.grad = Some(box_to_rc_array_protocol(sum));
+                                }
+                            } else {
+                                a_node.grad = Some(node_grad.clone());
+                            }
+                        }
+                        
+                        // Compute grad_b = -grad_out
+                        if b.requires_grad() {
+                            if let Ok(neg_grad) = multiply_by_scalar(node_grad.as_ref(), -1.0) {
+                                let mut b_node = b.node.borrow_mut();
+                                if let Some(b_grad) = &b_node.grad {
+                                    // Accumulate gradients
+                                    if let Ok(sum) = add(b_grad.as_ref(), neg_grad.as_ref()) {
+                                        b_node.grad = Some(box_to_rc_array_protocol(sum));
+                                    }
+                                } else {
+                                    b_node.grad = Some(box_to_rc_array_protocol(neg_grad));
+                                }
+                            }
+                        }
+                    }
+                }
+                "divide" => {
+                    // For division: a / b, grad_a = grad_out / b, grad_b = -grad_out * a / b^2
+                    if inputs.len() == 2 {
+                        let (a, b) = (&inputs[0], &inputs[1]);
+                        
+                        // Compute grad_a = grad_out / b
+                        if a.requires_grad() {
+                            let b_value = b.value();
+                            if let Ok(grad_a) = divide(node_grad.as_ref(), b_value.as_ref()) {
+                                let mut a_node = a.node.borrow_mut();
+                                if let Some(a_grad) = &a_node.grad {
+                                    // Accumulate gradients
+                                    if let Ok(sum) = add(a_grad.as_ref(), grad_a.as_ref()) {
+                                        a_node.grad = Some(box_to_rc_array_protocol(sum));
+                                    }
+                                } else {
+                                    a_node.grad = Some(box_to_rc_array_protocol(grad_a));
+                                }
+                            }
+                        }
+                        
+                        // Compute grad_b = -grad_out * a / b^2
+                        if b.requires_grad() {
+                            let a_value = a.value();
+                            let b_value = b.value();
+                            
+                            // Compute b^2
+                            if let Ok(b_squared) = multiply(b_value.as_ref(), b_value.as_ref()) {
+                                // Compute grad_out * a
+                                if let Ok(grad_times_a) = multiply(node_grad.as_ref(), a_value.as_ref()) {
+                                    // Compute grad_out * a / b^2
+                                    if let Ok(div_result) = divide(grad_times_a.as_ref(), b_squared.as_ref()) {
+                                        // Negate: -grad_out * a / b^2
+                                        if let Ok(grad_b) = multiply_by_scalar(div_result.as_ref(), -1.0) {
+                                            let mut b_node = b.node.borrow_mut();
+                                            if let Some(b_grad) = &b_node.grad {
+                                                // Accumulate gradients
+                                                if let Ok(sum) = add(b_grad.as_ref(), grad_b.as_ref()) {
+                                                    b_node.grad = Some(box_to_rc_array_protocol(sum));
+                                                }
+                                            } else {
+                                                b_node.grad = Some(box_to_rc_array_protocol(grad_b));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                "sigmoid" => {
+                    // For sigmoid: grad_input = grad_out * sigmoid * (1 - sigmoid)
+                    if inputs.len() == 1 {
+                        let input = &inputs[0];
+                        
+                        if input.requires_grad() {
+                            // Get the output value (sigmoid result)
+                            let sigmoid_value = node.value();
+                            
+                            // Compute 1 - sigmoid
+                            if let Ok(ones) = ones_like(sigmoid_value.as_ref()) {
+                                if let Ok(one_minus_sigmoid) = subtract(ones.as_ref(), sigmoid_value.as_ref()) {
+                                    // Compute sigmoid * (1 - sigmoid)
+                                    if let Ok(sigmoid_deriv) = multiply(sigmoid_value.as_ref(), one_minus_sigmoid.as_ref()) {
+                                        // Compute grad_out * sigmoid * (1 - sigmoid)
+                                        if let Ok(grad_input) = multiply(node_grad.as_ref(), sigmoid_deriv.as_ref()) {
+                                            let mut input_node = input.node.borrow_mut();
+                                            if let Some(input_grad) = &input_node.grad {
+                                                // Accumulate gradients
+                                                if let Ok(sum) = add(input_grad.as_ref(), grad_input.as_ref()) {
+                                                    input_node.grad = Some(box_to_rc_array_protocol(sum));
+                                                }
+                                            } else {
+                                                input_node.grad = Some(box_to_rc_array_protocol(grad_input));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                "mean" => {
+                    // For mean: grad_input = grad_out / n (where n is the number of elements)
+                    if inputs.len() == 1 {
+                        let input = &inputs[0];
+                        
+                        if input.requires_grad() {
+                            // Get the number of elements
+                            let input_value = input.value();
+                            if let Some(input_array) = input_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+                                let n_elements = input_array.as_array().len() as f64;
+                                
+                                // Compute grad_input = grad_out / n
+                                if let Ok(grad_input) = multiply_by_scalar(node_grad.as_ref(), 1.0 / n_elements) {
+                                    // Broadcast the gradient to match input shape
+                                    if let Ok(broadcasted_grad) = broadcast_to(grad_input.as_ref(), input_array.as_array().shape()) {
+                                        let mut input_node = input.node.borrow_mut();
+                                        if let Some(input_grad) = &input_node.grad {
+                                            // Accumulate gradients
+                                            if let Ok(sum) = add(input_grad.as_ref(), broadcasted_grad.as_ref()) {
+                                                input_node.grad = Some(box_to_rc_array_protocol(sum));
+                                            }
+                                        } else {
+                                            input_node.grad = Some(box_to_rc_array_protocol(broadcasted_grad));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 _ => {
                     // Other operations would be implemented here
                 }
@@ -514,6 +704,87 @@ pub fn grad_matmul(a: &GradientTensor, b: &GradientTensor) -> CoreResult<Gradien
         "matmul".to_string(),
         vec![a.clone(), b.clone()],
     ))
+}
+
+/// Subtraction with gradient tracking.
+pub fn grad_subtract(a: &GradientTensor, b: &GradientTensor) -> CoreResult<GradientTensor> {
+    let a_value = a.value();
+    let b_value = b.value();
+
+    // Perform subtraction
+    let result = subtract(a_value.as_ref(), b_value.as_ref())?;
+
+    // Create a new gradient tensor - explicitly convert Box to Rc
+    let result_rc: Rc<dyn ArrayProtocol> = box_to_rc_array_protocol(result);
+    Ok(GradientTensor::from_op(
+        result_rc,
+        "subtract".to_string(),
+        vec![a.clone(), b.clone()],
+    ))
+}
+
+/// Division with gradient tracking.
+pub fn grad_divide(a: &GradientTensor, b: &GradientTensor) -> CoreResult<GradientTensor> {
+    let a_value = a.value();
+    let b_value = b.value();
+
+    // Perform division
+    let result = divide(a_value.as_ref(), b_value.as_ref())?;
+
+    // Create a new gradient tensor - explicitly convert Box to Rc
+    let result_rc: Rc<dyn ArrayProtocol> = box_to_rc_array_protocol(result);
+    Ok(GradientTensor::from_op(
+        result_rc,
+        "divide".to_string(),
+        vec![a.clone(), b.clone()],
+    ))
+}
+
+/// Sigmoid activation with gradient tracking.
+pub fn grad_sigmoid(a: &GradientTensor) -> CoreResult<GradientTensor> {
+    let a_value = a.value();
+
+    // Perform sigmoid: 1 / (1 + exp(-x))
+    if let Some(a_array) = a_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+        let array = a_array.as_array();
+        let result = array.mapv(|x| 1.0 / (1.0 + (-x).exp()));
+        let result_wrapped = NdarrayWrapper::new(result);
+        
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "sigmoid".to_string(),
+            vec![a.clone()],
+        ))
+    } else {
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "sigmoid not implemented for this array type".to_string(),
+        )))
+    }
+}
+
+/// Mean reduction with gradient tracking.
+pub fn grad_mean(a: &GradientTensor) -> CoreResult<GradientTensor> {
+    let a_value = a.value();
+
+    // Perform mean reduction
+    if let Some(a_array) = a_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+        let array = a_array.as_array();
+        let mean_value = array.mean().unwrap_or(0.0);
+        let result = Array::<f64, _>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else {
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "mean not implemented for this array type".to_string(),
+        )))
+    }
 }
 
 /// Gradient-aware variable that can be optimized.
@@ -807,14 +1078,33 @@ fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn 
 
 /// Subtract one array from another in-place.
 fn subtract_from(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<()> {
-    // This is a simplified implementation that assumes a and b are NdarrayWrapper<f64, IxDyn>
-    if let (Some(a_array), Some(b_array)) = (
+    // We need to modify 'a' in-place. Since ArrayProtocol might not provide mutable access,
+    // we'll use a workaround specific to our implementation.
+    
+    // Try to get the underlying Rc<RefCell<...>> if our array protocol supports it
+    // For now, we'll create a new array and update the reference
+    if let (Some(a_wrapper), Some(b_array)) = (
         a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
         b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
     ) {
-        // In a real implementation, we would modify a in-place
-        // For this demonstration, we'll just create a new array and pretend it's in-place
-        let _result = a_array.as_array() - b_array.as_array();
+        // Get the arrays
+        let a_arr = a_wrapper.as_array();
+        let b_arr = b_array.as_array();
+        
+        // Compute the result
+        let result = a_arr - b_arr;
+        
+        // Now we need to update 'a' with the result
+        // Since we can't modify through the trait, we'll use unsafe code
+        // to cast and modify the underlying data
+        unsafe {
+            // This is a hack for the prototype - in production, we'd need proper mutable access
+            let a_mut = a as *const dyn ArrayProtocol as *mut NdarrayWrapper<f64, IxDyn>;
+            if !a_mut.is_null() {
+                (*a_mut).update_array(result);
+            }
+        }
+        
         Ok(())
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
@@ -883,7 +1173,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Gradient computation not fully implemented"]
     fn test_gradient_computation_add() {
         // Import will be used when the test is enabled
         #[allow(unused_imports)]
@@ -959,7 +1248,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Gradient computation not fully implemented"]
     fn test_gradient_computation_multiply() {
         // Import will be used when the test is enabled
         #[allow(unused_imports)]
@@ -1041,7 +1329,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SGD optimizer not fully implemented"]
     fn test_sgd_optimizer() {
         // Import will be used when the test is enabled
         #[allow(unused_imports)]

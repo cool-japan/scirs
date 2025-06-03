@@ -4,7 +4,7 @@
 //! implement custom ops by hand.
 //! See also [crate::tensor::TensorBuilder].
 //!
-//! ```ignore
+//! ```
 //! use ndarray;
 //! use scirs2_autograd as ag;
 //! use ag::error::OpError;
@@ -45,7 +45,7 @@
 //!            .append_input(x, false)
 //!            .build(Sigmoid)
 //! }
-//! ```ignore
+//! ```
 //!
 use std::any::type_name;
 use std::marker::PhantomData;

@@ -8,7 +8,7 @@ use crate::{Context, Float};
 
 /// Gradient descent optimizer
 ///
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::prelude::*;
 /// use ag::optimizers::SGD;
@@ -22,12 +22,12 @@ use crate::{Context, Float};
 ///
 ///    let mut feeder = ag::Feeder::new();
 ///    let feed = ag::ndarray::arr0(2.);
-///    feeder.push(p, feed.view());
+///    let feeder = feeder.push(p, feed.view().into_dyn());
 ///
 ///    let (params, grads): (&[Tensor], &[Tensor]) = (&[], &[]); // dummy
 ///    opt.update(params, grads, g, feeder); // do parameter update
 /// });
-///    ```ignoreignore
+///    ```
 pub struct SGD<F> {
     pub alpha: F,
 }

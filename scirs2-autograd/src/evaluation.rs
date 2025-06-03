@@ -37,7 +37,7 @@ impl Placeholder for &'static str {
 /// and runs batched evaluation.
 /// You can also use `feed` method to feed NdArrays to placeholders.
 ///
-///    ```ignore
+///    ```
 /// use scirs2_autograd as ag;
 ///
 /// ag::run(|ctx| {
@@ -48,7 +48,7 @@ impl Placeholder for &'static str {
 ///
 ///    let result = ctx.evaluator()
 ///        .extend(&[x, y, z])
-///        .feed(a, ag::ndarray::arr0(2.).view())
+///        .feed(a, ag::ndarray::arr0(2.).view().into_dyn())
 ///        .run();
 ///    println!("{:?}", result);
 /// });
@@ -194,7 +194,7 @@ impl<'c, 'g, F: Float> Evaluator<'c, 'g, F> {
 ///
 /// You can add your placeholder-array pairs with `push` method.
 ///
-///    ```ignore
+///    ```
 /// use scirs2_autograd as ag;
 ///
 /// ag::run(|ctx| {
@@ -204,8 +204,8 @@ impl<'c, 'g, F: Float> Evaluator<'c, 'g, F> {
 ///
 ///     let mut feeder = ag::Feeder::new();
 ///     let result = ctx.evaluator()
-///         .push(expr)
-///         .set_feeder(feeder.push(a, ag::ndarray::arr0(10.).view()).push(b, ag::ndarray::arr0(20.).view()))
+///         .push(&expr)
+///         .set_feeder(feeder.push(a, ag::ndarray::arr0(10.).view().into_dyn()).push(b, ag::ndarray::arr0(20.).view().into_dyn()))
 ///         .run();
 ///     println!("{:?}", result[0]);  // => Ok(arr0(200.0))
 /// });
