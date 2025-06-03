@@ -60,13 +60,13 @@ rand_pcg = "0.9.0"
 rand_chacha = "0.9.0"
 thiserror = "2.0.12"
 approx = "0.5.1"
-criterion = "0.5.1"
+criterion = "0.6.0"
 wide = "0.7.32"  # SIMD acceleration library
 once_cell = "1.19.0"
 chrono = "0.4"
 tempfile = "3.9"
 serde_json = "1.0"
-bincode = "1.3.3"
+bincode = "2.0.1"
 
 # Common dependencies for specific modules
 nalgebra = "0.33.2"
@@ -80,7 +80,7 @@ sprs = "0.11.3"
 # Serialization and data handling
 serde = { version = "1.0", features = ["derive"] }
 csv = "1.2"
-image = "0.24"
+image = "0.25"
 image-025 = { package = "image", version = "0.25", features = ["jpeg", "png", "gif"] }
 
 # IO and file handling
@@ -88,56 +88,56 @@ flate2 = "1.0"
 blake3 = "1.5"
 regex = "1.10"
 libc = "0.2"
-cached = "0.48.1"
+cached = "0.55.1"
 byteorder = "1.4"
 rmp-serde = "1.1"
 lz4 = "1.24"
-zstd = "0.12"
-bzip2 = "0.4"
+zstd = "0.13"
+bzip2 = "0.5"
 sha2 = "0.10"
 crc32fast = "1.3"
 hex = "0.4"
 digest = "0.10"
 data-encoding = "2.4"
 glob = "0.3"
-zip = "0.6"
-dirs = "5.0"
+zip = "4.0"
+dirs = "6.0"
 
 # ML specific
-tokenizers = "0.15"
+tokenizers = "0.21"
 autograd = "1.1.1"
 smallvec = "1.2.0"
 uuid = { version = "1.3.0", features = ["v4"] }
-rustc-hash = "1.1.0"
+rustc-hash = "2.1.1"
 matrixmultiply = "0.3.2"
 num = "0.4.0"
-special = "0.10.2"
+special = "0.11.4"
 special-11 = { package = "special", version = "0.11.4" }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.10"
 lazy_static = "1.4"
-statrs = "0.16.0"
-petgraph = "0.6"
-itertools = "0.13"
+statrs = "0.18.0"
+petgraph = "0.8"
+itertools = "0.14"
 
 # BLAS specific - these are feature-gated in modules
-blas-src = { version = "0.8", default-features = false }
+blas-src = { version = "0.11", default-features = false }
 intel-mkl-src = { version = "0.8.1", default-features = false }
-cblas-sys = { version = "0.1.4", default-features = false }
+cblas-sys = { version = "0.3.0", default-features = false }
 
 # Additional dependencies for modules
 half = { version = "2.4.0", features = ["num-traits", "serde", "alloc"] }
 crossbeam-utils = { version = "0.8.19" }
 crossbeam-deque = { version = "0.8.3" }
 num_cpus = { version = "1.16.0" }
-memmap2 = { version = "0.7.1" }
+memmap2 = { version = "0.9.5" }
 snap = { version = "1.1.0" }
-cranelift-module = { version = "0.118.0" }
-cranelift-jit = { version = "0.118.0" }
-cranelift-frontend = { version = "0.118.0" }
+cranelift-module = { version = "0.120.0" }
+cranelift-jit = { version = "0.120.0" }
+cranelift-frontend = { version = "0.120.0" }
 plotly = { version = "0.12.1" }
 plotters = { version = "0.3.5" }
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
 
 # Math libraries
 libm = "0.2"
@@ -145,10 +145,10 @@ array-init = "2.1.0"
 netcdf3 = "0.5.2"
 sobol = "1.0.2"
 halton = "0.2.1"
-ordered-float = "3.9.2"
-kamadak-exif = "0.5"
+ordered-float = "5.0.0"
+kamadak-exif = "0.6"
 friedrich = "0.5.0"
-ureq = "2.9"
+ureq = "3.0"
 qhull = "0.4.0"
 parking_lot = "0.12.1"
 serde_yaml = "0.9"
