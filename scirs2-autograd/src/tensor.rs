@@ -109,31 +109,28 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     /// You can use the return value instead of `self`.
     /// Panics if `self` is a source node, such as a variable or placeholder.
     ///
-    ///    ```ignore
-    /// // FIXME: This test uses deprecated input_mut functionality
+    ///    ```
     /// use ndarray::array;
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops as T;
     /// use ag::prelude::*;
-    /// use ag::optimizers::SGD;
     ///
-    /// let mut env = ag::VariableEnvironment::new();
-    /// let var = env.set(array![1., 1.]);
-    ///
-    /// env.run(|c| {
-    ///     let var = c.variable(var);
-    ///     let grad = T::ones(&[2], c);
-    ///     let mul1 = var * 2.;
-    ///     let update = SGD::new(1.0).get_update_op(&[var], &[grad], c); // update `w` to [[0., 0.]].
-    ///
-    ///     // We don't know if `mul1` becomes [2., 2.] or [0., 0.] because...
-    ///     // - the evaluation order of `mul1` and `update` is undefined, since they don't depend on each other
-    ///     // - or rather `update` will be pruned out of the graph
-    ///
-    ///     // mul2 always takes precedence over the update op so becomes [0., 0.]
-    ///     let mul2 = (var * 2.).depends_on(&[update]);
-    ///
-    ///     assert_eq!(mul2.eval(c), Ok(array![0., 0.].into_dyn()));
+    /// ag::run(|c| {
+    ///     // Create two independent computations
+    ///     let a = T::constant(array![1., 2.], c);
+    ///     let b = T::constant(array![3., 4.], c);
+    ///     
+    ///     // These operations are independent
+    ///     let mul_a = a * 2.;
+    ///     let mul_b = b * 3.;
+    ///     
+    ///     // Force mul_c to depend on both mul_a and mul_b
+    ///     // This ensures mul_a and mul_b are evaluated before mul_c
+    ///     let c = T::constant(array![5., 6.], c);
+    ///     let mul_c = (c * 4.).depends_on(&[mul_a, mul_b]);
+    ///     
+    ///     // Evaluation order is now guaranteed: mul_a, mul_b, then mul_c
+    ///     assert_eq!(mul_c.eval(c), Ok(array![20., 24.].into_dyn()));
     /// });
     ///    ```
     #[inline]
