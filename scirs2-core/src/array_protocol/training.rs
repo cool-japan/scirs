@@ -27,7 +27,7 @@ use rand::SeedableRng;
 use crate::array_protocol::grad::Optimizer;
 use crate::array_protocol::ml_ops::ActivationFunc;
 use crate::array_protocol::neural::Sequential;
-use crate::array_protocol::operations::multiply;
+use crate::array_protocol::operations::{multiply, subtract};
 use crate::array_protocol::{activation, ArrayProtocol, NdarrayWrapper};
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
@@ -922,24 +922,6 @@ impl Trainer {
 
 // Helper functions
 
-/// Subtract one array from another.
-fn subtract(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
-    // This is a simplified implementation for demonstration
-    if let (Some(a_array), Some(b_array)) = (
-        a.as_any()
-            .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>(),
-        b.as_any()
-            .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>(),
-    ) {
-        let result = a_array.as_array() - b_array.as_array();
-        Ok(Box::new(NdarrayWrapper::new(result)))
-    } else {
-        Err(CoreError::NotImplementedError(ErrorContext::new(
-            "subtract not implemented for these array types".to_string(),
-        )))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1006,7 +988,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "MSE Loss forward implementation incomplete"]
     fn test_mse_loss() {
         // Initialize the array protocol system
         array_protocol::init();

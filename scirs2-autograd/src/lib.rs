@@ -6,7 +6,7 @@
 //! ```toml
 //! [dependencies]
 //! scirs2-autograd = {"<version>", features = ["blas", "<blas-implementation-choice>"] }
-//! ```ignore
+//! ```
 //! `<blas-implementation-choice>` must be one of the following:
 //! - `accelerate` macOS only
 //! - `intel-mkl` Intel/AMD CPU only. Includes Vector Mathematics (VM) ops
@@ -16,7 +16,7 @@
 //! ### Reverse-mode automatic differentiation using lazy tensors
 //! Here we are just computing partial derivatives of `z = 2x^2 + 3y + 1`.
 //!
-//! ```ignore
+//! ```
 //! use scirs2_autograd as ag;
 //! use ag::tensor_ops as T;
 //!
@@ -33,19 +33,19 @@
 //!     // dz/dx (requires to fill the placeholder `x`)
 //!     let gx = &T::grad(&[z], &[x])[0];
 //!     let feed = ag::ndarray::arr0(2.);
-//!     println!("{:?}", ctx.evaluator().push(gx).feed(x, feed.view()).run()[0]);  // => Ok(8.)
+//!     println!("{:?}", ctx.evaluator().push(gx).feed(x, feed.view().into_dyn()).run()[0]);  // => Ok(8.)
 //!
 //!     // ddz/dx (differentiates `z` again)
 //!     let ggx = &T::grad(&[gx], &[x])[0];
 //!     println!("{:?}", ggx.eval(ctx));  // => Ok(4.)
 //! });
 //! # }
-//! ```ignore
+//! ```
 //!
 //! ### Neural networks
 //! This crate has various low-level features inspired by tensorflow/theano to train neural networks.
 //! Since computation graphs require only bare minimum of heap allocations, the overhead is small, even for complex networks.
-//! ```ignore
+//! ```
 //! // MNIST digits classification model with multi-layer-perceptron
 //! use scirs2_autograd as ag;
 //! use ag::optimizers::adam::Adam;
@@ -54,7 +54,7 @@
 //!
 //! let mut env = ag::VariableEnvironment::new();
 //!
-//! let rng = ag::ndarray_ext::ArrayRng::<f32>::default();
+//! let mut rng = ag::ndarray_ext::ArrayRng::<f32>::default();
 //!
 //! // Register variables in the default namespace
 //! env.name("w").set(rng.glorot_uniform(&[28 * 28, 10]));
@@ -77,10 +77,10 @@
 //!         // adam.update(&[w, b], grads, ctx, feeder);
 //!     });
 //! }
-//! ```ignore
+//! ```
 //!
 //! ### Abstractions
-//! ```ignore
+//! ```
 //! use scirs2_autograd as ag;
 //! use ag::tensor_ops::*;
 //! use ag::ndarray;
@@ -98,7 +98,7 @@
 //!     let x: ag::Tensor<f32> = ones(&[2, 3], ctx).show_shape();
 //!     let y: ag::Tensor<f32> = ones(&[2, 3], ctx).raw_hook(|x| println!("{}", x));
 //! });
-//! ```ignore
+//! ```
 //!
 //! ### Other useful features
 //! - [Model persistence](variable#model-persistence)

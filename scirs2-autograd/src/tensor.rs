@@ -25,7 +25,7 @@ use std::ops::{Add, Div, Mul, Sub};
 ///   - See [crate::variable]
 ///
 /// ### Basic usages
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops as T;
 /// use ag::prelude::*;
@@ -49,7 +49,7 @@ use std::ops::{Add, Div, Mul, Sub};
 ///     // it's evaluated only once since `Evaluator` is smart enough to avoid duplicated computations.
 ///     let pair: Vec<Result<NdArray, _>> = ctx.evaluator().extend(&[mul, reshaped]).run();
 /// });
-///    ```ignoreignore
+///    ```
 #[derive(Clone, Copy)]
 pub struct Tensor<'graph, F: Float> {
     pub(crate) id: TensorID, // tensor id in the graph
@@ -85,7 +85,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Evaluates this tensor as an `ndarray::Array<F, ndarray::IxDyn>`.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use ndarray::array;
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops as T;
@@ -94,7 +94,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///    let a = T::zeros(&[2], c);
     ///    assert_eq!(a.eval(c), Ok(array![0., 0.].into_dyn()));
     /// });
-    ///    ```ignoreignore
+    ///    ```
     ///
     /// See also [Evaluator](../evaluation/struct.Evaluator.html).
     pub fn eval(&self, ctx: &Context<F>) -> Result<NdArray<F>, crate::EvalError> {
@@ -109,32 +109,30 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     /// You can use the return value instead of `self`.
     /// Panics if `self` is a source node, such as a variable or placeholder.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use ndarray::array;
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops as T;
     /// use ag::prelude::*;
-    /// use ag::optimizers::SGD;
     ///
-    /// let mut env = ag::VariableEnvironment::new();
-    /// let var = env.set(array![1., 1.]);
-    ///
-    /// env.run(|c| {
-    ///     let var = c.variable(var);
-    ///     let grad = T::ones(&[2], c);
-    ///     let mul1 = var * 2.;
-    ///     let update = SGD::new(1.0).get_update_op(&[var], &[grad], c); // update `w` to [[0., 0.]].
-    ///
-    ///     // We don't know if `mul1` becomes [2., 2.] or [0., 0.] because...
-    ///     // - the evaluation order of `mul1` and `update` is undefined, since they don't depend on each other
-    ///     // - or rather `update` will be pruned out of the graph
-    ///
-    ///     // mul2 always takes precedence over the update op so becomes [0., 0.]
-    ///     let mul2 = (var * 2.).depends_on(&[update]);
-    ///
-    ///     assert_eq!(mul2.eval(c), Ok(array![0., 0.].into_dyn()));
+    /// ag::run(|c| {
+    ///     // Create two independent computations
+    ///     let a = T::constant(array![1., 2.], c);
+    ///     let b = T::constant(array![3., 4.], c);
+    ///     
+    ///     // These operations are independent
+    ///     let mul_a = a * 2.;
+    ///     let mul_b = b * 3.;
+    ///     
+    ///     // Force mul_c to depend on both mul_a and mul_b
+    ///     // This ensures mul_a and mul_b are evaluated before mul_c
+    ///     let c = T::constant(array![5., 6.], c);
+    ///     let mul_c = (c * 4.).depends_on(&[mul_a, mul_b]);
+    ///     
+    ///     // Evaluation order is now guaranteed: mul_a, mul_b, then mul_c
+    ///     assert_eq!(mul_c.eval(c), Ok(array![20., 24.].into_dyn()));
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn depends_on<A>(self, on: &[A]) -> Tensor<'graph, F>
     where
@@ -162,7 +160,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     /// Applies the given function to `x` and creates a new tensor.
     ///
     /// Useful in cases where you need to create a tensor using a run-time value of `x`.
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -172,14 +170,14 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///
     ///     sin.eval(g);
     /// });
-    ///    ```ignoreignore
+    ///    ```
     pub fn map(&self, f: fn(NdArrayView<F>) -> NdArray<F>) -> Tensor<'graph, F> {
         crate::tensor_ops::map(self, f)
     }
 
     /// Registers a hook on the receiver tensor.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -196,7 +194,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///
     ///     // [2, 3]
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn register_hook<H: crate::hooks::Hook<F> + 'static>(self, hook: H) -> Tensor<'graph, F> {
         Tensor::builder(self.graph)
@@ -206,7 +204,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that displays the evaluation result of the receiver tensor to stdout.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -218,7 +216,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     // [0.0, 0.0],
     ///     // [0.0, 0.0]] shape=[4, 2], strides=[2, 1], layout=C (0x1)
     ///     });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn show(self) -> Tensor<'graph, F> {
         self.register_hook(crate::hooks::Show)
@@ -226,7 +224,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that displays the evaluation result of the receiver tensor to stdout, with the given prefix.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -240,7 +238,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     // [0.0, 0.0]] shape=[4, 2], strides=[2, 1], layout=C (0x1)
     /// });
     ///
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn show_prefixed(self, prefix: &'static str) -> Tensor<'graph, F> {
         self.register_hook(crate::hooks::ShowPrefixed(prefix))
@@ -248,7 +246,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that displays the shape of the evaluated receiver tensor to stdout.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -257,7 +255,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     a.eval(g);
     ///     // [2, 3]
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn show_shape(self) -> Tensor<'graph, F> {
         self.register_hook(crate::hooks::ShowShape)
@@ -265,7 +263,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that displays the shape of the evaluated receiver tensor to stdout, with the given prefix.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -275,7 +273,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     // My shape:
     ///     // [2, 3]
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn show_prefixed_shape(self, prefix: &'static str) -> Tensor<'graph, F> {
         self.register_hook(crate::hooks::ShowPrefixedShape(prefix))
@@ -283,7 +281,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that displays the given string after evaluation of the receiver tensor.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -292,7 +290,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     a.eval(g);
     ///     // This is `a`
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn print(self, what: &'static str) -> Tensor<'graph, F> {
         self.register_hook(crate::hooks::Print(what))
@@ -300,7 +298,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 
     /// Sets a hook that calls the given closure after evaluation of the receiver tensor.
     ///
-    ///    ```ignoreignore
+    ///    ```
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
@@ -310,7 +308,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///
     ///     a.eval(g);
     /// });
-    ///    ```ignoreignore
+    ///    ```
     #[inline]
     pub fn raw_hook<FUN: Fn(&NdArrayView<F>) + 'static + Send + Sync>(
         self,
@@ -610,7 +608,7 @@ impl<'graph> IncomingTensor {
 /// Builder for `ag::Tensor` returned by [Tensor::builder](struct.Tensor.html#method.builder).
 ///
 /// This structure is required only when constructing user-defined `Op`.
-///    ```ignoreignore
+///    ```
 /// use scirs2_autograd as ag;
 /// use ag::op::{Op, OpError, ComputeContext, GradientContext};
 /// use ag::tensor_ops::*;
@@ -631,7 +629,7 @@ impl<'graph> IncomingTensor {
 ///         .append_input(input, true)  // mutable input
 ///         .build(DummyOp {a: 42.});
 /// });
-///    ```ignoreignore
+///    ```
 pub struct TensorBuilder<'g, F: Float> {
     graph: &'g Graph<F>,
     shape: Option<usize>, // usize is tensor id

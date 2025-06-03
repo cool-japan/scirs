@@ -453,6 +453,11 @@ where
     pub fn into_array(self) -> ndarray::Array<T, D> {
         self.array
     }
+    
+    /// Update the underlying array with a new one.
+    pub fn update_array(&mut self, new_array: ndarray::Array<T, D>) {
+        self.array = new_array;
+    }
 }
 
 impl<T, D> ArrayProtocol for NdarrayWrapper<T, D>

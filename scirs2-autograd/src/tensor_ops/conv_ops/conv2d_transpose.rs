@@ -478,7 +478,6 @@ impl<T: Float> crate::op::Op<T> for Conv2DTransposeFilterGrad {
 }
 
 #[test]
-#[ignore] // TODO: Fix conv2d_transpose implementation - output shape is [] while expected is [2, 3, 3, 3]
 fn test_deconv() {
     use crate::tensor_ops as T;
 
