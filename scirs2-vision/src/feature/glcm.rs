@@ -323,34 +323,34 @@ pub fn compute_extended_glcm_features(glcm: &Array2<f64>) -> ExtendedGLCMFeature
     let mut sum_entropy = 0.0;
     let mut diff_entropy = 0.0;
 
-    for k in 0..p_sum.len() {
-        if p_sum[k] > 0.0 {
-            sum_average += k as f64 * p_sum[k];
-            sum_entropy -= p_sum[k] * p_sum[k].ln();
+    for (k, &p_sum_k) in p_sum.iter().enumerate() {
+        if p_sum_k > 0.0 {
+            sum_average += k as f64 * p_sum_k;
+            sum_entropy -= p_sum_k * p_sum_k.ln();
         }
     }
 
-    for k in 0..p_diff.len() {
-        if p_diff[k] > 0.0 {
-            diff_entropy -= p_diff[k] * p_diff[k].ln();
+    for &p_diff_k in &p_diff {
+        if p_diff_k > 0.0 {
+            diff_entropy -= p_diff_k * p_diff_k.ln();
         }
     }
 
     // Compute sum variance
     let mut sum_variance = 0.0;
-    for k in 0..p_sum.len() {
-        sum_variance += (k as f64 - sum_average).powi(2) * p_sum[k];
+    for (k, &p_sum_k) in p_sum.iter().enumerate() {
+        sum_variance += (k as f64 - sum_average).powi(2) * p_sum_k;
     }
 
     // Compute difference variance
     let mut diff_average = 0.0;
-    for k in 0..p_diff.len() {
-        diff_average += k as f64 * p_diff[k];
+    for (k, &p_diff_k) in p_diff.iter().enumerate() {
+        diff_average += k as f64 * p_diff_k;
     }
 
     let mut diff_variance = 0.0;
-    for k in 0..p_diff.len() {
-        diff_variance += (k as f64 - diff_average).powi(2) * p_diff[k];
+    for (k, &p_diff_k) in p_diff.iter().enumerate() {
+        diff_variance += (k as f64 - diff_average).powi(2) * p_diff_k;
     }
 
     // Compute cluster shade and prominence

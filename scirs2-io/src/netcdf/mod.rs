@@ -606,10 +606,10 @@ mod tests {
         // Instead, test reading functionality with a mock setup by creating
         // a file in write mode and then changing its mode
         let mut read_test_file = NetCDFFile::create("test_read.nc").unwrap();
-        
+
         // Change mode to read for testing
         read_test_file.mode = "r".to_string();
-        
+
         // Manually set up the file structure for testing read
         read_test_file.dimensions.insert("x".to_string(), Some(3));
         read_test_file.dimensions.insert("y".to_string(), Some(2));
@@ -622,7 +622,7 @@ mod tests {
                 attributes: HashMap::new(),
             },
         );
-        
+
         // Now test reading
         let read_data: ArrayD<f32> = read_test_file.read_variable("data").unwrap();
         assert_eq!(read_data.shape(), &[3, 2]);

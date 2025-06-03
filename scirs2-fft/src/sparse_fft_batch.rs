@@ -470,7 +470,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - experiencing issues with batch processing"]
+    #[ignore = "Ignored for alpha-4 release - experiencing issues with batch processing"]
     fn test_cpu_batch_processing() {
         // Create a batch of signals
         let n = 256;
@@ -508,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - experiencing issues with parallel batch processing"]
+    #[ignore = "Ignored for alpha-4 release - experiencing issues with parallel batch processing"]
     fn test_parallel_batch_processing() {
         // Create a larger batch of signals
         let n = 256;
@@ -551,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - experiencing issues with spectral flatness batch processing"]
+    #[ignore = "Ignored for alpha-4 release - experiencing issues with spectral flatness batch processing"]
     fn test_spectral_flatness_batch() {
         // Create a batch of signals with different noise levels
         let n = 512;

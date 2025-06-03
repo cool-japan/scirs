@@ -118,16 +118,13 @@ impl OctreeNode {
                 let mut best_color = self.get_color();
                 let mut best_distance = u32::MAX;
 
-                for child in &self.children {
-                    if let Some(child) = child {
-                        let color = child.get_color();
-                        let distance =
-                            color_distance_squared(r, g, b, color[0], color[1], color[2]);
+                for child in self.children.iter().flatten() {
+                    let color = child.get_color();
+                    let distance = color_distance_squared(r, g, b, color[0], color[1], color[2]);
 
-                        if distance < best_distance {
-                            best_distance = distance;
-                            best_color = color;
-                        }
+                    if distance < best_distance {
+                        best_distance = distance;
+                        best_color = color;
                     }
                 }
 
@@ -152,10 +149,8 @@ impl OctreeNode {
             nodes.push(self as *mut OctreeNode);
         }
 
-        for child in &mut self.children {
-            if let Some(child) = child {
-                nodes.extend(child.get_nodes_at_level(target_level));
-            }
+        for child in self.children.iter_mut().flatten() {
+            nodes.extend(child.get_nodes_at_level(target_level));
         }
 
         nodes
@@ -228,10 +223,8 @@ impl OctreeQuantizer {
             if node.is_leaf && node.pixel_count > 0 {
                 palette.push(node.get_color());
             } else {
-                for child in &node.children {
-                    if let Some(child) = child {
-                        queue.push_back(child);
-                    }
+                for child in node.children.iter().flatten() {
+                    queue.push_back(child);
                 }
             }
         }
@@ -276,7 +269,7 @@ fn color_distance_squared(r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) -> u32
 ///         img.put_pixel(x, y, Rgb([r, g, b]));
 ///     }
 /// }
-/// 
+///
 /// let dynamic_img = DynamicImage::ImageRgb8(img);
 /// let quantized = octree_quantize(&dynamic_img, 8).unwrap();
 /// assert_eq!(quantized.width(), 4);

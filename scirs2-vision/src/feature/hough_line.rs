@@ -471,8 +471,11 @@ mod tests {
         // depending on the coordinate system orientation
         let angle_diff_1 = (best_line.theta - PI / 4.0).abs();
         let angle_diff_2 = (best_line.theta - 3.0 * PI / 4.0).abs();
-        assert!(angle_diff_1 < 0.1 || angle_diff_2 < 0.1, 
-                "Expected angle near π/4 or 3π/4, got {}", best_line.theta);
+        assert!(
+            angle_diff_1 < 0.1 || angle_diff_2 < 0.1,
+            "Expected angle near π/4 or 3π/4, got {}",
+            best_line.theta
+        );
     }
 
     #[test]

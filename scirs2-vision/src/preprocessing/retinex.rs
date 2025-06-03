@@ -257,10 +257,10 @@ fn create_gaussian_kernel(size: usize, sigma: f32) -> Vec<f32> {
 
     let mut sum = 0.0;
 
-    for i in 0..size {
+    for (i, kernel_item) in kernel.iter_mut().enumerate().take(size) {
         let x = i as f32 - center as f32;
-        kernel[i] = (-x * x / s).exp();
-        sum += kernel[i];
+        *kernel_item = (-x * x / s).exp();
+        sum += *kernel_item;
     }
 
     // Normalize
@@ -284,10 +284,10 @@ fn separable_convolution(img: &ndarray::ArrayView2<f32>, kernel: &[f32]) -> Resu
         for x in 0..width {
             let mut sum = 0.0;
 
-            for k in 0..kernel_size {
+            for (k, &kernel_k) in kernel.iter().enumerate().take(kernel_size) {
                 let sx = x as i32 + k as i32 - pad as i32;
                 if sx >= 0 && sx < width as i32 {
-                    sum += img[[y, sx as usize]] * kernel[k];
+                    sum += img[[y, sx as usize]] * kernel_k;
                 }
             }
 
@@ -302,10 +302,10 @@ fn separable_convolution(img: &ndarray::ArrayView2<f32>, kernel: &[f32]) -> Resu
         for x in 0..width {
             let mut sum = 0.0;
 
-            for k in 0..kernel_size {
+            for (k, &kernel_k) in kernel.iter().enumerate().take(kernel_size) {
                 let sy = y as i32 + k as i32 - pad as i32;
                 if sy >= 0 && sy < height as i32 {
-                    sum += temp[[sy as usize, x]] * kernel[k];
+                    sum += temp[[sy as usize, x]] * kernel_k;
                 }
             }
 

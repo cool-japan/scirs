@@ -2,7 +2,7 @@
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-// Using a simplified version for testing 
+// Using a simplified version for testing
 #[allow(dead_code)]
 pub fn j1<F: Float + FromPrimitive + Debug>(x: F) -> F {
     if x == F::zero() {

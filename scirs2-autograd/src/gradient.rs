@@ -120,7 +120,10 @@ where
                             let neg_a_gy = T::mul(neg_a, gy);
                             Some(T::div(neg_a_gy, b_squared))
                         }
-                    } else if op_name.contains("ReduceSumToScalar") || op_name.contains("Sum") || op_name.contains("Mean") {
+                    } else if op_name.contains("ReduceSumToScalar")
+                        || op_name.contains("Sum")
+                        || op_name.contains("Mean")
+                    {
                         // For reduction operations, gradient is broadcast back
                         // For sum, gradient passes through; for mean, it's divided by count
                         Some(gy)
@@ -162,7 +165,7 @@ where
                         // Default case - return scalar one for unknown operations
                         Some(T::scalar(F::one(), g))
                     };
-                    
+
                     gxs.push(grad);
                 }
 

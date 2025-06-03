@@ -1,7 +1,0 @@
-//! Wavelet transforms
-//!
-//! This module provides functions for continuous and discrete wavelet transforms,
-//! useful for multi-resolution analysis of signals.
-
-// Re-export the wavelets module from the new location
-pub use crate::wavelets::*;

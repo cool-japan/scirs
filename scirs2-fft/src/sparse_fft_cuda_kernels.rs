@@ -808,7 +808,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_execute_cuda_sublinear_sparse_fft() {
         // Create a sparse signal
         let n = 1024;

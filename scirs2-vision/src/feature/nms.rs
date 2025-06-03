@@ -380,16 +380,12 @@ pub fn scale_space_nms(
             // Check if it's also a maximum across scales
             let mut is_scale_max = true;
 
-            if scale > 0 {
-                if responses[scale - 1][[y, x]] >= value {
-                    is_scale_max = false;
-                }
+            if scale > 0 && responses[scale - 1][[y, x]] >= value {
+                is_scale_max = false;
             }
 
-            if scale < responses.len() - 1 {
-                if responses[scale + 1][[y, x]] >= value {
-                    is_scale_max = false;
-                }
+            if scale < responses.len() - 1 && responses[scale + 1][[y, x]] >= value {
+                is_scale_max = false;
             }
 
             if is_scale_max {

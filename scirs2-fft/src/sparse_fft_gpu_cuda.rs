@@ -520,7 +520,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_cuda_initialization() {
         // Initialize global memory manager
         let _ = crate::sparse_fft_gpu_memory::init_global_memory_manager(
@@ -541,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_cuda_sparse_fft() {
         // Create a signal with 3 frequency components
         let n = 256;
@@ -564,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_cuda_batch_processing() {
         // Create multiple signals
         let n = 128;

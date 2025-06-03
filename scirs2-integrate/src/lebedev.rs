@@ -342,7 +342,7 @@ fn generate_order26<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     }
 
     // Type 2: 12 points at (±a,±a,0) and cyclic permutations where a = 1/sqrt(2)
-    let a = F::from(0.707_106_781_186_547_6).unwrap(); // 1/sqrt(2)
+    let a = F::one() / F::from(2.0).unwrap().sqrt();
 
     for &s1 in &[a, -a] {
         for &s2 in &[a, -a] {
@@ -378,7 +378,7 @@ fn generate_order26<F: IntegrateFloat>() -> IntegrateResult<LebedevRule<F>> {
     // Type 4: 24 more points to reach 50 total
     // Use points of the form (±0.5, ±0.5, ±1/sqrt(2)) and permutations
     let half = F::from(0.5).unwrap();
-    let b = F::from(0.707_106_781_186_547_6).unwrap(); // 1/sqrt(2)
+    let b = F::one() / F::from(2.0).unwrap().sqrt();
 
     // Generate all permutations with correct normalization
     for &s1 in &[half, -half] {

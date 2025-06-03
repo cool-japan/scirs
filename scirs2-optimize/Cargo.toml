@@ -47,10 +47,3 @@ path = "examples/powell_example.rs"
 name = "scalar_optimization"
 path = "examples/scalar_optimization.rs"
 
-[[bin]]
-name = "test_debug_hessian"
-path = "test_debug_hessian.rs"
-
-[[bin]]
-name = "test_debug_multistart"
-path = "test_debug_multistart.rs"

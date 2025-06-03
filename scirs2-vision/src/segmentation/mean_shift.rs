@@ -99,13 +99,12 @@ pub fn mean_shift(img: &DynamicImage, params: &MeanShiftParams) -> Result<Array2
             .into_par_iter()
             .map(|idx| {
                 let current_mode = modes.slice(ndarray::s![idx, ..]).to_owned();
-                let new_mode = compute_mean_shift(
+                compute_mean_shift(
                     &features,
                     &current_mode,
                     params.spatial_bandwidth,
                     params.color_bandwidth,
-                );
-                new_mode
+                )
             })
             .collect();
 
@@ -226,8 +225,8 @@ fn cluster_modes(modes: &Array2<f32>, spatial_bandwidth: f32, color_bandwidth: f
         labels[i] = current_label;
 
         // Find all points belonging to this cluster
-        for j in i + 1..n_points {
-            if labels[j] != u32::MAX {
+        for (j, label) in labels.iter_mut().enumerate().take(n_points).skip(i + 1) {
+            if *label != u32::MAX {
                 continue;
             }
 
@@ -243,7 +242,7 @@ fn cluster_modes(modes: &Array2<f32>, spatial_bandwidth: f32, color_bandwidth: f
             .sqrt();
 
             if spatial_dist <= spatial_bandwidth && color_dist <= color_bandwidth {
-                labels[j] = current_label;
+                *label = current_label;
             }
         }
 

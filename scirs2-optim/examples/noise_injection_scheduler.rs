@@ -81,7 +81,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create multiple initial points to test different optimizers
     let mut rng = rand::rng();
     let initial_points: Vec<Array1<f64>> = (0..5)
-        .map(|_| Array1::from_vec(vec![rng.random_range(-2.0..2.0), rng.random_range(-2.0..2.0)]))
+        .map(|_| {
+            Array1::from_vec(vec![
+                rng.random_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
+            ])
+        })
         .collect();
 
     // Test different schedulers

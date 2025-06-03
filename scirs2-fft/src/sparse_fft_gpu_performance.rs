@@ -716,7 +716,7 @@ mod tests {
     }
     
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_optimal_algorithm_selection() {
         // Test small signal
         let small_signal = create_sparse_signal(2048, &[(3, 1.0), (7, 0.5)]);
@@ -735,7 +735,7 @@ mod tests {
     }
     
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_optimal_window_selection() {
         // Create signals with different SNRs
         
@@ -763,7 +763,7 @@ mod tests {
     }
     
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_kernel_factory_extension() {
         // Create factory
         let factory = KernelFactory::new(

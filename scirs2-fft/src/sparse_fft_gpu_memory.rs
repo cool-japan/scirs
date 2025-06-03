@@ -341,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - experiencing issues with memory manager caching"]
+    #[ignore = "Ignored for alpha-4 release - experiencing issues with memory manager caching"]
     fn test_memory_manager_cache() {
         let mut manager = GPUMemoryManager::new(
             GPUBackend::CPUFallback,
@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - experiencing issues with global memory manager"]
+    #[ignore = "Ignored for alpha-4 release - experiencing issues with global memory manager"]
     fn test_global_memory_manager() {
         // Initialize global memory manager
         init_global_memory_manager(

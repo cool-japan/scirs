@@ -179,12 +179,12 @@ fn compute_contrast(img: &GrayImage) -> Result<f32> {
     }
 
     variance /= n;
-    
+
     // Handle uniform images (zero variance)
     if variance < 1e-10 {
         return Ok(0.0);
     }
-    
+
     kurtosis = kurtosis / n / variance.powi(2);
 
     // Contrast formula

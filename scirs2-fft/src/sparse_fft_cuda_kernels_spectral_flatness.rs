@@ -479,7 +479,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_cuda_spectral_flatness_sparse_fft() {
         use rand::Rng;
 

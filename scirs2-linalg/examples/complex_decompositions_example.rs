@@ -273,19 +273,26 @@ fn demo_complex_eigh() -> LinalgResult<()> {
 
             // --- Hermitian eigenvalue decomposition check: A ≈ QΛQ^H ---
             use ndarray::Array2;
-            let recon = eig_result.eigenvectors.dot(&Array2::from_diag(&eig_result.eigenvalues)).dot(&hermitian_transpose(&eig_result.eigenvectors.view()));
+            let recon = eig_result
+                .eigenvectors
+                .dot(&Array2::from_diag(&eig_result.eigenvalues))
+                .dot(&hermitian_transpose(&eig_result.eigenvectors.view()));
             let mut max_diff = 0.0;
             for i in 0..a.nrows() {
                 for j in 0..a.ncols() {
                     let diff = (a[[i, j]] - recon[[i, j]]).norm();
-                    if diff > max_diff { max_diff = diff; }
+                    if diff > max_diff {
+                        max_diff = diff;
+                    }
                 }
             }
             println!("\nA ≈ QΛQ^H max abs diff: {:.3e}", max_diff);
             if max_diff > 1e-8 {
                 println!("WARNING: A and QΛQ^H differ by more than 1e-8");
-                println!("A:"); print_complex_matrix(&a);
-                println!("QΛQ^H:"); print_complex_matrix(&recon);
+                println!("A:");
+                print_complex_matrix(&a);
+                println!("QΛQ^H:");
+                print_complex_matrix(&recon);
             }
         }
         Err(e) => {

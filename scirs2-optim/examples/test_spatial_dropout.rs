@@ -28,14 +28,4 @@ fn main() {
         let channel = result_drop.index_axis(Axis(1), c);
         println!("Channel {}: {:?}", c, channel);
     }
-
-    // Let's check how it works with slicing
-    println!("\nExamining the tensor structure:");
-    let batch_0 = features.index_axis(Axis(0), 0);
-    println!("Batch 0 shape: {:?}", batch_0.shape());
-    println!("Batch 0:\n{:?}", batch_0);
-
-    let channel_0 = batch_0.index_axis(Axis(0), 0);
-    println!("Channel 0 in batch 0 shape: {:?}", channel_0.shape());
-    println!("Channel 0 in batch 0:\n{:?}", channel_0);
 }

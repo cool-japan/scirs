@@ -497,7 +497,7 @@ impl GradientTensor {
                     // For subtraction: a - b, grad_a = grad_out, grad_b = -grad_out
                     if inputs.len() == 2 {
                         let (a, b) = (&inputs[0], &inputs[1]);
-                        
+
                         // Compute grad_a = grad_out
                         if a.requires_grad() {
                             let mut a_node = a.node.borrow_mut();
@@ -510,7 +510,7 @@ impl GradientTensor {
                                 a_node.grad = Some(node_grad.clone());
                             }
                         }
-                        
+
                         // Compute grad_b = -grad_out
                         if b.requires_grad() {
                             if let Ok(neg_grad) = multiply_by_scalar(node_grad.as_ref(), -1.0) {
@@ -531,7 +531,7 @@ impl GradientTensor {
                     // For division: a / b, grad_a = grad_out / b, grad_b = -grad_out * a / b^2
                     if inputs.len() == 2 {
                         let (a, b) = (&inputs[0], &inputs[1]);
-                        
+
                         // Compute grad_a = grad_out / b
                         if a.requires_grad() {
                             let b_value = b.value();
@@ -547,28 +547,38 @@ impl GradientTensor {
                                 }
                             }
                         }
-                        
+
                         // Compute grad_b = -grad_out * a / b^2
                         if b.requires_grad() {
                             let a_value = a.value();
                             let b_value = b.value();
-                            
+
                             // Compute b^2
                             if let Ok(b_squared) = multiply(b_value.as_ref(), b_value.as_ref()) {
                                 // Compute grad_out * a
-                                if let Ok(grad_times_a) = multiply(node_grad.as_ref(), a_value.as_ref()) {
+                                if let Ok(grad_times_a) =
+                                    multiply(node_grad.as_ref(), a_value.as_ref())
+                                {
                                     // Compute grad_out * a / b^2
-                                    if let Ok(div_result) = divide(grad_times_a.as_ref(), b_squared.as_ref()) {
+                                    if let Ok(div_result) =
+                                        divide(grad_times_a.as_ref(), b_squared.as_ref())
+                                    {
                                         // Negate: -grad_out * a / b^2
-                                        if let Ok(grad_b) = multiply_by_scalar(div_result.as_ref(), -1.0) {
+                                        if let Ok(grad_b) =
+                                            multiply_by_scalar(div_result.as_ref(), -1.0)
+                                        {
                                             let mut b_node = b.node.borrow_mut();
                                             if let Some(b_grad) = &b_node.grad {
                                                 // Accumulate gradients
-                                                if let Ok(sum) = add(b_grad.as_ref(), grad_b.as_ref()) {
-                                                    b_node.grad = Some(box_to_rc_array_protocol(sum));
+                                                if let Ok(sum) =
+                                                    add(b_grad.as_ref(), grad_b.as_ref())
+                                                {
+                                                    b_node.grad =
+                                                        Some(box_to_rc_array_protocol(sum));
                                                 }
                                             } else {
-                                                b_node.grad = Some(box_to_rc_array_protocol(grad_b));
+                                                b_node.grad =
+                                                    Some(box_to_rc_array_protocol(grad_b));
                                             }
                                         }
                                     }
@@ -581,26 +591,36 @@ impl GradientTensor {
                     // For sigmoid: grad_input = grad_out * sigmoid * (1 - sigmoid)
                     if inputs.len() == 1 {
                         let input = &inputs[0];
-                        
+
                         if input.requires_grad() {
                             // Get the output value (sigmoid result)
                             let sigmoid_value = node.value();
-                            
+
                             // Compute 1 - sigmoid
                             if let Ok(ones) = ones_like(sigmoid_value.as_ref()) {
-                                if let Ok(one_minus_sigmoid) = subtract(ones.as_ref(), sigmoid_value.as_ref()) {
+                                if let Ok(one_minus_sigmoid) =
+                                    subtract(ones.as_ref(), sigmoid_value.as_ref())
+                                {
                                     // Compute sigmoid * (1 - sigmoid)
-                                    if let Ok(sigmoid_deriv) = multiply(sigmoid_value.as_ref(), one_minus_sigmoid.as_ref()) {
+                                    if let Ok(sigmoid_deriv) =
+                                        multiply(sigmoid_value.as_ref(), one_minus_sigmoid.as_ref())
+                                    {
                                         // Compute grad_out * sigmoid * (1 - sigmoid)
-                                        if let Ok(grad_input) = multiply(node_grad.as_ref(), sigmoid_deriv.as_ref()) {
+                                        if let Ok(grad_input) =
+                                            multiply(node_grad.as_ref(), sigmoid_deriv.as_ref())
+                                        {
                                             let mut input_node = input.node.borrow_mut();
                                             if let Some(input_grad) = &input_node.grad {
                                                 // Accumulate gradients
-                                                if let Ok(sum) = add(input_grad.as_ref(), grad_input.as_ref()) {
-                                                    input_node.grad = Some(box_to_rc_array_protocol(sum));
+                                                if let Ok(sum) =
+                                                    add(input_grad.as_ref(), grad_input.as_ref())
+                                                {
+                                                    input_node.grad =
+                                                        Some(box_to_rc_array_protocol(sum));
                                                 }
                                             } else {
-                                                input_node.grad = Some(box_to_rc_array_protocol(grad_input));
+                                                input_node.grad =
+                                                    Some(box_to_rc_array_protocol(grad_input));
                                             }
                                         }
                                     }
@@ -613,25 +633,37 @@ impl GradientTensor {
                     // For mean: grad_input = grad_out / n (where n is the number of elements)
                     if inputs.len() == 1 {
                         let input = &inputs[0];
-                        
+
                         if input.requires_grad() {
                             // Get the number of elements
                             let input_value = input.value();
-                            if let Some(input_array) = input_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+                            if let Some(input_array) = input_value
+                                .as_any()
+                                .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+                            {
                                 let n_elements = input_array.as_array().len() as f64;
-                                
+
                                 // Compute grad_input = grad_out / n
-                                if let Ok(grad_input) = multiply_by_scalar(node_grad.as_ref(), 1.0 / n_elements) {
+                                if let Ok(grad_input) =
+                                    multiply_by_scalar(node_grad.as_ref(), 1.0 / n_elements)
+                                {
                                     // Broadcast the gradient to match input shape
-                                    if let Ok(broadcasted_grad) = broadcast_to(grad_input.as_ref(), input_array.as_array().shape()) {
+                                    if let Ok(broadcasted_grad) = broadcast_to(
+                                        grad_input.as_ref(),
+                                        input_array.as_array().shape(),
+                                    ) {
                                         let mut input_node = input.node.borrow_mut();
                                         if let Some(input_grad) = &input_node.grad {
                                             // Accumulate gradients
-                                            if let Ok(sum) = add(input_grad.as_ref(), broadcasted_grad.as_ref()) {
-                                                input_node.grad = Some(box_to_rc_array_protocol(sum));
+                                            if let Ok(sum) =
+                                                add(input_grad.as_ref(), broadcasted_grad.as_ref())
+                                            {
+                                                input_node.grad =
+                                                    Some(box_to_rc_array_protocol(sum));
                                             }
                                         } else {
-                                            input_node.grad = Some(box_to_rc_array_protocol(broadcasted_grad));
+                                            input_node.grad =
+                                                Some(box_to_rc_array_protocol(broadcasted_grad));
                                         }
                                     }
                                 }
@@ -745,11 +777,14 @@ pub fn grad_sigmoid(a: &GradientTensor) -> CoreResult<GradientTensor> {
     let a_value = a.value();
 
     // Perform sigmoid: 1 / (1 + exp(-x))
-    if let Some(a_array) = a_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+    if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+    {
         let array = a_array.as_array();
         let result = array.mapv(|x| 1.0 / (1.0 + (-x).exp()));
         let result_wrapped = NdarrayWrapper::new(result);
-        
+
         let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
         Ok(GradientTensor::from_op(
             result_rc,
@@ -768,12 +803,15 @@ pub fn grad_mean(a: &GradientTensor) -> CoreResult<GradientTensor> {
     let a_value = a.value();
 
     // Perform mean reduction
-    if let Some(a_array) = a_value.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+    if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+    {
         let array = a_array.as_array();
         let mean_value = array.mean().unwrap_or(0.0);
         let result = Array::<f64, _>::from_elem(IxDyn(&[1]), mean_value);
         let result_wrapped = NdarrayWrapper::new(result);
-        
+
         let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
         Ok(GradientTensor::from_op(
             result_rc,
@@ -1080,7 +1118,7 @@ fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn 
 fn subtract_from(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<()> {
     // We need to modify 'a' in-place. Since ArrayProtocol might not provide mutable access,
     // we'll use a workaround specific to our implementation.
-    
+
     // Try to get the underlying Rc<RefCell<...>> if our array protocol supports it
     // For now, we'll create a new array and update the reference
     if let (Some(a_wrapper), Some(b_array)) = (
@@ -1090,10 +1128,10 @@ fn subtract_from(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<()>
         // Get the arrays
         let a_arr = a_wrapper.as_array();
         let b_arr = b_array.as_array();
-        
+
         // Compute the result
         let result = a_arr - b_arr;
-        
+
         // Now we need to update 'a' with the result
         // Since we can't modify through the trait, we'll use unsafe code
         // to cast and modify the underlying data
@@ -1104,7 +1142,7 @@ fn subtract_from(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<()>
                 (*a_mut).update_array(result);
             }
         }
-        
+
         Ok(())
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(

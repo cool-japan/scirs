@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_gpu_sparse_fft_cpu_fallback() {
         // Create a signal with 3 frequency components
         let n = 256;
@@ -319,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_gpu_batch_processing() {
         // Create multiple signals
         let n = 128;

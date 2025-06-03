@@ -453,7 +453,7 @@ where
     pub fn into_array(self) -> ndarray::Array<T, D> {
         self.array
     }
-    
+
     /// Update the underlying array with a new one.
     pub fn update_array(&mut self, new_array: ndarray::Array<T, D>) {
         self.array = new_array;
@@ -920,7 +920,7 @@ macro_rules! array_function_def {
         {
             // Define the function
             fn $name $(<$($gen),*>)? ($($arg : $arg_ty),*) -> $ret $body
-            
+
             // Return the function so it can be used
             $name
         }

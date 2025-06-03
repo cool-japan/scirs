@@ -140,14 +140,14 @@ pub fn ssim(img1: &DynamicImage, img2: &DynamicImage, params: &SSIMParams) -> Re
     let (height, width) = ssim_map.dim();
     let mut sum = 0.0;
     let mut count = 0;
-    
+
     for y in half_window..height - half_window {
         for x in half_window..width - half_window {
             sum += ssim_map[[y, x]];
             count += 1;
         }
     }
-    
+
     if count > 0 {
         Ok(sum / count as f32)
     } else {
@@ -449,9 +449,13 @@ mod tests {
             *pixel = image::Luma([(x + y) as u8]);
         }
         let img = DynamicImage::ImageLuma8(img_buf);
-        
+
         let ssim_value = ssim(&img, &img, &SSIMParams::default()).unwrap();
-        assert!((ssim_value - 1.0).abs() < 0.01, "SSIM of identical images should be ~1.0, got {}", ssim_value);
+        assert!(
+            (ssim_value - 1.0).abs() < 0.01,
+            "SSIM of identical images should be ~1.0, got {}",
+            ssim_value
+        );
     }
 
     #[test]

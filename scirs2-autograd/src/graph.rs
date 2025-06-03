@@ -111,7 +111,7 @@ impl<'graph, F: Float> Graph<F> {
                         "Variable with ID {} not found in VariableEnvironment",
                         variable_id
                     ));
-                    
+
                     // If this is one of our target tensors, add an error to the result
                     for tensor in tensors {
                         if tensor.id == node_id {

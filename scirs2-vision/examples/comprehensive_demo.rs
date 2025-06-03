@@ -2,8 +2,8 @@
 
 use image::GenericImageView;
 use scirs2_vision::feature::{
-    canny, gabor_filter, hough_lines, lbp, template_match, GaborParams, HoughParams,
-    LBPType, MatchMethod, PreprocessMode,
+    canny, gabor_filter, hough_lines, lbp, template_match, GaborParams, HoughParams, LBPType,
+    MatchMethod, PreprocessMode,
 };
 use scirs2_vision::quality::{psnr, ssim, SSIMParams};
 use scirs2_vision::segmentation::slic;
@@ -18,7 +18,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 1. Edge Detection and Line Detection
     println!("\n1. Edge Detection and Line Detection");
-    let edges = canny(&img, 1.0, Some(0.05), Some(0.1), None, false, PreprocessMode::Reflect)?;
+    let edges = canny(
+        &img,
+        1.0,
+        Some(0.05),
+        Some(0.1),
+        None,
+        false,
+        PreprocessMode::Reflect,
+    )?;
     edges.save("examples/output/demo_edges.jpg")?;
 
     let lines = hough_lines(&edges, &HoughParams::default())?;

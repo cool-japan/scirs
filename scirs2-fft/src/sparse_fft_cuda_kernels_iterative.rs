@@ -535,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_cuda_iterative_sparse_fft() {
         // This test only runs when the CUDA feature is enabled
         if cfg!(not(feature = "cuda")) {
@@ -601,7 +601,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ignored for alpha-3 release - GPU-dependent test"]
+    #[ignore = "Ignored for alpha-4 release - GPU-dependent test"]
     fn test_iterative_vs_sublinear() {
         use crate::sparse_fft_cuda_kernels::execute_cuda_sublinear_sparse_fft;
 
