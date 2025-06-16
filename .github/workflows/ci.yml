@@ -22,7 +22,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: "Install cargo nextest"
-        uses: taiki-e/install-action@735e5933943122c5ac182670a935f54a949265c1 # v2
+        uses: taiki-e/install-action@7b20dfd705618832f20d29066e34aa2f2f6194c2 # v2
         with:
           tool: cargo-nextest
       
