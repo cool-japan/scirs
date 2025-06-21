@@ -41,12 +41,16 @@ fn main() {
     println!("\n2. Comparing frequency and time domain implementations...");
 
     // Configure filters
-    let mut freq_config = WienerConfig::default();
-    freq_config.frequency_domain = true;
+    let freq_config = WienerConfig {
+        frequency_domain: true,
+        ..Default::default()
+    };
 
-    let mut time_config = WienerConfig::default();
-    time_config.frequency_domain = false;
-    time_config.window_size = 21;
+    let time_config = WienerConfig {
+        frequency_domain: false,
+        window_size: 21,
+        ..Default::default()
+    };
 
     // Apply filters
     let denoised_freq = wiener_filter_freq(&noisy_signal, &freq_config).unwrap();
@@ -71,8 +75,10 @@ fn main() {
     println!("\n3. Iterative Wiener filtering...");
 
     // Configure iterative filter
-    let mut iter_config = WienerConfig::default();
-    iter_config.max_iterations = 3;
+    let iter_config = WienerConfig {
+        max_iterations: 3,
+        ..Default::default()
+    };
 
     // Apply filter
     let denoised_iter = iterative_wiener_filter(&noisy_signal, &iter_config).unwrap();
@@ -283,7 +289,7 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Clip to [0, 1] range
-    noisy_image.mapv_inplace(|x| x.max(0.0).min(1.0));
+    noisy_image.mapv_inplace(|x| x.clamp(0.0, 1.0));
 
     (clean_image, noisy_image)
 }
@@ -343,7 +349,7 @@ fn save_signals_to_csv(
     let mut file = File::create(filename).expect("Failed to create file");
 
     // Write header
-    if let Some(_) = denoised2 {
+    if denoised2.is_some() {
         writeln!(file, "sample,clean,noisy,denoised1,denoised2").expect("Failed to write header");
     } else {
         writeln!(file, "sample,clean,noisy,denoised").expect("Failed to write header");

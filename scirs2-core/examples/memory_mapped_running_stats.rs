@@ -140,14 +140,14 @@ fn create_large_dataset(
     println!("------------------------");
 
     // Create a large array with random-like but deterministic data
-    let size = 10_000_000; // 10 million elements (~80MB for f64)
+    let size: usize = 10_000_000; // 10 million elements (~80MB for f64)
     println!("Creating a dataset with {} elements", size);
 
     let start = Instant::now();
 
     // Generate data algorithmically to avoid allocating the entire array at once
-    let chunk_size = 1_000_000;
-    let num_chunks = (size + chunk_size - 1) / chunk_size;
+    let chunk_size: usize = 1_000_000;
+    let num_chunks = size.div_ceil(chunk_size);
 
     println!(
         "Generating data in {} chunks of {} elements each",

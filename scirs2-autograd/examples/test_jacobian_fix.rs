@@ -1,6 +1,5 @@
 use ag::prelude::*;
 use ag::tensor_ops::*;
-use ndarray;
 use scirs2_autograd as ag;
 
 fn main() {

@@ -46,12 +46,12 @@
 //!         let a = array![[1.0, 2.0], [3.0, 4.0]];
 //!         
 //!         // Calculate determinant
-//!         if let Ok(det_val) = scirs2::linalg::det(&a.view()) {
+//!         if let Ok(det_val) = scirs2::linalg::det(&a.view(), None) {
 //!             println!("Determinant: {}", det_val);
 //!         }
 //!         
 //!         // Calculate matrix inverse
-//!         if let Ok(inv_a) = scirs2::linalg::inv(&a.view()) {
+//!         if let Ok(inv_a) = scirs2::linalg::inv(&a.view(), None) {
 //!             println!("Inverse matrix: {:?}", inv_a);
 //!         }
 //!     }

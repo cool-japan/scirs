@@ -5,6 +5,8 @@
 
 pub mod common;
 pub mod exponential;
+pub mod multi_seasonal;
+pub mod robust;
 pub mod seasonal;
 pub mod ssa;
 pub mod stl;
@@ -16,6 +18,8 @@ pub use common::*;
 
 // Re-export decomposition methods
 pub use exponential::*;
+pub use multi_seasonal::*;
+pub use robust::*;
 pub use seasonal::*;
 pub use ssa::*;
 pub use stl::*;

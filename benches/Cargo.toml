@@ -1,0 +1,72 @@
+[package]
+name = "scirs2-benchmarks"
+version = "0.1.0-alpha.5"
+edition = "2021"
+authors = ["SciRS2 Contributors"]
+description = "Comprehensive performance benchmarks for SciRS2 against SciPy"
+repository = "https://github.com/cool-japan/scirs"
+license = "MIT OR Apache-2.0"
+
+[[bench]]
+name = "linalg_benchmarks"
+path = "linalg_benchmarks.rs"
+harness = false
+
+[[bench]]
+name = "scipy_comparison"
+path = "scipy_comparison.rs"
+harness = false
+
+[[bench]]
+name = "memory_efficiency"
+path = "memory_efficiency.rs"
+harness = false
+
+[[bench]]
+name = "numerical_stability"
+path = "numerical_stability.rs"
+harness = false
+
+[dependencies]
+# SciRS2 modules
+scirs2-core = { path = "../scirs2-core", features = ["parallel", "simd", "profiling", "memory_management"] }
+scirs2-linalg = { path = "../scirs2-linalg", features = ["simd", "parallel"] }
+scirs2-stats = { path = "../scirs2-stats" }
+scirs2-fft = { path = "../scirs2-fft" }
+scirs2-optimize = { path = "../scirs2-optimize" }
+scirs2-integrate = { path = "../scirs2-integrate" }
+scirs2-cluster = { path = "../scirs2-cluster" }
+scirs2-interpolate = { path = "../scirs2-interpolate" }
+
+# Benchmarking framework
+criterion = { version = "0.5", features = ["html_reports"] }
+plotters = "0.3"
+
+# Array operations
+ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray-rand = "0.15"
+
+# Random number generation
+rand = "0.8"
+rand_chacha = "0.3"
+
+# Scientific computing utilities
+num-traits = "0.2"
+approx = "0.5"
+
+# Profiling and timing
+instant = "0.1"
+
+# Serialization for results
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Optional Python integration for comparison
+pyo3 = { version = "0.20", optional = true, features = ["auto-initialize"] }
+
+[features]
+default = []
+python-comparison = ["pyo3"]
+
+[dev-dependencies]
+tempfile = "3.0"

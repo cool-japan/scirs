@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-graph"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -12,20 +12,31 @@ categories = ["science", "mathematics", "algorithms"]
 [dependencies]
 # Core dependencies
 scirs2-core = { workspace = true }
-# Removed scirs2-linalg dependency temporarily for publishing
 scirs2-sparse = { workspace = true }
 ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
 thiserror = { workspace = true }
-openblas-src = { workspace = true }
-blas = { workspace = true }
+# Temporarily commenting out OpenBLAS to fix build issues
+# openblas-src = { workspace = true }
+# blas = { workspace = true }
 
 # Graph processing specific dependencies
 petgraph = { workspace = true }
 rand = { workspace = true }
 itertools = "0.13"
 ordered-float = "3.9"
+
+# Performance dependencies
+rayon = "1.8"
+parking_lot = "0.12"
+
+# Serialization for attributes
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"
 
 [features]
 default = []
@@ -37,3 +48,7 @@ path = "examples/graph_demo.rs"
 [[example]]
 name = "refactor_demo"
 path = "examples/refactor_demo.rs"
+
+[[example]]
+name = "hypergraph_demo"
+path = "examples/hypergraph_demo.rs"

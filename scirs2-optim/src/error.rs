@@ -10,6 +10,8 @@ pub enum OptimError {
     InvalidConfig(String),
     /// Optimization error
     OptimizationError(String),
+    /// Dimension mismatch error
+    DimensionMismatch(String),
     /// Other error
     Other(String),
 }
@@ -19,6 +21,7 @@ impl fmt::Display for OptimError {
         match self {
             OptimError::InvalidConfig(msg) => write!(f, "Invalid configuration: {}", msg),
             OptimError::OptimizationError(msg) => write!(f, "Optimization error: {}", msg),
+            OptimError::DimensionMismatch(msg) => write!(f, "Dimension mismatch: {}", msg),
             OptimError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }

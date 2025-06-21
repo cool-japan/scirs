@@ -135,14 +135,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 3. Train with Lookahead(SGD)
     println!("\nTraining with Lookahead(SGD):");
     let sgd = SGD::new(lr).with_momentum(0.9).with_weight_decay(0.0001);
-    let mut lookahead_sgd = Lookahead::with_config(sgd, 0.5.into(), 5);
+    let mut lookahead_sgd = Lookahead::with_config(sgd, 0.5, 5);
     let (lookahead_sgd_weights, lookahead_sgd_bias, lookahead_sgd_loss) =
         train_model(&mut lookahead_sgd, &x, &y, &train_batches, lr, epochs)?;
 
     // 4. Train with Lookahead(Adam)
     println!("\nTraining with Lookahead(Adam):");
     let adam = Adam::new(lr).with_weight_decay(0.0001);
-    let mut lookahead_adam = Lookahead::with_config(adam, 0.5.into(), 5);
+    let mut lookahead_adam = Lookahead::with_config(adam, 0.5, 5);
     let (lookahead_adam_weights, lookahead_adam_bias, lookahead_adam_loss) =
         train_model(&mut lookahead_adam, &x, &y, &train_batches, lr, epochs)?;
 

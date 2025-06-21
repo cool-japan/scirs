@@ -32,9 +32,9 @@ This module provides optimization algorithms similar to SciPy's optimize module.
 
 - [ ] Implement additional algorithm variants
   - [x] Dogleg trust-region method (implemented in trust_region module)
-  - [ ] Truncated Newton methods with various preconditioners
+  - [x] Truncated Newton methods with various preconditioners
   - [ ] Quasi-Newton methods with different update formulas (SR1, DFP)
-  - [ ] Augmented Lagrangian methods for constrained optimization
+  - [x] Augmented Lagrangian methods for constrained optimization
   - [ ] Interior point methods for constrained optimization
 - [ ] Improve convergence criteria and control
   - [ ] Adaptive tolerance selection
@@ -72,7 +72,7 @@ This module provides optimization algorithms similar to SciPy's optimize module.
   - [x] Other M-estimators for outlier resistance (Cauchy loss)
 - [x] Enhance non-linear least squares capabilities
   - [x] Separable least squares for partially linear problems
-  - [ ] Sparsity-aware algorithms for large-scale problems
+  - [x] Sparsity-aware algorithms for large-scale problems
   - [ ] Implement more robust Jacobian approximations
 - [x] Extended least squares functionality
   - [x] Weighted least squares
@@ -81,19 +81,19 @@ This module provides optimization algorithms similar to SciPy's optimize module.
 
 ## Performance Optimizations
 
-- [ ] Performance optimizations for high-dimensional problems
-  - [ ] Efficient handling of sparse Jacobians and Hessians
-  - [ ] Memory-efficient implementations for large-scale problems
-  - [ ] Subspace methods for very high-dimensional problems
+- [x] Performance optimizations for high-dimensional problems
+  - [x] Efficient handling of sparse Jacobians and Hessians
+  - [x] Memory-efficient implementations for large-scale problems
+  - [x] Subspace methods for very high-dimensional problems
 - [x] Parallel computation support
   - [x] Add `workers` parameter to parallelizable algorithms (via ParallelOptions)
   - [x] Implement parallel function evaluation for gradient approximation
   - [x] Parallel exploration in global optimization methods (differential evolution)
-  - [ ] Asynchronous parallel optimization for varying evaluation times
-- [ ] JIT and auto-vectorization
-  - [ ] Support for just-in-time compilation of objective functions
-  - [ ] SIMD-friendly implementations of key algorithms
-  - [ ] Profile-guided optimizations for critical code paths
+  - [x] Asynchronous parallel optimization for varying evaluation times
+- [x] JIT and auto-vectorization
+  - [x] Support for just-in-time compilation of objective functions
+  - [x] SIMD-friendly implementations of key algorithms
+  - [x] Profile-guided optimizations for critical code paths
 
 ## Documentation and Usability
 
@@ -121,18 +121,18 @@ This module provides optimization algorithms similar to SciPy's optimize module.
   - [ ] Robust handling of infeasible starting points
   - [ ] Support for nonlinear equality and inequality constraints
   - [ ] Improved detection and handling of degenerate constraints
-- [ ] Multi-objective optimization
-  - [ ] Pareto front approximation
-  - [ ] Scalarization methods (weighted sum, ε-constraint)
-  - [ ] Evolutionary multi-objective algorithms
+- [x] Multi-objective optimization
+  - [x] Pareto front approximation (NSGA-II and NSGA-III)
+  - [x] Scalarization methods (weighted sum, weighted Tchebycheff, achievement scalarizing, ε-constraint)
+  - [x] Evolutionary multi-objective algorithms (NSGA-II for bi-objective, NSGA-III for many-objective)
 - [ ] Integration with automatic differentiation
   - [ ] Forward-mode AD for low-dimensional problems
   - [ ] Reverse-mode AD for high-dimensional problems
   - [ ] Mixed-mode AD for specific problem structures
-- [ ] Support for stochastic optimization methods
-  - [ ] Stochastic gradient descent with variants
-  - [ ] ADAM, RMSProp, and other adaptive methods
-  - [ ] Mini-batch processing for large datasets
+- [x] Support for stochastic optimization methods
+  - [x] Stochastic gradient descent with variants (SGD, SVRG, mini-batch SGD with Polyak averaging)
+  - [x] ADAM, RMSProp, and other adaptive methods (ADAM, AMSGrad, RMSProp variants, AdamW, SGD with momentum/NAG)
+  - [x] Mini-batch processing for large datasets
 - [ ] Special-purpose optimizers
   - [ ] Implement specialized optimizers for machine learning
   - [ ] Sparse optimization with L1/group regularization

@@ -3,13 +3,23 @@
 //! This example demonstrates memory tracking for GPU operations using the
 //! memory metrics system.
 
-use scirs2_core::gpu::{GpuBackend, GpuDataType};
+#[cfg(not(feature = "memory_management"))]
+fn main() {
+    println!("This example requires the 'memory_management' feature to be enabled.");
+    println!("Run with: cargo run --example memory_metrics_gpu --features memory_management");
+}
+
+#[cfg(feature = "memory_management")]
+use scirs2_core::gpu::GpuBackend;
+#[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
     format_bytes, format_memory_report, generate_memory_report, reset_memory_metrics,
     setup_gpu_memory_tracking, TrackedGpuContext,
 };
+#[cfg(feature = "memory_management")]
 use std::time::Instant;
 
+#[cfg(feature = "memory_management")]
 fn main() {
     println!("Memory Metrics with GPU Operations Example");
     println!("==========================================\n");
@@ -118,6 +128,7 @@ fn main() {
 }
 
 // Simulates a GPU matrix multiplication operation
+#[cfg(feature = "memory_management")]
 fn simulate_matrix_multiplication(context: &TrackedGpuContext) {
     let start = Instant::now();
 

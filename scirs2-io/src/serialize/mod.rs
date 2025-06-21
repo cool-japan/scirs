@@ -1137,3 +1137,62 @@ pub mod sparse_ops {
         result
     }
 }
+
+// Convenience functions for common serialization formats
+
+/// Convenience function to write an array to JSON format
+pub fn write_array_json<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) -> Result<()>
+where
+    P: AsRef<Path>,
+    A: Serialize + Clone,
+    S: ndarray::Data<Elem = A>,
+{
+    serialize_array::<P, A, S>(path, array, SerializationFormat::JSON)
+}
+
+/// Convenience function to read an array from JSON format
+pub fn read_array_json<P, A>(path: P) -> Result<Array<A, IxDyn>>
+where
+    P: AsRef<Path>,
+    A: for<'de> Deserialize<'de> + Clone,
+{
+    deserialize_array(path, SerializationFormat::JSON)
+}
+
+/// Convenience function to write an array to binary format
+pub fn write_array_binary<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) -> Result<()>
+where
+    P: AsRef<Path>,
+    A: Serialize + Clone,
+    S: ndarray::Data<Elem = A>,
+{
+    serialize_array::<P, A, S>(path, array, SerializationFormat::Binary)
+}
+
+/// Convenience function to read an array from binary format
+pub fn read_array_binary<P, A>(path: P) -> Result<Array<A, IxDyn>>
+where
+    P: AsRef<Path>,
+    A: for<'de> Deserialize<'de> + Clone,
+{
+    deserialize_array(path, SerializationFormat::Binary)
+}
+
+/// Convenience function to write an array to MessagePack format
+pub fn write_array_messagepack<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) -> Result<()>
+where
+    P: AsRef<Path>,
+    A: Serialize + Clone,
+    S: ndarray::Data<Elem = A>,
+{
+    serialize_array::<P, A, S>(path, array, SerializationFormat::MessagePack)
+}
+
+/// Convenience function to read an array from MessagePack format
+pub fn read_array_messagepack<P, A>(path: P) -> Result<Array<A, IxDyn>>
+where
+    P: AsRef<Path>,
+    A: for<'de> Deserialize<'de> + Clone,
+{
+    deserialize_array(path, SerializationFormat::MessagePack)
+}

@@ -48,13 +48,14 @@ impl NormKernel {
             NormType::Inf => "norm_inf",
         };
 
-        let (cuda_source, wgpu_source, metal_source, opencl_source) =
+        let (cuda_source, rocm_source, wgpu_source, metal_source, opencl_source) =
             Self::get_kernel_sources(norm_type);
 
         Self {
             base: BaseKernel::new(
                 name,
                 &cuda_source,
+                &rocm_source,
                 &wgpu_source,
                 &metal_source,
                 &opencl_source,
@@ -65,7 +66,7 @@ impl NormKernel {
     }
 
     /// Get kernel sources for different backends and norm types
-    fn get_kernel_sources(norm_type: NormType) -> (String, String, String, String) {
+    fn get_kernel_sources(norm_type: NormType) -> (String, String, String, String, String) {
         match norm_type {
             NormType::L2 => {
                 // CUDA kernel for L2 norm
@@ -261,7 +262,16 @@ __kernel void norm_l2(
 "#
                 .to_string();
 
-                (cuda_source, wgpu_source, metal_source, opencl_source)
+                // ROCm (HIP) kernel - similar to CUDA
+                let rocm_source = cuda_source.clone();
+
+                (
+                    cuda_source,
+                    rocm_source,
+                    wgpu_source,
+                    metal_source,
+                    opencl_source,
+                )
             }
             // For brevity, we'll just sketch the structure for L1 and Inf norms
             // In a real implementation, these would be fully implemented
@@ -274,6 +284,7 @@ __kernel void norm_l2(
                 .to_string();
 
                 (
+                    placeholder.clone(),
                     placeholder.clone(),
                     placeholder.clone(),
                     placeholder.clone(),
@@ -292,10 +303,17 @@ __kernel void norm_l2(
                     placeholder.clone(),
                     placeholder.clone(),
                     placeholder.clone(),
+                    placeholder.clone(),
                     placeholder,
                 )
             }
         }
+    }
+}
+
+impl Default for NormKernel {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -313,10 +331,7 @@ impl GpuKernel for NormKernel {
     }
 
     fn can_specialize(&self, params: &KernelParams) -> bool {
-        match params.data_type {
-            DataType::Float32 | DataType::Float64 => true,
-            _ => false,
-        }
+        matches!(params.data_type, DataType::Float32 | DataType::Float64)
     }
 
     fn specialize(&self, params: &KernelParams) -> Result<Box<dyn GpuKernel>, GpuError> {

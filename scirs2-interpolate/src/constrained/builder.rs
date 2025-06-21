@@ -41,7 +41,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     /// Create a new constrained spline by interpolating the data
     ///

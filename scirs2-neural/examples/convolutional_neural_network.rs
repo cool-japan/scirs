@@ -63,7 +63,7 @@ impl ActivationFunction {
     }
 
     /// Get a string representation of the activation function
-    fn to_string(&self) -> &str {
+    fn as_str(&self) -> &str {
         match self {
             ActivationFunction::ReLU => "ReLU",
             ActivationFunction::Sigmoid => "Sigmoid",
@@ -76,6 +76,7 @@ impl ActivationFunction {
 /// Loss function type
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 enum LossFunction {
     MSE,
     CategoricalCrossEntropy,
@@ -138,7 +139,7 @@ impl LossFunction {
     }
 
     /// Get a string representation of the loss function
-    fn to_string(&self) -> &str {
+    fn as_str(&self) -> &str {
         match self {
             LossFunction::MSE => "Mean Squared Error",
             LossFunction::CategoricalCrossEntropy => "Categorical Cross Entropy",
@@ -582,7 +583,7 @@ impl Layer for Conv2D {
                 PaddingMode::Valid => "valid",
                 PaddingMode::Same => "same",
             },
-            self.activation.to_string()
+            self.activation.as_str()
         )
     }
 
@@ -972,7 +973,7 @@ impl Layer for Dense {
             "Dense: {} -> {}, activation {}",
             self.input_size,
             self.output_size,
-            self.activation.to_string()
+            self.activation.as_str()
         )
     }
 
@@ -1150,7 +1151,7 @@ impl Sequential {
     fn summary(&self) {
         println!("Model Summary:");
         println!("==============");
-        println!("Loss function: {}", self.loss_fn.to_string());
+        println!("Loss function: {}", self.loss_fn.as_str());
         println!("Number of layers: {}", self.layers.len());
         println!();
 

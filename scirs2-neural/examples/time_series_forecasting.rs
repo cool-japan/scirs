@@ -669,7 +669,7 @@ fn train_forecaster(
     batch_size: usize,
 ) {
     let n_samples = x_train.shape()[0];
-    let n_batches = (n_samples + batch_size - 1) / batch_size; // Ceiling division
+    let n_batches = n_samples.div_ceil(batch_size);
 
     println!("Training forecaster model...");
 

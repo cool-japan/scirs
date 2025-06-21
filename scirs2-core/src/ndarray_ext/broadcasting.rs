@@ -1,7 +1,7 @@
 //! Broadcasting functionality for ndarray
 //!
 //! This module provides enhanced broadcasting capabilities for ndarray arrays,
-//! similar to NumPy's broadcasting rules, allowing operations between arrays
+//! similar to `NumPy`'s broadcasting rules, allowing operations between arrays
 //! of different but compatible shapes.
 
 use ndarray::{Array, ArrayView, Dimension, IxDyn};

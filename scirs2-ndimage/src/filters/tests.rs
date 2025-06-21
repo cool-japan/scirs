@@ -250,4 +250,133 @@ mod tests {
         // Should have proper shape
         assert_eq!(final_result.shape(), input.shape());
     }
+
+    #[test]
+    fn test_generic_filter_mean() {
+        use super::super::filter_functions;
+        use super::super::generic_filter;
+
+        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        let result = generic_filter(&input, filter_functions::mean, &[3, 3], None, None).unwrap();
+
+        // Center element should be the mean of all elements
+        let expected = (1.0 + 2.0 + 3.0 + 4.0 + 5.0 + 6.0 + 7.0 + 8.0 + 9.0) / 9.0;
+        assert_abs_diff_eq!(result[[1, 1]], expected, epsilon = 1e-6);
+
+        // Check that shape is preserved
+        assert_eq!(result.shape(), input.shape());
+    }
+
+    #[test]
+    fn test_generic_filter_range() {
+        use super::super::filter_functions;
+        use super::super::generic_filter;
+
+        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        let result = generic_filter(&input, filter_functions::range, &[3, 3], None, None).unwrap();
+
+        // Center element should be the range of all elements (9 - 1 = 8)
+        assert_abs_diff_eq!(result[[1, 1]], 8.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_generic_filter_custom_function() {
+        use super::super::generic_filter;
+        use super::super::BorderMode;
+
+        let input = array![[1.0, 2.0], [3.0, 4.0]];
+
+        // Custom function that returns the maximum value
+        let max_func =
+            |values: &[f64]| -> f64 { values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)) };
+
+        // Test with BorderMode::Nearest
+        let result =
+            generic_filter(&input, max_func, &[2, 2], Some(BorderMode::Nearest), None).unwrap();
+
+        // Check shape preservation and that center position sees the global maximum
+        assert_eq!(result.shape(), input.shape());
+
+        // The bottom-right position should see the global maximum (4.0)
+        // because it includes the original (1,1) position
+        assert_abs_diff_eq!(result[[1, 1]], 4.0, epsilon = 1e-6);
+
+        // Other positions will see different maxima based on their neighborhoods
+        assert!(result[[0, 0]] >= 1.0); // Should see at least the minimum value
+        assert!(result[[0, 1]] >= 1.0);
+        assert!(result[[1, 0]] >= 1.0);
+    }
+
+    #[test]
+    fn test_generic_filter_1d() {
+        use super::super::filter_functions;
+        use super::super::generic_filter;
+        use ndarray::Array1;
+
+        let input = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+
+        let result = generic_filter(&input, filter_functions::mean, &[3], None, None).unwrap();
+
+        // Should preserve shape
+        assert_eq!(result.len(), input.len());
+
+        // Center element should be mean of [2, 3, 4] = 3.0
+        assert_abs_diff_eq!(result[2], 3.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_generic_filter_std_dev() {
+        use super::super::filter_functions;
+        use super::super::generic_filter;
+
+        // Create a uniform array (std dev should be 0)
+        let input = array![[5.0, 5.0, 5.0], [5.0, 5.0, 5.0], [5.0, 5.0, 5.0]];
+
+        let result =
+            generic_filter(&input, filter_functions::std_dev, &[3, 3], None, None).unwrap();
+
+        // Standard deviation of uniform values should be 0
+        assert_abs_diff_eq!(result[[1, 1]], 0.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_generic_filter_border_modes() {
+        use super::super::filter_functions;
+        use super::super::generic_filter;
+        use super::super::BorderMode;
+
+        let input = array![[1.0, 2.0], [3.0, 4.0]];
+
+        // Test different border modes
+        let constant = generic_filter(
+            &input,
+            filter_functions::mean,
+            &[3, 3],
+            Some(BorderMode::Constant),
+            Some(0.0),
+        )
+        .unwrap();
+        let reflect = generic_filter(
+            &input,
+            filter_functions::mean,
+            &[3, 3],
+            Some(BorderMode::Reflect),
+            None,
+        )
+        .unwrap();
+        let nearest = generic_filter(
+            &input,
+            filter_functions::mean,
+            &[3, 3],
+            Some(BorderMode::Nearest),
+            None,
+        )
+        .unwrap();
+
+        // Results should be different for different border modes
+        assert!(constant[[0, 0]] != reflect[[0, 0]]);
+        assert!(reflect[[0, 0]] != nearest[[0, 0]]);
+    }
 }

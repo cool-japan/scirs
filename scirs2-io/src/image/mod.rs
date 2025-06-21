@@ -9,6 +9,10 @@
 //! - Conversion between different image formats
 //! - Basic image properties and information
 //! - Image sequence handling and animations (GIF, sequence of images)
+//! - Enhanced capabilities: multi-scale pyramids, lossless compression, advanced processing
+
+/// Enhanced image capabilities with multi-scale support and lossless compression
+pub mod enhanced;
 
 use chrono::{DateTime, Utc};
 use image::AnimationDecoder;

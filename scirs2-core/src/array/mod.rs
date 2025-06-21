@@ -1,10 +1,10 @@
 //! Array module that provides enhanced array types and utilities
 //!
 //! This module provides specialized array types for scientific computing:
-//! - `MaskedArray`: Arrays that can mask out values for operations
-//! - `RecordArray`: Arrays with named fields for structured data
+//! - ``MaskedArray``: Arrays that can mask out values for operations
+//! - ``RecordArray``: Arrays with named fields for structured data
 //!
-//! These types are inspired by and compatible with NumPy's masked array and record array
+//! These types are inspired by and compatible with ``NumPy``'s masked array and record array
 //! implementations, providing similar functionality in Rust.
 
 mod masked_array;

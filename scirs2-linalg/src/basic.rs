@@ -10,6 +10,7 @@ use std::iter::Sum;
 /// # Arguments
 ///
 /// * `a` - Input square matrix
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -22,17 +23,22 @@ use std::iter::Sum;
 /// use scirs2_linalg::det;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
-/// let d = det(&a.view()).unwrap();
+/// let d = det(&a.view(), None).unwrap();
 /// assert!((d - (-2.0)).abs() < 1e-10);
 /// ```
-pub fn det<F>(a: &ArrayView2<F>) -> LinalgResult<F>
+pub fn det<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<F>
 where
     F: Float + NumAssign + Sum,
 {
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
     if a.nrows() != a.ncols() {
-        return Err(LinalgError::DimensionError(format!(
-            "Matrix must be square to compute determinant, got shape {:?}",
-            a.shape()
+        return Err(LinalgError::ShapeError(format!(
+            "Determinant computation failed: Matrix must be square\nMatrix shape: {}×{}\nExpected: Square matrix (n×n)",
+            a.nrows(), a.ncols()
         )));
     }
 
@@ -51,7 +57,7 @@ where
             // For larger matrices, use LU decomposition
             use crate::decomposition::lu;
 
-            match lu(a) {
+            match lu(a, workers) {
                 Ok((p, _l, u)) => {
                     // Calculate the determinant as the product of diagonal elements of U
                     let mut det_u = F::one();
@@ -91,6 +97,7 @@ where
 /// # Arguments
 ///
 /// * `a` - Input square matrix
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -103,29 +110,47 @@ where
 /// use scirs2_linalg::inv;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
-/// let a_inv = inv(&a.view()).unwrap();
+/// let a_inv = inv(&a.view(), None).unwrap();
 /// assert!((a_inv[[0, 0]] - 1.0).abs() < 1e-10);
 /// assert!((a_inv[[1, 1]] - 0.5).abs() < 1e-10);
 /// ```
-pub fn inv<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
+pub fn inv<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + Sum,
 {
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
     if a.nrows() != a.ncols() {
-        return Err(LinalgError::DimensionError(format!(
-            "Matrix must be square to compute inverse, got shape {:?}",
-            a.shape()
+        return Err(LinalgError::ShapeError(format!(
+            "Matrix inverse computation failed: Matrix must be square\nMatrix shape: {}×{}\nExpected: Square matrix (n×n)",
+            a.nrows(), a.ncols()
         )));
     }
 
     // Simple implementation for 2x2 matrices
     if a.nrows() == 2 {
-        let det_val = det(a)?;
+        let det_val = det(a, workers)?;
         if det_val.abs() < F::epsilon() {
-            return Err(LinalgError::SingularMatrixError(format!(
-                "Matrix is singular, cannot compute inverse\nMatrix shape: {:?}\nHint: Check if the matrix is singular or nearly singular",
-                a.shape()
-            )));
+            // Calculate condition number estimate for 2x2 matrix
+            let norm_a = (a[[0, 0]] * a[[0, 0]]
+                + a[[0, 1]] * a[[0, 1]]
+                + a[[1, 0]] * a[[1, 0]]
+                + a[[1, 1]] * a[[1, 1]])
+            .sqrt();
+            let cond_estimate = if det_val.abs() > F::zero() {
+                Some((norm_a / det_val.abs()).to_f64().unwrap_or(1e16))
+            } else {
+                None
+            };
+
+            return Err(LinalgError::singular_matrix_with_suggestions(
+                "matrix inverse",
+                a.dim(),
+                cond_estimate,
+            ));
         }
 
         let inv_det = F::one() / det_val;
@@ -147,15 +172,14 @@ where
     }
 
     // Solve A * X = I to get X = A^(-1)
-    match solve_multiple(a, &identity.view()) {
-        Err(LinalgError::SingularMatrixError(msg)) => {
-            // Add diagnostic information to error message
-            let diagnostic_msg = format!(
-                "{}\nMatrix shape: {:?}\nHint: Check if the matrix is singular or nearly singular",
-                msg,
-                a.shape()
-            );
-            Err(LinalgError::SingularMatrixError(diagnostic_msg))
+    match solve_multiple(a, &identity.view(), workers) {
+        Err(LinalgError::SingularMatrixError(_)) => {
+            // Use enhanced error with regularization suggestions
+            Err(LinalgError::singular_matrix_with_suggestions(
+                "matrix inverse via solve",
+                a.dim(),
+                None, // Could compute condition number here for better diagnostics
+            ))
         }
         other => other,
     }
@@ -167,6 +191,7 @@ where
 ///
 /// * `a` - Input square matrix
 /// * `n` - Power (can be positive, negative, or zero)
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -181,20 +206,25 @@ where
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
 ///
 /// // Identity matrix for n=0
-/// let a_0 = matrix_power(&a.view(), 0).unwrap();
+/// let a_0 = matrix_power(&a.view(), 0, None).unwrap();
 /// assert!((a_0[[0, 0]] - 1.0).abs() < 1e-10);
 /// assert!((a_0[[0, 1]] - 0.0).abs() < 1e-10);
 /// assert!((a_0[[1, 0]] - 0.0).abs() < 1e-10);
 /// assert!((a_0[[1, 1]] - 1.0).abs() < 1e-10);
 /// ```
-pub fn matrix_power<F>(a: &ArrayView2<F>, n: i32) -> LinalgResult<Array2<F>>
+pub fn matrix_power<F>(a: &ArrayView2<F>, n: i32, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + Sum,
 {
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
     if a.nrows() != a.ncols() {
-        return Err(LinalgError::DimensionError(format!(
-            "Matrix must be square to compute power, got shape {:?}",
-            a.shape()
+        return Err(LinalgError::ShapeError(format!(
+            "Matrix power computation failed: Matrix must be square\nMatrix shape: {}×{}\nExpected: Square matrix (n×n)",
+            a.nrows(), a.ncols()
         )));
     }
 
@@ -217,7 +247,7 @@ where
 
     if n == -1 {
         // Return inverse
-        return inv(a);
+        return inv(a, workers);
     }
 
     if n.abs() > 1 {
@@ -235,6 +265,85 @@ where
     ))
 }
 
+/// Compute the trace of a square matrix.
+///
+/// The trace is the sum of the diagonal elements.
+///
+/// # Arguments
+///
+/// * `a` - A square matrix
+///
+/// # Returns
+///
+/// * Trace of the matrix
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_linalg::basic_trace;
+///
+/// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
+/// let tr = basic_trace(&a.view()).unwrap();
+/// assert!((tr - 5.0).abs() < 1e-10);
+/// ```
+#[allow(dead_code)]
+pub fn trace<F>(a: &ArrayView2<F>) -> LinalgResult<F>
+where
+    F: Float + NumAssign + Sum,
+{
+    if a.nrows() != a.ncols() {
+        return Err(LinalgError::ShapeError(format!(
+            "Matrix trace computation failed: Matrix must be square\nMatrix shape: {}×{}\nExpected: Square matrix (n×n)",
+            a.nrows(), a.ncols()
+        )));
+    }
+
+    let mut tr = F::zero();
+    for i in 0..a.nrows() {
+        tr += a[[i, i]];
+    }
+
+    Ok(tr)
+}
+
+//
+// Backward compatibility wrapper functions
+//
+
+/// Compute the determinant of a square matrix (backward compatibility wrapper).
+///
+/// This is a convenience function that calls `det` with `workers = None`.
+/// For new code, prefer using `det` directly with explicit workers parameter.
+pub fn det_default<F>(a: &ArrayView2<F>) -> LinalgResult<F>
+where
+    F: Float + NumAssign + Sum,
+{
+    det(a, None)
+}
+
+/// Compute the inverse of a square matrix (backward compatibility wrapper).
+///
+/// This is a convenience function that calls `inv` with `workers = None`.
+/// For new code, prefer using `inv` directly with explicit workers parameter.
+pub fn inv_default<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum,
+{
+    inv(a, None)
+}
+
+/// Raise a square matrix to the given power (backward compatibility wrapper).
+///
+/// This is a convenience function that calls `matrix_power` with `workers = None`.
+/// For new code, prefer using `matrix_power` directly with explicit workers parameter.
+pub fn matrix_power_default<F>(a: &ArrayView2<F>, n: i32) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum,
+{
+    matrix_power(a, n, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,36 +353,36 @@ mod tests {
     #[test]
     fn test_det_2x2() {
         let a = array![[1.0, 2.0], [3.0, 4.0]];
-        let d = det(&a.view()).unwrap();
+        let d = det(&a.view(), None).unwrap();
         assert!((d - (-2.0)).abs() < 1e-10);
 
         let b = array![[2.0, 0.0], [0.0, 3.0]];
-        let d = det(&b.view()).unwrap();
+        let d = det(&b.view(), None).unwrap();
         assert!((d - 6.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_det_3x3() {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-        let d = det(&a.view()).unwrap();
+        let d = det(&a.view(), None).unwrap();
         assert!((d - 0.0).abs() < 1e-10);
 
         let b = array![[2.0, 0.0, 0.0], [0.0, 3.0, 0.0], [0.0, 0.0, 4.0]];
-        let d = det(&b.view()).unwrap();
+        let d = det(&b.view(), None).unwrap();
         assert!((d - 24.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_inv_2x2() {
         let a = array![[1.0, 0.0], [0.0, 2.0]];
-        let a_inv = inv(&a.view()).unwrap();
+        let a_inv = inv(&a.view(), None).unwrap();
         assert_relative_eq!(a_inv[[0, 0]], 1.0);
         assert_relative_eq!(a_inv[[0, 1]], 0.0);
         assert_relative_eq!(a_inv[[1, 0]], 0.0);
         assert_relative_eq!(a_inv[[1, 1]], 0.5);
 
         let b = array![[1.0, 2.0], [3.0, 4.0]];
-        let b_inv = inv(&b.view()).unwrap();
+        let b_inv = inv(&b.view(), None).unwrap();
         assert_relative_eq!(b_inv[[0, 0]], -2.0);
         assert_relative_eq!(b_inv[[0, 1]], 1.0);
         assert_relative_eq!(b_inv[[1, 0]], 1.5);
@@ -284,7 +393,7 @@ mod tests {
     fn test_inv_large() {
         // Test 3x3 matrix
         let a = array![[1.0, 2.0, 3.0], [0.0, 1.0, 4.0], [5.0, 6.0, 0.0]];
-        let a_inv = inv(&a.view()).unwrap();
+        let a_inv = inv(&a.view(), None).unwrap();
 
         // Verify A * A^(-1) = I
         let product = a.dot(&a_inv);
@@ -306,7 +415,7 @@ mod tests {
             [0.0, 0.0, 4.0, 0.0],
             [0.0, 0.0, 0.0, 5.0]
         ];
-        let b_inv = inv(&b.view()).unwrap();
+        let b_inv = inv(&b.view(), None).unwrap();
         assert_relative_eq!(b_inv[[0, 0]], 0.5, epsilon = 1e-10);
         assert_relative_eq!(b_inv[[1, 1]], 1.0 / 3.0, epsilon = 1e-10);
         assert_relative_eq!(b_inv[[2, 2]], 0.25, epsilon = 1e-10);
@@ -314,7 +423,7 @@ mod tests {
 
         // Test singular matrix should error
         let c = array![[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [3.0, 6.0, 9.0]];
-        assert!(inv(&c.view()).is_err());
+        assert!(inv(&c.view(), None).is_err());
     }
 
     #[test]
@@ -322,14 +431,14 @@ mod tests {
         let a = array![[1.0, 2.0], [3.0, 4.0]];
 
         // Power 0 should give identity matrix
-        let a_0 = matrix_power(&a.view(), 0).unwrap();
+        let a_0 = matrix_power(&a.view(), 0, None).unwrap();
         assert_relative_eq!(a_0[[0, 0]], 1.0);
         assert_relative_eq!(a_0[[0, 1]], 0.0);
         assert_relative_eq!(a_0[[1, 0]], 0.0);
         assert_relative_eq!(a_0[[1, 1]], 1.0);
 
         // Power 1 should return the original matrix
-        let a_1 = matrix_power(&a.view(), 1).unwrap();
+        let a_1 = matrix_power(&a.view(), 1, None).unwrap();
         assert_relative_eq!(a_1[[0, 0]], a[[0, 0]]);
         assert_relative_eq!(a_1[[0, 1]], a[[0, 1]]);
         assert_relative_eq!(a_1[[1, 0]], a[[1, 0]]);
@@ -345,7 +454,7 @@ mod tests {
             [0.0, 1.0, 2.0, 1.0],
             [0.0, 0.0, 1.0, 2.0]
         ];
-        let d = det(&a.view()).unwrap();
+        let d = det(&a.view(), None).unwrap();
         assert_relative_eq!(d, 5.0, epsilon = 1e-10);
 
         // Test 5x5 diagonal matrix
@@ -356,7 +465,7 @@ mod tests {
             [0.0, 0.0, 0.0, 4.0, 0.0],
             [0.0, 0.0, 0.0, 0.0, 5.0]
         ];
-        let d = det(&b.view()).unwrap();
+        let d = det(&b.view(), None).unwrap();
         assert_relative_eq!(d, 120.0, epsilon = 1e-10);
 
         // Test singular matrix
@@ -366,7 +475,7 @@ mod tests {
             [3.0, 6.0, 9.0, 12.0],
             [4.0, 8.0, 12.0, 16.0]
         ];
-        let d = det(&c.view()).unwrap();
+        let d = det(&c.view(), None).unwrap();
         assert_relative_eq!(d, 0.0, epsilon = 1e-10);
     }
 }

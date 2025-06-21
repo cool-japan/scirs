@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -97,12 +97,13 @@ impl Debug for JITFunctionImpl {
         f.debug_struct("JITFunctionImpl")
             .field("source", &self.source)
             .field("compile_info", &self.compile_info)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
 impl JITFunctionImpl {
     /// Create a new JIT function.
+    #[must_use]
     pub fn new(
         source: String,
         function: Box<JITFunctionType>,
@@ -141,7 +142,7 @@ impl JITFunction for JITFunctionImpl {
             Ok(Box::new(42.0))
         });
 
-        Box::new(JITFunctionImpl {
+        Box::new(Self {
             source,
             function: cloned_function,
             compile_info,
@@ -176,7 +177,7 @@ impl LLVMFunctionFactory {
         let mut compile_info = HashMap::new();
         compile_info.insert("backend".to_string(), "LLVM".to_string());
         compile_info.insert("opt_level".to_string(), self.config.opt_level.to_string());
-        compile_info.insert("array_type".to_string(), format!("{:?}", array_type_id));
+        compile_info.insert("array_type".to_string(), format!("{array_type_id:?}"));
 
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
@@ -197,7 +198,7 @@ impl JITFunctionFactory for LLVMFunctionFactory {
     fn create(&self, expression: &str, array_type_id: TypeId) -> CoreResult<Box<dyn JITFunction>> {
         // Check if the function is already in the cache
         if self.config.use_cache {
-            let cache_key = format!("{}-{:?}", expression, array_type_id);
+            let cache_key = format!("{expression}-{array_type_id:?}");
             if let Some(cached_fn) = self.cache.get(&cache_key) {
                 return Ok(cached_fn.as_ref().clone_box());
             }
@@ -208,7 +209,7 @@ impl JITFunctionFactory for LLVMFunctionFactory {
 
         if self.config.use_cache {
             // Add the function to the cache
-            let cache_key = format!("{}-{:?}", expression, array_type_id);
+            let cache_key = format!("{expression}-{array_type_id:?}");
             // In a real implementation, we'd need to handle this in a thread-safe way
             // For now, we'll just clone the function
             let mut cache = self.cache.clone();
@@ -252,7 +253,7 @@ impl CraneliftFunctionFactory {
         let mut compile_info = HashMap::new();
         compile_info.insert("backend".to_string(), "Cranelift".to_string());
         compile_info.insert("opt_level".to_string(), self.config.opt_level.to_string());
-        compile_info.insert("array_type".to_string(), format!("{:?}", array_type_id));
+        compile_info.insert("array_type".to_string(), format!("{array_type_id:?}"));
 
         // Create a function that just returns a constant value
         // In a real implementation, this would be a compiled function
@@ -273,7 +274,7 @@ impl JITFunctionFactory for CraneliftFunctionFactory {
     fn create(&self, expression: &str, array_type_id: TypeId) -> CoreResult<Box<dyn JITFunction>> {
         // Check if the function is already in the cache
         if self.config.use_cache {
-            let cache_key = format!("{}-{:?}", expression, array_type_id);
+            let cache_key = format!("{expression}-{array_type_id:?}");
             if let Some(cached_fn) = self.cache.get(&cache_key) {
                 return Ok(cached_fn.as_ref().clone_box());
             }
@@ -284,7 +285,7 @@ impl JITFunctionFactory for CraneliftFunctionFactory {
 
         if self.config.use_cache {
             // Add the function to the cache
-            let cache_key = format!("{}-{:?}", expression, array_type_id);
+            let cache_key = format!("{expression}-{array_type_id:?}");
             // In a real implementation, we'd need to handle this in a thread-safe way
             // For now, we'll just clone the function
             let mut cache = self.cache.clone();
@@ -374,6 +375,7 @@ impl JITManager {
     }
 
     /// Get the global JIT manager instance.
+    #[must_use]
     pub fn global() -> &'static RwLock<Self> {
         static INSTANCE: LazyLock<RwLock<JITManager>> = LazyLock::new(|| {
             RwLock::new(JITManager {
@@ -410,7 +412,7 @@ impl<T, A> JITEnabledArray<T, A> {
     }
 
     /// Get a reference to the inner array.
-    pub fn inner(&self) -> &A {
+    pub const fn inner(&self) -> &A {
         &self.inner
     }
 }
@@ -505,7 +507,7 @@ where
     fn box_clone(&self) -> Box<dyn ArrayProtocol> {
         // Clone the inner array directly
         let inner_clone = self.inner.clone();
-        Box::new(JITEnabledArray {
+        Box::new(Self {
             inner: inner_clone,
             _phantom: PhantomData::<T>,
         })

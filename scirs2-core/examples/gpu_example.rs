@@ -1,5 +1,4 @@
-use ndarray::{Array, Dim};
-use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext};
+use scirs2_core::gpu::{GpuBackend, GpuContext};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("GPU Acceleration Example");
@@ -35,13 +34,13 @@ fn run_gpu_example() -> Result<(), Box<dyn std::error::Error>> {
     println!("Created input data with {} elements", data_size);
 
     // Allocate buffer on GPU and copy data
-    let mut buffer = ctx.create_buffer::<f32>(data_size);
+    let buffer = ctx.create_buffer::<f32>(data_size);
     buffer.copy_from_host(&host_data);
     println!("Copied data to GPU buffer");
 
     // Execute a simple computation (add 1.0 to each element)
     println!("Executing computation on GPU...");
-    ctx.execute(|compiler| {
+    ctx.execute(|compiler| -> Result<(), Box<dyn std::error::Error>> {
         // This is a placeholder for a real kernel
         // In a real application, this would compile and run an actual GPU kernel
         let kernel = compiler.compile(
@@ -53,8 +52,8 @@ fn run_gpu_example() -> Result<(), Box<dyn std::error::Error>> {
         "#,
         )?;
 
-        kernel.set_buffer(0, &mut buffer);
-        kernel.dispatch([data_size, 1, 1]);
+        kernel.set_buffer("a", &buffer);
+        kernel.dispatch([data_size as u32, 1, 1]);
 
         Ok(())
     })?;

@@ -235,13 +235,13 @@ fn test_checkpoint_group() {
         // Run functions directly without using a separate closure
 
         // Regular computation
-        let c1 = T::matmul(&a, &b);
-        let d1 = T::transpose(&c1, &[1, 0]);
+        let c1 = T::matmul(a, &b);
+        let d1 = T::transpose(c1, &[1, 0]);
 
         // Checkpoint group computation
-        let (c2, d2) = ckpt_group.checkpoint_fn((&a, &b), |inputs| {
+        let (c2, d2) = ckpt_group.checkpoint_fn((a, &b), |inputs| {
             let c = T::matmul(inputs.0, inputs.1);
-            let d = T::transpose(&c, &[1, 0]);
+            let d = T::transpose(c, &[1, 0]);
             (c, d)
         });
 
@@ -272,8 +272,8 @@ fn test_checkpoint_group() {
         }
 
         // Compute gradients through both outputs
-        let loss1 = T::sum_all(&c1) + T::sum_all(&d1);
-        let loss2 = T::sum_all(&c2) + T::sum_all(&d2);
+        let loss1 = T::sum_all(c1) + T::sum_all(d1);
+        let loss2 = T::sum_all(c2) + T::sum_all(d2);
 
         let grad1 = T::grad(&[loss1], &[&a])[0];
         let grad2 = T::grad(&[loss2], &[&a])[0];
@@ -301,9 +301,9 @@ fn test_stop_gradient() {
         let a = T::convert_to_tensor(array![[1.0, 2.0], [3.0, 4.0]], ctx);
 
         // Apply stop_gradient (which is an alias for detach)
-        let b = T::stop_gradient(&a);
-        let c = T::square(&b);
-        let d = T::sum_all(&c);
+        let b = T::stop_gradient(a);
+        let c = T::square(b);
+        let d = T::sum_all(c);
 
         // Forward pass should work normally
         let result = d.eval(ctx).unwrap();

@@ -11,7 +11,7 @@ fn main() {
         let a = convert_to_tensor(a_data.clone(), ctx);
 
         // Test QR decomposition
-        let (q, r) = qr(&a);
+        let (q, r) = qr(a);
 
         // Evaluate
         let q_result = q.eval(ctx).unwrap();

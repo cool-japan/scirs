@@ -51,7 +51,7 @@ fn bench_cpu_sparse_fft_small(b: &mut Bencher) {
             black_box(&signal),
             sparsity,
             Some(SparseFFTAlgorithm::Sublinear),
-            Some(WindowFunction::Hann),
+            None, // seed parameter
         )
         .unwrap();
     });
@@ -68,7 +68,7 @@ fn bench_cpu_sparse_fft_medium(b: &mut Bencher) {
             black_box(&signal),
             sparsity,
             Some(SparseFFTAlgorithm::Sublinear),
-            Some(WindowFunction::Hann),
+            None, // seed parameter
         )
         .unwrap();
     });
@@ -85,7 +85,7 @@ fn bench_cpu_sparse_fft_large(b: &mut Bencher) {
             black_box(&signal),
             sparsity,
             Some(SparseFFTAlgorithm::Sublinear),
-            Some(WindowFunction::Hann),
+            None, // seed parameter
         )
         .unwrap();
     });

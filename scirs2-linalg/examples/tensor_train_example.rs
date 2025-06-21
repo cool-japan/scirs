@@ -1,9 +1,7 @@
 #[cfg(feature = "tensor_contraction")]
 mod tensor_train_example {
-    use ndarray::{array, ArrayD, IxDyn};
-    use scirs2_linalg::tensor_contraction::tensor_train::{
-        tensor_train_decomposition, TensorTrain,
-    };
+    use ndarray::{array, ArrayD};
+    use scirs2_linalg::tensor_contraction::tensor_train::tensor_train_decomposition;
 
     pub fn run() {
         println!("Tensor Train Decomposition Examples");

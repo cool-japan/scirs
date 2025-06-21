@@ -6,6 +6,10 @@ use std::hash::{Hash, Hasher};
 use std::marker::{Send, Sync};
 
 use crate::error::ClusteringError;
+use scirs2_core::validation::{
+    check_array_finite, check_positive, clustering::validate_clustering_data,
+    parameters::check_unit_interval,
+};
 use scirs2_spatial::distance::EuclideanDistance;
 use scirs2_spatial::kdtree::KDTree;
 
@@ -121,24 +125,11 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
     n_samples: Option<usize>,
     _random_state: Option<u64>,
 ) -> Result<T, ClusteringError> {
-    // Manual check that all data is finite
-    for row in data.rows() {
-        for &val in row.iter() {
-            if !val.is_finite() {
-                return Err(ClusteringError::InvalidInput(
-                    "Input contains non-finite values".to_string(),
-                ));
-            }
-        }
-    }
+    // Check that all data is finite
+    check_array_finite(data, "data")?;
 
     let quantile = quantile.unwrap_or_else(|| T::from(0.3).unwrap());
-
-    if quantile < T::zero() || quantile > T::one() {
-        return Err(ClusteringError::InvalidInput(
-            "Quantile should be between 0 and 1 inclusive".to_string(),
-        ));
-    }
+    let _quantile = check_unit_interval(quantile, "quantile", "estimate_bandwidth")?;
 
     // Select a subset of samples if specified
     let data = if let Some(n) = n_samples {
@@ -429,29 +420,14 @@ impl<
 
     /// Fit the Mean Shift model to the data.
     pub fn fit(&mut self, data: &ArrayView2<T>) -> Result<&mut Self, ClusteringError> {
-        // Manual check that all data is finite
-        for row in data.rows() {
-            for &val in row.iter() {
-                if !val.is_finite() {
-                    return Err(ClusteringError::InvalidInput(
-                        "Input contains non-finite values".to_string(),
-                    ));
-                }
-            }
-        }
+        // Use comprehensive clustering data validation
+        validate_clustering_data(data, "Mean Shift", true, Some(1))?;
 
         let (n_samples, n_features) = data.dim();
 
         // Determine bandwidth
         let bandwidth = match self.options.bandwidth {
-            Some(bw) => {
-                if bw <= T::zero() {
-                    return Err(ClusteringError::InvalidInput(
-                        "Bandwidth must be positive".to_string(),
-                    ));
-                }
-                bw
-            }
+            Some(bw) => check_positive(bw, "bandwidth")?,
             None => estimate_bandwidth(data, Some(T::from(0.3).unwrap()), None, None)?,
         };
 
@@ -635,16 +611,8 @@ impl<
             ClusteringError::InvalidState("Model has not been fitted yet".to_string())
         })?;
 
-        // Manual check that all data is finite
-        for row in data.rows() {
-            for &val in row.iter() {
-                if !val.is_finite() {
-                    return Err(ClusteringError::InvalidInput(
-                        "Input contains non-finite values".to_string(),
-                    ));
-                }
-            }
-        }
+        // Check that all data is finite
+        check_array_finite(data, "prediction data")?;
 
         let n_samples = data.nrows();
         let mut labels = Array1::zeros(n_samples);

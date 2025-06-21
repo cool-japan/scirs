@@ -52,7 +52,8 @@ fn main() -> IntegrateResult<()> {
     };
 
     // Define event functions
-    let event_funcs: Vec<Box<dyn Fn(f64, ArrayView1<f64>) -> f64>> = vec![
+    type EventFunc = Box<dyn Fn(f64, ArrayView1<f64>) -> f64>;
+    let event_funcs: Vec<EventFunc> = vec![
         // Event 1: dx/dt = 0 (X maximum or minimum)
         Box::new(move |_t: f64, state: ArrayView1<f64>| -> f64 {
             let x = state[0];

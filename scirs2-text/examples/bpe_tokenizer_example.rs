@@ -14,10 +14,12 @@ fn main() -> Result<()> {
     println!("Training BPE tokenizer...");
 
     // Create a BPE tokenizer with custom configuration
-    let mut config = BpeConfig::default();
-    config.vocab_size = 100;
-    config.min_frequency = 1;
-    config.special_tokens = vec!["<pad>".to_string(), "<unk>".to_string()];
+    let config = BpeConfig {
+        vocab_size: 100,
+        min_frequency: 1,
+        special_tokens: vec!["<pad>".to_string(), "<unk>".to_string()],
+        ..Default::default()
+    };
 
     let mut tokenizer = BpeTokenizer::new(config);
 

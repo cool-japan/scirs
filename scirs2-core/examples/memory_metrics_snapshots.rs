@@ -3,15 +3,26 @@
 //! This example demonstrates how to use memory snapshots to monitor memory usage
 //! over time and detect potential memory leaks.
 
+#[cfg(not(feature = "memory_management"))]
+fn main() {
+    println!("This example requires the 'memory_management' feature to be enabled.");
+    println!("Run with: cargo run --example memory_metrics_snapshots --features memory_management");
+}
+
+#[cfg(feature = "memory_management")]
 use std::path::Path;
+#[cfg(feature = "memory_management")]
 use std::thread;
+#[cfg(feature = "memory_management")]
 use std::time::Duration;
 
+#[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
     clear_snapshots, compare_snapshots, format_bytes, format_memory_report, load_snapshots,
     reset_memory_metrics, save_snapshots, take_snapshot, track_allocation, track_deallocation,
 };
 
+#[cfg(feature = "memory_management")]
 fn main() {
     println!("Memory Snapshots and Leak Detection Example");
     println!("===========================================\n");
@@ -126,7 +137,7 @@ fn main() {
         println!("\nSuccessfully loaded and compared snapshots:");
         println!(
             "  Total current usage delta: {}",
-            format_bytes(diff.current_usage_delta.abs() as usize)
+            format_bytes(diff.current_usage_delta.unsigned_abs())
         );
     } else {
         println!("\nFailed to load snapshots correctly");
@@ -143,6 +154,7 @@ fn main() {
 }
 
 // Simulate doing some work
+#[cfg(feature = "memory_management")]
 fn simulate_work() {
     println!("  Performing operations...");
 

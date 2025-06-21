@@ -17,7 +17,7 @@ fn test_determinant_against_scipy() {
 
     // SciPy result: -2.0
     let expected_det = -2.0;
-    let actual_det = det(&a.view()).unwrap();
+    let actual_det = det(&a.view(), None).unwrap();
 
     assert_abs_diff_eq!(actual_det, expected_det, epsilon = TOLERANCE);
 
@@ -26,7 +26,7 @@ fn test_determinant_against_scipy() {
 
     // SciPy result: -3.0
     let expected_det = -3.0;
-    let actual_det = det(&a.view()).unwrap();
+    let actual_det = det(&a.view(), None).unwrap();
 
     assert_abs_diff_eq!(actual_det, expected_det, epsilon = TOLERANCE);
 }
@@ -41,7 +41,7 @@ fn test_inverse_against_scipy() {
     //        [-0.125,   0.25  ]])
     let expected_inv = array![[0.3125_f64, -0.125], [-0.125, 0.25]];
 
-    let actual_inv = inv(&a.view()).unwrap();
+    let actual_inv = inv(&a.view(), None).unwrap();
 
     assert_abs_diff_eq!(actual_inv, expected_inv, epsilon = TOLERANCE);
 }
@@ -51,7 +51,7 @@ fn test_lu_decomposition_against_scipy() {
     // Test case: 3x3 matrix
     let a = array![[2.0_f64, 1.0, 1.0], [4.0, -6.0, 0.0], [-2.0, 7.0, 2.0]];
 
-    let (p, l, u) = lu(&a.view()).unwrap();
+    let (p, l, u) = lu(&a.view(), None).unwrap();
 
     // Verify that P * A = L * U
     let pa = p.dot(&a);
@@ -79,7 +79,7 @@ fn test_qr_decomposition_against_scipy() {
     // Test case: 3x2 matrix
     let a = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-    let (q, r) = qr(&a.view()).unwrap();
+    let (q, r) = qr(&a.view(), None).unwrap();
 
     // Verify that A = Q * R
     let qr_product = q.dot(&r);
@@ -105,7 +105,7 @@ fn test_svd_against_scipy() {
 
     // Note: Our SVD implementation seems to return different shapes than expected
     // for thin SVD, so we'll test the properties rather than the exact reconstruction
-    let (u, s, vt) = svd(&a.view(), false).unwrap();
+    let (u, s, vt) = svd(&a.view(), false, None).unwrap();
 
     // Verify U is orthogonal/unitary
     let ut_u = u.t().dot(&u);
@@ -137,7 +137,7 @@ fn test_cholesky_against_scipy() {
         [-16.0, -43.0, 98.0]
     ];
 
-    let l = cholesky(&a.view()).unwrap();
+    let l = cholesky(&a.view(), None).unwrap();
 
     // Verify that A = L * L^T
     let llt = l.dot(&l.t());
@@ -159,19 +159,19 @@ fn test_norm_against_scipy() {
     // Frobenius norm
     // SciPy result: 16.881943016134134
     let expected_frobenius = 16.881943016134134;
-    let actual_frobenius = matrix_norm(&a.view(), "fro").unwrap();
+    let actual_frobenius = matrix_norm(&a.view(), "fro", None).unwrap();
     assert_abs_diff_eq!(actual_frobenius, expected_frobenius, epsilon = TOLERANCE);
 
     // 1-norm (max absolute column sum)
     // SciPy result: 18.0
     let expected_1norm = 18.0;
-    let actual_1norm = matrix_norm(&a.view(), "1").unwrap();
+    let actual_1norm = matrix_norm(&a.view(), "1", None).unwrap();
     assert_abs_diff_eq!(actual_1norm, expected_1norm, epsilon = TOLERANCE);
 
     // inf-norm (max absolute row sum)
     // SciPy result: 24.0
     let expected_infnorm = 24.0;
-    let actual_infnorm = matrix_norm(&a.view(), "inf").unwrap();
+    let actual_infnorm = matrix_norm(&a.view(), "inf", None).unwrap();
     assert_abs_diff_eq!(actual_infnorm, expected_infnorm, epsilon = TOLERANCE);
 }
 
@@ -183,7 +183,7 @@ fn test_solve_against_scipy() {
 
     // SciPy result: [2.0, 3.0]
     let expected_x = array![2.0_f64, 3.0];
-    let actual_x = solve(&a.view(), &b.view()).unwrap();
+    let actual_x = solve(&a.view(), &b.view(), None).unwrap();
 
     assert_abs_diff_eq!(actual_x, expected_x, epsilon = TOLERANCE);
 }
@@ -193,18 +193,18 @@ fn test_edge_cases() {
     // Test singular matrix determinant
     let singular = array![[1.0_f64, 2.0], [2.0, 4.0]];
 
-    let det_result = det(&singular.view()).unwrap();
+    let det_result = det(&singular.view(), None).unwrap();
     assert_abs_diff_eq!(det_result, 0.0, epsilon = TOLERANCE);
 
     // Test identity matrix (2x2 since 3x3 inverse not implemented)
     let identity: Array2<f64> = Array2::eye(2);
 
     // Determinant of identity should be 1
-    let identity_det = det(&identity.view()).unwrap();
+    let identity_det = det(&identity.view(), None).unwrap();
     assert_abs_diff_eq!(identity_det, 1.0, epsilon = TOLERANCE);
 
     // Inverse of identity should be identity
-    let identity_inv = inv(&identity.view()).unwrap();
+    let identity_inv = inv(&identity.view(), None).unwrap();
     assert_abs_diff_eq!(identity_inv, identity, epsilon = TOLERANCE);
 }
 
@@ -214,13 +214,13 @@ fn test_numerical_stability() {
     let a = array![[1.0_f64, 1.0], [1.0, 1.000001]];
 
     // This matrix has a very small determinant
-    let det_result = det(&a.view()).unwrap();
+    let det_result = det(&a.view(), None).unwrap();
     assert!((det_result - 0.000001).abs() < 1e-10);
 
     // Test with very small values
     let small = array![[1e-10_f64, 2e-10], [3e-10, 4e-10]];
 
-    let small_det = det(&small.view()).unwrap();
+    let small_det = det(&small.view(), None).unwrap();
     assert!((small_det - (-2e-20)).abs() < 1e-30);
 }
 

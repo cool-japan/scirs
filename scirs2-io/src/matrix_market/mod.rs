@@ -18,6 +18,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use crate::error::{IoError, Result};
 
@@ -179,6 +181,45 @@ pub struct MMDenseMatrix<T> {
     pub cols: usize,
     /// Dense matrix data (column-major order)
     pub data: Array2<T>,
+}
+
+/// Configuration for parallel Matrix Market I/O
+#[derive(Debug, Clone)]
+pub struct ParallelConfig {
+    /// Number of worker threads
+    pub num_threads: usize,
+    /// Chunk size for parallel processing (number of entries per chunk)
+    pub chunk_size: usize,
+    /// Buffer size for I/O operations
+    pub buffer_size: usize,
+    /// Enable memory mapping for large files
+    pub use_memory_mapping: bool,
+}
+
+impl Default for ParallelConfig {
+    fn default() -> Self {
+        Self {
+            num_threads: thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4),
+            chunk_size: 100_000,           // 100k entries per chunk
+            buffer_size: 64 * 1024 * 1024, // 64MB buffer
+            use_memory_mapping: false,
+        }
+    }
+}
+
+/// Statistics for Matrix Market I/O operations
+#[derive(Debug, Clone, Default)]
+pub struct IOStats {
+    /// Time taken for I/O operation in milliseconds
+    pub io_time_ms: f64,
+    /// Number of entries processed
+    pub entries_processed: usize,
+    /// Throughput in entries per second
+    pub throughput_eps: f64,
+    /// Memory usage in bytes
+    pub memory_usage_bytes: usize,
 }
 
 impl MMHeader {
@@ -617,6 +658,450 @@ pub fn coo_to_sparse(
     }
 }
 
+/// Read a Matrix Market file in parallel for better performance with large matrices
+///
+/// # Arguments
+///
+/// * `path` - Path to the Matrix Market file
+/// * `config` - Parallel processing configuration
+///
+/// # Returns
+///
+/// * `Result<(MMSparseMatrix<f64>, IOStats)>` - The sparse matrix and I/O statistics
+///
+/// # Examples
+///
+/// ```no_run
+/// use scirs2_io::matrix_market::{read_sparse_matrix_parallel, ParallelConfig};
+///
+/// let config = ParallelConfig::default();
+/// let (matrix, stats) = read_sparse_matrix_parallel("large_matrix.mtx", config).unwrap();
+/// println!("Read {} entries in {:.2}ms", stats.entries_processed, stats.io_time_ms);
+/// ```
+pub fn read_sparse_matrix_parallel<P: AsRef<Path>>(
+    path: P,
+    config: ParallelConfig,
+) -> Result<(MMSparseMatrix<f64>, IOStats)> {
+    let start_time = std::time::Instant::now();
+    let mut stats = IOStats::default();
+
+    let file = File::open(&path).map_err(|e| IoError::FileError(e.to_string()))?;
+    let mut reader = BufReader::new(file);
+
+    // Read header sequentially (always small)
+    let mut header_line = String::new();
+    reader
+        .read_line(&mut header_line)
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
+    let mut header = MMHeader::parse_header(&header_line)?;
+
+    // Read comments sequentially
+    let mut line = String::new();
+    let size_line;
+    loop {
+        line.clear();
+        let bytes_read = reader
+            .read_line(&mut line)
+            .map_err(|e| IoError::FileError(e.to_string()))?;
+
+        if bytes_read == 0 {
+            return Err(IoError::FormatError("Unexpected end of file".to_string()));
+        }
+
+        if line.starts_with('%') {
+            header
+                .comments
+                .push(line.strip_prefix('%').unwrap().trim().to_string());
+        } else {
+            size_line = line.clone();
+            break;
+        }
+    }
+
+    // Parse size information
+    let size_parts: Vec<&str> = size_line.split_whitespace().collect();
+    if size_parts.len() < 2 {
+        return Err(IoError::FormatError("Invalid size line format".to_string()));
+    }
+
+    let rows = size_parts[0]
+        .parse::<usize>()
+        .map_err(|_| IoError::FormatError("Invalid row count".to_string()))?;
+    let cols = size_parts[1]
+        .parse::<usize>()
+        .map_err(|_| IoError::FormatError("Invalid column count".to_string()))?;
+    let nnz = if size_parts.len() > 2 {
+        size_parts[2]
+            .parse::<usize>()
+            .map_err(|_| IoError::FormatError("Invalid nnz count".to_string()))?
+    } else {
+        rows * cols
+    };
+
+    if header.format != MMFormat::Coordinate {
+        return Err(IoError::FormatError(
+            "Only coordinate format is supported for sparse matrices".to_string(),
+        ));
+    }
+
+    // For small matrices, use sequential reading
+    if nnz <= config.chunk_size {
+        let mut entries = Vec::with_capacity(nnz);
+
+        for line in reader.lines() {
+            let line = line.map_err(|e| IoError::FileError(e.to_string()))?;
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            let entry = parse_matrix_entry(line, &header)?;
+            entries.push(entry);
+        }
+
+        stats.entries_processed = entries.len();
+        stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+        stats.throughput_eps = if stats.io_time_ms > 0.0 {
+            stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
+        } else {
+            0.0
+        };
+        stats.memory_usage_bytes = std::mem::size_of::<SparseEntry<f64>>() * entries.len();
+
+        return Ok((
+            MMSparseMatrix {
+                header,
+                rows,
+                cols,
+                nnz,
+                entries,
+            },
+            stats,
+        ));
+    }
+
+    // Parallel reading for large matrices
+    // Read all lines into memory first (for parallel processing)
+    let lines: Vec<String> = reader
+        .lines()
+        .collect::<std::io::Result<Vec<_>>>()
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
+    let non_empty_lines: Vec<&str> = lines
+        .iter()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    // Process lines in parallel chunks
+    let entries = Arc::new(Mutex::new(Vec::with_capacity(nnz)));
+    let chunk_size = config
+        .chunk_size
+        .min(non_empty_lines.len() / config.num_threads + 1);
+
+    let mut handles = Vec::new();
+
+    for chunk in non_empty_lines.chunks(chunk_size) {
+        let chunk_lines: Vec<String> = chunk.iter().map(|&s| s.to_string()).collect();
+        let entries_clone = Arc::clone(&entries);
+        let header_clone = header.clone();
+
+        let handle = thread::spawn(move || -> Result<()> {
+            let mut local_entries = Vec::new();
+
+            for line in chunk_lines {
+                let entry = parse_matrix_entry(&line, &header_clone)?;
+                local_entries.push(entry);
+            }
+
+            // Lock and append to shared vector
+            let mut shared_entries = entries_clone.lock().unwrap();
+            shared_entries.extend(local_entries);
+
+            Ok(())
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all threads to complete
+    for handle in handles {
+        handle
+            .join()
+            .map_err(|_| IoError::FormatError("Thread join failed".to_string()))??;
+    }
+
+    let final_entries = Arc::try_unwrap(entries)
+        .map_err(|_| IoError::FormatError("Failed to unwrap entries".to_string()))?
+        .into_inner()
+        .unwrap();
+
+    stats.entries_processed = final_entries.len();
+    stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+    stats.throughput_eps = if stats.io_time_ms > 0.0 {
+        stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
+    } else {
+        0.0
+    };
+    stats.memory_usage_bytes = std::mem::size_of::<SparseEntry<f64>>() * final_entries.len();
+
+    Ok((
+        MMSparseMatrix {
+            header,
+            rows,
+            cols,
+            nnz,
+            entries: final_entries,
+        },
+        stats,
+    ))
+}
+
+/// Parse a single matrix entry line
+fn parse_matrix_entry(line: &str, header: &MMHeader) -> Result<SparseEntry<f64>> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 2 {
+        return Err(IoError::FormatError("Invalid entry format".to_string()));
+    }
+
+    let row = parts[0]
+        .parse::<usize>()
+        .map_err(|_| IoError::FormatError("Invalid row index".to_string()))?
+        - 1; // Convert to 0-based
+    let col = parts[1]
+        .parse::<usize>()
+        .map_err(|_| IoError::FormatError("Invalid column index".to_string()))?
+        - 1; // Convert to 0-based
+
+    let value = if header.data_type == MMDataType::Pattern {
+        1.0 // Pattern matrices have implicit value of 1
+    } else if parts.len() > 2 {
+        parts[2]
+            .parse::<f64>()
+            .map_err(|_| IoError::FormatError("Invalid value".to_string()))?
+    } else {
+        return Err(IoError::FormatError(
+            "Missing value for non-pattern matrix".to_string(),
+        ));
+    };
+
+    Ok(SparseEntry { row, col, value })
+}
+
+/// Write a sparse matrix to a Matrix Market file in parallel
+///
+/// # Arguments
+///
+/// * `path` - Path to the output Matrix Market file
+/// * `matrix` - The sparse matrix to write
+/// * `config` - Parallel processing configuration
+///
+/// # Returns
+///
+/// * `Result<IOStats>` - I/O statistics
+///
+/// # Examples
+///
+/// ```no_run
+/// use scirs2_io::matrix_market::{write_sparse_matrix_parallel, MMSparseMatrix, ParallelConfig};
+/// # use scirs2_io::matrix_market::{MMHeader, MMFormat, MMDataType, MMSymmetry, SparseEntry};
+///
+/// # let header = MMHeader {
+/// #     object: "matrix".to_string(),
+/// #     format: MMFormat::Coordinate,
+/// #     data_type: MMDataType::Real,
+/// #     symmetry: MMSymmetry::General,
+/// #     comments: Vec::new(),
+/// # };
+/// # let matrix = MMSparseMatrix {
+/// #     header,
+/// #     rows: 2,
+/// #     cols: 2,
+/// #     nnz: 2,
+/// #     entries: vec![
+/// #         SparseEntry { row: 0, col: 0, value: 1.0 },
+/// #         SparseEntry { row: 1, col: 1, value: 2.0 },
+/// #     ],
+/// # };
+/// let config = ParallelConfig::default();
+/// let stats = write_sparse_matrix_parallel("output.mtx", &matrix, config).unwrap();
+/// println!("Wrote {} entries in {:.2}ms", stats.entries_processed, stats.io_time_ms);
+/// ```
+pub fn write_sparse_matrix_parallel<P: AsRef<Path>>(
+    path: P,
+    matrix: &MMSparseMatrix<f64>,
+    config: ParallelConfig,
+) -> Result<IOStats> {
+    let start_time = std::time::Instant::now();
+    let mut stats = IOStats::default();
+
+    let file = File::create(&path).map_err(|e| IoError::FileError(e.to_string()))?;
+    let mut writer = BufWriter::with_capacity(config.buffer_size, file);
+
+    // Write header and metadata sequentially
+    writeln!(writer, "{}", matrix.header.to_header_line())
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
+    for comment in &matrix.header.comments {
+        writeln!(writer, "%{}", comment).map_err(|e| IoError::FileError(e.to_string()))?;
+    }
+
+    writeln!(writer, "{} {} {}", matrix.rows, matrix.cols, matrix.nnz)
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
+    // For small matrices, write sequentially
+    if matrix.entries.len() <= config.chunk_size {
+        for entry in &matrix.entries {
+            write_matrix_entry(&mut writer, entry, &matrix.header)?;
+        }
+    } else {
+        // For large matrices, format entries in parallel then write sequentially
+        let chunk_size = config
+            .chunk_size
+            .min(matrix.entries.len() / config.num_threads + 1);
+        let chunks: Vec<&[SparseEntry<f64>]> = matrix.entries.chunks(chunk_size).collect();
+
+        let formatted_chunks = Arc::new(Mutex::new(Vec::new()));
+        let mut handles = Vec::new();
+
+        for (chunk_idx, chunk) in chunks.iter().enumerate() {
+            let chunk_entries = chunk.to_vec();
+            let header_clone = matrix.header.clone();
+            let formatted_chunks_clone = Arc::clone(&formatted_chunks);
+
+            let handle = thread::spawn(move || -> Result<()> {
+                let mut local_lines = Vec::new();
+
+                for entry in &chunk_entries {
+                    let line = format_matrix_entry(entry, &header_clone);
+                    local_lines.push(line);
+                }
+
+                let mut shared_chunks = formatted_chunks_clone.lock().unwrap();
+                shared_chunks.push((chunk_idx, local_lines));
+
+                Ok(())
+            });
+
+            handles.push(handle);
+        }
+
+        // Wait for all formatting to complete
+        for handle in handles {
+            handle
+                .join()
+                .map_err(|_| IoError::FormatError("Thread join failed".to_string()))??;
+        }
+
+        // Sort chunks by index and write sequentially
+        let mut all_formatted = Arc::try_unwrap(formatted_chunks)
+            .map_err(|_| IoError::FormatError("Failed to unwrap formatted chunks".to_string()))?
+            .into_inner()
+            .unwrap();
+
+        all_formatted.sort_by_key(|&(idx, _)| idx);
+
+        for (_, lines) in all_formatted {
+            for line in lines {
+                writeln!(writer, "{}", line).map_err(|e| IoError::FileError(e.to_string()))?;
+            }
+        }
+    }
+
+    writer
+        .flush()
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+
+    stats.entries_processed = matrix.entries.len();
+    stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+    stats.throughput_eps = if stats.io_time_ms > 0.0 {
+        stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
+    } else {
+        0.0
+    };
+    stats.memory_usage_bytes = std::mem::size_of::<SparseEntry<f64>>() * matrix.entries.len();
+
+    Ok(stats)
+}
+
+/// Write a single matrix entry to the writer
+fn write_matrix_entry<W: Write>(
+    writer: &mut W,
+    entry: &SparseEntry<f64>,
+    header: &MMHeader,
+) -> Result<()> {
+    if header.data_type == MMDataType::Pattern {
+        writeln!(writer, "{} {}", entry.row + 1, entry.col + 1)
+            .map_err(|e| IoError::FileError(e.to_string()))?;
+    } else {
+        writeln!(
+            writer,
+            "{} {} {}",
+            entry.row + 1,
+            entry.col + 1,
+            entry.value
+        )
+        .map_err(|e| IoError::FileError(e.to_string()))?;
+    }
+    Ok(())
+}
+
+/// Format a single matrix entry as a string
+fn format_matrix_entry(entry: &SparseEntry<f64>, header: &MMHeader) -> String {
+    if header.data_type == MMDataType::Pattern {
+        format!("{} {}", entry.row + 1, entry.col + 1)
+    } else {
+        format!("{} {} {}", entry.row + 1, entry.col + 1, entry.value)
+    }
+}
+
+/// Create optimal parallel configuration based on matrix size
+///
+/// # Arguments
+///
+/// * `nnz` - Number of non-zero entries
+/// * `available_memory` - Available memory in bytes (optional)
+///
+/// # Returns
+///
+/// * `ParallelConfig` - Optimized configuration
+pub fn create_optimal_parallel_config(
+    nnz: usize,
+    available_memory: Option<usize>,
+) -> ParallelConfig {
+    let mut config = ParallelConfig::default();
+
+    // Adjust chunk size based on matrix size
+    if nnz < 10_000 {
+        // Small matrices - use sequential processing
+        config.num_threads = 1;
+        config.chunk_size = nnz;
+    } else if nnz < 1_000_000 {
+        // Medium matrices
+        config.chunk_size = 50_000;
+    } else {
+        // Large matrices
+        config.chunk_size = 200_000;
+        config.use_memory_mapping = true;
+    }
+
+    // Adjust based on available memory
+    if let Some(memory) = available_memory {
+        let entry_size = std::mem::size_of::<SparseEntry<f64>>();
+        let max_entries_in_memory = memory / (entry_size * 4); // Use 25% of available memory
+
+        if nnz > max_entries_in_memory {
+            config.chunk_size = config
+                .chunk_size
+                .min(max_entries_in_memory / config.num_threads);
+            config.use_memory_mapping = true;
+        }
+    }
+
+    config
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -729,5 +1214,103 @@ mod tests {
         assert_eq!(rows[1], 1);
         assert_eq!(cols[1], 1);
         assert_eq!(values[1], 2.0);
+    }
+
+    #[test]
+    fn test_parallel_config_default() {
+        let config = ParallelConfig::default();
+        assert!(config.num_threads > 0);
+        assert!(config.chunk_size > 0);
+        assert!(config.buffer_size > 0);
+    }
+
+    #[test]
+    fn test_optimal_parallel_config() {
+        // Small matrix
+        let config = create_optimal_parallel_config(5000, None);
+        assert_eq!(config.num_threads, 1);
+        assert_eq!(config.chunk_size, 5000);
+
+        // Medium matrix
+        let config = create_optimal_parallel_config(500_000, None);
+        assert!(config.num_threads > 1);
+        assert_eq!(config.chunk_size, 50_000);
+
+        // Large matrix
+        let config = create_optimal_parallel_config(5_000_000, None);
+        assert!(config.num_threads > 1);
+        assert_eq!(config.chunk_size, 200_000);
+        assert!(config.use_memory_mapping);
+
+        // Memory constrained
+        let config = create_optimal_parallel_config(1_000_000, Some(100_000)); // 100KB memory
+        assert!(config.use_memory_mapping);
+        assert!(config.chunk_size < 1_000_000);
+    }
+
+    #[test]
+    fn test_parse_matrix_entry() {
+        let header = MMHeader {
+            object: "matrix".to_string(),
+            format: MMFormat::Coordinate,
+            data_type: MMDataType::Real,
+            symmetry: MMSymmetry::General,
+            comments: Vec::new(),
+        };
+
+        // Test normal entry
+        let entry = parse_matrix_entry("1 2 3.14", &header).unwrap();
+        assert_eq!(entry.row, 0); // 0-based
+        assert_eq!(entry.col, 1); // 0-based
+        assert!((entry.value - 3.14).abs() < 1e-10);
+
+        // Test pattern entry
+        let mut pattern_header = header.clone();
+        pattern_header.data_type = MMDataType::Pattern;
+        let entry = parse_matrix_entry("5 10", &pattern_header).unwrap();
+        assert_eq!(entry.row, 4);
+        assert_eq!(entry.col, 9);
+        assert_eq!(entry.value, 1.0);
+    }
+
+    #[test]
+    fn test_format_matrix_entry() {
+        let header = MMHeader {
+            object: "matrix".to_string(),
+            format: MMFormat::Coordinate,
+            data_type: MMDataType::Real,
+            symmetry: MMSymmetry::General,
+            comments: Vec::new(),
+        };
+
+        let entry = SparseEntry {
+            row: 0,
+            col: 1,
+            value: 2.5,
+        };
+
+        let formatted = format_matrix_entry(&entry, &header);
+        assert_eq!(formatted, "1 2 2.5"); // 1-based indexing
+
+        // Test pattern entry
+        let mut pattern_header = header.clone();
+        pattern_header.data_type = MMDataType::Pattern;
+        let formatted = format_matrix_entry(&entry, &pattern_header);
+        assert_eq!(formatted, "1 2");
+    }
+
+    #[test]
+    fn test_io_stats() {
+        let mut stats = IOStats::default();
+        assert_eq!(stats.entries_processed, 0);
+        assert_eq!(stats.io_time_ms, 0.0);
+        assert_eq!(stats.throughput_eps, 0.0);
+        assert_eq!(stats.memory_usage_bytes, 0);
+
+        // Test throughput calculation
+        stats.entries_processed = 1000;
+        stats.io_time_ms = 100.0;
+        stats.throughput_eps = stats.entries_processed as f64 / (stats.io_time_ms / 1000.0);
+        assert_eq!(stats.throughput_eps, 10000.0); // 10k entries per second
     }
 }

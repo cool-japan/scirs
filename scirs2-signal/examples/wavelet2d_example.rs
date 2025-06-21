@@ -91,8 +91,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut thresholded_coeffs = coeffs.clone();
     let threshold = 1.0;
 
-    for level in 0..thresholded_coeffs.len() {
-        threshold_coefficients(&mut thresholded_coeffs[level], threshold);
+    for level_coeffs in &mut thresholded_coeffs {
+        threshold_coefficients(level_coeffs, threshold);
     }
 
     // Count non-zero coefficients before and after thresholding

@@ -103,7 +103,7 @@ fn main() -> scirs2_linalg::error::LinalgResult<()> {
     }
 
     // Reconstruct and check error
-    let reconstructed_comp = compressed.to_full()?;
+    let _reconstructed_comp = compressed.to_full()?;
     let error_comp = compressed.reconstruction_error(&tensor.view())?;
 
     println!("Reconstruction error: {:.10e}", error_comp);

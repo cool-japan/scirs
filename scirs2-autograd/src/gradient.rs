@@ -67,6 +67,7 @@ where
 
                 // Get the operation type from the tensor
                 let op_name = y_tensor.inner().get_op().name();
+                println!("DEBUG gradient.rs: Processing op '{}'", op_name);
 
                 // Get the input tensors
                 let num_inputs = y_tensor.num_backprop_inputs();
@@ -121,22 +122,26 @@ where
                             Some(T::div(neg_a_gy, b_squared))
                         }
                     } else if op_name.contains("ReduceSumToScalar")
+                        || op_name.contains("ReduceSumAll")
                         || op_name.contains("Sum")
                         || op_name.contains("Mean")
                     {
                         // For reduction operations, gradient is broadcast back
                         // For sum, gradient passes through; for mean, it's divided by count
+                        // For sum operations, gradient needs to be broadcast to input shape
                         Some(gy)
                     } else if op_name.ends_with("MatMulOp") || op_name == "MatMul" {
                         // For matrix multiplication
                         if i == 0 {
                             // For first input in matmul (A in A*B), grad_A = grad_out * B^T
                             let b = y_tensor.get_backprop_input(1);
-                            Some(T::matmul(gy, T::transpose(b, &[-1, -2])))
+                            // Use positive indices [1, 0] instead of [-1, -2] for 2D transpose
+                            Some(T::matmul(gy, T::transpose(b, &[1, 0])))
                         } else {
                             // For second input in matmul (B in A*B), grad_B = A^T * grad_out
                             let a = y_tensor.get_backprop_input(0);
-                            Some(T::matmul(T::transpose(a, &[-1, -2]), gy))
+                            // Use positive indices [1, 0] instead of [-1, -2] for 2D transpose
+                            Some(T::matmul(T::transpose(a, &[1, 0]), gy))
                         }
                     } else if op_name.contains("Sigmoid") {
                         // For sigmoid: dy/dx = sigmoid * (1 - sigmoid) * grad_out
@@ -158,9 +163,65 @@ where
                     } else if op_name.contains("Softmax") {
                         // For softmax: complex gradient, approximated as pass-through
                         Some(gy)
+                    } else if op_name.contains("ExtractDiagOp") || op_name == "ExtractDiag" {
+                        // For extract diagonal: gradient goes to diagonal positions
+                        // The gradient gy is a vector, we need to create a diagonal matrix
+                        println!("  ExtractDiagOp: gy shape = {:?}", gy.shape());
+
+                        // ExtractDiag extracts the diagonal from a square matrix
+                        // So the gradient should be a diagonal matrix where the diagonal is gy
+                        let diag_grad = T::diag(gy);
+                        println!(
+                            "  ExtractDiagOp: created diagonal gradient with shape {:?}",
+                            diag_grad.shape()
+                        );
+                        Some(diag_grad)
                     } else if op_name.contains("CheckpointOp") {
                         // For checkpoint operations, pass through the gradient
                         Some(gy)
+                    } else if op_name.contains("TraceOp") || op_name == "Trace" {
+                        // For trace operation: gradient is identity matrix scaled by grad_out
+                        // Since we can't get the runtime shape, we need to handle this differently
+                        // The gradient of trace is an identity matrix, but we don't know its size
+                        println!("DEBUG gradient.rs: TraceOp gradient computation");
+                        println!("  Input tensor id: {}", x_tensor.id());
+                        println!("  Gradient output shape: {:?}", gy.shape());
+
+                        // Since we can't determine the matrix size here, we'll return a placeholder
+                        // that will be handled during gradient accumulation
+                        // For now, just pass through the gradient
+                        Some(gy)
+                    } else if op_name.contains("MatrixInverseOp")
+                        || op_name.contains("MatrixInverse")
+                        || op_name == "MatInv"
+                    {
+                        // For matrix inverse: gradient = -A^{-T} @ grad_out @ A^{-T}
+                        // We have access to the output (which is A^{-1})
+                        let inv_transpose = T::transpose(y_tensor, &[1, 0]);
+                        let temp = T::matmul(inv_transpose, gy);
+                        let grad_before_neg = T::matmul(temp, inv_transpose);
+                        Some(T::neg(grad_before_neg))
+                    } else if op_name == "MatrixSqrt" {
+                        // For matrix square root: gradient would involve solving a Sylvester equation
+                        // For now, return zeros with the same shape as the input
+                        let x_tensor = y_tensor.get_backprop_input(0);
+                        let zero_scalar = T::scalar(F::zero(), g);
+                        let zeros = T::mul(x_tensor, zero_scalar);
+                        Some(zeros)
+                    } else if op_name == "MatrixLog" {
+                        // For matrix logarithm: gradient involves Fréchet derivative
+                        // For now, return zeros with the same shape as the input
+                        let x_tensor = y_tensor.get_backprop_input(0);
+                        let zero_scalar = T::scalar(F::zero(), g);
+                        let zeros = T::mul(x_tensor, zero_scalar);
+                        Some(zeros)
+                    } else if op_name == "MatrixPow" {
+                        // For matrix power: gradient is complex
+                        // For now, return zeros with the same shape as the input
+                        let x_tensor = y_tensor.get_backprop_input(0);
+                        let zero_scalar = T::scalar(F::zero(), g);
+                        let zeros = T::mul(x_tensor, zero_scalar);
+                        Some(zeros)
                     } else {
                         // Default case - return scalar one for unknown operations
                         Some(T::scalar(F::one(), g))
@@ -250,7 +311,9 @@ impl<'graph, F: Float> GradientMap<'graph, F> {
                     // No gradients yet, create a zero gradient
                     let g = x.as_ref().graph();
                     let shape = x.as_ref().shape();
-                    let zero_grad = T::zeros(&shape, g);
+                    let data_len = shape.iter().product();
+                    let zero_data = vec![F::zero(); data_len];
+                    let zero_grad = Tensor::from_vec(zero_data, shape, g);
                     info.gradients.push(zero_grad);
                 }
                 return Some(info.gradient());

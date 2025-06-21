@@ -43,6 +43,53 @@ pub struct VariogramBin<F: Float> {
 }
 
 /// Compute empirical variogram from data
+///
+/// This function computes the empirical variogram which describes how the variance
+/// between sample points increases with distance. The variogram is fundamental for
+/// understanding spatial correlation structure.
+///
+/// # Arguments
+///
+/// * `points` - Spatial coordinates of data points (n_points × n_dimensions)
+/// * `values` - Values at each data point (n_points)
+/// * `n_bins` - Number of distance bins to use for the variogram
+/// * `max_distance` - Maximum distance to consider (if None, uses dataset extent)
+///
+/// # Returns
+///
+/// A vector of `VariogramBin` structs containing distance and semivariance values
+///
+/// # Example
+///
+/// ```
+/// use ndarray::{Array1, Array2};
+/// use scirs2_interpolate::advanced::fast_kriging::variogram::compute_empirical_variogram;
+///
+/// // Create a simple 2D dataset
+/// let points = Array2::from_shape_vec((5, 2), vec![
+///     0.0, 0.0,
+///     1.0, 0.0, 
+///     0.0, 1.0,
+///     1.0, 1.0,
+///     0.5, 0.5,
+/// ]).unwrap();
+///
+/// let values = Array1::from_vec(vec![1.0, 2.0, 2.0, 4.0, 2.5]);
+///
+/// // Compute empirical variogram with 10 bins
+/// let variogram_bins = compute_empirical_variogram(
+///     &points.view(),
+///     &values.view(),
+///     10,
+///     None
+/// ).unwrap();
+///
+/// // Each bin contains distance, semivariance, and count
+/// for bin in &variogram_bins {
+///     println!("Distance: {:.2}, Semivariance: {:.3}, Count: {}",
+///              bin.distance, bin.semivariance, bin.count);
+/// }
+/// ```
 pub fn compute_empirical_variogram<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -155,6 +202,56 @@ where
 }
 
 /// Fit a variogram model to empirical data
+///
+/// This function fits a theoretical variogram model to empirical variogram data
+/// using least squares estimation. The fitted model can then be used for kriging
+/// interpolation.
+///
+/// # Arguments
+///
+/// * `bins` - Empirical variogram bins from `compute_empirical_variogram`
+/// * `model` - Type of variogram model to fit
+///
+/// # Returns
+///
+/// A tuple containing (nugget, sill, range) parameters for the fitted model
+///
+/// # Example
+///
+/// ```
+/// use ndarray::{Array1, Array2};
+/// use scirs2_interpolate::advanced::fast_kriging::variogram::{
+///     compute_empirical_variogram, fit_variogram_model, VariogramModel
+/// };
+///
+/// // Create sample data
+/// let points = Array2::from_shape_vec((10, 2), vec![
+///     0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0,
+///     0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0,
+/// ]).unwrap();
+///
+/// let values = Array1::from_vec(vec![
+///     1.0, 1.2, 1.8, 2.1, 2.5,
+///     1.1, 1.4, 1.9, 2.2, 2.6,
+/// ]);
+///
+/// // Compute empirical variogram
+/// let bins = compute_empirical_variogram(
+///     &points.view(),
+///     &values.view(),
+///     8,
+///     None
+/// ).unwrap();
+///
+/// // Fit spherical variogram model
+/// let (nugget, sill, range) = fit_variogram_model(
+///     &bins,
+///     VariogramModel::Spherical
+/// ).unwrap();
+///
+/// println!("Fitted parameters: nugget={:.3}, sill={:.3}, range={:.3}",
+///          nugget, sill, range);
+/// ```
 pub fn fit_variogram_model<F>(
     bins: &[VariogramBin<F>],
     model: VariogramModel,

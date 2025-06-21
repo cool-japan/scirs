@@ -315,19 +315,170 @@ where
 
 /// Computes Hessian using 3-point finite differences (more accurate but more expensive)
 fn compute_hessian_3point<F>(
-    _func: F,
-    _x: &ArrayView1<f64>,
-    _sparsity: &CsrArray<f64>,
-    _options: &SparseFiniteDiffOptions,
+    func: F,
+    x: &ArrayView1<f64>,
+    sparsity: &CsrArray<f64>,
+    options: &SparseFiniteDiffOptions,
 ) -> Result<CsrArray<f64>, OptimizeError>
 where
     F: Fn(&ArrayView1<f64>) -> f64 + Sync,
 {
-    // This is a placeholder implementation that would need to be expanded
-    // with the full 3-point algorithm. For now, we just return an error.
-    Err(OptimizeError::NotImplementedError(
-        "3-point method for Hessian computation is not yet fully implemented".to_string(),
-    ))
+    let n = x.len();
+
+    // Determine column groups using a graph coloring algorithm
+    let groups = determine_column_groups(sparsity, None, None)?;
+
+    // Compute step sizes
+    let h = compute_step_sizes(x, options);
+
+    // Create result matrix with the same sparsity pattern as the upper triangle
+    let (rows, cols, _) = sparsity.find();
+    let (m, n_cols) = sparsity.shape();
+    let zeros = vec![0.0; rows.len()];
+    let mut hess =
+        CsrArray::from_triplets(&rows.to_vec(), &cols.to_vec(), &zeros, (m, n_cols), false)?;
+
+    // Create a mutable copy of x for perturbing
+    let mut x_perturbed = x.to_owned();
+
+    // Choose between parallel and serial execution
+    let parallel = options
+        .parallel
+        .as_ref()
+        .map(|p| p.num_workers.unwrap_or(1) > 1)
+        .unwrap_or(false);
+
+    // Compute diagonal elements using 3-point formula
+    let diag_evals: Vec<(f64, f64)> = if parallel {
+        (0..n)
+            .into_par_iter()
+            .map(|i| {
+                let mut x_local = x.to_owned();
+                x_local[i] += h[i];
+                let f_plus = func(&x_local.view());
+
+                x_local[i] = x[i] - h[i];
+                let f_minus = func(&x_local.view());
+
+                (f_plus, f_minus)
+            })
+            .collect()
+    } else {
+        let mut diag_vals = vec![(0.0, 0.0); n];
+        for i in 0..n {
+            x_perturbed[i] += h[i];
+            let f_plus = func(&x_perturbed.view());
+
+            x_perturbed[i] = x[i] - h[i];
+            let f_minus = func(&x_perturbed.view());
+
+            diag_vals[i] = (f_plus, f_minus);
+            x_perturbed[i] = x[i];
+        }
+        diag_vals
+    };
+
+    // Function value at x
+    let f0 = func(x);
+
+    // Set diagonal elements using 3-point central difference
+    for i in 0..n {
+        let (f_plus, f_minus) = diag_evals[i];
+        let d2f_dxi2 = (f_plus - 2.0 * f0 + f_minus) / (h[i] * h[i]);
+        update_sparse_value(&mut hess, i, i, d2f_dxi2);
+    }
+
+    // Compute off-diagonal elements using 3-point mixed derivatives
+    if parallel {
+        let derivatives: Vec<(usize, usize, f64)> = groups
+            .par_iter()
+            .flat_map(|group| {
+                let mut derivatives = Vec::new();
+                let mut x_local = x.to_owned();
+
+                for &j in group {
+                    // Only compute upper triangle
+                    for i in 0..j {
+                        if exists_in_sparsity(&hess, i, j) {
+                            // f(x + h_i*e_i + h_j*e_j)
+                            x_local[i] += h[i];
+                            x_local[j] += h[j];
+                            let f_pp = func(&x_local.view());
+
+                            // f(x + h_i*e_i - h_j*e_j)
+                            x_local[j] = x[j] - h[j];
+                            let f_pm = func(&x_local.view());
+
+                            // f(x - h_i*e_i + h_j*e_j)
+                            x_local[i] = x[i] - h[i];
+                            x_local[j] = x[j] + h[j];
+                            let f_mp = func(&x_local.view());
+
+                            // f(x - h_i*e_i - h_j*e_j)
+                            x_local[j] = x[j] - h[j];
+                            let f_mm = func(&x_local.view());
+
+                            // Mixed partial derivative using 3-point formula
+                            let d2f_dxidxj = (f_pp - f_pm - f_mp + f_mm) / (4.0 * h[i] * h[j]);
+
+                            derivatives.push((i, j, d2f_dxidxj));
+
+                            // Reset
+                            x_local[i] = x[i];
+                            x_local[j] = x[j];
+                        }
+                    }
+                }
+
+                derivatives
+            })
+            .collect();
+
+        // Apply all derivatives
+        for (i, j, d2f_dxidxj) in derivatives {
+            if hess.set(i, j, d2f_dxidxj).is_err() {
+                // If this fails, just silently continue
+            }
+        }
+    } else {
+        for group in &groups {
+            for &j in group {
+                // Only compute upper triangle
+                for i in 0..j {
+                    if exists_in_sparsity(&hess, i, j) {
+                        // f(x + h_i*e_i + h_j*e_j)
+                        x_perturbed[i] += h[i];
+                        x_perturbed[j] += h[j];
+                        let f_pp = func(&x_perturbed.view());
+
+                        // f(x + h_i*e_i - h_j*e_j)
+                        x_perturbed[j] = x[j] - h[j];
+                        let f_pm = func(&x_perturbed.view());
+
+                        // f(x - h_i*e_i + h_j*e_j)
+                        x_perturbed[i] = x[i] - h[i];
+                        x_perturbed[j] = x[j] + h[j];
+                        let f_mp = func(&x_perturbed.view());
+
+                        // f(x - h_i*e_i - h_j*e_j)
+                        x_perturbed[j] = x[j] - h[j];
+                        let f_mm = func(&x_perturbed.view());
+
+                        // Mixed partial derivative using 3-point formula
+                        let d2f_dxidxj = (f_pp - f_pm - f_mp + f_mm) / (4.0 * h[i] * h[j]);
+
+                        update_sparse_value(&mut hess, i, j, d2f_dxidxj);
+
+                        // Reset
+                        x_perturbed[i] = x[i];
+                        x_perturbed[j] = x[j];
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(hess)
 }
 
 /// Computes Hessian using the complex step method (highly accurate)

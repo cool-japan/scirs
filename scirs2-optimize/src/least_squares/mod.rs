@@ -4,6 +4,7 @@ pub mod bounded;
 pub mod main;
 pub mod robust;
 pub mod separable;
+pub mod sparse;
 pub mod total;
 pub mod weighted;
 
@@ -27,4 +28,9 @@ pub use separable::{separable_least_squares, LinearSolver, SeparableOptions, Sep
 // Re-export total least squares functionality
 pub use total::{
     total_least_squares, TLSMethod, TotalLeastSquaresOptions, TotalLeastSquaresResult,
+};
+
+// Re-export sparse least squares functionality
+pub use sparse::{
+    lsqr, sparse_least_squares, SparseInfo, SparseMatrix, SparseOptions, SparseResult,
 };

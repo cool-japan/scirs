@@ -595,44 +595,6 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ndarray::array;
-
-    #[test]
-    fn test_residual_diagnostics() {
-        let residuals = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2];
-        let result = residual_diagnostics(&residuals, None, 0.05);
-        assert!(result.is_ok());
-
-        let diag = result.unwrap();
-        assert!(diag.mean.abs() < 0.1);
-        assert!(diag.std_dev > 0.0);
-    }
-
-    #[test]
-    fn test_ljung_box() {
-        let residuals = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2];
-        let result = ljung_box_test(&residuals, 3, 0.05);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_fit_statistics() {
-        let actual = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let predicted = array![1.1, 2.1, 2.9, 3.9, 5.1];
-
-        let result = calculate_fit_statistics(&actual, &predicted, Some(2));
-        assert!(result.is_ok());
-
-        let stats = result.unwrap();
-        assert!(stats.mae > 0.0);
-        assert!(stats.rmse > 0.0);
-        assert!(stats.r2 > 0.9);
-    }
-}
-
 /// Simple matrix solve using Gaussian elimination
 fn matrix_solve<F>(a: &ndarray::Array2<F>, b: &Array1<F>) -> Result<Array1<F>>
 where
@@ -699,4 +661,42 @@ where
     }
 
     Ok(x)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn test_residual_diagnostics() {
+        let residuals = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2];
+        let result = residual_diagnostics(&residuals, None, 0.05);
+        assert!(result.is_ok());
+
+        let diag = result.unwrap();
+        assert!(diag.mean.abs() < 0.1);
+        assert!(diag.std_dev > 0.0);
+    }
+
+    #[test]
+    fn test_ljung_box() {
+        let residuals = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2];
+        let result = ljung_box_test(&residuals, 3, 0.05);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_fit_statistics() {
+        let actual = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        let predicted = array![1.1, 2.1, 2.9, 3.9, 5.1];
+
+        let result = calculate_fit_statistics(&actual, &predicted, Some(2));
+        assert!(result.is_ok());
+
+        let stats = result.unwrap();
+        assert!(stats.mae > 0.0);
+        assert!(stats.rmse > 0.0);
+        assert!(stats.r2 > 0.9);
+    }
 }

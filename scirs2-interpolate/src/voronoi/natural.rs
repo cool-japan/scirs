@@ -286,7 +286,7 @@ impl<
 /// # Returns
 /// A new Natural Neighbor interpolator
 pub fn make_natural_neighbor_interpolator<
-    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::Ord,
+    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static + std::cmp::PartialOrd,
 >(
     points: Array2<F>,
     values: Array1<F>,

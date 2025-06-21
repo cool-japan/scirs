@@ -117,12 +117,15 @@ fn analyze_with_standard_wvd(signal: &Array1<f64>) -> (Array2<f64>, Array1<f64>,
     (wvd, t_axis, f_axis)
 }
 
+/// Type alias for complex analysis result to reduce type complexity
+type AnalysisResult = Result<(Array2<f64>, Vec<Vec<(usize, f64)>>), Box<dyn std::error::Error>>;
+
 /// Analyze a signal with the Smoothed Pseudo Wigner-Ville Distribution
 fn analyze_with_smoothed_wvd(
     signal: &Array1<f64>,
     _t_axis: &Array1<f64>,
     f_axis: &Array1<f64>,
-) -> Result<(Array2<f64>, Vec<Vec<(usize, f64)>>), Box<dyn std::error::Error>> {
+) -> AnalysisResult {
     // Create windows for time and frequency smoothing
     let time_window_size = 51;
     let freq_window_size = 101;
@@ -319,7 +322,8 @@ fn save_matrix_to_csv(
     t_axis: &Array1<f64>,
     f_axis: &Array1<f64>,
 ) {
-    let mut file = File::create(filename).expect(&format!("Failed to create {}", filename));
+    let mut file =
+        File::create(filename).unwrap_or_else(|_| panic!("Failed to create {}", filename));
 
     // Write header with time values
     write!(file, "frequency").expect("Failed to write header");

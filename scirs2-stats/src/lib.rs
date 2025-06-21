@@ -301,7 +301,7 @@
 //! // Generate a random permutation
 //! let permutation = sampling::permutation(&data.view(), Some(123)).unwrap();
 //! ```
-extern crate openblas_src;
+// BLAS backend linking handled through ndarray-linalg system features
 
 // Export error types
 pub mod error;

@@ -246,6 +246,21 @@ where
     pub fn get_indptr(&self) -> &Array1<usize> {
         &self.indptr
     }
+
+    /// Get the number of rows
+    pub fn nrows(&self) -> usize {
+        self.shape.0
+    }
+
+    /// Get the number of columns  
+    pub fn ncols(&self) -> usize {
+        self.shape.1
+    }
+
+    /// Get the shape (rows, cols)
+    pub fn shape(&self) -> (usize, usize) {
+        self.shape
+    }
 }
 
 impl<T> SparseArray<T> for CsrArray<T>

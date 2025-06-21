@@ -70,7 +70,7 @@ fn main() {
     // Compare with the standard eigenvalue solver for reference
     println!("\nComputing all eigenvalues with standard solver for comparison...");
     let start = std::time::Instant::now();
-    let (all_eigenvalues, _) = eigh(&a.view()).unwrap();
+    let (all_eigenvalues, _) = eigh(&a.view(), None).unwrap();
     let duration = start.elapsed();
 
     println!("5 largest eigenvalues from standard solver:");

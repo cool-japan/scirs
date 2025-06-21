@@ -21,10 +21,12 @@ pub mod error;
 pub use error::{PDEError, PDEResult};
 
 // Submodules for different PDE solution approaches
+pub mod amr;
 pub mod elliptic;
 pub mod finite_difference;
 pub mod finite_element;
 pub mod implicit;
+pub mod mesh_generation;
 pub mod method_of_lines;
 pub mod spectral;
 

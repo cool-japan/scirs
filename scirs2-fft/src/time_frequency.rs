@@ -6,8 +6,8 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
-use crate::window::{self, WindowFunction};
-use ndarray::{Array2, Axis};
+use crate::{window, WindowFunction};
+use ndarray::Array2;
 use num_complex::Complex64;
 use num_traits::NumCast;
 use std::collections::HashMap;
@@ -180,14 +180,15 @@ where
     let padded_size = window_size * config.zero_padding;
 
     // Create window function
-    let window = match config.window_function {
-        WindowFunction::Rectangular => window::rectangular(window_size),
-        WindowFunction::Hann => window::hann(window_size),
-        WindowFunction::Hamming => window::hamming(window_size),
-        WindowFunction::Blackman => window::blackman(window_size),
-        WindowFunction::BlackmanHarris => window::blackman_harris(window_size),
-        _ => window::hamming(window_size), // Default to Hamming for other window types
+    let window_type = match config.window_function {
+        WindowFunction::None => crate::window::Window::Rectangular,
+        WindowFunction::Hann => crate::window::Window::Hann,
+        WindowFunction::Hamming => crate::window::Window::Hamming,
+        WindowFunction::Blackman => crate::window::Window::Blackman,
+        WindowFunction::FlatTop => crate::window::Window::FlatTop,
+        WindowFunction::Kaiser => crate::window::Window::Kaiser(5.0), // Default beta
     };
+    let window = window::get_window(window_type, window_size, true)?;
 
     // Calculate number of frames based on signal length, window size, and hop size
     let num_frames = ((signal.len() - window_size) / hop_size) + 1;
@@ -240,9 +241,9 @@ where
 
         // Copy frame and apply window
         for i in 0..window_size {
-            let signal_val = NumCast::from(signal[start + i])
-                .ok_or_else(|| FFTError::ValueError("Conversion error".to_string()))?;
-
+            let signal_val: f64 = NumCast::from(signal[start + i]).ok_or_else(|| {
+                FFTError::ValueError("Failed to convert signal value to f64".to_string())
+            })?;
             windowed_frame.push(Complex64::new(signal_val * window[i], 0.0));
         }
 
@@ -287,17 +288,8 @@ fn compute_cwt<T>(signal: &[T], config: &TFConfig, sample_rate: Option<f64>) -> 
 where
     T: NumCast + Copy + Debug,
 {
-    // Convert signal to f64
-    let signal_f64: Vec<f64> = signal
-        .iter()
-        .map(|&val| {
-            NumCast::from(val)
-                .ok_or_else(|| FFTError::ValueError(format!("Could not convert {:?} to f64", val)))
-        })
-        .collect::<FFTResult<Vec<_>>>()?;
-
     // Signal length
-    let n = signal_f64.len().min(config.max_size);
+    let n = signal.len().min(config.max_size);
 
     // Calculate frequencies (scales)
     let min_freq = config.frequency_range.0;
@@ -331,8 +323,11 @@ where
 
     // Convert signal to complex for FFT
     let mut signal_complex = Vec::with_capacity(n);
-    for &val in signal_f64.iter().take(n) {
-        signal_complex.push(Complex64::new(val, 0.0));
+    for &val in signal.iter().take(n) {
+        let val_f64: f64 = NumCast::from(val).ok_or_else(|| {
+            FFTError::ValueError("Failed to convert signal value to f64".to_string())
+        })?;
+        signal_complex.push(Complex64::new(val_f64, 0.0));
     }
 
     // Compute FFT of signal
@@ -405,7 +400,7 @@ fn create_wavelet_fft(
         let freq = if k <= n / 2 {
             k as f64 / (n as f64 * dt)
         } else {
-            -(n - k) as f64 / (n as f64 * dt)
+            -((n - k) as f64) / (n as f64 * dt)
         };
         freqs.push(freq);
     }
@@ -462,10 +457,9 @@ fn create_wavelet_fft(
                 if norm_freq > 0.0 {
                     // DOG wavelet in frequency domain
                     let exp_term = (-0.5 * norm_freq.powi(2)).exp();
-                    wavelet_fft[k] = Complex64::new(
-                        exp_term * Complex64::i().powi(m) * norm_freq.powi(m) * scale.sqrt(),
-                        0.0,
-                    );
+                    let real_part = exp_term * norm_freq.powi(m) * scale.sqrt();
+                    let complex_part = Complex64::i().powi(m);
+                    wavelet_fft[k] = Complex64::new(real_part, 0.0) * complex_part;
                 }
             }
         }
@@ -475,14 +469,11 @@ fn create_wavelet_fft(
 }
 
 /// Compute reassigned spectrogram
-fn compute_reassigned_spectrogram<T>(
-    signal: &[T],
+fn compute_reassigned_spectrogram(
+    signal: &[f64],
     config: &TFConfig,
     sample_rate: Option<f64>,
-) -> FFTResult<TFResult>
-where
-    T: NumCast + Copy + Debug,
-{
+) -> FFTResult<TFResult> {
     // For simplicity, we'll implement a basic version of the reassigned spectrogram
     // just to demonstrate the concept. A full implementation would be more complex.
 
@@ -568,14 +559,11 @@ where
 }
 
 /// Compute synchrosqueezed wavelet transform
-fn compute_synchrosqueezed_wt<T>(
-    signal: &[T],
+fn compute_synchrosqueezed_wt(
+    signal: &[f64],
     config: &TFConfig,
     sample_rate: Option<f64>,
-) -> FFTResult<TFResult>
-where
-    T: NumCast + Copy + Debug,
-{
+) -> FFTResult<TFResult> {
     // First, compute CWT
     let cwt_result = compute_cwt(signal, config, sample_rate)?;
 
@@ -612,9 +600,9 @@ where
                 .iter()
                 .enumerate()
                 .min_by(|(_, a), (_, b)| {
-                    (a - inst_freq)
+                    (*a - inst_freq)
                         .abs()
-                        .partial_cmp(&(b - inst_freq).abs())
+                        .partial_cmp(&(*b - inst_freq).abs())
                         .unwrap()
                 })
                 .map(|(idx, _)| idx)

@@ -1,5 +1,3 @@
-use ndarray;
-
 fn main() {
     println!("Testing ndarray shapes");
 

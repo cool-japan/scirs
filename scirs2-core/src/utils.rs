@@ -1,6 +1,6 @@
 //! Utility functions for numerical operations
 //!
-//! This module provides common utility functions used throughout SciRS2.
+//! This module provides common utility functions used throughout ``SciRS2``.
 
 use ndarray::{Array, Array1, Array2, ArrayBase, Data, Dimension};
 use num_traits::{Float, FromPrimitive, Num, NumCast};
@@ -18,18 +18,19 @@ use std::fmt::Debug;
 /// # Returns
 ///
 /// * `true` if the values are approximately equal, `false` otherwise
+#[must_use]
 pub fn is_close<F: Float>(a: F, b: F, abs_tol: F, rel_tol: F) -> bool {
     let abs_diff = (a - b).abs();
 
     if abs_diff <= abs_tol {
-        return true;
+        true
+    } else {
+        let abs_a = a.abs();
+        let abs_b = b.abs();
+        let max_abs = if abs_a > abs_b { abs_a } else { abs_b };
+
+        abs_diff <= max_abs * rel_tol
     }
-
-    let abs_a = a.abs();
-    let abs_b = b.abs();
-    let max_abs = if abs_a > abs_b { abs_a } else { abs_b };
-
-    abs_diff <= max_abs * rel_tol
 }
 
 /// Check if two points are equal within a tolerance
@@ -60,6 +61,7 @@ pub fn is_close<F: Float>(a: F, b: F, abs_tol: F, rel_tol: F) -> bool {
 /// assert!(!points_equal(&point1, &point3, None));
 /// assert!(points_equal(&point1, &point3, Some(0.01)));
 /// ```
+#[must_use]
 pub fn points_equal<T>(point1: &[T], point2: &[T], tol: Option<T>) -> bool
 where
     T: PartialOrd + std::ops::Sub<Output = T> + Copy + FromPrimitive,
@@ -73,20 +75,11 @@ where
         },
     };
 
-    if point1.len() != point2.len() {
-        return false;
-    }
-
-    for i in 0..point1.len() {
-        if point1[i] > point2[i] && point1[i] - point2[i] > tol {
-            return false;
-        }
-        if point2[i] > point1[i] && point2[i] - point1[i] > tol {
-            return false;
-        }
-    }
-
-    true
+    point1.len() == point2.len()
+        && point1.iter().zip(point2.iter()).all(|(&a, &b)| {
+            let diff = if a > b { a - b } else { b - a };
+            diff <= tol
+        })
 }
 
 /// Compare arrays within a tolerance
@@ -118,6 +111,7 @@ where
 /// assert!(!arrays_equal(&arr1, &arr3, None));
 /// assert!(arrays_equal(&arr1, &arr3, Some(0.01)));
 /// ```
+#[must_use]
 pub fn arrays_equal<S1, S2, D, T>(
     array1: &ArrayBase<S1, D>,
     array2: &ArrayBase<S2, D>,
@@ -149,6 +143,7 @@ where
 /// # Returns
 ///
 /// * The modified matrix
+#[must_use]
 pub fn fill_diagonal<T: Clone>(mut a: Array2<T>, val: T) -> Array2<T> {
     let min_dim = a.nrows().min(a.ncols());
 
@@ -168,6 +163,7 @@ pub fn fill_diagonal<T: Clone>(mut a: Array2<T>, val: T) -> Array2<T> {
 /// # Returns
 ///
 /// * Product of all elements
+#[must_use]
 pub fn prod<I, T>(iter: I) -> T
 where
     I: IntoIterator<Item = T>,
@@ -187,7 +183,8 @@ where
 /// # Returns
 ///
 /// * Vector of values
-pub fn arange<F: Float + std::iter::Sum>(start: F, stop: F, step: F) -> Vec<F> {
+#[must_use]
+pub fn arange<F: Float + std::iter::Sum>(start: F, end: F, step: F) -> Vec<F> {
     if step == F::zero() {
         panic!("Step size cannot be zero");
     }
@@ -196,12 +193,12 @@ pub fn arange<F: Float + std::iter::Sum>(start: F, stop: F, step: F) -> Vec<F> {
     let mut current = start;
 
     if step > F::zero() {
-        while current < stop {
+        while current < end {
             result.push(current);
             current = current + step;
         }
     } else {
-        while current > stop {
+        while current > end {
             result.push(current);
             current = current + step;
         }
@@ -220,6 +217,7 @@ pub fn arange<F: Float + std::iter::Sum>(start: F, stop: F, step: F) -> Vec<F> {
 /// # Returns
 ///
 /// * `true` if all elements satisfy the predicate, `false` otherwise
+#[must_use]
 pub fn all<I, T, F>(iter: I, predicate: F) -> bool
 where
     I: IntoIterator<Item = T>,
@@ -238,6 +236,7 @@ where
 /// # Returns
 ///
 /// * `true` if any element satisfies the predicate, `false` otherwise
+#[must_use]
 pub fn any<I, T, F>(iter: I, predicate: F) -> bool
 where
     I: IntoIterator<Item = T>,
@@ -260,7 +259,12 @@ where
 /// # Returns
 ///
 /// * Array of linearly spaced values
-pub fn linspace<F: Float + std::iter::Sum>(start: F, end: F, num: usize) -> Array1<F> {
+#[must_use]
+pub fn linspace<F: Float + std::iter::Sum + Send + Sync>(
+    start: F,
+    end: F,
+    num: usize,
+) -> Array1<F> {
     if num < 2 {
         return Array::from_vec(vec![start]);
     }
@@ -269,28 +273,24 @@ pub fn linspace<F: Float + std::iter::Sum>(start: F, end: F, num: usize) -> Arra
     #[cfg(feature = "parallel")]
     {
         if num >= 1000 {
-            // TODO: Re-enable when par_linspace is implemented
-            // use crate::parallel::par_linspace;
+            use rayon::prelude::*;
 
-            // Use numeric conversion for f64 values
-            let start_f64: Option<f64> = NumCast::from(start);
-            let end_f64: Option<f64> = NumCast::from(end);
+            let step = (end - start) / F::from(num - 1).unwrap();
+            let result: Vec<F> = (0..num)
+                .into_par_iter()
+                .map(|i| {
+                    if i == num - 1 {
+                        // Ensure the last value is exactly end
+                        end
+                    } else {
+                        start + step * F::from(i).unwrap()
+                    }
+                })
+                .collect::<Vec<F>>();
 
-            if let (Some(_start_64), Some(_end_64)) = (start_f64, end_f64) {
-                // TODO: Implement par_linspace
-                // let result = par_linspace(start_64, end_64, num);
-                // Convert back to F using safe numeric conversion
-                // let mut result_f = Array1::zeros(result.raw_dim());
-                // for (i, val) in result.iter().enumerate() {
-                //     if let Some(val_f) = NumCast::from(*val) {
-                //         result_f[i] = val_f;
-                //     } else {
-                //         // If conversion fails for any value, fall back to serial implementation
-                //         break;
-                //     }
-                // }
-                // return result_f;
-            }
+            // The parallel collection doesn't guarantee order, but par_iter does preserve order
+            // when collecting, so this should be fine
+            return Array::from_vec(result);
         }
     }
 
@@ -323,7 +323,8 @@ pub fn linspace<F: Float + std::iter::Sum>(start: F, end: F, num: usize) -> Arra
 /// # Returns
 ///
 /// * Array of logarithmically spaced values
-pub fn logspace<F: Float + std::iter::Sum>(
+#[must_use]
+pub fn logspace<F: Float + std::iter::Sum + Send + Sync>(
     start: F,
     end: F,
     num: usize,
@@ -355,6 +356,7 @@ pub fn logspace<F: Float + std::iter::Sum>(
 /// # Panics
 ///
 /// * If the arrays have different shapes
+#[must_use]
 pub fn maximum<S1, S2, D, T>(
     a: &ndarray::ArrayBase<S1, D>,
     b: &ndarray::ArrayBase<S2, D>,
@@ -374,13 +376,21 @@ where
     // Use parallel implementation for larger arrays
     #[cfg(feature = "parallel")]
     {
-        // TODO: Re-enable when par_maximum is implemented
-        // use crate::parallel::par_maximum;
-
-        // Check if array is large enough
         if a.len() > 1000 {
-            // TODO: Implement par_maximum
-            // return par_maximum(a, b);
+            use rayon::prelude::*;
+
+            // Convert to owned arrays for parallel processing
+            let (a_vec, _) = a.to_owned().into_raw_vec_and_offset();
+            let (b_vec, _) = b.to_owned().into_raw_vec_and_offset();
+
+            let result_vec: Vec<T> = a_vec
+                .into_par_iter()
+                .zip(b_vec.into_par_iter())
+                .map(|(a_val, b_val)| if b_val > a_val { b_val } else { a_val })
+                .collect();
+
+            return Array::from_shape_vec(a.raw_dim(), result_vec)
+                .expect("Shape mismatch in parallel maximum");
         }
     }
 
@@ -421,6 +431,7 @@ where
 /// # Panics
 ///
 /// * If the arrays have different shapes
+#[must_use]
 pub fn minimum<S1, S2, D, T>(
     a: &ndarray::ArrayBase<S1, D>,
     b: &ndarray::ArrayBase<S2, D>,
@@ -440,13 +451,21 @@ where
     // Use parallel implementation for larger arrays
     #[cfg(feature = "parallel")]
     {
-        // TODO: Re-enable when par_minimum is implemented
-        // use crate::parallel::par_minimum;
-
-        // Check if array is large enough
         if a.len() > 1000 {
-            // TODO: Implement par_minimum
-            // return par_minimum(a, b);
+            use rayon::prelude::*;
+
+            // Convert to owned arrays for parallel processing
+            let (a_vec, _) = a.to_owned().into_raw_vec_and_offset();
+            let (b_vec, _) = b.to_owned().into_raw_vec_and_offset();
+
+            let result_vec: Vec<T> = a_vec
+                .into_par_iter()
+                .zip(b_vec.into_par_iter())
+                .map(|(a_val, b_val)| if b_val < a_val { b_val } else { a_val })
+                .collect();
+
+            return Array::from_shape_vec(a.raw_dim(), result_vec)
+                .expect("Shape mismatch in parallel minimum");
         }
     }
 
@@ -494,6 +513,10 @@ where
 /// let sum_of_squares: f64 = normalized.iter().map(|&x| x * x).sum();
 /// assert!((sum_of_squares - 1.0).abs() < 1e-10);
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input signal is empty, has zero energy/peak/sum, or if a conversion fails.
 pub fn normalize<T>(x: &[T], norm: &str) -> Result<Vec<f64>, &'static str>
 where
     T: Float + NumCast + Debug,
@@ -591,6 +614,11 @@ where
 /// assert_eq!(padded.shape(), &[6]);
 /// assert_eq!(padded, array![0.0, 1.0, 2.0, 3.0, 0.0, 0.0]);
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the input array is 0-dimensional, if pad_width length doesn't match input dimensions,
+/// or if the padding mode is unsupported for the given array dimensionality.
 pub fn pad_array<T, D>(
     input: &Array<T, D>,
     pad_width: &[(usize, usize)],
@@ -741,7 +769,7 @@ where
                     output_array1[offset + i] = mean_val;
                 }
             }
-            _ => return Err(format!("Unsupported padding mode: {}", mode)),
+            _ => return Err(format!("Unsupported padding mode: {mode}")),
         }
 
         return Ok(output);
@@ -781,6 +809,10 @@ where
 /// # Returns
 ///
 /// * Window function values as a vector
+///
+/// # Errors
+///
+/// Returns an error if the window length is zero or if the window type is unknown.
 pub fn get_window(window_type: &str, length: usize, periodic: bool) -> Result<Vec<f64>, String> {
     if length == 0 {
         return Err("Window length must be positive".to_string());
@@ -838,7 +870,7 @@ pub fn get_window(window_type: &str, length: usize, periodic: bool) -> Result<Ve
             }
         }
         _ => {
-            return Err(format!("Unknown window type: {}", window_type));
+            return Err(format!("Unknown window type: {window_type}"));
         }
     }
 
@@ -869,14 +901,18 @@ pub fn get_window(window_type: &str, length: usize, periodic: bool) -> Result<Ve
 /// // The exact derivative is 2x = 6 at x = 3
 /// assert!((derivative - 6.0).abs() < 1e-5);
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the evaluation function fails at either x+h or x-h.
 pub fn differentiate<F, Func>(x: F, h: F, eval_fn: Func) -> Result<F, String>
 where
     F: Float + FromPrimitive + Debug,
     Func: Fn(F) -> Result<F, String>,
 {
     // Use central difference for better accuracy
-    let f_plus = eval_fn(x + h).map_err(|e| format!("Error evaluating function at x+h: {}", e))?;
-    let f_minus = eval_fn(x - h).map_err(|e| format!("Error evaluating function at x-h: {}", e))?;
+    let f_plus = eval_fn(x + h).map_err(|e| format!("Error evaluating function at x+h: {e}"))?;
+    let f_minus = eval_fn(x - h).map_err(|e| format!("Error evaluating function at x-h: {e}"))?;
     let derivative = (f_plus - f_minus) / (F::from(2.0).unwrap() * h);
     Ok(derivative)
 }
@@ -906,6 +942,10 @@ where
 /// // The exact integral is x^3/3 = 1/3 from 0 to 1
 /// assert!((integral - 1.0/3.0).abs() < 1e-5);
 /// ```
+///
+/// # Errors
+///
+/// Returns an error if the number of intervals is less than 2, not even, or if the evaluation function fails.
 pub fn integrate<F, Func>(a: F, b: F, n: usize, eval_fn: Func) -> Result<F, String>
 where
     F: Float + FromPrimitive + Debug,
@@ -925,8 +965,8 @@ where
     }
 
     let h = (b - a) / F::from_usize(n).unwrap();
-    let mut sum = eval_fn(a).map_err(|e| format!("Error evaluating function at a: {}", e))?
-        + eval_fn(b).map_err(|e| format!("Error evaluating function at b: {}", e))?;
+    let mut sum = eval_fn(a).map_err(|e| format!("Error evaluating function at a: {e}"))?
+        + eval_fn(b).map_err(|e| format!("Error evaluating function at b: {e}"))?;
 
     // Even-indexed points (except endpoints)
     for i in 1..n {
@@ -935,7 +975,7 @@ where
             sum = sum
                 + F::from(2.0).unwrap()
                     * eval_fn(x_i)
-                        .map_err(|e| format!("Error evaluating function at x_{}: {}", i, e))?;
+                        .map_err(|e| format!("Error evaluating function at x_{i}: {e}"))?;
         }
     }
 
@@ -946,7 +986,7 @@ where
             sum = sum
                 + F::from(4.0).unwrap()
                     * eval_fn(x_i)
-                        .map_err(|e| format!("Error evaluating function at x_{}: {}", i, e))?;
+                        .map_err(|e| format!("Error evaluating function at x_{i}: {e}"))?;
         }
     }
 

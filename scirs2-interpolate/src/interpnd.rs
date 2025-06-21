@@ -27,8 +27,6 @@ pub enum ExtrapolateMode {
     Error,
     /// Extrapolate based on the nearest edge points
     Extrapolate,
-    /// Use constant extrapolation (nearest edge value)
-    Constant,
 }
 
 /// N-dimensional interpolation object for rectilinear grids
@@ -76,6 +74,39 @@ impl<F: Float + FromPrimitive + Debug + Display> RegularGridInterpolator<F> {
     ///
     /// * If points dimensions don't match values dimensions
     /// * If any dimension has less than 2 points
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ndarray::{Array, Array1, Dim, IxDyn};
+    /// use scirs2_interpolate::interpnd::{
+    ///     RegularGridInterpolator, InterpolationMethod, ExtrapolateMode
+    /// };
+    ///
+    /// // Create a 3D grid
+    /// let x = Array1::from_vec(vec![0.0, 1.0, 2.0]);
+    /// let y = Array1::from_vec(vec![0.0, 1.0]);
+    /// let z = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
+    /// let points = vec![x, y, z];
+    ///
+    /// // Create values on the grid (3 × 2 × 4 = 24 values)
+    /// let mut values = Array::zeros(IxDyn(&[3, 2, 4]));
+    /// for i in 0..3 {
+    ///     for j in 0..2 {
+    ///         for k in 0..4 {
+    ///             let idx = [i, j, k];
+    ///             values[idx.as_slice()] = (i + j + k) as f64;
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let interpolator = RegularGridInterpolator::new(
+    ///     points,
+    ///     values,
+    ///     InterpolationMethod::Linear,
+    ///     ExtrapolateMode::Extrapolate,
+    /// ).unwrap();
+    /// ```
     pub fn new(
         points: Vec<Array1<F>>,
         values: Array<F, IxDyn>,
@@ -143,6 +174,42 @@ impl<F: Float + FromPrimitive + Debug + Display> RegularGridInterpolator<F> {
     ///
     /// * If xi dimensions don't match grid dimensions
     /// * If extrapolation is not allowed and points are outside the domain
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ndarray::{Array, Array1, Array2, IxDyn};
+    /// use scirs2_interpolate::interpnd::{
+    ///     RegularGridInterpolator, InterpolationMethod, ExtrapolateMode
+    /// };
+    ///
+    /// // Create a simple 2D grid
+    /// let x = Array1::from_vec(vec![0.0, 1.0, 2.0]);
+    /// let y = Array1::from_vec(vec![0.0, 1.0]);
+    /// let points = vec![x, y];
+    ///
+    /// let mut values = Array::zeros(IxDyn(&[3, 2]));
+    /// for i in 0..3 {
+    ///     for j in 0..2 {
+    ///         let idx = [i, j];
+    ///         values[idx.as_slice()] = (i * i + j * j) as f64;
+    ///     }
+    /// }
+    ///
+    /// let interpolator = RegularGridInterpolator::new(
+    ///     points, values, InterpolationMethod::Linear, ExtrapolateMode::Extrapolate
+    /// ).unwrap();
+    ///
+    /// // Interpolate at multiple points
+    /// let xi = Array2::from_shape_vec((3, 2), vec![
+    ///     0.5, 0.5,
+    ///     1.0, 0.0,
+    ///     1.5, 0.5,
+    /// ]).unwrap();
+    ///
+    /// let results = interpolator.__call__(&xi.view()).unwrap();
+    /// assert_eq!(results.len(), 3);
+    /// ```
     pub fn __call__(&self, xi: &ArrayView2<F>) -> InterpolateResult<Array1<F>> {
         // Check that xi dimensions match grid dimensions
         if xi.shape()[1] != self.points.len() {
@@ -242,10 +309,16 @@ impl<F: Float + FromPrimitive + Debug + Display> RegularGridInterpolator<F> {
                             // Point is before the first grid point
                             if self.extrapolate == ExtrapolateMode::Extrapolate {
                                 idx = 0;
-                            } else if self.extrapolate == ExtrapolateMode::Constant {
-                                // Create index coordinates (all zeros)
-                                let idx = vec![0; self.points.len()];
-                                return Ok(self.values[idx.as_slice()]);
+                            } else if self.extrapolate == ExtrapolateMode::Error {
+                                return Err(InterpolateError::out_of_domain(
+                                    x,
+                                    dim_points[0],
+                                    dim_points[dim_points.len() - 1],
+                                    "N-dimensional interpolation",
+                                ));
+                            } else {
+                                // For Nan mode, clamp to boundary
+                                idx = 0;
                             }
                         } else {
                             // Point is after the last grid point
@@ -461,6 +534,35 @@ impl<F: Float + FromPrimitive + Debug + Display> ScatteredInterpolator<F> {
     /// # Errors
     ///
     /// * If points and values dimensions don't match
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ndarray::{Array1, Array2};
+    /// use scirs2_interpolate::interpnd::{
+    ///     ScatteredInterpolator, ScatteredInterpolationMethod,
+    ///     ExtrapolateMode, ScatteredInterpolatorParams
+    /// };
+    ///
+    /// // Create scattered 3D data
+    /// let points = Array2::from_shape_vec((5, 3), vec![
+    ///     0.0, 0.0, 0.0,
+    ///     1.0, 0.0, 0.0,
+    ///     0.0, 1.0, 0.0,
+    ///     0.0, 0.0, 1.0,
+    ///     0.5, 0.5, 0.5,
+    /// ]).unwrap();
+    /// let values = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 1.5]);
+    ///
+    /// // Create IDW interpolator with custom power
+    /// let interpolator = ScatteredInterpolator::new(
+    ///     points,
+    ///     values,
+    ///     ScatteredInterpolationMethod::IDW,
+    ///     ExtrapolateMode::Extrapolate,
+    ///     Some(ScatteredInterpolatorParams::IDW { power: 3.0 }),
+    /// ).unwrap();
+    /// ```
     pub fn new(
         points: Array2<F>,
         values: Array1<F>,

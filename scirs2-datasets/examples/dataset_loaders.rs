@@ -1,5 +1,5 @@
 use scirs2_datasets::loaders;
-use scirs2_datasets::utils::Dataset;
+use scirs2_datasets::utils::{train_test_split, Dataset};
 use std::env;
 use std::path::Path;
 
@@ -28,7 +28,7 @@ fn main() {
 
             // Split the dataset for demonstration
             println!("\nDemonstrating train-test split...");
-            match dataset.train_test_split(0.2, Some(42)) {
+            match train_test_split(&dataset, 0.2, Some(42)) {
                 Ok((train, test)) => {
                     println!("Training set: {} samples", train.n_samples());
                     println!("Test set: {} samples", test.n_samples());

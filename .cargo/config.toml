@@ -1,2 +1,52 @@
+# Build optimization configuration for faster compilation
+
 [build]
-rustflags = ["-C", "link-arg=-lopenblas"]
+# Use multiple CPU cores for compilation
+jobs = 8
+rustflags = [
+    "-C", "link-arg=-lopenblas",
+    "-C", "target-cpu=native",
+]
+
+[target.x86_64-unknown-linux-gnu]
+# Use faster linker for Linux builds
+rustflags = [
+    "-C", "link-arg=-lopenblas",
+    "-C", "target-cpu=native",
+]
+
+# Cargo configuration for development speed
+[cargo-new]
+vcs = "none"  # Skip git init for new crates
+
+[term]
+verbose = false  # Reduce output verbosity
+
+# Profile optimizations for dev builds  
+[profile.dev]
+debug = 1        # Reduced debug info for faster compilation
+opt-level = 0    # No optimization for fastest compilation
+incremental = true
+overflow-checks = true
+
+# Optimized dev profile for testing
+[profile.test]
+debug = 1
+opt-level = 1    # Minimal optimization for tests
+incremental = true
+
+[profile.release]
+# Production optimization settings
+debug = false
+opt-level = 3
+lto = "thin"     # Thin LTO for good performance with reasonable compile times
+codegen-units = 1
+panic = "abort"
+strip = true     # Strip symbols to reduce binary size
+
+# Benchmark profile
+[profile.bench]
+debug = false
+opt-level = 3
+lto = "thin"
+codegen-units = 1

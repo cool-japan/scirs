@@ -213,7 +213,7 @@ where
     }
 
     // Use the standard solver
-    crate::solve::solve(&matrix.view(), &b.view())
+    crate::solve::solve(&matrix.view(), &b.view(), None)
 }
 
 /// Solve a Circulant system
@@ -256,7 +256,7 @@ where
     }
 
     // Solve the system using standard solver
-    crate::solve::solve(&matrix.view(), &b.view())
+    crate::solve::solve(&matrix.view(), &b.view(), None)
 }
 
 #[cfg(test)]

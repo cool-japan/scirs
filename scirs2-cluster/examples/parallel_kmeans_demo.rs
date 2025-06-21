@@ -1,5 +1,7 @@
 use ndarray::Array2;
-use scirs2_cluster::vq::{kmeans, parallel_kmeans, KMeansOptions, ParallelKMeansOptions};
+use scirs2_cluster::vq::{
+    kmeans_with_options, parallel_kmeans, KMeansOptions, ParallelKMeansOptions,
+};
 use std::time::Instant;
 
 fn main() {
@@ -30,7 +32,8 @@ fn main() {
         };
 
         let start = Instant::now();
-        let (std_centroids, std_labels) = kmeans(data.view(), k, Some(std_options)).unwrap();
+        let (std_centroids, std_labels) =
+            kmeans_with_options(data.view(), k, Some(std_options)).unwrap();
         let std_duration = start.elapsed();
 
         // Parallel K-means
@@ -111,7 +114,7 @@ fn main() {
         };
 
         let start = Instant::now();
-        let _ = kmeans(data.view(), k, Some(std_options)).unwrap();
+        let _ = kmeans_with_options(data.view(), k, Some(std_options)).unwrap();
         let std_duration = start.elapsed();
 
         let start = Instant::now();

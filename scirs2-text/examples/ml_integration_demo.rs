@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("================================\n");
 
     // Sample dataset for demonstration
-    let texts = vec![
+    let texts = [
         "This product is absolutely amazing! I love it.",
         "Terrible experience, would not recommend.",
         "It's okay, nothing special but works fine.",
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Not worth it, many issues with this item.",
     ];
 
-    let labels = vec![
+    let labels = [
         "positive", "negative", "neutral", "positive", "negative", "positive", "positive",
         "negative",
     ];
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut tfidf_processor = MLTextPreprocessor::new(FeatureExtractionMode::TfIdf)
         .with_tfidf_params(0.1, 0.9, Some(100));
 
-    let text_refs: Vec<&str> = texts.iter().map(|s| s.as_ref()).collect();
+    let text_refs = texts.to_vec();
     let tfidf_features = tfidf_processor.fit_transform(&text_refs)?;
 
     println!(

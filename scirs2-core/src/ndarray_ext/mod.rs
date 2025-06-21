@@ -2,7 +2,7 @@
 //!
 //! This module provides additional functionality for ndarray to support
 //! the advanced array operations necessary for a complete SciPy port.
-//! It implements core NumPy-like features that are not available in the
+//! It implements core `NumPy`-like features that are not available in the
 //! base ndarray crate.
 
 /// Re-export essential ndarray types for convenience
@@ -11,7 +11,7 @@ pub use ndarray::{
     IxDyn, OwnedRepr, ShapeBuilder, SliceInfo, ViewRepr,
 };
 
-/// Advanced indexing operations (NumPy-like boolean masking, fancy indexing, etc.)
+/// Advanced indexing operations (`NumPy`-like boolean masking, fancy indexing, etc.)
 pub mod indexing;
 
 /// Statistical functions for ndarray arrays (mean, median, variance, correlation, etc.)

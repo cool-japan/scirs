@@ -68,11 +68,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         // Create a phase vocoder configuration
-        let mut config = PhaseVocoderConfig::default();
-        config.time_stretch = 1.0; // No time stretching
-        config.pitch_shift = Some(semitones);
-        config.window_size = 2048;
-        config.hop_size = 512;
+        let config = PhaseVocoderConfig {
+            time_stretch: 1.0, // No time stretching
+            pitch_shift: Some(semitones),
+            window_size: 2048,
+            hop_size: 512,
+            ..Default::default()
+        };
 
         // Apply phase vocoder
         let result = phase_vocoder(&signal, &config)?;

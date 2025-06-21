@@ -138,28 +138,35 @@ fn test_k_equal_zero() {
 
 #[test]
 fn test_k_equal_n() {
-    let a = array![[1.0_f64, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]];
+    let a = array![
+        [1.0_f64, 0.0, 0.0, 0.0],
+        [0.0, 2.0, 0.0, 0.0],
+        [0.0, 0.0, 3.0, 0.0],
+        [0.0, 0.0, 0.0, 4.0]
+    ];
 
     // Request all eigenvalues
-    let (eigenvalues, eigenvectors) = largest_k_eigh(&a.view(), 3, 100, 1e-10).unwrap();
+    let (eigenvalues, eigenvectors) = largest_k_eigh(&a.view(), 4, 100, 1e-10).unwrap();
 
-    assert_eq!(eigenvalues.len(), 3);
-    assert_eq!(eigenvectors.shape(), &[3, 3]);
+    assert_eq!(eigenvalues.len(), 4);
+    assert_eq!(eigenvectors.shape(), &[4, 4]);
 
     // Sort in descending order for verification
-    assert_relative_eq!(eigenvalues[0], 3.0, epsilon = 1e-10);
-    assert_relative_eq!(eigenvalues[1], 2.0, epsilon = 1e-10);
-    assert_relative_eq!(eigenvalues[2], 1.0, epsilon = 1e-10);
+    assert_relative_eq!(eigenvalues[0], 4.0, epsilon = 1e-10);
+    assert_relative_eq!(eigenvalues[1], 3.0, epsilon = 1e-10);
+    assert_relative_eq!(eigenvalues[2], 2.0, epsilon = 1e-10);
+    assert_relative_eq!(eigenvalues[3], 1.0, epsilon = 1e-10);
 
-    let (eigenvalues, eigenvectors) = smallest_k_eigh(&a.view(), 3, 100, 1e-10).unwrap();
+    let (eigenvalues, eigenvectors) = smallest_k_eigh(&a.view(), 4, 100, 1e-10).unwrap();
 
-    assert_eq!(eigenvalues.len(), 3);
-    assert_eq!(eigenvectors.shape(), &[3, 3]);
+    assert_eq!(eigenvalues.len(), 4);
+    assert_eq!(eigenvectors.shape(), &[4, 4]);
 
     // Should be in ascending order
     assert_relative_eq!(eigenvalues[0], 1.0, epsilon = 1e-10);
     assert_relative_eq!(eigenvalues[1], 2.0, epsilon = 1e-10);
     assert_relative_eq!(eigenvalues[2], 3.0, epsilon = 1e-10);
+    assert_relative_eq!(eigenvalues[3], 4.0, epsilon = 1e-10);
 }
 
 #[test]

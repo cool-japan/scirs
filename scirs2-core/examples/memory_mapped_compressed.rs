@@ -1,4 +1,3 @@
-use ndarray::{Array, Dim, IxDyn};
 use scirs2_core::memory_efficient::{
     CompressedMemMapBuilder, CompressedMemMappedArray, CompressionAlgorithm, MemoryMappedArray,
 };
@@ -14,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a temporary directory for our example files
     let dir = tempdir()?;
     let raw_file_path = dir.path().join("large_array.bin");
-    let compressed_file_path = dir.path().join("large_array.cmm");
+    let _compressed_file_path = dir.path().join("large_array.cmm");
 
     println!("Creating test data...");
 
@@ -87,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let start = Instant::now();
 
             // Create compressed array from standard memory-mapped array
-            let array = mmap.readonly_array()?;
+            let array = mmap.readonly_array::<ndarray::Ix1>()?;
             let cmm = builder.create(&array, &output_path)?;
 
             let elapsed = start.elapsed();
@@ -125,11 +124,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test random access performance (memory-mapped)
     let start = Instant::now();
-    let mut sum = 0.0;
+    let mut _sum = 0.0;
     for i in 0..1000 {
         let idx = (i * 10000) % size; // Random-ish access
-        let val = mmap.readonly_array()?[idx];
-        sum += val;
+        let val = mmap.readonly_array::<ndarray::Ix1>()?[idx];
+        _sum += val;
     }
     let elapsed = start.elapsed();
     println!(
@@ -151,11 +150,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let start = Instant::now();
-        let mut sum = 0.0;
+        let mut _sum = 0.0;
         for i in 0..1000 {
             let idx = (i * 10000) % size; // Random-ish access
             let val = cmm.get(&[idx])?;
-            sum += val;
+            _sum += val;
         }
         let elapsed = start.elapsed();
         println!(
@@ -173,7 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test sequential access performance (memory-mapped)
     let start = Instant::now();
-    let mmap_array = mmap.readonly_array()?;
+    let mmap_array = mmap.readonly_array::<ndarray::Ix1>()?;
     let mmap_sum: f64 = mmap_array.iter().sum();
     let elapsed = start.elapsed();
     println!(
@@ -214,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Standard memory-mapped block processing
     let start = Instant::now();
     let block_size = 262144;
-    let num_blocks = (size + block_size - 1) / block_size;
+    let num_blocks = size.div_ceil(block_size);
     let mut mmap_sum = 0.0;
 
     for block_idx in 0..num_blocks {
@@ -222,7 +221,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let end_idx = (start_idx + block_size).min(size);
 
         let block = mmap
-            .readonly_array()?
+            .readonly_array::<ndarray::Ix1>()?
             .slice(ndarray::s![start_idx..end_idx])
             .to_owned();
 
@@ -273,16 +272,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Without preloading
     let start = Instant::now();
-    let mut sum = 0.0;
+    let mut _sum = 0.0;
     for i in 0..100 {
         let slice = cmm.slice(&[(i * 1000, (i + 1) * 1000)])?;
-        sum += slice.iter().sum::<f64>();
+        _sum += slice.iter().sum::<f64>();
     }
     let no_preload_time = start.elapsed();
 
     // With preloading
     let start = Instant::now();
-    let mut sum = 0.0;
+    let mut _sum = 0.0;
     for i in 0..100 {
         // Preload the block containing this slice
         let block_idx = (i * 1000) / cmm.metadata().block_size;
@@ -290,7 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Now access the slice
         let slice = cmm.slice(&[(i * 1000, (i + 1) * 1000)])?;
-        sum += slice.iter().sum::<f64>();
+        _sum += slice.iter().sum::<f64>();
     }
     let with_preload_time = start.elapsed();
 

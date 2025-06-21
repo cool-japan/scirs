@@ -12,6 +12,15 @@ use std::error::Error;
 #[cfg(feature = "neural_common")]
 use scirs2_metrics::integration::neural;
 
+#[cfg(feature = "neural_common")]
+use std::collections::HashMap;
+
+#[cfg(feature = "neural_common")]
+use ndarray::Array1;
+
+#[cfg(feature = "neural_common")]
+use rand::Rng;
+
 fn main() -> Result<(), Box<dyn Error>> {
     #[cfg(not(feature = "neural_common"))]
     {
@@ -75,11 +84,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         let viz_metadata = training_viz.get_metadata();
 
         println!("Created training history visualization:");
-        println!("  Title: {}", viz_metadata.title());
-        println!("  Plot type: {:?}", viz_metadata.plot_type());
-        println!("  X label: {}", viz_metadata.x_label());
-        println!("  Y label: {}", viz_metadata.y_label());
-        println!("  Data series: {}", viz_data.series_names().join(", "));
+        println!("  Title: {}", viz_metadata.title);
+        println!("  Plot type: {:?}", viz_metadata.plot_type);
+        println!("  X label: {}", viz_metadata.x_label);
+        println!("  Y label: {}", viz_metadata.y_label);
+        println!(
+            "  Data series: {}",
+            viz_data
+                .series_names
+                .as_ref()
+                .map(|names| names.join(", "))
+                .unwrap_or_else(|| "None".to_string())
+        );
 
         // Generate binary classification data for ROC and PR curves
         let n_samples = 100;
@@ -120,11 +136,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         let roc_metadata = roc_viz.get_metadata();
 
         println!("\nCreated ROC curve visualization:");
-        println!("  Title: {}", roc_metadata.title());
-        println!("  Plot type: {:?}", roc_metadata.plot_type());
-        println!("  X label: {}", roc_metadata.x_label());
-        println!("  Y label: {}", roc_metadata.y_label());
-        println!("  Data series: {}", roc_data.series_names().join(", "));
+        println!("  Title: {}", roc_metadata.title);
+        println!("  Plot type: {:?}", roc_metadata.plot_type);
+        println!("  X label: {}", roc_metadata.x_label);
+        println!("  Y label: {}", roc_metadata.y_label);
+        println!(
+            "  Data series: {}",
+            roc_data
+                .series_names
+                .as_ref()
+                .map(|names| names.join(", "))
+                .unwrap_or_else(|| "None".to_string())
+        );
 
         // Create Precision-Recall curve visualization
         let pr_viz = neural::neural_precision_recall_curve_visualization(
@@ -138,11 +161,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         let pr_metadata = pr_viz.get_metadata();
 
         println!("\nCreated Precision-Recall curve visualization:");
-        println!("  Title: {}", pr_metadata.title());
-        println!("  Plot type: {:?}", pr_metadata.plot_type());
-        println!("  X label: {}", pr_metadata.x_label());
-        println!("  Y label: {}", pr_metadata.y_label());
-        println!("  Data series: {}", pr_data.series_names().join(", "));
+        println!("  Title: {}", pr_metadata.title);
+        println!("  Plot type: {:?}", pr_metadata.plot_type);
+        println!("  X label: {}", pr_metadata.x_label);
+        println!("  Y label: {}", pr_metadata.y_label);
+        println!(
+            "  Data series: {}",
+            pr_data
+                .series_names
+                .as_ref()
+                .map(|names| names.join(", "))
+                .unwrap_or_else(|| "None".to_string())
+        );
 
         // Create multiclass data for confusion matrix
         let classes = 3;
@@ -183,9 +213,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cm_metadata = cm_viz.get_metadata();
 
         println!("\nCreated confusion matrix visualization:");
-        println!("  Title: {}", cm_metadata.title());
-        println!("  Plot type: {:?}", cm_metadata.plot_type());
-        println!("  Data series: {}", cm_data.series_names().join(", "));
+        println!("  Title: {}", cm_metadata.title);
+        println!("  Plot type: {:?}", cm_metadata.plot_type);
+        println!(
+            "  Data series: {}",
+            cm_data
+                .series_names
+                .as_ref()
+                .map(|names| names.join(", "))
+                .unwrap_or_else(|| "None".to_string())
+        );
 
         println!("\nAll visualizations created successfully!");
 

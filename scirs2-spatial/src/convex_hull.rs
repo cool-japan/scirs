@@ -32,6 +32,18 @@ use crate::error::{SpatialError, SpatialResult};
 use ndarray::{Array2, ArrayView2};
 use qhull::Qh;
 
+/// Algorithms available for computing convex hulls
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ConvexHullAlgorithm {
+    /// Use QHull (default) - works for any dimension
+    #[default]
+    QHull,
+    /// Graham scan algorithm - only for 2D
+    GrahamScan,
+    /// Jarvis march (gift wrapping) algorithm - only for 2D
+    JarvisMarch,
+}
+
 /// Compute the convex hull of a set of points
 ///
 /// # Arguments
@@ -57,6 +69,36 @@ use qhull::Qh;
 /// ```
 pub fn convex_hull(points: &ArrayView2<f64>) -> SpatialResult<Array2<f64>> {
     let hull = ConvexHull::new(points)?;
+    Ok(hull.vertices_array())
+}
+
+/// Compute the convex hull of a set of points using a specific algorithm
+///
+/// # Arguments
+///
+/// * `points` - Input points (shape: n_points x n_dim)
+/// * `algorithm` - Algorithm to use for convex hull computation
+///
+/// # Returns
+///
+/// * A result containing either the convex hull vertices (shape: n_vertices x n_dim)
+///   or an error
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_spatial::convex_hull::{convex_hull_with_algorithm, ConvexHullAlgorithm};
+/// use ndarray::array;
+///
+/// let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.5, 0.5]];
+/// let hull_vertices = convex_hull_with_algorithm(&points.view(), ConvexHullAlgorithm::GrahamScan).unwrap();
+/// assert!(hull_vertices.nrows() >= 3);
+/// ```
+pub fn convex_hull_with_algorithm(
+    points: &ArrayView2<f64>,
+    algorithm: ConvexHullAlgorithm,
+) -> SpatialResult<Array2<f64>> {
+    let hull = ConvexHull::new_with_algorithm(points, algorithm)?;
     Ok(hull.vertices_array())
 }
 
@@ -103,6 +145,38 @@ impl ConvexHull {
     /// let hull = ConvexHull::new(&points.view()).unwrap();
     /// ```
     pub fn new(points: &ArrayView2<f64>) -> SpatialResult<Self> {
+        Self::new_with_algorithm(points, ConvexHullAlgorithm::default())
+    }
+
+    /// Create a new ConvexHull from a set of points using a specific algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `points` - Input points (shape: n_points x n_dim)
+    /// * `algorithm` - Algorithm to use for convex hull computation
+    ///
+    /// # Returns
+    ///
+    /// * Result containing a ConvexHull instance or an error
+    ///
+    /// # Errors
+    ///
+    /// * Returns error if hull computation fails or input is invalid
+    /// * Returns error if algorithm is not supported for the given dimensionality
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_spatial::convex_hull::{ConvexHull, ConvexHullAlgorithm};
+    /// use ndarray::array;
+    ///
+    /// let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.5, 0.5]];
+    /// let hull = ConvexHull::new_with_algorithm(&points.view(), ConvexHullAlgorithm::GrahamScan).unwrap();
+    /// ```
+    pub fn new_with_algorithm(
+        points: &ArrayView2<f64>,
+        algorithm: ConvexHullAlgorithm,
+    ) -> SpatialResult<Self> {
         let npoints = points.nrows();
         let ndim = points.ncols();
 
@@ -113,6 +187,33 @@ impl ConvexHull {
                 ndim
             )));
         }
+
+        // Check if algorithm is compatible with dimensionality
+        match algorithm {
+            ConvexHullAlgorithm::GrahamScan | ConvexHullAlgorithm::JarvisMarch => {
+                if ndim != 2 {
+                    return Err(SpatialError::ValueError(format!(
+                        "{:?} algorithm only supports 2D points, got {}D",
+                        algorithm, ndim
+                    )));
+                }
+            }
+            ConvexHullAlgorithm::QHull => {
+                // QHull supports any dimension
+            }
+        }
+
+        match algorithm {
+            ConvexHullAlgorithm::GrahamScan => Self::new_graham_scan(points),
+            ConvexHullAlgorithm::JarvisMarch => Self::new_jarvis_march(points),
+            ConvexHullAlgorithm::QHull => Self::new_qhull(points),
+        }
+    }
+
+    /// Create a ConvexHull using QHull algorithm (original implementation)
+    fn new_qhull(points: &ArrayView2<f64>) -> SpatialResult<Self> {
+        let npoints = points.nrows();
+        let ndim = points.ncols();
 
         // Handle special cases for 2D and 3D
         if ndim == 2 && (npoints == 3 || npoints == 4) {
@@ -247,6 +348,235 @@ impl ConvexHull {
             simplices,
             equations,
         })
+    }
+
+    /// Create a ConvexHull using Graham scan algorithm (2D only)
+    fn new_graham_scan(points: &ArrayView2<f64>) -> SpatialResult<Self> {
+        let npoints = points.nrows();
+
+        if npoints < 3 {
+            return Err(SpatialError::ValueError(
+                "Need at least 3 points for 2D convex hull".to_string(),
+            ));
+        }
+
+        // Convert points to indexed points for sorting
+        let mut indexed_points: Vec<(usize, [f64; 2])> = (0..npoints)
+            .map(|i| (i, [points[[i, 0]], points[[i, 1]]]))
+            .collect();
+
+        // Find the bottom-most point (lowest y-coordinate, then leftmost x)
+        let start_idx = indexed_points
+            .iter()
+            .min_by(|a, b| {
+                let cmp = a.1[1].partial_cmp(&b.1[1]).unwrap();
+                if cmp == std::cmp::Ordering::Equal {
+                    a.1[0].partial_cmp(&b.1[0]).unwrap()
+                } else {
+                    cmp
+                }
+            })
+            .unwrap()
+            .0;
+
+        let start_point = indexed_points[start_idx].1;
+
+        // Sort points by polar angle with respect to start point
+        indexed_points.sort_by(|a, b| {
+            if a.0 == start_idx {
+                return std::cmp::Ordering::Less;
+            }
+            if b.0 == start_idx {
+                return std::cmp::Ordering::Greater;
+            }
+
+            let angle_a = (a.1[1] - start_point[1]).atan2(a.1[0] - start_point[0]);
+            let angle_b = (b.1[1] - start_point[1]).atan2(b.1[0] - start_point[0]);
+
+            let angle_cmp = angle_a.partial_cmp(&angle_b).unwrap();
+            if angle_cmp == std::cmp::Ordering::Equal {
+                // If angles are equal, sort by distance
+                let dist_a = (a.1[0] - start_point[0]).powi(2) + (a.1[1] - start_point[1]).powi(2);
+                let dist_b = (b.1[0] - start_point[0]).powi(2) + (b.1[1] - start_point[1]).powi(2);
+                dist_a.partial_cmp(&dist_b).unwrap()
+            } else {
+                angle_cmp
+            }
+        });
+
+        // Graham scan algorithm
+        let mut stack: Vec<usize> = Vec::new();
+
+        for (point_idx, point) in indexed_points {
+            // Remove points from stack while they make a clockwise turn
+            while stack.len() >= 2 {
+                let top = stack[stack.len() - 1];
+                let second = stack[stack.len() - 2];
+
+                let p1 = [points[[second, 0]], points[[second, 1]]];
+                let p2 = [points[[top, 0]], points[[top, 1]]];
+                let p3 = point;
+
+                if Self::cross_product_2d(p1, p2, p3) <= 0.0 {
+                    stack.pop();
+                } else {
+                    break;
+                }
+            }
+            stack.push(point_idx);
+        }
+
+        let vertex_indices = stack;
+
+        // Create simplices (edges for 2D hull)
+        let n = vertex_indices.len();
+        let mut simplices = Vec::new();
+        for i in 0..n {
+            let j = (i + 1) % n;
+            simplices.push(vec![vertex_indices[i], vertex_indices[j]]);
+        }
+
+        // Create a dummy QHull instance for compatibility
+        let points_vec: Vec<Vec<f64>> = (0..npoints).map(|i| points.row(i).to_vec()).collect();
+        let qh = Qh::builder()
+            .compute(false)
+            .build_from_iter(points_vec)
+            .map_err(|e| SpatialError::ComputationError(format!("Qhull error: {}", e)))?;
+
+        // Compute facet equations for 2D hull
+        let equations = Self::compute_2d_hull_equations(points, &vertex_indices);
+
+        Ok(ConvexHull {
+            points: points.to_owned(),
+            qh,
+            vertex_indices,
+            simplices,
+            equations: Some(equations),
+        })
+    }
+
+    /// Create a ConvexHull using Jarvis march (gift wrapping) algorithm (2D only)
+    fn new_jarvis_march(points: &ArrayView2<f64>) -> SpatialResult<Self> {
+        let npoints = points.nrows();
+
+        if npoints < 3 {
+            return Err(SpatialError::ValueError(
+                "Need at least 3 points for 2D convex hull".to_string(),
+            ));
+        }
+
+        // Find the leftmost point
+        let mut leftmost = 0;
+        for i in 1..npoints {
+            if points[[i, 0]] < points[[leftmost, 0]] {
+                leftmost = i;
+            }
+        }
+
+        let mut hull_vertices = Vec::new();
+        let mut current = leftmost;
+
+        loop {
+            hull_vertices.push(current);
+
+            // Find the most counterclockwise point from current
+            let mut next = (current + 1) % npoints;
+
+            for i in 0..npoints {
+                if i == current {
+                    continue;
+                }
+
+                let p1 = [points[[current, 0]], points[[current, 1]]];
+                let p2 = [points[[next, 0]], points[[next, 1]]];
+                let p3 = [points[[i, 0]], points[[i, 1]]];
+
+                let cross = Self::cross_product_2d(p1, p2, p3);
+
+                // If cross product is positive, i is more counterclockwise than next
+                if cross > 0.0
+                    || (cross == 0.0
+                        && Self::distance_squared_2d(p1, p3) > Self::distance_squared_2d(p1, p2))
+                {
+                    next = i;
+                }
+            }
+
+            current = next;
+            if current == leftmost {
+                break; // We've wrapped around to the start
+            }
+        }
+
+        let vertex_indices = hull_vertices;
+
+        // Create simplices (edges for 2D hull)
+        let n = vertex_indices.len();
+        let mut simplices = Vec::new();
+        for i in 0..n {
+            let j = (i + 1) % n;
+            simplices.push(vec![vertex_indices[i], vertex_indices[j]]);
+        }
+
+        // Create a dummy QHull instance for compatibility
+        let points_vec: Vec<Vec<f64>> = (0..npoints).map(|i| points.row(i).to_vec()).collect();
+        let qh = Qh::builder()
+            .compute(false)
+            .build_from_iter(points_vec)
+            .map_err(|e| SpatialError::ComputationError(format!("Qhull error: {}", e)))?;
+
+        // Compute facet equations for 2D hull
+        let equations = Self::compute_2d_hull_equations(points, &vertex_indices);
+
+        Ok(ConvexHull {
+            points: points.to_owned(),
+            qh,
+            vertex_indices,
+            simplices,
+            equations: Some(equations),
+        })
+    }
+
+    /// Compute cross product for three 2D points (returns z-component of 3D cross product)
+    fn cross_product_2d(p1: [f64; 2], p2: [f64; 2], p3: [f64; 2]) -> f64 {
+        (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+    }
+
+    /// Compute squared distance between two 2D points
+    fn distance_squared_2d(p1: [f64; 2], p2: [f64; 2]) -> f64 {
+        (p2[0] - p1[0]).powi(2) + (p2[1] - p1[1]).powi(2)
+    }
+
+    /// Compute facet equations for a 2D convex hull
+    fn compute_2d_hull_equations(
+        points: &ArrayView2<f64>,
+        vertex_indices: &[usize],
+    ) -> Array2<f64> {
+        let n = vertex_indices.len();
+        let mut equations = Array2::zeros((n, 3)); // 2D equations: ax + by + c = 0
+
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let p1 = [
+                points[[vertex_indices[i], 0]],
+                points[[vertex_indices[i], 1]],
+            ];
+            let p2 = [
+                points[[vertex_indices[j], 0]],
+                points[[vertex_indices[j], 1]],
+            ];
+
+            // Line equation: (y2-y1)x - (x2-x1)y + (x2-x1)y1 - (y2-y1)x1 = 0
+            let a = p2[1] - p1[1];
+            let b = p1[0] - p2[0];
+            let c = (p2[0] - p1[0]) * p1[1] - (p2[1] - p1[1]) * p1[0];
+
+            equations[[i, 0]] = a;
+            equations[[i, 1]] = b;
+            equations[[i, 2]] = c;
+        }
+
+        equations
     }
 
     /// Handle special case for 2D hulls with 3 or 4 points
@@ -578,9 +908,12 @@ impl ConvexHull {
 
     /// Get the volume of the convex hull
     ///
+    /// For 2D hulls, this returns the area. For 3D hulls, this returns the volume.
+    /// For higher dimensions, this returns the hypervolume.
+    ///
     /// # Returns
     ///
-    /// * Result containing the volume of the convex hull
+    /// * Result containing the volume/area of the convex hull
     ///
     /// # Errors
     ///
@@ -596,26 +929,56 @@ impl ConvexHull {
     /// let points = array![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     /// let hull = ConvexHull::new(&points.view()).unwrap();
     ///
-    /// // Note: Volume computation is not yet fully implemented
-    /// // This will fail with NotImplementedError
-    /// // When implemented, it would be used like this:
-    /// // let area = hull.volume().unwrap();
-    /// // assert!((area - 1.0).abs() < 1e-10);
+    /// let area = hull.volume().unwrap();
+    /// assert!((area - 1.0).abs() < 1e-10);
     /// ```
     pub fn volume(&self) -> SpatialResult<f64> {
-        // Not directly available from qhull-rs, would need to calculate from facets
-        // For now, return a fixed value for testing
-        // In a real implementation, we would properly compute this
-        Err(SpatialError::NotImplementedError(
-            "Volume computation not yet fully implemented".to_string(),
-        ))
+        match self.ndim() {
+            1 => {
+                // 1D: length
+                if self.vertex_indices.len() < 2 {
+                    return Ok(0.0);
+                }
+                let min_idx = *self.vertex_indices.iter().min().unwrap();
+                let max_idx = *self.vertex_indices.iter().max().unwrap();
+                Ok((self.points[[max_idx, 0]] - self.points[[min_idx, 0]]).abs())
+            }
+            2 => {
+                // 2D: area using shoelace formula
+                if self.vertex_indices.len() < 3 {
+                    return Ok(0.0);
+                }
+                Self::compute_polygon_area(&self.points, &self.vertex_indices)
+            }
+            3 => {
+                // 3D: volume using divergence theorem
+                if self.vertex_indices.len() < 4 {
+                    return Ok(0.0);
+                }
+                Self::compute_polyhedron_volume(&self.points, &self.simplices)
+            }
+            _ => {
+                // Higher dimensions: use QHull if available
+                if let Some(equations) = &self.equations {
+                    Self::compute_high_dim_volume(&self.points, &self.vertex_indices, equations)
+                } else {
+                    Err(SpatialError::NotImplementedError(
+                        "Volume computation for dimensions > 3 requires facet equations"
+                            .to_string(),
+                    ))
+                }
+            }
+        }
     }
 
-    /// Get the area of the convex hull (only meaningful for 3D hulls)
+    /// Get the surface area of the convex hull
+    ///
+    /// For 2D hulls, this returns the perimeter. For 3D hulls, this returns the surface area.
+    /// For higher dimensions, this returns the surface hypervolume.
     ///
     /// # Returns
     ///
-    /// * Result containing the surface area of the convex hull
+    /// * Result containing the surface area/perimeter of the convex hull
     ///
     /// # Errors
     ///
@@ -634,15 +997,224 @@ impl ConvexHull {
     /// ];
     /// let hull = ConvexHull::new(&points.view()).unwrap();
     ///
-    /// // Area of the cube should be 6 square units
-    /// let area = hull.area();
+    /// // Surface area of the cube should be 6 square units
+    /// let area = hull.area().unwrap();
+    /// assert!((area - 6.0).abs() < 1e-10);
     /// ```
     pub fn area(&self) -> SpatialResult<f64> {
-        // Not directly available from qhull-rs, would need to calculate from facets
-        // For now, return a fixed value for testing
-        // In a real implementation, we would properly compute this
+        match self.ndim() {
+            1 => {
+                // 1D: "surface area" is just the two endpoints (measure 0)
+                Ok(0.0)
+            }
+            2 => {
+                // 2D: perimeter
+                if self.vertex_indices.len() < 3 {
+                    return Ok(0.0);
+                }
+                Self::compute_polygon_perimeter(&self.points, &self.vertex_indices)
+            }
+            3 => {
+                // 3D: surface area
+                if self.vertex_indices.len() < 4 {
+                    return Ok(0.0);
+                }
+                Self::compute_polyhedron_surface_area(&self.points, &self.simplices)
+            }
+            _ => Err(SpatialError::NotImplementedError(
+                "Surface area computation for dimensions > 3 not yet implemented".to_string(),
+            )),
+        }
+    }
+
+    /// Compute the area of a 2D polygon using the shoelace formula
+    fn compute_polygon_area(points: &Array2<f64>, vertex_indices: &[usize]) -> SpatialResult<f64> {
+        if vertex_indices.len() < 3 {
+            return Ok(0.0);
+        }
+
+        let mut area = 0.0;
+        let n = vertex_indices.len();
+
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let xi = points[[vertex_indices[i], 0]];
+            let yi = points[[vertex_indices[i], 1]];
+            let xj = points[[vertex_indices[j], 0]];
+            let yj = points[[vertex_indices[j], 1]];
+
+            area += xi * yj - xj * yi;
+        }
+
+        Ok(area.abs() / 2.0)
+    }
+
+    /// Compute the perimeter of a 2D polygon
+    fn compute_polygon_perimeter(
+        points: &Array2<f64>,
+        vertex_indices: &[usize],
+    ) -> SpatialResult<f64> {
+        if vertex_indices.len() < 2 {
+            return Ok(0.0);
+        }
+
+        let mut perimeter = 0.0;
+        let n = vertex_indices.len();
+
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let xi = points[[vertex_indices[i], 0]];
+            let yi = points[[vertex_indices[i], 1]];
+            let xj = points[[vertex_indices[j], 0]];
+            let yj = points[[vertex_indices[j], 1]];
+
+            let dx = xj - xi;
+            let dy = yj - yi;
+            perimeter += (dx * dx + dy * dy).sqrt();
+        }
+
+        Ok(perimeter)
+    }
+
+    /// Compute the volume of a 3D polyhedron using triangulation from centroid
+    fn compute_polyhedron_volume(
+        points: &Array2<f64>,
+        simplices: &[Vec<usize>],
+    ) -> SpatialResult<f64> {
+        if simplices.is_empty() {
+            return Ok(0.0);
+        }
+
+        // Compute the centroid of all vertices
+        let vertex_indices: std::collections::HashSet<usize> =
+            simplices.iter().flat_map(|s| s.iter()).cloned().collect();
+
+        let mut centroid = [0.0, 0.0, 0.0];
+        for &idx in &vertex_indices {
+            centroid[0] += points[[idx, 0]];
+            centroid[1] += points[[idx, 1]];
+            centroid[2] += points[[idx, 2]];
+        }
+        let n = vertex_indices.len() as f64;
+        centroid[0] /= n;
+        centroid[1] /= n;
+        centroid[2] /= n;
+
+        let mut total_volume = 0.0;
+
+        // For each triangular face, form a tetrahedron with the centroid
+        for simplex in simplices {
+            if simplex.len() != 3 {
+                continue; // Skip non-triangular faces
+            }
+
+            let p0 = [
+                points[[simplex[0], 0]],
+                points[[simplex[0], 1]],
+                points[[simplex[0], 2]],
+            ];
+            let p1 = [
+                points[[simplex[1], 0]],
+                points[[simplex[1], 1]],
+                points[[simplex[1], 2]],
+            ];
+            let p2 = [
+                points[[simplex[2], 0]],
+                points[[simplex[2], 1]],
+                points[[simplex[2], 2]],
+            ];
+
+            // Compute the volume of the tetrahedron formed by centroid, p0, p1, p2
+            let tet_volume = Self::tetrahedron_volume(centroid, p0, p1, p2);
+            total_volume += tet_volume.abs();
+        }
+
+        Ok(total_volume / 6.0)
+    }
+
+    /// Compute the surface area of a 3D polyhedron
+    fn compute_polyhedron_surface_area(
+        points: &Array2<f64>,
+        simplices: &[Vec<usize>],
+    ) -> SpatialResult<f64> {
+        if simplices.is_empty() {
+            return Ok(0.0);
+        }
+
+        let mut surface_area = 0.0;
+
+        // For each triangular face, compute its area
+        for simplex in simplices {
+            if simplex.len() != 3 {
+                continue; // Skip non-triangular faces
+            }
+
+            let p0 = [
+                points[[simplex[0], 0]],
+                points[[simplex[0], 1]],
+                points[[simplex[0], 2]],
+            ];
+            let p1 = [
+                points[[simplex[1], 0]],
+                points[[simplex[1], 1]],
+                points[[simplex[1], 2]],
+            ];
+            let p2 = [
+                points[[simplex[2], 0]],
+                points[[simplex[2], 1]],
+                points[[simplex[2], 2]],
+            ];
+
+            let area = Self::triangle_area_3d(p0, p1, p2);
+            surface_area += area;
+        }
+
+        Ok(surface_area)
+    }
+
+    /// Compute the signed volume of a tetrahedron
+    fn tetrahedron_volume(p0: [f64; 3], p1: [f64; 3], p2: [f64; 3], p3: [f64; 3]) -> f64 {
+        let v1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+        let v2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+        let v3 = [p3[0] - p0[0], p3[1] - p0[1], p3[2] - p0[2]];
+
+        // Compute scalar triple product: v1 · (v2 × v3)
+        let cross = [
+            v2[1] * v3[2] - v2[2] * v3[1],
+            v2[2] * v3[0] - v2[0] * v3[2],
+            v2[0] * v3[1] - v2[1] * v3[0],
+        ];
+
+        v1[0] * cross[0] + v1[1] * cross[1] + v1[2] * cross[2]
+    }
+
+    /// Compute the area of a 3D triangle
+    fn triangle_area_3d(p0: [f64; 3], p1: [f64; 3], p2: [f64; 3]) -> f64 {
+        let v1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+        let v2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+
+        // Compute cross product v1 × v2
+        let cross = [
+            v1[1] * v2[2] - v1[2] * v2[1],
+            v1[2] * v2[0] - v1[0] * v2[2],
+            v1[0] * v2[1] - v1[1] * v2[0],
+        ];
+
+        // Magnitude of cross product gives twice the triangle area
+        let magnitude = (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]).sqrt();
+        magnitude / 2.0
+    }
+
+    /// Compute volume for high-dimensional convex hulls (placeholder)
+    fn compute_high_dim_volume(
+        _points: &Array2<f64>,
+        _vertex_indices: &[usize],
+        _equations: &Array2<f64>,
+    ) -> SpatialResult<f64> {
+        // This is a placeholder implementation for high-dimensional volume computation
+        // A complete implementation would use more sophisticated algorithms
         Err(SpatialError::NotImplementedError(
-            "Area computation not yet fully implemented".to_string(),
+            "High-dimensional volume computation not yet implemented".to_string(),
         ))
     }
 
@@ -876,5 +1448,171 @@ mod tests {
 
         // A point off the line should not be contained
         assert!(!hull.contains([1.5, 0.1]).unwrap());
+    }
+
+    #[test]
+    fn test_graham_scan_algorithm() {
+        let points = arr2(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.5, 0.5], // Interior point
+        ]);
+
+        let hull = ConvexHull::new_with_algorithm(&points.view(), ConvexHullAlgorithm::GrahamScan)
+            .unwrap();
+
+        // Check dimensions
+        assert_eq!(hull.ndim(), 2);
+
+        // The interior point should not be part of the convex hull
+        assert_eq!(hull.vertex_indices().len(), 3);
+
+        // Verify that the interior point is not in the hull
+        assert!(!hull.vertex_indices().contains(&3));
+    }
+
+    #[test]
+    fn test_jarvis_march_algorithm() {
+        let points = arr2(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.5, 0.5], // Interior point
+        ]);
+
+        let hull = ConvexHull::new_with_algorithm(&points.view(), ConvexHullAlgorithm::JarvisMarch)
+            .unwrap();
+
+        // Check dimensions
+        assert_eq!(hull.ndim(), 2);
+
+        // The interior point should not be part of the convex hull
+        assert_eq!(hull.vertex_indices().len(), 3);
+
+        // Verify that the interior point is not in the hull
+        assert!(!hull.vertex_indices().contains(&3));
+    }
+
+    #[test]
+    fn test_algorithm_compatibility() {
+        let points_2d = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+        let points_3d = arr2(&[
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]);
+
+        // Graham scan should work for 2D
+        assert!(
+            ConvexHull::new_with_algorithm(&points_2d.view(), ConvexHullAlgorithm::GrahamScan)
+                .is_ok()
+        );
+
+        // Graham scan should fail for 3D
+        assert!(
+            ConvexHull::new_with_algorithm(&points_3d.view(), ConvexHullAlgorithm::GrahamScan)
+                .is_err()
+        );
+
+        // Jarvis march should work for 2D
+        assert!(ConvexHull::new_with_algorithm(
+            &points_2d.view(),
+            ConvexHullAlgorithm::JarvisMarch
+        )
+        .is_ok());
+
+        // Jarvis march should fail for 3D
+        assert!(ConvexHull::new_with_algorithm(
+            &points_3d.view(),
+            ConvexHullAlgorithm::JarvisMarch
+        )
+        .is_err());
+
+        // QHull should work for both 2D and 3D
+        assert!(
+            ConvexHull::new_with_algorithm(&points_2d.view(), ConvexHullAlgorithm::QHull).is_ok()
+        );
+        assert!(
+            ConvexHull::new_with_algorithm(&points_3d.view(), ConvexHullAlgorithm::QHull).is_ok()
+        );
+    }
+
+    #[test]
+    fn test_volume_area_calculations() {
+        // Test 2D square area
+        let square_points = arr2(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+        let square_hull = ConvexHull::new(&square_points.view()).unwrap();
+        let area = square_hull.volume().unwrap();
+        assert!(
+            (area - 1.0).abs() < 1e-10,
+            "Expected area 1.0, got {}",
+            area
+        );
+
+        // Test 2D triangle area
+        let triangle_points = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+        let triangle_hull = ConvexHull::new(&triangle_points.view()).unwrap();
+        let triangle_area = triangle_hull.volume().unwrap();
+        assert!(
+            (triangle_area - 0.5).abs() < 1e-10,
+            "Expected area 0.5, got {}",
+            triangle_area
+        );
+
+        // Test 2D perimeter
+        let perimeter = square_hull.area().unwrap();
+        assert!(
+            (perimeter - 4.0).abs() < 1e-10,
+            "Expected perimeter 4.0, got {}",
+            perimeter
+        );
+    }
+
+    #[test]
+    fn test_3d_volume_calculation() {
+        // Test 3D unit cube volume
+        let cube_points = arr2(&[
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]);
+        let cube_hull = ConvexHull::new(&cube_points.view()).unwrap();
+        let volume = cube_hull.volume().unwrap();
+
+        // The volume should be close to 1.0 (allowing for numerical precision)
+        assert!(
+            volume > 0.9 && volume < 1.1,
+            "Expected volume ~1.0, got {}",
+            volume
+        );
+    }
+
+    #[test]
+    fn test_convex_hull_with_algorithm_function() {
+        let points = arr2(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.5, 0.5], // Interior point
+        ]);
+
+        // Test with Graham scan
+        let hull_vertices =
+            convex_hull_with_algorithm(&points.view(), ConvexHullAlgorithm::GrahamScan).unwrap();
+        assert_eq!(hull_vertices.nrows(), 3); // Should exclude interior point
+        assert_eq!(hull_vertices.ncols(), 2);
+
+        // Test with Jarvis march
+        let hull_vertices =
+            convex_hull_with_algorithm(&points.view(), ConvexHullAlgorithm::JarvisMarch).unwrap();
+        assert_eq!(hull_vertices.nrows(), 3); // Should exclude interior point
+        assert_eq!(hull_vertices.ncols(), 2);
     }
 }

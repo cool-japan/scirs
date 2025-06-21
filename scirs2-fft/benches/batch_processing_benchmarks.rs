@@ -52,7 +52,7 @@ fn sequential_processing_small(c: &mut Criterion) {
                     signal,
                     10, // Look for up to 10 components
                     Some(SparseFFTAlgorithm::Sublinear),
-                    Some(WindowFunction::Hann),
+                    None, // seed parameter
                 )
                 .unwrap();
                 results.push(result);
@@ -75,7 +75,7 @@ fn sequential_processing_medium(c: &mut Criterion) {
                     signal,
                     10, // Look for up to 10 components
                     Some(SparseFFTAlgorithm::Sublinear),
-                    Some(WindowFunction::Hann),
+                    None, // seed parameter
                 )
                 .unwrap();
                 results.push(result);
@@ -98,7 +98,7 @@ fn sequential_processing_large(c: &mut Criterion) {
                     signal,
                     10, // Look for up to 10 components
                     Some(SparseFFTAlgorithm::Sublinear),
-                    Some(WindowFunction::Hann),
+                    None, // seed parameter
                 )
                 .unwrap();
                 results.push(result);
@@ -242,7 +242,7 @@ fn gpu_vs_cpu_single_signal(c: &mut Criterion) {
                 &noisy_signal,
                 10, // Look for up to 10 components
                 Some(SparseFFTAlgorithm::Sublinear),
-                Some(WindowFunction::Hann),
+                None, // seed parameter
             )
             .unwrap()
         })

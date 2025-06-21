@@ -40,7 +40,7 @@ mod tests {
             let x = T::convert_to_tensor(data.clone(), g);
 
             // Compute sum of elements
-            let y = T::sum_all(&x);
+            let y = T::sum_all(x);
 
             // Compute gradient
             let gradients = T::grad(&[y], &[x]);

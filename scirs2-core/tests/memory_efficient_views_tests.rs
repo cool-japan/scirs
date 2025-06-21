@@ -1,12 +1,12 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use ndarray::{Array, Array2, Axis};
+    use ndarray::Array2;
     use scirs2_core::error::CoreError;
-    use scirs2_core::memory_efficient::{diagonal_view, transpose_view, ArrayView, ViewMut};
+    use scirs2_core::memory_efficient::{diagonal_view, transpose_view, ArrayView};
 
     #[test]
     fn test_transpose_view() {
-        let mut data = Array2::from_shape_fn((3, 4), |(i, j)| i * 10 + j);
+        let data = Array2::from_shape_fn((3, 4), |(i, j)| i * 10 + j);
 
         // Create a transpose view
         let view = transpose_view(&data).unwrap();

@@ -4,8 +4,9 @@
 //! to help escape local minima and improve exploration during training.
 
 use ndarray::ScalarOperand;
-use ndarray_rand::rand;
 use ndarray_rand::rand::distributions::Distribution;
+use ndarray_rand::rand::rngs::ThreadRng;
+use ndarray_rand::rand::thread_rng;
 use ndarray_rand::rand_distr::{Normal, Uniform};
 use num_traits::{Float, NumCast};
 use std::fmt::Debug;
@@ -60,7 +61,7 @@ where
     /// Current step number
     step_count: usize,
     /// Random number generator
-    rng: rand::rngs::ThreadRng,
+    rng: ThreadRng,
     /// Minimum learning rate to ensure training stability
     min_lr: A,
 }
@@ -104,7 +105,7 @@ where
             base_scheduler,
             noise_dist,
             step_count: 0,
-            rng: rand::thread_rng(),
+            rng: thread_rng(),
             min_lr,
         }
     }
@@ -160,7 +161,7 @@ where
         let base_lr = self.base_scheduler.get_learning_rate();
 
         // Use fresh thread RNG to sample noise since get_learning_rate takes &self
-        let mut thread_rng = rand::thread_rng();
+        let mut thread_rng = thread_rng();
         let noise = match self.noise_dist {
             NoiseDistribution::Uniform { min, max } => {
                 let dist = Uniform::new(min.to_f64().unwrap(), max.to_f64().unwrap());
@@ -236,7 +237,7 @@ where
             base_scheduler: self.base_scheduler.clone(),
             noise_dist: self.noise_dist,
             step_count: self.step_count,
-            rng: rand::thread_rng(),
+            rng: thread_rng(),
             min_lr: self.min_lr,
         }
     }

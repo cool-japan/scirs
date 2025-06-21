@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -29,7 +29,7 @@ pub enum GPUBackend {
     /// CUDA (NVIDIA GPUs)
     CUDA,
 
-    /// ROCm (AMD GPUs)
+    /// `ROCm` (AMD GPUs)
     ROCm,
 
     /// Metal (Apple GPUs)
@@ -38,7 +38,7 @@ pub enum GPUBackend {
     /// WebGPU (cross-platform)
     WebGPU,
 
-    /// OpenCL (cross-platform)
+    /// `OpenCL` (cross-platform)
     OpenCL,
 }
 
@@ -120,6 +120,7 @@ where
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
     /// Create a new GPU array from a host array.
+    #[must_use]
     pub fn new(host_data: Array<T, D>, config: GPUConfig) -> Self {
         let id = format!("gpu_array_{}", uuid::Uuid::new_v4());
         let mut array = Self {
@@ -137,12 +138,14 @@ where
     }
 
     /// Get the shape of the array.
+    #[must_use]
     pub fn shape(&self) -> &[usize] {
         self.host_data.shape()
     }
 
     /// Get a reference to the host data.
-    pub fn host_data(&self) -> &Array<T, D> {
+    #[must_use]
+    pub const fn host_data(&self) -> &Array<T, D> {
         &self.host_data
     }
 
@@ -153,11 +156,15 @@ where
     }
 
     /// Get a reference to the GPU configuration.
-    pub fn config(&self) -> &GPUConfig {
+    #[must_use]
+    pub const fn config(&self) -> &GPUConfig {
         &self.config
     }
 
     /// Execute a GPU kernel on this array.
+    ///
+    /// # Errors
+    /// Returns `CoreError` if kernel execution fails.
     pub fn execute_kernel<F, R>(&self, kernel: F) -> CoreResult<R>
     where
         F: FnOnce(&Array<T, D>) -> CoreResult<R>,
@@ -168,6 +175,9 @@ where
     }
 
     /// Synchronize data from GPU to host.
+    ///
+    /// # Errors
+    /// Returns `CoreError` if synchronization fails.
     pub fn sync_to_host(&mut self) -> CoreResult<()> {
         // In a real implementation, this would copy data from GPU to host
         // For now, we just set a flag
@@ -175,6 +185,9 @@ where
     }
 
     /// Synchronize data from host to GPU.
+    ///
+    /// # Errors
+    /// Returns `CoreError` if synchronization fails.
     pub fn sync_to_gpu(&mut self) -> CoreResult<()> {
         // In a real implementation, this would copy data from host to GPU
         // For now, we just set a flag
@@ -218,6 +231,7 @@ where
                 // Example implementation of mean for a GPU array
                 let sum = self.host_data.sum();
                 let count = self.host_data.len();
+                #[allow(clippy::cast_precision_loss)]
                 let mean = sum / count as f64;
 
                 Ok(Box::new(mean))
@@ -229,16 +243,15 @@ where
                 }
 
                 // Try to get the second argument as a GPU array first
-                if let Some(other) = args[1].downcast_ref::<GPUNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
                     }
 
                     // Use GPU kernel for addition (in this case simulated)
-                    let result = match kernels::add(self, other) {
-                        Ok(gpu_array) => gpu_array,
-                        Err(_) => return Err(NotImplemented),
+                    let Ok(result) = kernels::add(self, other) else {
+                        return Err(NotImplemented);
                     };
 
                     return Ok(Box::new(result));
@@ -255,16 +268,15 @@ where
                 }
 
                 // Try to get the second argument as a GPU array
-                if let Some(other) = args[1].downcast_ref::<GPUNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
                     }
 
                     // Use GPU kernel for multiplication (in this case simulated)
-                    let result = match kernels::multiply(self, other) {
-                        Ok(gpu_array) => gpu_array,
-                        Err(_) => return Err(NotImplemented),
+                    let Ok(result) = kernels::multiply(self, other) else {
+                        return Err(NotImplemented);
                     };
 
                     return Ok(Box::new(result));
@@ -288,16 +300,17 @@ where
                 }
 
                 // Try to get the second argument as a GPU array with the same type
-                if let Some(other) = args[1].downcast_ref::<GPUNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // For simplicity, we'll use the existing kernel function for the specific case
                     // of f64 arrays with 2 dimensions
                     if TypeId::of::<T>() == TypeId::of::<f64>()
                         && TypeId::of::<D>() == TypeId::of::<ndarray::Ix2>()
                     {
-                        let self_f64 =
-                            unsafe { &*(self as *const _ as *const GPUNdarray<f64, ndarray::Ix2>) };
+                        let self_f64 = unsafe {
+                            &*std::ptr::from_ref(self).cast::<GPUNdarray<f64, ndarray::Ix2>>()
+                        };
                         let other_f64 = unsafe {
-                            &*(other as *const _ as *const GPUNdarray<f64, ndarray::Ix2>)
+                            &*std::ptr::from_ref(other).cast::<GPUNdarray<f64, ndarray::Ix2>>()
                         };
 
                         match kernels::matmul(self_f64, other_f64) {
@@ -309,12 +322,11 @@ where
                             }
                             Err(_) => return Err(NotImplemented),
                         }
-                    } else {
-                        // For other types, create a placeholder result for demonstration
-                        // In a real implementation, we would support more types and dimensions
-                        let result = GPUNdarray::new(self.host_data.clone(), self.config.clone());
-                        return Ok(Box::new(result));
                     }
+                    // For other types, create a placeholder result for demonstration
+                    // In a real implementation, we would support more types and dimensions
+                    let result = Self::new(self.host_data.clone(), self.config.clone());
+                    return Ok(Box::new(result));
                 }
 
                 Err(NotImplemented)
@@ -329,7 +341,7 @@ where
                 // In a real implementation, this would use a GPU kernel
                 // For now, we'll simulate by cloning to CPU, transposing, and creating a new GPU array
                 let transposed = self.host_data.t().to_owned();
-                let result = GPUNdarray::new(transposed, self.config.clone());
+                let result = Self::new(transposed, self.config.clone());
 
                 Ok(Box::new(result))
             }
@@ -373,11 +385,15 @@ where
     T: std::ops::Div<f64, Output = T> + std::ops::Mul<Output = T> + std::ops::Add<Output = T>,
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
+    /// # Errors
+    /// Returns `CoreError` if GPU transfer fails.
     fn to_gpu(&self) -> CoreResult<Box<dyn GPUArray>> {
         // Already on GPU
         Ok(Box::new(self.clone()))
     }
 
+    /// # Errors
+    /// Returns `CoreError` if CPU transfer fails.
     fn to_cpu(&self) -> CoreResult<Box<dyn ArrayProtocol>> {
         // Create a regular ndarray from the host data
         let array = super::NdarrayWrapper::new(self.host_data.clone());
@@ -385,13 +401,18 @@ where
         Ok(Box::new(array) as Box<dyn ArrayProtocol>)
     }
 
+    #[must_use]
     fn is_on_gpu(&self) -> bool {
         self.on_gpu
     }
 
+    #[must_use]
     fn device_info(&self) -> HashMap<String, String> {
         let mut info = HashMap::new();
-        info.insert("backend".to_string(), format!("{:?}", self.config.backend));
+        info.insert(
+            "backend".to_string(),
+            format!("{backend:?}", backend = self.config.backend),
+        );
         info.insert("device_id".to_string(), self.config.device_id.to_string());
         info.insert("on_gpu".to_string(), self.on_gpu.to_string());
         info.insert("id".to_string(), self.id.clone());
@@ -428,6 +449,7 @@ impl Default for GPUArrayBuilder {
 
 impl GPUArrayBuilder {
     /// Create a new GPU array builder with default settings.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: GPUConfig::default(),
@@ -435,36 +457,42 @@ impl GPUArrayBuilder {
     }
 
     /// Set the GPU backend to use.
-    pub fn backend(mut self, backend: GPUBackend) -> Self {
+    #[must_use]
+    pub const fn backend(mut self, backend: GPUBackend) -> Self {
         self.config.backend = backend;
         self
     }
 
     /// Set the device ID to use.
-    pub fn device_id(mut self, device_id: usize) -> Self {
+    #[must_use]
+    pub const fn device_id(mut self, device_id: usize) -> Self {
         self.config.device_id = device_id;
         self
     }
 
     /// Set whether to use asynchronous operations.
-    pub fn async_ops(mut self, async_ops: bool) -> Self {
+    #[must_use]
+    pub const fn async_ops(mut self, async_ops: bool) -> Self {
         self.config.async_ops = async_ops;
         self
     }
 
     /// Set whether to use mixed precision.
-    pub fn mixed_precision(mut self, mixed_precision: bool) -> Self {
+    #[must_use]
+    pub const fn mixed_precision(mut self, mixed_precision: bool) -> Self {
         self.config.mixed_precision = mixed_precision;
         self
     }
 
     /// Set the fraction of GPU memory to use.
-    pub fn memory_fraction(mut self, memory_fraction: f32) -> Self {
+    #[must_use]
+    pub const fn memory_fraction(mut self, memory_fraction: f32) -> Self {
         self.config.memory_fraction = memory_fraction;
         self
     }
 
     /// Build a GPU array from a host array.
+    #[must_use]
     pub fn build<T, D>(self, host_data: Array<T, D>) -> GPUNdarray<T, D>
     where
         T: Clone + Send + Sync + 'static + num_traits::Zero + std::ops::Div<f64, Output = T>,
@@ -480,6 +508,9 @@ pub mod kernels {
     use ndarray::{Array, Dimension};
 
     /// Add two arrays element-wise.
+    ///
+    /// # Errors
+    /// Returns `CoreError::ShapeError` if arrays have different shapes.
     pub fn add<T, D>(a: &GPUNdarray<T, D>, b: &GPUNdarray<T, D>) -> CoreResult<GPUNdarray<T, D>>
     where
         T: Clone
@@ -511,6 +542,9 @@ pub mod kernels {
     }
 
     /// Multiply two arrays element-wise.
+    ///
+    /// # Errors
+    /// Returns `CoreError::ShapeError` if arrays have different shapes.
     pub fn multiply<T, D>(
         a: &GPUNdarray<T, D>,
         b: &GPUNdarray<T, D>,
@@ -545,6 +579,9 @@ pub mod kernels {
     }
 
     /// Matrix multiplication.
+    ///
+    /// # Errors
+    /// Returns `CoreError::ShapeError` if arrays are not compatible for matrix multiplication.
     pub fn matmul<T>(
         a: &GPUNdarray<T, ndarray::Ix2>,
         b: &GPUNdarray<T, ndarray::Ix2>,

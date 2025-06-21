@@ -5,9 +5,14 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
+/// Type alias for a fused operation
+type FusedOpArc = Arc<dyn FusedOp>;
+
+/// Type alias for the fusion registry storage
+type FusionRegistryMap = HashMap<TypeId, Vec<FusedOpArc>>;
+
 // Global registry of fused operations
-static FUSION_REGISTRY: Lazy<Mutex<HashMap<TypeId, Vec<Arc<dyn FusedOp>>>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static FUSION_REGISTRY: Lazy<Mutex<FusionRegistryMap>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// A trait for operations that can be fused together for better performance
 pub trait FusedOp: Send + Sync {
@@ -69,10 +74,8 @@ impl OpFusion {
             self.output_type = op.output_type();
         } else if op.input_type() != self.output_type {
             return Err(CoreError::ValidationError(
-                ErrorContext::new(format!(
-                    "Operation input type does not match previous output type"
-                ))
-                .with_location(ErrorLocation::new(file!(), line!())),
+                ErrorContext::new("Operation input type does not match previous output type")
+                    .with_location(ErrorLocation::new(file!(), line!())),
             ));
         }
 
@@ -112,7 +115,7 @@ impl OpFusion {
     pub fn apply<A: 'static>(&self, input: A) -> Result<Box<dyn Any>, CoreError> {
         if TypeId::of::<A>() != self.input_type {
             return Err(CoreError::ValidationError(
-                ErrorContext::new(format!("Input type does not match expected type"))
+                ErrorContext::new("Input type does not match expected type")
                     .with_location(ErrorLocation::new(file!(), line!())),
             ));
         }
@@ -137,12 +140,18 @@ impl OpFusion {
     }
 }
 
+impl Default for OpFusion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Register a fused operation in the global registry
 pub fn register_fusion<T: 'static>(op: Arc<dyn FusedOp>) -> Result<(), CoreError> {
     let type_id = TypeId::of::<T>();
 
     let mut registry = FUSION_REGISTRY.lock().unwrap();
-    let ops = registry.entry(type_id).or_insert_with(Vec::new);
+    let ops = registry.entry(type_id).or_default();
     ops.push(op);
 
     Ok(())

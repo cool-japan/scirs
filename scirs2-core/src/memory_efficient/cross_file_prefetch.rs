@@ -7,10 +7,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
-use super::prefetch::{PrefetchConfig, PrefetchStats};
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Default correlation threshold for considering files related
@@ -211,43 +210,43 @@ impl CrossFilePrefetchConfigBuilder {
     }
 
     /// Set the correlation window.
-    pub fn with_correlation_window(mut self, window: Duration) -> Self {
+    pub const fn with_correlation_window(mut self, window: Duration) -> Self {
         self.config.correlation_window = window;
         self
     }
 
     /// Set the minimum occurrences for correlation.
-    pub fn with_min_occurrences(mut self, occurrences: usize) -> Self {
+    pub const fn with_min_occurrences(mut self, occurrences: usize) -> Self {
         self.config.min_occurrences = occurrences;
         self
     }
 
     /// Set the maximum number of datasets to prefetch.
-    pub fn with_max_prefetch_datasets(mut self, max_datasets: usize) -> Self {
+    pub const fn with_max_prefetch_datasets(mut self, max_datasets: usize) -> Self {
         self.config.max_prefetch_datasets = max_datasets;
         self
     }
 
     /// Set the maximum elements to prefetch per dataset.
-    pub fn with_max_prefetch_elements(mut self, max_elements: usize) -> Self {
+    pub const fn with_max_prefetch_elements(mut self, max_elements: usize) -> Self {
         self.config.max_prefetch_elements = max_elements;
         self
     }
 
     /// Enable or disable prefetching entire files.
-    pub fn with_prefetch_entire_file(mut self, enable: bool) -> Self {
+    pub const fn with_prefetch_entire_file(mut self, enable: bool) -> Self {
         self.config.prefetch_entire_file = enable;
         self
     }
 
     /// Set the correlation expiry time.
-    pub fn with_correlation_expiry(mut self, expiry: Duration) -> Self {
+    pub const fn with_correlation_expiry(mut self, expiry: Duration) -> Self {
         self.config.correlation_expiry = expiry;
         self
     }
 
     /// Enable or disable learning from access patterns.
-    pub fn with_enable_learning(mut self, enable: bool) -> Self {
+    pub const fn with_enable_learning(mut self, enable: bool) -> Self {
         self.config.enable_learning = enable;
         self
     }
@@ -258,10 +257,17 @@ impl CrossFilePrefetchConfigBuilder {
     }
 }
 
+impl Default for CrossFilePrefetchConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// A correlation between datasets.
 #[derive(Debug, Clone)]
 struct DatasetCorrelation {
     /// Primary dataset
+    #[allow(dead_code)]
     primary: DatasetId,
 
     /// Related dataset
@@ -303,10 +309,7 @@ impl DatasetCorrelation {
         self.strength = (self.strength * 0.9) + 0.1;
 
         // Update index correlations
-        let entry = self
-            .index_correlations
-            .entry(primary_index)
-            .or_insert_with(Vec::new);
+        let entry = self.index_correlations.entry(primary_index).or_default();
 
         for &related_index in related_indices {
             if !entry.contains(&related_index) {
@@ -621,7 +624,10 @@ impl CrossFilePrefetchRegistry {
             }
         });
 
-        unsafe { INSTANCE.as_ref().unwrap() }
+        #[allow(static_mut_refs)]
+        unsafe {
+            INSTANCE.as_ref().unwrap()
+        }
     }
 
     /// Record a data access.
@@ -703,8 +709,9 @@ impl CrossFilePrefetchRegistry {
     }
 }
 
+#[cfg(feature = "memory_compression")]
 /// Implementation of DatasetPrefetcher for CompressedMemMappedArray.
-pub struct CompressedArrayPrefetcher<A: Clone + Copy + 'static> {
+pub struct CompressedArrayPrefetcher<A: Clone + Copy + Send + Sync + 'static> {
     /// Dataset ID
     dataset_id: DatasetId,
 
@@ -712,7 +719,8 @@ pub struct CompressedArrayPrefetcher<A: Clone + Copy + 'static> {
     array: Arc<super::compressed_memmap::CompressedMemMappedArray<A>>,
 }
 
-impl<A: Clone + Copy + 'static> CompressedArrayPrefetcher<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + Send + Sync + 'static> CompressedArrayPrefetcher<A> {
     /// Create a new prefetcher for a compressed array.
     pub fn new(
         dataset_id: DatasetId,
@@ -722,14 +730,15 @@ impl<A: Clone + Copy + 'static> CompressedArrayPrefetcher<A> {
     }
 }
 
-impl<A: Clone + Copy + 'static> DatasetPrefetcher for CompressedArrayPrefetcher<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + Send + Sync + 'static> DatasetPrefetcher for CompressedArrayPrefetcher<A> {
     fn prefetch_indices(&self, indices: &[usize]) -> CoreResult<()> {
         if indices.is_empty() {
             return Ok(());
         }
 
         // For compressed arrays, we need to convert flat indices to block indices
-        let block_size = self.array.metadata.block_size;
+        let block_size = self.array.block_size();
 
         // Calculate unique block indices to prefetch
         let mut block_indices = HashSet::new();
@@ -748,7 +757,7 @@ impl<A: Clone + Copy + 'static> DatasetPrefetcher for CompressedArrayPrefetcher<
 
     fn prefetch_all(&self) -> CoreResult<()> {
         // Prefetch all blocks
-        let total_blocks = self.array.metadata.num_blocks;
+        let total_blocks = self.array.num_blocks();
         for block_idx in 0..total_blocks {
             self.array.preload_block(block_idx)?;
         }
@@ -762,7 +771,7 @@ impl<A: Clone + Copy + 'static> DatasetPrefetcher for CompressedArrayPrefetcher<
 }
 
 /// Implementation of DatasetPrefetcher for MemoryMappedArray.
-pub struct MemoryMappedArrayPrefetcher<A: Clone + Copy + 'static> {
+pub struct MemoryMappedArrayPrefetcher<A: Clone + Copy + Send + Sync + 'static> {
     /// Dataset ID
     dataset_id: DatasetId,
 
@@ -770,10 +779,11 @@ pub struct MemoryMappedArrayPrefetcher<A: Clone + Copy + 'static> {
     array: Arc<super::memmap::MemoryMappedArray<A>>,
 
     /// Chunk size for prefetching
+    #[allow(dead_code)]
     chunk_size: usize,
 }
 
-impl<A: Clone + Copy + 'static> MemoryMappedArrayPrefetcher<A> {
+impl<A: Clone + Copy + Send + Sync + 'static> MemoryMappedArrayPrefetcher<A> {
     /// Create a new prefetcher for a memory-mapped array.
     pub fn new(
         dataset_id: DatasetId,
@@ -788,7 +798,7 @@ impl<A: Clone + Copy + 'static> MemoryMappedArrayPrefetcher<A> {
     }
 }
 
-impl<A: Clone + Copy + 'static> DatasetPrefetcher for MemoryMappedArrayPrefetcher<A> {
+impl<A: Clone + Copy + Send + Sync + 'static> DatasetPrefetcher for MemoryMappedArrayPrefetcher<A> {
     fn prefetch_indices(&self, indices: &[usize]) -> CoreResult<()> {
         if indices.is_empty() {
             return Ok(());
@@ -799,14 +809,14 @@ impl<A: Clone + Copy + 'static> DatasetPrefetcher for MemoryMappedArrayPrefetche
         // but ensures the memory is mapped
 
         // Ensure the array is readable
-        let _array = self.array.readonly_array()?;
+        let _array = self.array.as_array::<ndarray::IxDyn>()?;
 
         Ok(())
     }
 
     fn prefetch_all(&self) -> CoreResult<()> {
         // For memory-mapped arrays, just ensure the file is mapped
-        let _array = self.array.readonly_array()?;
+        let _array = self.array.as_array::<ndarray::IxDyn>()?;
 
         Ok(())
     }
@@ -816,23 +826,26 @@ impl<A: Clone + Copy + 'static> DatasetPrefetcher for MemoryMappedArrayPrefetche
     }
 }
 
+#[cfg(feature = "memory_compression")]
 /// Extension traits for compressed arrays to enable cross-file prefetching.
-pub trait CompressedArrayPrefetchExt<A: Clone + Copy + 'static> {
+pub trait CompressedArrayPrefetchExt<A: Clone + Copy + Send + Sync + 'static> {
     /// Register with the cross-file prefetching system.
+    #[allow(dead_code)]
     fn register_for_cross_prefetch(
         &self,
         dataset_id: DatasetId,
     ) -> CoreResult<Arc<CompressedArrayPrefetcher<A>>>;
 }
 
-impl<A: Clone + Copy + 'static> CompressedArrayPrefetchExt<A>
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + Send + Sync + 'static> CompressedArrayPrefetchExt<A>
     for super::compressed_memmap::CompressedMemMappedArray<A>
 {
     fn register_for_cross_prefetch(
         &self,
         dataset_id: DatasetId,
     ) -> CoreResult<Arc<CompressedArrayPrefetcher<A>>> {
-        let array = Arc::new(self.clone());
+        let array = Arc::new((*self).clone());
         let prefetcher = Arc::new(CompressedArrayPrefetcher::new(dataset_id.clone(), array));
 
         CrossFilePrefetchRegistry::global().register_dataset(dataset_id, prefetcher.clone())?;
@@ -842,8 +855,9 @@ impl<A: Clone + Copy + 'static> CompressedArrayPrefetchExt<A>
 }
 
 /// Extension traits for memory-mapped arrays to enable cross-file prefetching.
-pub trait MemoryMappedArrayPrefetchExt<A: Clone + Copy + 'static> {
+pub trait MemoryMappedArrayPrefetchExt<A: Clone + Copy + Send + Sync + 'static> {
     /// Register with the cross-file prefetching system.
+    #[allow(dead_code)]
     fn register_for_cross_prefetch(
         &self,
         dataset_id: DatasetId,
@@ -851,7 +865,7 @@ pub trait MemoryMappedArrayPrefetchExt<A: Clone + Copy + 'static> {
     ) -> CoreResult<Arc<MemoryMappedArrayPrefetcher<A>>>;
 }
 
-impl<A: Clone + Copy + 'static> MemoryMappedArrayPrefetchExt<A>
+impl<A: Clone + Copy + Send + Sync + 'static> MemoryMappedArrayPrefetchExt<A>
     for super::memmap::MemoryMappedArray<A>
 {
     fn register_for_cross_prefetch(
@@ -859,7 +873,7 @@ impl<A: Clone + Copy + 'static> MemoryMappedArrayPrefetchExt<A>
         dataset_id: DatasetId,
         chunk_size: usize,
     ) -> CoreResult<Arc<MemoryMappedArrayPrefetcher<A>>> {
-        let array = Arc::new(self.clone());
+        let array = Arc::new((*self).clone());
         let prefetcher = Arc::new(MemoryMappedArrayPrefetcher::new(
             dataset_id.clone(),
             array,
@@ -873,7 +887,8 @@ impl<A: Clone + Copy + 'static> MemoryMappedArrayPrefetchExt<A>
 }
 
 /// Middleware wrapper for tracking array accesses.
-pub struct TrackedArray<A: Clone + Copy + 'static, T> {
+#[allow(dead_code)]
+pub struct TrackedArray<A: Clone + Copy + 'static + Send + Sync, T> {
     /// Underlying array
     array: T,
 
@@ -884,7 +899,8 @@ pub struct TrackedArray<A: Clone + Copy + 'static, T> {
     _phantom: std::marker::PhantomData<A>,
 }
 
-impl<A: Clone + Copy + 'static, T> TrackedArray<A, T> {
+#[allow(dead_code)]
+impl<A: Clone + Copy + 'static + Send + Sync, T> TrackedArray<A, T> {
     /// Create a new tracked array.
     pub fn new(array: T, dataset_id: DatasetId) -> Self {
         Self {
@@ -895,7 +911,7 @@ impl<A: Clone + Copy + 'static, T> TrackedArray<A, T> {
     }
 
     /// Get a reference to the underlying array.
-    pub fn inner(&self) -> &T {
+    pub const fn inner(&self) -> &T {
         &self.array
     }
 
@@ -905,7 +921,7 @@ impl<A: Clone + Copy + 'static, T> TrackedArray<A, T> {
     }
 
     /// Get the dataset ID.
-    pub fn dataset_id(&self) -> &DatasetId {
+    pub const fn dataset_id(&self) -> &DatasetId {
         &self.dataset_id
     }
 
@@ -928,11 +944,13 @@ impl<A: Clone + Copy + 'static, T> TrackedArray<A, T> {
     }
 }
 
+#[cfg(feature = "memory_compression")]
 /// Implementation of TrackedArray for CompressedMemMappedArray.
-impl<A: Clone + Copy + 'static>
+impl<A: Clone + Copy + 'static + Send + Sync>
     TrackedArray<A, super::compressed_memmap::CompressedMemMappedArray<A>>
 {
     /// Get an element from the array, recording the access.
+    #[allow(dead_code)]
     pub fn get(&self, indices: &[usize]) -> CoreResult<A> {
         let start = Instant::now();
 
@@ -942,7 +960,7 @@ impl<A: Clone + Copy + 'static>
         for i in (0..indices.len()).rev() {
             flat_index += indices[i] * stride;
             if i > 0 {
-                stride *= self.array.metadata.shape[i];
+                stride *= self.array.shape()[i];
             }
         }
 

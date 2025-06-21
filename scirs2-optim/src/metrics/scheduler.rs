@@ -18,7 +18,7 @@ use crate::schedulers::LearningRateScheduler;
 #[derive(Debug, Clone)]
 pub struct MetricScheduler<F: Float + Debug + Display + ScalarOperand + FromPrimitive> {
     /// Base scheduler
-    scheduler: scirs2_metrics::integration::optim::MetricScheduler<F>,
+    scheduler: scirs2_metrics::integration::optim::MetricLRScheduler<F>,
     /// Threshold for considering an improvement
     threshold: F,
 }
@@ -35,7 +35,7 @@ impl<F: Float + Debug + Display + ScalarOperand + FromPrimitive> MetricScheduler
         maximize: bool,
     ) -> Self {
         Self {
-            scheduler: scirs2_metrics::integration::optim::MetricScheduler::new(
+            scheduler: scirs2_metrics::integration::optim::MetricLRScheduler::new(
                 initial_lr,
                 factor,
                 patience,

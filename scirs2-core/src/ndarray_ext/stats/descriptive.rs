@@ -8,6 +8,14 @@ use num_traits::{Float, FromPrimitive};
 
 /// Calculate the mean of array elements (2D arrays)
 ///
+/// # Errors
+///
+/// Returns an error if the array is empty or if conversion fails.
+///
+/// # Panics
+///
+/// Panics if type conversion from usize fails.
+///
 /// # Arguments
 ///
 /// * `array` - The input 2D array
@@ -47,60 +55,65 @@ where
         return Err("Cannot compute mean of an empty array");
     }
 
-    match axis {
-        Some(ax) => {
-            let (rows, cols) = (array.shape()[0], array.shape()[1]);
+    if let Some(ax) = axis {
+        let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
-            match ax.index() {
-                0 => {
-                    // Mean along axis 0 (columns)
-                    let mut result = Array::<T, Ix1>::zeros(cols);
-                    let n = T::from_usize(rows).unwrap();
+        match ax.index() {
+            0 => {
+                // Mean along axis 0 (columns)
+                let mut result = Array::<T, Ix1>::zeros(cols);
+                let n = T::from_usize(rows).unwrap();
 
-                    for j in 0..cols {
-                        let mut sum = T::zero();
-                        for i in 0..rows {
-                            sum = sum + array[[i, j]];
-                        }
-                        result[j] = sum / n;
-                    }
-
-                    Ok(result)
-                }
-                1 => {
-                    // Mean along axis 1 (rows)
-                    let mut result = Array::<T, Ix1>::zeros(rows);
-                    let n = T::from_usize(cols).unwrap();
-
+                for j in 0..cols {
+                    let mut sum = T::zero();
                     for i in 0..rows {
-                        let mut sum = T::zero();
-                        for j in 0..cols {
-                            sum = sum + array[[i, j]];
-                        }
-                        result[i] = sum / n;
+                        sum = sum + array[[i, j]];
                     }
-
-                    Ok(result)
+                    result[j] = sum / n;
                 }
-                _ => Err("Axis index out of bounds for 2D array"),
-            }
-        }
-        None => {
-            // Global mean
-            let total_elements = array.len();
-            let mut sum = T::zero();
 
-            for &val in array.iter() {
-                sum = sum + val;
+                Ok(result)
             }
+            1 => {
+                // Mean along axis 1 (rows)
+                let mut result = Array::<T, Ix1>::zeros(rows);
+                let n = T::from_usize(cols).unwrap();
 
-            let count = T::from_usize(total_elements).ok_or("Cannot convert array length to T")?;
-            Ok(Array::from_elem(1, sum / count))
+                for i in 0..rows {
+                    let mut sum = T::zero();
+                    for j in 0..cols {
+                        sum = sum + array[[i, j]];
+                    }
+                    result[i] = sum / n;
+                }
+
+                Ok(result)
+            }
+            _ => Err("Axis index out of bounds for 2D array"),
         }
+    } else {
+        // Global mean
+        let total_elements = array.len();
+        let mut sum = T::zero();
+
+        for &val in array {
+            sum = sum + val;
+        }
+
+        let count = T::from_usize(total_elements).ok_or("Cannot convert array length to T")?;
+        Ok(Array::from_elem(1, sum / count))
     }
 }
 
 /// Calculate the median of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
+///
+/// # Panics
+///
+/// Panics if partial comparison fails or type conversion fails.
 ///
 /// # Arguments
 ///
@@ -141,83 +154,87 @@ where
         return Err("Cannot compute median of an empty array");
     }
 
-    match axis {
-        Some(ax) => {
-            let (rows, cols) = (array.shape()[0], array.shape()[1]);
+    if let Some(ax) = axis {
+        let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
-            match ax.index() {
-                0 => {
-                    // Median along axis 0 (columns)
-                    let mut result = Array::<T, Ix1>::zeros(cols);
+        match ax.index() {
+            0 => {
+                // Median along axis 0 (columns)
+                let mut result = Array::<T, Ix1>::zeros(cols);
 
-                    for j in 0..cols {
-                        let mut column_values = Vec::with_capacity(rows);
-                        for i in 0..rows {
-                            column_values.push(array[[i, j]]);
-                        }
-
-                        column_values
-                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-                        let median_value = if column_values.len() % 2 == 0 {
-                            let mid = column_values.len() / 2;
-                            (column_values[mid - 1] + column_values[mid])
-                                / T::from_f64(2.0).unwrap()
-                        } else {
-                            column_values[column_values.len() / 2]
-                        };
-
-                        result[j] = median_value;
-                    }
-
-                    Ok(result)
-                }
-                1 => {
-                    // Median along axis 1 (rows)
-                    let mut result = Array::<T, Ix1>::zeros(rows);
-
+                for j in 0..cols {
+                    let mut column_values = Vec::with_capacity(rows);
                     for i in 0..rows {
-                        let mut row_values = Vec::with_capacity(cols);
-                        for j in 0..cols {
-                            row_values.push(array[[i, j]]);
-                        }
-
-                        row_values
-                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-                        let median_value = if row_values.len() % 2 == 0 {
-                            let mid = row_values.len() / 2;
-                            (row_values[mid - 1] + row_values[mid]) / T::from_f64(2.0).unwrap()
-                        } else {
-                            row_values[row_values.len() / 2]
-                        };
-
-                        result[i] = median_value;
+                        column_values.push(array[[i, j]]);
                     }
 
-                    Ok(result)
+                    column_values
+                        .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+                    let median_value = if column_values.len() % 2 == 0 {
+                        let mid = column_values.len() / 2;
+                        (column_values[mid - 1] + column_values[mid]) / T::from_f64(2.0).unwrap()
+                    } else {
+                        column_values[column_values.len() / 2]
+                    };
+
+                    result[j] = median_value;
                 }
-                _ => Err("Axis index out of bounds for 2D array"),
+
+                Ok(result)
             }
-        }
-        None => {
-            // Global median
-            let mut values: Vec<_> = array.iter().copied().collect();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            1 => {
+                // Median along axis 1 (rows)
+                let mut result = Array::<T, Ix1>::zeros(rows);
 
-            let median_value = if values.len() % 2 == 0 {
-                let mid = values.len() / 2;
-                (values[mid - 1] + values[mid]) / T::from_f64(2.0).unwrap()
-            } else {
-                values[values.len() / 2]
-            };
+                for i in 0..rows {
+                    let mut row_values = Vec::with_capacity(cols);
+                    for j in 0..cols {
+                        row_values.push(array[[i, j]]);
+                    }
 
-            Ok(Array::from_elem(1, median_value))
+                    row_values
+                        .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+                    let median_value = if row_values.len() % 2 == 0 {
+                        let mid = row_values.len() / 2;
+                        (row_values[mid - 1] + row_values[mid]) / T::from_f64(2.0).unwrap()
+                    } else {
+                        row_values[row_values.len() / 2]
+                    };
+
+                    result[i] = median_value;
+                }
+
+                Ok(result)
+            }
+            _ => Err("Axis index out of bounds for 2D array"),
         }
+    } else {
+        // Global median
+        let mut values: Vec<_> = array.iter().copied().collect();
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let median_value = if values.len() % 2 == 0 {
+            let mid = values.len() / 2;
+            (values[mid - 1] + values[mid]) / T::from_f64(2.0).unwrap()
+        } else {
+            values[values.len() / 2]
+        };
+
+        Ok(Array::from_elem(1, median_value))
     }
 }
 
 /// Calculate the standard deviation of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty or variance calculation fails.
+///
+/// # Panics
+///
+/// Panics if variance calculation panics.
 ///
 /// # Arguments
 ///
@@ -259,6 +276,14 @@ where
 
 /// Calculate the variance of array elements (2D arrays)
 ///
+/// # Errors
+///
+/// Returns an error if the array is empty or if conversion fails.
+///
+/// # Panics
+///
+/// Panics if type conversion from usize fails.
+///
 /// # Arguments
 ///
 /// * `array` - The input 2D array
@@ -297,86 +322,79 @@ where
         return Err("Cannot compute variance of an empty array");
     }
 
-    match axis {
-        Some(ax) => {
-            let (rows, cols) = (array.shape()[0], array.shape()[1]);
+    if let Some(ax) = axis {
+        let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
-            match ax.index() {
-                0 => {
-                    // Variance along axis 0 (columns)
-                    let means = mean_2d(array, Some(ax))?;
+        match ax.index() {
+            0 => {
+                // Variance along axis 0 (columns)
+                let means = mean_2d(array, Some(ax))?;
 
-                    if rows <= ddof {
-                        return Err(
-                            "Not enough data points for variance calculation with given ddof",
-                        );
-                    }
-
-                    let mut result = Array::<T, Ix1>::zeros(cols);
-
-                    for j in 0..cols {
-                        let mut sum_sq_diff = T::zero();
-                        for i in 0..rows {
-                            let diff = array[[i, j]] - means[j];
-                            sum_sq_diff = sum_sq_diff + (diff * diff);
-                        }
-
-                        let divisor = T::from_usize(rows - ddof).unwrap();
-                        result[j] = sum_sq_diff / divisor;
-                    }
-
-                    Ok(result)
+                if rows <= ddof {
+                    return Err("Not enough data points for variance calculation with given ddof");
                 }
-                1 => {
-                    // Variance along axis 1 (rows)
-                    let means = mean_2d(array, Some(ax))?;
 
-                    if cols <= ddof {
-                        return Err(
-                            "Not enough data points for variance calculation with given ddof",
-                        );
-                    }
+                let mut result = Array::<T, Ix1>::zeros(cols);
 
-                    let mut result = Array::<T, Ix1>::zeros(rows);
-
+                for j in 0..cols {
+                    let mut sum_sq_diff = T::zero();
                     for i in 0..rows {
-                        let mut sum_sq_diff = T::zero();
-                        for j in 0..cols {
-                            let diff = array[[i, j]] - means[i];
-                            sum_sq_diff = sum_sq_diff + (diff * diff);
-                        }
-
-                        let divisor = T::from_usize(cols - ddof).unwrap();
-                        result[i] = sum_sq_diff / divisor;
+                        let diff = array[[i, j]] - means[j];
+                        sum_sq_diff = sum_sq_diff + (diff * diff);
                     }
 
-                    Ok(result)
+                    let divisor = T::from_usize(rows - ddof).unwrap();
+                    result[j] = sum_sq_diff / divisor;
                 }
-                _ => Err("Axis index out of bounds for 2D array"),
+
+                Ok(result)
             }
+            1 => {
+                // Variance along axis 1 (rows)
+                let means = mean_2d(array, Some(ax))?;
+
+                if cols <= ddof {
+                    return Err("Not enough data points for variance calculation with given ddof");
+                }
+
+                let mut result = Array::<T, Ix1>::zeros(rows);
+
+                for i in 0..rows {
+                    let mut sum_sq_diff = T::zero();
+                    for j in 0..cols {
+                        let diff = array[[i, j]] - means[i];
+                        sum_sq_diff = sum_sq_diff + (diff * diff);
+                    }
+
+                    let divisor = T::from_usize(cols - ddof).unwrap();
+                    result[i] = sum_sq_diff / divisor;
+                }
+
+                Ok(result)
+            }
+            _ => Err("Axis index out of bounds for 2D array"),
         }
-        None => {
-            // Global variance
-            let total_elements = array.len();
+    } else {
+        // Global variance
+        let total_elements = array.len();
 
-            if total_elements <= ddof {
-                return Err("Not enough data points for variance calculation with given ddof");
-            }
-
-            // Calculate global mean
-            let global_mean = mean_2d(array, None)?[0];
-
-            // Calculate sum of squared differences from the mean
-            let mut sum_sq_diff = T::zero();
-            for &val in array.iter() {
-                let diff = val - global_mean;
-                sum_sq_diff = sum_sq_diff + (diff * diff);
-            }
-
-            let divisor = T::from_usize(total_elements - ddof).unwrap();
-
-            Ok(Array::from_elem(1, sum_sq_diff / divisor))
+        if total_elements <= ddof {
+            return Err("Not enough data points for variance calculation with given ddof");
         }
+
+        // Calculate global mean
+        let global_mean = mean_2d(array, None)?[0];
+
+        // Calculate sum of squared differences from the mean
+        let mut sum_sq_diff = T::zero();
+        for &val in array {
+            let diff = val - global_mean;
+            sum_sq_diff = sum_sq_diff + (diff * diff);
+        }
+
+        let divisor = T::from_usize(total_elements - ddof).unwrap();
+
+        Ok(Array::from_elem(1, sum_sq_diff / divisor))
     }
 }
 
@@ -386,6 +404,10 @@ where
 // Let's continue with min_2d and max_2d
 
 /// Calculate the minimum value(s) of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 ///
 /// # Arguments
 ///
@@ -450,7 +472,7 @@ where
             // Global min
             let mut min_val = array[[0, 0]];
 
-            for &val in array.iter() {
+            for &val in array {
                 if val < min_val {
                     min_val = val;
                 }
@@ -462,6 +484,10 @@ where
 }
 
 /// Calculate the maximum value(s) of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 ///
 /// # Arguments
 ///
@@ -526,7 +552,7 @@ where
             // Global max
             let mut max_val = array[[0, 0]];
 
-            for &val in array.iter() {
+            for &val in array {
                 if val > max_val {
                     max_val = val;
                 }
@@ -538,6 +564,10 @@ where
 }
 
 /// Calculate the sum of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 ///
 /// # Arguments
 ///
@@ -598,7 +628,7 @@ where
             // Global sum
             let mut sum = T::zero();
 
-            for &val in array.iter() {
+            for &val in array {
                 sum = sum + val;
             }
 
@@ -608,6 +638,10 @@ where
 }
 
 /// Calculate the product of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 ///
 /// # Arguments
 ///
@@ -664,7 +698,7 @@ where
             // Global product
             let mut product = T::one();
 
-            for &val in array.iter() {
+            for &val in array {
                 product = product * val;
             }
 
@@ -674,6 +708,14 @@ where
 }
 
 /// Calculate the percentile of array elements (2D arrays)
+///
+/// # Errors
+///
+/// Returns an error if the array is empty or percentile is invalid.
+///
+/// # Panics
+///
+/// Panics if type conversion or partial comparison fails.
 ///
 /// # Arguments
 ///
@@ -799,6 +841,14 @@ where
 
 /// Calculate the mean of array elements
 ///
+/// # Errors
+///
+/// Returns an error if the array is empty or if conversion fails.
+///
+/// # Panics
+///
+/// Panics if type conversion from usize fails.
+///
 /// # Arguments
 ///
 /// * `array` - The input array
@@ -830,7 +880,7 @@ where
             let total_elements = array.len();
             let mut sum = T::zero();
 
-            for &val in array.iter() {
+            for &val in array {
                 sum = sum + val;
             }
 
@@ -850,6 +900,14 @@ where
 /// # Returns
 ///
 /// The median of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
+///
+/// # Panics
+///
+/// Panics if type conversion or partial comparison fails.
 pub fn median<T, D>(
     array: &ArrayView<T, D>,
     axis: Option<Axis>,
@@ -896,6 +954,14 @@ where
 /// # Returns
 ///
 /// The variance of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty or if conversion fails.
+///
+/// # Panics
+///
+/// Panics if type conversion from usize fails.
 pub fn variance<T, D>(
     array: &ArrayView<T, D>,
     axis: Option<Axis>,
@@ -928,7 +994,7 @@ where
 
             // Calculate sum of squared differences from the mean
             let mut sum_sq_diff = T::zero();
-            for &val in array.iter() {
+            for &val in array {
                 let diff = val - global_mean;
                 sum_sq_diff = sum_sq_diff + (diff * diff);
             }
@@ -951,6 +1017,14 @@ where
 /// # Returns
 ///
 /// The standard deviation of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty or variance calculation fails.
+///
+/// # Panics
+///
+/// Panics if variance calculation panics.
 pub fn std_dev<T, D>(
     array: &ArrayView<T, D>,
     axis: Option<Axis>,
@@ -974,6 +1048,10 @@ where
 /// # Returns
 ///
 /// The minimum value(s) of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 pub fn min<T, D>(array: &ArrayView<T, D>, axis: Option<Axis>) -> Result<Array<T, Ix1>, &'static str>
 where
     T: Clone + Float,
@@ -993,7 +1071,7 @@ where
             // Global minimum
             let mut min_val = *array.iter().next().unwrap();
 
-            for &val in array.iter() {
+            for &val in array {
                 if val < min_val {
                     min_val = val;
                 }
@@ -1014,6 +1092,10 @@ where
 /// # Returns
 ///
 /// The maximum value(s) of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty.
 pub fn max<T, D>(array: &ArrayView<T, D>, axis: Option<Axis>) -> Result<Array<T, Ix1>, &'static str>
 where
     T: Clone + Float,
@@ -1033,7 +1115,7 @@ where
             // Global maximum
             let mut max_val = *array.iter().next().unwrap();
 
-            for &val in array.iter() {
+            for &val in array {
                 if val > max_val {
                     max_val = val;
                 }
@@ -1055,6 +1137,14 @@ where
 /// # Returns
 ///
 /// The percentile value(s) of the array elements
+///
+/// # Errors
+///
+/// Returns an error if the array is empty or percentile is invalid.
+///
+/// # Panics
+///
+/// Panics if type conversion or partial comparison fails.
 pub fn percentile<T, D>(
     array: &ArrayView<T, D>,
     q: f64,

@@ -53,8 +53,8 @@ fn main() {
         activations.push(input);
 
         for i in 0..depth {
-            let layer_output = T::matmul(&activations[i], &weight_tensors[i]);
-            let activation = T::relu(&layer_output);
+            let layer_output = T::matmul(activations[i], weight_tensors[i]);
+            let activation = T::relu(layer_output);
             activations.push(activation);
 
             // Estimate memory: Each activation stores a tensor of shape [1, feature_size]
@@ -101,15 +101,15 @@ fn main() {
         activations.push(input);
 
         for i in 0..depth {
-            let layer_output = T::matmul(&activations[i], &weight_tensors[i]);
+            let layer_output = T::matmul(activations[i], weight_tensors[i]);
 
             // Apply checkpointing every other layer
             let activation = if i % 2 == 0 {
                 // Normal activation - store in memory
-                T::relu(&layer_output)
+                T::relu(layer_output)
             } else {
                 // Checkpointed activation - will be recomputed during backward pass
-                T::checkpoint(&T::relu(&layer_output))
+                T::checkpoint(&T::relu(layer_output))
             };
 
             activations.push(activation);
@@ -166,11 +166,11 @@ fn main() {
         let start = Instant::now();
 
         // This simulates a complex computation
-        let c1 = T::matmul(&a, &b);
-        let d1 = T::relu(&c1);
-        let e1 = T::matmul(&d1, &b);
-        let f1 = T::relu(&e1);
-        let result1 = T::sum_all(&f1);
+        let c1 = T::matmul(a, b);
+        let d1 = T::relu(c1);
+        let e1 = T::matmul(d1, b);
+        let f1 = T::relu(e1);
+        let result1 = T::sum_all(f1);
 
         let val1 = result1.eval(ctx).unwrap();
         let normal_time = start.elapsed();
@@ -179,14 +179,14 @@ fn main() {
         let start = Instant::now();
 
         // Use individual checkpoint operations
-        let c2 = T::matmul(&a, &b);
+        let c2 = T::matmul(a, b);
         let c2_ckpt = T::checkpoint(&c2);
-        let d2 = T::relu(&c2_ckpt);
+        let d2 = T::relu(c2_ckpt);
         let d2_ckpt = T::checkpoint(&d2);
-        let e2 = T::matmul(&d2_ckpt, &b);
+        let e2 = T::matmul(d2_ckpt, b);
         let e2_ckpt = T::checkpoint(&e2);
-        let f2 = T::relu(&e2_ckpt);
-        let result2 = T::sum_all(&f2);
+        let f2 = T::relu(e2_ckpt);
+        let result2 = T::sum_all(f2);
 
         let val2 = result2.eval(ctx).unwrap();
         let checkpoint_time = start.elapsed();

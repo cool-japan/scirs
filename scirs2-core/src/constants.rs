@@ -81,13 +81,13 @@ pub mod physical {
     pub const C: f64 = SPEED_OF_LIGHT;
 
     /// Magnetic constant (vacuum permeability) (N/A²)
-    pub const MAGNETIC_CONSTANT: f64 = 1.25663706212e-6;
+    pub const MAGNETIC_CONSTANT: f64 = 1.256_637_062_12e-6;
 
     /// Magnetic constant (vacuum permeability) (N/A²) - alias for MAGNETIC_CONSTANT
     pub const MU_0: f64 = MAGNETIC_CONSTANT;
 
     /// Electric constant (vacuum permittivity) (F/m)
-    pub const ELECTRIC_CONSTANT: f64 = 8.8541878128e-12;
+    pub const ELECTRIC_CONSTANT: f64 = 8.854_187_812_8e-12;
 
     /// Electric constant (vacuum permittivity) (F/m) - alias for ELECTRIC_CONSTANT
     pub const EPSILON_0: f64 = ELECTRIC_CONSTANT;
@@ -105,43 +105,43 @@ pub mod physical {
     pub const G_ACCEL: f64 = STANDARD_GRAVITY;
 
     /// Planck constant (J·s)
-    pub const PLANCK: f64 = 6.62607015e-34;
+    pub const PLANCK: f64 = 6.626_070_15e-34;
 
     /// Planck constant (J·s) - alias for PLANCK
     pub const H: f64 = PLANCK;
 
     /// Reduced Planck constant (J·s)
-    pub const REDUCED_PLANCK: f64 = 1.054571817e-34;
+    pub const REDUCED_PLANCK: f64 = 1.054_571_817e-34;
 
     /// Reduced Planck constant (J·s) - alias for REDUCED_PLANCK
     pub const HBAR: f64 = REDUCED_PLANCK;
 
     /// Elementary charge (C)
-    pub const ELEMENTARY_CHARGE: f64 = 1.602176634e-19;
+    pub const ELEMENTARY_CHARGE: f64 = 1.602_176_634e-19;
 
     /// Elementary charge (C) - alias for ELEMENTARY_CHARGE
     pub const E_CHARGE: f64 = ELEMENTARY_CHARGE;
 
     /// Electron mass (kg)
-    pub const ELECTRON_MASS: f64 = 9.1093837015e-31;
+    pub const ELECTRON_MASS: f64 = 9.109_383_701_5e-31;
 
     /// Electron mass (kg) - alias for ELECTRON_MASS
     pub const M_E: f64 = ELECTRON_MASS;
 
     /// Proton mass (kg)
-    pub const PROTON_MASS: f64 = 1.67262192369e-27;
+    pub const PROTON_MASS: f64 = 1.672_621_923_69e-27;
 
     /// Proton mass (kg) - alias for PROTON_MASS
     pub const M_P: f64 = PROTON_MASS;
 
     /// Neutron mass (kg)
-    pub const NEUTRON_MASS: f64 = 1.67492749804e-27;
+    pub const NEUTRON_MASS: f64 = 1.674_927_498_04e-27;
 
     /// Neutron mass (kg) - alias for NEUTRON_MASS
     pub const M_N: f64 = NEUTRON_MASS;
 
     /// Atomic mass constant (kg)
-    pub const ATOMIC_MASS: f64 = 1.66053906660e-27;
+    pub const ATOMIC_MASS: f64 = 1.660_539_066_60e-27;
 
     /// Atomic mass constant (kg) - alias for ATOMIC_MASS
     pub const M_U: f64 = ATOMIC_MASS;
@@ -150,55 +150,55 @@ pub mod physical {
     pub const U: f64 = ATOMIC_MASS;
 
     /// Fine-structure constant (dimensionless)
-    pub const FINE_STRUCTURE: f64 = 7.2973525693e-3;
+    pub const FINE_STRUCTURE: f64 = 7.297_352_569_3e-3;
 
     /// Fine-structure constant (dimensionless) - alias for FINE_STRUCTURE
     pub const ALPHA: f64 = FINE_STRUCTURE;
 
     /// Rydberg constant (1/m)
-    pub const RYDBERG: f64 = 10973731.568160;
+    pub const RYDBERG: f64 = 10_973_731.568_160;
 
     /// Avogadro constant (1/mol)
-    pub const AVOGADRO: f64 = 6.02214076e23;
+    pub const AVOGADRO: f64 = 6.022_140_76e23;
 
     /// Avogadro constant (1/mol) - alias for AVOGADRO
     pub const N_A: f64 = AVOGADRO;
 
     /// Gas constant (J/(mol·K))
-    pub const GAS_CONSTANT: f64 = 8.31446261815324;
+    pub const GAS_CONSTANT: f64 = 8.314_462_618_153_24;
 
     /// Gas constant (J/(mol·K)) - alias for GAS_CONSTANT
     pub const R: f64 = GAS_CONSTANT;
 
     /// Boltzmann constant (J/K)
-    pub const BOLTZMANN: f64 = 1.380649e-23;
+    pub const BOLTZMANN: f64 = 1.380_649e-23;
 
     /// Boltzmann constant (J/K) - alias for BOLTZMANN
     pub const K: f64 = BOLTZMANN;
 
     /// Stefan-Boltzmann constant (W/(m²·K⁴))
-    pub const STEFAN_BOLTZMANN: f64 = 5.670374419e-8;
+    pub const STEFAN_BOLTZMANN: f64 = 5.670_374_419e-8;
 
     /// Stefan-Boltzmann constant (W/(m²·K⁴)) - alias for STEFAN_BOLTZMANN
     pub const SIGMA: f64 = STEFAN_BOLTZMANN;
 
     /// Wien wavelength displacement law constant (m·K)
-    pub const WIEN: f64 = 2.897771955e-3;
+    pub const WIEN: f64 = 2.897_771_955e-3;
 
     /// Electron volt (J)
-    pub const ELECTRON_VOLT: f64 = 1.602176634e-19;
+    pub const ELECTRON_VOLT: f64 = 1.602_176_634e-19;
 
     /// Electron volt (J) - alias for ELECTRON_VOLT
     pub const EV: f64 = ELECTRON_VOLT;
 
     /// Astronomical unit (m)
-    pub const ASTRONOMICAL_UNIT: f64 = 1.495978707e11;
+    pub const ASTRONOMICAL_UNIT: f64 = 1.495_978_707e11;
 
     /// Astronomical unit (m) - alias for ASTRONOMICAL_UNIT
     pub const AU: f64 = ASTRONOMICAL_UNIT;
 
     /// Light year (m)
-    pub const LIGHT_YEAR: f64 = 9.4607304725808e15;
+    pub const LIGHT_YEAR: f64 = 9.460_730_472_580_8e15;
 
     /// Parsec (m)
     pub const PARSEC: f64 = 3.085_677_581_491_367e16;
@@ -484,7 +484,7 @@ pub mod conversions {
     /// Pressure conversions
     pub mod pressure {
         /// Standard atmosphere in pascals
-        pub const ATMOSPHERE: f64 = 101325.0;
+        pub const ATMOSPHERE: f64 = 101_325.0;
 
         /// Standard atmosphere in pascals - alias for ATMOSPHERE
         pub const ATM: f64 = ATMOSPHERE;
@@ -620,6 +620,7 @@ pub mod conversions {
         /// let fahrenheit = convert_temperature(celsius, "celsius", "fahrenheit");
         /// assert!((fahrenheit - 212.0).abs() < 1e-10);
         /// ```
+        #[must_use]
         pub fn convert_temperature(value: f64, from_scale: &str, to_scale: &str) -> f64 {
             // Convert from source scale to Kelvin
             let kelvin = match from_scale.to_lowercase().as_str() {
@@ -627,7 +628,7 @@ pub mod conversions {
                 "kelvin" | "k" => value,
                 "fahrenheit" | "f" => (value - 32.0) * 5.0 / 9.0 + ZERO_CELSIUS,
                 "rankine" | "r" => value * 5.0 / 9.0,
-                _ => panic!("Unsupported 'from' scale: {}. Supported scales are Celsius, Kelvin, Fahrenheit, and Rankine", from_scale),
+                _ => panic!("Unsupported 'from' scale: {from_scale}. Supported scales are Celsius, Kelvin, Fahrenheit, and Rankine"),
             };
 
             // Convert from Kelvin to target scale
@@ -636,7 +637,7 @@ pub mod conversions {
                 "kelvin" | "k" => kelvin,
                 "fahrenheit" | "f" => (kelvin - ZERO_CELSIUS) * 9.0 / 5.0 + 32.0,
                 "rankine" | "r" => kelvin * 9.0 / 5.0,
-                _ => panic!("Unsupported 'to' scale: {}. Supported scales are Celsius, Kelvin, Fahrenheit, and Rankine", to_scale),
+                _ => panic!("Unsupported 'to' scale: {to_scale}. Supported scales are Celsius, Kelvin, Fahrenheit, and Rankine"),
             }
         }
     }
@@ -755,6 +756,7 @@ pub mod conversions {
         /// let frequency = lambda2nu(wavelength);
         /// assert!((frequency - SPEED_OF_LIGHT).abs() < 1e-10);
         /// ```
+        #[must_use]
         pub fn lambda2nu(wavelength: f64) -> f64 {
             SPEED_OF_LIGHT / wavelength
         }
@@ -779,6 +781,7 @@ pub mod conversions {
         /// let wavelength = nu2lambda(frequency);
         /// assert!((wavelength - 1.0).abs() < 1e-10);  // 1 meter
         /// ```
+        #[must_use]
         pub fn nu2lambda(frequency: f64) -> f64 {
             SPEED_OF_LIGHT / frequency
         }
@@ -802,14 +805,14 @@ mod tests {
     fn test_mathematical_constants() {
         assert_eq!(math::PI, std::f64::consts::PI);
         assert_eq!(math::E, std::f64::consts::E);
-        assert!((math::GOLDEN - 1.618033988749895).abs() < 1e-14);
+        assert!((math::GOLDEN - 1.618_033_988_749_895).abs() < 1e-14);
     }
 
     #[test]
     fn test_physical_constants() {
         assert_eq!(physical::SPEED_OF_LIGHT, 299_792_458.0);
         assert_eq!(physical::C, physical::SPEED_OF_LIGHT);
-        assert_eq!(physical::ELECTRON_VOLT, 1.602176634e-19);
+        assert_eq!(physical::ELECTRON_VOLT, 1.602_176_634e-19);
     }
 
     #[test]

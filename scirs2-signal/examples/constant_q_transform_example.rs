@@ -43,6 +43,7 @@ fn main() {
 }
 
 /// Generate various test signals for the examples
+#[allow(clippy::type_complexity)]
 fn generate_test_signals() -> (
     Array1<f64>,
     Array1<f64>,
@@ -314,7 +315,7 @@ fn compare_frequency_resolution(signal: &Array1<f64>) {
 
     // Only save the frequencies between 300 and 500 Hz (for comparison with CQT)
     for (i, &freq) in frequencies.iter().enumerate() {
-        if freq >= 300.0 && freq <= 500.0 {
+        if (300.0..=500.0).contains(&freq) {
             writeln!(file, "{},{}", freq, psd_db[i]).expect("Failed to write data");
         }
     }
@@ -469,7 +470,7 @@ fn analyze_chord_progression(signal: &Array1<f64>) {
         }
 
         // Average chroma values over the segment
-        let mut segment_chroma = vec![0.0; 12];
+        let mut segment_chroma = [0.0; 12];
         for &frame in &segment_frames {
             for pc in 0..12 {
                 segment_chroma[pc] += chroma[[pc, frame]] / segment_frames.len() as f64;

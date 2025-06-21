@@ -3,7 +3,7 @@ use scirs2_cluster::metrics::{
     adjusted_rand_index, calinski_harabasz_score, davies_bouldin_score,
     homogeneity_completeness_v_measure, normalized_mutual_info, silhouette_score,
 };
-use scirs2_cluster::vq::{kmeans, KMeansOptions};
+use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
 
 fn main() {
     println!("Clustering Evaluation Metrics Demo");
@@ -22,7 +22,17 @@ fn main() {
         println!("{}", "-".repeat(30));
 
         // Perform clustering
-        let (_, pred_labels) = kmeans(data.view(), k, None).unwrap();
+        let (_, pred_labels) = kmeans2(
+            data.view(),
+            k,
+            Some(300),
+            None,
+            Some(MinitMethod::PlusPlus),
+            Some(MissingMethod::Warn),
+            Some(true),
+            Some(42),
+        )
+        .unwrap();
         let pred_labels_i32 = pred_labels.mapv(|x| x as i32);
 
         // Compute all evaluation metrics
@@ -80,23 +90,27 @@ fn main() {
     println!("{}", "=".repeat(50));
 
     // Create two different clusterings
-    let (_, clustering1) = kmeans(
+    let (_, clustering1) = kmeans2(
         data.view(),
         3,
-        Some(KMeansOptions {
-            random_seed: Some(42),
-            ..Default::default()
-        }),
+        Some(300),
+        None,
+        Some(MinitMethod::PlusPlus),
+        Some(MissingMethod::Warn),
+        Some(true),
+        Some(42),
     )
     .unwrap();
 
-    let (_, clustering2) = kmeans(
+    let (_, clustering2) = kmeans2(
         data.view(),
         3,
-        Some(KMeansOptions {
-            random_seed: Some(123),
-            ..Default::default()
-        }),
+        Some(300),
+        None,
+        Some(MinitMethod::PlusPlus),
+        Some(MissingMethod::Warn),
+        Some(true),
+        Some(123),
     )
     .unwrap();
 

@@ -377,11 +377,12 @@ fn demonstrate_arma_model() {
                         .collect();
 
                     // Save results to CSV
-                    let mut psd_results = Vec::new();
-                    psd_results.push(freqs.clone());
-                    psd_results.push(Array1::from(pxx_db.to_owned()));
-                    psd_results.push(ar_psd_db);
-                    psd_results.push(arma_psd_db);
+                    let psd_results = vec![
+                        freqs.clone(),
+                        Array1::from(pxx_db.to_owned()),
+                        ar_psd_db,
+                        arma_psd_db,
+                    ];
 
                     let method_names = vec![
                         (ARMethod::YuleWalker, "Periodogram".to_string()),
@@ -450,10 +451,7 @@ fn demonstrate_order_selection(signal: &Array1<f64>, fs: f64) {
                         .collect();
 
                     // Save to CSV
-                    let mut psd_results = Vec::new();
-                    psd_results.push(freqs.clone());
-                    psd_results.push(Array1::from(pxx_db.to_owned()));
-                    psd_results.push(psd_db);
+                    let psd_results = vec![freqs.clone(), Array1::from(pxx_db.to_owned()), psd_db];
 
                     let method_names = vec![
                         (ARMethod::YuleWalker, "Periodogram".to_string()),
@@ -478,7 +476,8 @@ fn save_psd_to_csv(
     psd_arrays: &[Array1<f64>],
     method_names: &[(ARMethod, String)],
 ) {
-    let mut file = File::create(filename).expect(&format!("Failed to create {}", filename));
+    let mut file =
+        File::create(filename).unwrap_or_else(|_| panic!("Failed to create {}", filename));
 
     // Write header
     write!(file, "frequency").expect("Failed to write header");
@@ -492,8 +491,8 @@ fn save_psd_to_csv(
     for i in 0..freqs.len() {
         write!(file, "{}", freqs[i]).expect("Failed to write data");
 
-        for j in 1..psd_arrays.len() {
-            write!(file, ",{}", psd_arrays[j][i]).expect("Failed to write data");
+        for psd_array in psd_arrays.iter().skip(1) {
+            write!(file, ",{}", psd_array[i]).expect("Failed to write data");
         }
 
         writeln!(file).expect("Failed to write data");

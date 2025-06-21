@@ -53,7 +53,7 @@ fn main() {
             println!("---------|----------");
 
             // Safe way to print predictions
-            let num_rows = predictions.shape().get(0).cloned().unwrap_or(0);
+            let num_rows = predictions.shape().first().cloned().unwrap_or(0);
             let num_cols = if predictions.ndim() > 1 {
                 predictions.shape()[1]
             } else {

@@ -42,6 +42,7 @@ where
     V: Clone,
 {
     /// Create a new TTL cache with specified size and TTL
+    #[must_use]
     pub fn new(size: usize, ttl_seconds: u64) -> Self {
         Self {
             cache: SizedCache::with_size(size),
@@ -56,15 +57,17 @@ where
     }
 
     /// Get a value from the cache if it exists and hasn't expired
+    #[must_use]
     pub fn get(&mut self, key: &K) -> Option<V> {
-        if let Some((value, timestamp)) = self.cache.cache_get(key) {
-            if timestamp.elapsed() < self.ttl {
-                return Some(value.clone());
+        match self.cache.cache_get(key) {
+            Some((value, timestamp)) if timestamp.elapsed() < self.ttl => Some(value.clone()),
+            Some(_) => {
+                // Value has expired, remove it from cache
+                self.cache.cache_remove(key);
+                None
             }
-            // Value has expired, remove it from cache
-            self.cache.cache_remove(key);
+            None => None,
         }
-        None
     }
 
     /// Remove a key-value pair from the cache
@@ -78,11 +81,13 @@ where
     }
 
     /// Get the number of items in the cache
+    #[must_use]
     pub fn len(&self) -> usize {
         (self.cache.cache_misses().unwrap_or(0) + self.cache.cache_hits().unwrap_or(0)) as usize
     }
 
     /// Check if the cache is empty
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -109,6 +114,7 @@ impl Default for CacheBuilder {
 
 impl CacheBuilder {
     /// Create a new cache builder
+    #[must_use]
     pub fn new() -> Self {
         Self {
             size: None,
@@ -118,24 +124,28 @@ impl CacheBuilder {
     }
 
     /// Set the cache size
+    #[must_use]
     pub fn with_size(mut self, size: usize) -> Self {
         self.size = Some(size);
         self
     }
 
     /// Set the time-to-live in seconds
+    #[must_use]
     pub fn with_ttl(mut self, ttl: u64) -> Self {
         self.ttl = Some(ttl);
         self
     }
 
     /// Make the cache thread-safe
+    #[must_use]
     pub fn thread_safe(mut self) -> Self {
         self.thread_safe = true;
         self
     }
 
     /// Build a sized cache
+    #[must_use]
     pub fn build_sized_cache<K, V>(self) -> TTLSizedCache<K, V>
     where
         K: Hash + Eq + Clone,
@@ -203,6 +213,7 @@ pub fn memoize_example() {
 ///
 /// * The nth Fibonacci number
 #[cached]
+#[must_use]
 pub fn fibonacci(n: u64) -> u64 {
     match n {
         0 => 0,

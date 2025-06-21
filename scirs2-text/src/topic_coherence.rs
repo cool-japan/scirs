@@ -470,7 +470,7 @@ mod tests {
         let documents = create_test_documents();
 
         let score = coherence.cv_coherence(&topics, &documents).unwrap();
-        assert!(score >= -1.0 && score <= 1.0);
+        assert!((-1.0..=1.0).contains(&score));
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
         let topics = create_test_topics();
         let diversity = TopicDiversity::calculate(&topics);
 
-        assert!(diversity >= 0.0 && diversity <= 1.0);
+        assert!((0.0..=1.0).contains(&diversity));
         // All words are unique in our test topics
         assert_eq!(diversity, 1.0);
     }

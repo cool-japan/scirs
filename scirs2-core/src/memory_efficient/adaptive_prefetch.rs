@@ -5,11 +5,9 @@
 //! access patterns and performance metrics.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use super::prefetch::{AccessPattern, AccessPatternTracker, PrefetchConfig, PrefetchStats};
-use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Maximum number of strategies to try during exploration phase
 const MAX_EXPLORATION_STRATEGIES: usize = 5;
@@ -19,6 +17,7 @@ const STRATEGY_TEST_DURATION: Duration = Duration::from_secs(60);
 
 /// Reinforcement learning parameters
 const LEARNING_RATE: f64 = 0.1;
+#[allow(dead_code)]
 const DISCOUNT_FACTOR: f64 = 0.9;
 const EXPLORATION_RATE_INITIAL: f64 = 0.3;
 const EXPLORATION_RATE_DECAY: f64 = 0.995;
@@ -114,12 +113,18 @@ pub struct AdaptivePatternTracker {
 
     /// Patterns with dimension-aware context
     dimensional_patterns: HashMap<String, Vec<usize>>,
+
+    /// Step counter for deterministic exploration
+    exploration_step: usize,
 }
 
 impl AdaptivePatternTracker {
     /// Create a new adaptive pattern tracker.
     pub fn new(config: PrefetchConfig) -> Self {
         let mut strategies = HashMap::new();
+
+        // Store history_size before moving config
+        let history_size = config.history_size;
 
         // Initialize default strategies with neutral Q-values
         for strategy in [
@@ -148,7 +153,7 @@ impl AdaptivePatternTracker {
 
         Self {
             config,
-            history: VecDeque::with_capacity(config.history_size),
+            history: VecDeque::with_capacity(history_size),
             current_pattern: AccessPattern::Random,
             stride: None,
             strategy_performance: strategies,
@@ -158,6 +163,7 @@ impl AdaptivePatternTracker {
             exploration_rate: EXPLORATION_RATE_INITIAL,
             dimensions: None,
             dimensional_patterns: HashMap::new(),
+            exploration_step: 0,
         }
     }
 
@@ -197,11 +203,16 @@ impl AdaptivePatternTracker {
 
     /// Select the next strategy to use.
     fn select_next_strategy(&mut self) {
+        // Increment exploration step
+        self.exploration_step += 1;
+
         // Decay exploration rate
         self.exploration_rate *= EXPLORATION_RATE_DECAY;
 
         // Decide whether to explore or exploit
-        if self.exploring || rand::random::<f64>() < self.exploration_rate {
+        if self.exploring
+            || (self.exploration_step % 100) < (self.exploration_rate * 100.0) as usize
+        {
             // Exploration phase: try different strategies
             let available_strategies: Vec<PrefetchStrategy> =
                 self.strategy_performance.keys().copied().collect();
@@ -213,7 +224,7 @@ impl AdaptivePatternTracker {
                 .collect();
 
             if !candidates.is_empty() {
-                let idx = rand::random::<usize>() % candidates.len();
+                let idx = self.exploration_step % candidates.len();
                 self.current_strategy = candidates[idx];
             }
 
@@ -286,7 +297,7 @@ impl AdaptivePatternTracker {
                             );
 
                             // Occasionally switch to it for exploration
-                            if rand::random::<f64>() < 0.5 {
+                            if (self.exploration_step % 100) < 50 {
                                 self.current_strategy = seq_strategy;
                             }
                         }
@@ -302,9 +313,9 @@ impl AdaptivePatternTracker {
                 };
 
                 // Add or update this strategy in our performance map
-                if !self.strategy_performance.contains_key(&strided_strategy) {
-                    self.strategy_performance.insert(
-                        strided_strategy,
+                self.strategy_performance
+                    .entry(strided_strategy)
+                    .or_insert_with(|| {
                         StrategyPerformance {
                             strategy: strided_strategy,
                             usage_count: 0,
@@ -312,9 +323,8 @@ impl AdaptivePatternTracker {
                             avg_latency_ns: 0.0,
                             last_used: Instant::now(),
                             q_value: 0.2, // Slight bias when detected
-                        },
-                    );
-                }
+                        }
+                    });
 
                 // Consider switching to this strided strategy
                 match self.current_strategy {
@@ -323,7 +333,7 @@ impl AdaptivePatternTracker {
                         ..
                     } => {
                         // Already using strided strategy, maybe update the stride
-                        if current_stride != stride && rand::random::<f64>() < 0.7 {
+                        if current_stride != stride && (self.exploration_step % 100) < 70 {
                             self.current_strategy = strided_strategy;
                         }
                     }
@@ -337,13 +347,14 @@ impl AdaptivePatternTracker {
 
                         if let Some(strided_perf) = self.strategy_performance.get(&strided_strategy)
                         {
-                            if strided_perf.q_value > current_q * 1.1 || rand::random::<f64>() < 0.3
+                            if strided_perf.q_value > current_q * 1.1
+                                || (self.exploration_step % 100) < 30
                             {
                                 self.current_strategy = strided_strategy;
                             }
                         } else {
                             // Occasionally switch to it for exploration
-                            if rand::random::<f64>() < 0.4 {
+                            if (self.exploration_step % 100) < 40 {
                                 self.current_strategy = strided_strategy;
                             }
                         }
@@ -352,9 +363,9 @@ impl AdaptivePatternTracker {
             }
             AccessPattern::Custom => {
                 // If we have dimensional information, try to detect specific patterns
-                if let Some(dims) = &self.dimensions {
+                if let Some(dims) = self.dimensions.clone() {
                     // Create pattern-specific strategies
-                    let detected_patterns = self.detect_dimensional_patterns(dims);
+                    let detected_patterns = self.detect_dimensional_patterns(&dims);
 
                     for pattern_name in detected_patterns {
                         // For matrix traversal, use hybrid strategy
@@ -365,9 +376,9 @@ impl AdaptivePatternTracker {
                             };
 
                             // Add this strategy if it doesn't exist
-                            if !self.strategy_performance.contains_key(&strategy) {
-                                self.strategy_performance.insert(
-                                    strategy,
+                            self.strategy_performance
+                                .entry(strategy)
+                                .or_insert_with(|| {
                                     StrategyPerformance {
                                         strategy,
                                         usage_count: 0,
@@ -375,12 +386,11 @@ impl AdaptivePatternTracker {
                                         avg_latency_ns: 0.0,
                                         last_used: Instant::now(),
                                         q_value: 0.3, // Higher bias for dimensional patterns
-                                    },
-                                );
-                            }
+                                    }
+                                });
 
                             // Consider switching to this strategy
-                            if rand::random::<f64>() < 0.6 {
+                            if (self.exploration_step % 100) < 60 {
                                 self.current_strategy = strategy;
                             }
                         } else if pattern_name == "matrix_traversal_col_major" {
@@ -390,22 +400,19 @@ impl AdaptivePatternTracker {
                             };
 
                             // Add this strategy if it doesn't exist
-                            if !self.strategy_performance.contains_key(&strategy) {
-                                self.strategy_performance.insert(
+                            self.strategy_performance
+                                .entry(strategy)
+                                .or_insert_with(|| StrategyPerformance {
                                     strategy,
-                                    StrategyPerformance {
-                                        strategy,
-                                        usage_count: 0,
-                                        hit_rate: 0.0,
-                                        avg_latency_ns: 0.0,
-                                        last_used: Instant::now(),
-                                        q_value: 0.3,
-                                    },
-                                );
-                            }
+                                    usage_count: 0,
+                                    hit_rate: 0.0,
+                                    avg_latency_ns: 0.0,
+                                    last_used: Instant::now(),
+                                    q_value: 0.3,
+                                });
 
                             // Consider switching to this strategy
-                            if rand::random::<f64>() < 0.6 {
+                            if (self.exploration_step % 100) < 60 {
                                 self.current_strategy = strategy;
                             }
                         }
@@ -418,22 +425,19 @@ impl AdaptivePatternTracker {
                     };
 
                     // Add this strategy if it doesn't exist
-                    if !self.strategy_performance.contains_key(&strategy) {
-                        self.strategy_performance.insert(
+                    self.strategy_performance
+                        .entry(strategy)
+                        .or_insert_with(|| StrategyPerformance {
                             strategy,
-                            StrategyPerformance {
-                                strategy,
-                                usage_count: 0,
-                                hit_rate: 0.0,
-                                avg_latency_ns: 0.0,
-                                last_used: Instant::now(),
-                                q_value: 0.2,
-                            },
-                        );
-                    }
+                            usage_count: 0,
+                            hit_rate: 0.0,
+                            avg_latency_ns: 0.0,
+                            last_used: Instant::now(),
+                            q_value: 0.2,
+                        });
 
                     // Occasionally switch to pattern-based strategy
-                    if rand::random::<f64>() < 0.4 {
+                    if (self.exploration_step % 100) < 40 {
                         self.current_strategy = strategy;
                     }
                 }
@@ -458,7 +462,7 @@ impl AdaptivePatternTracker {
                     self.current_strategy = PrefetchStrategy::Aggressive;
                 } else {
                     // They're similar, choose randomly
-                    self.current_strategy = if rand::random::<f64>() < 0.5 {
+                    self.current_strategy = if (self.exploration_step % 100) < 50 {
                         PrefetchStrategy::Conservative
                     } else {
                         PrefetchStrategy::Aggressive
@@ -519,7 +523,7 @@ impl AdaptivePatternTracker {
         for pattern in &detected_patterns {
             self.dimensional_patterns
                 .entry(pattern.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(flat_indices.len());
         }
 
@@ -631,8 +635,8 @@ impl AdaptivePatternTracker {
         }
 
         // Check for custom dimensional patterns
-        if let Some(dims) = &self.dimensions {
-            if !self.detect_dimensional_patterns(dims).is_empty() {
+        if let Some(dims) = self.dimensions.clone() {
+            if !self.detect_dimensional_patterns(&dims).is_empty() {
                 self.current_pattern = AccessPattern::Custom;
                 return;
             }
@@ -662,7 +666,7 @@ impl AdaptivePatternTracker {
                 (1..=prefetch_count).map(|i| latest + stride * i).collect()
             }
             PrefetchStrategy::Pattern {
-                window_size,
+                window_size: _,
                 lookahead,
             } => {
                 // Use pattern matching to predict future blocks
@@ -756,9 +760,9 @@ impl AdaptivePatternTracker {
 
         for i in 0..self.history.len() - pattern.len() {
             let mut matches = true;
-            for j in 0..pattern.len() {
+            for (j, &pattern_idx) in pattern.iter().enumerate() {
                 if let Some((idx, _, _)) = self.history.get(i + j) {
-                    if *idx != pattern[j] {
+                    if *idx != pattern_idx {
                         matches = false;
                         break;
                     }
@@ -903,49 +907,49 @@ impl AdaptivePrefetchConfigBuilder {
     }
 
     /// Enable or disable prefetching.
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.config.base.enabled = enabled;
         self
     }
 
     /// Set the number of blocks to prefetch ahead of the current access.
-    pub fn prefetch_count(mut self, count: usize) -> Self {
+    pub const fn prefetch_count(mut self, count: usize) -> Self {
         self.config.base.prefetch_count = count;
         self
     }
 
     /// Set the maximum number of blocks to keep in the prefetch history.
-    pub fn history_size(mut self, size: usize) -> Self {
+    pub const fn history_size(mut self, size: usize) -> Self {
         self.config.base.history_size = size;
         self
     }
 
     /// Set the minimum number of accesses needed to detect a pattern.
-    pub fn min_pattern_length(mut self, length: usize) -> Self {
+    pub const fn min_pattern_length(mut self, length: usize) -> Self {
         self.config.base.min_pattern_length = length;
         self
     }
 
     /// Enable or disable asynchronous prefetching.
-    pub fn async_prefetch(mut self, async_prefetch: bool) -> Self {
+    pub const fn async_prefetch(mut self, async_prefetch: bool) -> Self {
         self.config.base.async_prefetch = async_prefetch;
         self
     }
 
     /// Set the timeout for prefetch operations.
-    pub fn prefetch_timeout(mut self, timeout: Duration) -> Self {
+    pub const fn prefetch_timeout(mut self, timeout: Duration) -> Self {
         self.config.base.prefetch_timeout = timeout;
         self
     }
 
     /// Set whether to use the adaptive tracker.
-    pub fn use_adaptive_tracker(mut self, use_adaptive: bool) -> Self {
+    pub const fn use_adaptive_tracker(mut self, use_adaptive: bool) -> Self {
         self.config.use_adaptive_tracker = use_adaptive;
         self
     }
 
     /// Enable or disable reinforcement learning.
-    pub fn enable_learning(mut self, enable: bool) -> Self {
+    pub const fn enable_learning(mut self, enable: bool) -> Self {
         self.config.enable_learning = enable;
         self
     }
@@ -957,13 +961,13 @@ impl AdaptivePrefetchConfigBuilder {
     }
 
     /// Set the learning rate for Q-value updates.
-    pub fn learning_rate(mut self, rate: f64) -> Self {
+    pub const fn learning_rate(mut self, rate: f64) -> Self {
         self.config.learning_rate = rate;
         self
     }
 
     /// Set how often to evaluate strategies.
-    pub fn evaluation_interval(mut self, interval: Duration) -> Self {
+    pub const fn evaluation_interval(mut self, interval: Duration) -> Self {
         self.config.evaluation_interval = interval;
         self
     }
@@ -971,6 +975,12 @@ impl AdaptivePrefetchConfigBuilder {
     /// Build the configuration.
     pub fn build(self) -> AdaptivePrefetchConfig {
         self.config
+    }
+}
+
+impl Default for AdaptivePrefetchConfigBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

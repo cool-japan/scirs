@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n5. Multi-document Summarization");
     println!("-------------------------------");
 
-    let docs = vec![
+    let docs = [
         "Machine learning is a subset of artificial intelligence. \
          It focuses on the development of computer programs that can learn from data.",
         "Deep learning is a subset of machine learning. \

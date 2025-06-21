@@ -1,5 +1,6 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
+use crate::tensor_ops;
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayView2, Ix2};
 
@@ -28,10 +29,9 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let grad_output = ctx.output_grad();
         let input = ctx.input(0);
-        let output = ctx.output();
         let g = ctx.graph();
 
-        // Evaluate the arrays to work with concrete values
+        // Evaluate the values we need for gradient computation
         let input_array = match input.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
@@ -48,30 +48,25 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
             }
         };
 
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        // Compute the norm for gradient calculation
+        let mut sum_squared = F::zero();
+        for &elem in input_array.iter() {
+            sum_squared += elem * elem;
+        }
+        let norm = sum_squared.sqrt();
 
-        // Get the scalar values
+        // Avoid division by zero
+        if norm < F::epsilon() * F::from(10.0).unwrap() {
+            ctx.append_input_grad(0, None);
+            return;
+        }
+
+        // Compute gradient: input / norm * grad_output
         let grad_scalar = grad_output_array[[]];
-        let norm = output_array[[]];
-
-        // Ensure norm is not too small to avoid division by zero
-        let safe_norm = if norm > F::epsilon() * F::from(10.0).unwrap() {
-            norm
-        } else {
-            F::epsilon() * F::from(10.0).unwrap()
-        };
-
-        // Gradient is input / norm * grad_output
-        let grad_input = input_array.mapv(|x| x / safe_norm * grad_scalar);
+        let grad_array = input_array.mapv(|x| x / norm * grad_scalar);
 
         // Convert back to tensor
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input, g);
+        let grad_tensor = tensor_ops::convert_to_tensor(grad_array, g);
         ctx.append_input_grad(0, Some(grad_tensor));
     }
 }
@@ -101,7 +96,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D array".into()))?;
 
         // Use power iteration to find the largest singular value
-        let (_, sigma_max) = power_iteration_spectral(&matrix, 20, F::from(1e-6).unwrap());
+        let (_, sigma_max) = power_iteration_spectral(&matrix, 50, F::from(1e-8).unwrap());
 
         ctx.append_output(ndarray::arr0(sigma_max).into_dyn());
         Ok(())
@@ -112,7 +107,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
         let input = ctx.input(0);
         let g = ctx.graph();
 
-        // Evaluate the input to work with concrete values
+        // Evaluate the input to work with concrete values for SVD computation
         let input_array = match input.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
@@ -133,7 +128,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
 
         if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
             let grad_matrix = compute_spectral_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
+            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
             ctx.append_input_grad(0, Some(grad_tensor));
             return;
         }
@@ -174,8 +169,8 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for NuclearNormOp {
             return Ok(());
         }
 
-        // Use power iteration approximation for general case
-        let nuclear_norm = compute_nuclear_norm_approximation(&matrix);
+        // For general matrices, compute nuclear norm as sum of singular values
+        let nuclear_norm = compute_nuclear_norm_improved(&matrix);
 
         ctx.append_output(ndarray::arr0(nuclear_norm).into_dyn());
         Ok(())
@@ -206,8 +201,8 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for NuclearNormOp {
         let grad_scalar = grad_output_array[[]];
 
         if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_nuclear_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
+            let grad_matrix = compute_nuclear_norm_gradient_improved(&matrix, grad_scalar);
+            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
             ctx.append_input_grad(0, Some(grad_tensor));
             return;
         }
@@ -245,6 +240,7 @@ fn compute_diagonal_nuclear_norm<F: Float>(matrix: &ArrayView2<F>) -> F {
     sum
 }
 
+#[allow(dead_code)]
 /// Compute nuclear norm using power iteration approximation
 fn compute_nuclear_norm_approximation<F: Float + ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
@@ -404,6 +400,7 @@ fn compute_spectral_norm_gradient<F: Float + ndarray::ScalarOperand>(
     grad_matrix
 }
 
+#[allow(dead_code)]
 /// Compute gradient for nuclear norm
 fn compute_nuclear_norm_gradient<F: Float + ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
@@ -437,6 +434,118 @@ fn compute_nuclear_norm_gradient<F: Float + ndarray::ScalarOperand>(
     let min_dim = m.min(n);
     for i in 0..min_dim {
         grad_matrix[[i, i]] = grad_scalar;
+    }
+
+    grad_matrix
+}
+
+/// Improved nuclear norm computation using better SVD approximation
+fn compute_nuclear_norm_improved<F: Float + ndarray::ScalarOperand>(matrix: &ArrayView2<F>) -> F {
+    let (m, n) = matrix.dim();
+    let min_dim = m.min(n);
+
+    // For small matrices, use a simple approximation
+    if min_dim <= 2 {
+        // Sum of absolute values of diagonal elements as approximation
+        let mut nuclear_norm = F::zero();
+        for i in 0..min_dim {
+            nuclear_norm += matrix[[i, i]].abs();
+        }
+        return nuclear_norm;
+    }
+
+    // For larger matrices, use power iteration to estimate singular values
+    let mut working_matrix = matrix.to_owned();
+    let mut nuclear_norm = F::zero();
+    let max_rank = min_dim.min(5); // Limit iterations for performance
+
+    for _ in 0..max_rank {
+        let (u, sigma) =
+            power_iteration_spectral(&working_matrix.view(), 20, F::from(1e-6).unwrap());
+
+        if sigma < F::epsilon() * F::from(10.0).unwrap() {
+            break;
+        }
+
+        nuclear_norm += sigma;
+
+        // Simple deflation: subtract a rank-1 approximation
+        let at = working_matrix.t();
+        let v = at.dot(&u) / sigma;
+
+        // Deflate: A = A - sigma * u * v^T
+        for i in 0..m {
+            for j in 0..n {
+                working_matrix[[i, j]] -= sigma * u[i] * v[j];
+            }
+        }
+    }
+
+    nuclear_norm
+}
+
+/// Improved nuclear norm gradient computation
+fn compute_nuclear_norm_gradient_improved<F: Float + ndarray::ScalarOperand>(
+    matrix: &ArrayView2<F>,
+    grad_scalar: F,
+) -> Array2<F> {
+    let (m, n) = matrix.dim();
+
+    // Handle diagonal matrix case
+    if is_diagonal_matrix(matrix) {
+        let mut grad_matrix = Array2::zeros((m, n));
+        let min_dim = m.min(n);
+
+        // Gradient is sign of diagonal elements
+        for i in 0..min_dim {
+            let diag_val = matrix[[i, i]];
+            grad_matrix[[i, i]] = if diag_val > F::zero() {
+                grad_scalar
+            } else if diag_val < F::zero() {
+                -grad_scalar
+            } else {
+                F::zero()
+            };
+        }
+
+        return grad_matrix;
+    }
+
+    // For general matrices, use approximate SVD-based gradient
+    // This is a simplified version that accumulates gradients from multiple singular vectors
+    let mut grad_matrix = Array2::zeros((m, n));
+    let mut working_matrix = matrix.to_owned();
+    let min_dim = m.min(n);
+    let max_rank = min_dim.min(3); // Limit for performance
+
+    for _ in 0..max_rank {
+        let (u, sigma) =
+            power_iteration_spectral(&working_matrix.view(), 10, F::from(1e-6).unwrap());
+
+        if sigma < F::epsilon() * F::from(10.0).unwrap() {
+            break;
+        }
+
+        // Compute v = A^T * u / sigma
+        let v = if sigma > F::epsilon() {
+            working_matrix.t().dot(&u) / sigma
+        } else {
+            Array1::zeros(n)
+        };
+
+        // Add contribution from this singular vector pair
+        for i in 0..m {
+            for j in 0..n {
+                grad_matrix[[i, j]] += u[i] * v[j] * grad_scalar;
+            }
+        }
+
+        // Simple deflation for next iteration
+        for i in 0..m {
+            for j in 0..n {
+                working_matrix[[i, j]] -= sigma * u[i] * v[j];
+            }
+        }
     }
 
     grad_matrix

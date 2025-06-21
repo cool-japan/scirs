@@ -21,7 +21,7 @@ fn main() {
 
         // Compute the inverse
         println!("Computing inverse");
-        let inverse = T::matrix_inverse(&matrix);
+        let inverse = T::matrix_inverse(matrix);
 
         // Print the inverse
         println!("Matrix inverse:");
@@ -32,7 +32,7 @@ fn main() {
 
         // Try a determinant
         println!("Computing determinant");
-        let det = T::determinant(&matrix);
+        let det = T::determinant(matrix);
 
         // Print the determinant
         println!("Matrix determinant:");

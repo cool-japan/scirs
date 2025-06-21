@@ -3,8 +3,7 @@ use plotly::common::Title;
 use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use scirs2_fft::{
     adaptive_sparse_fft, fft, frequency_pruning_sparse_fft, reconstruct_spectrum, sparse_fft,
-    sparse_fft::{SparseFFTAlgorithm, WindowFunction},
-    sparse_fft2, spectral_flatness_sparse_fft,
+    sparse_fft::SparseFFTAlgorithm, sparse_fft2, spectral_flatness_sparse_fft,
 };
 use std::f64::consts::PI;
 
@@ -39,7 +38,7 @@ fn main() {
     for &alg in &algorithms {
         println!("\n* Using {:?} algorithm", alg);
         let start = std::time::Instant::now();
-        let sparse_result = sparse_fft(&signal, 6, Some(alg), Some(WindowFunction::Hann)).unwrap();
+        let sparse_result = sparse_fft(&signal, 6, Some(alg), None).unwrap();
         let elapsed = start.elapsed();
 
         println!(
@@ -173,9 +172,7 @@ fn main() {
     }
 
     // Using Hamming window for better frequency resolution with noise
-    let flatness_result =
-        spectral_flatness_sparse_fft(&noisy_signal, 0.3, 32, Some(WindowFunction::Hamming))
-            .unwrap();
+    let flatness_result = spectral_flatness_sparse_fft(&noisy_signal, 0.3, 32).unwrap();
     println!(
         "- Found {} frequency components",
         flatness_result.values.len()
@@ -245,8 +242,12 @@ fn main() {
 
     let start = std::time::Instant::now();
     // Using Blackman window for reduced spectral leakage
+    // Convert 1D signal to 2D for sparse_fft2
+    let signal_2d_matrix: Vec<Vec<f64>> = (0..rows)
+        .map(|i| signal_2d[i * cols..(i + 1) * cols].to_vec())
+        .collect();
     let sparse_2d_result =
-        sparse_fft2(&signal_2d, (rows, cols), 8, Some(WindowFunction::Blackman)).unwrap();
+        sparse_fft2(&signal_2d_matrix, 8, Some(SparseFFTAlgorithm::Sublinear)).unwrap();
     let elapsed = start.elapsed();
 
     println!(

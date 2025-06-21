@@ -34,7 +34,7 @@ fn main() {
         }
 
         // Compute loss
-        let loss = sum_all(&layer);
+        let loss = sum_all(layer);
 
         // Compute gradients (without checkpointing)
         println!("\nComputing gradients without checkpointing");
@@ -72,7 +72,7 @@ fn main() {
         }
 
         // Compute loss
-        let loss = sum_all(&layer);
+        let loss = sum_all(layer);
 
         // Compute gradients (with checkpointing)
         println!("\nComputing gradients with checkpointing");

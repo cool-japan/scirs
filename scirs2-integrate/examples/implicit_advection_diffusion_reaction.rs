@@ -48,12 +48,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Solving with Method of Lines (explicit)...");
 
     // Try with different time steps to show stability limitations
-    for dt_exp in [0.01, 0.001, 0.0001] {
+    for dt_exp in [0.01f64, 0.001, 0.0001] {
         let mol_options = MOLOptions {
             // Use smaller tolerances for more accurate comparison
             atol: 1e-6,
             rtol: 1e-5,
-            max_steps: Some((time_range[1] as f64 / dt_exp).ceil() as usize * 2),
+            max_steps: Some((time_range[1] / dt_exp).ceil() as usize * 2),
             verbose: true,
             ..Default::default()
         };

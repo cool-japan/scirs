@@ -70,7 +70,7 @@ impl<T: GpuDataType> TrackedGpuBuffer<T> {
     }
 
     /// Get the inner buffer
-    pub fn inner(&self) -> &GpuBuffer<T> {
+    pub const fn inner(&self) -> &GpuBuffer<T> {
         &self.inner
     }
 
@@ -146,7 +146,7 @@ impl TrackedGpuContext {
     }
 
     /// Get the backend name
-    pub fn backend_name(&self) -> &str {
+    pub const fn backend_name(&self) -> &str {
         self.inner.backend_name()
     }
 
@@ -187,7 +187,7 @@ impl TrackedGpuContext {
     }
 
     /// Get the inner context
-    pub fn inner(&self) -> &GpuContext {
+    pub const fn inner(&self) -> &GpuContext {
         &self.inner
     }
 }

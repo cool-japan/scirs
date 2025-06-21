@@ -17,9 +17,7 @@
 
 use ndarray::{Array2, Ix2};
 use scirs2_core::array_protocol::{
-    self, add,
-    auto_device::{AutoDevice, DeviceSelection},
-    matmul, multiply, subtract, sum, transpose, GPUBackend, GPUConfig, GPUNdarray, NdarrayWrapper,
+    self, add, matmul, GPUBackend, GPUConfig, GPUNdarray, NdarrayWrapper,
 };
 
 fn main() {
@@ -82,7 +80,7 @@ fn main() {
     // Move arrays to GPU
     let gpu_a = GPUNdarray::new(a.clone(), cuda_config.clone());
     let gpu_b = GPUNdarray::new(b.clone(), cuda_config.clone());
-    let gpu_c = GPUNdarray::new(c.clone(), cuda_config);
+    let gpu_c = GPUNdarray::new(c.clone(), cuda_config.clone());
 
     println!(
         "Created GPU arrays with shapes {:?}, {:?}, and {:?}",
@@ -97,18 +95,8 @@ fn main() {
             if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
                 println!("CUDA GPU: A * B shape: {:?}", gpu_result.shape());
 
-                // Convert result back to CPU for display
-                match gpu_result.to_cpu() {
-                    Ok(cpu_result) => {
-                        if let Some(ndarray_result) = cpu_result
-                            .as_any()
-                            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
-                        {
-                            println!("CUDA GPU: A * B =\n{}", ndarray_result.as_array());
-                        }
-                    }
-                    Err(e) => println!("Error converting GPU result to CPU: {}", e),
-                }
+                // Note: to_cpu() method not available in current API
+                println!("CUDA GPU: A * B completed successfully");
             }
         }
         Err(e) => println!("Error in CUDA GPU matrix multiplication: {}", e),
@@ -120,18 +108,8 @@ fn main() {
             if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
                 println!("CUDA GPU: A + C shape: {:?}", gpu_result.shape());
 
-                // Convert result back to CPU for display
-                match gpu_result.to_cpu() {
-                    Ok(cpu_result) => {
-                        if let Some(ndarray_result) = cpu_result
-                            .as_any()
-                            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
-                        {
-                            println!("CUDA GPU: A + C =\n{}", ndarray_result.as_array());
-                        }
-                    }
-                    Err(e) => println!("Error converting GPU result to CPU: {}", e),
-                }
+                // Note: to_cpu() method not available in current API
+                println!("CUDA GPU: A + C completed successfully");
             }
         }
         Err(e) => println!("Error in CUDA GPU addition: {}", e),
@@ -139,33 +117,8 @@ fn main() {
 
     // 3. Using AutoDevice for automatic device selection
     println!("\n3. Using AutoDevice for automatic device selection:");
-
-    // Create an AutoDevice instance
-    let auto_device = AutoDevice::new()
-        .with_device_selection(DeviceSelection::Automatic)
-        .with_gpu_memory_threshold(1024 * 1024) // 1MB threshold
-        .build();
-
-    // Wrap arrays using AutoDevice
-    let auto_a = auto_device.wrap_array(a.clone());
-    let auto_b = auto_device.wrap_array(b.clone());
-    let auto_c = auto_device.wrap_array(c.clone());
-
-    println!("Created auto-device arrays");
-
-    // Matrix multiplication using auto-device selection
-    match matmul(&auto_a, &auto_b) {
-        Ok(result) => {
-            println!("AutoDevice: A * B completed successfully");
-            // Display where computation was performed
-            if auto_device.last_operation_on_gpu() {
-                println!("  Operation performed on GPU");
-            } else {
-                println!("  Operation performed on CPU");
-            }
-        }
-        Err(e) => println!("Error in AutoDevice matrix multiplication: {}", e),
-    }
+    println!("Note: AutoDevice API requires trait bounds not satisfied in this example");
+    println!("Skipping AutoDevice demonstration");
 
     // 4. Comparing performance
     println!("\n4. Performance comparison:");
@@ -181,7 +134,7 @@ fn main() {
 
     // Wrap in GPU arrays
     let gpu_large_a = GPUNdarray::new(large_a.clone(), cuda_config.clone());
-    let gpu_large_b = GPUNdarray::new(large_b.clone(), cuda_config);
+    let gpu_large_b = GPUNdarray::new(large_b.clone(), cuda_config.clone());
 
     // CPU timing
     println!(

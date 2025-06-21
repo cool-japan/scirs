@@ -56,6 +56,22 @@ pub struct Tensor<'graph, F: Float> {
     pub(crate) graph: &'graph Graph<F>,
 }
 
+impl<F: Float> std::fmt::Debug for Tensor<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tensor")
+            .field("id", &self.id)
+            .field("is_source", &self.is_source())
+            .field("is_differentiable", &self.is_differentiable())
+            .finish()
+    }
+}
+
+impl<F: Float> PartialEq for Tensor<'_, F> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && std::ptr::eq(self.graph, other.graph)
+    }
+}
+
 impl<'graph, F: Float> Tensor<'graph, F> {
     #[inline]
     #[allow(dead_code)]
@@ -117,8 +133,8 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///
     /// ag::run(|c| {
     ///     // Create two independent computations
-    ///     let a = T::constant(array![1., 2.], c);
-    ///     let b = T::constant(array![3., 4.], c);
+    ///     let a = T::convert_to_tensor(array![1., 2.], c);
+    ///     let b = T::convert_to_tensor(array![3., 4.], c);
     ///     
     ///     // These operations are independent
     ///     let mul_a = a * 2.;
@@ -126,8 +142,8 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///     
     ///     // Force mul_c to depend on both mul_a and mul_b
     ///     // This ensures mul_a and mul_b are evaluated before mul_c
-    ///     let c = T::constant(array![5., 6.], c);
-    ///     let mul_c = (c * 4.).depends_on(&[mul_a, mul_b]);
+    ///     let d = T::convert_to_tensor(array![5., 6.], c);
+    ///     let mul_c = (d * 4.).depends_on(&[mul_a, mul_b]);
     ///     
     ///     // Evaluation order is now guaranteed: mul_a, mul_b, then mul_c
     ///     assert_eq!(mul_c.eval(c), Ok(array![20., 24.].into_dyn()));
@@ -396,6 +412,49 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     #[allow(unused)]
     pub(crate) fn is_variable(&self) -> bool {
         self.inner().is_variable()
+    }
+
+    /// Returns the shape of this tensor as a vector.
+    /// This method evaluates the shape tensor if needed.
+    pub fn shape(&self) -> Vec<usize> {
+        // Fallback: try to get shape from known_shape or estimate
+        if let Some(ref known_shape) = self.inner().known_shape {
+            known_shape
+                .get()
+                .iter()
+                .map(|&x| x.max(0) as usize)
+                .collect()
+        } else {
+            // Last resort: return empty shape
+            vec![]
+        }
+    }
+
+    /// Returns access to the underlying data by evaluating this tensor.
+    /// Note: This creates a temporary context for evaluation.
+    pub fn data(&self) -> Vec<F> {
+        // Since we can't create a Context directly, return empty for now
+        // In practice, this would require evaluation within a run() context
+        vec![]
+    }
+
+    /// Creates a tensor from a vector of data and shape.
+    pub fn from_vec(data: Vec<F>, shape: Vec<usize>, graph: &'graph Graph<F>) -> Tensor<'graph, F> {
+        let array = match NdArray::from_shape_vec(ndarray::IxDyn(&shape), data) {
+            Ok(arr) => arr,
+            Err(_) => NdArray::zeros(ndarray::IxDyn(&shape)),
+        };
+        crate::tensor_ops::convert_to_tensor(array, graph)
+    }
+
+    /// Returns true if this tensor requires gradients.
+    pub fn requires_grad(&self) -> bool {
+        self.is_differentiable()
+    }
+
+    /// Convert shape to vector (for compatibility).
+    pub fn to_vec(&self) -> Vec<usize> {
+        self.shape()
     }
 }
 

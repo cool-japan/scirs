@@ -1,7 +1,9 @@
 use ndarray::Array2;
 use rand::distr::Uniform;
 use rand::prelude::*;
-use scirs2_cluster::vq::{kmeans, minibatch_kmeans, MiniBatchKMeansOptions};
+use scirs2_cluster::vq::{
+    kmeans2, minibatch_kmeans, MiniBatchKMeansOptions, MinitMethod, MissingMethod,
+};
 
 fn main() {
     // Generate random data with two clusters
@@ -13,7 +15,17 @@ fn main() {
 
     // Time standard k-means
     let start_time = std::time::Instant::now();
-    let (centroids_std, labels_std) = kmeans(data.view(), 2, None).unwrap();
+    let (centroids_std, labels_std) = kmeans2(
+        data.view(),
+        2,
+        Some(10), // iterations
+        None,     // threshold
+        Some(MinitMethod::Random),
+        Some(MissingMethod::Warn),
+        Some(true), // check_finite
+        Some(42),   // random_seed
+    )
+    .unwrap();
     let kmeans_duration = start_time.elapsed();
 
     // Time mini-batch k-means with various batch sizes
@@ -57,7 +69,17 @@ fn main() {
         // Time standard k-means (only for small datasets)
         let kmeans_duration = if size <= 10_000 {
             let start_time = std::time::Instant::now();
-            let _ = kmeans(large_data.view(), 2, None).unwrap();
+            let _ = kmeans2(
+                large_data.view(),
+                2,
+                Some(10), // iterations
+                None,     // threshold
+                Some(MinitMethod::Random),
+                Some(MissingMethod::Warn),
+                Some(true), // check_finite
+                Some(42),   // random_seed
+            )
+            .unwrap();
             let duration = start_time.elapsed();
             println!("Standard k-means with {} samples: {:.2?}", size, duration);
             duration

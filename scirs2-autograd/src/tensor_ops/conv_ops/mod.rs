@@ -37,7 +37,7 @@ fn test_im2col_batch() {
 
     let x: Vec<f32> = vec![(0..xch * xw * xh).map(|a| a as f32).collect::<Vec<f32>>(); 2]
         .into_iter()
-        .flat_map(|a| a)
+        .flatten()
         .collect();
 
     let batch_size = 2;
@@ -45,11 +45,11 @@ fn test_im2col_batch() {
     let ret = im2col_batch(
         x.as_slice(),
         batch_size,
-        xch as i32,
-        xh as i32,
-        xw as i32,
-        kh as i32,
-        kw as i32,
+        xch,
+        xh,
+        xw,
+        kh,
+        kw,
         op.pad as i32,
         op.pad as i32,
         op.stride as i32,

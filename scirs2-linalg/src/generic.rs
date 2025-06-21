@@ -194,17 +194,17 @@ where
 
 /// Generic determinant calculation (only for real floats)
 pub fn gdet<T: LinalgScalar + Float>(a: &ArrayView2<T>) -> LinalgResult<T> {
-    crate::basic::det(a)
+    crate::basic::det(a, None)
 }
 
 /// Generic matrix inversion (only for real floats)
 pub fn ginv<T: LinalgScalar + Float>(a: &ArrayView2<T>) -> LinalgResult<Array2<T>> {
-    crate::basic::inv(a)
+    crate::basic::inv(a, None)
 }
 
 /// Generic matrix norm (only for real floats)
 pub fn gnorm<T: LinalgScalar + Float>(a: &ArrayView2<T>, norm_type: &str) -> LinalgResult<T> {
-    crate::norm::matrix_norm(a, norm_type)
+    crate::norm::matrix_norm(a, norm_type, None)
 }
 
 /// Generic SVD decomposition result
@@ -250,7 +250,7 @@ pub struct GenericEigen<T: LinalgScalar> {
 
 /// Generic eigendecomposition (only for real floats, returns complex)
 pub fn geig<T: LinalgScalar + Float>(a: &ArrayView2<T>) -> LinalgResult<GenericEigen<T>> {
-    let (eigenvalues, eigenvectors) = crate::eigen::eig(a)?;
+    let (eigenvalues, eigenvectors) = crate::eigen::eig(a, None)?;
     Ok(GenericEigen {
         eigenvalues,
         eigenvectors,
@@ -262,7 +262,7 @@ pub fn gsolve<T: LinalgScalar + Float>(
     a: &ArrayView2<T>,
     b: &ArrayView2<T>,
 ) -> LinalgResult<Array2<T>> {
-    crate::solve::solve_multiple(a, b)
+    crate::solve::solve_multiple(a, b, None)
 }
 
 /// Precision trait for automatic precision selection

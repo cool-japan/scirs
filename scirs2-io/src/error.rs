@@ -26,6 +26,10 @@ pub enum IoError {
     ChecksumError(String),
     /// Integrity error
     IntegrityError(String),
+    /// Configuration error
+    ConfigError(String),
+    /// Network error
+    NetworkError(String),
     /// Other error
     Other(String),
 }
@@ -45,6 +49,8 @@ impl fmt::Display for IoError {
             IoError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             IoError::ChecksumError(msg) => write!(f, "Checksum error: {}", msg),
             IoError::IntegrityError(msg) => write!(f, "Integrity error: {}", msg),
+            IoError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
+            IoError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             IoError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }

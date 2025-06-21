@@ -18,19 +18,51 @@ pub mod autograd;
 pub mod callbacks;
 // Temporarily disabled due to model config field mismatches
 // pub mod config;
+/// Data augmentation module
+pub mod augmentation;
+/// C/C++ bindings module
+pub mod bindings;
+/// Model compression module
+pub mod compression;
 pub mod data;
+/// Knowledge distillation module
+pub mod distillation;
 pub mod error;
 pub mod evaluation;
+/// GPU acceleration module (currently CPU fallback)
+pub mod gpu;
+/// Framework interoperability module
+pub mod interop;
+/// Interpretation module
+pub mod interpretation;
 pub mod layers;
 pub mod linalg;
 pub mod losses;
+/// Memory-efficient operations module
+pub mod memory_efficient;
+/// Mobile deployment module
+pub mod mobile;
+/// Enhanced model evaluation module
+pub mod model_evaluation;
 pub mod models;
 pub mod optimizers;
+/// Performance optimization module
+pub mod performance;
 pub mod prelude;
+/// Quantization module
+pub mod quantization;
 pub mod serialization;
+/// Serving and deployment module
+pub mod serving;
 pub mod training;
+/// Transfer learning module
+pub mod transfer_learning;
 pub mod transformer;
 pub mod utils;
+/// Visualization tools module
+pub mod visualization;
+/// WebAssembly module
+pub mod wasm;
 
 // Export specific items from each module to avoid name conflicts
 // Use the prelude module for a convenient import

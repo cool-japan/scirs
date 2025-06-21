@@ -192,21 +192,6 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                         // Return NaN for points outside the interpolation domain
                         Ok(BoundaryResult::DirectValue(T::nan()))
                     }
-                    ExtrapolateMode::Constant => {
-                        // Use the value at the lower boundary
-                        if let Some(val) = self.lower_value {
-                            Ok(BoundaryResult::DirectValue(val))
-                        } else if let (Some(vals), Some(points)) = (values, domain_points) {
-                            // Find the value at the lower boundary
-                            let idx = self.find_nearest_point_index(self.lower_bound, points)?;
-                            Ok(BoundaryResult::DirectValue(vals[idx]))
-                        } else {
-                            Err(InterpolateError::InvalidState(
-                                "Values or domain points not provided for Constant mode"
-                                    .to_string(),
-                            ))
-                        }
-                    }
                 }
             }
             BoundaryMode::ZeroGradient => {
@@ -323,21 +308,6 @@ impl<T: Float + std::fmt::Display> BoundaryParameters<T> {
                     ExtrapolateMode::Nan => {
                         // Return NaN for points outside the interpolation domain
                         Ok(BoundaryResult::DirectValue(T::nan()))
-                    }
-                    ExtrapolateMode::Constant => {
-                        // Use the value at the upper boundary
-                        if let Some(val) = self.upper_value {
-                            Ok(BoundaryResult::DirectValue(val))
-                        } else if let (Some(vals), Some(points)) = (values, domain_points) {
-                            // Find the value at the upper boundary
-                            let idx = self.find_nearest_point_index(self.upper_bound, points)?;
-                            Ok(BoundaryResult::DirectValue(vals[idx]))
-                        } else {
-                            Err(InterpolateError::InvalidState(
-                                "Values or domain points not provided for Constant mode"
-                                    .to_string(),
-                            ))
-                        }
                     }
                 }
             }

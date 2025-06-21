@@ -357,7 +357,7 @@ pub fn frft_complex(x: &[Complex64], alpha: f64, d: Option<f64>) -> FFTResult<Ve
 ///
 /// # Returns
 ///
-/// Vec<Complex64> - Transformed signal
+/// `Vec<Complex64>` - Transformed signal
 ///
 /// # Example
 ///
@@ -387,7 +387,7 @@ where
 ///
 /// # Returns
 ///
-/// Vec<Complex64> - Transformed signal
+/// `Vec<Complex64>` - Transformed signal
 ///
 /// # Example
 ///

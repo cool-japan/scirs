@@ -1,0 +1,46 @@
+# Workspace build optimization settings
+# Copy sections from this file to main Cargo.toml as needed
+
+[workspace.dependencies]
+# Optimize common dependencies to reduce duplicate compilation
+
+# Core dependencies with minimal features for faster compilation
+serde = { version = "1.0", features = ["derive"], default-features = false }
+ndarray = { version = "0.16.1", features = ["serde", "rayon"], default-features = false }
+rayon = { version = "1.10.0", default-features = false }
+
+# Math libraries with reduced feature sets
+num-traits = { version = "0.2.19", default-features = false }
+num-complex = { version = "0.4.6", default-features = false }
+rand = { version = "0.9.0", features = ["std"], default-features = false }
+
+# Linear algebra optimizations
+ndarray-linalg = { version = "0.17.0", default-features = false, features = ["openblas"] }
+openblas-src = { version = "0.10.11", features = ["cblas", "lapacke"], default-features = false }
+
+# Build profiles for different use cases
+[profile.dev-fast]
+# Fast development builds
+inherits = "dev" 
+debug = false
+opt-level = 1
+
+[profile.test-fast]
+# Fast test builds
+inherits = "test"
+debug = false
+opt-level = 1
+lto = false
+
+[profile.bench-fast]
+# Fast benchmark compilation
+inherits = "release"
+debug = false
+opt-level = 2
+lto = "thin"
+
+# Feature consolidation suggestions:
+# 1. Use default-features = false for all heavy dependencies
+# 2. Enable only required features explicitly
+# 3. Consider splitting large modules into smaller compilation units
+# 4. Use workspace inheritance for all shared dependencies

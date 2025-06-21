@@ -189,7 +189,7 @@ fn generate_binary_classification_data(
 
 #[cfg(feature = "metrics_integration")]
 fn shuffle_indices(mut indices: Vec<usize>) -> Vec<usize> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     rand::seq::SliceRandom::shuffle(&mut indices, &mut rng);
     indices
 }

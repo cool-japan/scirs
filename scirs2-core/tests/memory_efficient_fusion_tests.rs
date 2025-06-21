@@ -1,9 +1,8 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use scirs2_core::error::ScirsError;
+    use scirs2_core::error::{CoreError, ErrorContext};
     use scirs2_core::memory_efficient::{register_fusion, FusedOp, OpFusion};
     use std::any::{Any, TypeId};
-    use std::fmt;
     use std::sync::Arc;
 
     // A simple operation for testing
@@ -36,10 +35,10 @@ mod tests {
             }
         }
 
-        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, ScirsError> {
+        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, CoreError> {
             let x = input
                 .downcast_ref::<f64>()
-                .ok_or_else(|| ScirsError::InvalidOperation("Expected f64".into()))?;
+                .ok_or_else(|| CoreError::InvalidArgument(ErrorContext::new("Expected f64")))?;
             Ok(Box::new(x * x))
         }
 
@@ -78,15 +77,15 @@ mod tests {
             }
         }
 
-        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, ScirsError> {
+        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, CoreError> {
             let x = input
                 .downcast_ref::<f64>()
-                .ok_or_else(|| ScirsError::InvalidOperation("Expected f64".into()))?;
+                .ok_or_else(|| CoreError::InvalidArgument(ErrorContext::new("Expected f64")))?;
 
             if *x < 0.0 {
-                return Err(ScirsError::InvalidOperation(
-                    "Cannot take sqrt of negative number".into(),
-                ));
+                return Err(CoreError::InvalidArgument(ErrorContext::new(
+                    "Cannot take sqrt of negative number",
+                )));
             }
 
             Ok(Box::new(x.sqrt()))
@@ -122,10 +121,10 @@ mod tests {
             other.clone_op()
         }
 
-        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, ScirsError> {
+        fn apply(&self, input: &dyn Any) -> Result<Box<dyn Any>, CoreError> {
             let x = input
                 .downcast_ref::<f64>()
-                .ok_or_else(|| ScirsError::InvalidOperation("Expected f64".into()))?;
+                .ok_or_else(|| CoreError::InvalidArgument(ErrorContext::new("Expected f64")))?;
             Ok(Box::new(*x))
         }
 
@@ -183,7 +182,7 @@ mod tests {
             fn fuse_with(&self, _: &dyn FusedOp) -> Arc<dyn FusedOp> {
                 Arc::new(MismatchOp)
             }
-            fn apply(&self, _: &dyn Any) -> Result<Box<dyn Any>, ScirsError> {
+            fn apply(&self, _: &dyn Any) -> Result<Box<dyn Any>, CoreError> {
                 Ok(Box::new(0))
             }
             fn clone_op(&self) -> Arc<dyn FusedOp> {

@@ -21,25 +21,25 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-metrics = "0.1.0-alpha.4"
+scirs2-metrics = "0.1.0-alpha.5"
 ```
 
 To enable optimizations through the core module or integration with other modules, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.1.0-alpha.4", features = ["parallel"] }
+scirs2-metrics = { version = "0.1.0-alpha.5", features = ["parallel"] }
 
 # For integration with neural networks
-scirs2-metrics = { version = "0.1.0-alpha.4", features = ["neural_common"] }
+scirs2-metrics = { version = "0.1.0-alpha.5", features = ["neural_common"] }
 
 # For integration with optimization
-scirs2-metrics = { version = "0.1.0-alpha.4", features = ["optim_integration"] }
+scirs2-metrics = { version = "0.1.0-alpha.5", features = ["optim_integration"] }
 
 # For visualization capabilities
-scirs2-metrics = { version = "0.1.0-alpha.4", features = ["plotters_backend"] }
+scirs2-metrics = { version = "0.1.0-alpha.5", features = ["plotters_backend"] }
 # or
-scirs2-metrics = { version = "0.1.0-alpha.4", features = ["plotly_backend"] }
+scirs2-metrics = { version = "0.1.0-alpha.5", features = ["plotly_backend"] }
 ```
 
 ## Usage

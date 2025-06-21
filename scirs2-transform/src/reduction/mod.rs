@@ -125,7 +125,7 @@ impl PCA {
         }
 
         // Perform SVD
-        let (_u, s, vt) = match svd::<f64>(&x_processed.view(), true) {
+        let (_u, s, vt) = match svd::<f64>(&x_processed.view(), true, None) {
             Ok(result) => result,
             Err(e) => return Err(TransformError::LinalgError(e)),
         };
@@ -320,7 +320,7 @@ impl TruncatedSVD {
         }
 
         // Perform SVD
-        let (_u, s, vt) = match svd::<f64>(&x_f64.view(), true) {
+        let (_u, s, vt) = match svd::<f64>(&x_f64.view(), true, None) {
             Ok(result) => result,
             Err(e) => return Err(TransformError::LinalgError(e)),
         };
@@ -615,7 +615,7 @@ impl LDA {
             // SVD-based solver
 
             // Decompose the within-class scatter matrix
-            let (u_sw, s_sw, vt_sw) = match svd::<f64>(&sw.view(), true) {
+            let (u_sw, s_sw, vt_sw) = match svd::<f64>(&sw.view(), true, None) {
                 Ok(result) => result,
                 Err(e) => return Err(TransformError::LinalgError(e)),
             };
@@ -647,7 +647,7 @@ impl LDA {
             }
 
             // Perform SVD on the transformed between-class scatter matrix
-            let (u_sb, s_sb, _vt_sb) = match svd::<f64>(&sb_transformed.view(), true) {
+            let (u_sb, s_sb, _vt_sb) = match svd::<f64>(&sb_transformed.view(), true, None) {
                 Ok(result) => result,
                 Err(e) => return Err(TransformError::LinalgError(e)),
             };
@@ -668,7 +668,7 @@ impl LDA {
             // For now, we'll use the SVD-based approach for all solvers
 
             // Decompose the within-class scatter matrix
-            let (u_sw, s_sw, vt_sw) = match svd::<f64>(&sw.view(), true) {
+            let (u_sw, s_sw, vt_sw) = match svd::<f64>(&sw.view(), true, None) {
                 Ok(result) => result,
                 Err(e) => return Err(TransformError::LinalgError(e)),
             };
@@ -700,7 +700,7 @@ impl LDA {
             }
 
             // Perform SVD on the transformed between-class scatter matrix
-            let (u_sb, s_sb, _vt_sb) = match svd::<f64>(&sb_transformed.view(), true) {
+            let (u_sb, s_sb, _vt_sb) = match svd::<f64>(&sb_transformed.view(), true, None) {
                 Ok(result) => result,
                 Err(e) => return Err(TransformError::LinalgError(e)),
             };

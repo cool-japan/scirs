@@ -58,6 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Solver options
     let options = FEMOptions {
         element_type: ElementType::Linear,
+        quadrature_order: 3,
         max_iterations: 1000,
         tolerance: 1e-6,
         save_convergence_history: false,
@@ -186,6 +187,7 @@ fn create_l_shaped_mesh(divisions: usize) -> TriangularMesh {
     let mut node_count = 0;
 
     // Create nodes
+    #[allow(clippy::needless_range_loop)]
     for j in 0..=divisions {
         for i in 0..=divisions {
             let x = i as f64 * h;

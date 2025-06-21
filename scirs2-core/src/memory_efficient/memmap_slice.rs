@@ -8,7 +8,7 @@ use super::memmap::MemoryMappedArray;
 use crate::error::{CoreError, CoreResult, ErrorContext};
 use ndarray::{ArrayBase, Dimension, SliceInfo, SliceInfoElem};
 use std::marker::PhantomData;
-use std::ops::{Range, RangeBounds};
+use std::ops::RangeBounds;
 
 /// A slice of a memory-mapped array that maintains memory-mapping.
 ///
@@ -17,7 +17,7 @@ use std::ops::{Range, RangeBounds};
 /// accessed through the slice.
 pub struct MemoryMappedSlice<A, D>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync,
     D: Dimension,
 {
     /// The source memory-mapped array
@@ -32,7 +32,7 @@ where
 
 impl<A, D> MemoryMappedSlice<A, D>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync,
     D: Dimension,
 {
     /// Creates a new slice from a memory-mapped array and slice information.
@@ -57,12 +57,12 @@ where
     }
 
     /// Returns a reference to the source memory-mapped array.
-    pub fn source(&self) -> &MemoryMappedArray<A> {
+    pub const fn source(&self) -> &MemoryMappedArray<A> {
         &self.source
     }
 
     /// Returns the slice information.
-    pub fn slice_info(&self) -> &SliceInfo<Vec<SliceInfoElem>, D, D> {
+    pub const fn slice_info(&self) -> &SliceInfo<Vec<SliceInfoElem>, D, D> {
         &self.slice_info
     }
 
@@ -83,9 +83,9 @@ where
 }
 
 /// Extension trait for adding slicing functionality to MemoryMappedArray.
-pub trait MemoryMappedSlicing<A: Clone + Copy + 'static> {
+pub trait MemoryMappedSlicing<A: Clone + Copy + 'static + Send + Sync> {
     /// Creates a slice of the memory-mapped array using standard slice syntax.
-    fn slice<I, E>(&self, info: I) -> CoreResult<MemoryMappedSlice<A, E>>
+    fn slice<I, E>(&self, _info: I) -> CoreResult<MemoryMappedSlice<A, E>>
     where
         I: ndarray::SliceArg<E>,
         E: Dimension;
@@ -104,14 +104,14 @@ pub trait MemoryMappedSlicing<A: Clone + Copy + 'static> {
     ) -> CoreResult<MemoryMappedSlice<A, ndarray::Ix2>>;
 }
 
-impl<A: Clone + Copy + 'static> MemoryMappedSlicing<A> for MemoryMappedArray<A> {
-    fn slice<I, E>(&self, info: I) -> CoreResult<MemoryMappedSlice<A, E>>
+impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedSlicing<A> for MemoryMappedArray<A> {
+    fn slice<I, E>(&self, _info: I) -> CoreResult<MemoryMappedSlice<A, E>>
     where
         I: ndarray::SliceArg<E>,
         E: Dimension,
     {
         // Get the slice info
-        let shape = self.shape.clone();
+        let _shape = self.shape.clone();
         // Use unsafe to convert the SliceArg to SliceInfo
         // This is because the API for this has changed
         // We need to get the SliceInfo from the SliceArg in a more direct way
@@ -367,12 +367,12 @@ mod tests {
         let slice = mmap.slice(s![2..5, 3..7]).unwrap();
 
         // Load the slice data
-        let array = slice.load().unwrap();
+        let array: ndarray::Array2<f64> = slice.load().unwrap();
 
         // Check that the slice contains the expected data
-        assert_eq!(array.shape(), &[3, 4]);
-        for i in 0..3 {
-            for j in 0..4 {
+        assert_eq!(array.shape(), &[3usize, 4usize]);
+        for i in 0..3usize {
+            for j in 0..4usize {
                 assert_eq!(array[[i, j]], ((i + 2) * 10 + (j + 3)) as f64);
             }
         }

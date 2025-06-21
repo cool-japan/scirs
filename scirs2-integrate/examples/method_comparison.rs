@@ -170,7 +170,7 @@ fn main() {
     ];
 
     for (method_name, method) in methods {
-        let result = time_integration(&method_name.to_string(), || {
+        let result = time_integration(method_name, || {
             solve_ivp(
                 decay_system,
                 [0.0, 10.0],

@@ -58,8 +58,7 @@ fn main() {
     // Use 3 cycles with increasing length
     let t_0 = 50; // Initial cycle length
     let t_mult = 2.0; // Multiplicative factor
-    let mut sgdr_scheduler =
-        CosineAnnealingWarmRestarts::new(initial_lr, min_lr, t_0, t_mult.into());
+    let mut sgdr_scheduler = CosineAnnealingWarmRestarts::new(initial_lr, min_lr, t_0, t_mult);
 
     let start_time = Instant::now();
     let sgdr_result = train_linear_regression(

@@ -70,7 +70,7 @@ where
 
                 // Perturb the j-th component
                 let mut y_perturbed = y.clone();
-                y_perturbed[j] = y_perturbed[j] + eps;
+                y_perturbed[j] += eps;
 
                 // Evaluate function at perturbed point
                 let f_perturbed = f(t, y_perturbed.view());
@@ -196,7 +196,7 @@ where
 
                 for &j in &columns_with_color {
                     let eps = eps_base * (F::one() + y[j].abs()).max(F::one());
-                    y_perturbed[j] = y_perturbed[j] + eps;
+                    y_perturbed[j] += eps;
                     perturbation_sizes.push(eps);
                 }
 

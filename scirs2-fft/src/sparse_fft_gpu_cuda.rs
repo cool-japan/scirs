@@ -7,15 +7,36 @@ use crate::error::{FFTError, FFTResult};
 use crate::sparse_fft::{
     SparseFFTAlgorithm, SparseFFTConfig, SparseFFTResult, SparsityEstimationMethod, WindowFunction,
 };
-// Import removed - unused
 use crate::sparse_fft_gpu_memory::{
-    get_global_memory_manager, init_global_memory_manager, BufferDescriptor, BufferLocation,
-    BufferType,
+    get_global_memory_manager, init_cuda_device, init_global_memory_manager, is_cuda_available,
+    BufferDescriptor, BufferLocation, BufferType,
 };
 use num_complex::Complex64;
 use num_traits::NumCast;
 use std::fmt::Debug;
 use std::time::Instant;
+
+#[cfg(feature = "cuda")]
+// CUDA support temporarily disabled until cudarc dependency is enabled
+// use cudarc::driver::{CudaDevice, DevicePtr};
+use std::sync::OnceLock;
+
+#[cfg(feature = "cuda")]
+#[allow(dead_code)]
+static CUDA_CONTEXT: OnceLock<Option<u8>> = OnceLock::new(); // Placeholder type
+
+/// Check if CUDA is available and initialize if necessary
+pub fn ensure_cuda_available() -> FFTResult<bool> {
+    #[cfg(feature = "cuda")]
+    {
+        init_cuda_device()
+    }
+
+    #[cfg(not(feature = "cuda"))]
+    {
+        Ok(false)
+    }
+}
 
 /// CUDA device information
 #[derive(Debug, Clone)]
@@ -225,6 +246,9 @@ pub struct CUDASparseFFT {
 impl CUDASparseFFT {
     /// Create a new CUDA-accelerated sparse FFT processor
     pub fn new(device_id: i32, config: SparseFFTConfig) -> FFTResult<Self> {
+        // Initialize CUDA device and memory management
+        init_cuda_device()?;
+
         // Initialize CUDA context
         let context = CUDAContext::new(device_id)?;
 
@@ -242,33 +266,56 @@ impl CUDASparseFFT {
         // Free existing buffers if any
         self.free_buffers()?;
 
+        // Get memory manager
+        let memory_manager_arc = get_global_memory_manager()?;
+        let mut memory_manager = memory_manager_arc.lock().unwrap();
+
         // Allocate input buffer
-        let input_size_bytes = signal_size * std::mem::size_of::<Complex64>();
-        self.input_buffer = Some(self.context.allocate(input_size_bytes)?);
+        let input_buffer = memory_manager.allocate_buffer(
+            signal_size,
+            std::mem::size_of::<Complex64>(),
+            BufferLocation::Device,
+            BufferType::Input,
+        )?;
+        self.input_buffer = Some(input_buffer);
 
         // Allocate output buffers (assuming worst case: all components are significant)
         let max_components = self.config.sparsity.min(signal_size);
-        let output_values_size_bytes = max_components * std::mem::size_of::<Complex64>();
-        self.output_values_buffer = Some(self.context.allocate(output_values_size_bytes)?);
 
-        let output_indices_size_bytes = max_components * std::mem::size_of::<usize>();
-        self.output_indices_buffer = Some(self.context.allocate(output_indices_size_bytes)?);
+        let output_values_buffer = memory_manager.allocate_buffer(
+            max_components,
+            std::mem::size_of::<Complex64>(),
+            BufferLocation::Device,
+            BufferType::Output,
+        )?;
+        self.output_values_buffer = Some(output_values_buffer);
+
+        let output_indices_buffer = memory_manager.allocate_buffer(
+            max_components,
+            std::mem::size_of::<usize>(),
+            BufferLocation::Device,
+            BufferType::Output,
+        )?;
+        self.output_indices_buffer = Some(output_indices_buffer);
 
         Ok(())
     }
 
     /// Free all buffers
     fn free_buffers(&mut self) -> FFTResult<()> {
-        if let Some(buffer) = self.input_buffer.take() {
-            self.context.free(buffer)?;
-        }
+        if let Ok(memory_manager_arc) = get_global_memory_manager() {
+            let mut memory_manager = memory_manager_arc.lock().unwrap();
+            if let Some(buffer) = self.input_buffer.take() {
+                memory_manager.release_buffer(buffer)?;
+            }
 
-        if let Some(buffer) = self.output_values_buffer.take() {
-            self.context.free(buffer)?;
-        }
+            if let Some(buffer) = self.output_values_buffer.take() {
+                memory_manager.release_buffer(buffer)?;
+            }
 
-        if let Some(buffer) = self.output_indices_buffer.take() {
-            self.context.free(buffer)?;
+            if let Some(buffer) = self.output_indices_buffer.take() {
+                memory_manager.release_buffer(buffer)?;
+            }
         }
 
         Ok(())
@@ -400,6 +447,13 @@ pub fn cuda_sparse_fft<T>(
 where
     T: NumCast + Copy + Debug + 'static,
 {
+    // Check if CUDA is available
+    if !ensure_cuda_available()? {
+        return Err(FFTError::ComputationError(
+            "CUDA is not available. Either the 'cuda' feature is not enabled or CUDA hardware/drivers are not available.".to_string()
+        ));
+    }
+
     // Create a base configuration
     let config = SparseFFTConfig {
         estimation_method: SparsityEstimationMethod::Manual,
@@ -492,12 +546,7 @@ pub fn get_cuda_devices() -> FFTResult<Vec<CUDADeviceInfo>> {
     Ok(devices)
 }
 
-/// Check if CUDA is available on this system
-pub fn is_cuda_available() -> bool {
-    // In a real implementation, this would check if CUDA is available
-    // For now, check if the CUDA feature is enabled
-    cfg!(feature = "cuda")
-}
+// Note: is_cuda_available() is now provided by sparse_fft_gpu_memory module
 
 #[cfg(test)]
 mod tests {

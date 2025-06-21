@@ -1,8 +1,8 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
     use approx::assert_relative_eq;
-    use ndarray::{Array, Array2};
-    use scirs2_core::array::{mask_array, masked_invalid, MaskedArray};
+    use ndarray::Array2;
+    use scirs2_core::array::{mask_array, masked_invalid};
     use scirs2_core::memory_efficient::{
         chunk_wise_op, create_disk_array, diagonal_view, evaluate, transpose_view,
         ChunkingStrategy, LazyArray,
@@ -166,7 +166,7 @@ mod tests {
         data[[7, 9]] = f64::NAN;
 
         // 1. Create a masked array that masks out NaN values
-        let masked = masked_invalid(&data);
+        let masked = masked_invalid(data.clone());
 
         // 2. Process the masked array in chunks
         let result = chunk_wise_op(

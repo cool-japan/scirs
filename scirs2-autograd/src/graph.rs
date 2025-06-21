@@ -507,6 +507,15 @@ impl<F: Float> AsGraph<F> for Context<'_, F> {
     }
 }
 
+impl<F: Float> Default for Graph<F> {
+    fn default() -> Self {
+        Self {
+            node_set: RefCell::new(Vec::new()),
+            variable2node: RefCell::new(HashMap::new()),
+        }
+    }
+}
+
 #[inline]
 pub(crate) fn assert_same_graph<F: Float>(a: &impl AsGraph<F>, b: &impl AsGraph<F>) {
     assert_eq!(

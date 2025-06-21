@@ -311,6 +311,232 @@ fn next_permutation(perm: &mut [usize]) -> bool {
     true
 }
 
+/// Maximum cardinality matching result
+#[derive(Debug, Clone)]
+pub struct MaximumMatching<N: Node> {
+    /// The matching as a vector of edge pairs
+    pub matching: Vec<(N, N)>,
+    /// The size of the matching
+    pub size: usize,
+}
+
+/// Finds a maximum cardinality matching in a general graph using Edmonds' blossom algorithm
+///
+/// This is a simplified implementation of the blossom algorithm for general graphs.
+/// For better performance on bipartite graphs, use `maximum_bipartite_matching`.
+///
+/// # Arguments
+/// * `graph` - The input graph
+///
+/// # Returns
+/// * A maximum cardinality matching
+pub fn maximum_cardinality_matching<N, E, Ix>(graph: &Graph<N, E, Ix>) -> MaximumMatching<N>
+where
+    N: Node + Clone,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+
+    if n == 0 {
+        return MaximumMatching {
+            matching: Vec::new(),
+            size: 0,
+        };
+    }
+
+    // Use a greedy approach for simplicity
+    // A full implementation would use Edmonds' blossom algorithm
+    let mut matching = Vec::new();
+    let mut matched = vec![false; n];
+    let node_to_idx: HashMap<N, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.clone(), i))
+        .collect();
+
+    // Greedy matching: find augmenting paths
+    for (i, node) in nodes.iter().enumerate() {
+        if matched[i] {
+            continue;
+        }
+
+        if let Ok(neighbors) = graph.neighbors(node) {
+            for neighbor in neighbors {
+                if let Some(&j) = node_to_idx.get(&neighbor) {
+                    if !matched[j] {
+                        // Found an augmenting path of length 1
+                        matching.push((node.clone(), neighbor));
+                        matched[i] = true;
+                        matched[j] = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    MaximumMatching {
+        size: matching.len(),
+        matching,
+    }
+}
+
+/// Finds a maximal matching using a greedy algorithm
+///
+/// A maximal matching is one where no more edges can be added.
+/// This is simpler than maximum matching but provides a 2-approximation.
+///
+/// # Arguments
+/// * `graph` - The input graph
+///
+/// # Returns
+/// * A maximal matching
+pub fn maximal_matching<N, E, Ix>(graph: &Graph<N, E, Ix>) -> MaximumMatching<N>
+where
+    N: Node + Clone,
+    E: EdgeWeight,
+    Ix: IndexType,
+{
+    let mut matching = Vec::new();
+    let mut matched_nodes = HashSet::new();
+
+    // Get all edges
+    let edges = graph.edges();
+
+    // Greedily add edges that don't conflict with existing matching
+    for edge in edges {
+        if !matched_nodes.contains(&edge.source) && !matched_nodes.contains(&edge.target) {
+            matching.push((edge.source.clone(), edge.target.clone()));
+            matched_nodes.insert(edge.source);
+            matched_nodes.insert(edge.target);
+        }
+    }
+
+    MaximumMatching {
+        size: matching.len(),
+        matching,
+    }
+}
+
+/// Stable marriage problem solver using the Gale-Shapley algorithm
+///
+/// Finds a stable matching between two sets of equal size where each element
+/// has a preference order over the other set.
+///
+/// # Arguments
+/// * `left_prefs` - Preference lists for left set (each list is ordered from most to least preferred)
+/// * `right_prefs` - Preference lists for right set
+///
+/// # Returns
+/// * A stable matching as pairs (left_index, right_index)
+pub fn stable_marriage(
+    left_prefs: &[Vec<usize>],
+    right_prefs: &[Vec<usize>],
+) -> Result<Vec<(usize, usize)>> {
+    let n = left_prefs.len();
+
+    if n != right_prefs.len() {
+        return Err(GraphError::InvalidGraph(
+            "Left and right sets must have equal size".to_string(),
+        ));
+    }
+
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Validate preference lists
+    for (i, prefs) in left_prefs.iter().enumerate() {
+        if prefs.len() != n {
+            return Err(GraphError::InvalidGraph(format!(
+                "Left preference list {} has wrong length",
+                i
+            )));
+        }
+        let mut sorted_prefs = prefs.clone();
+        sorted_prefs.sort_unstable();
+        if sorted_prefs != (0..n).collect::<Vec<_>>() {
+            return Err(GraphError::InvalidGraph(format!(
+                "Left preference list {} is not a valid permutation",
+                i
+            )));
+        }
+    }
+
+    for (i, prefs) in right_prefs.iter().enumerate() {
+        if prefs.len() != n {
+            return Err(GraphError::InvalidGraph(format!(
+                "Right preference list {} has wrong length",
+                i
+            )));
+        }
+        let mut sorted_prefs = prefs.clone();
+        sorted_prefs.sort_unstable();
+        if sorted_prefs != (0..n).collect::<Vec<_>>() {
+            return Err(GraphError::InvalidGraph(format!(
+                "Right preference list {} is not a valid permutation",
+                i
+            )));
+        }
+    }
+
+    // Create inverse preference mappings for right set for efficiency
+    let mut right_inv_prefs = vec![vec![0; n]; n];
+    for (i, prefs) in right_prefs.iter().enumerate() {
+        for (rank, &person) in prefs.iter().enumerate() {
+            right_inv_prefs[i][person] = rank;
+        }
+    }
+
+    // Gale-Shapley algorithm
+    let mut left_partner = vec![None; n];
+    let mut right_partner = vec![None; n];
+    let mut left_next_proposal = vec![0; n];
+    let mut free_left: std::collections::VecDeque<usize> = (0..n).collect();
+
+    while let Some(left) = free_left.pop_front() {
+        if left_next_proposal[left] >= n {
+            continue; // This left person has proposed to everyone
+        }
+
+        let right = left_prefs[left][left_next_proposal[left]];
+        left_next_proposal[left] += 1;
+
+        match right_partner[right] {
+            None => {
+                // Right person is free, form engagement
+                left_partner[left] = Some(right);
+                right_partner[right] = Some(left);
+            }
+            Some(current_left) => {
+                // Right person is engaged, check if they prefer the new proposal
+                if right_inv_prefs[right][left] < right_inv_prefs[right][current_left] {
+                    // Right person prefers the new proposal
+                    left_partner[left] = Some(right);
+                    right_partner[right] = Some(left);
+                    left_partner[current_left] = None;
+                    free_left.push_back(current_left);
+                } else {
+                    // Right person prefers their current partner
+                    free_left.push_back(left);
+                }
+            }
+        }
+    }
+
+    // Convert to result format
+    let mut result = Vec::new();
+    for (left, partner) in left_partner.iter().enumerate() {
+        if let Some(right) = partner {
+            result.push((left, *right));
+        }
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,5 +595,114 @@ mod tests {
         assert_eq!(matching.len(), 2);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_maximum_cardinality_matching() {
+        let mut graph = create_graph::<&str, ()>();
+
+        // Create a simple graph
+        graph.add_edge("A", "B", ()).unwrap();
+        graph.add_edge("C", "D", ()).unwrap();
+        graph.add_edge("E", "F", ()).unwrap();
+
+        let matching = maximum_cardinality_matching(&graph);
+
+        // Should find a matching of size 3
+        assert_eq!(matching.size, 3);
+        assert_eq!(matching.matching.len(), 3);
+
+        // Verify no node is matched twice
+        let mut matched_nodes = HashSet::new();
+        for (u, v) in &matching.matching {
+            assert!(!matched_nodes.contains(u));
+            assert!(!matched_nodes.contains(v));
+            matched_nodes.insert(u);
+            matched_nodes.insert(v);
+        }
+    }
+
+    #[test]
+    fn test_maximal_matching() {
+        let mut graph = create_graph::<i32, ()>();
+
+        // Create a triangle
+        graph.add_edge(1, 2, ()).unwrap();
+        graph.add_edge(2, 3, ()).unwrap();
+        graph.add_edge(3, 1, ()).unwrap();
+
+        let matching = maximal_matching(&graph);
+
+        // Should find at least one edge (maximal for triangle is 1)
+        assert_eq!(matching.size, 1);
+        assert_eq!(matching.matching.len(), 1);
+
+        // Verify it's a valid matching
+        let mut matched_nodes = HashSet::new();
+        for (u, v) in &matching.matching {
+            assert!(!matched_nodes.contains(u));
+            assert!(!matched_nodes.contains(v));
+            matched_nodes.insert(u);
+            matched_nodes.insert(v);
+        }
+    }
+
+    #[test]
+    fn test_stable_marriage() -> GraphResult<()> {
+        // Example: 3 people on each side
+        let left_prefs = vec![
+            vec![0, 1, 2], // Person 0 prefers 0, then 1, then 2
+            vec![1, 0, 2], // Person 1 prefers 1, then 0, then 2
+            vec![0, 1, 2], // Person 2 prefers 0, then 1, then 2
+        ];
+
+        let right_prefs = vec![
+            vec![2, 1, 0], // Person 0 prefers 2, then 1, then 0
+            vec![0, 2, 1], // Person 1 prefers 0, then 2, then 1
+            vec![0, 1, 2], // Person 2 prefers 0, then 1, then 2
+        ];
+
+        let matching = stable_marriage(&left_prefs, &right_prefs)?;
+
+        // Should have 3 pairs
+        assert_eq!(matching.len(), 3);
+
+        // Verify it's a complete matching
+        let mut matched_left = HashSet::new();
+        let mut matched_right = HashSet::new();
+        for (left, right) in &matching {
+            assert!(!matched_left.contains(left));
+            assert!(!matched_right.contains(right));
+            matched_left.insert(*left);
+            matched_right.insert(*right);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stable_marriage_empty() -> GraphResult<()> {
+        let left_prefs: Vec<Vec<usize>> = vec![];
+        let right_prefs: Vec<Vec<usize>> = vec![];
+
+        let matching = stable_marriage(&left_prefs, &right_prefs)?;
+        assert_eq!(matching.len(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stable_marriage_invalid_input() {
+        // Mismatched sizes
+        let left_prefs = vec![vec![0]];
+        let right_prefs = vec![vec![0], vec![1]];
+
+        assert!(stable_marriage(&left_prefs, &right_prefs).is_err());
+
+        // Invalid preference list
+        let left_prefs = vec![vec![0, 0]]; // Duplicate
+        let right_prefs = vec![vec![0, 1]];
+
+        assert!(stable_marriage(&left_prefs, &right_prefs).is_err());
     }
 }

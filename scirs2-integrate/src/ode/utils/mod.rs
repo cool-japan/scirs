@@ -8,6 +8,8 @@ pub mod interpolation;
 pub mod jacobian;
 pub mod linear_solvers;
 pub mod mass_matrix;
+#[cfg(feature = "simd")]
+pub mod simd_ops;
 pub mod step_control;
 pub mod stiffness;
 
@@ -25,4 +27,9 @@ pub use common::{
     calculate_error_weights, estimate_initial_step, extrapolate, finite_difference_jacobian,
     scaled_norm,
 };
+
+// SIMD operations (feature-gated)
+#[cfg(feature = "simd")]
+pub use simd_ops::SimdOdeOps;
+
 // Don't re-export events or mass_matrix as they have potential naming conflicts

@@ -37,20 +37,20 @@ fn main() {
             });
 
             benchmark!("Matrix trace", {
-                let _ = trace(&a).eval(g).unwrap();
+                let _ = trace(a).eval(g).unwrap();
             });
 
             benchmark!("Determinant", {
-                let _ = determinant(&a).eval(g).unwrap();
+                let _ = determinant(a).eval(g).unwrap();
             });
 
             benchmark!("Frobenius norm", {
-                let _ = frobenius_norm(&a).eval(g).unwrap();
+                let _ = frobenius_norm(a).eval(g).unwrap();
             });
 
             // Benchmark decompositions
             benchmark!("QR decomposition", {
-                let (q, r) = qr(&a);
+                let (q, r) = qr(a);
                 let _ = q.eval(g).unwrap();
                 let _ = r.eval(g).unwrap();
             });
@@ -58,7 +58,7 @@ fn main() {
             if n <= 100 {
                 // SVD is expensive for large matrices
                 benchmark!("SVD", {
-                    let (u, s, v) = svd(&a);
+                    let (u, s, v) = svd(a);
                     let _ = u.eval(g).unwrap();
                     let _ = s.eval(g).unwrap();
                     let _ = v.eval(g).unwrap();
@@ -72,7 +72,7 @@ fn main() {
             if n <= 100 {
                 // Eigendecomposition is expensive
                 benchmark!("Eigendecomposition", {
-                    let (vals, vecs) = eigen(&a);
+                    let (vals, vecs) = eigen(a);
                     let _ = vals.eval(g).unwrap();
                     let _ = vecs.eval(g).unwrap();
                 });
@@ -80,13 +80,13 @@ fn main() {
 
             // Benchmark matrix operations
             benchmark!("Matrix inverse", {
-                let _ = matrix_inverse(&a).eval(g).unwrap();
+                let _ = matrix_inverse(a).eval(g).unwrap();
             });
 
             // Benchmark linear solver
             let b = convert_to_tensor(Array2::ones((n, 1)), g);
             benchmark!("Linear solve (Ax=b)", {
-                let _ = solve(&a, &b).eval(g).unwrap();
+                let _ = solve(a, b).eval(g).unwrap();
             });
 
             // Benchmark with gradients
@@ -94,14 +94,14 @@ fn main() {
                 // Gradient computation is memory intensive
                 let a_var = variable(a_pd.clone(), g);
                 benchmark!("Determinant with gradient", {
-                    let det = determinant(&a_var);
+                    let det = determinant(a_var);
                     let grads = grad(&[&det], &[&a_var]);
                     let _ = grads[0].eval(g).unwrap();
                 });
 
                 benchmark!("Solve with gradient", {
-                    let x = solve(&a_var, &b);
-                    let loss = sum_all(&square(&x));
+                    let x = solve(a_var, b);
+                    let loss = sum_all(square(x));
                     let grads = grad(&[&loss], &[&a_var]);
                     let _ = grads[0].eval(g).unwrap();
                 });
@@ -121,11 +121,11 @@ fn main() {
         let large_a = convert_to_tensor(large_matrix, g);
 
         benchmark!("Large matrix trace", {
-            let _ = trace(&large_a).eval(g).unwrap();
+            let _ = trace(large_a).eval(g).unwrap();
         });
 
         benchmark!("Large matrix norm", {
-            let _ = frobenius_norm(&large_a).eval(g).unwrap();
+            let _ = frobenius_norm(large_a).eval(g).unwrap();
         });
 
         // Demonstrate operation chaining
@@ -136,10 +136,10 @@ fn main() {
         let chain_a = convert_to_tensor(chain_data, g);
 
         benchmark!("Complex operation chain", {
-            let result = matrix_sqrt(&matrix_inverse(&chain_a));
-            let norm = frobenius_norm(&result);
-            let det = determinant(&result);
-            let combined = add(&norm, &det);
+            let result = matrix_exp(&matrix_inverse(chain_a)); // Changed from matrix_sqrt (not implemented)
+            let norm = frobenius_norm(result);
+            let det = determinant(result);
+            let combined = add(norm, det);
             let _ = combined.eval(g).unwrap();
         });
 

@@ -351,7 +351,7 @@ where
 
     // If we don't have concrete data, we need to evaluate the operations
     // This is a simplified implementation that only handles the map operation
-    if !lazy.ops.is_empty() && lazy.sources.len() >= 1 {
+    if !lazy.ops.is_empty() && !lazy.sources.is_empty() {
         // Get the first operation (we'll process only the last operation for simplicity)
         let op = &lazy.ops[lazy.ops.len() - 1];
 

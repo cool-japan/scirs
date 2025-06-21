@@ -72,6 +72,10 @@ pub enum AutogradError {
     #[error("Serialization error: {0}")]
     SerializationError(String),
 
+    /// Integration error with other SciRS2 modules
+    #[error("Integration error: {0}")]
+    IntegrationError(String),
+
     /// IO error
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),

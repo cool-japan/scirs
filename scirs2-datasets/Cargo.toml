@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-datasets"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -28,6 +28,7 @@ dirs = { workspace = true }
 flate2 = { workspace = true }
 zip = { workspace = true }
 blake3 = { workspace = true }
+sha2 = { workspace = true }
 lazy_static = { workspace = true }
 ureq = { workspace = true }
 tempfile = { workspace = true }

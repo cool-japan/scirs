@@ -1,7 +1,7 @@
 //! Matrix operations for ndarray
 //!
 //! This module provides matrix creation and manipulation operations similar to
-//! those found in NumPy/SciPy, such as identity, diagonal, block, and other
+//! those found in `NumPy`/SciPy, such as identity, diagonal, block, and other
 //! specialized matrix operations.
 
 use ndarray::{Array, ArrayView, Ix1, Ix2};

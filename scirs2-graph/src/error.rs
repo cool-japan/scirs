@@ -49,6 +49,14 @@ pub enum GraphError {
     #[error("Core error: {0}")]
     CoreError(#[from] scirs2_core::error::CoreError),
 
+    /// Serialization error
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    /// Invalid attribute error
+    #[error("Invalid attribute: {0}")]
+    InvalidAttribute(String),
+
     /// Other error
     #[error("Error: {0}")]
     Other(String),

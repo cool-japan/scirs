@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -910,7 +910,7 @@ impl Trainer {
     }
 
     /// Get training metrics.
-    pub fn train_metrics(&self) -> &Metrics {
+    pub const fn train_metrics(&self) -> &Metrics {
         &self.train_metrics
     }
 

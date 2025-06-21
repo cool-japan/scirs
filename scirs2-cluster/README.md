@@ -11,7 +11,7 @@ A comprehensive clustering module for the SciRS2 scientific computing library in
 * **Vector Quantization**
   * K-means clustering with multiple initialization methods
   * K-means++ smart initialization
-  * Enhanced kmeans2 with SciPy-compatible interface
+  * kmeans2 with SciPy-compatible interface
   * Mini-batch K-means for large datasets
   * Parallel K-means for multi-core systems
   * Data whitening/normalization utilities
@@ -55,7 +55,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.1.0-alpha.4"
+scirs2-cluster = "0.1.0-alpha.5"
 ndarray = "0.15"
 ```
 
@@ -63,7 +63,7 @@ To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.1.0-alpha.4", features = ["parallel", "simd"] }
+scirs2-cluster = { version = "0.1.0-alpha.5", features = ["parallel", "simd"] }
 ```
 
 ## Usage
@@ -98,7 +98,7 @@ println!("Centroids: {:?}", centroids);
 println!("Cluster assignments: {:?}", labels);
 ```
 
-### Enhanced kmeans2 (SciPy-compatible)
+### kmeans2 (SciPy-compatible)
 
 ```rust
 use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod, whiten};

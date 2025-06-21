@@ -313,8 +313,23 @@ impl GPUKernel for CUDASpectralFlatnessSparseFFTKernel {
         }
 
         // In a real implementation, we'd copy the results back to device memory
-        self.output_values_buffer.copy_host_to_device()?;
-        self.output_indices_buffer.copy_host_to_device()?;
+        // Convert output data to byte arrays for device transfer
+        let values_bytes = unsafe {
+            std::slice::from_raw_parts(
+                output_values_ptr as *const u8,
+                self.sparsity * std::mem::size_of::<Complex64>(),
+            )
+        };
+        let indices_bytes = unsafe {
+            std::slice::from_raw_parts(
+                output_indices_ptr as *const u8,
+                self.sparsity * std::mem::size_of::<usize>(),
+            )
+        };
+        self.output_values_buffer
+            .copy_host_to_device(values_bytes)?;
+        self.output_indices_buffer
+            .copy_host_to_device(indices_bytes)?;
 
         // End timer and calculate stats
         let duration = start.elapsed();
@@ -402,7 +417,13 @@ where
     }
 
     // Transfer data to device
-    input_buffer.copy_host_to_device()?;
+    let input_bytes = unsafe {
+        std::slice::from_raw_parts(
+            signal_complex.as_ptr() as *const u8,
+            signal_complex.len() * std::mem::size_of::<Complex64>(),
+        )
+    };
+    input_buffer.copy_host_to_device(input_bytes)?;
 
     // Create kernel with appropriate parameters
     let kernel = CUDASpectralFlatnessSparseFFTKernel::new(
@@ -420,8 +441,12 @@ where
     let _stats = kernel.execute()?;
 
     // Transfer results back from device
-    output_values_buffer.copy_device_to_host()?;
-    output_indices_buffer.copy_device_to_host()?;
+    let mut values_host_buffer =
+        vec![0u8; output_values_buffer.size * output_values_buffer.element_size];
+    let mut indices_host_buffer =
+        vec![0u8; output_indices_buffer.size * output_indices_buffer.element_size];
+    output_values_buffer.copy_device_to_host(&mut values_host_buffer)?;
+    output_indices_buffer.copy_device_to_host(&mut indices_host_buffer)?;
 
     // Read results from output buffers
     let (values_ptr, _) = output_values_buffer.get_host_ptr();

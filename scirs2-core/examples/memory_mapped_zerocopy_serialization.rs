@@ -10,9 +10,7 @@
 
 use ndarray::{Array, Array1, Array2, Array3, IxDyn};
 use scirs2_core::error::{CoreError, CoreResult, ErrorContext, ErrorLocation};
-use scirs2_core::memory_efficient::{
-    AccessMode, MemoryMappedArray, ZeroCopySerializable, ZeroCopySerialization,
-};
+use scirs2_core::memory_efficient::{AccessMode, MemoryMappedArray, ZeroCopySerializable};
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
@@ -233,7 +231,7 @@ fn basic_serialization_example(temp_dir: &Path) -> Result<(), Box<dyn std::error
 
     // Save with zero-copy serialization
     let start = Instant::now();
-    let mmap = MemoryMappedArray::<f64>::save_array(&data, &file_path, Some(metadata))?;
+    let _mmap = MemoryMappedArray::<f64>::save_array(&data, &file_path, Some(metadata))?;
     let save_time = start.elapsed();
     println!(
         "Saved array with zero-copy serialization in {:?}",
@@ -271,117 +269,6 @@ fn basic_serialization_example(temp_dir: &Path) -> Result<(), Box<dyn std::error
     println!("  Created: {}", loaded_metadata["created"]);
     println!("  Elements: {}", loaded_metadata["elements"]);
     println!("  Element type: {}", loaded_metadata["element_type"]);
-
-    Ok(())
-}
-
-/// Example demonstrating custom type serialization with zero-copy operations
-fn custom_type_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n6. Custom Type Serialization Example");
-    println!("-----------------------------------");
-
-    // Create a 2D array of complex numbers in a spiral pattern
-    let size = 10;
-    println!("Creating a {}x{} array of complex numbers", size, size);
-
-    let data = Array2::<Complex64>::from_shape_fn((size, size), |(i, j)| {
-        // Create a spiral pattern for visually interesting values
-        let distance = ((i as f64 - size as f64 / 2.0).powi(2)
-            + (j as f64 - size as f64 / 2.0).powi(2))
-        .sqrt();
-        let angle =
-            ((j as f64 - size as f64 / 2.0) / (i as f64 - size as f64 / 2.0 + 0.001)).atan();
-
-        Complex64::new(distance * angle.cos(), distance * angle.sin())
-    });
-
-    // Display a small slice of the array
-    println!("\nSample of the complex array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = data[[i, j]];
-            row.push_str(&format!("({:.2}+{:.2}i) ", c.real, c.imag));
-        }
-        println!("  {}", row);
-    }
-
-    // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
-
-    let metadata = json!({
-        "description": "Complex number array with spiral pattern",
-        "type": "Complex64",
-        "dimensions": [size, size],
-        "created": "2023-05-20",
-        "custom_properties": {
-            "pattern": "spiral",
-            "element_format": "real+imaginary"
-        }
-    });
-
-    // Time the save operation
-    let start = Instant::now();
-    MemoryMappedArray::<Complex64>::save_array(&data, &file_path, Some(metadata.clone()))?;
-    let save_time = start.elapsed();
-    println!(
-        "\nSaved complex array with zero-copy serialization in {:?}",
-        save_time
-    );
-    println!("File size: {} bytes", file_path.metadata()?.len());
-
-    // Now load the array back
-    let start = Instant::now();
-    let loaded = MemoryMappedArray::<Complex64>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let load_time = start.elapsed();
-    println!(
-        "Loaded complex array with zero-copy deserialization in {:?}",
-        load_time
-    );
-
-    // Read the array
-    let loaded_array = loaded.readonly_array::<ndarray::Ix2>()?;
-
-    // Calculate magnitude for each element in a corner sample
-    println!("\nCalculating magnitudes from loaded array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = loaded_array[[i, j]];
-            let mag = c.magnitude();
-            row.push_str(&format!("{:.2} ", mag));
-        }
-        println!("  {}", row);
-    }
-
-    // Validate the data integrity
-    let mut equal = true;
-    for i in 0..size {
-        for j in 0..size {
-            if data[[i, j]] != loaded_array[[i, j]] {
-                equal = false;
-                println!("Data mismatch at [{}, {}]", i, j);
-                break;
-            }
-        }
-        if !equal {
-            break;
-        }
-    }
-
-    if equal {
-        println!("\nVerification successful: All complex values loaded correctly");
-    }
-
-    // Read and display metadata
-    let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
-    println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata["description"]);
-    println!("  Type: {}", loaded_metadata["type"]);
-    println!(
-        "  Pattern: {}",
-        loaded_metadata["custom_properties"]["pattern"]
-    );
 
     Ok(())
 }
@@ -459,7 +346,7 @@ fn metadata_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         updated["properties"]["calibration_factor"]
     );
     println!("  Processing: {}", updated["properties"]["processing"]);
-    println!("  Tags: {}", updated["tags"].to_string());
+    println!("  Tags: {}", updated["tags"]);
 
     // Load the array and verify data wasn't affected by metadata update
     let loaded = MemoryMappedArray::<f32>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
@@ -470,117 +357,6 @@ fn metadata_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("  Element [0]: {}", loaded_array[0]);
     println!("  Element [50]: {}", loaded_array[50]);
     println!("  Element [99]: {}", loaded_array[99]);
-
-    Ok(())
-}
-
-/// Example demonstrating custom type serialization with zero-copy operations
-fn custom_type_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n6. Custom Type Serialization Example");
-    println!("-----------------------------------");
-
-    // Create a 2D array of complex numbers in a spiral pattern
-    let size = 10;
-    println!("Creating a {}x{} array of complex numbers", size, size);
-
-    let data = Array2::<Complex64>::from_shape_fn((size, size), |(i, j)| {
-        // Create a spiral pattern for visually interesting values
-        let distance = ((i as f64 - size as f64 / 2.0).powi(2)
-            + (j as f64 - size as f64 / 2.0).powi(2))
-        .sqrt();
-        let angle =
-            ((j as f64 - size as f64 / 2.0) / (i as f64 - size as f64 / 2.0 + 0.001)).atan();
-
-        Complex64::new(distance * angle.cos(), distance * angle.sin())
-    });
-
-    // Display a small slice of the array
-    println!("\nSample of the complex array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = data[[i, j]];
-            row.push_str(&format!("({:.2}+{:.2}i) ", c.real, c.imag));
-        }
-        println!("  {}", row);
-    }
-
-    // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
-
-    let metadata = json!({
-        "description": "Complex number array with spiral pattern",
-        "type": "Complex64",
-        "dimensions": [size, size],
-        "created": "2023-05-20",
-        "custom_properties": {
-            "pattern": "spiral",
-            "element_format": "real+imaginary"
-        }
-    });
-
-    // Time the save operation
-    let start = Instant::now();
-    MemoryMappedArray::<Complex64>::save_array(&data, &file_path, Some(metadata.clone()))?;
-    let save_time = start.elapsed();
-    println!(
-        "\nSaved complex array with zero-copy serialization in {:?}",
-        save_time
-    );
-    println!("File size: {} bytes", file_path.metadata()?.len());
-
-    // Now load the array back
-    let start = Instant::now();
-    let loaded = MemoryMappedArray::<Complex64>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let load_time = start.elapsed();
-    println!(
-        "Loaded complex array with zero-copy deserialization in {:?}",
-        load_time
-    );
-
-    // Read the array
-    let loaded_array = loaded.readonly_array::<ndarray::Ix2>()?;
-
-    // Calculate magnitude for each element in a corner sample
-    println!("\nCalculating magnitudes from loaded array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = loaded_array[[i, j]];
-            let mag = c.magnitude();
-            row.push_str(&format!("{:.2} ", mag));
-        }
-        println!("  {}", row);
-    }
-
-    // Validate the data integrity
-    let mut equal = true;
-    for i in 0..size {
-        for j in 0..size {
-            if data[[i, j]] != loaded_array[[i, j]] {
-                equal = false;
-                println!("Data mismatch at [{}, {}]", i, j);
-                break;
-            }
-        }
-        if !equal {
-            break;
-        }
-    }
-
-    if equal {
-        println!("\nVerification successful: All complex values loaded correctly");
-    }
-
-    // Read and display metadata
-    let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
-    println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata["description"]);
-    println!("  Type: {}", loaded_metadata["type"]);
-    println!(
-        "  Pattern: {}",
-        loaded_metadata["custom_properties"]["pattern"]
-    );
 
     Ok(())
 }
@@ -629,8 +405,11 @@ fn multidimensional_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::E
         // Convert multidimensional index to a single value for this example
         let mut val = 0;
         let mut factor = 1;
-        for &i in idx.slice().iter().rev() {
-            val += i * factor;
+        // The idx parameter is an IxDyn with indices
+        // Access indices directly - IxDyn implements Index
+        for i in 0..4 {
+            // We know it's 4D from the shape [3, 4, 2, 5]
+            val += idx[3 - i] * factor;
             factor *= 10;
         }
         val as f64
@@ -663,117 +442,6 @@ fn multidimensional_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::E
     println!(
         "  Value at [2,3,1,4]: {}",
         loaded_dyn_array[IxDyn(&[2, 3, 1, 4])]
-    );
-
-    Ok(())
-}
-
-/// Example demonstrating custom type serialization with zero-copy operations
-fn custom_type_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n6. Custom Type Serialization Example");
-    println!("-----------------------------------");
-
-    // Create a 2D array of complex numbers in a spiral pattern
-    let size = 10;
-    println!("Creating a {}x{} array of complex numbers", size, size);
-
-    let data = Array2::<Complex64>::from_shape_fn((size, size), |(i, j)| {
-        // Create a spiral pattern for visually interesting values
-        let distance = ((i as f64 - size as f64 / 2.0).powi(2)
-            + (j as f64 - size as f64 / 2.0).powi(2))
-        .sqrt();
-        let angle =
-            ((j as f64 - size as f64 / 2.0) / (i as f64 - size as f64 / 2.0 + 0.001)).atan();
-
-        Complex64::new(distance * angle.cos(), distance * angle.sin())
-    });
-
-    // Display a small slice of the array
-    println!("\nSample of the complex array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = data[[i, j]];
-            row.push_str(&format!("({:.2}+{:.2}i) ", c.real, c.imag));
-        }
-        println!("  {}", row);
-    }
-
-    // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
-
-    let metadata = json!({
-        "description": "Complex number array with spiral pattern",
-        "type": "Complex64",
-        "dimensions": [size, size],
-        "created": "2023-05-20",
-        "custom_properties": {
-            "pattern": "spiral",
-            "element_format": "real+imaginary"
-        }
-    });
-
-    // Time the save operation
-    let start = Instant::now();
-    MemoryMappedArray::<Complex64>::save_array(&data, &file_path, Some(metadata.clone()))?;
-    let save_time = start.elapsed();
-    println!(
-        "\nSaved complex array with zero-copy serialization in {:?}",
-        save_time
-    );
-    println!("File size: {} bytes", file_path.metadata()?.len());
-
-    // Now load the array back
-    let start = Instant::now();
-    let loaded = MemoryMappedArray::<Complex64>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let load_time = start.elapsed();
-    println!(
-        "Loaded complex array with zero-copy deserialization in {:?}",
-        load_time
-    );
-
-    // Read the array
-    let loaded_array = loaded.readonly_array::<ndarray::Ix2>()?;
-
-    // Calculate magnitude for each element in a corner sample
-    println!("\nCalculating magnitudes from loaded array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = loaded_array[[i, j]];
-            let mag = c.magnitude();
-            row.push_str(&format!("{:.2} ", mag));
-        }
-        println!("  {}", row);
-    }
-
-    // Validate the data integrity
-    let mut equal = true;
-    for i in 0..size {
-        for j in 0..size {
-            if data[[i, j]] != loaded_array[[i, j]] {
-                equal = false;
-                println!("Data mismatch at [{}, {}]", i, j);
-                break;
-            }
-        }
-        if !equal {
-            break;
-        }
-    }
-
-    if equal {
-        println!("\nVerification successful: All complex values loaded correctly");
-    }
-
-    // Read and display metadata
-    let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
-    println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata["description"]);
-    println!("  Type: {}", loaded_metadata["type"]);
-    println!(
-        "  Pattern: {}",
-        loaded_metadata["custom_properties"]["pattern"]
     );
 
     Ok(())
@@ -828,10 +496,10 @@ fn performance_comparison(temp_dir: &Path) -> Result<(), Box<dyn std::error::Err
     let loaded = MemoryMappedArray::<f64>::open_zero_copy(&zero_copy_path, AccessMode::ReadOnly)?;
     let start = Instant::now();
     let array = loaded.readonly_array::<ndarray::Ix2>()?;
-    let mut sum = 0.0;
+    let mut _sum = 0.0;
     for i in 0..10 {
         for j in 0..10 {
-            sum += array[[i, j]];
+            _sum += array[[i, j]];
         }
     }
     let zero_copy_access_time = start.elapsed();
@@ -839,10 +507,10 @@ fn performance_comparison(temp_dir: &Path) -> Result<(), Box<dyn std::error::Err
     // 6. Array access time (traditional)
     let loaded_traditional: Array2<f64> = bincode::deserialize(&buffer)?;
     let start = Instant::now();
-    let mut sum = 0.0;
+    let mut _sum = 0.0;
     for i in 0..10 {
         for j in 0..10 {
-            sum += loaded_traditional[[i, j]];
+            _sum += loaded_traditional[[i, j]];
         }
     }
     let traditional_access_time = start.elapsed();
@@ -919,117 +587,6 @@ fn performance_comparison(temp_dir: &Path) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-/// Example demonstrating custom type serialization with zero-copy operations
-fn custom_type_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n6. Custom Type Serialization Example");
-    println!("-----------------------------------");
-
-    // Create a 2D array of complex numbers in a spiral pattern
-    let size = 10;
-    println!("Creating a {}x{} array of complex numbers", size, size);
-
-    let data = Array2::<Complex64>::from_shape_fn((size, size), |(i, j)| {
-        // Create a spiral pattern for visually interesting values
-        let distance = ((i as f64 - size as f64 / 2.0).powi(2)
-            + (j as f64 - size as f64 / 2.0).powi(2))
-        .sqrt();
-        let angle =
-            ((j as f64 - size as f64 / 2.0) / (i as f64 - size as f64 / 2.0 + 0.001)).atan();
-
-        Complex64::new(distance * angle.cos(), distance * angle.sin())
-    });
-
-    // Display a small slice of the array
-    println!("\nSample of the complex array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = data[[i, j]];
-            row.push_str(&format!("({:.2}+{:.2}i) ", c.real, c.imag));
-        }
-        println!("  {}", row);
-    }
-
-    // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
-
-    let metadata = json!({
-        "description": "Complex number array with spiral pattern",
-        "type": "Complex64",
-        "dimensions": [size, size],
-        "created": "2023-05-20",
-        "custom_properties": {
-            "pattern": "spiral",
-            "element_format": "real+imaginary"
-        }
-    });
-
-    // Time the save operation
-    let start = Instant::now();
-    MemoryMappedArray::<Complex64>::save_array(&data, &file_path, Some(metadata.clone()))?;
-    let save_time = start.elapsed();
-    println!(
-        "\nSaved complex array with zero-copy serialization in {:?}",
-        save_time
-    );
-    println!("File size: {} bytes", file_path.metadata()?.len());
-
-    // Now load the array back
-    let start = Instant::now();
-    let loaded = MemoryMappedArray::<Complex64>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let load_time = start.elapsed();
-    println!(
-        "Loaded complex array with zero-copy deserialization in {:?}",
-        load_time
-    );
-
-    // Read the array
-    let loaded_array = loaded.readonly_array::<ndarray::Ix2>()?;
-
-    // Calculate magnitude for each element in a corner sample
-    println!("\nCalculating magnitudes from loaded array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = loaded_array[[i, j]];
-            let mag = c.magnitude();
-            row.push_str(&format!("{:.2} ", mag));
-        }
-        println!("  {}", row);
-    }
-
-    // Validate the data integrity
-    let mut equal = true;
-    for i in 0..size {
-        for j in 0..size {
-            if data[[i, j]] != loaded_array[[i, j]] {
-                equal = false;
-                println!("Data mismatch at [{}, {}]", i, j);
-                break;
-            }
-        }
-        if !equal {
-            break;
-        }
-    }
-
-    if equal {
-        println!("\nVerification successful: All complex values loaded correctly");
-    }
-
-    // Read and display metadata
-    let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
-    println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata["description"]);
-    println!("  Type: {}", loaded_metadata["type"]);
-    println!(
-        "  Pattern: {}",
-        loaded_metadata["custom_properties"]["pattern"]
-    );
-
-    Ok(())
-}
-
 /// Example demonstrating updating data in a zero-copy serialized file
 fn updating_data_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n5. Updating Data Example");
@@ -1094,117 +651,6 @@ fn updating_data_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Erro
         }
         println!("  {}", row);
     }
-
-    Ok(())
-}
-
-/// Example demonstrating custom type serialization with zero-copy operations
-fn custom_type_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n6. Custom Type Serialization Example");
-    println!("-----------------------------------");
-
-    // Create a 2D array of complex numbers in a spiral pattern
-    let size = 10;
-    println!("Creating a {}x{} array of complex numbers", size, size);
-
-    let data = Array2::<Complex64>::from_shape_fn((size, size), |(i, j)| {
-        // Create a spiral pattern for visually interesting values
-        let distance = ((i as f64 - size as f64 / 2.0).powi(2)
-            + (j as f64 - size as f64 / 2.0).powi(2))
-        .sqrt();
-        let angle =
-            ((j as f64 - size as f64 / 2.0) / (i as f64 - size as f64 / 2.0 + 0.001)).atan();
-
-        Complex64::new(distance * angle.cos(), distance * angle.sin())
-    });
-
-    // Display a small slice of the array
-    println!("\nSample of the complex array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = data[[i, j]];
-            row.push_str(&format!("({:.2}+{:.2}i) ", c.real, c.imag));
-        }
-        println!("  {}", row);
-    }
-
-    // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
-
-    let metadata = json!({
-        "description": "Complex number array with spiral pattern",
-        "type": "Complex64",
-        "dimensions": [size, size],
-        "created": "2023-05-20",
-        "custom_properties": {
-            "pattern": "spiral",
-            "element_format": "real+imaginary"
-        }
-    });
-
-    // Time the save operation
-    let start = Instant::now();
-    MemoryMappedArray::<Complex64>::save_array(&data, &file_path, Some(metadata.clone()))?;
-    let save_time = start.elapsed();
-    println!(
-        "\nSaved complex array with zero-copy serialization in {:?}",
-        save_time
-    );
-    println!("File size: {} bytes", file_path.metadata()?.len());
-
-    // Now load the array back
-    let start = Instant::now();
-    let loaded = MemoryMappedArray::<Complex64>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let load_time = start.elapsed();
-    println!(
-        "Loaded complex array with zero-copy deserialization in {:?}",
-        load_time
-    );
-
-    // Read the array
-    let loaded_array = loaded.readonly_array::<ndarray::Ix2>()?;
-
-    // Calculate magnitude for each element in a corner sample
-    println!("\nCalculating magnitudes from loaded array (3x3 corner):");
-    for i in 0..3 {
-        let mut row = String::new();
-        for j in 0..3 {
-            let c = loaded_array[[i, j]];
-            let mag = c.magnitude();
-            row.push_str(&format!("{:.2} ", mag));
-        }
-        println!("  {}", row);
-    }
-
-    // Validate the data integrity
-    let mut equal = true;
-    for i in 0..size {
-        for j in 0..size {
-            if data[[i, j]] != loaded_array[[i, j]] {
-                equal = false;
-                println!("Data mismatch at [{}, {}]", i, j);
-                break;
-            }
-        }
-        if !equal {
-            break;
-        }
-    }
-
-    if equal {
-        println!("\nVerification successful: All complex values loaded correctly");
-    }
-
-    // Read and display metadata
-    let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
-    println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata["description"]);
-    println!("  Type: {}", loaded_metadata["type"]);
-    println!(
-        "  Pattern: {}",
-        loaded_metadata["custom_properties"]["pattern"]
-    );
 
     Ok(())
 }

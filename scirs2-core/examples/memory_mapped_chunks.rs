@@ -144,7 +144,7 @@ fn aggregate_example(temp_dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
         .unwrap();
     let global_sum = chunk_stats
         .iter()
-        .map(|&(_, _, sum, _, _)| sum as i64)
+        .map(|&(_, _, sum, _, _)| sum)
         .sum::<i64>();
     let global_count = chunk_stats
         .iter()

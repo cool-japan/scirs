@@ -160,10 +160,14 @@ __kernel void fft_1d_forward(
 "#
         .to_string();
 
+        // ROCm (HIP) kernel - similar to CUDA
+        let rocm_source = cuda_source.clone();
+
         Self {
             base: BaseKernel::new(
                 name,
                 &cuda_source,
+                &rocm_source,
                 &wgpu_source,
                 &metal_source,
                 &opencl_source,
@@ -175,6 +179,7 @@ __kernel void fft_1d_forward(
     }
 
     /// Generate a kernel specialized for a specific size
+    #[allow(dead_code)]
     fn generate_specialized_kernel(
         &self,
         _data_type: DataType,
@@ -218,7 +223,7 @@ impl GpuKernel for FftKernel {
         }
 
         // Extract FFT size from input dimensions
-        let size = *params
+        let _size = *params
             .input_dims
             .first()
             .ok_or_else(|| GpuError::InvalidParameter("input_dims cannot be empty".to_string()))?;
@@ -250,5 +255,11 @@ impl GpuKernel for FftKernel {
         let specialized = FftKernel::with_params(direction, dimension);
 
         Ok(Box::new(specialized))
+    }
+}
+
+impl Default for FftKernel {
+    fn default() -> Self {
+        Self::new()
     }
 }

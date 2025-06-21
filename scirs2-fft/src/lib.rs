@@ -209,8 +209,8 @@ pub use sparse_fft_cuda_kernels_spectral_flatness::{
 };
 pub use sparse_fft_gpu::{gpu_batch_sparse_fft, gpu_sparse_fft, GPUBackend};
 pub use sparse_fft_gpu_cuda::{
-    cuda_batch_sparse_fft, cuda_sparse_fft, get_cuda_devices, is_cuda_available, CUDAContext,
-    CUDADeviceInfo, CUDAStream,
+    cuda_batch_sparse_fft, cuda_sparse_fft, get_cuda_devices, CUDAContext, CUDADeviceInfo,
+    CUDAStream,
 };
 pub use sparse_fft_gpu_kernels::{
     execute_sparse_fft_kernel, GPUKernel, KernelConfig, KernelFactory, KernelImplementation,
@@ -219,6 +219,20 @@ pub use sparse_fft_gpu_kernels::{
 pub use sparse_fft_gpu_memory::{
     get_global_memory_manager, init_global_memory_manager, memory_efficient_gpu_sparse_fft,
     AllocationStrategy, BufferLocation, BufferType,
+};
+pub use sparse_fft_gpu_memory::{is_cuda_available, is_hip_available, is_sycl_available};
+
+// Multi-GPU processing module
+pub mod sparse_fft_multi_gpu;
+pub use sparse_fft_multi_gpu::{
+    multi_gpu_sparse_fft, GPUDeviceInfo, MultiGPUConfig, MultiGPUSparseFFT, WorkloadDistribution,
+};
+
+// Specialized hardware support module
+pub mod sparse_fft_specialized_hardware;
+pub use sparse_fft_specialized_hardware::{
+    specialized_hardware_sparse_fft, AcceleratorCapabilities, AcceleratorInfo, AcceleratorType,
+    HardwareAbstractionLayer, SpecializedHardwareManager,
 };
 // Batch processing module
 pub mod sparse_fft_batch;

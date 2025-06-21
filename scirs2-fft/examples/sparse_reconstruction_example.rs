@@ -3,7 +3,7 @@ use plotly::common::Title;
 use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use scirs2_fft::{
     reconstruct_filtered, reconstruct_high_resolution, reconstruct_time_domain, sparse_fft,
-    sparse_fft::SparseFFTAlgorithm, sparse_fft::WindowFunction,
+    sparse_fft::SparseFFTAlgorithm,
 };
 use std::f64::consts::PI;
 
@@ -36,7 +36,7 @@ fn main() {
         &noisy_signal,
         6,
         Some(SparseFFTAlgorithm::SpectralFlatness),
-        Some(WindowFunction::Blackman), // Use windowing to reduce spectral leakage
+        Some(42), // Use seed for deterministic behavior
     )
     .unwrap();
 

@@ -73,6 +73,7 @@ pub fn ica(
     let ica_mixing = match solve_multiple(
         &unmixing.view(),
         &Array2::<f64>::eye(unmixing.dim().0).view(),
+        None,
     ) {
         Ok(inv) => inv,
         Err(_) => {
@@ -85,6 +86,7 @@ pub fn ica(
     let whitening_inv = match solve_multiple(
         &whitening_matrix.view(),
         &Array2::<f64>::eye(whitening_matrix.dim().0).view(),
+        None,
     ) {
         Ok(inv) => inv,
         Err(_) => {

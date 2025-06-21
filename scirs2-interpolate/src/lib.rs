@@ -37,6 +37,11 @@
 //!   * Kriging (Gaussian process regression) - with uncertainty quantification
 //!   * Barycentric interpolation - stable polynomial interpolation
 //!   * Thin-plate splines - special case of RBF for smooth interpolation
+//! * GPU-accelerated interpolation (`gpu_accelerated` module):
+//!   * GPU-accelerated RBF interpolation for large datasets
+//!   * Batch spline evaluation using GPU parallelism
+//!   * Mixed CPU/GPU workloads for optimal performance
+//!   * Multi-GPU support and memory-efficient operations
 //! * Grid transformation and resampling (`grid` module):
 //!   * Resample scattered data onto regular grids
 //!   * Convert between grids of different resolutions
@@ -65,6 +70,30 @@
 //!   * Different refinement criteria (error-based, curvature-based, combined)
 //!   * Multi-level representation with control over precision-complexity tradeoffs
 //!   * Efficient representation of functions with varying detail across the domain
+//! * Active learning for adaptive sampling (`adaptive_learning` module):
+//!   * Intelligent sampling strategies for reducing function evaluations
+//!   * Uncertainty-based, error-based, and gradient-based sampling
+//!   * Exploration vs exploitation balance for optimal data collection
+//!   * Expected improvement and combined sampling strategies
+//!   * Statistics tracking and convergence monitoring
+//! * Physics-informed interpolation (`physics_informed` module):
+//!   * Interpolation methods that respect physical constraints and conservation laws
+//!   * Mass, energy, and momentum conservation enforcement
+//!   * Positivity-preserving and monotonicity-preserving interpolation
+//!   * Boundary condition enforcement and smoothness constraints
+//!   * Multi-physics coupling and constraint satisfaction monitoring
+//! * Gaussian process regression with adaptive kernels (`adaptive_gp` module):
+//!   * Automatic kernel selection and hyperparameter optimization
+//!   * Multiple kernel types (RBF, Matérn, Periodic, Linear, Polynomial)
+//!   * Uncertainty quantification and probabilistic interpolation
+//!   * Model comparison and Bayesian model selection
+//!   * Sparse GP methods for scalability to large datasets
+//! * Neural network enhanced interpolation (`neural_enhanced` module):
+//!   * Hybrid interpolation combining traditional methods with neural networks
+//!   * Residual learning to improve base interpolation accuracy
+//!   * Multiple neural architectures (MLP, Bayesian, PINN, Transformer)
+//!   * Adaptive training with early stopping and regularization
+//!   * Uncertainty-aware neural interpolation with Bayesian networks
 //! * Advanced extrapolation methods (`extrapolation` module):
 //!   * Configurable extrapolation beyond domain boundaries
 //!   * Multiple methods: constant, linear, polynomial, periodic, reflected
@@ -75,6 +104,26 @@
 //!   * Domain extension via symmetry, periodicity, and custom mappings
 //!   * Separate control of upper and lower boundary behavior
 //!   * Support for mixed boundary conditions
+//! * Optimization-based parameter fitting (`optimization` module):
+//!   * Cross-validation based model selection (K-fold, leave-one-out)
+//!   * Regularization parameter optimization with grid search
+//!   * Hyperparameter tuning for RBF kernels and spline smoothing
+//!   * Model comparison and validation metrics (MSE, MAE, R²)
+//!   * Bayesian optimization for efficient parameter search
+//! * Time series specific interpolation (`timeseries` module):
+//!   * Temporal pattern recognition (trends, seasonality, irregularities)
+//!   * Missing data handling with forward/backward fill and interpolation
+//!   * Seasonal decomposition and trend-aware interpolation
+//!   * Outlier detection and robust temporal smoothing
+//!   * Uncertainty estimation for time-dependent predictions
+//!   * Holiday and event-aware interpolation strategies
+//! * Geospatial interpolation methods (`geospatial` module):
+//!   * Geographic coordinate handling (latitude/longitude, projections)
+//!   * Spherical interpolation with great circle distances
+//!   * Spatial autocorrelation and kriging for Earth science data
+//!   * Multi-scale interpolation from local to global coverage
+//!   * Elevation-aware 3D interpolation and topographic considerations
+//!   * Boundary handling for coastal and land/water transitions
 //! * Utility functions (`utils` module):
 //!   * Error estimation with cross-validation
 //!   * Parameter optimization
@@ -85,30 +134,67 @@ pub mod error;
 pub use error::{InterpolateError, InterpolateResult};
 
 // Interpolation modules
+pub mod adaptive_gp;
+pub mod adaptive_learning;
+pub mod adaptive_singularity;
 pub mod advanced;
 pub mod bezier;
 pub mod bivariate;
 pub mod boundarymode;
 pub mod bspline;
+pub mod cache;
+pub mod cache_aware;
 pub mod constrained;
 pub mod extrapolation;
+pub mod fast_bspline;
+pub mod geospatial;
+pub mod gpu_accelerated;
 pub mod grid;
+pub mod griddata;
 pub mod hermite;
+pub mod high_dimensional;
 pub mod interp1d;
+pub mod interp2d;
 pub mod interpnd;
 pub mod local;
 pub mod multiscale;
+pub mod neural_enhanced;
+pub mod numerical_stability;
 pub mod nurbs;
+pub mod optimization;
 pub mod parallel;
 pub mod penalized;
+pub mod physics_informed;
+pub mod scattered_optimized;
+pub mod simd_optimized;
+pub mod structured_matrix;
+
+// SIMD-optimized interpolation methods (optional)
+#[cfg(feature = "simd")]
+pub mod simd_bspline;
+pub mod smoothing;
+pub mod sparse_grid;
 pub mod spatial;
 pub mod spline;
 pub mod tension;
 pub mod tensor;
+pub mod timeseries;
 pub mod utils;
 pub mod voronoi;
 
 // Re-exports for convenience
+pub use adaptive_gp::{
+    make_adaptive_gp, AdaptiveGPConfig, AdaptiveGaussianProcess, GPStats, KernelHyperparameters,
+    KernelModel, KernelType as GPKernelType,
+};
+pub use adaptive_learning::{
+    make_active_learner, ActiveLearner, ActiveLearningConfig, LearningStats, SamplingCandidate,
+    SamplingStrategy,
+};
+pub use adaptive_singularity::{
+    apply_singularity_handling, SingularityDetector, SingularityDetectorConfig, SingularityInfo,
+    SingularityType, TreatmentStrategy,
+};
 pub use advanced::akima::{make_akima_spline, AkimaSpline};
 pub use advanced::barycentric::{
     make_barycentric_interpolator, BarycentricInterpolator, BarycentricTriangulation,
@@ -140,8 +226,16 @@ pub use boundarymode::{
     BoundaryParameters, BoundaryResult,
 };
 pub use bspline::{
-    generate_knots, make_interp_bspline, make_lsq_bspline, BSpline,
-    ExtrapolateMode as BSplineExtrapolateMode,
+    generate_knots, make_interp_bspline, make_lsq_bspline, BSpline, BSplineWorkspace,
+    ExtrapolateMode as BSplineExtrapolateMode, WorkspaceMemoryStats,
+};
+pub use cache::{
+    make_cached_bspline, make_cached_bspline_with_config, BSplineCache, CacheConfig, CacheStats,
+    CachedBSpline, DistanceMatrixCache,
+};
+pub use cache_aware::{
+    make_cache_aware_rbf, CacheAwareBSpline, CacheAwareRBF, CacheOptimizedConfig,
+    CacheOptimizedStats, CacheSizes,
 };
 pub use constrained::{
     ConstrainedSpline, Constraint, ConstraintRegion, ConstraintType, FittingMethod,
@@ -151,6 +245,18 @@ pub use extrapolation::{
     make_periodic_extrapolator, make_reflection_extrapolator, ExtrapolationMethod,
     ExtrapolationParameters, Extrapolator,
 };
+pub use fast_bspline::{
+    make_cached_fast_bspline_evaluator, make_fast_bspline_evaluator, FastBSplineEvaluator,
+    TensorProductFastEvaluator,
+};
+pub use geospatial::{
+    make_climate_interpolator, make_elevation_interpolator, CoordinateSystem, GeospatialConfig,
+    GeospatialInterpolator, GeospatialResult, InterpolationModel, SpatialStats,
+};
+pub use gpu_accelerated::{
+    get_gpu_device_info, is_gpu_acceleration_available, make_gpu_rbf_interpolator,
+    GpuBatchSplineEvaluator, GpuConfig, GpuDeviceInfo, GpuRBFInterpolator, GpuRBFKernel, GpuStats,
+};
 pub use grid::{
     create_regular_grid, map_grid_to_points, resample_grid_to_grid, resample_to_grid,
     GridTransformMethod,
@@ -158,6 +264,11 @@ pub use grid::{
 pub use hermite::{
     make_hermite_spline, make_hermite_spline_with_derivatives, make_natural_hermite_spline,
     make_periodic_hermite_spline, make_quintic_hermite_spline, DerivativeSpec, HermiteSpline,
+};
+pub use high_dimensional::{
+    make_knn_interpolator, make_local_rbf_interpolator, make_pca_interpolator,
+    DimensionReductionMethod, HighDimensionalInterpolator, HighDimensionalInterpolatorBuilder,
+    InterpolatorStats, LocalMethod, LocalRBFType, SparseStrategy, SpatialIndexType,
 };
 pub use interp1d::{
     cubic_interpolate,
@@ -185,19 +296,65 @@ pub use local::polynomial::{
     RegressionResult,
 };
 pub use multiscale::{make_adaptive_bspline, MultiscaleBSpline, RefinementCriterion};
+pub use neural_enhanced::{
+    make_neural_enhanced_interpolator, ActivationType, EnhancementStrategy, NeuralArchitecture,
+    NeuralEnhancedInterpolator, NeuralTrainingConfig, TrainingStats,
+};
+pub use numerical_stability::{
+    apply_tikhonov_regularization, assess_matrix_condition, check_safe_division, machine_epsilon,
+    safe_reciprocal, solve_with_stability_monitoring, ConditionReport, StabilityDiagnostics,
+    StabilityLevel,
+};
 pub use nurbs::{make_nurbs_circle, make_nurbs_sphere, NurbsCurve, NurbsSurface};
+pub use optimization::{
+    grid_search, make_cross_validator, CrossValidationResult, CrossValidationStrategy,
+    CrossValidator, ModelSelector, OptimizationConfig, OptimizationResult, ValidationMetric,
+};
 pub use parallel::{
     make_parallel_loess, make_parallel_mls, make_parallel_robust_loess, ParallelConfig,
     ParallelEvaluate, ParallelLocalPolynomialRegression, ParallelMovingLeastSquares,
 };
 pub use penalized::{cross_validate_lambda, pspline_with_custom_penalty, PSpline, PenaltyType};
+pub use physics_informed::{
+    make_mass_conserving_interpolator, make_monotonic_physics_interpolator,
+    make_smooth_physics_interpolator, ConservationLaw, PhysicalConstraint, PhysicsInformedConfig,
+    PhysicsInformedInterpolator, PhysicsInformedResult,
+};
+pub use scattered_optimized::{
+    make_optimized_scattered_interpolator, OptimizedScatteredInterpolator, OptimizedScatteredStats,
+    ScatteredConfig,
+};
+#[cfg(feature = "simd")]
+pub use simd_bspline::SimdBSplineEvaluator;
+pub use simd_optimized::{
+    get_simd_config, is_simd_available, simd_bspline_basis_functions, simd_bspline_batch_evaluate,
+    simd_distance_matrix, simd_rbf_evaluate, RBFKernel as SimdRBFKernel, SimdConfig,
+};
+pub use smoothing::{
+    make_adaptive_smoothing_spline, make_error_based_smoothing_spline,
+    make_optimized_smoothing_spline, KnotStrategy, VariableKnotSpline,
+};
+pub use sparse_grid::{
+    make_adaptive_sparse_grid_interpolator, make_sparse_grid_from_data,
+    make_sparse_grid_interpolator, GridPoint, MultiIndex, SparseGridBuilder,
+    SparseGridInterpolator, SparseGridStats,
+};
 pub use spatial::balltree::BallTree;
 pub use spatial::kdtree::KdTree;
 pub use spline::{make_interp_spline, BoundaryCondition, CubicSpline};
+pub use structured_matrix::{
+    create_bspline_band_matrix, solve_band_system, solve_sparse_system,
+    solve_structured_least_squares, BandMatrix, CSRMatrix,
+};
 pub use tension::{make_tension_spline, TensionSpline};
 pub use tensor::{
     lagrange_tensor_interpolate, tensor_product_interpolate, LagrangeTensorInterpolator,
     TensorProductInterpolator,
+};
+pub use timeseries::{
+    backward_fill, forward_fill, make_daily_interpolator, make_weekly_interpolator,
+    MissingDataStrategy, SeasonalityType, TemporalPattern, TemporalStats, TimeSeriesConfig,
+    TimeSeriesInterpolator, TimeSeriesResult,
 };
 pub use voronoi::{
     constant_value_extrapolation, inverse_distance_extrapolation, linear_gradient_extrapolation,
@@ -207,7 +364,7 @@ pub use voronoi::{
     Extrapolation, ExtrapolationMethod as VoronoiExtrapolationMethod, ExtrapolationParams,
     GradientEstimation, InterpolateWithGradient, InterpolateWithGradientResult,
     InterpolationMethod as VoronoiInterpolationMethod, NaturalNeighborInterpolator,
-    ParallelConfig as VoronoiParallelConfig, ParallelNaturalNeighborInterpolator,
+    ParallelNaturalNeighborInterpolator,
 };
 
 #[cfg(test)]

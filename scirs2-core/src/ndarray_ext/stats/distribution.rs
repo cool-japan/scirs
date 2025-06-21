@@ -359,7 +359,7 @@ where
 /// assert_eq!(quartiles[2], 7.0);  // 75th percentile
 /// ```
 ///
-/// This function is equivalent to NumPy's `np.quantile` function.
+/// This function is equivalent to ``NumPy``'s `np.quantile` function.
 pub fn quantile<T>(
     array: ArrayView<T, Ix1>,
     q: ArrayView<T, Ix1>,
@@ -462,7 +462,7 @@ where
 /// assert_eq!(counts[3], 2.0); // '3' occurs twice
 /// ```
 ///
-/// This function is equivalent to NumPy's `np.bincount` function.
+/// This function is equivalent to ``NumPy``'s `np.bincount` function.
 pub fn bincount(
     array: ArrayView<usize, Ix1>,
     minlength: Option<usize>,
@@ -538,7 +538,7 @@ pub fn bincount(
 /// assert_eq!(indices[4], 1); // 2.9 is in the first bin (1.0 <= x < 3.0)
 /// ```
 ///
-/// This function is equivalent to NumPy's `np.digitize` function.
+/// This function is equivalent to ``NumPy``'s `np.digitize` function.
 pub fn digitize<T>(
     array: ArrayView<T, Ix1>,
     bins: ArrayView<T, Ix1>,

@@ -7,9 +7,8 @@
 
 use super::chunked::ChunkingStrategy;
 use super::memmap::{AccessMode, MemoryMappedArray};
-use super::memmap_slice::MemoryMappedSlice;
 use crate::error::{CoreError, CoreResult, ErrorContext};
-use ndarray::{self, Array, Dimension, Zip};
+use ndarray;
 use std::ops::{Add, Div, Mul, Sub};
 
 /// Trait for zero-copy operations on memory-mapped arrays.
@@ -18,7 +17,7 @@ use std::ops::{Add, Div, Mul, Sub};
 /// without unnecessary memory allocations or copies. The operations are designed
 /// to work efficiently with large datasets by processing data in chunks and
 /// maintaining memory-mapping where possible.
-pub trait ZeroCopyOps<A: Clone + Copy + 'static> {
+pub trait ZeroCopyOps<A: Clone + Copy + 'static + Send + Sync> {
     /// Maps a function over each element of the array without loading the entire array.
     ///
     /// This is similar to the `map` function in functional programming, but implemented
@@ -207,7 +206,9 @@ pub trait ZeroCopyOps<A: Clone + Copy + 'static> {
         A: Add<Output = A> + Div<Output = A> + From<u8> + From<usize>;
 }
 
-impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
+impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> ZeroCopyOps<A>
+    for MemoryMappedArray<A>
+{
     fn map_zero_copy<F>(&self, f: F) -> CoreResult<MemoryMappedArray<A>>
     where
         F: Fn(A) -> A + Send + Sync,
@@ -217,7 +218,7 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
         let temp_path = temp_file.path().to_path_buf();
 
         // Create an output memory-mapped array with the same shape
-        let shape = &self.shape;
+        let _shape = &self.shape;
         let element_size = std::mem::size_of::<A>();
         let file_size = self.size * element_size;
 
@@ -238,36 +239,33 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
         {
             // Use rayon directly since process_chunks_parallel has trait bounds
             // that we can't satisfy here (Send + Sync)
-            use rayon::prelude::*;
 
             let chunk_size = (self.size / rayon::current_num_threads()).max(1024);
 
             // Calculate the number of chunks
-            let num_chunks = (self.size + chunk_size - 1) / chunk_size;
+            let num_chunks = self.size.div_ceil(chunk_size);
 
-            // Process each chunk in parallel
-            (0..num_chunks).into_par_iter().try_for_each(|chunk_idx| {
+            // Process each chunk sequentially to avoid mutable borrow issues
+            let array = self.as_array::<ndarray::IxDyn>()?;
+            let mut out_array = output.as_array_mut::<ndarray::IxDyn>()?;
+
+            for chunk_idx in 0..num_chunks {
                 // Calculate chunk bounds
                 let start = chunk_idx * chunk_size;
                 let end = (start + chunk_size).min(self.size);
 
                 // Get the data for this chunk
-                let array = self.as_array::<ndarray::IxDyn>()?;
                 let chunk = &array.as_slice().unwrap()[start..end];
 
                 // Apply the mapping function to each element in the chunk
                 let mapped_chunk: Vec<A> = chunk.iter().map(|&x| f(x)).collect();
 
                 // Copy the mapped chunk to the output at the same position
-                // Get a mutable view of the output array
-                let mut out_array = output.as_array_mut::<ndarray::IxDyn>()?;
                 let out_slice = &mut out_array.as_slice_mut().unwrap()[start..end];
 
                 // Copy the mapped chunk to the output
                 out_slice.copy_from_slice(&mapped_chunk);
-
-                Ok(()) as CoreResult<()>
-            })?;
+            }
         }
 
         #[cfg(not(feature = "parallel"))]
@@ -276,10 +274,10 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
             use super::memmap_chunks::MemoryMappedChunks;
 
             let chunk_size = 1024 * 1024; // 1M elements
-            let strategy = ChunkingStrategy::Fixed(chunk_size);
+            let _strategy = ChunkingStrategy::Fixed(chunk_size);
 
             // Manually process chunks instead of using process_chunks_mut
-            for chunk_idx in 0..(self.size + chunk_size - 1) / chunk_size {
+            for chunk_idx in 0..self.size.div_ceil(chunk_size) {
                 // Calculate chunk bounds
                 let start = chunk_idx * chunk_size;
                 let end = (start + chunk_size).min(self.size);
@@ -308,14 +306,12 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
     where
         F: Fn(A, A) -> A + Send + Sync,
     {
-        use super::memmap_chunks::MemoryMappedChunks;
-
         // Process the input array in chunks
         let chunk_size = 1024 * 1024; // 1M elements
-        let strategy = ChunkingStrategy::Fixed(chunk_size);
+        let _strategy = ChunkingStrategy::Fixed(chunk_size);
 
         // Since we can't use process_chunks directly, we'll implement manually
-        let num_chunks = (self.size + chunk_size - 1) / chunk_size;
+        let num_chunks = self.size.div_ceil(chunk_size);
         let mut chunk_results = Vec::with_capacity(num_chunks);
 
         // Process each chunk
@@ -356,7 +352,7 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
         let temp_path = temp_file.path().to_path_buf();
 
         // Create an output memory-mapped array with the same shape
-        let shape = &self.shape;
+        let _shape = &self.shape;
         let element_size = std::mem::size_of::<A>();
         let file_size = self.size * element_size;
 
@@ -374,10 +370,10 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
 
         // Process the arrays in chunks
         let chunk_size = 1024 * 1024; // 1M elements
-        let strategy = ChunkingStrategy::Fixed(chunk_size);
+        let _strategy = ChunkingStrategy::Fixed(chunk_size);
 
         // Calculate the number of chunks
-        let num_chunks = (self.size + chunk_size - 1) / chunk_size;
+        let num_chunks = self.size.div_ceil(chunk_size);
 
         // Process each chunk
         for chunk_idx in 0..num_chunks {
@@ -414,7 +410,7 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
     {
         // Process the input array in chunks manually
         let chunk_size = 1024 * 1024; // 1M elements
-        let num_chunks = (self.size + chunk_size - 1) / chunk_size;
+        let num_chunks = self.size.div_ceil(chunk_size);
         let mut result = Vec::new();
 
         // Process each chunk
@@ -537,10 +533,10 @@ impl<A: Clone + Copy + 'static> ZeroCopyOps<A> for MemoryMappedArray<A> {
 ///
 /// This trait provides methods for performing broadcasting operations between
 /// memory-mapped arrays without unnecessary memory allocations or copies.
-pub trait BroadcastOps<A: Clone + Copy + 'static> {
+pub trait BroadcastOps<A: Clone + Copy + 'static + Send + Sync> {
     /// Broadcasts an operation between two arrays of compatible shapes.
     ///
-    /// Follows the NumPy broadcasting rules:
+    /// Follows the `NumPy` broadcasting rules:
     /// 1. If arrays don't have the same rank, prepend shape with 1s
     /// 2. Two dimensions are compatible if:
     ///    - They are equal, or
@@ -569,7 +565,9 @@ pub trait BroadcastOps<A: Clone + Copy + 'static> {
         F: Fn(A, A) -> A + Send + Sync;
 }
 
-impl<A: Clone + Copy + 'static> BroadcastOps<A> for MemoryMappedArray<A> {
+impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> BroadcastOps<A>
+    for MemoryMappedArray<A>
+{
     fn broadcast_op<F>(&self, other: &Self, f: F) -> CoreResult<MemoryMappedArray<A>>
     where
         F: Fn(A, A) -> A + Send + Sync,
@@ -588,16 +586,12 @@ impl<A: Clone + Copy + 'static> BroadcastOps<A> for MemoryMappedArray<A> {
         let mut other_dims = Vec::with_capacity(output_ndim);
 
         // Prepend 1s to the shape with fewer dimensions
-        for _ in 0..(output_ndim - self_ndim) {
-            self_dims.push(1);
-        }
+        self_dims.resize(output_ndim - self_ndim, 1);
         for dim in self_shape.iter() {
             self_dims.push(*dim);
         }
 
-        for _ in 0..(output_ndim - other_ndim) {
-            other_dims.push(1);
-        }
+        other_dims.resize(output_ndim - other_ndim, 1);
         for dim in other_shape.iter() {
             other_dims.push(*dim);
         }
@@ -605,6 +599,7 @@ impl<A: Clone + Copy + 'static> BroadcastOps<A> for MemoryMappedArray<A> {
         // Determine the output shape
         let mut output_shape = Vec::with_capacity(output_ndim);
         for i in 0..output_ndim {
+            #[allow(clippy::if_same_then_else)]
             if self_dims[i] == 1 {
                 output_shape.push(other_dims[i]);
             } else if other_dims[i] == 1 {
@@ -668,7 +663,7 @@ impl<A: Clone + Copy + 'static> BroadcastOps<A> for MemoryMappedArray<A> {
 /// This trait provides implementations of standard arithmetic operations
 /// (addition, subtraction, multiplication, division) for memory-mapped arrays
 /// using the zero-copy infrastructure.
-pub trait ArithmeticOps<A: Clone + Copy + 'static> {
+pub trait ArithmeticOps<A: Clone + Copy + 'static + Send + Sync> {
     /// Adds two arrays element-wise.
     ///
     /// # Arguments
@@ -722,7 +717,9 @@ pub trait ArithmeticOps<A: Clone + Copy + 'static> {
         A: Div<Output = A>;
 }
 
-impl<A: Clone + Copy + 'static> ArithmeticOps<A> for MemoryMappedArray<A> {
+impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> ArithmeticOps<A>
+    for MemoryMappedArray<A>
+{
     fn add(&self, other: &Self) -> CoreResult<MemoryMappedArray<A>>
     where
         A: Add<Output = A>,
@@ -781,7 +778,7 @@ mod tests {
         let result = mmap.map_zero_copy(|x| x * 2.0).unwrap();
 
         // Verify the result
-        let result_array = result.readonly_array().unwrap();
+        let result_array = result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..1000 {
             assert_eq!(result_array[i], (i as f64) * 2.0);
         }
@@ -842,7 +839,7 @@ mod tests {
         let result = mmap1.combine_zero_copy(&mmap2, |a, b| a + b).unwrap();
 
         // Verify the result (each element should be 3*i)
-        let result_array = result.readonly_array().unwrap();
+        let result_array = result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..1000 {
             assert_eq!(result_array[i], (i as f64) * 3.0);
         }
@@ -904,21 +901,21 @@ mod tests {
 
         // Test addition
         let add_result = mmap1.add(&mmap2).unwrap();
-        let add_array = add_result.readonly_array().unwrap();
+        let add_array = add_result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..100 {
             assert_eq!(add_array[i], (i as f64) + ((i + 5) as f64));
         }
 
         // Test subtraction
         let sub_result = mmap1.sub(&mmap2).unwrap();
-        let sub_array = sub_result.readonly_array().unwrap();
+        let sub_array = sub_result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..100 {
             assert_eq!(sub_array[i], (i as f64) - ((i + 5) as f64));
         }
 
         // Test multiplication
         let mul_result = mmap1.mul(&mmap2).unwrap();
-        let mul_array = mul_result.readonly_array().unwrap();
+        let mul_array = mul_result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..100 {
             assert_eq!(mul_array[i], (i as f64) * ((i + 5) as f64));
         }
@@ -927,7 +924,7 @@ mod tests {
         let div_result = mmap2
             .div(&mmap1.map_zero_copy(|x| x + 1.0).unwrap())
             .unwrap();
-        let div_array = div_result.readonly_array().unwrap();
+        let div_array = div_result.readonly_array::<ndarray::Ix1>().unwrap();
         for i in 0..100 {
             assert_eq!(div_array[i], ((i + 5) as f64) / ((i + 1) as f64));
         }
@@ -965,7 +962,7 @@ mod tests {
         let result = mmap1.broadcast_op(&mmap2, |a, b| a * b).unwrap();
 
         // Verify the result
-        let result_array = result.readonly_array().unwrap();
+        let result_array = result.readonly_array::<ndarray::Ix2>().unwrap();
         assert_eq!(result_array.shape(), &[3, 4]);
 
         for i in 0..3 {

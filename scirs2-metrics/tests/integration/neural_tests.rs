@@ -1,13 +1,14 @@
 //! Tests for scirs2-neural integration
 
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array, Array1, Array2, Ix1, Ix2, IxDyn};
+use ndarray::{array, Ix1};
 use scirs2_metrics::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use scirs2_metrics::integration::neural::{
     neural_confusion_matrix_visualization, neural_precision_recall_curve_visualization,
     neural_roc_curve_visualization, training_history_visualization, MetricsCallback,
     NeuralMetricAdapter,
 };
+use scirs2_metrics::integration::traits::MetricComputation;
 use scirs2_metrics::regression::{mean_squared_error, r2_score};
 use std::collections::HashMap;
 
@@ -40,9 +41,9 @@ fn test_metric_adapter_consistency() {
 
     // Calculate metrics directly
     let direct_accuracy = accuracy_score(&y_true, &y_pred).unwrap();
-    let direct_precision = precision_score(&y_true, &y_pred, None, None, None).unwrap();
-    let direct_recall = recall_score(&y_true, &y_pred, None, None, None).unwrap();
-    let direct_f1 = f1_score(&y_true, &y_pred, None, None, None).unwrap();
+    let direct_precision = precision_score(&y_true, &y_pred, 1.0).unwrap();
+    let direct_recall = recall_score(&y_true, &y_pred, 1.0).unwrap();
+    let direct_f1 = f1_score(&y_true, &y_pred, 1.0).unwrap();
 
     // Compare results
     assert_abs_diff_eq!(adapter_accuracy, direct_accuracy, epsilon = 1e-10);
@@ -106,9 +107,9 @@ fn test_metrics_callback() {
 
     // Calculate metrics directly
     let direct_accuracy = accuracy_score(&y_true, &y_pred).unwrap();
-    let direct_precision = precision_score(&y_true, &y_pred, None, None, None).unwrap();
-    let direct_recall = recall_score(&y_true, &y_pred, None, None, None).unwrap();
-    let direct_f1 = f1_score(&y_true, &y_pred, None, None, None).unwrap();
+    let direct_precision = precision_score(&y_true, &y_pred, 1.0).unwrap();
+    let direct_recall = recall_score(&y_true, &y_pred, 1.0).unwrap();
+    let direct_f1 = f1_score(&y_true, &y_pred, 1.0).unwrap();
 
     // Check all results are present
     assert!(results.contains_key("accuracy"));
@@ -148,9 +149,9 @@ fn test_visualization_adapters() {
 
     // Check visualization metadata
     let viz_metadata = roc_viz.get_metadata();
-    assert!(viz_metadata.title().contains("ROC"));
-    assert_eq!(viz_metadata.x_label(), "False Positive Rate");
-    assert_eq!(viz_metadata.y_label(), "True Positive Rate");
+    assert!(viz_metadata.title.contains("ROC"));
+    assert_eq!(viz_metadata.x_label, "False Positive Rate");
+    assert_eq!(viz_metadata.y_label, "True Positive Rate");
 
     // Test PR curve visualization
     let pr_viz = neural_precision_recall_curve_visualization(
@@ -162,9 +163,9 @@ fn test_visualization_adapters() {
 
     // Check visualization metadata
     let viz_metadata = pr_viz.get_metadata();
-    assert!(viz_metadata.title().contains("Precision-Recall"));
-    assert_eq!(viz_metadata.x_label(), "Recall");
-    assert_eq!(viz_metadata.y_label(), "Precision");
+    assert!(viz_metadata.title.contains("Precision-Recall"));
+    assert_eq!(viz_metadata.x_label, "Recall");
+    assert_eq!(viz_metadata.y_label, "Precision");
 
     // Test confusion matrix visualization
     let labels = vec!["Negative".to_string(), "Positive".to_string()];
@@ -180,7 +181,7 @@ fn test_visualization_adapters() {
 
     // Check visualization metadata
     let viz_metadata = cm_viz.get_metadata();
-    assert!(viz_metadata.title().contains("Confusion Matrix"));
+    assert!(viz_metadata.title.contains("Confusion Matrix"));
 
     // Test training history visualization
     let metrics = vec!["loss".to_string(), "accuracy".to_string()];
@@ -199,8 +200,8 @@ fn test_visualization_adapters() {
 
     // Check visualization metadata
     let viz_metadata = history_viz.get_metadata();
-    assert!(viz_metadata.title().contains("Training History"));
-    assert_eq!(viz_metadata.x_label(), "Epoch");
+    assert!(viz_metadata.title.contains("Training History"));
+    assert_eq!(viz_metadata.x_label, "Epoch");
 }
 
 /// Test creating a custom metric adapter
@@ -216,7 +217,7 @@ fn test_custom_metric_adapter() {
 
             let mut matching = 0;
             for (p, t) in preds_flat.iter().zip(targets_flat.iter()) {
-                if (p - t).abs() < 1e-10 {
+                if ((*p as f64) - (*t as f64)).abs() < 1e-10 {
                     matching += 1;
                 }
             }

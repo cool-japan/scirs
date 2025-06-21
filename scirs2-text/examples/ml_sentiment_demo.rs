@@ -200,7 +200,7 @@ fn create_sentiment_dataset() -> Result<(TextDataset, TextDataset), Box<dyn std:
     ];
 
     // Test data (different examples)
-    let test_texts = vec![
+    let test_texts = [
         "Loved every minute of it. Highly recommended!",
         "Terrible product. Complete waste of money.",
         "It's okay, nothing special but gets the job done.",
@@ -213,7 +213,7 @@ fn create_sentiment_dataset() -> Result<(TextDataset, TextDataset), Box<dyn std:
         "Top-notch quality and design. Very impressed!",
     ];
 
-    let test_labels = vec![
+    let test_labels = [
         "positive", "negative", "neutral", "positive", "negative", "neutral", "positive",
         "negative", "neutral", "positive",
     ];

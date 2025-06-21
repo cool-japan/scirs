@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -216,7 +216,7 @@ where
                 backend: DistributedBackend::Threaded,
             };
 
-            Box::new(DistributedNdarray::from_array(array, dist_config))
+            Box::new(DistributedNdarray::from_array(&array, dist_config))
         }
     }
 }
@@ -320,7 +320,7 @@ where
     }
 
     /// Get the underlying array.
-    pub fn array(&self) -> &Array<T, D> {
+    pub const fn array(&self) -> &Array<T, D> {
         &self.array
     }
 }

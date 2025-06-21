@@ -1,5 +1,6 @@
 //! Error types for the clustering module
 
+use scirs2_core::error::CoreError;
 use scirs2_linalg::error::LinalgError;
 use thiserror::Error;
 
@@ -33,6 +34,10 @@ pub enum ClusteringError {
     /// Linear algebra error
     #[error("Linear algebra error: {0}")]
     LinalgError(#[from] LinalgError),
+
+    /// Core validation error
+    #[error("Core validation error: {0}")]
+    CoreError(#[from] CoreError),
 
     /// Other error
     #[error("Error: {0}")]

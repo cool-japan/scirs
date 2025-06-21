@@ -40,10 +40,10 @@ This module provides dataset loading utilities similar to scikit-learn's dataset
 
 ## Data Management and Distribution
 
-- [ ] Remote dataset management
-  - [ ] GitHub-based dataset storage model
-  - [ ] SHA256 verification for dataset integrity
-  - [ ] Create registry system for mapping datasets to files
+- [x] Remote dataset management
+  - [x] GitHub-based dataset storage model
+  - [x] SHA256 verification for dataset integrity
+  - [x] Create registry system for mapping datasets to files
   - [ ] Version tracking for dataset updates
 - [ ] Local cache management
   - [ ] Platform-specific cache locations
@@ -83,15 +83,15 @@ This module provides dataset loading utilities similar to scikit-learn's dataset
 
 ## Dataset Manipulation and Processing
 
-- [ ] Extend dataset manipulation tools
-  - [ ] Cross-validation utilities
-    - [ ] K-fold cross-validation
-    - [ ] Stratified cross-validation
-    - [ ] Time series cross-validation
-  - [ ] Sampling and bootstrapping
-    - [ ] Random sampling
-    - [ ] Stratified sampling
-    - [ ] Importance sampling
+- [x] Extend dataset manipulation tools
+  - [x] Cross-validation utilities
+    - [x] K-fold cross-validation
+    - [x] Stratified cross-validation
+    - [x] Time series cross-validation
+  - [x] Sampling and bootstrapping
+    - [x] Random sampling
+    - [x] Stratified sampling
+    - [x] Importance sampling
   - [ ] Balancing utilities
     - [ ] Oversampling
     - [ ] Undersampling
@@ -169,9 +169,9 @@ This module provides dataset loading utilities similar to scikit-learn's dataset
 - [x] Fix warnings about unused imports 
 - [x] Fix warning about dead code in time_series.rs
 - [x] Mark doc tests with remote dependencies as ignored
-- [ ] Add missing documentation for public items
-- [ ] Improve error handling for edge cases
-- [ ] Add more unit tests
+- [x] Add missing documentation for public items
+- [x] Improve error handling for edge cases
+- [x] Add more unit tests
 - [ ] Optimize serialization for larger datasets
 
 ## Long-term Goals

@@ -53,7 +53,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         min_step: Some(1e-6),
         max_step: Some(0.01),
         max_order: Some(2), // Limit order for this example
-        ..Default::default()
     };
 
     // Solve using standard BDF method

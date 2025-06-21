@@ -116,7 +116,8 @@ fn main() -> IntegrateResult<()> {
         }) as Box<dyn Fn(f64, ArrayView1<f64>) -> f64 + Send + Sync>
     };
 
-    let event_funcs: Vec<Box<dyn Fn(f64, ArrayView1<f64>) -> f64 + Send + Sync>> = vec![
+    type EventFunc = Box<dyn Fn(f64, ArrayView1<f64>) -> f64 + Send + Sync>;
+    let event_funcs: Vec<EventFunc> = vec![
         // Event 1: Velocity changes sign (turning points)
         Box::new(|_t: f64, y: ArrayView1<f64>| y[1]),
         // Event 2: Bead passes through origin

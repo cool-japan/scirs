@@ -1,6 +1,6 @@
 use ndarray::Array2;
 use scirs2_cluster::metrics::{silhouette_samples, silhouette_score};
-use scirs2_cluster::vq::kmeans;
+use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
 
 fn main() {
     // Generate synthetic data with clusters
@@ -11,7 +11,17 @@ fn main() {
     // Try different numbers of clusters
     for k in 2..6 {
         // Run k-means clustering
-        let (_, labels) = kmeans(data.view(), k, None).unwrap();
+        let (_, labels) = kmeans2(
+            data.view(),
+            k,
+            Some(10),
+            None,
+            Some(MinitMethod::PlusPlus),
+            Some(MissingMethod::Warn),
+            Some(true),
+            Some(42),
+        )
+        .unwrap();
 
         // Convert labels to i32 array for silhouette calculation
         let labels_i32 = labels.mapv(|x| x as i32);

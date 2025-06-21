@@ -604,7 +604,7 @@ fn auto_interpolation_example() -> SignalResult<()> {
     // Case 2: Blocks of missing values
     let mut signal2 = reference.clone();
     for i in 0..n_samples {
-        if (i >= 50 && i < 70) || (i >= 150 && i < 180) || (i >= 250 && i < 270) {
+        if (50..70).contains(&i) || (150..180).contains(&i) || (250..270).contains(&i) {
             signal2[i] = f64::NAN;
         }
     }

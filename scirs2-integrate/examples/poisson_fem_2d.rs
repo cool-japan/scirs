@@ -69,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Solver options
     let options = FEMOptions {
         element_type: ElementType::Linear,
+        quadrature_order: 3, // Standard quadrature for linear elements
         max_iterations: 1000,
         tolerance: 1e-6,
         save_convergence_history: false,

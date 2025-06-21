@@ -6,7 +6,7 @@
 //! accuracy and performance for complex ODE systems.
 
 use crate::common::IntegrateFloat;
-use crate::error::{IntegrateError, IntegrateResult};
+use crate::error::IntegrateResult;
 use ndarray::{Array1, Array2, ArrayView1};
 
 /// Compute Jacobian matrix using automatic differentiation
@@ -28,62 +28,22 @@ use ndarray::{Array1, Array2, ArrayView1};
 /// Exact Jacobian matrix (∂f/∂y)
 #[cfg(feature = "autodiff")]
 pub fn autodiff_jacobian<F, Func>(
-    f: &Func,
-    t: F,
+    _f: &Func,
+    _t: F,
     y: &Array1<F>,
     _f_current: &Array1<F>, // Not needed but kept for API compatibility
     _perturbation_scale: F, // Not used but kept for API compatibility
 ) -> IntegrateResult<Array2<F>>
 where
-    F: IntegrateFloat + scirs2_autograd::Float,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
-    use ag::tensor_ops as T;
-    use ag::{run, Context, Tensor};
-    use scirs2_autograd as ag;
-
+    // TODO: Implement proper autodiff jacobian with updated scirs2_autograd API
+    // For now, return error to indicate feature not ready
     let n = y.len();
-    let mut jacobian = Array2::<F>::zeros((n, n));
-
-    // Clone values needed inside the closure
-    let y_clone = y.clone();
-    let f_clone = f.clone();
-
-    // Use the run function to create a computation context
-    run(|ctx: &mut Context<F>| {
-        // Create variable tensor for input state
-        let x_var = ctx.variable(y_clone.clone());
-
-        // Convert variable to tensor for operations
-        let x_tensor: Tensor<F> = x_var.into();
-
-        // Apply the ODE function
-        // We need to extract values, apply f, then convert back
-        let x_values = x_tensor.data();
-        let x_array = Array1::from_shape_vec(n, x_values.to_vec()).unwrap();
-        let f_result = f_clone(t, x_array.view());
-
-        // Convert result back to tensor
-        let y_tensor = ctx.constant(f_result);
-
-        // For each output variable, compute gradient with respect to inputs
-        for i in 0..n {
-            // Extract the i-th component of the output
-            let indices = ndarray::arr1(&[i as isize]);
-            let y_i = T::gather(&y_tensor, &indices, 0);
-
-            // Compute gradient of y_i with respect to all inputs
-            let grads = T::grad(&[&y_i], &[&x_tensor]);
-
-            // Extract gradient values and fill the i-th row of the Jacobian
-            let grad_data = grads[0].data();
-            for j in 0..n {
-                jacobian[[i, j]] = grad_data[j];
-            }
-        }
-    });
-
-    Ok(jacobian)
+    Err(crate::error::IntegrateError::ComputationError(
+        format!("Autodiff jacobian feature needs to be updated for new scirs2_autograd API. Falling back to finite differences for {} x {} system", n, n)
+    ))
 }
 
 /// Fallback implementation when autodiff feature is not enabled
@@ -99,7 +59,7 @@ where
     F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F>,
 {
-    Err(IntegrateError::NotImplementedError(
+    Err(crate::error::IntegrateError::ComputationError(
         "Autodiff Jacobian computation requires the 'autodiff' feature to be enabled.".to_string(),
     ))
 }
@@ -120,7 +80,7 @@ pub fn adaptive_jacobian<F, Func>(
     perturbation_scale: F,
 ) -> IntegrateResult<Array2<F>>
 where
-    F: IntegrateFloat + scirs2_autograd::Float,
+    F: IntegrateFloat,
     Func: Fn(F, ArrayView1<F>) -> Array1<F> + Clone,
 {
     // Use autodiff when available

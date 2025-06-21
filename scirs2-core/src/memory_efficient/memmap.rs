@@ -4,13 +4,13 @@
 //! access large datasets stored on disk. Memory mapping allows the operating system to
 //! page in data as needed, reducing memory usage for very large arrays.
 //!
-//! Based on NumPy's memmap implementation, this provides similar functionality in Rust.
+//! Based on `NumPy`'s memmap implementation, this provides similar functionality in Rust.
 
 use super::validation;
 use crate::error::{CoreError, ErrorContext, ErrorLocation};
 use bincode::{deserialize, serialize};
 use memmap2::{Mmap, MmapMut, MmapOptions};
-use ndarray::{Array, ArrayBase, Data, Dimension};
+use ndarray::{Array, ArrayBase, Data, Dimension, IxDyn};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -35,7 +35,7 @@ pub enum AccessMode {
 
 impl AccessMode {
     /// Convert to string representation
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
             AccessMode::ReadOnly => "r",
             AccessMode::ReadWrite => "r+",
@@ -56,7 +56,7 @@ impl std::str::FromStr for AccessMode {
             "w+" => Ok(AccessMode::Write),
             "c" => Ok(AccessMode::CopyOnWrite),
             _ => Err(CoreError::ValidationError(
-                ErrorContext::new(format!("Invalid access mode: {}", s))
+                ErrorContext::new(format!("Invalid access mode: {s}"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
@@ -67,7 +67,7 @@ impl std::str::FromStr for AccessMode {
 #[derive(Debug)]
 pub struct MemoryMappedArray<A>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
 {
     /// The shape of the array
     pub shape: Vec<usize>,
@@ -80,13 +80,13 @@ where
     /// The total number of elements
     pub size: usize,
     /// The memory-mapped data (read-only)
-    mmap_view: Option<Mmap>,
+    pub(crate) mmap_view: Option<Mmap>,
     /// The memory-mapped data (mutable)
-    mmap_view_mut: Option<MmapMut>,
+    pub(crate) mmap_view_mut: Option<MmapMut>,
     /// Whether the file is temporary and should be deleted on drop
-    is_temp: bool,
+    pub(crate) is_temp: bool,
     /// Phantom data for type parameters
-    _phantom: PhantomData<A>,
+    pub(crate) _phantom: PhantomData<A>,
 }
 
 /// Header information stored at the beginning of the file
@@ -100,10 +100,32 @@ struct MemoryMappedHeader {
     total_elements: usize,
 }
 
+impl<A> Clone for MemoryMappedArray<A>
+where
+    A: Clone + Copy + 'static + Send + Sync,
+{
+    fn clone(&self) -> Self {
+        // Create a new memory mapping with the same parameters
+        // This is safe because we're creating a new mapping to the same file
+        Self::new::<ndarray::OwnedRepr<A>, ndarray::IxDyn>(
+            None,
+            &self.file_path,
+            self.mode,
+            self.offset,
+        )
+        .expect("Failed to clone memory mapped array")
+    }
+}
+
 impl<A> MemoryMappedArray<A>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
 {
+    /// Open an existing memory-mapped array file
+    pub fn open(file_path: &Path, _shape: &[usize]) -> Result<Self, CoreError> {
+        open_mmap::<A, IxDyn>(file_path, AccessMode::ReadOnly, 0)
+    }
+
     /// Create a new memory-mapped array from an existing array
     ///
     /// # Arguments
@@ -131,19 +153,20 @@ where
             (array.shape().to_vec(), array.len())
         } else {
             // If no data is provided, the file must exist and contain a valid header
-            let file = File::open(file_path).map_err(CoreError::IoError)?;
+            let file = File::open(file_path)
+                .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
             // First read just enough bytes for a small header (we'll read more if needed)
             let mut header_buffer = Vec::new();
             let mut reader = std::io::BufReader::new(file);
             reader
                 .read_to_end(&mut header_buffer)
-                .map_err(CoreError::IoError)?;
+                .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
             // Try to deserialize the header
             let header: MemoryMappedHeader = deserialize(&header_buffer).map_err(|e| {
                 CoreError::ValidationError(
-                    ErrorContext::new(format!("Failed to deserialize header: {}", e))
+                    ErrorContext::new(format!("Failed to deserialize header: {e}"))
                         .with_location(ErrorLocation::new(file!(), line!())),
                 )
             })?;
@@ -159,19 +182,21 @@ where
         match mode {
             AccessMode::ReadOnly => {
                 // Open existing file for reading only
-                let file = File::open(file_path).map_err(|e| CoreError::IoError(e))?;
+                let file = File::open(file_path)
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Get file size to ensure proper mapping
-                let file_metadata = file.metadata().map_err(|e| CoreError::IoError(e))?;
+                let file_metadata = file
+                    .metadata()
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
                 let file_size = file_metadata.len() as usize;
 
                 // Ensure the file is large enough
                 if offset + data_size > file_size {
                     return Err(CoreError::ValidationError(
                         ErrorContext::new(format!(
-                            "File too small: need {} bytes, but file is only {} bytes",
-                            offset + data_size,
-                            file_size
+                            "File too small: need {needed} bytes, but file is only {file_size} bytes",
+                            needed = offset + data_size
                         ))
                         .with_location(ErrorLocation::new(file!(), line!())),
                     ));
@@ -183,7 +208,7 @@ where
                         .offset(offset as u64)
                         .len(data_size)
                         .map(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 Ok(Self {
@@ -204,16 +229,18 @@ where
                     .read(true)
                     .write(true)
                     .open(file_path)
-                    .map_err(|e| CoreError::IoError(e))?;
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Get file metadata to check size
-                let metadata = file.metadata().map_err(|e| CoreError::IoError(e))?;
+                let metadata = file
+                    .metadata()
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
                 let file_size = metadata.len() as usize;
 
                 // Ensure file has sufficient size before mapping
                 if offset + data_size > file_size {
                     file.set_len((offset + data_size) as u64)
-                        .map_err(|e| CoreError::IoError(e))?;
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
                 }
 
                 // Create a mutable memory mapping
@@ -222,7 +249,7 @@ where
                         .offset(offset as u64)
                         .len(data_size)
                         .map_mut(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 // If data is provided, write it to the mapping
@@ -259,7 +286,7 @@ where
                     .create(true)
                     .truncate(true)
                     .open(file_path)
-                    .map_err(|e| CoreError::IoError(e))?;
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create header
                 let header = MemoryMappedHeader {
@@ -278,7 +305,7 @@ where
 
                 // Write header to file
                 file.write_all(&header_bytes)
-                    .map_err(|e| CoreError::IoError(e))?;
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Calculate total file size (header + data)
                 let header_size = header_bytes.len();
@@ -286,7 +313,7 @@ where
 
                 // Set file length to accommodate header and data
                 file.set_len(total_size as u64)
-                    .map_err(|e| CoreError::IoError(e))?;
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create a mutable memory mapping
                 let mut mmap = unsafe {
@@ -294,7 +321,7 @@ where
                         .offset(offset as u64)
                         .len(data_size)
                         .map_mut(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 // If data is provided, write it to the mapping
@@ -325,7 +352,8 @@ where
             }
             AccessMode::CopyOnWrite => {
                 // Open existing file for reading
-                let file = File::open(file_path).map_err(|e| CoreError::IoError(e))?;
+                let file = File::open(file_path)
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create a copy-on-write memory mapping
                 let mmap = unsafe {
@@ -333,7 +361,7 @@ where
                         .offset(offset as u64)
                         .len(data_size)
                         .map_copy(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 Ok(Self {
@@ -371,16 +399,14 @@ where
         S: Data<Elem = A>,
         D: Dimension,
     {
-        let temp_file = NamedTempFile::new().map_err(|e| CoreError::IoError(e))?;
+        let temp_file = NamedTempFile::new()
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
         let file_path = temp_file.path().to_path_buf();
 
         // Manually persist the temp file so it stays around after we return
-        let _file = temp_file.persist(&file_path).map_err(|e| {
-            CoreError::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        let _file = temp_file
+            .persist(&file_path)
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         let mut result = Self::new(Some(data), &file_path, mode, offset)?;
         result.is_temp = true;
@@ -509,7 +535,8 @@ where
     /// `Ok(())` if the flush succeeded, or an error
     pub fn flush(&mut self) -> Result<(), CoreError> {
         if let Some(view) = &mut self.mmap_view_mut {
-            view.flush().map_err(|e| CoreError::IoError(e))?;
+            view.flush()
+                .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
         }
 
         Ok(())
@@ -540,14 +567,15 @@ where
         match mode {
             AccessMode::ReadOnly => {
                 // Open existing file for reading only
-                let file = File::open(&file_path).map_err(|e| CoreError::IoError(e))?;
+                let file = File::open(&file_path)
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create a read-only memory mapping
                 let mmap = unsafe {
                     MmapOptions::new()
                         .offset(offset as u64)
                         .map(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 self.mmap_view = Some(mmap);
@@ -558,28 +586,29 @@ where
                     .read(true)
                     .write(true)
                     .open(&file_path)
-                    .map_err(|e| CoreError::IoError(e))?;
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create a mutable memory mapping
                 let mmap = unsafe {
                     MmapOptions::new()
                         .offset(offset as u64)
                         .map_mut(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 self.mmap_view_mut = Some(mmap);
             }
             AccessMode::CopyOnWrite => {
                 // Open existing file for reading only (copy-on-write doesn't modify the file)
-                let file = File::open(&file_path).map_err(|e| CoreError::IoError(e))?;
+                let file = File::open(&file_path)
+                    .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
                 // Create a copy-on-write memory mapping
                 let mmap = unsafe {
                     MmapOptions::new()
                         .offset(offset as u64)
                         .map_copy(&file)
-                        .map_err(|e| CoreError::IoError(e))?
+                        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
 
                 self.mmap_view_mut = Some(mmap);
@@ -597,11 +626,60 @@ where
     pub fn is_temp(&self) -> bool {
         self.is_temp
     }
+
+    /// Get a view of the memory-mapped data as bytes
+    ///
+    /// # Returns
+    ///
+    /// A byte slice view of the memory-mapped data
+    pub fn as_bytes(&self) -> Result<&[u8], CoreError> {
+        match (&self.mmap_view, &self.mmap_view_mut) {
+            (Some(view), _) => {
+                // Read-only view
+                Ok(view)
+            }
+            (_, Some(view)) => {
+                // Mutable view
+                Ok(view)
+            }
+            _ => Err(CoreError::ValidationError(
+                ErrorContext::new("Memory map is not initialized".to_string())
+                    .with_location(ErrorLocation::new(file!(), line!())),
+            )),
+        }
+    }
+
+    /// Get a mutable view of the memory-mapped data as bytes
+    ///
+    /// # Returns
+    ///
+    /// A mutable byte slice view of the memory-mapped data
+    pub fn as_bytes_mut(&mut self) -> Result<&mut [u8], CoreError> {
+        if self.mode == AccessMode::ReadOnly {
+            return Err(CoreError::ValidationError(
+                ErrorContext::new(
+                    "Cannot get mutable view of read-only memory-mapped array".to_string(),
+                )
+                .with_location(ErrorLocation::new(file!(), line!())),
+            ));
+        }
+
+        match &mut self.mmap_view_mut {
+            Some(view) => {
+                // Mutable view
+                Ok(view)
+            }
+            _ => Err(CoreError::ValidationError(
+                ErrorContext::new("Mutable memory map is not initialized".to_string())
+                    .with_location(ErrorLocation::new(file!(), line!())),
+            )),
+        }
+    }
 }
 
 impl<A> Drop for MemoryMappedArray<A>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
 {
     fn drop(&mut self) {
         // Flush any pending changes
@@ -617,16 +695,17 @@ where
 }
 
 /// Helper function to read the header from a file
-fn read_header<A: Clone + Copy + 'static>(
+fn read_header<A: Clone + Copy + 'static + Send + Sync>(
     file_path: &Path,
 ) -> Result<(MemoryMappedHeader, usize), CoreError> {
     // Open the file
-    let mut file = File::open(file_path).map_err(|e| CoreError::IoError(e))?;
+    let mut file =
+        File::open(file_path).map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
     // Read the entire file to a buffer
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
-        .map_err(|e| CoreError::IoError(e))?;
+        .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
     // Since we may be having problems with header deserialization,
     // let's take a more robust approach for the test environment.
@@ -668,7 +747,7 @@ pub fn open_mmap<A, D>(
     offset: usize,
 ) -> Result<MemoryMappedArray<A>, CoreError>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + Send + Sync + 'static,
     D: Dimension,
 {
     // Read the header to get shape and element info
@@ -712,7 +791,7 @@ pub fn create_mmap<A, S, D>(
     offset: usize,
 ) -> Result<MemoryMappedArray<A>, CoreError>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
     S: Data<Elem = A>,
     D: Dimension,
 {
@@ -736,7 +815,7 @@ pub fn create_temp_mmap<A, S, D>(
     offset: usize,
 ) -> Result<MemoryMappedArray<A>, CoreError>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
     S: Data<Elem = A>,
     D: Dimension,
 {

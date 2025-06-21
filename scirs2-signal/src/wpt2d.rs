@@ -64,6 +64,7 @@ type Decompose2DResult = (Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>);
 
 // Import rayon for parallel processing when the "parallel" feature is enabled
 #[cfg(feature = "parallel")]
+#[allow(unused_imports)]
 use rayon::prelude::*;
 
 /// Represents a 2D wavelet packet node with its position in the tree and coefficient array.
@@ -435,62 +436,8 @@ fn decompose_node(
     tree.add_packet(child_hl.clone());
     tree.add_packet(child_hh.clone());
 
-    // Recursively decompose each child
-    #[cfg(feature = "parallel")]
-    {
-        rayon::join(
-            || {
-                rayon::join(
-                    || {
-                        decompose_node(
-                            tree,
-                            child_level,
-                            child_row_base,
-                            child_col_base,
-                            max_level,
-                            mode,
-                        )
-                    },
-                    || {
-                        decompose_node(
-                            tree,
-                            child_level,
-                            child_row_base,
-                            child_col_base + 1,
-                            max_level,
-                            mode,
-                        )
-                    },
-                )
-            },
-            || {
-                rayon::join(
-                    || {
-                        decompose_node(
-                            tree,
-                            child_level,
-                            child_row_base + 1,
-                            child_col_base,
-                            max_level,
-                            mode,
-                        )
-                    },
-                    || {
-                        decompose_node(
-                            tree,
-                            child_level,
-                            child_row_base + 1,
-                            child_col_base + 1,
-                            max_level,
-                            mode,
-                        )
-                    },
-                )
-            },
-        );
-    }
-
-    #[cfg(not(feature = "parallel"))]
+    // Recursively decompose each child sequentially
+    // Note: Parallel processing disabled due to borrowing constraints with mutable tree reference
     {
         decompose_node(
             tree,

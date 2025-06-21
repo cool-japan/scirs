@@ -158,7 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let start_time = Instant::now();
 
             let mut train_losses = Vec::new();
-            let num_batches = (train_size + batch_size - 1) / batch_size;
+            let num_batches = train_size.div_ceil(batch_size);
 
             for epoch in 0..epochs {
                 let mut epoch_loss = 0.0;

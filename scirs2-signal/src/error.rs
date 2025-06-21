@@ -32,6 +32,17 @@ pub enum SignalError {
     /// Not implemented error
     #[error("Not implemented: {0}")]
     NotImplementedError(String),
+
+    /// Runtime error
+    #[error("Runtime error: {0}")]
+    RuntimeError(String),
+}
+
+// Conversion from ndarray_linalg errors
+impl From<ndarray_linalg::error::LinalgError> for SignalError {
+    fn from(err: ndarray_linalg::error::LinalgError) -> Self {
+        SignalError::Compute(format!("Linear algebra error: {}", err))
+    }
 }
 
 /// Result type for signal processing operations

@@ -38,12 +38,42 @@ use crate::error::{ClusteringError, Result};
 
 // Module definitions
 pub mod agglomerative;
+pub mod cluster_extraction;
+pub mod condensed_matrix;
 pub mod dendrogram;
+pub mod disjoint_set;
+pub mod leaf_ordering;
 pub mod linkage;
+pub mod optimized_ward;
+pub mod parallel_linkage;
+pub mod validation;
+pub mod visualization;
 
 // Re-exports
 pub use self::agglomerative::{cut_tree_by_distance, cut_tree_by_inconsistency};
+pub use self::cluster_extraction::{
+    estimate_optimal_clusters, extract_clusters_multi_criteria, prune_clusters,
+};
+pub use self::condensed_matrix::{
+    condensed_size, condensed_to_square, get_distance, points_from_condensed_size,
+    square_to_condensed, validate_condensed_matrix,
+};
 pub use self::dendrogram::{cophenet, dendrogram, inconsistent, optimal_leaf_ordering};
+pub use self::disjoint_set::DisjointSet;
+pub use self::leaf_ordering::{
+    apply_leaf_ordering, optimal_leaf_ordering_exact, optimal_leaf_ordering_heuristic,
+};
+pub use self::optimized_ward::{
+    lance_williams_ward_update, memory_efficient_ward_linkage, optimized_ward_linkage,
+};
+pub use self::validation::{
+    validate_cluster_consistency, validate_cluster_extraction_params, validate_distance_matrix,
+    validate_linkage_matrix, validate_monotonic_distances, validate_square_distance_matrix,
+};
+pub use self::visualization::{
+    create_dendrogram_plot, get_color_palette, Branch, ColorScheme, ColorThreshold,
+    DendrogramConfig, DendrogramOrientation, DendrogramPlot, Leaf, LegendEntry, TruncateMode,
+};
 
 /// Linkage methods for hierarchical clustering
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -236,7 +266,9 @@ pub fn coords_to_condensed_index(n: usize, i: usize, j: usize) -> usize {
 /// # Returns
 ///
 /// * `Result<Array2<F>>` - The linkage matrix, which describes the dendrogram
-pub fn linkage<F: Float + FromPrimitive + Debug + PartialOrd>(
+pub fn linkage<
+    F: Float + FromPrimitive + Debug + PartialOrd + Send + Sync + ndarray::ScalarOperand + 'static,
+>(
     data: ArrayView2<F>,
     method: LinkageMethod,
     metric: Metric,
@@ -255,11 +287,93 @@ pub fn linkage<F: Float + FromPrimitive + Debug + PartialOrd>(
         eprintln!("Warning: Performing hierarchical clustering on {} samples. This may be slow and memory-intensive.", n_samples);
     }
 
+    // Use optimized Ward's method if requested
+    if method == LinkageMethod::Ward {
+        return optimized_ward::optimized_ward_linkage(data, metric);
+    }
+
     // Calculate distances between observations
     let distances = compute_distances(data, metric);
 
     // Run the clustering
     linkage::hierarchical_clustering(&distances, n_samples, method)
+}
+
+/// Performs parallel hierarchical clustering using the specified linkage method
+///
+/// This function uses parallelization to speed up the clustering process,
+/// particularly beneficial for large datasets and computationally intensive linkage methods.
+///
+/// # Arguments
+///
+/// * `data` - The input data as a 2D array (n_samples x n_features)
+/// * `method` - The linkage method to use
+/// * `metric` - The distance metric to use
+///
+/// # Returns
+///
+/// * `Result<Array2<F>>` - The linkage matrix, which describes the dendrogram
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_cluster::hierarchy::{parallel_linkage, LinkageMethod, Metric};
+///
+/// // Example data
+/// let data = Array2::from_shape_vec((6, 2), vec![
+///     1.0, 2.0,
+///     1.2, 1.8,
+///     0.8, 1.9,
+///     3.7, 4.2,
+///     3.9, 3.9,
+///     4.2, 4.1,
+/// ]).unwrap();
+///
+/// // Calculate linkage matrix using parallel Ward's method
+/// let linkage_matrix = parallel_linkage(data.view(), LinkageMethod::Ward, Metric::Euclidean).unwrap();
+///
+/// println!("Linkage matrix shape: {:?}", linkage_matrix.shape());
+/// ```
+pub fn parallel_linkage<
+    F: Float
+        + FromPrimitive
+        + Debug
+        + PartialOrd
+        + Send
+        + Sync
+        + std::iter::Sum
+        + ndarray::ScalarOperand
+        + 'static,
+>(
+    data: ArrayView2<F>,
+    method: LinkageMethod,
+    metric: Metric,
+) -> Result<Array2<F>> {
+    let n_samples = data.shape()[0];
+
+    if n_samples < 2 {
+        return Err(ClusteringError::InvalidInput(
+            "Need at least 2 samples for hierarchical clustering".into(),
+        ));
+    }
+
+    if n_samples > 10000 {
+        // Hierarchical clustering on large datasets can be very memory-intensive
+        // and slow. We'll add a warning here.
+        eprintln!("Warning: Performing parallel hierarchical clustering on {} samples. This may still be slow for very large datasets.", n_samples);
+    }
+
+    // Use optimized Ward's method if requested (already parallel-optimized)
+    if method == LinkageMethod::Ward {
+        return optimized_ward::optimized_ward_linkage(data, metric);
+    }
+
+    // Calculate distances between observations
+    let distances = compute_distances(data, metric);
+
+    // Run the parallel clustering
+    parallel_linkage::parallel_hierarchical_clustering(&distances, n_samples, method)
 }
 
 /// Forms flat clusters from a hierarchical clustering result

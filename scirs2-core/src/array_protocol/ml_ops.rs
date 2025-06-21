@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -105,11 +105,10 @@ array_function_dispatch!(
                 let x_array = x_array.as_array();
                 let result = apply_activation(&x_array.view(), func);
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "activation not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "activation not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -188,11 +187,10 @@ array_function_dispatch!(
                 // In practice, we'd use a proper algorithm like im2col or FFT for this
 
                 return Ok(Box::new(NdarrayWrapper::new(output)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "conv2d not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "conv2d not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -254,11 +252,10 @@ array_function_dispatch!(
                 // In practice, we'd use a more efficient algorithm that handles padding properly
 
                 return Ok(Box::new(NdarrayWrapper::new(output)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "max_pool2d not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "max_pool2d not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -362,11 +359,10 @@ array_function_dispatch!(
                 // broadcasting and vectorized operations
 
                 return Ok(Box::new(NdarrayWrapper::new(output)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "batch_norm not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "batch_norm not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -478,11 +474,10 @@ array_function_dispatch!(
                 };
 
                 return Ok(Box::new(loss) as Box<dyn Any>);
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "cross_entropy not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "cross_entropy not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -552,11 +547,10 @@ array_function_dispatch!(
                 let result = input.clone() * &mask * scale;
 
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "dropout not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "dropout not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -652,11 +646,10 @@ array_function_dispatch!(
                 let output: Array<f64, Ix3> = Array::zeros((batch_size, q_len, d_k));
 
                 return Ok(Box::new(NdarrayWrapper::new(output)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "self_attention not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "self_attention not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation

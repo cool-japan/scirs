@@ -20,7 +20,7 @@ use crate::error::{NdimageError, Result};
 pub fn sum_labels<T, D>(
     input: &Array<T, D>,
     labels: &Array<usize, D>,
-    _index: Option<&[usize]>,
+    index: Option<&[usize]>,
 ) -> Result<Array1<T>>
 where
     T: Float + FromPrimitive + Debug + NumAssign,
@@ -39,8 +39,43 @@ where
         ));
     }
 
-    // Placeholder implementation
-    Ok(Array1::<T>::zeros(1))
+    // Find unique labels
+    let unique_labels: std::collections::HashSet<usize> = if let Some(idx) = index {
+        idx.iter().cloned().collect()
+    } else {
+        labels.iter().cloned().collect()
+    };
+
+    let mut sorted_labels: Vec<usize> = unique_labels.into_iter().collect();
+    sorted_labels.sort();
+
+    // Remove label 0 if it exists (typically background)
+    if sorted_labels.first() == Some(&0) {
+        sorted_labels.remove(0);
+    }
+
+    if sorted_labels.is_empty() {
+        return Ok(Array1::<T>::zeros(0));
+    }
+
+    // Create a mapping from label to index
+    let label_to_idx: std::collections::HashMap<usize, usize> = sorted_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+
+    // Initialize sums array
+    let mut sums = vec![T::zero(); sorted_labels.len()];
+
+    // Sum values for each label
+    for (input_val, label_val) in input.iter().zip(labels.iter()) {
+        if let Some(&idx) = label_to_idx.get(label_val) {
+            sums[idx] += *input_val;
+        }
+    }
+
+    Ok(Array1::from_vec(sums))
 }
 
 /// Calculate the mean of an array for each labeled region
@@ -57,7 +92,7 @@ where
 pub fn mean_labels<T, D>(
     input: &Array<T, D>,
     labels: &Array<usize, D>,
-    _index: Option<&[usize]>,
+    index: Option<&[usize]>,
 ) -> Result<Array1<T>>
 where
     T: Float + FromPrimitive + Debug + NumAssign,
@@ -76,8 +111,30 @@ where
         ));
     }
 
-    // Placeholder implementation
-    Ok(Array1::<T>::zeros(1))
+    // Get sums and counts for each label
+    let sums = sum_labels(input, labels, index)?;
+    let counts = count_labels(labels, index)?;
+
+    if sums.len() != counts.len() {
+        return Err(NdimageError::InvalidInput(
+            "Mismatch between sums and counts arrays".into(),
+        ));
+    }
+
+    // Calculate means (sum / count for each label)
+    let means: Vec<T> = sums
+        .iter()
+        .zip(counts.iter())
+        .map(|(&sum, &count)| {
+            if count > 0 {
+                sum / T::from_usize(count).unwrap()
+            } else {
+                T::zero()
+            }
+        })
+        .collect();
+
+    Ok(Array1::from_vec(means))
 }
 
 /// Calculate the variance of an array for each labeled region
@@ -127,7 +184,7 @@ where
 /// # Returns
 ///
 /// * `Result<Array1<usize>>` - Count of elements for each label
-pub fn count_labels<D>(labels: &Array<usize, D>, _index: Option<&[usize]>) -> Result<Array1<usize>>
+pub fn count_labels<D>(labels: &Array<usize, D>, index: Option<&[usize]>) -> Result<Array1<usize>>
 where
     D: Dimension,
 {
@@ -138,8 +195,43 @@ where
         ));
     }
 
-    // Placeholder implementation
-    Ok(Array1::<usize>::zeros(1))
+    // Find unique labels
+    let unique_labels: std::collections::HashSet<usize> = if let Some(idx) = index {
+        idx.iter().cloned().collect()
+    } else {
+        labels.iter().cloned().collect()
+    };
+
+    let mut sorted_labels: Vec<usize> = unique_labels.into_iter().collect();
+    sorted_labels.sort();
+
+    // Remove label 0 if it exists (typically background)
+    if sorted_labels.first() == Some(&0) {
+        sorted_labels.remove(0);
+    }
+
+    if sorted_labels.is_empty() {
+        return Ok(Array1::<usize>::zeros(0));
+    }
+
+    // Create a mapping from label to index
+    let label_to_idx: std::collections::HashMap<usize, usize> = sorted_labels
+        .iter()
+        .enumerate()
+        .map(|(i, &label)| (label, i))
+        .collect();
+
+    // Initialize counts array
+    let mut counts = vec![0usize; sorted_labels.len()];
+
+    // Count occurrences of each label
+    for &label_val in labels.iter() {
+        if let Some(&idx) = label_to_idx.get(&label_val) {
+            counts[idx] += 1;
+        }
+    }
+
+    Ok(Array1::from_vec(counts))
 }
 
 /// Calculate histogram of labeled array

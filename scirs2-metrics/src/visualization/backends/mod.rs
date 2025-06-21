@@ -8,12 +8,18 @@ use std::path::Path;
 
 use crate::visualization::{VisualizationData, VisualizationMetadata, VisualizationOptions};
 
+#[cfg(feature = "plotly_backend")]
 mod plotly;
+#[cfg(feature = "plotly_backend")]
 mod plotly_interactive;
+#[cfg(feature = "plotters_backend")]
 mod plotters;
 
+#[cfg(feature = "plotly_backend")]
 pub use self::plotly::PlotlyBackend;
+#[cfg(feature = "plotly_backend")]
 pub use self::plotly_interactive::{PlotlyInteractiveBackend, PlotlyInteractiveBackendInterface};
+#[cfg(feature = "plotters_backend")]
 pub use self::plotters::PlottersBackend;
 
 /// A trait for plotting backends
@@ -156,6 +162,7 @@ pub fn default_backend() -> impl PlottingBackend {
 ///
 /// let backend = backends::default_interactive_backend();
 /// ```
+#[cfg(feature = "plotly_backend")]
 pub fn default_interactive_backend() -> PlotlyInteractiveBackend {
     PlotlyInteractiveBackend::new()
 }

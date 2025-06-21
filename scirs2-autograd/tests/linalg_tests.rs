@@ -31,7 +31,7 @@ mod tests {
                 ctx,
             );
 
-            let tr = trace(&matrix);
+            let tr = trace(matrix);
             let result = tr.eval(ctx).unwrap();
 
             assert_eq!(result.shape(), &[] as &[usize]);
@@ -46,7 +46,7 @@ mod tests {
             let vector =
                 ag::tensor_ops::convert_to_tensor(ndarray::array![1., 2., 3.].into_dyn(), ctx);
 
-            let diag_matrix = diag(&vector);
+            let diag_matrix = diag(vector);
             let result = diag_matrix.eval(ctx).unwrap();
 
             assert_eq!(result.shape(), &[3, 3]);
@@ -55,7 +55,7 @@ mod tests {
             assert_eq!(result[[2, 2]], 3.0);
 
             // Test diagonal extraction
-            let extracted = extract_diag(&diag_matrix);
+            let extracted = extract_diag(diag_matrix);
             let extracted_result = extracted.eval(ctx).unwrap();
 
             assert_eq!(extracted_result.shape(), &[3]);
@@ -79,10 +79,10 @@ mod tests {
     fn test_qr_decomposition() {
         ag::run::<f64, _, _>(|ctx| {
             let a = ag::tensor_ops::random_normal(&[4, 3], 0.0, 1.0, ctx);
-            let (q, r) = qr(&a);
+            let (q, r) = qr(a);
 
             // Check that A = QR
-            let reconstructed = ag::tensor_ops::matmul(&q, &r);
+            let reconstructed = ag::tensor_ops::matmul(q, r);
             let a_val = a.eval(ctx).unwrap();
             let reconstructed_val = reconstructed.eval(ctx).unwrap();
 

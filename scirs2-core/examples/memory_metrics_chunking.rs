@@ -3,14 +3,24 @@
 //! This example demonstrates how to use the TrackedChunkProcessor to track
 //! memory usage during chunk-based processing of large arrays.
 
+#[cfg(not(feature = "memory_management"))]
+fn main() {
+    println!("This example requires the 'memory_management' feature to be enabled.");
+    println!("Run with: cargo run --example memory_metrics_chunking --features memory_management");
+}
+
+#[cfg(feature = "memory_management")]
 use ndarray::Array2;
+#[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
     format_bytes, format_memory_report, generate_memory_report, reset_memory_metrics,
     TrackedChunkProcessor2D,
 };
+#[cfg(feature = "memory_management")]
 use std::time::Instant;
 
 // Structure to share data across chunks
+#[cfg(feature = "memory_management")]
 struct SharedData {
     total_sum: f64,
     total_count: usize,
@@ -18,6 +28,7 @@ struct SharedData {
     max_value: f64,
 }
 
+#[cfg(feature = "memory_management")]
 fn main() {
     println!("Memory Metrics with TrackedChunkProcessor Example");
     println!("=================================================\n");
@@ -51,6 +62,7 @@ fn main() {
 }
 
 // Function to process array with standard chunking
+#[cfg(feature = "memory_management")]
 fn basic_chunking(array: &Array2<f64>) {
     let start = Instant::now();
     let mut sum = 0.0;
@@ -70,6 +82,7 @@ fn basic_chunking(array: &Array2<f64>) {
 }
 
 // Function to process array with tracked chunking
+#[cfg(feature = "memory_management")]
 fn tracked_chunking(array: &Array2<f64>) {
     let start = Instant::now();
 

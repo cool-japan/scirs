@@ -673,6 +673,50 @@ where
 }
 
 /// Convenience function to create an enhanced kriging model
+///
+/// Creates a basic enhanced kriging interpolator with default settings.
+/// This is the simplest way to get started with kriging interpolation.
+///
+/// # Arguments
+///
+/// * `points` - Training data points with shape (n_points, n_dims)
+/// * `values` - Training data values with shape (n_points,)
+/// * `cov_fn` - Covariance function to use
+/// * `length_scale` - Length scale parameter for the covariance function
+/// * `sigma_sq` - Signal variance parameter
+///
+/// # Returns
+///
+/// An enhanced kriging interpolator ready for prediction
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ndarray::{Array1, Array2};
+/// use scirs2_interpolate::advanced::enhanced_kriging::make_enhanced_kriging;
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
+///
+/// // Create sample 2D spatial data
+/// let points = Array2::from_shape_vec((4, 2), vec![
+///     0.0, 0.0,
+///     1.0, 0.0,
+///     0.0, 1.0,
+///     1.0, 1.0,
+/// ]).unwrap();
+/// let values = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
+///
+/// // Create enhanced kriging model
+/// let kriging = make_enhanced_kriging(
+///     &points.view(),
+///     &values.view(),
+///     CovarianceFunction::SquaredExponential,
+///     1.0,  // length scale
+///     1.0   // signal variance
+/// ).unwrap();
+///
+/// // The model is ready for making predictions
+/// println!("Enhanced kriging model created successfully");
+/// ```
 pub fn make_enhanced_kriging<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -702,6 +746,54 @@ where
 }
 
 /// Convenience function to create a universal kriging model
+///
+/// Creates a universal kriging interpolator that can handle non-stationary data by
+/// modeling a trend function in addition to the covariance structure. This is useful
+/// when the data exhibits a clear trend or drift.
+///
+/// # Arguments
+///
+/// * `points` - Training data points with shape (n_points, n_dims)
+/// * `values` - Training data values with shape (n_points,)
+/// * `cov_fn` - Covariance function for the residuals
+/// * `length_scale` - Length scale parameter for the covariance function
+/// * `sigma_sq` - Signal variance parameter
+/// * `trend_fn` - Type of trend function (Constant, Linear, Quadratic, etc.)
+///
+/// # Returns
+///
+/// A universal kriging interpolator with trend modeling
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ndarray::{Array1, Array2};
+/// use scirs2_interpolate::advanced::enhanced_kriging::{make_universal_kriging, TrendFunction};
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
+///
+/// // Create data with a linear trend: z = x + y + noise
+/// let points = Array2::from_shape_vec((6, 2), vec![
+///     0.0, 0.0,  // z ≈ 0
+///     1.0, 0.0,  // z ≈ 1
+///     0.0, 1.0,  // z ≈ 1
+///     1.0, 1.0,  // z ≈ 2
+///     2.0, 0.0,  // z ≈ 2
+///     0.0, 2.0,  // z ≈ 2
+/// ]).unwrap();
+/// let values = Array1::from_vec(vec![0.1, 1.05, 0.95, 2.1, 1.9, 2.05]);
+///
+/// // Create universal kriging with linear trend
+/// let kriging = make_universal_kriging(
+///     &points.view(),
+///     &values.view(),
+///     CovarianceFunction::Exponential,
+///     0.5,  // length scale
+///     0.1,  // signal variance
+///     TrendFunction::Linear
+/// ).unwrap();
+///
+/// println!("Universal kriging model with linear trend created");
+/// ```
 pub fn make_universal_kriging<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
@@ -732,6 +824,57 @@ where
 }
 
 /// Convenience function to create a Bayesian kriging model
+///
+/// Creates a fully Bayesian kriging interpolator that incorporates parameter
+/// uncertainty through prior distributions. This provides more robust uncertainty
+/// quantification by marginalizing over hyperparameter uncertainty.
+///
+/// # Arguments
+///
+/// * `points` - Training data points with shape (n_points, n_dims)
+/// * `values` - Training data values with shape (n_points,)
+/// * `cov_fn` - Covariance function to use
+/// * `priors` - Prior distributions for hyperparameters
+/// * `n_samples` - Number of posterior samples for uncertainty quantification
+///
+/// # Returns
+///
+/// A Bayesian kriging interpolator with full uncertainty quantification
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ndarray::{Array1, Array2};
+/// use scirs2_interpolate::advanced::enhanced_kriging::{make_bayesian_kriging, KrigingPriors, ParameterPrior};
+/// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
+///
+/// // Create noisy observational data
+/// let points = Array2::from_shape_vec((8, 1), vec![
+///     0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5
+/// ]).unwrap();
+/// let values = Array1::from_vec(vec![
+///     0.1, 0.6, 0.9, 1.4, 1.8, 2.3, 2.9, 3.6  // f(x) ≈ x with noise
+/// ]);
+///
+/// // Define prior distributions for hyperparameters
+/// let priors = KrigingPriors {
+///     length_scale_prior: ParameterPrior::Uniform(0.1, 2.0),
+///     sigma_sq_prior: ParameterPrior::Uniform(0.01, 1.0),
+///     nugget_prior: ParameterPrior::Uniform(0.001, 0.1),
+///     trend_coeffs_prior: ParameterPrior::Uniform(0.0, 1.0),
+/// };
+///
+/// // Create Bayesian kriging model
+/// let kriging = make_bayesian_kriging(
+///     &points.view(),
+///     &values.view(),
+///     CovarianceFunction::Matern52,
+///     priors,
+///     1000  // number of posterior samples
+/// ).unwrap();
+///
+/// println!("Bayesian kriging model created with 1000 posterior samples");
+/// ```
 pub fn make_bayesian_kriging<F>(
     _points: &ArrayView2<F>,
     _values: &ArrayView1<F>,

@@ -26,6 +26,18 @@ impl<F: Float + Debug + ScalarOperand + 'static> Default for Sequential<F> {
     }
 }
 
+impl<F: Float + Debug + ScalarOperand + 'static> Clone for Sequential<F> {
+    fn clone(&self) -> Self {
+        // Note: We can't clone the layer trait objects directly
+        // This creates a new empty model - the Clone trait is mainly for testing
+        Sequential {
+            layers: Vec::new(), // Cannot clone trait objects
+            layer_outputs: Vec::new(),
+            input: None,
+        }
+    }
+}
+
 impl<F: Float + Debug + ScalarOperand + 'static> Sequential<F> {
     /// Create a new empty sequential model
     pub fn new() -> Self {

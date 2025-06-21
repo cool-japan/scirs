@@ -3,9 +3,22 @@
 //! This module provides various finite difference schemes for approximating
 //! spatial derivatives in PDEs. These schemes can be used with the Method of Lines
 //! approach to convert PDEs into systems of ODEs.
+//!
+//! # Modules
+//!
+//! - `irregular_domains`: Support for irregular domains with ghost points
+//!   and immersed boundary methods
+
+pub mod irregular_domains;
 
 use crate::pde::{PDEError, PDEResult};
 use ndarray::{Array1, Array2, ArrayView1};
+
+// Re-export important types from irregular_domains
+pub use irregular_domains::{
+    BoundaryCondition, DerivativeType, GridPoint, ImmersedBoundary, IrregularGrid,
+    IrregularStencils, PointType,
+};
 
 /// Enum for different finite difference schemes
 #[derive(Debug, Clone, Copy, PartialEq)]

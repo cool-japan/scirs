@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Original data: {:?}", data);
 
     // Create a memory-mapped array
-    let mut mmap = create_mmap(&data, &file_path, AccessMode::Write, 0)?;
+    let mmap = create_mmap(&data, &file_path, AccessMode::Write, 0)?;
     println!("Created memory-mapped array with {} elements", mmap.size);
 
     // Read the array back

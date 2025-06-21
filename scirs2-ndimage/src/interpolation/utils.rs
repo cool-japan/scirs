@@ -1,7 +1,6 @@
 //! Utility functions for interpolation
 
-// using these types only in function signatures
-// use ndarray::Dimension;
+use ndarray::Array;
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -162,5 +161,204 @@ mod tests {
         // Weights should sum to 1
         let sum: f64 = weights.iter().sum();
         assert!((sum - 1.0).abs() < 1e-10);
+    }
+}
+
+/// Helper function for nearest neighbor interpolation
+pub fn interpolate_nearest<T>(
+    input: &Array<T, ndarray::IxDyn>,
+    coords: &[T],
+    boundary: &BoundaryMode,
+    const_val: T,
+) -> T
+where
+    T: Float + FromPrimitive + Debug,
+{
+    // Round coordinates to nearest integers
+    let int_coords: Vec<isize> = coords
+        .iter()
+        .map(|&coord| coord.round().to_isize().unwrap_or(0))
+        .collect();
+
+    // Apply boundary conditions and check bounds
+    let input_shape = input.shape();
+    let bounded_coords: Vec<usize> = int_coords
+        .iter()
+        .enumerate()
+        .map(|(i, &coord)| {
+            let dim_size = input_shape[i] as isize;
+            apply_boundary_condition(coord, dim_size, boundary)
+        })
+        .collect();
+
+    // Check if coordinates are valid (within bounds after boundary handling)
+    for (i, &coord) in bounded_coords.iter().enumerate() {
+        if coord >= input_shape[i] {
+            return const_val; // Out of bounds, return constant value
+        }
+    }
+
+    // Get value at the bounded coordinates
+    input
+        .get(bounded_coords.as_slice())
+        .copied()
+        .unwrap_or(const_val)
+}
+
+/// Helper function for linear interpolation  
+pub fn interpolate_linear<T>(
+    input: &Array<T, ndarray::IxDyn>,
+    coords: &[T],
+    boundary: &BoundaryMode,
+    const_val: T,
+) -> T
+where
+    T: Float + FromPrimitive + Debug,
+{
+    let ndim = coords.len();
+    if ndim == 0 {
+        return const_val;
+    }
+
+    // Handle 1D linear interpolation
+    if ndim == 1 {
+        let x = coords[0];
+        let x0 = x.floor();
+        let x1 = x0 + T::one();
+        let dx = x - x0;
+
+        let i0 = x0.to_isize().unwrap_or(0);
+        let i1 = x1.to_isize().unwrap_or(0);
+
+        let dim_size = input.shape()[0] as isize;
+        let idx0 = apply_boundary_condition(i0, dim_size, boundary);
+        let idx1 = apply_boundary_condition(i1, dim_size, boundary);
+
+        // Check bounds for constant mode
+        if matches!(boundary, BoundaryMode::Constant)
+            && (i0 < 0 || i0 >= dim_size || i1 < 0 || i1 >= dim_size)
+        {
+            return const_val;
+        }
+
+        let v0 = input.get([idx0]).copied().unwrap_or(const_val);
+        let v1 = input.get([idx1]).copied().unwrap_or(const_val);
+
+        return v0 * (T::one() - dx) + v1 * dx;
+    }
+
+    // For 2D and higher, use separable linear interpolation
+    if ndim == 2 {
+        let x = coords[0];
+        let y = coords[1];
+
+        let x0 = x.floor();
+        let x1 = x0 + T::one();
+        let y0 = y.floor();
+        let y1 = y0 + T::one();
+
+        let dx = x - x0;
+        let dy = y - y0;
+
+        let i0 = x0.to_isize().unwrap_or(0);
+        let i1 = x1.to_isize().unwrap_or(0);
+        let j0 = y0.to_isize().unwrap_or(0);
+        let j1 = y1.to_isize().unwrap_or(0);
+
+        let dim_size_x = input.shape()[0] as isize;
+        let dim_size_y = input.shape()[1] as isize;
+
+        let idx0 = apply_boundary_condition(i0, dim_size_x, boundary);
+        let idx1 = apply_boundary_condition(i1, dim_size_x, boundary);
+        let jdx0 = apply_boundary_condition(j0, dim_size_y, boundary);
+        let jdx1 = apply_boundary_condition(j1, dim_size_y, boundary);
+
+        // Check bounds for constant mode
+        if matches!(boundary, BoundaryMode::Constant)
+            && (i0 < 0
+                || i0 >= dim_size_x
+                || i1 < 0
+                || i1 >= dim_size_x
+                || j0 < 0
+                || j0 >= dim_size_y
+                || j1 < 0
+                || j1 >= dim_size_y)
+        {
+            return const_val;
+        }
+
+        let v00 = input.get([idx0, jdx0]).copied().unwrap_or(const_val);
+        let v01 = input.get([idx0, jdx1]).copied().unwrap_or(const_val);
+        let v10 = input.get([idx1, jdx0]).copied().unwrap_or(const_val);
+        let v11 = input.get([idx1, jdx1]).copied().unwrap_or(const_val);
+
+        // Bilinear interpolation
+        let v0 = v00 * (T::one() - dy) + v01 * dy;
+        let v1 = v10 * (T::one() - dy) + v11 * dy;
+
+        return v0 * (T::one() - dx) + v1 * dx;
+    }
+
+    // For higher dimensions, fall back to nearest neighbor
+    interpolate_nearest(input, coords, boundary, const_val)
+}
+
+/// Apply boundary condition to a coordinate
+pub fn apply_boundary_condition(coord: isize, dim_size: isize, mode: &BoundaryMode) -> usize {
+    match mode {
+        BoundaryMode::Constant => {
+            if coord < 0 || coord >= dim_size {
+                // Return a value that will be caught as out of bounds
+                dim_size as usize
+            } else {
+                coord as usize
+            }
+        }
+        BoundaryMode::Nearest => {
+            if coord < 0 {
+                0
+            } else if coord >= dim_size {
+                (dim_size - 1) as usize
+            } else {
+                coord as usize
+            }
+        }
+        BoundaryMode::Wrap => {
+            if dim_size == 0 {
+                0
+            } else {
+                let wrapped = ((coord % dim_size) + dim_size) % dim_size;
+                wrapped as usize
+            }
+        }
+        BoundaryMode::Reflect => {
+            if dim_size <= 1 {
+                0
+            } else {
+                let reflected = if coord < 0 {
+                    (-coord - 1) % dim_size
+                } else if coord >= dim_size {
+                    (2 * dim_size - coord - 1) % dim_size
+                } else {
+                    coord
+                };
+                reflected as usize
+            }
+        }
+        BoundaryMode::Mirror => {
+            if dim_size <= 1 {
+                0
+            } else {
+                let period = 2 * (dim_size - 1);
+                let mirrored = if coord < 0 {
+                    (-coord) % period
+                } else if coord >= dim_size {
+                    period - ((coord - dim_size + 1) % period) - 1
+                } else {
+                    coord
+                };
+                (mirrored.min(dim_size - 1)) as usize
+            }
+        }
     }
 }

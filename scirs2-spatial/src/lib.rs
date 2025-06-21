@@ -121,6 +121,95 @@
 //! }
 //! ```
 //!
+//! ### Alpha Shapes
+//!
+//! ```
+//! use scirs2_spatial::AlphaShape;
+//! use ndarray::array;
+//!
+//! // Create a point set with some outliers
+//! let points = array![
+//!     [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0],  // Square corners
+//!     [0.5, 0.5],                                        // Interior point
+//!     [2.0, 0.5], [3.0, 0.5]                            // Outliers
+//! ];
+//!
+//! // Compute alpha shape with different alpha values
+//! let alpha_small = AlphaShape::new(&points, 0.3).unwrap();
+//! let alpha_large = AlphaShape::new(&points, 1.5).unwrap();
+//!
+//! // Get boundary (edges in 2D)
+//! let boundary_small = alpha_small.boundary();
+//! let boundary_large = alpha_large.boundary();
+//!
+//! println!("Small alpha boundary edges: {}", boundary_small.len());
+//! println!("Large alpha boundary edges: {}", boundary_large.len());
+//!
+//! // Find optimal alpha automatically
+//! let (optimal_alpha, optimal_shape) = AlphaShape::find_optimal_alpha(&points, "area").unwrap();
+//! println!("Optimal alpha: {:.3}", optimal_alpha);
+//! println!("Shape area: {:.3}", optimal_shape.measure().unwrap());
+//! ```
+//!
+//! ### Halfspace Intersection
+//!
+//! ```
+//! use scirs2_spatial::halfspace::{HalfspaceIntersection, Halfspace};
+//! use ndarray::array;
+//!
+//! // Define halfspaces for a unit square: x ≥ 0, y ≥ 0, x ≤ 1, y ≤ 1
+//! let halfspaces = vec![
+//!     Halfspace::new(array![-1.0, 0.0], 0.0),   // -x ≤ 0  =>  x ≥ 0
+//!     Halfspace::new(array![0.0, -1.0], 0.0),   // -y ≤ 0  =>  y ≥ 0
+//!     Halfspace::new(array![1.0, 0.0], 1.0),    //  x ≤ 1
+//!     Halfspace::new(array![0.0, 1.0], 1.0),    //  y ≤ 1
+//! ];
+//!
+//! let intersection = HalfspaceIntersection::new(&halfspaces, None).unwrap();
+//!
+//! // Get the vertices of the resulting polytope
+//! let vertices = intersection.vertices();
+//! println!("Polytope has {} vertices", vertices.nrows());
+//!
+//! // Check properties
+//! println!("Is bounded: {}", intersection.is_bounded());
+//! println!("Volume/Area: {:.3}", intersection.volume().unwrap());
+//! ```
+//!
+//! ### Boolean Operations on Polygons
+//!
+//! ```
+//! use scirs2_spatial::boolean_ops::{polygon_union, polygon_intersection, polygon_difference};
+//! use ndarray::array;
+//!
+//! // Define two overlapping squares
+//! let poly1 = array![
+//!     [0.0, 0.0],
+//!     [2.0, 0.0],
+//!     [2.0, 2.0],
+//!     [0.0, 2.0]
+//! ];
+//!
+//! let poly2 = array![
+//!     [1.0, 1.0],
+//!     [3.0, 1.0],
+//!     [3.0, 3.0],
+//!     [1.0, 3.0]
+//! ];
+//!
+//! // Compute union
+//! let union_result = polygon_union(&poly1.view(), &poly2.view()).unwrap();
+//! println!("Union has {} vertices", union_result.nrows());
+//!
+//! // Compute intersection  
+//! let intersection_result = polygon_intersection(&poly1.view(), &poly2.view()).unwrap();
+//! println!("Intersection has {} vertices", intersection_result.nrows());
+//!
+//! // Compute difference (poly1 - poly2)
+//! let difference_result = polygon_difference(&poly1.view(), &poly2.view()).unwrap();
+//! println!("Difference has {} vertices", difference_result.nrows());
+//! ```
+//!
 //! ### Set-Based Distances
 //!
 //! ```
@@ -207,6 +296,30 @@
 //! for (i, pos) in path.nodes.iter().enumerate() {
 //!     println!("  Step {}: {:?}", i, pos);
 //! }
+//! ```
+//!
+//! ### SIMD-Accelerated Distance Calculations
+//!
+//! ```
+//! use scirs2_spatial::simd_distance::{simd_euclidean_distance_batch, parallel_pdist};
+//! use ndarray::array;
+//!
+//! // SIMD batch distance calculation between corresponding points
+//! let points1 = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
+//! let points2 = array![[1.0, 0.0], [2.0, 1.0], [3.0, 2.0]];
+//!
+//! let distances = simd_euclidean_distance_batch(&points1.view(), &points2.view()).unwrap();
+//! println!("Batch distances: {:?}", distances);
+//!
+//! // Parallel pairwise distance matrix computation
+//! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
+//! let dist_matrix = parallel_pdist(&points.view(), "euclidean").unwrap();
+//! println!("Distance matrix shape: {:?}", dist_matrix.shape());
+//!
+//! // High-performance k-nearest neighbors search
+//! use scirs2_spatial::simd_distance::simd_knn_search;
+//! let (indices, distances) = simd_knn_search(&points1.view(), &points.view(), 2, "euclidean").unwrap();
+//! println!("Nearest neighbor indices: {:?}", indices);
 //! ```
 //!
 //! ### RRT Pathfinding
@@ -317,6 +430,34 @@ pub use procrustes::{procrustes, procrustes_extended, ProcrustesParams};
 pub mod convex_hull;
 pub use convex_hull::{convex_hull, ConvexHull};
 
+// Alpha shapes
+pub mod alpha_shapes;
+pub use alpha_shapes::AlphaShape;
+
+// Halfspace intersection
+pub mod halfspace;
+pub use halfspace::{Halfspace, HalfspaceIntersection};
+
+// Boolean operations
+pub mod boolean_ops;
+pub use boolean_ops::{
+    compute_polygon_area, is_convex_polygon, is_self_intersecting, polygon_difference,
+    polygon_intersection, polygon_symmetric_difference, polygon_union,
+};
+
+// Kriging interpolation
+pub mod kriging;
+pub use kriging::{KrigingPrediction, OrdinaryKriging, SimpleKriging, VariogramModel};
+
+// Geospatial functionality
+pub mod geospatial;
+pub use geospatial::{
+    cross_track_distance, destination_point, final_bearing, geographic_to_utm,
+    geographic_to_web_mercator, haversine_distance, initial_bearing, midpoint, normalize_bearing,
+    point_in_spherical_polygon, spherical_polygon_area, vincenty_distance,
+    web_mercator_to_geographic, EARTH_RADIUS_KM, EARTH_RADIUS_M,
+};
+
 // Set-based distance metrics
 pub mod set_distance;
 pub use set_distance::{
@@ -369,6 +510,13 @@ pub use collision::narrowphase::{
 };
 // Re-export continuous collision functions
 pub use collision::continuous::continuous_sphere_sphere_collision;
+
+// SIMD-accelerated distance calculations
+pub mod simd_distance;
+pub use simd_distance::{
+    parallel_cdist, parallel_pdist, simd_euclidean_distance, simd_euclidean_distance_batch,
+    simd_knn_search, simd_manhattan_distance, SimdMetric,
+};
 
 // Utility functions
 mod utils;

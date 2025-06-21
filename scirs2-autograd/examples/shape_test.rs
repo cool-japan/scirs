@@ -36,10 +36,10 @@ fn main() {
 
         // 4. Try more advanced operations
         println!("\n=== 4. Testing matrix operations ===");
-        let det = ag::tensor_ops::determinant(&v);
+        let det = ag::tensor_ops::determinant(v);
         let det_eval = det.eval(g).unwrap();
         println!("Determinant shape: {:?}", det_eval.shape());
-        if det_eval.shape().len() == 0 {
+        if det_eval.shape().is_empty() {
             println!("Determinant value: {}", det_eval[[]]);
         } else {
             println!("ERROR: Determinant has wrong shape: {:?}", det_eval.shape());

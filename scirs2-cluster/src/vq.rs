@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use ndarray::{Array2, ArrayView2};
-//! use scirs2_cluster::vq::{kmeans, KMeansInit, KMeansOptions};
+//! use scirs2_cluster::vq::kmeans;
 //!
 //! // Example data
 //! let data = Array2::from_shape_vec((6, 2), vec![
@@ -19,12 +19,8 @@
 //!     4.2, 4.1,
 //! ]).unwrap();
 //!
-//! // Run k-means with k=2 and parallel initialization
-//! let options = KMeansOptions {
-//!     init_method: KMeansInit::KMeansParallel,
-//!     ..Default::default()
-//! };
-//! let (centroids, labels) = kmeans(ArrayView2::from(&data), 2, Some(options)).unwrap();
+//! // Run k-means with k=2
+//! let (centroids, labels) = kmeans(ArrayView2::from(&data), 2, None, None, None, None).unwrap();
 //!
 //! // Print the results
 //! println!("Centroids: {:?}", centroids);
@@ -37,14 +33,29 @@ use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
 
+mod distance_metrics;
+mod distance_simd;
 mod kmeans;
 mod kmeans2;
 mod minibatch_kmeans;
 mod parallel_kmeans;
-pub use kmeans::*;
-pub use kmeans2::{kmeans2, MinitMethod, MissingMethod};
+mod weighted_kmeans;
+pub use distance_metrics::{
+    create_metric, ChebyshevDistance, CorrelationDistance, CosineDistance,
+    DistanceMetric as VQDistanceMetric, EuclideanDistance, MahalanobisDistance, ManhattanDistance,
+    MetricType, MinkowskiDistance,
+};
+pub use distance_simd::{
+    distance_to_centroids_simd, pairwise_euclidean_parallel, pairwise_euclidean_simd,
+};
+pub use kmeans::{
+    kmeans, kmeans_init, kmeans_plus_plus, kmeans_with_metric, kmeans_with_options, KMeansInit,
+    KMeansOptions,
+};
+pub use kmeans2::{kmeans2, kmeans2_str, MinitMethod, MissingMethod};
 pub use minibatch_kmeans::*;
 pub use parallel_kmeans::{parallel_kmeans, ParallelKMeansOptions};
+pub use weighted_kmeans::{weighted_kmeans, weighted_kmeans_plus_plus, WeightedKMeansOptions};
 
 /// Computes the Euclidean distance between two vectors
 pub fn euclidean_distance<F>(x: ArrayView1<F>, y: ArrayView1<F>) -> F

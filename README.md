@@ -283,7 +283,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.1.0-alpha.4"
+scirs2 = "0.1.0-alpha.5"
 ```
 
 Or include only the specific modules you need:
@@ -291,16 +291,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.1.0-alpha.4"
+scirs2-core = "0.1.0-alpha.5"
 
 # Scientific computing modules
-scirs2-linalg = "0.1.0-alpha.4"
-scirs2-stats = "0.1.0-alpha.4"
-scirs2-optimize = "0.1.0-alpha.4"
+scirs2-linalg = "0.1.0-alpha.5"
+scirs2-stats = "0.1.0-alpha.5"
+scirs2-optimize = "0.1.0-alpha.5"
 
 # AI/ML modules
-scirs2-neural = "0.1.0-alpha.4"
-scirs2-autograd = "0.1.0-alpha.4"
+scirs2-neural = "0.1.0-alpha.5"
+scirs2-autograd = "0.1.0-alpha.5"
 ```
 
 ### Example Usage
@@ -463,26 +463,28 @@ The following modules are in preview state and may undergo API changes:
 - **Memory Metrics** for detailed memory usage analysis
 - **Optimized SIMD Operations** for performance-critical code
 
-### Current Focus: Module Integration
+### Key Capabilities
 
-We are currently working on:
-- Integrating advanced core features across all modules
-- Performance optimization and benchmarking
-- Comprehensive documentation and examples
-- API refinement based on community feedback
+SciRS2 provides:
+- **Advanced Error Handling**: Comprehensive error framework with recovery strategies, async support, and diagnostics engine
+- **Computer Vision Registration**: Rigid, affine, homography, and non-rigid registration algorithms with RANSAC robustness
+- **Performance Benchmarking**: Automated benchmarking framework with SciPy comparison and optimization tools
+- **Numerical Precision**: High-precision eigenvalue solvers and optimized numerical algorithms
 
-### Publication Status and Plans
+### Installation
 
-All SciRS2 modules have been published to crates.io as alpha releases (0.1.0-alpha.4), making the entire ecosystem available to the Rust community while development continues.
+All SciRS2 modules are available on crates.io. Add the modules you need to your `Cargo.toml`:
 
-- **Alpha Release (0.1.0-alpha.1)**: Initial modules released on crates.io (April 2025)
-- **Alpha Release (0.1.0-alpha.2)**: All modules released on crates.io (May 2025)
-- **Alpha Release (0.1.0-alpha.3)**: Fixed memory metrics snapshot system and updated tests (May 2025)
-- **Alpha Release (0.1.0-alpha.4)**: Enhanced autograd module, fixed matrix operations, and cleaned up repository (June 2025)
-- **Beta Release (0.1.0-beta.1)**: Planned after incorporating feedbacks (July 2025)
-- **First Stable Release (0.1.0)**: Targeted after API stabilization and comprehensive testing (August 2025)
+```toml
+[dependencies]
+scirs2 = "0.1.0-alpha.5"  # Core library with all modules
+# Or individual modules:
+scirs2-linalg = "0.1.0-alpha.5"  # Linear algebra
+scirs2-stats = "0.1.0-alpha.5"   # Statistics
+# ... and more
+```
 
-For a detailed development roadmap, check the [TODO.md](TODO.md) file.
+For development roadmap and contribution guidelines, see [TODO.md](TODO.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Performance Characteristics
 

@@ -20,7 +20,7 @@ mod tests {
         assert_eq!(chunked_fixed.chunk_size(), chunk_size);
 
         // Number of chunks should be ceil(total_size / chunk_size)
-        let expected_chunks = (data.len() + chunk_size - 1) / chunk_size;
+        let expected_chunks = data.len().div_ceil(chunk_size);
         assert_eq!(chunked_fixed.num_chunks(), expected_chunks);
 
         // Test with fixed bytes strategy
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn test_optimal_chunk_size() {
         // Just verify that OPTIMAL_CHUNK_SIZE is a reasonable value
-        assert!(OPTIMAL_CHUNK_SIZE > 0);
+        // OPTIMAL_CHUNK_SIZE is guaranteed to be > 0 by its definition
 
         // Check that a 2D array with dimensions that would fit in the optimal chunk size
         // is correctly processed

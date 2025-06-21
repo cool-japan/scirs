@@ -86,7 +86,7 @@ impl<F: Float + Debug + Display + FromPrimitive> NeuralMetricAdapter<F> {
                 let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
                 let pos_label = 1.0;
                 let result =
-                    crate::classification::precision_score(&preds_f64, &targets_f64, pos_label)?;
+                    crate::classification::precision_score(&targets_f64, &preds_f64, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )
@@ -102,7 +102,7 @@ impl<F: Float + Debug + Display + FromPrimitive> NeuralMetricAdapter<F> {
                 let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
                 let pos_label = 1.0;
                 let result =
-                    crate::classification::recall_score(&preds_f64, &targets_f64, pos_label)?;
+                    crate::classification::recall_score(&targets_f64, &preds_f64, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )
@@ -117,7 +117,7 @@ impl<F: Float + Debug + Display + FromPrimitive> NeuralMetricAdapter<F> {
                 let preds_f64 = preds.mapv(|x| x.to_f64().unwrap_or(0.0));
                 let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
                 let pos_label = 1.0;
-                let result = crate::classification::f1_score(&preds_f64, &targets_f64, pos_label)?;
+                let result = crate::classification::f1_score(&targets_f64, &preds_f64, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )

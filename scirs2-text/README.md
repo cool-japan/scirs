@@ -25,14 +25,14 @@ Text processing module for SciRS2 (Scientific Computing in Rust - Next Generatio
 
 ### Stemming and Lemmatization
 - **Porter Stemmer**: Classic algorithm for word stemming
-- **Snowball Stemmer**: Enhanced Porter stemmer (English)
+- **Snowball Stemmer**: Advanced stemmer for English
 - **Simple Lemmatizer**: Dictionary-based lemmatization
 
 ### Text Vectorization
 - **Count Vectorizer**: Bag-of-words representation
 - **TF-IDF Vectorizer**: Term frequency-inverse document frequency with normalization
 - **Binary Vectorizer**: Binary occurrence vectors
-- **Enhanced Vectorizers**: 
+- **Advanced Features**: 
   - N-gram support (unigrams, bigrams, trigrams, etc.)
   - Document frequency filtering (min_df, max_df)
   - Maximum features limitation
@@ -56,7 +56,7 @@ Text processing module for SciRS2 (Scientific Computing in Rust - Next Generatio
   - **Weighted Damerau-Levenshtein**: Flexible weights for all edit operations
 - **Phonetic Algorithms**:
   - **Soundex**: Phonetic encoding for similar-sounding words
-  - **Metaphone**: Improved phonetic algorithm
+  - **Metaphone**: Advanced phonetic algorithm
 
 ### Vocabulary Management
 - Dynamic vocabulary building
@@ -70,7 +70,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-text = "0.1.0-alpha.4"
+scirs2-text = "0.1.0-alpha.5"
 ```
 
 ## Quick Start

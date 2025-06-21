@@ -80,7 +80,7 @@ pub fn sparse_component_analysis(
             let regularized =
                 &sourcest_sources + &(Array2::<f64>::eye(n_components) * config.regularization);
 
-            match solve(&regularized.view(), &sourcest_target.view()) {
+            match solve(&regularized.view(), &sourcest_target.view(), None) {
                 Ok(solution) => {
                     for j in 0..n_components {
                         mixing[[i, j]] = solution[j];

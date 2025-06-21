@@ -13,7 +13,7 @@ use scirs2_text::{
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== SciRS2 Text Processing Demo ===\n");
 
-    let documents = vec![
+    let documents = [
         "The quick brown fox jumps over the lazy dog.",
         "A fast red fox leaped over the sleeping canine.",
         "Machine learning algorithms process textual data efficiently.",
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("5. Count Vectorization");
     let mut count_vectorizer = CountVectorizer::new(false);
 
-    let doc_refs: Vec<&str> = documents.iter().map(|s| s.as_ref()).collect();
+    let doc_refs = documents.to_vec();
     count_vectorizer.fit(&doc_refs)?;
 
     // Transform individual documents

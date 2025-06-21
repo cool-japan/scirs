@@ -79,8 +79,8 @@ fn demo_matrix_operations() {
         let c = T::matmul(a, b);
 
         // Trace equivalent using sum of diagonal
-        let diag_sum = T::diag_part(c);
-        let trace_c = T::sum(&diag_sum, &[], false);
+        let diag_sum = T::extract_diag(c);
+        let trace_c = T::reduce_sum(&diag_sum, &[], false);
 
         // Gradient of trace w.r.t. A and B
         let grads = T::grad(&[trace_c], &[a, b]);
@@ -168,10 +168,10 @@ fn demo_linalg_ops() {
         // Matrix exponential approximation (first 3 terms of Taylor series)
         let i = T::eye(2, ctx);
         let a_sq = T::matmul(a, a);
-        let exp_approx = i + a + T::scalar_mul(0.5, a_sq);
+        let exp_approx = i + a + T::scalar_mul(a_sq, 0.5);
 
         // Sum all elements
-        let exp_sum = T::sum(&T::flatten(exp_approx), &[], false);
+        let exp_sum = T::reduce_sum(&T::flatten(exp_approx), &[], false);
         let grad_exp = &T::grad(&[exp_sum], &[a])[0];
 
         let exp_result = ctx

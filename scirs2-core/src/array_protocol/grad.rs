@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -849,7 +849,7 @@ impl Variable {
     }
 
     /// Get the gradient tensor.
-    pub fn tensor(&self) -> &GradientTensor {
+    pub const fn tensor(&self) -> &GradientTensor {
         &self.tensor
     }
 

@@ -184,7 +184,7 @@ fn compare_wavelets(signal: &[f64], noisy_signal: &[f64], t: &[f64]) {
 
         // Add trace to comparison plot
         let denoised_trace = Scatter::new(t.to_vec(), denoised)
-            .name(&format!("Denoised ({})", name))
+            .name(format!("Denoised ({})", name))
             .mode(Mode::Lines);
         plot.add_trace(denoised_trace);
     }

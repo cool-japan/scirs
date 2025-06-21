@@ -6,7 +6,7 @@
 
 use crate::error::OptimizeError;
 use ndarray::{Array2, ArrayView2};
-use scirs2_sparse::{csr_array::CsrArray, sparray::SparseArray};
+use scirs2_sparse::csr_array::CsrArray;
 
 /// Type alias for the return type of compress_jacobian_pattern
 pub type CompressedJacobianPattern = (CsrArray<f64>, Array2<f64>, Array2<f64>);

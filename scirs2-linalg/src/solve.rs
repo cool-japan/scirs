@@ -7,6 +7,11 @@ use std::iter::Sum;
 use crate::basic::inv;
 use crate::decomposition::{lu, qr, svd};
 use crate::error::{LinalgError, LinalgResult};
+use crate::validation::{
+    validate_finite_matrix, validate_finite_vector, validate_least_squares, validate_linear_system,
+    validate_matrix_vector_dimensions, validate_multiple_linear_systems, validate_not_empty_matrix,
+    validate_not_empty_vector, validate_square_matrix,
+};
 
 /// Solution to a least-squares problem
 pub struct LstsqResult<F: Float> {
@@ -28,6 +33,7 @@ pub struct LstsqResult<F: Float> {
 ///
 /// * `a` - Coefficient matrix
 /// * `b` - Ordinate or "dependent variable" values
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -41,32 +47,24 @@ pub struct LstsqResult<F: Float> {
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
 /// let b = array![2.0_f64, 3.0];
-/// let x = solve(&a.view(), &b.view()).unwrap();
+/// let x = solve(&a.view(), &b.view(), None).unwrap();
 /// assert!((x[0] - 2.0).abs() < 1e-10);
 /// assert!((x[1] - 3.0).abs() < 1e-10);
 /// ```
-pub fn solve<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<Array1<F>>
+pub fn solve<F>(
+    a: &ArrayView2<F>,
+    b: &ArrayView1<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array1<F>>
 where
     F: Float + NumAssign + One + Sum,
 {
-    if a.nrows() != a.ncols() {
-        return Err(LinalgError::ShapeError(format!(
-            "Expected square matrix, got shape {:?}",
-            a.shape()
-        )));
-    }
-
-    if a.nrows() != b.len() {
-        return Err(LinalgError::ShapeError(format!(
-            "Shape mismatch: matrix shape {:?}, vector shape {:?}",
-            a.shape(),
-            b.shape()
-        )));
-    }
+    // Parameter validation using helper function
+    validate_linear_system(a, b, "Linear system solve")?;
 
     // For small matrices, we can solve directly using the inverse
     if a.nrows() <= 4 {
-        let a_inv = inv(a)?;
+        let a_inv = inv(a, None)?;
         // Compute x = a_inv * b
         let mut x = Array1::zeros(a.nrows());
         for i in 0..a.nrows() {
@@ -77,14 +75,19 @@ where
         return Ok(x);
     }
 
+    // Configure OpenMP thread count if workers specified
+    if let Some(num_workers) = workers {
+        std::env::set_var("OMP_NUM_THREADS", num_workers.to_string());
+    }
+
     // For larger systems, use LU decomposition
-    let (p, l, u) = match lu(a) {
-        Err(LinalgError::SingularMatrixError(msg)) => {
-            return Err(LinalgError::SingularMatrixError(format!(
-                "{}\nMatrix shape: {:?}\nOperation: solve linear system",
-                msg,
-                a.shape()
-            )))
+    let (p, l, u) = match lu(a, workers) {
+        Err(LinalgError::SingularMatrixError(_)) => {
+            return Err(LinalgError::singular_matrix_with_suggestions(
+                "linear system solve",
+                a.dim(),
+                None,
+            ))
         }
         Err(e) => return Err(e),
         Ok(result) => result,
@@ -142,20 +145,13 @@ pub fn solve_triangular<F>(
 where
     F: Float + NumAssign + Sum,
 {
-    if a.nrows() != a.ncols() {
-        return Err(LinalgError::ShapeError(format!(
-            "Expected square matrix, got shape {:?}",
-            a.shape()
-        )));
-    }
-
-    if a.nrows() != b.len() {
-        return Err(LinalgError::ShapeError(format!(
-            "Shape mismatch: matrix shape {:?}, vector shape {:?}",
-            a.shape(),
-            b.shape()
-        )));
-    }
+    // Parameter validation using helper functions
+    validate_not_empty_matrix(a, "Triangular system solve")?;
+    validate_not_empty_vector(b, "Triangular system solve")?;
+    validate_square_matrix(a, "Triangular system solve")?;
+    validate_matrix_vector_dimensions(a, b, "Triangular system solve")?;
+    validate_finite_matrix(a, "Triangular system solve")?;
+    validate_finite_vector(b, "Triangular system solve")?;
 
     let n = a.nrows();
     let mut x = Array1::zeros(n);
@@ -171,10 +167,11 @@ where
                 x[i] = sum;
             } else {
                 if a[[i, i]].abs() < F::epsilon() {
-                    return Err(LinalgError::SingularMatrixError(format!(
-                        "Diagonal element is zero in triangular solve\nMatrix shape: {:?}",
-                        a.shape()
-                    )));
+                    return Err(LinalgError::singular_matrix_with_suggestions(
+                        "triangular system solve (forward substitution)",
+                        a.dim(),
+                        Some(1e16), // Very high condition number due to zero diagonal
+                    ));
                 }
                 x[i] = sum / a[[i, i]];
             }
@@ -190,10 +187,11 @@ where
                 x[i] = sum;
             } else {
                 if a[[i, i]].abs() < F::epsilon() {
-                    return Err(LinalgError::SingularMatrixError(format!(
-                        "Diagonal element is zero in triangular solve\nMatrix shape: {:?}",
-                        a.shape()
-                    )));
+                    return Err(LinalgError::singular_matrix_with_suggestions(
+                        "triangular system solve (back substitution)",
+                        a.dim(),
+                        Some(1e16), // Very high condition number due to zero diagonal
+                    ));
                 }
                 x[i] = sum / a[[i, i]];
             }
@@ -212,6 +210,7 @@ where
 ///
 /// * `a` - Coefficient matrix
 /// * `b` - Ordinate or "dependent variable" values
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -229,25 +228,29 @@ where
 ///
 /// let a = array![[1.0_f64, 1.0], [1.0, 2.0], [1.0, 3.0]];
 /// let b = array![6.0_f64, 9.0, 12.0];
-/// let result = lstsq(&a.view(), &b.view()).unwrap();
+/// let result = lstsq(&a.view(), &b.view(), None).unwrap();
 /// // result.x should be approximately [3.0, 3.0]
 /// ```
-pub fn lstsq<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<LstsqResult<F>>
+pub fn lstsq<F>(
+    a: &ArrayView2<F>,
+    b: &ArrayView1<F>,
+    workers: Option<usize>,
+) -> LinalgResult<LstsqResult<F>>
 where
     F: Float + NumAssign + Sum + One + ndarray::ScalarOperand,
 {
-    if a.nrows() != b.len() {
-        return Err(LinalgError::ShapeError(format!(
-            "Shape mismatch: matrix shape {:?}, vector shape {:?}",
-            a.shape(),
-            b.shape()
-        )));
+    // Parameter validation using helper function
+    validate_least_squares(a, b, "Least squares solve")?;
+
+    // Configure OpenMP thread count if workers specified
+    if let Some(num_workers) = workers {
+        std::env::set_var("OMP_NUM_THREADS", num_workers.to_string());
     }
 
     // For underdetermined systems with full rank, use the normal equation approach
     if a.nrows() >= a.ncols() {
         // QR decomposition approach
-        let (q, r) = qr(a)?;
+        let (q, r) = qr(a, workers)?;
 
         // Compute Q^T * b
         let qt = q.t().to_owned();
@@ -290,7 +293,7 @@ where
         })
     } else {
         // Underdetermined system, use SVD
-        let (u, s, vt) = svd(a, false)?;
+        let (u, s, vt) = svd(a, false, workers)?;
 
         // Determine effective rank by thresholding singular values
         let threshold = s[0] * F::from(a.nrows().max(a.ncols())).unwrap() * F::epsilon();
@@ -342,6 +345,7 @@ where
 ///
 /// * `a` - Coefficient matrix
 /// * `b` - Matrix of right-hand sides where each column is a different right-hand side
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -355,37 +359,34 @@ where
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
 /// let b = array![[2.0_f64, 4.0], [3.0, 5.0]];
-/// let x = solve_multiple(&a.view(), &b.view()).unwrap();
+/// let x = solve_multiple(&a.view(), &b.view(), None).unwrap();
 /// // First column of x should be [2.0, 3.0]
 /// // Second column of x should be [4.0, 5.0]
 /// ```
-pub fn solve_multiple<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
+pub fn solve_multiple<F>(
+    a: &ArrayView2<F>,
+    b: &ArrayView2<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + One + Sum,
 {
-    if a.nrows() != a.ncols() {
-        return Err(LinalgError::ShapeError(format!(
-            "Expected square matrix, got shape {:?}",
-            a.shape()
-        )));
-    }
+    // Parameter validation using helper function
+    validate_multiple_linear_systems(a, b, "Multiple linear systems solve")?;
 
-    if a.nrows() != b.nrows() {
-        return Err(LinalgError::ShapeError(format!(
-            "Shape mismatch: matrix shape {:?}, right-hand sides shape {:?}",
-            a.shape(),
-            b.shape()
-        )));
+    // Configure OpenMP thread count if workers specified
+    if let Some(num_workers) = workers {
+        std::env::set_var("OMP_NUM_THREADS", num_workers.to_string());
     }
 
     // For efficiency, perform LU decomposition once
-    let (p, l, u) = match lu(a) {
-        Err(LinalgError::SingularMatrixError(msg)) => {
-            return Err(LinalgError::SingularMatrixError(format!(
-                "{}\nMatrix shape: {:?}\nOperation: solve multiple linear systems",
-                msg,
-                a.shape()
-            )))
+    let (p, l, u) = match lu(a, workers) {
+        Err(LinalgError::SingularMatrixError(_)) => {
+            return Err(LinalgError::singular_matrix_with_suggestions(
+                "multiple linear systems solve",
+                a.dim(),
+                None,
+            ))
         }
         Err(e) => return Err(e),
         Ok(result) => result,
@@ -422,6 +423,32 @@ where
     Ok(x)
 }
 
+// Convenience wrapper functions for backward compatibility
+
+/// Solve linear system using default thread count
+pub fn solve_default<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<Array1<F>>
+where
+    F: Float + NumAssign + One + Sum,
+{
+    solve(a, b, None)
+}
+
+/// Compute least-squares solution using default thread count
+pub fn lstsq_default<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<LstsqResult<F>>
+where
+    F: Float + NumAssign + Sum + One + ndarray::ScalarOperand,
+{
+    lstsq(a, b, None)
+}
+
+/// Solve multiple linear systems using default thread count
+pub fn solve_multiple_default<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + One + Sum,
+{
+    solve_multiple(a, b, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -433,14 +460,14 @@ mod tests {
         // Identity matrix
         let a = array![[1.0, 0.0], [0.0, 1.0]];
         let b = array![2.0, 3.0];
-        let x = solve(&a.view(), &b.view()).unwrap();
+        let x = solve(&a.view(), &b.view(), None).unwrap();
         assert_relative_eq!(x[0], 2.0);
         assert_relative_eq!(x[1], 3.0);
 
         // General 2x2 matrix
         let a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![5.0, 11.0];
-        let x = solve(&a.view(), &b.view()).unwrap();
+        let x = solve(&a.view(), &b.view(), None).unwrap();
         assert_relative_eq!(x[0], 1.0);
         assert_relative_eq!(x[1], 2.0);
     }

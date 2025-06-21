@@ -241,6 +241,7 @@ fn main() -> Result<()> {
             metrics: vec![val_accuracy],
             history: &epoch_history,
             stop_training: false,
+            model: None,
         };
 
         // Visualize progress with metrics chart

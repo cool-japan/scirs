@@ -33,15 +33,18 @@ pub fn jade_ica(
 
     // Use PCA as initial guess
     let (pca_sources, pca_mixing) = pca(signals, config)?;
-    let pca_unmixing =
-        match solve_multiple(&pca_mixing.view(), &Array2::<f64>::eye(n_signals).view()) {
-            Ok(inv) => inv.slice(s![0..n_components, ..]).to_owned(),
-            Err(_) => {
-                return Err(crate::error::SignalError::Compute(
-                    "Failed to compute PCA unmixing matrix".to_string(),
-                ));
-            }
-        };
+    let pca_unmixing = match solve_multiple(
+        &pca_mixing.view(),
+        &Array2::<f64>::eye(n_signals).view(),
+        None,
+    ) {
+        Ok(inv) => inv.slice(s![0..n_components, ..]).to_owned(),
+        Err(_) => {
+            return Err(crate::error::SignalError::Compute(
+                "Failed to compute PCA unmixing matrix".to_string(),
+            ));
+        }
+    };
 
     // Calculate cumulant matrices
     for k in 0..n_components {

@@ -1,11 +1,11 @@
 use super::chunked::{ChunkedArray, ChunkingStrategy, OPTIMAL_CHUNK_SIZE};
 use super::validation;
-use crate::error::{CoreError, CoreResult, ErrorContext, ErrorLocation};
+use crate::error::{CoreError, ErrorContext, ErrorLocation};
 use bincode::{deserialize, serialize};
-use ndarray::{Array, ArrayBase, Data, Dimension, Ix1, Ix2, IxDyn, ShapeBuilder};
+use ndarray::{Array, ArrayBase, Data, Dimension};
 use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
@@ -57,7 +57,7 @@ where
             .create(true)
             .truncate(true)
             .open(file_path)
-            .map_err(|e| CoreError::IoError(e))?;
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         // Serialize data to file (in chunks if data is large)
         let _chunked = ChunkedArray::new(data.to_owned(), strategy);
@@ -72,7 +72,7 @@ where
         })?;
 
         file.write_all(&serialized)
-            .map_err(|e| CoreError::IoError(e))?;
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         Ok(Self {
             shape,
@@ -92,16 +92,14 @@ where
     where
         S: Data<Elem = A>,
     {
-        let temp_file = NamedTempFile::new().map_err(|e| CoreError::IoError(e))?;
+        let temp_file = NamedTempFile::new()
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
         let file_path = temp_file.path().to_path_buf();
 
         // Manually persist the temp file so it stays around after we return
-        let _file = temp_file.persist(&file_path).map_err(|e| {
-            CoreError::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        let _file = temp_file
+            .persist(&file_path)
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         let mut result = Self::new(data, &file_path, strategy)?;
         result.is_temp = true;
@@ -111,11 +109,12 @@ where
 
     /// Load the entire array into memory
     pub fn load(&self) -> Result<Array<A, D>, CoreError> {
-        let mut file = File::open(&self.file_path).map_err(|e| CoreError::IoError(e))?;
+        let mut file = File::open(&self.file_path)
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
-            .map_err(|e| CoreError::IoError(e))?;
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         let array: Array<A, D> = deserialize(&buffer).map_err(|e| {
             CoreError::ValidationError(
@@ -150,13 +149,14 @@ where
         let actual_chunk_size = end_idx - start_idx;
 
         // Open the file
-        let mut file = File::open(&self.file_path).map_err(|e| CoreError::IoError(e))?;
+        let mut file = File::open(&self.file_path)
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         // Read the header to get overall structure
         let mut header_buf = Vec::new();
         // Read the first 1KB to extract metadata (adjust if needed)
         file.read_to_end(&mut header_buf)
-            .map_err(|e| CoreError::IoError(e))?;
+            .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
 
         // Deserialize the whole array for now
         // Note: In a more efficient implementation, we would:
@@ -186,12 +186,24 @@ where
 
         // Extract just this chunk's data from the full array
         // This is inefficient; a better implementation would read directly from disk
-        let chunk = full_array.clone().into_shape(chunk_shape).map_err(|e| {
+        let cloned_array = full_array.clone();
+        let chunk_dynamic = cloned_array.to_shape(chunk_shape).map_err(|e| {
             CoreError::DimensionError(
                 ErrorContext::new(format!("Failed to reshape chunk: {}", e))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )
         })?;
+
+        // Convert back to the original dimension type
+        let chunk = chunk_dynamic
+            .to_owned()
+            .into_dimensionality::<D>()
+            .map_err(|e| {
+                CoreError::DimensionError(
+                    ErrorContext::new(format!("Failed to convert chunk dimension: {}", e))
+                        .with_location(ErrorLocation::new(file!(), line!())),
+                )
+            })?;
 
         Ok(chunk)
     }
@@ -202,7 +214,7 @@ where
             ChunkingStrategy::Auto => OPTIMAL_CHUNK_SIZE / std::mem::size_of::<A>(),
             ChunkingStrategy::Fixed(size) => size,
             ChunkingStrategy::FixedBytes(bytes) => bytes / std::mem::size_of::<A>(),
-            ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+            ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
         }
     }
 
@@ -212,10 +224,10 @@ where
             ChunkingStrategy::Auto => OPTIMAL_CHUNK_SIZE / std::mem::size_of::<A>(),
             ChunkingStrategy::Fixed(size) => size,
             ChunkingStrategy::FixedBytes(bytes) => bytes / std::mem::size_of::<A>(),
-            ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+            ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
         };
 
-        (self.size + chunk_size - 1) / chunk_size
+        self.size.div_ceil(chunk_size)
     }
 
     /// Check if the array is temporary
@@ -262,7 +274,7 @@ where
         F: Fn(Array<A, D>) -> B + Send + Sync,
         B: Send,
         R: FromIterator<B> + Send,
-        A: Send,
+        A: Send + Sync,
     {
         use rayon::prelude::*;
 

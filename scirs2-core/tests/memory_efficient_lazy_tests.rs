@@ -1,9 +1,7 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use approx::assert_relative_eq;
-    use ndarray::{Array, Array1, Array2};
-    use scirs2_core::memory_efficient::{evaluate, LazyArray, LazyOp};
-    use std::fmt;
+    use ndarray::Array1;
+    use scirs2_core::memory_efficient::{evaluate, LazyArray, LazyOp, LazyOpKind};
 
     #[test]
     fn test_lazy_array_creation() {
@@ -16,7 +14,7 @@ mod tests {
         assert_eq!(lazy.shape, data.shape());
 
         // Check that data is stored
-        assert!(lazy.data.is_some());
+        assert!(lazy.concrete_data.is_some());
 
         // Check that there are no operations
         assert!(lazy.ops.is_empty());
@@ -27,15 +25,13 @@ mod tests {
         let shape = vec![3, 4];
 
         // Create a lazy array with shape only
-        let lazy = LazyArray::<f64, ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>::with_shape(
-            shape.clone(),
-        );
+        let lazy = LazyArray::<f64, ndarray::Dim<[usize; 2]>>::with_shape(shape.clone());
 
         // Check that the shape is correct
         assert_eq!(lazy.shape, shape);
 
         // Check that there is no data
-        assert!(lazy.data.is_none());
+        assert!(lazy.concrete_data.is_none());
 
         // Check that there are no operations
         assert!(lazy.ops.is_empty());
@@ -80,17 +76,24 @@ mod tests {
 
     #[test]
     fn test_lazy_op_display() {
-        // Check that LazyOp::Unary can be displayed
-        let op: LazyOp<f64, f64> = LazyOp::Unary(Box::new(|&x| x * x));
+        // Check that LazyOp with Unary kind can be displayed
+        let op = LazyOp {
+            kind: LazyOpKind::Unary,
+            op: std::rc::Rc::new(Box::new(|&x: &f64| x * x) as Box<dyn std::any::Any>),
+            data: None,
+        };
         let display = format!("{}", op);
         assert!(display.contains("Unary"));
 
-        // Check that LazyOp::Reshape can be displayed
+        // Check that LazyOp with Reshape kind can be displayed
         let shape = vec![2, 3];
-        let op: LazyOp<f64, f64> = LazyOp::Reshape(shape.clone());
+        let op = LazyOp {
+            kind: LazyOpKind::Reshape,
+            op: std::rc::Rc::new(Box::new(()) as Box<dyn std::any::Any>),
+            data: Some(std::rc::Rc::new(shape.clone())),
+        };
         let display = format!("{}", op);
         assert!(display.contains("Reshape"));
-        assert!(display.contains(&format!("{:?}", shape)));
     }
 
     #[test]

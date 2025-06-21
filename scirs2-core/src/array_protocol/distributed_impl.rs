@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -13,7 +13,7 @@
 //! Distributed array implementation using the array protocol.
 //!
 //! This module provides a more complete implementation of distributed arrays
-//! than the mock version in the main array_protocol module.
+//! than the mock version in the main `array_protocol` module.
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -137,6 +137,7 @@ where
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
     /// Create a new distributed array from chunks.
+    #[must_use]
     pub fn new(
         chunks: Vec<ArrayChunk<T, D>>,
         shape: Vec<usize>,
@@ -152,7 +153,11 @@ where
     }
 
     /// Create a distributed array by splitting an existing array.
-    pub fn from_array(array: Array<T, D>, config: DistributedConfig) -> Self {
+    #[must_use]
+    pub fn from_array(array: &Array<T, D>, config: DistributedConfig) -> Self
+    where
+        T: Clone,
+    {
         // This is a simplified implementation - in a real system, this would
         // actually distribute the array across multiple nodes or threads
 
@@ -181,16 +186,19 @@ where
     }
 
     /// Get the number of chunks in this distributed array.
+    #[must_use]
     pub fn num_chunks(&self) -> usize {
         self.chunks.len()
     }
 
     /// Get the shape of this distributed array.
+    #[must_use]
     pub fn shape(&self) -> &[usize] {
         &self.shape
     }
 
     /// Get a reference to the chunks in this distributed array.
+    #[must_use]
     pub fn chunks(&self) -> &[ArrayChunk<T, D>] {
         &self.chunks
     }
@@ -199,6 +207,9 @@ where
     ///
     /// Note: This implementation is simplified to avoid complex trait bounds.
     /// In a real implementation, this would involve proper communication between nodes.
+    ///
+    /// # Errors
+    /// Returns `CoreError` if array conversion fails.
     pub fn to_array(&self) -> CoreResult<Array<T, ndarray::IxDyn>>
     where
         T: Clone + Default + num_traits::One,
@@ -215,6 +226,7 @@ where
     }
 
     /// Execute a function on each chunk in parallel.
+    #[must_use]
     pub fn map<F, R>(&self, f: F) -> Vec<R>
     where
         F: Fn(&ArrayChunk<T, D>) -> R + Send + Sync,
@@ -226,6 +238,11 @@ where
     }
 
     /// Reduce the results of mapping a function across all chunks.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the chunks collection is empty and no initial value can be reduced.
+    #[must_use]
     pub fn map_reduce<F, R, G>(&self, map_fn: F, reduce_fn: G) -> R
     where
         F: Fn(&ArrayChunk<T, D>) -> R + Send + Sync,
@@ -286,6 +303,7 @@ where
                 let sum = self.map_reduce(|chunk| chunk.data.sum(), |a, b| a + b);
 
                 // Calculate the total number of elements across all chunks
+                #[allow(clippy::cast_precision_loss)]
                 let count = self.shape.iter().product::<usize>() as f64;
 
                 // Calculate mean
@@ -300,7 +318,7 @@ where
                 }
 
                 // Try to get the second argument as a distributed array
-                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
@@ -320,11 +338,7 @@ where
                         });
                     }
 
-                    let result = DistributedNdarray::new(
-                        new_chunks,
-                        self.shape.clone(),
-                        self.config.clone(),
-                    );
+                    let result = Self::new(new_chunks, self.shape.clone(), self.config.clone());
 
                     return Ok(Box::new(result));
                 }
@@ -338,7 +352,7 @@ where
                 }
 
                 // Try to get the second argument as a distributed array
-                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
@@ -358,11 +372,7 @@ where
                         });
                     }
 
-                    let result = DistributedNdarray::new(
-                        new_chunks,
-                        self.shape.clone(),
-                        self.config.clone(),
-                    );
+                    let result = Self::new(new_chunks, self.shape.clone(), self.config.clone());
 
                     return Ok(Box::new(result));
                 }
@@ -381,7 +391,7 @@ where
                 }
 
                 // Try to get the second argument as a distributed array
-                if let Some(other) = args[1].downcast_ref::<DistributedNdarray<T, D>>() {
+                if let Some(other) = args[1].downcast_ref::<Self>() {
                     // Check that shapes are compatible
                     if self.shape.len() != 2
                         || other.shape.len() != 2
@@ -398,7 +408,7 @@ where
                     // Create a dummy result array
                     // Using a simpler approach with IxDyn directly
                     let dummy_shape = ndarray::IxDyn(&result_shape);
-                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape);
 
                     // Create a new distributed array with the dummy result
                     let chunk = ArrayChunk {
@@ -431,7 +441,7 @@ where
                 // Create a dummy result array
                 // Using a simpler approach with IxDyn directly
                 let dummy_shape = ndarray::IxDyn(&transposed_shape);
-                let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+                let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape);
 
                 // Create a new distributed array with the dummy result
                 let chunk = ArrayChunk {
@@ -465,7 +475,7 @@ where
                     // Create a dummy result array
                     // Using a simpler approach with IxDyn directly
                     let dummy_shape = ndarray::IxDyn(shape);
-                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape.clone());
+                    let dummy_array = Array::<T, ndarray::IxDyn>::zeros(dummy_shape);
 
                     // Create a new distributed array with the dummy result
                     let chunk = ArrayChunk {
@@ -516,20 +526,29 @@ where
         + num_traits::One,
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
+    #[must_use]
     fn distribution_info(&self) -> HashMap<String, String> {
         let mut info = HashMap::new();
         info.insert("type".to_string(), "distributed_ndarray".to_string());
         info.insert("chunks".to_string(), self.chunks.len().to_string());
-        info.insert("shape".to_string(), format!("{:?}", self.shape));
+        info.insert(
+            "shape".to_string(),
+            format!("{shape:?}", shape = self.shape),
+        );
         info.insert("id".to_string(), self.id.clone());
         info.insert(
             "strategy".to_string(),
-            format!("{:?}", self.config.strategy),
+            format!("{strategy:?}", strategy = self.config.strategy),
         );
-        info.insert("backend".to_string(), format!("{:?}", self.config.backend));
+        info.insert(
+            "backend".to_string(),
+            format!("{backend:?}", backend = self.config.backend),
+        );
         info
     }
 
+    /// # Errors
+    /// Returns `CoreError` if gathering fails.
     fn gather(&self) -> CoreResult<Box<dyn ArrayProtocol>>
     where
         D: ndarray::RemoveAxis,
@@ -543,6 +562,8 @@ where
         Ok(Box::new(super::NdarrayWrapper::new(array_dyn)))
     }
 
+    /// # Errors
+    /// Returns `CoreError` if scattering fails.
     fn scatter(&self, chunks: usize) -> CoreResult<Box<dyn DistributedArray>> {
         // Create a new distributed array with a different number of chunks, but since
         // to_array requires complex trait bounds, we'll do a simplified version
@@ -553,7 +574,7 @@ where
 
         // Create a new distributed array with the specified number of chunks
         // For simplicity, we'll just create a copy of the existing chunks
-        let new_dist_array = DistributedNdarray {
+        let new_dist_array = Self {
             config,
             chunks: self.chunks.clone(),
             shape: self.shape.clone(),
@@ -563,6 +584,7 @@ where
         Ok(Box::new(new_dist_array))
     }
 
+    #[must_use]
     fn is_distributed(&self) -> bool {
         true
     }
@@ -581,7 +603,7 @@ mod tests {
             ..Default::default()
         };
 
-        let dist_array = DistributedNdarray::from_array(array.clone(), config);
+        let dist_array = DistributedNdarray::from_array(&array, config);
 
         // Check that the array was split correctly
         assert_eq!(dist_array.num_chunks(), 3);
@@ -608,7 +630,7 @@ mod tests {
             ..Default::default()
         };
 
-        let dist_array = DistributedNdarray::from_array(array.clone(), config);
+        let dist_array = DistributedNdarray::from_array(&array, config);
 
         // Convert back to a regular array
         let result = dist_array.to_array().unwrap();
@@ -630,7 +652,7 @@ mod tests {
             ..Default::default()
         };
 
-        let dist_array = DistributedNdarray::from_array(array.clone(), config);
+        let dist_array = DistributedNdarray::from_array(&array, config);
 
         // Since our modified implementation creates 3 copies of the same data,
         // we need to account for that in the test

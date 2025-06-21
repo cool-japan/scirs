@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-fft"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Fast Fourier Transform module for SciRS2"
@@ -15,7 +15,9 @@ helper = []
 window = []
 minimal = []
 parallel = ["rayon"]
-cuda = ["rayon"] # Optional CUDA support for GPU acceleration
+cuda = ["rayon"] # Optional CUDA support for GPU acceleration (dependencies disabled)
+hip = ["rayon"] # Optional ROCm/HIP support for AMD GPU acceleration
+sycl = ["rayon"] # Optional SYCL support for cross-platform GPU acceleration
 never = [] # Used to conditionally disable tests during development
 
 [dependencies]
@@ -39,6 +41,14 @@ serde_json = { workspace = true }
 num_cpus = { workspace = true }
 tempfile = { workspace = true }
 rand_distr = { workspace = true }
+
+# CUDA dependencies (optional) - temporarily disabled
+# cudarc = { version = "0.12", optional = true, features = ["driver", "runtime", "cublas", "curand"] }
+# cufft = { version = "0.3", optional = true } # Temporarily disabled - version not available
+
+# ROCm/HIP dependencies (optional) - temporarily disabled  
+# hiprt = { version = "0.2", optional = true }
+# rocblas = { version = "0.2", optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }

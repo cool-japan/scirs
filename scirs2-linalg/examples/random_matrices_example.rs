@@ -116,7 +116,7 @@ fn demo_positive_definite<R: rand::Rng>(rng: &mut R) -> LinalgResult<()> {
 
     // Test Cholesky decomposition (only works for positive definite)
     use scirs2_linalg::cholesky;
-    match cholesky(&pd_matrix.view()) {
+    match cholesky(&pd_matrix.view(), None) {
         Ok(_) => println!("✓ Cholesky decomposition successful (matrix is positive definite)"),
         Err(_) => println!("✗ Cholesky decomposition failed"),
     }

@@ -420,23 +420,30 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             }
 
             // Create train and validation datasets
-            // Create dataset views
-            struct DatasetView<'a, F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> {
-                dataset: &'a dyn Dataset<F>,
-                indices: &'a [usize],
+            // Instead of using a DatasetView with references, we'll create an owned version
+            struct DatasetSubset<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> {
+                data: Vec<(
+                    ndarray::Array<F, ndarray::IxDyn>,
+                    ndarray::Array<F, ndarray::IxDyn>,
+                )>,
             }
 
-            impl<'a, F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> DatasetView<'a, F> {
-                fn new(dataset: &'a dyn Dataset<F>, indices: &'a [usize]) -> Self {
-                    Self { dataset, indices }
+            impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> DatasetSubset<F> {
+                fn new(dataset: &dyn Dataset<F>, indices: &[usize]) -> Result<Self> {
+                    let mut data = Vec::with_capacity(indices.len());
+                    for &idx in indices {
+                        let (input, target) = dataset.get(idx)?;
+                        data.push((input, target));
+                    }
+                    Ok(Self { data })
                 }
             }
 
             impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Dataset<F>
-                for DatasetView<'_, F>
+                for DatasetSubset<F>
             {
                 fn len(&self) -> usize {
-                    self.indices.len()
+                    self.data.len()
                 }
 
                 fn get(
@@ -446,26 +453,25 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                     ndarray::Array<F, ndarray::IxDyn>,
                     ndarray::Array<F, ndarray::IxDyn>,
                 )> {
-                    if idx >= self.indices.len() {
+                    if idx >= self.data.len() {
                         return Err(crate::error::NeuralError::InferenceError(format!(
                             "Index out of bounds: {} >= {}",
                             idx,
-                            self.indices.len()
+                            self.data.len()
                         )));
                     }
-                    let orig_idx = self.indices[idx];
-                    self.dataset.get(orig_idx)
+                    Ok((self.data[idx].0.clone(), self.data[idx].1.clone()))
                 }
 
                 fn box_clone(&self) -> Box<dyn Dataset<F> + Send + Sync> {
-                    // Since we can't easily clone a DatasetView with a reference,
-                    // return an unimplemented error
-                    unimplemented!("DatasetView cannot be cloned because it contains references")
+                    // Create a new DatasetSubset with cloned data
+                    let cloned_data = self.data.clone();
+                    Box::new(Self { data: cloned_data })
                 }
             }
 
-            let _train_dataset = DatasetView::new(dataset, &fold.train_indices);
-            let val_dataset = DatasetView::new(dataset, &fold.val_indices);
+            let _train_dataset = DatasetSubset::new(dataset, &fold.train_indices)?;
+            let val_dataset = DatasetSubset::new(dataset, &fold.val_indices)?;
 
             // Build model
             let model = model_builder.build()?;

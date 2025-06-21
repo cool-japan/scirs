@@ -392,14 +392,189 @@ where
     }
 }
 
-/// Helper function to solve normal equations (simplified)
-fn solve_normal_equations<F>(_xtx: &Array2<F>, xty: &Array2<F>) -> Result<Array2<F>>
+/// Helper function to solve normal equations (X'X)β = X'Y
+fn solve_normal_equations<F>(xtx: &Array2<F>, xty: &Array2<F>) -> Result<Array2<F>>
 where
     F: Float + FromPrimitive + Debug + Display + ScalarOperand,
 {
-    // This is a placeholder - would use proper linear algebra solver
-    // For now, just return the xty matrix scaled by a small factor
-    Ok(xty * F::from(0.1).unwrap())
+    let n = xtx.nrows();
+    let _k = xty.ncols();
+
+    if n != xtx.ncols() {
+        return Err(TimeSeriesError::InvalidInput(
+            "X'X matrix must be square".to_string(),
+        ));
+    }
+
+    if n != xty.nrows() {
+        return Err(TimeSeriesError::InvalidInput(
+            "Dimensions of X'X and X'Y do not match".to_string(),
+        ));
+    }
+
+    // Try Cholesky decomposition first (for positive definite matrices)
+    if let Ok(beta) = solve_cholesky(xtx, xty) {
+        return Ok(beta);
+    }
+
+    // Fall back to LU decomposition with partial pivoting
+    solve_lu_decomposition(xtx, xty)
+}
+
+/// Solve using Cholesky decomposition
+fn solve_cholesky<F>(a: &Array2<F>, b: &Array2<F>) -> Result<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let n = a.nrows();
+    let k = b.ncols();
+
+    // Cholesky decomposition: A = LL^T
+    let mut l = Array2::<F>::zeros((n, n));
+
+    for i in 0..n {
+        for j in 0..=i {
+            if i == j {
+                // Diagonal elements
+                let mut sum = F::zero();
+                for k in 0..j {
+                    sum = sum + l[[j, k]] * l[[j, k]];
+                }
+                let val = a[[j, j]] - sum;
+                if val <= F::zero() {
+                    return Err(TimeSeriesError::NumericalInstability(
+                        "Matrix is not positive definite for Cholesky decomposition".to_string(),
+                    ));
+                }
+                l[[j, j]] = val.sqrt();
+            } else {
+                // Lower triangular elements
+                let mut sum = F::zero();
+                for k in 0..j {
+                    sum = sum + l[[i, k]] * l[[j, k]];
+                }
+                if l[[j, j]] == F::zero() {
+                    return Err(TimeSeriesError::NumericalInstability(
+                        "Zero pivot in Cholesky decomposition".to_string(),
+                    ));
+                }
+                l[[i, j]] = (a[[i, j]] - sum) / l[[j, j]];
+            }
+        }
+    }
+
+    // Solve Ly = b for each column of b
+    let mut y = Array2::<F>::zeros((n, k));
+    for col in 0..k {
+        for i in 0..n {
+            let mut sum = F::zero();
+            for j in 0..i {
+                sum = sum + l[[i, j]] * y[[j, col]];
+            }
+            y[[i, col]] = (b[[i, col]] - sum) / l[[i, i]];
+        }
+    }
+
+    // Solve L^T x = y for each column
+    let mut x = Array2::<F>::zeros((n, k));
+    for col in 0..k {
+        for i in (0..n).rev() {
+            let mut sum = F::zero();
+            for j in (i + 1)..n {
+                sum = sum + l[[j, i]] * x[[j, col]];
+            }
+            x[[i, col]] = (y[[i, col]] - sum) / l[[i, i]];
+        }
+    }
+
+    Ok(x)
+}
+
+/// Solve using LU decomposition with partial pivoting
+fn solve_lu_decomposition<F>(a: &Array2<F>, b: &Array2<F>) -> Result<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let n = a.nrows();
+    let k = b.ncols();
+
+    // Create working copies
+    let mut lu = a.clone();
+    let mut b_work = b.clone();
+    let mut perm = (0..n).collect::<Vec<_>>();
+
+    // LU decomposition with partial pivoting
+    for col in 0..n {
+        // Find pivot
+        let mut max_val = lu[[col, col]].abs();
+        let mut max_row = col;
+
+        for row in (col + 1)..n {
+            let val = lu[[row, col]].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = row;
+            }
+        }
+
+        // Swap rows if needed
+        if max_row != col {
+            for j in 0..n {
+                let temp = lu[[col, j]];
+                lu[[col, j]] = lu[[max_row, j]];
+                lu[[max_row, j]] = temp;
+            }
+
+            for j in 0..k {
+                let temp = b_work[[col, j]];
+                b_work[[col, j]] = b_work[[max_row, j]];
+                b_work[[max_row, j]] = temp;
+            }
+
+            perm.swap(col, max_row);
+        }
+
+        // Check for near-zero pivot
+        if lu[[col, col]].abs() < F::from(1e-12).unwrap() {
+            return Err(TimeSeriesError::NumericalInstability(
+                "Near-zero pivot in LU decomposition".to_string(),
+            ));
+        }
+
+        // Eliminate below pivot
+        for row in (col + 1)..n {
+            let factor = lu[[row, col]] / lu[[col, col]];
+            lu[[row, col]] = factor; // Store multiplier
+
+            for j in (col + 1)..n {
+                lu[[row, j]] = lu[[row, j]] - factor * lu[[col, j]];
+            }
+
+            for j in 0..k {
+                b_work[[row, j]] = b_work[[row, j]] - factor * b_work[[col, j]];
+            }
+        }
+    }
+
+    // Back substitution
+    let mut x = Array2::<F>::zeros((n, k));
+    for col in 0..k {
+        // Copy solution
+        for i in 0..n {
+            x[[i, col]] = b_work[[i, col]];
+        }
+
+        // Solve Ux = y
+        for i in (0..n).rev() {
+            let mut sum = F::zero();
+            for j in (i + 1)..n {
+                sum = sum + lu[[i, j]] * x[[j, col]];
+            }
+            x[[i, col]] = (x[[i, col]] - sum) / lu[[i, i]];
+        }
+    }
+
+    Ok(x)
 }
 
 /// Model selection criteria
@@ -471,13 +646,81 @@ where
     Ok(best_order)
 }
 
-/// Calculate log determinant of a matrix (simplified)
-fn matrix_log_determinant<F>(_matrix: &Array2<F>) -> F
+/// Calculate log determinant of a matrix using LU decomposition
+fn matrix_log_determinant<F>(matrix: &Array2<F>) -> F
 where
     F: Float + FromPrimitive + Debug + Display + ScalarOperand,
 {
-    // Placeholder - would use proper determinant calculation
-    F::one()
+    let n = matrix.nrows();
+    if n != matrix.ncols() {
+        return F::neg_infinity(); // Invalid matrix
+    }
+
+    if n == 0 {
+        return F::zero();
+    }
+
+    // Create working copy for LU decomposition
+    let mut lu = matrix.clone();
+    let mut sign = F::one();
+
+    // LU decomposition with partial pivoting
+    for col in 0..n {
+        // Find pivot
+        let mut max_val = lu[[col, col]].abs();
+        let mut max_row = col;
+
+        for row in (col + 1)..n {
+            let val = lu[[row, col]].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = row;
+            }
+        }
+
+        // Swap rows if needed
+        if max_row != col {
+            for j in col..n {
+                let temp = lu[[col, j]];
+                lu[[col, j]] = lu[[max_row, j]];
+                lu[[max_row, j]] = temp;
+            }
+            sign = -sign; // Row swap changes determinant sign
+        }
+
+        // Check for zero pivot (singular matrix)
+        if lu[[col, col]].abs() < F::from(1e-12).unwrap() {
+            return F::neg_infinity(); // log(0) = -infinity
+        }
+
+        // Eliminate below pivot
+        for row in (col + 1)..n {
+            let factor = lu[[row, col]] / lu[[col, col]];
+
+            for j in (col + 1)..n {
+                lu[[row, j]] = lu[[row, j]] - factor * lu[[col, j]];
+            }
+        }
+    }
+
+    // Calculate log determinant from diagonal elements
+    let mut log_det = F::zero();
+    for i in 0..n {
+        let diag_element = lu[[i, i]];
+        if diag_element.abs() < F::from(1e-12).unwrap() {
+            return F::neg_infinity(); // Singular matrix
+        }
+        log_det = log_det + diag_element.abs().ln();
+    }
+
+    // Account for sign
+    if sign < F::zero() {
+        // For negative determinant, we return ln(|det|)
+        // Note: This assumes we want the log of the absolute determinant
+        log_det
+    } else {
+        log_det
+    }
 }
 
 #[cfg(test)]
@@ -545,8 +788,24 @@ mod tests {
 
     #[test]
     fn test_var_order_selection() {
-        let data: Array2<f64> = Array2::zeros((100, 2));
-        let order = select_var_order(&data, 5, SelectionCriterion::AIC).unwrap();
-        assert!((1..=5).contains(&order));
+        // Create realistic VAR data with noise to avoid singular matrices
+        let mut data = Array2::zeros((100, 2));
+        data[[0, 0]] = 1.0;
+        data[[0, 1]] = 0.5;
+
+        // Generate AR(1) process with sufficient variation
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+
+        for t in 1..100 {
+            let noise1: f64 = rand::Rng::random_range(&mut rng, -0.1..0.1);
+            let noise2: f64 = rand::Rng::random_range(&mut rng, -0.1..0.1);
+
+            data[[t, 0]] = 0.3 * data[[t - 1, 0]] + 0.1 * data[[t - 1, 1]] + 0.1 + noise1;
+            data[[t, 1]] = 0.2 * data[[t - 1, 0]] + 0.4 * data[[t - 1, 1]] + 0.05 + noise2;
+        }
+
+        let order = select_var_order(&data, 3, SelectionCriterion::AIC).unwrap();
+        assert!((1..=3).contains(&order));
     }
 }

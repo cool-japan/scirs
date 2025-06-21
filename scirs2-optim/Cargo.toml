@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-optim"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -15,7 +15,7 @@ build = "build.rs"
 scirs2-core = { workspace = true }
 scirs2-linalg = { workspace = true }
 # scirs2-optimize = { workspace = true }
-scirs2-metrics = { workspace = true, optional = true, features = ["neural_common"] }
+scirs2-metrics = { workspace = true, optional = true, features = ["neural_common", "optim_integration"] }
 ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 num-traits = { workspace = true }
@@ -30,4 +30,4 @@ approx = { workspace = true }
 [features]
 default = []
 # Temporarily removed optim_integration to avoid circular dependency
-metrics_integration = ["dep:scirs2-metrics"] # "scirs2-metrics/optim_integration"
+metrics_integration = ["dep:scirs2-metrics", "scirs2-metrics/optim_integration"]

@@ -26,11 +26,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------");
 
     // Determinant
-    let det_a = det(&a.view())?;
+    let det_a = det(&a.view(), None)?;
     println!("det(A) = {}", det_a);
 
     // Matrix inverse (only for 2x2 currently)
-    let inv_a = inv(&a.view())?;
+    let inv_a = inv(&a.view(), None)?;
     println!("inv(A) =");
     println!("{}", inv_a);
 
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let b_vec = array![9.0, 8.0];
     println!("Solving Ax = b where b = {:?}", b_vec);
 
-    let x = solve(&a.view(), &b_vec.view())?;
+    let x = solve(&a.view(), &b_vec.view(), None)?;
     println!("Solution x = {:?}", x);
 
     // Verify solution
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("-----------------------");
 
     // LU Decomposition
-    let (p, l, u) = lu(&a.view())?;
+    let (p, l, u) = lu(&a.view(), None)?;
     println!("LU Decomposition:");
     println!("P =\n{}", p);
     println!("L =\n{}", l);
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // QR Decomposition
-    let (q, r) = qr(&a.view())?;
+    let (q, r) = qr(&a.view(), None)?;
     println!("QR Decomposition:");
     println!("Q =\n{}", q);
     println!("R =\n{}", r);
@@ -95,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Symmetric matrix:");
     println!("{}", symmetric);
 
-    let (eigenvalues, eigenvectors) = eigh(&symmetric.view())?;
+    let (eigenvalues, eigenvectors) = eigh(&symmetric.view(), None)?;
     println!("Eigenvalues: {:?}", eigenvalues);
     println!("Eigenvectors:");
     println!("{}\n", eigenvectors);
@@ -104,13 +104,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("6. Matrix Norms");
     println!("--------------");
 
-    let norm_fro = matrix_norm(&a.view(), "fro")?;
+    let norm_fro = matrix_norm(&a.view(), "fro", None)?;
     println!("Frobenius norm of A: {}", norm_fro);
 
-    let norm_1 = matrix_norm(&a.view(), "1")?;
+    let norm_1 = matrix_norm(&a.view(), "1", None)?;
     println!("1-norm of A: {}", norm_1);
 
-    let norm_inf = matrix_norm(&a.view(), "inf")?;
+    let norm_inf = matrix_norm(&a.view(), "inf", None)?;
     println!("Infinity norm of A: {}\n", norm_inf);
 
     // 7. Error Handling
@@ -122,7 +122,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Attempting to invert singular matrix:");
     println!("{}", singular);
 
-    match inv(&singular.view()) {
+    match inv(&singular.view(), None) {
         Ok(_) => println!("Unexpected success!"),
         Err(LinalgError::SingularMatrixError(msg)) => {
             println!("Expected error: {}", msg);

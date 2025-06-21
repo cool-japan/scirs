@@ -40,7 +40,7 @@
 //! let standardized = standardize(data.view(), true).unwrap();
 //!
 //! // Run k-means with k=2
-//! let (centroids, labels) = kmeans(standardized.view(), 2, None).unwrap();
+//! let (centroids, labels) = kmeans(standardized.view(), 2, None, None, None, None).unwrap();
 //!
 //! // Print the results
 //! println!("Centroids: {:?}", centroids);
@@ -55,6 +55,7 @@ pub mod density;
 pub mod error;
 pub mod gmm;
 pub mod hierarchy;
+pub mod input_validation;
 /// Mean Shift clustering implementation.
 ///
 /// This module provides the Mean Shift clustering algorithm, which is a centroid-based
@@ -66,8 +67,12 @@ pub mod hierarchy;
 /// number of clusters in advance and can find clusters of arbitrary shapes.
 pub mod meanshift;
 pub mod metrics;
+pub mod neighbor_search;
 pub mod preprocess;
+pub mod sparse;
 pub mod spectral;
+pub mod stability;
+pub mod streaming;
 pub mod vq;
 
 // Re-exports
@@ -80,17 +85,38 @@ pub use density::optics::{extract_dbscan_clustering, extract_xi_clusters, OPTICS
 pub use density::*;
 pub use gmm::{gaussian_mixture, CovarianceType, GMMInit, GMMOptions, GaussianMixture};
 pub use hierarchy::*;
+pub use input_validation::{
+    check_duplicate_points, suggest_clustering_algorithm, validate_clustering_data,
+    validate_convergence_parameters, validate_distance_parameter, validate_integer_parameter,
+    validate_n_clusters, validate_sample_weights, ValidationConfig,
+};
 pub use meanshift::{estimate_bandwidth, get_bin_seeds, mean_shift, MeanShift, MeanShiftOptions};
 pub use metrics::{
     adjusted_rand_index, calinski_harabasz_score, davies_bouldin_score,
     homogeneity_completeness_v_measure, normalized_mutual_info, silhouette_samples,
     silhouette_score,
 };
+pub use neighbor_search::{
+    create_neighbor_searcher, BallTree, BruteForceSearch, KDTree, NeighborResult,
+    NeighborSearchAlgorithm, NeighborSearchConfig, NeighborSearcher,
+};
 pub use preprocess::{min_max_scale, normalize, standardize, whiten, NormType};
+pub use sparse::{
+    sparse_epsilon_graph, sparse_knn_graph, SparseDistanceMatrix, SparseHierarchicalClustering,
+};
 pub use spectral::{
     spectral_bipartition, spectral_clustering, AffinityMode, SpectralClusteringOptions,
+};
+pub use stability::{
+    BootstrapValidator, ConsensusClusterer, OptimalKSelector, StabilityConfig, StabilityResult,
+};
+pub use streaming::{
+    ChunkedDistanceMatrix, ProgressiveHierarchical, StreamingConfig, StreamingKMeans,
 };
 pub use vq::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod property_tests;

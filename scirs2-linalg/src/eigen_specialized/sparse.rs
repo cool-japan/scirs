@@ -270,7 +270,7 @@ where
     let norm_b = vector_norm(&b.view(), 2)?;
     b.mapv_inplace(|x| x / norm_b);
 
-    let mut eigenvalue;
+    let mut eigenvalue = F::zero();
     let mut prev_eigenvalue = F::zero();
 
     for _ in 0..max_iter {
@@ -301,9 +301,13 @@ where
         b = b_new;
     }
 
-    // Return the result after max_iter iterations
-    Err(LinalgError::ConvergenceError(
-        "Power iteration did not converge within specified iterations".to_string(),
+    // Return enhanced convergence error with suggestions
+    let current_residual = (eigenvalue - prev_eigenvalue).abs();
+    Err(LinalgError::convergence_with_suggestions(
+        "Power iteration",
+        max_iter,
+        tol.to_f64().unwrap_or(1e-10),
+        Some(current_residual.to_f64().unwrap_or(1.0)),
     ))
 }
 

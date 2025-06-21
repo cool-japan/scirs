@@ -10,7 +10,7 @@
 use std::error::Error;
 
 #[cfg(feature = "optim_integration")]
-use scirs2_metrics::integration::optim::MetricScheduler;
+use scirs2_metrics::integration::optim::MetricLRScheduler;
 
 fn main() -> Result<(), Box<dyn Error>> {
     #[cfg(not(feature = "optim_integration"))]
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("-------------------------------");
 
         // Create a metric scheduler
-        let mut scheduler = MetricScheduler::new(
+        let mut scheduler = MetricLRScheduler::new(
             0.1,        // Initial learning rate
             0.5,        // Factor to reduce learning rate (0.5 = halve it)
             2,          // Patience - number of epochs with no improvement before reducing
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         for epoch in 0..20 {
             // Simulate training for this epoch
-            let (train_loss, new_val_loss) =
+            let (_train_loss, new_val_loss) =
                 simulate_epoch_training(val_loss, scheduler.get_learning_rate());
 
             // Update validation loss
@@ -70,50 +70,47 @@ fn main() -> Result<(), Box<dyn Error>> {
             scheduler.best_metric().unwrap_or(f64::INFINITY)
         );
 
-        // Using the scheduler adapter with scirs2-optim
+        // Demonstrate scheduler configuration for external optimizers
         #[cfg(feature = "optim_integration")]
         {
-            use scirs2_metrics::integration::optim::ReduceOnPlateauAdapter;
-            use scirs2_optim::optimizers::{Optimizer, SGD};
+            use scirs2_metrics::integration::optim::{MetricOptimizer, SchedulerConfig};
 
-            println!("\nUsing scheduler with scirs2-optim SGD optimizer:");
+            println!("\nDemonstrating external optimizer integration:");
 
-            // Create a scheduler adapter
-            let mut scheduler_adapter = ReduceOnPlateauAdapter::new(
-                0.1,        // Initial learning rate
-                0.5,        // Factor
-                2,          // Patience
-                0.001,      // Minimum learning rate
-                "val_loss", // Metric name
-                false,      // Minimize
+            // Create a metric optimizer for tracking accuracy
+            let mut metric_optimizer = MetricOptimizer::new("accuracy", true);
+
+            // Add some metric values
+            metric_optimizer.add_value(0.85);
+            metric_optimizer.add_value(0.87);
+            metric_optimizer.add_value(0.89);
+
+            // Create scheduler configuration for external use
+            let scheduler_config: SchedulerConfig<f64> = metric_optimizer.create_scheduler_config(
+                0.01, // Initial learning rate
+                0.8,  // Factor to reduce by
+                3,    // Patience
+                1e-6, // Minimum learning rate
             );
 
-            // Create an SGD optimizer
-            let mut optimizer = SGD::new(0.1);
+            println!("Scheduler configuration created:");
+            println!("  Initial LR: {}", scheduler_config.initial_lr);
+            println!("  Factor: {}", scheduler_config.factor);
+            println!("  Patience: {}", scheduler_config.patience);
+            println!("  Min LR: {}", scheduler_config.min_lr);
+            println!("  Mode: {}", scheduler_config.mode);
+            println!("  Metric: {}", scheduler_config.metric_name);
 
-            // Simulate training
-            let mut val_loss = 1.0;
+            // Show how to extract configuration values
+            let (initial_lr, factor, patience, min_lr, mode) = scheduler_config.as_tuple();
+            println!("\nConfiguration as tuple:");
+            println!(
+                "  ({}, {}, {}, {}, {})",
+                initial_lr, factor, patience, min_lr, mode
+            );
 
-            println!("Epoch | Validation Loss | Learning Rate");
-            println!("--------------------------------------");
-
-            for epoch in 0..10 {
-                // Apply scheduler to optimizer
-                scheduler_adapter.apply_to(&mut optimizer);
-
-                // Get current learning rate
-                let current_lr = optimizer.get_learning_rate();
-
-                // Simulate training
-                let (train_loss, new_val_loss) = simulate_epoch_training(val_loss, current_lr);
-                val_loss = new_val_loss;
-
-                // Update scheduler
-                let new_lr = scheduler_adapter.step_with_metric(val_loss);
-
-                // Print status
-                println!("{:5} | {:14.6} | {:12.6}", epoch + 1, val_loss, new_lr);
-            }
+            println!("\nThis configuration can be used to create external schedulers");
+            println!("from scirs2-optim or other optimization libraries.");
         }
 
         Ok(())

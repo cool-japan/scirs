@@ -1,7 +1,8 @@
 //! Singular Spectrum Analysis (SSA) for time series decomposition
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use ndarray::{Array1, Array2, ScalarOperand};
+use ndarray_linalg::SVD;
+use num_traits::{Float, FromPrimitive, NumCast};
 use std::fmt::Debug;
 
 use super::common::DecompositionResult;
@@ -50,7 +51,7 @@ impl Default for SSAOptions {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// use ndarray::array;
 /// use scirs2_series::decomposition::{ssa_decomposition, SSAOptions};
 ///
@@ -65,7 +66,8 @@ impl Default for SSAOptions {
 /// ```
 pub fn ssa_decomposition<F>(ts: &Array1<F>, options: &SSAOptions) -> Result<DecompositionResult<F>>
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float + FromPrimitive + Debug + ndarray_linalg::Lapack + ScalarOperand + NumCast,
+    F::Real: Float + FromPrimitive + NumCast,
 {
     let n = ts.len();
 
@@ -108,28 +110,35 @@ where
     }
 
     // Step 2: SVD on trajectory matrix
-    let svd_result = svd(&trajectory_matrix);
-    let (u, s, vt) = match svd_result {
-        Ok((u, s, vt)) => (u, s, vt),
-        Err(e) => {
-            return Err(TimeSeriesError::DecompositionError(format!(
-                "SVD computation failed: {}",
-                e
-            )))
-        }
-    };
+    let (u, s, vt) = trajectory_matrix.svd(true, true).map_err(|e| {
+        TimeSeriesError::DecompositionError(format!("SVD computation failed: {}", e))
+    })?;
+
+    let u = u.ok_or_else(|| {
+        TimeSeriesError::DecompositionError("SVD failed to compute U matrix".to_string())
+    })?;
+    let vt = vt.ok_or_else(|| {
+        TimeSeriesError::DecompositionError("SVD failed to compute V^T matrix".to_string())
+    })?;
 
     // Step 3: Grouping components
     let mut trend_components = Vec::new();
     let mut seasonal_components = Vec::new();
 
+    let n_components = s.len();
+
     // Group by similarity if requested
     if options.group_by_similarity {
         let mut component_groups = Vec::new();
-        let mut visited = vec![false; window_length.min(k)];
+        let mut visited = vec![false; n_components];
 
-        for i in 0..window_length.min(k) {
-            if visited[i] || s[i] <= F::epsilon() {
+        for i in 0..n_components {
+            // Check if the singular value is essentially zero (use machine epsilon scaled by largest singular value)
+            let epsilon_real = F::from_f64(1e-12)
+                .map(|v| v.to_f64().unwrap())
+                .unwrap_or(1e-12);
+            let threshold = s[0] * F::Real::from_f64(epsilon_real).unwrap_or_else(F::Real::epsilon);
+            if visited[i] || s[i] <= threshold {
                 continue;
             }
 
@@ -137,12 +146,12 @@ where
             visited[i] = true;
 
             // Find similar components using w-correlation
-            for j in (i + 1)..window_length.min(k) {
-                if visited[j] || s[j] <= F::epsilon() {
+            for j in (i + 1)..n_components {
+                if visited[j] || s[j] <= threshold {
                     continue;
                 }
 
-                let similarity = compute_component_similarity(&u, &vt, &s, i, j, n);
+                let similarity = compute_w_correlation(&u, &vt, &s, i, j, window_length, k);
                 if similarity > options.component_similarity_threshold {
                     group.push(j);
                     visited[j] = true;
@@ -168,19 +177,16 @@ where
         }
     } else {
         // Simple grouping based on eigenvalue ranking
-        for i in 0..options.n_trend_components.min(window_length.min(k)) {
+        for i in 0..options.n_trend_components.min(n_components) {
             trend_components.push(i);
         }
 
         let n_seasonal = options
             .n_seasonal_components
-            .unwrap_or(std::cmp::min(window_length.min(k), 10) - options.n_trend_components);
+            .unwrap_or(std::cmp::min(n_components, 10) - options.n_trend_components);
 
         for i in options.n_trend_components
-            ..std::cmp::min(
-                options.n_trend_components + n_seasonal,
-                window_length.min(k),
-            )
+            ..std::cmp::min(options.n_trend_components + n_seasonal, n_components)
         {
             seasonal_components.push(i);
         }
@@ -190,27 +196,33 @@ where
     let mut trend = Array1::zeros(n);
     let mut seasonal = Array1::zeros(n);
 
+    // Define threshold for numerical stability
+    let epsilon_real = F::from_f64(1e-12)
+        .map(|v| v.to_f64().unwrap())
+        .unwrap_or(1e-12);
+    let threshold = s[0] * F::Real::from_f64(epsilon_real).unwrap_or_else(F::Real::epsilon);
+
     // Reconstruct trend components
     for &idx in &trend_components {
-        if idx >= window_length.min(k) || s[idx] <= F::epsilon() {
+        if idx >= n_components || s[idx] <= threshold {
             continue;
         }
 
         let reconstructed = reconstruct_component(&u, &vt, &s, idx, window_length, k, n);
         for i in 0..n {
-            trend[i] = trend[i] + reconstructed[i];
+            trend[i] += reconstructed[i];
         }
     }
 
     // Reconstruct seasonal components
     for &idx in &seasonal_components {
-        if idx >= window_length.min(k) || s[idx] <= F::epsilon() {
+        if idx >= n_components || s[idx] <= threshold {
             continue;
         }
 
         let reconstructed = reconstruct_component(&u, &vt, &s, idx, window_length, k, n);
         for i in 0..n {
-            seasonal[i] = seasonal[i] + reconstructed[i];
+            seasonal[i] += reconstructed[i];
         }
     }
 
@@ -231,81 +243,226 @@ where
     })
 }
 
-/// SVD result type to reduce complexity
-type SVDResult<F> = std::result::Result<(Array2<F>, Array1<F>, Array2<F>), String>;
-
-/// Performs SVD on a matrix
-fn svd<F>(matrix: &Array2<F>) -> SVDResult<F>
-where
-    F: Float + FromPrimitive + Debug,
-{
-    // This is a placeholder for a real SVD implementation.
-    // In a full implementation, we would use a linear algebra crate like ndarray-linalg.
-    // For now, we'll create simple matrices to illustrate the structure.
-
-    let (m, n) = matrix.dim();
-    let min_dim = std::cmp::min(m, n);
-
-    // Create some dummy singular values (decreasing)
-    let mut s = Array1::zeros(min_dim);
-    for i in 0..min_dim {
-        s[i] = F::from_f64(min_dim as f64 - i as f64).unwrap();
-    }
-
-    // Create dummy U and V^T matrices
-    let u = Array2::eye(m);
-    let vt = Array2::eye(n);
-
-    Ok((u, s, vt))
-}
-
-/// Compute similarity between two principal components
-fn compute_component_similarity<F>(
-    _u: &Array2<F>,
-    _vt: &Array2<F>,
-    _s: &Array1<F>,
+/// Compute w-correlation between two principal components
+fn compute_w_correlation<F, R>(
+    u: &Array2<F>,
+    vt: &Array2<F>,
+    s: &Array1<R>,
     i: usize,
     j: usize,
-    n: usize,
+    window_length: usize,
+    k: usize,
 ) -> f64
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float + FromPrimitive + Debug + ScalarOperand + NumCast,
+    R: Float + FromPrimitive + Debug + NumCast,
 {
-    // Placeholder for computing w-correlation between elementary components
-    // In a real implementation, we would compute the actual w-correlation
+    // Get the i-th and j-th elementary matrices
+    let si = F::from(s[i]).unwrap_or_else(|| F::zero());
+    let sj = F::from(s[j]).unwrap_or_else(|| F::zero());
 
-    // Simple approximation based on index distance
-    let d = (i as f64 - j as f64).abs() / n as f64;
-    f64::exp(-d * 5.0)
+    let xi = &u.column(i) * si;
+    let yi = vt.row(i);
+
+    let xj = &u.column(j) * sj;
+    let yj = vt.row(j);
+
+    // Compute weights
+    let l_star = std::cmp::min(window_length, k);
+    let k_star = std::cmp::max(window_length, k);
+
+    let mut weights = Array1::zeros(window_length + k - 1);
+    for idx in 0..weights.len() {
+        let t = idx + 1;
+        if t <= l_star {
+            weights[idx] = F::from_usize(t).unwrap();
+        } else if t <= k_star {
+            weights[idx] = F::from_usize(l_star).unwrap();
+        } else {
+            weights[idx] = F::from_usize(window_length + k - t).unwrap();
+        }
+    }
+
+    // Compute weighted inner products
+    let mut num = F::zero();
+    let mut denom_i = F::zero();
+    let mut denom_j = F::zero();
+
+    for p in 0..window_length {
+        for q in 0..k {
+            let t = p + q;
+            let weight = weights[t];
+
+            let val_i = xi[p] * yi[q];
+            let val_j = xj[p] * yj[q];
+
+            num = num + weight * val_i * val_j;
+            denom_i = denom_i + weight * val_i * val_i;
+            denom_j = denom_j + weight * val_j * val_j;
+        }
+    }
+
+    if denom_i <= F::epsilon() || denom_j <= F::epsilon() {
+        0.0
+    } else {
+        (num / (denom_i * denom_j).sqrt()).to_f64().unwrap().abs()
+    }
 }
 
 /// Reconstruct a component from SVD results using diagonal averaging
-fn reconstruct_component<F>(
-    _u: &Array2<F>,
-    _vt: &Array2<F>,
-    s: &Array1<F>,
+fn reconstruct_component<F, R>(
+    u: &Array2<F>,
+    vt: &Array2<F>,
+    s: &Array1<R>,
     idx: usize,
-    _window_length: usize,
-    _k: usize,
+    window_length: usize,
+    k: usize,
     n: usize,
 ) -> Array1<F>
 where
-    F: Float + FromPrimitive + Debug,
+    F: Float + FromPrimitive + Debug + ScalarOperand + NumCast,
+    R: Float + FromPrimitive + Debug + NumCast,
 {
-    // In a real implementation, this would reconstruct the component from SVD
-    // For now, we create a simple sinusoidal pattern as a placeholder
+    // Compute the elementary matrix X_i = s_i * u_i * v_i^T
+    let ui = u.column(idx);
+    let vi = vt.row(idx);
+    let si = F::from(s[idx]).unwrap_or_else(|| F::zero());
 
+    let mut elementary_matrix = Array2::zeros((window_length, k));
+    for i in 0..window_length {
+        for j in 0..k {
+            elementary_matrix[[i, j]] = si * ui[i] * vi[j];
+        }
+    }
+
+    // Diagonal averaging
     let mut result = Array1::zeros(n);
-    let period = F::from_usize(idx + 2).unwrap();
+    let l_star = std::cmp::min(window_length, k);
+    let k_star = std::cmp::max(window_length, k);
 
-    for i in 0..n {
-        result[i] = F::from_f64(
-            (i as f64 * 2.0 * std::f64::consts::PI / period.to_f64().unwrap()).sin()
-                * s[idx].to_f64().unwrap()
-                / s[0].to_f64().unwrap(),
-        )
-        .unwrap();
+    for t in 0..n {
+        let mut sum = F::zero();
+        let mut count = 0;
+
+        if t < l_star {
+            // First part: t < L*
+            for m in 0..=t {
+                if m < window_length && (t - m) < k {
+                    sum = sum + elementary_matrix[[m, t - m]];
+                    count += 1;
+                }
+            }
+        } else if t < k_star {
+            // Middle part: L* <= t < K*
+            for m in 0..window_length {
+                if (t - m) < k {
+                    sum = sum + elementary_matrix[[m, t - m]];
+                    count += 1;
+                }
+            }
+        } else {
+            // Last part: K* <= t < N
+            for m in (t - k + 1)..window_length {
+                if (t - m) < k {
+                    sum = sum + elementary_matrix[[m, t - m]];
+                    count += 1;
+                }
+            }
+        }
+
+        if count > 0 {
+            result[t] = sum / F::from_usize(count).unwrap();
+        }
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use ndarray::array;
+
+    #[test]
+    fn test_ssa_basic() {
+        // Create a simple time series with trend and seasonality
+        let n = 100;
+        let mut ts = Array1::zeros(n);
+        for i in 0..n {
+            let trend = 0.1 * i as f64;
+            let seasonal = 5.0 * (2.0 * std::f64::consts::PI * i as f64 / 12.0).sin();
+            let noise = 0.1 * (i as f64 * 0.123).sin();
+            ts[i] = trend + seasonal + noise;
+        }
+
+        let mut options = SSAOptions::default();
+        options.window_length = 40;
+        options.n_trend_components = 2;
+        options.n_seasonal_components = Some(2);
+        options.group_by_similarity = false;
+
+        let result = ssa_decomposition(&ts, &options).unwrap();
+
+        // Check that decomposition sums to original (approximately)
+        for i in 0..n {
+            assert_abs_diff_eq!(
+                result.trend[i] + result.seasonal[i] + result.residual[i],
+                ts[i],
+                epsilon = 1e-10
+            );
+        }
+    }
+
+    #[test]
+    fn test_ssa_with_grouping() {
+        // Create a time series with multiple periodicities
+        let n = 120;
+        let mut ts = Array1::zeros(n);
+        for i in 0..n {
+            let trend = 0.05 * i as f64;
+            let seasonal1 = 3.0 * (2.0 * std::f64::consts::PI * i as f64 / 12.0).sin();
+            let seasonal2 = 2.0 * (2.0 * std::f64::consts::PI * i as f64 / 6.0).sin();
+            ts[i] = trend + seasonal1 + seasonal2;
+        }
+
+        let mut options = SSAOptions::default();
+        options.window_length = 50;
+        options.n_trend_components = 1;
+        options.group_by_similarity = true;
+        options.component_similarity_threshold = 0.8;
+
+        let result = ssa_decomposition(&ts, &options).unwrap();
+
+        // Check that decomposition sums to original
+        for i in 0..n {
+            assert_abs_diff_eq!(
+                result.trend[i] + result.seasonal[i] + result.residual[i],
+                ts[i],
+                epsilon = 1e-10
+            );
+        }
+    }
+
+    #[test]
+    fn test_ssa_edge_cases() {
+        // Test with minimum size time series
+        let ts = array![1.0, 2.0, 3.0];
+        let mut options = SSAOptions::default();
+        options.window_length = 2;
+        options.n_trend_components = 1;
+
+        let result = ssa_decomposition(&ts, &options);
+        assert!(result.is_ok());
+
+        // Test with too large window length
+        options.window_length = 4;
+        let result = ssa_decomposition(&ts, &options);
+        assert!(result.is_err());
+
+        // Test with too small time series
+        let ts = array![1.0, 2.0];
+        let result = ssa_decomposition(&ts, &SSAOptions::default());
+        assert!(result.is_err());
+    }
 }

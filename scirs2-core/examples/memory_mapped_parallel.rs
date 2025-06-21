@@ -100,8 +100,8 @@ fn main() {
 
     // Modify each element in parallel to be its square
     mmap.process_chunks_mut_parallel(ChunkingStrategy::Fixed(chunk_size), |chunk, chunk_idx| {
-        for i in 0..chunk.len() {
-            chunk[i] = chunk[i] * chunk[i];
+        for elem in chunk.iter_mut() {
+            *elem = *elem * *elem;
         }
         if chunk_idx % 20 == 0 {
             println!("Modified chunk {}", chunk_idx);

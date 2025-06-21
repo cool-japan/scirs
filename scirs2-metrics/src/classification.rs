@@ -52,6 +52,40 @@ use crate::error::{MetricsError, Result};
 
 /// Calculates accuracy score, the fraction of correctly classified samples
 ///
+/// # Mathematical Formulation
+///
+/// The accuracy score is defined as:
+///
+/// ```text
+/// Accuracy = (Number of Correct Predictions) / (Total Number of Predictions)
+///          = (TP + TN) / (TP + TN + FP + FN)
+/// ```
+///
+/// Where:
+/// - TP = True Positives
+/// - TN = True Negatives  
+/// - FP = False Positives
+/// - FN = False Negatives
+///
+/// For multi-class classification, accuracy is simply:
+///
+/// ```text
+/// Accuracy = (1/n) * Σ I(ŷᵢ = yᵢ)
+/// ```
+///
+/// Where:
+/// - n = total number of samples
+/// - I(·) = indicator function (1 if condition is true, 0 otherwise)
+/// - ŷᵢ = predicted label for sample i
+/// - yᵢ = true label for sample i
+///
+/// # Range
+///
+/// Accuracy is bounded between 0 and 1, where:
+/// - 0 = worst possible accuracy (all predictions wrong)
+/// - 1 = perfect accuracy (all predictions correct)
+/// - 0.5 = random guessing for balanced binary classification
+///
 /// # Arguments
 ///
 /// * `y_true` - Ground truth (correct) labels
@@ -215,10 +249,49 @@ where
 
 /// Calculates the precision score for binary classification
 ///
-/// The precision is the ratio `tp / (tp + fp)` where `tp` is the number of
-/// true positives and `fp` the number of false positives. The precision is
-/// intuitively the ability of the classifier not to label as positive a sample
-/// that is negative.
+/// # Mathematical Formulation
+///
+/// Precision is defined as:
+///
+/// ```text
+/// Precision = TP / (TP + FP)
+/// ```
+///
+/// Where:
+/// - TP = True Positives (correctly predicted positive cases)
+/// - FP = False Positives (incorrectly predicted as positive)
+///
+/// Alternatively, precision can be expressed as:
+///
+/// ```text
+/// Precision = P(y_true = positive | ŷ = positive)
+/// ```
+///
+/// This represents the probability that a sample is actually positive
+/// given that the classifier predicted it as positive.
+///
+/// # Interpretation
+///
+/// Precision answers the question: "Of all the samples the classifier
+/// predicted as positive, how many were actually positive?"
+///
+/// - High precision means low false positive rate
+/// - Precision = 1.0 means no false positives
+/// - Precision = 0.0 means no true positives (all positive predictions are wrong)
+///
+/// # Range
+///
+/// Precision is bounded between 0 and 1:
+/// - 0 = worst precision (no correct positive predictions)
+/// - 1 = perfect precision (no false positive predictions)
+///
+/// # Use Cases
+///
+/// High precision is important when the cost of false positives is high,
+/// such as:
+/// - Medical diagnosis (avoid unnecessary treatments)
+/// - Spam detection (avoid blocking legitimate emails)
+/// - Quality control (avoid rejecting good products)
 ///
 /// # Arguments
 ///
@@ -295,9 +368,56 @@ where
 
 /// Calculates the recall score for binary classification
 ///
-/// The recall is the ratio `tp / (tp + fn)` where `tp` is the number of
-/// true positives and `fn` the number of false negatives. The recall is
-/// intuitively the ability of the classifier to find all the positive samples.
+/// # Mathematical Formulation
+///
+/// Recall (also known as sensitivity or true positive rate) is defined as:
+///
+/// ```text
+/// Recall = TP / (TP + FN)
+/// ```
+///
+/// Where:
+/// - TP = True Positives (correctly predicted positive cases)
+/// - FN = False Negatives (incorrectly predicted as negative)
+///
+/// Alternatively, recall can be expressed as:
+///
+/// ```text
+/// Recall = P(ŷ = positive | y_true = positive)
+/// ```
+///
+/// This represents the probability that the classifier predicts positive
+/// given that the sample is actually positive.
+///
+/// # Interpretation
+///
+/// Recall answers the question: "Of all the actual positive samples,
+/// how many did the classifier correctly identify?"
+///
+/// - High recall means low false negative rate
+/// - Recall = 1.0 means no false negatives (all positive cases found)
+/// - Recall = 0.0 means no true positives (all positive cases missed)
+///
+/// # Range
+///
+/// Recall is bounded between 0 and 1:
+/// - 0 = worst recall (no positive cases identified)
+/// - 1 = perfect recall (all positive cases identified)
+///
+/// # Use Cases
+///
+/// High recall is important when the cost of false negatives is high,
+/// such as:
+/// - Medical screening (avoid missing diseases)
+/// - Security systems (avoid missing threats)
+/// - Search engines (avoid missing relevant results)
+///
+/// # Relationship to Other Metrics
+///
+/// Recall is complementary to precision:
+/// - Precision focuses on minimizing false positives
+/// - Recall focuses on minimizing false negatives
+/// - There's often a trade-off between precision and recall
 ///
 /// # Arguments
 ///
@@ -374,10 +494,68 @@ where
 
 /// Calculates the F1 score for binary classification
 ///
-/// The F1 score is the harmonic mean of precision and recall:
-/// `F1 = 2 * (precision * recall) / (precision + recall)`
+/// # Mathematical Formulation
 ///
-/// This is a special case of the F-beta score with beta=1.
+/// The F1 score is the harmonic mean of precision and recall:
+///
+/// ```text
+/// F1 = 2 * (Precision × Recall) / (Precision + Recall)
+/// ```
+///
+/// Equivalently, it can be expressed in terms of confusion matrix elements:
+///
+/// ```text
+/// F1 = 2TP / (2TP + FP + FN)
+/// ```
+///
+/// Where:
+/// - TP = True Positives
+/// - FP = False Positives  
+/// - FN = False Negatives
+///
+/// # Harmonic vs Arithmetic Mean
+///
+/// The F1 score uses harmonic mean rather than arithmetic mean because:
+/// - Harmonic mean gives more weight to smaller values
+/// - If either precision or recall is low, F1 will be low
+/// - It penalizes extreme imbalances between precision and recall
+///
+/// ```text
+/// Arithmetic mean: (P + R) / 2
+/// Harmonic mean:   2PR / (P + R)
+/// ```
+///
+/// # Interpretation
+///
+/// The F1 score provides a single metric that balances precision and recall:
+/// - F1 = 1.0: Perfect precision and recall
+/// - F1 = 0.0: Either precision or recall (or both) is zero
+/// - F1 is closer to the smaller of precision and recall
+///
+/// # Range and Properties
+///
+/// - Range: [0, 1]
+/// - F1 ≤ min(Precision, Recall)
+/// - F1 = 0 if either Precision = 0 or Recall = 0
+/// - F1 approaches max(Precision, Recall) when they are similar
+///
+/// # Use Cases
+///
+/// F1 score is particularly useful when:
+/// - You need a single metric balancing precision and recall
+/// - Class distribution is imbalanced
+/// - Both false positives and false negatives are costly
+/// - You want to avoid optimizing for just one metric
+///
+/// # Relationship to F-beta Score
+///
+/// F1 is a special case of the F-beta score with β = 1:
+///
+/// ```text
+/// F_β = (1 + β²) × (Precision × Recall) / (β² × Precision + Recall)
+/// ```
+///
+/// When β = 1, this reduces to the F1 formula above.
 ///
 /// # Arguments
 ///

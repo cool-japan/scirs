@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-use num_traits::{cast, Float, NumCast, Zero};
+use num_traits::{cast, Float, NumAssign, NumCast, Zero};
 
 use crate::error::{LinalgError, LinalgResult};
 
@@ -620,6 +620,477 @@ where
     }
 
     SparseMatrixView::new(data_t, col_ptrs, indices_t, (sparse.cols, sparse.rows))
+}
+
+/// Advanced sparse matrix operations and integration points
+pub mod advanced {
+    use super::*;
+
+    /// Adaptive algorithm selection based on sparsity patterns
+    pub fn adaptive_sparse_dense_solve<T>(
+        sparse: &SparseMatrixView<T>,
+        rhs: &ArrayView1<T>,
+        tolerance: T,
+        max_iterations: usize,
+    ) -> LinalgResult<Array1<T>>
+    where
+        T: Float
+            + Clone
+            + Copy
+            + Debug
+            + Zero
+            + Add<Output = T>
+            + Sub<Output = T>
+            + Mul<Output = T>
+            + PartialOrd
+            + std::iter::Sum
+            + ndarray::ScalarOperand
+            + NumAssign,
+    {
+        // Analyze sparsity pattern to choose optimal algorithm
+        let sparsity_ratio = sparse.nnz() as f64 / (sparse.nrows() * sparse.ncols()) as f64;
+        let avg_nnz_per_row = sparse.nnz() as f64 / sparse.nrows() as f64;
+
+        if sparsity_ratio < 0.1 && avg_nnz_per_row < 50.0 {
+            // Very sparse: use iterative methods
+            sparse_conjugate_gradient(sparse, rhs, tolerance, max_iterations)
+        } else if sparsity_ratio < 0.3 {
+            // Moderately sparse: use preconditioned methods
+            sparse_preconditioned_cg(sparse, rhs, tolerance, max_iterations)
+        } else {
+            // Dense-like: convert to dense and use direct methods
+            let dense = sparse.to_dense();
+            crate::solve::solve(&dense.view(), rhs, None)
+        }
+    }
+
+    /// Sparse Conjugate Gradient solver
+    pub fn sparse_conjugate_gradient<T>(
+        a: &SparseMatrixView<T>,
+        b: &ArrayView1<T>,
+        tolerance: T,
+        max_iterations: usize,
+    ) -> LinalgResult<Array1<T>>
+    where
+        T: Float
+            + Clone
+            + Copy
+            + Debug
+            + Zero
+            + Add<Output = T>
+            + Sub<Output = T>
+            + Mul<Output = T>
+            + PartialOrd
+            + ndarray::ScalarOperand,
+    {
+        let n = a.nrows();
+        if a.ncols() != n {
+            return Err(LinalgError::DimensionError(
+                "Matrix must be square for conjugate gradient".to_string(),
+            ));
+        }
+
+        // Initial guess (zero vector)
+        let mut x = Array1::zeros(n);
+
+        // Initial residual: r = b - A*x = b (since x = 0)
+        let mut r = b.to_owned();
+        let mut p = r.clone();
+
+        let mut rsold = r.dot(&r);
+        let b_norm = b.dot(b).sqrt();
+
+        if b_norm < T::epsilon() {
+            return Ok(x);
+        }
+
+        for _ in 0..max_iterations {
+            // Compute A*p using sparse matrix-vector multiplication
+            let ap = sparse_dense_matvec(a, &p.view())?;
+
+            // Compute step size
+            let pap = p.dot(&ap);
+            if pap <= T::zero() {
+                return Err(LinalgError::ComputationError(
+                    "Matrix is not positive definite".to_string(),
+                ));
+            }
+
+            let alpha = rsold / pap;
+
+            // Update solution and residual
+            x = x + &p * alpha;
+            r = r - &ap * alpha;
+
+            let rsnew = r.dot(&r);
+
+            // Check convergence
+            if rsnew.sqrt() < tolerance * b_norm {
+                return Ok(x);
+            }
+
+            // Update search direction
+            let beta = rsnew / rsold;
+            p = &r + &p * beta;
+            rsold = rsnew;
+        }
+
+        // Return best solution found
+        Ok(x)
+    }
+
+    /// Preconditioned Conjugate Gradient with diagonal preconditioning
+    pub fn sparse_preconditioned_cg<T>(
+        a: &SparseMatrixView<T>,
+        b: &ArrayView1<T>,
+        tolerance: T,
+        max_iterations: usize,
+    ) -> LinalgResult<Array1<T>>
+    where
+        T: Float
+            + Clone
+            + Copy
+            + Debug
+            + Zero
+            + Add<Output = T>
+            + Sub<Output = T>
+            + Mul<Output = T>
+            + PartialOrd
+            + ndarray::ScalarOperand,
+    {
+        // Extract diagonal for preconditioning
+        let mut diag = Array1::zeros(a.nrows());
+        for i in 0..a.nrows() {
+            for j in a.indptr[i]..a.indptr[i + 1] {
+                if a.indices[j] == i {
+                    diag[i] = a.data[j];
+                    break;
+                }
+            }
+            // Avoid division by zero
+            if diag[i].abs() < T::epsilon() {
+                diag[i] = T::one();
+            }
+        }
+
+        // Create diagonal preconditioner M^-1
+        let m_inv = diag.mapv(|x| T::one() / x);
+
+        let n = a.nrows();
+        let mut x = Array1::zeros(n);
+        let mut r = b.to_owned();
+        let mut z = &r * &m_inv; // Apply preconditioner
+        let mut p = z.clone();
+
+        let mut rzold = r.dot(&z);
+        let b_norm = b.dot(b).sqrt();
+
+        for _ in 0..max_iterations {
+            let ap = sparse_dense_matvec(a, &p.view())?;
+            let pap = p.dot(&ap);
+
+            if pap <= T::zero() {
+                return Err(LinalgError::ComputationError(
+                    "Matrix is not positive definite".to_string(),
+                ));
+            }
+
+            let alpha = rzold / pap;
+
+            x = x + &p * alpha;
+            r = r - &ap * alpha;
+
+            // Check convergence
+            let r_norm = r.dot(&r).sqrt();
+            if r_norm < tolerance * b_norm {
+                return Ok(x);
+            }
+
+            // Apply preconditioner
+            z = &r * &m_inv;
+            let rznew = r.dot(&z);
+            let beta = rznew / rzold;
+
+            p = &z + &p * beta;
+            rzold = rznew;
+        }
+
+        Ok(x)
+    }
+
+    /// Sparse matrix statistics for optimization decisions
+    #[derive(Debug, Clone)]
+    pub struct SparseMatrixStats {
+        pub sparsity_ratio: f64,
+        pub avg_nnz_per_row: f64,
+        pub max_nnz_per_row: usize,
+        pub bandwidth: usize,
+        pub is_symmetric: bool,
+        pub is_diagonal_dominant: bool,
+    }
+
+    /// Analyze sparse matrix structure for algorithm selection
+    pub fn analyze_sparse_structure<T>(sparse: &SparseMatrixView<T>) -> SparseMatrixStats
+    where
+        T: Float + Clone + Copy + Debug + PartialOrd,
+    {
+        let total_elements = sparse.nrows() * sparse.ncols();
+        let sparsity_ratio = sparse.nnz() as f64 / total_elements as f64;
+        let avg_nnz_per_row = sparse.nnz() as f64 / sparse.nrows() as f64;
+
+        // Find maximum non-zeros per row
+        let mut max_nnz_per_row = 0;
+        for i in 0..sparse.nrows() {
+            let row_nnz = sparse.indptr[i + 1] - sparse.indptr[i];
+            max_nnz_per_row = max_nnz_per_row.max(row_nnz);
+        }
+
+        // Estimate bandwidth (maximum distance from diagonal)
+        let mut bandwidth = 0;
+        for i in 0..sparse.nrows() {
+            for j in sparse.indptr[i]..sparse.indptr[i + 1] {
+                let col = sparse.indices[j];
+                let distance = if i > col { i - col } else { col - i };
+                bandwidth = bandwidth.max(distance);
+            }
+        }
+
+        // Check for symmetry (approximate check)
+        let is_symmetric = if sparse.nrows() == sparse.ncols() {
+            check_sparse_symmetry(sparse)
+        } else {
+            false
+        };
+
+        // Check diagonal dominance
+        let is_diagonal_dominant = check_diagonal_dominance(sparse);
+
+        SparseMatrixStats {
+            sparsity_ratio,
+            avg_nnz_per_row,
+            max_nnz_per_row,
+            bandwidth,
+            is_symmetric,
+            is_diagonal_dominant,
+        }
+    }
+
+    /// Check if sparse matrix is approximately symmetric
+    fn check_sparse_symmetry<T>(sparse: &SparseMatrixView<T>) -> bool
+    where
+        T: Float + Clone + Copy + Debug + PartialOrd,
+    {
+        // Create a map of (row, col) -> value for quick lookup
+        let mut elements = HashMap::new();
+
+        for i in 0..sparse.nrows() {
+            for j in sparse.indptr[i]..sparse.indptr[i + 1] {
+                let col = sparse.indices[j];
+                elements.insert((i, col), sparse.data[j]);
+            }
+        }
+
+        // Check if A[i,j] ≈ A[j,i] for all non-zero elements
+        for i in 0..sparse.nrows() {
+            for j in sparse.indptr[i]..sparse.indptr[i + 1] {
+                let col = sparse.indices[j];
+                let val_ij = sparse.data[j];
+
+                if let Some(&val_ji) = elements.get(&(col, i)) {
+                    let diff = (val_ij - val_ji).abs();
+                    let tolerance = T::epsilon() * T::from(100.0).unwrap();
+                    if diff > tolerance {
+                        return false;
+                    }
+                } else if val_ij.abs() > T::epsilon() * T::from(100.0).unwrap() {
+                    // Non-zero element has no symmetric counterpart
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Check if matrix is diagonally dominant
+    fn check_diagonal_dominance<T>(sparse: &SparseMatrixView<T>) -> bool
+    where
+        T: Float + Clone + Copy + Debug + PartialOrd,
+    {
+        for i in 0..sparse.nrows() {
+            let mut diag_val = T::zero();
+            let mut off_diag_sum = T::zero();
+
+            for j in sparse.indptr[i]..sparse.indptr[i + 1] {
+                let col = sparse.indices[j];
+                let val = sparse.data[j].abs();
+
+                if col == i {
+                    diag_val = val;
+                } else {
+                    off_diag_sum = off_diag_sum + val;
+                }
+            }
+
+            if diag_val <= off_diag_sum {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+/// Integration point for future scirs2-sparse crate
+/// This trait defines the interface that scirs2-sparse matrices should implement
+/// for seamless integration with scirs2-linalg
+pub trait SparseLinalg<T> {
+    /// Get matrix dimensions
+    fn shape(&self) -> (usize, usize);
+
+    /// Get number of non-zero elements
+    fn nnz(&self) -> usize;
+
+    /// Convert to CSR format for interoperability
+    fn to_csr(&self) -> LinalgResult<SparseMatrixView<T>>;
+
+    /// Matrix-vector multiplication
+    fn matvec(&self, x: &ArrayView1<T>) -> LinalgResult<Array1<T>>;
+
+    /// Solve linear system Ax = b
+    fn solve(&self, b: &ArrayView1<T>) -> LinalgResult<Array1<T>>;
+
+    /// Get sparsity statistics
+    fn stats(&self) -> advanced::SparseMatrixStats;
+}
+
+/// Blanket implementation for SparseMatrixView
+impl<T> SparseLinalg<T> for SparseMatrixView<T>
+where
+    T: Float
+        + Clone
+        + Copy
+        + Debug
+        + Zero
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + PartialOrd
+        + std::iter::Sum
+        + ndarray::ScalarOperand
+        + NumAssign,
+{
+    fn shape(&self) -> (usize, usize) {
+        (self.rows, self.cols)
+    }
+
+    fn nnz(&self) -> usize {
+        self.data.len()
+    }
+
+    fn to_csr(&self) -> LinalgResult<SparseMatrixView<T>> {
+        Ok(self.clone())
+    }
+
+    fn matvec(&self, x: &ArrayView1<T>) -> LinalgResult<Array1<T>> {
+        sparse_dense_matvec(self, x)
+    }
+
+    fn solve(&self, b: &ArrayView1<T>) -> LinalgResult<Array1<T>> {
+        advanced::adaptive_sparse_dense_solve(
+            self,
+            b,
+            T::epsilon() * T::from(1000.0).unwrap(),
+            1000,
+        )
+    }
+
+    fn stats(&self) -> advanced::SparseMatrixStats {
+        advanced::analyze_sparse_structure(self)
+    }
+}
+
+/// Utility functions for sparse-dense interoperability
+pub mod utils {
+    use super::*;
+
+    /// Automatically choose between sparse and dense algorithms based on matrix properties
+    pub fn auto_solve<T>(
+        matrix: &ArrayView2<T>,
+        rhs: &ArrayView1<T>,
+        sparsity_threshold: f64,
+    ) -> LinalgResult<Array1<T>>
+    where
+        T: Float
+            + Clone
+            + Copy
+            + Debug
+            + Zero
+            + Add<Output = T>
+            + Sub<Output = T>
+            + Mul<Output = T>
+            + PartialOrd
+            + NumCast
+            + NumAssign
+            + std::iter::Sum
+            + ndarray::ScalarOperand,
+    {
+        // Analyze matrix sparsity
+        let total_elements = matrix.len();
+        let mut zero_count = 0;
+        let threshold = T::epsilon() * T::from(1000.0).unwrap();
+
+        for &val in matrix.iter() {
+            if val.abs() < threshold {
+                zero_count += 1;
+            }
+        }
+
+        let sparsity_ratio = zero_count as f64 / total_elements as f64;
+
+        if sparsity_ratio > sparsity_threshold {
+            // Convert to sparse and solve
+            let sparse = sparse_from_ndarray(matrix, threshold)?;
+            sparse.solve(rhs)
+        } else {
+            // Use dense solver
+            crate::solve::solve(matrix, rhs, None)
+        }
+    }
+
+    /// Convert between different sparse formats (placeholder for future expansion)
+    pub fn convert_sparse_format<T>(
+        sparse: &SparseMatrixView<T>,
+        format: &str,
+    ) -> LinalgResult<SparseMatrixView<T>>
+    where
+        T: Clone + Copy + Debug + Zero,
+    {
+        match format {
+            "csr" => Ok(sparse.clone()),
+            "csc" => sparse_transpose(sparse), // CSC is essentially transposed CSR
+            _ => Err(LinalgError::ValueError(format!(
+                "Unsupported sparse format: {}",
+                format
+            ))),
+        }
+    }
+
+    /// Estimate memory usage for sparse vs dense operations
+    pub fn estimate_memory_usage<T>(shape: (usize, usize), nnz: usize) -> (usize, usize) {
+        let (rows, cols) = shape;
+        let element_size = std::mem::size_of::<T>();
+
+        // Dense matrix memory
+        let dense_memory = rows * cols * element_size;
+
+        // Sparse matrix memory (CSR format)
+        let sparse_memory = nnz * element_size + // data
+                          nnz * std::mem::size_of::<usize>() + // indices
+                          (rows + 1) * std::mem::size_of::<usize>(); // indptr
+
+        (dense_memory, sparse_memory)
+    }
 }
 
 // Implementation of Neg trait for T

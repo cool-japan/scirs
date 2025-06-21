@@ -32,22 +32,22 @@ This module provides time series analysis functionality similar to the time seri
 
 ## Time Series Decomposition
 
-- [ ] Enhanced decomposition methods
+- [x] Enhanced decomposition methods
   - [ ] Robust decomposition variants
-  - [ ] Singular Spectrum Analysis (SSA)
-  - [ ] TBATS decomposition (Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal components)
-  - [ ] MSTL (Multiple Seasonal-Trend decomposition using LOESS)
-  - [ ] STR (Seasonal-Trend decomposition using Regularization)
+  - [x] Singular Spectrum Analysis (SSA)
+  - [x] TBATS decomposition (Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal components)
+  - [x] MSTL (Multiple Seasonal-Trend decomposition using LOESS)
+  - [x] STR (Seasonal-Trend decomposition using Regularization)
 - [ ] Multi-seasonal decomposition
   - [ ] Multiple nested seasonal patterns
   - [ ] Complex seasonality identification
   - [ ] Automatic period detection
   - [ ] Flexible seasonal representation
-- [ ] Non-linear trend components
-  - [ ] Spline-based trend estimation
-  - [ ] Robust trend filtering
-  - [ ] Piecewise trends with breakpoints
-  - [ ] Trend confidence intervals
+- [x] Non-linear trend components
+  - [x] Spline-based trend estimation
+  - [x] Robust trend filtering
+  - [x] Piecewise trends with breakpoints
+  - [x] Trend confidence intervals
 
 ## Statistical Modeling
 
@@ -57,11 +57,11 @@ This module provides time series analysis functionality similar to the time seri
   - [ ] ARMA model optimization
   - [ ] ARIMA/SARIMA models with automatic order selection
   - [ ] ARIMAX with exogenous variables
-- [ ] State-space models
-  - [ ] Structural time series models
-  - [ ] Dynamic linear models (DLM)
-  - [ ] Unobserved components models
-  - [ ] Kalman filtering and smoothing
+- [x] State-space models
+  - [x] Structural time series models
+  - [x] Dynamic linear models (DLM)
+  - [x] Unobserved components models
+  - [x] Kalman filtering and smoothing
 - [ ] VAR family models
   - [ ] Vector Autoregressive (VAR) models
   - [ ] Vector Error Correction Models (VECM)
@@ -100,59 +100,61 @@ This module provides time series analysis functionality similar to the time seri
 ## Feature Engineering and Analysis
 
 - [ ] Time domain features
-  - [ ] Expanded statistical features
-  - [ ] Window-based aggregations
-  - [ ] Entropy measures
-  - [ ] Complexity measures (approximate entropy, sample entropy)
-  - [ ] Turning points analysis
-- [ ] Frequency domain features
-  - [ ] Spectral analysis utilities
-  - [ ] Periodogram enhancements
-  - [ ] Wavelet-based features
-  - [ ] Hilbert-Huang transform (EMD)
-- [ ] Temporal pattern mining
-  - [ ] Motif discovery
-  - [ ] Shapelets extraction
-  - [ ] Symbolic representations (SAX)
-  - [ ] Time series discord detection
-- [ ] Feature selection
-  - [ ] Filter methods for time series
-  - [ ] Wrapper methods
-  - [ ] Feature importance calculation
-  - [ ] Mutual information criteria
+  - [x] Expanded statistical features
+  - [x] Window-based aggregations
+  - [x] Entropy measures
+  - [x] Complexity measures (approximate entropy, sample entropy)
+  - [x] Turning points analysis
+- [x] Frequency domain features
+  - [x] Spectral analysis utilities
+  - [x] Periodogram enhancements
+  - [x] Wavelet-based features
+  - [x] Hilbert-Huang transform (EMD)
+- [x] Temporal pattern mining
+  - [x] Motif discovery
+  - [x] Shapelets extraction
+  - [x] Symbolic representations (SAX)
+  - [x] Time series discord detection
+- [x] Feature selection
+  - [x] Filter methods for time series
+  - [x] Wrapper methods
+  - [x] Feature importance calculation
+  - [x] Mutual information criteria
 
 ## Time Series Transformations
 
-- [ ] Stationarity transformations
-  - [ ] Box-Cox transformations
-  - [ ] Differencing operations
-  - [ ] Trend and seasonality removal
-  - [ ] Stationarity tests (ADF, KPSS)
-- [ ] Normalization and scaling
-  - [ ] Z-score normalization
-  - [ ] Min-max scaling
-  - [ ] Robust scaling
-  - [ ] Adaptive normalization
-- [ ] Dimensionality reduction
-  - [ ] PCA for time series
-  - [ ] Functional PCA
-  - [ ] Dynamic time warping barycenter averaging
-  - [ ] Symbolic approximation
+- [x] Stationarity transformations
+  - [x] Box-Cox transformations
+  - [x] Differencing operations
+  - [x] Trend and seasonality removal
+  - [x] Stationarity tests (ADF, KPSS)
+- [x] Normalization and scaling
+  - [x] Z-score normalization
+  - [x] Min-max scaling
+  - [x] Robust scaling
+  - [x] Adaptive normalization
+- [x] Dimensionality reduction
+  - [x] PCA for time series
+  - [x] Functional PCA
+  - [x] Dynamic time warping barycenter averaging
+  - [x] Symbolic approximation
 
 ## Change Point Detection and Anomaly Detection
 
-- [ ] Change point detection
-  - [ ] PELT algorithm
-  - [ ] Binary segmentation
-  - [ ] Bayesian online changepoint detection
-  - [ ] CUSUM methods
-  - [ ] Kernel-based change detection
-- [ ] Anomaly detection
-  - [ ] Statistical process control
-  - [ ] Isolation forest for time series
-  - [ ] One-class SVM for time series
-  - [ ] Distance-based approaches
-  - [ ] Prediction-based approaches
+- [x] Change point detection
+  - [x] PELT algorithm
+  - [x] Binary segmentation
+  - [x] Bayesian online changepoint detection
+  - [x] CUSUM methods
+  - [x] Kernel-based change detection
+- [x] Anomaly detection
+  - [x] Statistical process control
+  - [x] Isolation forest for time series
+  - [x] One-class SVM for time series (simplified implementation)
+  - [x] Distance-based approaches
+  - [x] Prediction-based approaches
+  - [x] Z-score and modified Z-score methods
+  - [x] Interquartile range (IQR) detection
 - [ ] Advanced detection utilities
   - [ ] Multi-dimensional change detection
   - [ ] Group anomaly detection

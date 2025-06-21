@@ -10,12 +10,12 @@ fn main() {
 
         // Test QR decomposition
         println!("Testing QR decomposition...");
-        let (q, r) = qr(&matrix_tensor);
+        let (q, r) = qr(matrix_tensor);
         println!("Q shape: {:?}", q.eval(g).unwrap().shape());
         println!("R shape: {:?}", r.eval(g).unwrap().shape());
 
         // Verify Q*R = original matrix
-        let reconstructed = matmul(&q, &r);
+        let reconstructed = matmul(q, r);
         println!("Original matrix:");
         println!("{:?}", matrix_tensor.eval(g).unwrap());
         println!("Q*R reconstruction:");
@@ -23,7 +23,7 @@ fn main() {
 
         // Test SVD decomposition
         println!("\nTesting SVD decomposition...");
-        let (u, s, vt) = svd(&matrix_tensor);
+        let (u, s, vt) = svd(matrix_tensor);
         println!("U shape: {:?}", u.eval(g).unwrap().shape());
         println!("S shape: {:?}", s.eval(g).unwrap().shape());
         println!("Vt shape: {:?}", vt.eval(g).unwrap().shape());

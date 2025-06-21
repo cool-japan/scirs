@@ -26,21 +26,31 @@
 //! println!("{}", report.format());
 //! ```
 
+mod analytics;
 mod collector;
 mod event;
 #[cfg(feature = "gpu")]
 mod gpu;
+mod profiler;
 mod reporter;
 mod snapshot;
 
 #[cfg(test)]
 mod test_utils;
 
+pub use analytics::{
+    AllocationPattern, LeakDetectionConfig, LeakDetectionResult, MemoryAnalytics,
+    MemoryEfficiencyMetrics, MemoryIssue, MemoryPatternAnalysis, OptimizationRecommendation,
+};
 pub use collector::{
     AllocationStats, ComponentMemoryStats, MemoryMetricsCollector, MemoryMetricsConfig,
     MemoryReport,
 };
 pub use event::{MemoryEvent, MemoryEventType};
+pub use profiler::{
+    MemoryProfiler, MemoryProfilerConfig, PerformanceImpactAnalysis, ProfilingResult,
+    ProfilingSession, ProfilingSummary, RiskAssessment,
+};
 pub use reporter::{format_bytes, format_duration};
 pub use snapshot::{
     clear_snapshots, compare_snapshots, global_snapshot_manager, load_snapshots, save_snapshots,
@@ -52,8 +62,6 @@ pub use snapshot::{
 pub use reporter::ChartFormat;
 
 // Re-export snapshot visualization if feature is enabled
-#[cfg(feature = "memory_visualization")]
-pub use snapshot::SnapshotDiff;
 
 #[cfg(feature = "gpu")]
 pub use gpu::{setup_gpu_memory_tracking, TrackedGpuBuffer, TrackedGpuContext};

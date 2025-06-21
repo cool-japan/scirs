@@ -68,8 +68,7 @@ impl<F: Float + Debug + ScalarOperand + Display> GradientClipping<F> {
     }
 
     /// Clip gradients by global norm
-    #[allow(dead_code)]
-    fn clip_by_global_norm<L: Layer<F>>(&mut self, model: &mut L) -> Result<()> {
+    fn clip_by_global_norm<L: Layer<F> + ?Sized>(&mut self, model: &mut L) -> Result<()> {
         let gradients = model.gradients();
 
         // Compute global norm
@@ -109,8 +108,7 @@ impl<F: Float + Debug + ScalarOperand + Display> GradientClipping<F> {
     }
 
     /// Clip gradients by value
-    #[allow(dead_code)]
-    fn clip_by_value<L: Layer<F>>(&mut self, model: &mut L) -> Result<()> {
+    fn clip_by_value<L: Layer<F> + ?Sized>(&mut self, model: &mut L) -> Result<()> {
         let gradients = model.gradients();
 
         // Check if any value exceeds the maximum
@@ -168,38 +166,27 @@ impl<F: Float + Debug + ScalarOperand + Display> Callback<F> for GradientClippin
         // The callback should be executed after each batch, before optimization
         if timing == CallbackTiming::AfterBatch {
             if let Some(_batch_loss) = context.batch_loss {
-                // We assume model and gradients are available in the context
-                // In a real implementation, we would need to access these through the context
-
-                // TODO: Implement proper model/gradient access through the context
-                // For now, we just log that clipping would be applied
-                if self.log_stats {
-                    println!("Gradient clipping would be applied (callback execution successful)");
+                // Access the model from the context
+                if let Some(model) = context.model.as_mut() {
+                    match self.method {
+                        GradientClippingMethod::ClipByGlobalNorm => {
+                            if let Err(e) = self.clip_by_global_norm(&mut **model) {
+                                eprintln!("Error in clip_by_global_norm: {}", e);
+                            }
+                        }
+                        GradientClippingMethod::ClipByValue => {
+                            if let Err(e) = self.clip_by_value(&mut **model) {
+                                eprintln!("Error in clip_by_value: {}", e);
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback behavior if model is not available
+                    if self.log_stats {
+                        println!("Gradient clipping: model not available in context");
+                    }
+                    self.clipping_applied = false;
                 }
-
-                // In real implementation:
-                // Instead of trying to get the model directly, which isn't available in this implementation,
-                // we'll just simulate the clipping behavior for now
-                self.clipping_applied = true;
-                if self.method == GradientClippingMethod::ClipByGlobalNorm {
-                    self.clipping_ratio = Some(F::from(0.5).unwrap()); // Example value
-                }
-
-                // In a real implementation with model access, we would do something like:
-                // if let Some(model) = get_model_from_context(context) {
-                //     match self.method {
-                //         GradientClippingMethod::ClipByGlobalNorm => {
-                //             if let Err(e) = self.clip_by_global_norm(model) {
-                //                 eprintln!("Error in clip_by_global_norm: {}", e);
-                //             }
-                //         },
-                //         GradientClippingMethod::ClipByValue => {
-                //             if let Err(e) = self.clip_by_value(model) {
-                //                 eprintln!("Error in clip_by_value: {}", e);
-                //             }
-                //         },
-                //     }
-                // }
             }
         }
 

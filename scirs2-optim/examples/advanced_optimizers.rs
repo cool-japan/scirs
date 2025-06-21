@@ -155,28 +155,28 @@ fn plot_paths(
 
         // Draw markers at start and end
         chart.draw_series(PointSeries::of_element(
-            vec![path.first().unwrap().clone()],
+            vec![*path.first().unwrap()],
             5,
             color,
             &|c, s, st| Circle::new(c, s, st.filled()),
         ))?;
 
         chart.draw_series(PointSeries::of_element(
-            vec![path.last().unwrap().clone()],
+            vec![*path.last().unwrap()],
             5,
             color,
             &|c, s, st| {
                 EmptyElement::at(c)
                     + Circle::new((0, 0), s, st.filled())
-                    + Text::new(format!("{}", name), (10, 0), ("sans-serif", 10).into_font())
+                    + Text::new(name.to_string(), (10, 0), ("sans-serif", 10).into_font())
             },
         ))?;
     }
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Path plot saved to {}", filename);
@@ -236,8 +236,8 @@ fn plot_loss_history(
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Loss history plot saved to {}", filename);

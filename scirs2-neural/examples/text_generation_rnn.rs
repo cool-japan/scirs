@@ -6,6 +6,7 @@ use std::f32;
 
 // Character-level LSTM for text generation
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 struct LSTM {
     input_size: usize,
     hidden_size: usize,
@@ -431,7 +432,7 @@ impl LSTM {
             }
 
             // Scale gradient
-            dy = dy / (batch_size as f32);
+            dy /= batch_size as f32;
 
             // Get hidden state for this timestep
             let h_t = hidden_states.slice(s![.., t + 1, ..]).to_owned();

@@ -1220,6 +1220,298 @@ where
     Ok(input.clone())
 }
 
+/// Apply a binary hit-or-miss transform to an array
+///
+/// The hit-or-miss transform is a morphological operation used for shape detection.
+/// It combines erosion and dilation operations to find patterns in binary images.
+/// The transform finds locations where the foreground structuring element "hits"
+/// the foreground pixels and the background structuring element "misses" the foreground pixels.
+///
+/// # Arguments
+///
+/// * `input` - Input binary array (2D arrays only for now)
+/// * `structure1` - Foreground structuring element (hits), if None uses a cross
+/// * `structure2` - Background structuring element (misses), if None uses the complement of structure1
+/// * `mask` - Mask array that limits the operation (if None, no mask is applied)
+/// * `border_value` - Border value (default: false)
+/// * `origin1` - Origin of the foreground structuring element (if None, uses the center)
+/// * `origin2` - Origin of the background structuring element (if None, uses the center)
+///
+/// # Returns
+///
+/// * `Result<Array<bool, D>>` - Hit-or-miss transformed array
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::Array2;
+/// use scirs2_ndimage::morphology::binary_hit_or_miss;
+///
+/// // Create a binary image with a specific pattern
+/// let mut input = Array2::from_elem((5, 5), false);
+/// input[[1, 1]] = true;
+/// input[[1, 2]] = true;
+/// input[[1, 3]] = true; // Horizontal line
+///
+/// // Define a structuring element to detect horizontal lines
+/// let structure1 = Array2::from_elem((1, 3), true);
+///
+/// // Apply hit-or-miss transform
+/// let result = binary_hit_or_miss(&input, Some(&structure1), None, None, None, None, None).unwrap();
+/// ```
+pub fn binary_hit_or_miss<D>(
+    input: &Array<bool, D>,
+    structure1: Option<&Array<bool, D>>,
+    structure2: Option<&Array<bool, D>>,
+    mask: Option<&Array<bool, D>>,
+    border_value: Option<bool>,
+    origin1: Option<&[isize]>,
+    origin2: Option<&[isize]>,
+) -> Result<Array<bool, D>>
+where
+    D: Dimension + 'static,
+{
+    // Handle different dimensions based on input
+    match input.ndim() {
+        1 => {
+            let input_1d = input
+                .clone()
+                .into_dimensionality::<ndarray::Ix1>()
+                .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D".to_string()))?;
+            let result_1d = binary_hit_or_miss_1d(
+                &input_1d,
+                structure1,
+                structure2,
+                mask,
+                border_value,
+                origin1,
+                origin2,
+            )?;
+            Ok(result_1d.into_dimensionality::<D>().map_err(|_| {
+                NdimageError::DimensionError("Failed to convert from 1D".to_string())
+            })?)
+        }
+        2 => {
+            let input_2d = input
+                .clone()
+                .into_dimensionality::<ndarray::Ix2>()
+                .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D".to_string()))?;
+            let result_2d = binary_hit_or_miss_2d(
+                &input_2d,
+                structure1,
+                structure2,
+                mask,
+                border_value,
+                origin1,
+                origin2,
+            )?;
+            Ok(result_2d.into_dimensionality::<D>().map_err(|_| {
+                NdimageError::DimensionError("Failed to convert from 2D".to_string())
+            })?)
+        }
+        _ => {
+            // For now, return NotImplementedError for higher dimensions
+            Err(NdimageError::ImplementationError(
+                "Binary hit-or-miss transform for arrays with more than 2 dimensions is not yet implemented".into(),
+            ))
+        }
+    }
+}
+
+/// Apply binary hit-or-miss transform to a 1D array
+fn binary_hit_or_miss_1d<D>(
+    input: &Array<bool, ndarray::Ix1>,
+    _structure1: Option<&Array<bool, D>>,
+    _structure2: Option<&Array<bool, D>>,
+    _mask: Option<&Array<bool, D>>,
+    _border_value: Option<bool>,
+    _origin1: Option<&[isize]>,
+    _origin2: Option<&[isize]>,
+) -> Result<Array<bool, ndarray::Ix1>>
+where
+    D: Dimension + 'static,
+{
+    // For simplicity, not fully implemented for 1D yet
+    Ok(input.clone())
+}
+
+/// Apply binary hit-or-miss transform to a 2D array
+fn binary_hit_or_miss_2d<D>(
+    input: &Array<bool, ndarray::Ix2>,
+    structure1: Option<&Array<bool, D>>,
+    structure2: Option<&Array<bool, D>>,
+    mask: Option<&Array<bool, D>>,
+    border_value: Option<bool>,
+    origin1: Option<&[isize]>,
+    origin2: Option<&[isize]>,
+) -> Result<Array<bool, ndarray::Ix2>>
+where
+    D: Dimension + 'static,
+{
+    use ndarray::Array2;
+
+    let border = border_value.unwrap_or(false);
+    let (rows, cols) = input.dim();
+
+    // Default 2D cross structure if none provided
+    let default_structure1 = if let Some(s) = structure1 {
+        // Convert the provided structure to 2D
+        if s.ndim() != 2 {
+            return Err(NdimageError::DimensionError(
+                "Foreground structure must be 2D for 2D input".into(),
+            ));
+        }
+        s.clone()
+            .into_dimensionality::<ndarray::Ix2>()
+            .map_err(|_| {
+                NdimageError::DimensionError("Failed to convert structure to 2D".to_string())
+            })?
+    } else {
+        // Default 3x3 cross
+        let mut cross = Array2::from_elem((3, 3), false);
+        cross[[1, 0]] = true; // left
+        cross[[1, 1]] = true; // center
+        cross[[1, 2]] = true; // right
+        cross[[0, 1]] = true; // top
+        cross[[2, 1]] = true; // bottom
+        cross
+    };
+
+    // Background structure
+    let default_structure2 = if let Some(s) = structure2 {
+        if s.ndim() != 2 {
+            return Err(NdimageError::DimensionError(
+                "Background structure must be 2D for 2D input".into(),
+            ));
+        }
+        s.clone()
+            .into_dimensionality::<ndarray::Ix2>()
+            .map_err(|_| {
+                NdimageError::DimensionError("Failed to convert structure to 2D".to_string())
+            })?
+    } else {
+        // Create complement of structure1
+        let mut complement = Array2::from_elem(default_structure1.raw_dim(), false);
+        for ((i, j), &val) in default_structure1.indexed_iter() {
+            complement[[i, j]] = !val;
+        }
+        complement
+    };
+
+    // Structure centers
+    let center1 = if let Some(orig) = origin1 {
+        if orig.len() != 2 {
+            return Err(NdimageError::InvalidInput(
+                "Origin must be 2D for 2D structure".into(),
+            ));
+        }
+        [orig[0], orig[1]]
+    } else {
+        [
+            default_structure1.nrows() as isize / 2,
+            default_structure1.ncols() as isize / 2,
+        ]
+    };
+
+    let center2 = if let Some(orig) = origin2 {
+        if orig.len() != 2 {
+            return Err(NdimageError::InvalidInput(
+                "Origin must be 2D for 2D structure".into(),
+            ));
+        }
+        [orig[0], orig[1]]
+    } else {
+        [
+            default_structure2.nrows() as isize / 2,
+            default_structure2.ncols() as isize / 2,
+        ]
+    };
+
+    // Create result array (initially all false)
+    let mut result = Array2::from_elem((rows, cols), false);
+
+    // Iterate through all positions in the input array
+    for i in 0..rows {
+        for j in 0..cols {
+            // Check mask
+            if let Some(m) = mask {
+                if m.ndim() != 2 {
+                    return Err(NdimageError::DimensionError(
+                        "Mask must be 2D for 2D input".into(),
+                    ));
+                }
+                let m_2d = m
+                    .clone()
+                    .into_dimensionality::<ndarray::Ix2>()
+                    .map_err(|_| {
+                        NdimageError::DimensionError("Failed to convert mask to 2D".to_string())
+                    })?;
+                if !m_2d[[i, j]] {
+                    continue;
+                }
+            }
+
+            // Check if foreground structure "hits"
+            let mut foreground_hit = true;
+            for (si, sj) in ndarray::indices(default_structure1.dim()) {
+                if !default_structure1[[si, sj]] {
+                    continue; // Skip false elements in structure
+                }
+
+                let input_i = i as isize + si as isize - center1[0];
+                let input_j = j as isize + sj as isize - center1[1];
+
+                let val = if input_i >= 0
+                    && input_i < rows as isize
+                    && input_j >= 0
+                    && input_j < cols as isize
+                {
+                    input[[input_i as usize, input_j as usize]]
+                } else {
+                    border
+                };
+
+                if !val {
+                    foreground_hit = false;
+                    break;
+                }
+            }
+
+            // Check if background structure "misses"
+            let mut background_miss = true;
+            if foreground_hit {
+                for (si, sj) in ndarray::indices(default_structure2.dim()) {
+                    if !default_structure2[[si, sj]] {
+                        continue; // Skip false elements in structure
+                    }
+
+                    let input_i = i as isize + si as isize - center2[0];
+                    let input_j = j as isize + sj as isize - center2[1];
+
+                    let val = if input_i >= 0
+                        && input_i < rows as isize
+                        && input_j >= 0
+                        && input_j < cols as isize
+                    {
+                        input[[input_i as usize, input_j as usize]]
+                    } else {
+                        border
+                    };
+
+                    if val {
+                        background_miss = false;
+                        break;
+                    }
+                }
+            }
+
+            result[[i, j]] = foreground_hit && background_miss;
+        }
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

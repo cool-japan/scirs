@@ -6,11 +6,12 @@
 
 use ndarray::{s, Array1, Array2, ArrayView2};
 use num_traits::{Float, FromPrimitive};
-use scirs2_linalg::eigh;
+use scirs2_linalg::{eigh, smallest_k_eigh};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
-use crate::vq::{kmeans, KMeansInit, KMeansOptions};
+use crate::vq::{kmeans_with_options, KMeansInit, KMeansOptions};
+use scirs2_core::validation::clustering::*;
 
 /// Affinity matrix construction methods
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -344,23 +345,26 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + std::fmt::Display,
 {
     let opts = options.unwrap_or_default();
     let n_samples = data.shape()[0];
 
-    if n_samples < 2 {
-        return Err(ClusteringError::InvalidInput(
-            "Input data must have at least 2 samples".to_string(),
-        ));
-    }
+    // Use unified validation
+    validate_clustering_data(&data, "Spectral clustering", false, Some(2))
+        .map_err(|e| ClusteringError::InvalidInput(format!("Spectral clustering: {}", e)))?;
 
-    if n_clusters < 2 || n_clusters > n_samples {
+    // Spectral clustering requires at least 2 clusters
+    if n_clusters < 2 {
         return Err(ClusteringError::InvalidInput(format!(
-            "Number of clusters must be between 2 and number of samples ({}), got {}",
-            n_samples, n_clusters
+            "Spectral clustering: number of clusters must be >= 2, got {}",
+            n_clusters
         )));
     }
+
+    check_n_clusters_bounds(&data, n_clusters, "Spectral clustering")
+        .map_err(|e| ClusteringError::InvalidInput(format!("{}", e)))?;
 
     // Step 1: Create the affinity matrix
     let affinity = match opts.affinity {
@@ -428,7 +432,19 @@ where
     }
 
     // Use the stabilized matrix for eigenvalue decomposition
-    let (eigenvalues, eigenvectors) = eigh(&stabilized_laplacian.view())?;
+    // For larger matrices (>3x3), use smallest_k_eigh to avoid "not implemented" error
+    let (eigenvalues, eigenvectors) = if n <= 3 {
+        // For small matrices, use the full eigh decomposition
+        eigh(&stabilized_laplacian.view(), None)?
+    } else {
+        // For larger matrices, use specialized function to get smallest eigenvalues
+        // We need at least n_clusters eigenvalues, but request a few more for robustness
+        let k = (n_clusters + 2).min(n); // Request at least n_clusters eigenvalues
+        let max_iter = 1000;
+        let tolerance = F::from(1e-10).unwrap();
+
+        smallest_k_eigh(&stabilized_laplacian.view(), k, max_iter, tolerance)?
+    };
 
     // Determine the actual number of clusters
     let actual_n_clusters = if opts.auto_n_clusters {
@@ -482,7 +498,7 @@ where
         init_method: KMeansInit::KMeansPlusPlus,
     };
 
-    let (_, labels) = kmeans(
+    let (_, labels) = kmeans_with_options(
         normalized_embedding.view(),
         actual_n_clusters,
         Some(kmeans_opts),
@@ -519,7 +535,8 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + std::fmt::Display,
 {
     // Run spectral clustering with exactly 2 clusters
     let (_, labels) = spectral_clustering(data, 2, options)?;

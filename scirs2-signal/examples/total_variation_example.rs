@@ -25,8 +25,10 @@ fn main() {
     // Create configurations with different parameters
     let standard_config = TvConfig::default();
 
-    let mut anisotropic_config = TvConfig::default();
-    anisotropic_config.variant = TvVariant::Anisotropic;
+    let anisotropic_config = TvConfig {
+        variant: TvVariant::Anisotropic,
+        ..Default::default()
+    };
 
     // Apply TV denoising with different parameters
     let weight = 0.5; // Regularization parameter
@@ -320,7 +322,7 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Clip to [0, 1]
-    noisy_image.mapv_inplace(|x| x.max(0.0).min(1.0));
+    noisy_image.mapv_inplace(|x| x.clamp(0.0, 1.0));
 
     (clean_image, noisy_image)
 }
@@ -385,7 +387,7 @@ fn generate_color_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Clip to [0, 1]
-    noisy_image.mapv_inplace(|x| x.max(0.0).min(1.0));
+    noisy_image.mapv_inplace(|x| x.clamp(0.0, 1.0));
 
     (clean_image, noisy_image)
 }
@@ -571,7 +573,7 @@ fn save_signal_to_csv(
     let mut file = File::create(filename).expect("Failed to create file");
 
     // Write header
-    if let Some(_) = denoised2 {
+    if denoised2.is_some() {
         writeln!(file, "index,clean,noisy,isotropic,anisotropic").expect("Failed to write header");
     } else {
         writeln!(file, "index,clean,noisy,denoised").expect("Failed to write header");

@@ -1,6 +1,7 @@
 //! A collection of gradient descent optimizers
 pub mod adagrad;
 pub mod adam;
+pub mod adamw;
 pub mod momentum_sgd;
 pub mod sgd;
 
@@ -11,6 +12,7 @@ use crate::variable::VariableNamespace;
 use crate::{Context, Float};
 pub use adagrad::AdaGrad;
 pub use adam::Adam;
+pub use adamw::AdamW;
 pub use momentum_sgd::MomentumSGD;
 pub use sgd::SGD;
 

@@ -443,7 +443,7 @@ mod tests {
         vectorizer.fit(&documents).unwrap();
 
         let vector = vectorizer.transform("this is a test").unwrap();
-        assert!(vector.len() > 0);
+        assert!(!vector.is_empty());
     }
 
     #[test]

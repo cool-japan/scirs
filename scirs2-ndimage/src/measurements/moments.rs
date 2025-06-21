@@ -27,8 +27,47 @@ where
         ));
     }
 
-    // Placeholder implementation
-    Ok(vec![T::zero(); input.ndim()])
+    if input.is_empty() {
+        return Err(NdimageError::InvalidInput("Input array is empty".into()));
+    }
+
+    let ndim = input.ndim();
+    let shape = input.shape();
+
+    // Calculate total mass (sum of all values)
+    let total_mass = input.sum();
+
+    if total_mass == T::zero() {
+        // If total mass is zero, return center of array
+        let center: Vec<T> = shape
+            .iter()
+            .map(|&dim| T::from_usize(dim).unwrap() / (T::one() + T::one()))
+            .collect();
+        return Ok(center);
+    }
+
+    // Calculate center of mass for each dimension
+    let mut center_of_mass = vec![T::zero(); ndim];
+
+    // Convert to dynamic array for easier indexing
+    let input_dyn = input.clone().into_dyn();
+
+    // Iterate through all elements in the array
+    for (idx, &value) in input_dyn.indexed_iter() {
+        if value != T::zero() {
+            // Add weighted coordinates
+            for (dim, &coord) in idx.as_array_view().iter().enumerate() {
+                center_of_mass[dim] += T::from_usize(coord).unwrap() * value;
+            }
+        }
+    }
+
+    // Normalize by total mass
+    for coord in center_of_mass.iter_mut() {
+        *coord /= total_mass;
+    }
+
+    Ok(center_of_mass)
 }
 
 /// Find the moment of inertia tensor of an array

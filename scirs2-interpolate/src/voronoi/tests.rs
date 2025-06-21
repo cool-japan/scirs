@@ -10,6 +10,8 @@ use crate::voronoi::extrapolation::Extrapolation;
 use crate::voronoi::gradient::{GradientEstimation, InterpolateWithGradient};
 
 #[cfg(test)]
+use crate::parallel::ParallelConfig;
+#[cfg(test)]
 use crate::voronoi::extrapolation::{
     constant_value_extrapolation, inverse_distance_extrapolation, linear_gradient_extrapolation,
     nearest_neighbor_extrapolation,
@@ -21,7 +23,7 @@ use crate::voronoi::natural::{
 };
 #[cfg(test)]
 use crate::voronoi::parallel::{
-    make_parallel_sibson_interpolator, ParallelConfig, ParallelNaturalNeighborInterpolator,
+    make_parallel_sibson_interpolator, ParallelNaturalNeighborInterpolator,
 };
 
 // Test helper functions
@@ -348,8 +350,8 @@ fn test_parallel_interpolation() {
     let sequential = make_sibson_interpolator(points.clone(), values.clone()).unwrap();
 
     let config = ParallelConfig {
-        min_points_per_thread: 2,
-        target_threads: Some(2),
+        n_workers: Some(2),
+        chunk_size: Some(2),
     };
 
     let parallel =
@@ -383,8 +385,8 @@ fn test_parallel_3d_interpolation() {
 
     // Create parallel interpolator
     let config = ParallelConfig {
-        min_points_per_thread: 2,
-        target_threads: Some(2),
+        n_workers: Some(2),
+        chunk_size: Some(2),
     };
 
     let parallel =
@@ -443,8 +445,8 @@ fn test_parallel_config() {
 
     // Update the config
     let new_config = ParallelConfig {
-        min_points_per_thread: 5,
-        target_threads: Some(4),
+        n_workers: Some(4),
+        chunk_size: Some(5),
     };
 
     parallel.set_parallel_config(new_config);

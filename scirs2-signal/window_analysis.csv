@@ -1,0 +1,5 @@
+window,coherent_gain,nenbw,scalloping_loss_db,max_sidelobe_db,bandwidth_3db,processing_gain_db
+Hann,31.500,1.524,-1.38,-31.5,2.25,18.1
+Hamming,34.100,1.378,-1.72,-42.5,2.00,18.1
+Blackman,26.460,1.754,-1.06,-41.0,2.50,18.1
+Kaiser(β=8),27.449,1.693,-1.14,-48.3,2.50,18.1

@@ -1,12 +1,10 @@
 #[cfg(all(feature = "memory_efficient", test))]
 mod tests {
     use approx::assert_relative_eq;
-    use ndarray::{Array, Array2};
+    use ndarray::Array2;
     use scirs2_core::memory_efficient::{
-        create_disk_array, load_chunks, ChunkingStrategy, DiskBackedArray, OutOfCoreArray,
-        OPTIMAL_CHUNK_SIZE,
+        create_disk_array, ChunkingStrategy, DiskBackedArray, OutOfCoreArray,
     };
-    use std::path::Path;
     use tempfile::NamedTempFile;
 
     #[test]
@@ -161,7 +159,7 @@ mod tests {
         let array1 = OutOfCoreArray::new_temp(&data, ChunkingStrategy::Fixed(chunk_size)).unwrap();
 
         // Expected number of chunks is ceil(total_size / chunk_size)
-        let expected_chunks = (data.len() + chunk_size - 1) / chunk_size;
+        let expected_chunks = data.len().div_ceil(chunk_size);
         assert_eq!(array1.num_chunks(), expected_chunks);
 
         // Fixed number of chunks

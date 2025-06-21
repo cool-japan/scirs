@@ -33,6 +33,7 @@ where
     /// The chunking strategy
     pub strategy: ChunkingStrategy,
     /// The computed chunk size in elements
+    #[allow(dead_code)]
     chunk_size: usize,
     /// The number of chunks
     num_chunks: usize,
@@ -57,22 +58,22 @@ where
                 // Default to optimal chunk size in bytes, converted to elements
                 let chunk_size_bytes = OPTIMAL_CHUNK_SIZE;
                 let chunk_size = chunk_size_bytes / elem_size;
-                let num_chunks = (total_elements + chunk_size - 1) / chunk_size;
+                let num_chunks = total_elements.div_ceil(chunk_size);
                 (chunk_size, num_chunks)
             }
             ChunkingStrategy::Fixed(size) => {
-                let num_chunks = (total_elements + size - 1) / size;
+                let num_chunks = total_elements.div_ceil(size);
                 (size, num_chunks)
             }
             ChunkingStrategy::FixedBytes(bytes) => {
                 let elements = bytes / elem_size;
                 let chunk_size = if elements == 0 { 1 } else { elements };
-                let num_chunks = (total_elements + chunk_size - 1) / chunk_size;
+                let num_chunks = total_elements.div_ceil(chunk_size);
                 (chunk_size, num_chunks)
             }
             ChunkingStrategy::NumChunks(n) => {
                 let num_chunks = if n == 0 { 1 } else { n };
-                let chunk_size = (total_elements + num_chunks - 1) / num_chunks;
+                let chunk_size = total_elements.div_ceil(num_chunks);
                 (chunk_size, num_chunks)
             }
         };
@@ -87,25 +88,58 @@ where
     }
 
     /// Apply a function to each chunk of the array and collect the results
-    pub fn map<F, B>(&self, _f: F) -> Array<B, D>
+    ///
+    /// Returns a 1D array where each element is the result of applying the function to a chunk
+    pub fn map<F, B>(&self, f: F) -> Array<B, ndarray::Ix1>
     where
         F: Fn(&Array<A, D>) -> B + Sync,
         B: Clone,
     {
-        // Implementation would involve splitting the array into chunks
-        // and applying the function to each chunk
-        unimplemented!("ChunkedArray::map is not yet implemented")
+        // Get chunks and apply the function to each
+        let chunks = self.get_chunks();
+        let results: Vec<B> = chunks.iter().map(f).collect();
+
+        // Return results as a 1D array
+        Array::from_vec(results)
     }
 
     /// Apply a function to each chunk of the array in parallel and collect the results
-    pub fn par_map<F, B>(&self, _f: F) -> Array<B, D>
+    ///
+    /// Returns a 1D array where each element is the result of applying the function to a chunk
+    pub fn par_map<F, B>(&self, f: F) -> Array<B, ndarray::Ix1>
     where
         F: Fn(&Array<A, D>) -> B + Sync + Send,
         B: Clone + Send + Sync,
+        A: Send + Sync,
     {
-        // Implementation would involve splitting the array into chunks
-        // and applying the function to each chunk in parallel
-        unimplemented!("ChunkedArray::par_map is not yet implemented")
+        #[cfg(feature = "parallel")]
+        {
+            use rayon::prelude::*;
+            use std::sync::Arc;
+
+            // Get chunks and wrap in Arc for thread-safe sharing
+            let chunks = self.get_chunks();
+            let chunks_arc = Arc::new(chunks);
+
+            // Process chunks in parallel using index-based iteration
+            let num_chunks = chunks_arc.len();
+            let results: Vec<B> = (0..num_chunks)
+                .into_par_iter()
+                .map(move |i| {
+                    let chunks_ref = Arc::clone(&chunks_arc);
+                    f(&chunks_ref[i])
+                })
+                .collect();
+
+            // Return results as a 1D array
+            Array::from_vec(results)
+        }
+
+        #[cfg(not(feature = "parallel"))]
+        {
+            // Fall back to sequential processing
+            self.map(f)
+        }
     }
 
     /// Get the number of chunks
@@ -125,13 +159,33 @@ where
     {
         let mut result = Vec::with_capacity(self.num_chunks);
 
-        // For now, use a simplified approach that works for arrays of any dimension
-        // Return a full copy of the array as a single chunk
+        // Special handling for 1D arrays
+        if self.data.ndim() == 1 {
+            if let Some(slice) = self.data.as_slice() {
+                for i in 0..self.num_chunks {
+                    let start = i * self.chunk_size;
+                    let end = ((i + 1) * self.chunk_size).min(slice.len());
+                    let chunk_slice = &slice[start..end];
+
+                    // Create a new array from the chunk slice
+                    // We need to handle the dimension conversion carefully
+                    let chunk_1d = Array::from_vec(chunk_slice.to_vec());
+
+                    // Try to convert to the original dimension type
+                    // For 1D arrays, this should work directly
+                    if let Ok(reshaped) = chunk_1d.into_dimensionality::<D>() {
+                        result.push(reshaped);
+                    } else {
+                        // Fallback: return the whole array if conversion fails
+                        return vec![self.data.clone()];
+                    }
+                }
+                return result;
+            }
+        }
+
+        // For multi-dimensional arrays or if slicing fails, return the whole array as a single chunk
         result.push(self.data.clone());
-
-        // In a real implementation, we would implement proper chunking for arrays
-        // of any dimension, based on the chunking strategy
-
         result
     }
 }

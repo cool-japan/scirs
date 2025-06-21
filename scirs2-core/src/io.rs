@@ -1,4 +1,4 @@
-//! I/O utilities for SciRS2
+//! I/O utilities for ``SciRS2``
 //!
 //! This module provides utilities for input/output operations.
 
@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use crate::error::{CoreError, CoreResult};
+use crate::error::CoreResult;
 
 /// Opens a file for reading
 ///
@@ -18,8 +18,11 @@ use crate::error::{CoreError, CoreResult};
 ///
 /// * `Ok(BufReader<File>)` if the file was opened successfully
 /// * `Err(CoreError::IoError)` if the file could not be opened
+///
+/// # Errors
+/// Returns `CoreError::IoError` if the file could not be opened.
 pub fn open_file<P: AsRef<Path>>(path: P) -> CoreResult<BufReader<File>> {
-    let file = File::open(path.as_ref()).map_err(CoreError::IoError)?;
+    let file = File::open(path.as_ref())?;
     Ok(BufReader::new(file))
 }
 
@@ -33,8 +36,11 @@ pub fn open_file<P: AsRef<Path>>(path: P) -> CoreResult<BufReader<File>> {
 ///
 /// * `Ok(BufWriter<File>)` if the file was opened successfully
 /// * `Err(CoreError::IoError)` if the file could not be opened
+///
+/// # Errors
+/// Returns `CoreError::IoError` if the file could not be opened.
 pub fn create_file<P: AsRef<Path>>(path: P) -> CoreResult<BufWriter<File>> {
-    let file = File::create(path.as_ref()).map_err(CoreError::IoError)?;
+    let file = File::create(path.as_ref())?;
     Ok(BufWriter::new(file))
 }
 
@@ -48,11 +54,13 @@ pub fn create_file<P: AsRef<Path>>(path: P) -> CoreResult<BufWriter<File>> {
 ///
 /// * `Ok(String)` if the file was read successfully
 /// * `Err(CoreError::IoError)` if the file could not be read
+///
+/// # Errors
+/// Returns `CoreError::IoError` if the file could not be read.
 pub fn read_to_string<P: AsRef<Path>>(path: P) -> CoreResult<String> {
     let mut file = open_file(path)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .map_err(CoreError::IoError)?;
+    file.read_to_string(&mut contents)?;
     Ok(contents)
 }
 
@@ -66,11 +74,13 @@ pub fn read_to_string<P: AsRef<Path>>(path: P) -> CoreResult<String> {
 ///
 /// * `Ok(Vec<u8>)` if the file was read successfully
 /// * `Err(CoreError::IoError)` if the file could not be read
+///
+/// # Errors
+/// Returns `CoreError::IoError` if the file could not be read.
 pub fn read_to_bytes<P: AsRef<Path>>(path: P) -> CoreResult<Vec<u8>> {
     let mut file = open_file(path)?;
     let mut contents = Vec::new();
-    file.read_to_end(&mut contents)
-        .map_err(CoreError::IoError)?;
+    file.read_to_end(&mut contents)?;
     Ok(contents)
 }
 
@@ -87,9 +97,8 @@ pub fn read_to_bytes<P: AsRef<Path>>(path: P) -> CoreResult<Vec<u8>> {
 /// * `Err(CoreError::IoError)` if the file could not be written
 pub fn write_string<P: AsRef<Path>, S: AsRef<str>>(path: P, contents: S) -> CoreResult<()> {
     let mut file = create_file(path)?;
-    file.write_all(contents.as_ref().as_bytes())
-        .map_err(CoreError::IoError)?;
-    file.flush().map_err(CoreError::IoError)?;
+    file.write_all(contents.as_ref().as_bytes())?;
+    file.flush()?;
     Ok(())
 }
 
@@ -106,9 +115,8 @@ pub fn write_string<P: AsRef<Path>, S: AsRef<str>>(path: P, contents: S) -> Core
 /// * `Err(CoreError::IoError)` if the file could not be written
 pub fn write_bytes<P: AsRef<Path>, B: AsRef<[u8]>>(path: P, contents: B) -> CoreResult<()> {
     let mut file = create_file(path)?;
-    file.write_all(contents.as_ref())
-        .map_err(CoreError::IoError)?;
-    file.flush().map_err(CoreError::IoError)?;
+    file.write_all(contents.as_ref())?;
+    file.flush()?;
     Ok(())
 }
 
@@ -130,7 +138,7 @@ where
 {
     let file = open_file(path)?;
     for line in file.lines() {
-        let line = line.map_err(CoreError::IoError)?;
+        let line = line?;
         callback(line)?;
     }
     Ok(())
@@ -146,6 +154,7 @@ where
 ///
 /// * `true` if the file exists
 /// * `false` if the file does not exist
+#[must_use]
 pub fn file_exists<P: AsRef<Path>>(path: P) -> bool {
     path.as_ref().exists() && path.as_ref().is_file()
 }
@@ -160,6 +169,7 @@ pub fn file_exists<P: AsRef<Path>>(path: P) -> bool {
 ///
 /// * `true` if the directory exists
 /// * `false` if the directory does not exist
+#[must_use]
 pub fn directory_exists<P: AsRef<Path>>(path: P) -> bool {
     path.as_ref().exists() && path.as_ref().is_dir()
 }
@@ -176,7 +186,7 @@ pub fn directory_exists<P: AsRef<Path>>(path: P) -> bool {
 /// * `Err(CoreError::IoError)` if the directory could not be created
 pub fn create_directory<P: AsRef<Path>>(path: P) -> CoreResult<()> {
     if !directory_exists(&path) {
-        std::fs::create_dir_all(path.as_ref()).map_err(CoreError::IoError)?;
+        std::fs::create_dir_all(path.as_ref())?;
     }
     Ok(())
 }
@@ -191,8 +201,11 @@ pub fn create_directory<P: AsRef<Path>>(path: P) -> CoreResult<()> {
 ///
 /// * `Ok(u64)` if the file size was determined successfully
 /// * `Err(CoreError::IoError)` if the file size could not be determined
+///
+/// # Errors
+/// Returns `CoreError::IoError` if the file size could not be determined.
 pub fn file_size<P: AsRef<Path>>(path: P) -> CoreResult<u64> {
-    let metadata = std::fs::metadata(path.as_ref()).map_err(CoreError::IoError)?;
+    let metadata = std::fs::metadata(path.as_ref())?;
     Ok(metadata.len())
 }
 
@@ -205,6 +218,7 @@ pub fn file_size<P: AsRef<Path>>(path: P) -> CoreResult<u64> {
 /// # Returns
 ///
 /// * A formatted string with appropriate units
+#[must_use]
 pub fn format_file_size(size: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;

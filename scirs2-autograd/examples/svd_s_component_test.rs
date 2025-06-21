@@ -14,7 +14,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u, s, v) = svd(&matrix);
+        let (u, s, v) = svd(matrix);
 
         // Check shapes and values
         println!("\nSVD components:");

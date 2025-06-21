@@ -3,15 +3,26 @@
 //! This example demonstrates the use of the memory metrics system to track
 //! and analyze memory usage in a scientific computing application.
 
+#[cfg(not(feature = "memory_management"))]
+fn main() {
+    println!("This example requires the 'memory_management' feature to be enabled.");
+    println!("Run with: cargo run --example memory_metrics_example --features memory_management");
+}
+
+#[cfg(feature = "memory_management")]
 use ndarray::{Array2, Array3};
+#[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
     format_bytes, format_memory_report, generate_memory_report, track_allocation,
     track_deallocation, track_resize, MemoryEvent, MemoryEventType, MemoryMetricsCollector,
     MemoryMetricsConfig,
 };
+#[cfg(feature = "memory_management")]
 use std::thread;
+#[cfg(feature = "memory_management")]
 use std::time::Duration;
 
+#[cfg(feature = "memory_management")]
 fn main() {
     println!("Memory Metrics Example");
     println!("======================\n");
@@ -114,6 +125,7 @@ fn main() {
 }
 
 // Simulate matrix operations with memory tracking
+#[cfg(feature = "memory_management")]
 fn simulate_matrix_operations(collector: &MemoryMetricsCollector) {
     // Track memory for matrix A
     let matrix_a_size = 8 * 1024 * 1024; // 8MB
@@ -196,6 +208,7 @@ fn simulate_matrix_operations(collector: &MemoryMetricsCollector) {
 }
 
 // Create and track actual ndarray arrays
+#[cfg(feature = "memory_management")]
 fn create_arrays() {
     // Create a 2D array (1000 x 1000 f64 values = ~8MB)
     let dims = (1000, 1000);

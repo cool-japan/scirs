@@ -273,6 +273,408 @@ fn refine_erfinv<F: Float + FromPrimitive>(mut x: F, y: F) -> F {
     x
 }
 
+/// Complex number support for error functions
+pub mod complex {
+    use num_complex::Complex64;
+    use std::f64::consts::PI;
+
+    /// Complex error function erf(z)
+    ///
+    /// Implements the complex error function erf(z) for z ∈ ℂ.
+    ///
+    /// erf(z) = (2/√π) ∫₀ᶻ e^(-t²) dt
+    ///
+    /// # Arguments
+    ///
+    /// * `z` - Complex input value
+    ///
+    /// # Returns
+    ///
+    /// * Complex error function value erf(z)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_special::erf_complex;
+    /// use num_complex::Complex64;
+    ///
+    /// let z = Complex64::new(1.0, 0.0);
+    /// let result = erf_complex(z);
+    /// // For real arguments, should match real erf(1) ≈ 0.8427
+    /// assert!((result.re - 0.8427006897).abs() < 1e-8);
+    /// assert!(result.im.abs() < 1e-10);
+    /// ```
+    pub fn erf_complex(z: Complex64) -> Complex64 {
+        // For real values, use the real error function for accuracy
+        if z.im.abs() < 1e-15 {
+            let real_result = super::erf(z.re);
+            return Complex64::new(real_result, 0.0);
+        }
+
+        // Handle special cases
+        if z.norm() == 0.0 {
+            return Complex64::new(0.0, 0.0);
+        }
+
+        // For small |z|, use series expansion
+        if z.norm() < 6.0 {
+            return erf_series_complex(z);
+        }
+
+        // For large |z|, use asymptotic expansion
+        erf_asymptotic_complex(z)
+    }
+
+    /// Complex complementary error function erfc(z)
+    ///
+    /// Implements the complex complementary error function erfc(z) for z ∈ ℂ.
+    ///
+    /// erfc(z) = 1 - erf(z) = (2/√π) ∫ᶻ^∞ e^(-t²) dt
+    ///
+    /// # Arguments
+    ///
+    /// * `z` - Complex input value
+    ///
+    /// # Returns
+    ///
+    /// * Complex complementary error function value erfc(z)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_special::erfc_complex;
+    /// use num_complex::Complex64;
+    ///
+    /// let z = Complex64::new(1.0, 0.0);
+    /// let result = erfc_complex(z);
+    /// // For real arguments, should match real erfc(1) ≈ 0.1573
+    /// assert!((result.re - 0.1572993103).abs() < 1e-8);
+    /// assert!(result.im.abs() < 1e-10);
+    /// ```
+    pub fn erfc_complex(z: Complex64) -> Complex64 {
+        // For real values, use the real complementary error function for accuracy
+        if z.im.abs() < 1e-15 {
+            let real_result = super::erfc(z.re);
+            return Complex64::new(real_result, 0.0);
+        }
+
+        // Use the relation erfc(z) = 1 - erf(z) for small arguments
+        if z.norm() < 6.0 {
+            return Complex64::new(1.0, 0.0) - erf_complex(z);
+        }
+
+        // For large |z|, use direct asymptotic expansion for better accuracy
+        erfc_asymptotic_complex(z)
+    }
+
+    /// Complex scaled complementary error function erfcx(z)
+    ///
+    /// Implements the complex scaled complementary error function erfcx(z) = e^(z²) * erfc(z).
+    /// This function is useful for avoiding overflow when z has large real part.
+    ///
+    /// # Arguments
+    ///
+    /// * `z` - Complex input value
+    ///
+    /// # Returns
+    ///
+    /// * Complex scaled complementary error function value erfcx(z)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_special::erfcx_complex;
+    /// use num_complex::Complex64;
+    ///
+    /// let z = Complex64::new(2.0, 0.0);
+    /// let result = erfcx_complex(z);
+    /// // For real z=2, erfcx(2) ≈ 0.2554
+    /// assert!((result.re - 0.2554025250).abs() < 1e-8);
+    /// assert!(result.im.abs() < 1e-10);
+    /// ```
+    pub fn erfcx_complex(z: Complex64) -> Complex64 {
+        // For real values with special handling
+        if z.im.abs() < 1e-15 {
+            let x = z.re;
+            if x.abs() < 26.0 {
+                // Use erfc for moderate values
+                let erfc_val = super::erfc(x);
+                let exp_x2 = (x * x).exp();
+                return Complex64::new(erfc_val * exp_x2, 0.0);
+            } else {
+                // Use asymptotic expansion for large |x|
+                return erfcx_asymptotic_real(x);
+            }
+        }
+
+        // For complex arguments, use the definition when safe
+        let z_squared = z * z;
+        if z_squared.re < 700.0 {
+            // Safe to compute exp(z²) * erfc(z) directly
+            let erfc_z = erfc_complex(z);
+            let exp_z2 = z_squared.exp();
+            return exp_z2 * erfc_z;
+        }
+
+        // For large |z|², use asymptotic expansion to avoid overflow
+        erfcx_asymptotic_complex(z)
+    }
+
+    /// Faddeeva function w(z) = e^(-z²) * erfc(-iz)
+    ///
+    /// The Faddeeva function is closely related to the error function and appears
+    /// in many applications in physics and engineering.
+    ///
+    /// # Arguments
+    ///
+    /// * `z` - Complex input value
+    ///
+    /// # Returns
+    ///
+    /// * Complex Faddeeva function value w(z)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_special::faddeeva_complex;
+    /// use num_complex::Complex64;
+    ///
+    /// let z = Complex64::new(1.0, 0.0);
+    /// let result = faddeeva_complex(z);
+    /// // For real z, w(z) = e^(-z²) * erfc(-iz)
+    /// assert!((result.re - 0.3678794412).abs() < 1e-8);
+    /// assert!((result.im - 0.6071577058).abs() < 1e-8);
+    /// ```
+    pub fn faddeeva_complex(z: Complex64) -> Complex64 {
+        // w(z) = e^(-z²) * erfc(-iz)
+        let minus_iz = Complex64::new(z.im, -z.re);
+        let erfc_minus_iz = erfc_complex(minus_iz);
+        let exp_minus_z2 = (-z * z).exp();
+
+        exp_minus_z2 * erfc_minus_iz
+    }
+
+    /// Series expansion for erf(z) for small |z|
+    fn erf_series_complex(z: Complex64) -> Complex64 {
+        let sqrt_pi = PI.sqrt();
+        let two_over_sqrt_pi = Complex64::new(2.0 / sqrt_pi, 0.0);
+
+        let mut result = z;
+        let z_squared = z * z;
+        let mut term = z;
+
+        for n in 1..=50 {
+            term *= -z_squared / Complex64::new(n as f64, 0.0);
+            let factorial_term = Complex64::new((2 * n + 1) as f64, 0.0);
+            result += term / factorial_term;
+
+            if term.norm() < 1e-15 * result.norm() {
+                break;
+            }
+        }
+
+        two_over_sqrt_pi * result
+    }
+
+    /// Asymptotic expansion for erf(z) for large |z|
+    fn erf_asymptotic_complex(z: Complex64) -> Complex64 {
+        // For large |z|, use erf(z) = 1 - erfc(z) and compute erfc asymptotically
+        Complex64::new(1.0, 0.0) - erfc_asymptotic_complex(z)
+    }
+
+    /// Asymptotic expansion for erfc(z) for large |z|
+    fn erfc_asymptotic_complex(z: Complex64) -> Complex64 {
+        // erfc(z) ≈ (e^(-z²))/(√π * z) * [1 - 1/(2z²) + 3/(4z⁴) - ...]
+        let sqrt_pi = PI.sqrt();
+        let z_squared = z * z;
+        let exp_minus_z2 = (-z_squared).exp();
+
+        let z_inv = Complex64::new(1.0, 0.0) / z;
+        let z_inv_2 = z_inv * z_inv;
+
+        // Asymptotic series (first few terms)
+        let mut series = Complex64::new(1.0, 0.0);
+        series -= z_inv_2 / Complex64::new(2.0, 0.0);
+        series += Complex64::new(3.0, 0.0) * z_inv_2 * z_inv_2 / Complex64::new(4.0, 0.0);
+        series -=
+            Complex64::new(15.0, 0.0) * z_inv_2 * z_inv_2 * z_inv_2 / Complex64::new(8.0, 0.0);
+
+        exp_minus_z2 / Complex64::new(sqrt_pi, 0.0) * z_inv * series
+    }
+
+    /// Asymptotic expansion for erfcx(z) for large |z|
+    fn erfcx_asymptotic_complex(z: Complex64) -> Complex64 {
+        // erfcx(z) ≈ 1/(√π * z) * [1 - 1/(2z²) + 3/(4z⁴) - ...]
+        let sqrt_pi = PI.sqrt();
+
+        let z_inv = Complex64::new(1.0, 0.0) / z;
+        let z_inv_2 = z_inv * z_inv;
+
+        // Asymptotic series
+        let mut series = Complex64::new(1.0, 0.0);
+        series -= z_inv_2 / Complex64::new(2.0, 0.0);
+        series += Complex64::new(3.0, 0.0) * z_inv_2 * z_inv_2 / Complex64::new(4.0, 0.0);
+        series -=
+            Complex64::new(15.0, 0.0) * z_inv_2 * z_inv_2 * z_inv_2 / Complex64::new(8.0, 0.0);
+
+        z_inv / Complex64::new(sqrt_pi, 0.0) * series
+    }
+
+    /// Asymptotic expansion for erfcx(x) for large real x
+    fn erfcx_asymptotic_real(x: f64) -> Complex64 {
+        let sqrt_pi = PI.sqrt();
+        let x_inv = 1.0 / x;
+        let x_inv_2 = x_inv * x_inv;
+
+        // For large x, erfcx(x) ≈ 1/(√π * x) * [1 - 1/(2x²) + 3/(4x⁴) - ...]
+        let mut series = 1.0;
+        series -= x_inv_2 / 2.0;
+        series += 3.0 * x_inv_2 * x_inv_2 / 4.0;
+        series -= 15.0 * x_inv_2 * x_inv_2 * x_inv_2 / 8.0;
+
+        let result = if x > 0.0 {
+            x_inv / sqrt_pi * series
+        } else {
+            // For negative x, use erfcx(-x) = 2*exp(x²) - erfcx(x)
+            let exp_x2 = (x * x).exp();
+            2.0 * exp_x2 - (-x_inv) / sqrt_pi * series
+        };
+
+        Complex64::new(result, 0.0)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use approx::assert_relative_eq;
+
+        #[test]
+        fn test_erf_complex_real_values() {
+            // Test real values match real erf function
+            let test_values = [0.0, 0.5, 1.0, 2.0, -1.0, -2.0];
+
+            for &x in &test_values {
+                let z = Complex64::new(x, 0.0);
+                let complex_result = erf_complex(z);
+                let real_result = super::super::erf(x);
+
+                assert_relative_eq!(complex_result.re, real_result, epsilon = 1e-10);
+                assert!(complex_result.im.abs() < 1e-12);
+            }
+        }
+
+        #[test]
+        fn test_erfc_complex_real_values() {
+            // Test real values match real erfc function
+            let test_values = [0.0, 0.5, 1.0, 2.0, -1.0, -2.0];
+
+            for &x in &test_values {
+                let z = Complex64::new(x, 0.0);
+                let complex_result = erfc_complex(z);
+                let real_result = super::super::erfc(x);
+
+                assert_relative_eq!(complex_result.re, real_result, epsilon = 1e-10);
+                assert!(complex_result.im.abs() < 1e-12);
+            }
+        }
+
+        #[test]
+        fn test_erf_erfc_relation() {
+            // Test that erf(z) + erfc(z) = 1 for complex z
+            let test_values = [
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.0, 1.0),
+                Complex64::new(1.0, 1.0),
+                Complex64::new(-1.0, 0.5),
+                Complex64::new(2.0, -1.0),
+            ];
+
+            for &z in &test_values {
+                let erf_z = erf_complex(z);
+                let erfc_z = erfc_complex(z);
+                let sum = erf_z + erfc_z;
+
+                assert_relative_eq!(sum.re, 1.0, epsilon = 1e-10);
+                assert!(sum.im.abs() < 1e-10);
+            }
+        }
+
+        #[test]
+        fn test_erf_odd_function() {
+            // Test that erf(-z) = -erf(z) for complex z
+            let test_values = [
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.5, 0.5),
+                Complex64::new(2.0, 1.0),
+            ];
+
+            for &z in &test_values {
+                let erf_z = erf_complex(z);
+                let erf_minus_z = erf_complex(-z);
+
+                assert_relative_eq!(erf_minus_z.re, -erf_z.re, epsilon = 1e-10);
+                assert_relative_eq!(erf_minus_z.im, -erf_z.im, epsilon = 1e-10);
+            }
+        }
+
+        #[test]
+        fn test_erfcx_real_values() {
+            // Test erfcx for real values
+            let test_values = [0.5, 1.0, 2.0, 5.0];
+
+            for &x in &test_values {
+                let z = Complex64::new(x, 0.0);
+                let erfcx_result = erfcx_complex(z);
+
+                // Verify erfcx(x) = e^(x²) * erfc(x)
+                let erfc_x = super::super::erfc(x);
+                let exp_x2 = (x * x).exp();
+                let expected = exp_x2 * erfc_x;
+
+                assert_relative_eq!(erfcx_result.re, expected, epsilon = 1e-8);
+                assert!(erfcx_result.im.abs() < 1e-12);
+            }
+        }
+
+        #[test]
+        fn test_faddeeva_real_values() {
+            // Test Faddeeva function for real values
+            let test_values = [0.5, 1.0, 2.0];
+
+            for &x in &test_values {
+                let z = Complex64::new(x, 0.0);
+                let w_result = faddeeva_complex(z);
+
+                // For real x, w(x) = e^(-x²) * erfc(-ix)
+                // Since erfc(-ix) is complex, we verify the general property
+                assert!(w_result.norm() > 0.0);
+            }
+        }
+
+        #[test]
+        fn test_pure_imaginary_arguments() {
+            // Test error functions for pure imaginary arguments
+            let imaginary_values = [
+                Complex64::new(0.0, 1.0),
+                Complex64::new(0.0, 2.0),
+                Complex64::new(0.0, 0.5),
+            ];
+
+            for &z in &imaginary_values {
+                let erf_result = erf_complex(z);
+                let erfc_result = erfc_complex(z);
+
+                // For pure imaginary z = iy, erf(iy) should be pure imaginary
+                assert!(erf_result.re.abs() < 1e-12);
+                assert!(erf_result.im != 0.0);
+
+                // erfc(iy) = 1 - erf(iy) should have real part = 1
+                assert_relative_eq!(erfc_result.re, 1.0, epsilon = 1e-10);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-special"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Special functions module for SciRS2"
@@ -21,8 +21,44 @@ lazy_static = { workspace = true }
 
 [features]
 default = []
-parallel = ["scirs2-core/parallel", "ndarray/rayon"]
+parallel = ["scirs2-core/parallel", "ndarray/rayon", "rayon"]
 simd = ["scirs2-core/simd"]
+lazy = ["futures"]
+gpu = ["wgpu", "bytemuck"]
+# array-api = ["arrayfire", "candle"]  # Disabled - placeholder for future implementation
+# high-precision = ["rug"]             # Disabled - placeholder for future implementation
+
+# Optional dependencies for advanced features
+[dependencies.futures]
+version = "0.3"
+optional = true
+
+[dependencies.wgpu]
+version = "0.20"
+optional = true
+
+[dependencies.bytemuck]
+version = "1.14"
+features = ["derive"]
+optional = true
+
+[dependencies.rayon]
+version = "1.10"
+optional = true
+
+# Note: These are placeholder features - actual implementations would use appropriate crates
+# [dependencies.arrayfire]
+# version = "3.8"
+# optional = true
+
+# [dependencies.candle]
+# version = "0.6"
+# optional = true
+
+# [dependencies.rug]
+# version = "1.19"
+# optional = true
 
 [dev-dependencies]
 criterion = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }

@@ -4,6 +4,7 @@
 //! such as early stopping, model checkpointing, and learning rate scheduling.
 
 use crate::error::Result;
+use crate::layers::Layer;
 use crate::models::History;
 use ndarray::ScalarOperand;
 use num_traits::Float;
@@ -48,6 +49,8 @@ pub struct CallbackContext<'a, F: Float + Debug + ScalarOperand> {
     pub history: &'a History<F>,
     /// Whether to stop training
     pub stop_training: bool,
+    /// Optional reference to the model for gradient access
+    pub model: Option<&'a mut dyn Layer<F>>,
 }
 
 /// Trait for training callbacks

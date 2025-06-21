@@ -15,7 +15,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u, s, v) = svd(&matrix);
+        let (u, s, v) = svd(matrix);
         println!(
             "SVD shapes: U={:?}, S={:?}, V={:?}",
             u.eval(g).unwrap().shape(),
@@ -29,17 +29,17 @@ fn main() {
         println!("V = {:?}", v.eval(g).unwrap());
 
         // Verify reconstruction
-        let s_diag = diag(&s);
-        let us = matmul(&u, &s_diag);
-        let v_t = transpose(&v, &[1, 0]);
-        let reconstructed = matmul(&us, &v_t);
+        let s_diag = diag(s);
+        let us = matmul(u, s_diag);
+        let v_t = transpose(v, &[1, 0]);
+        let reconstructed = matmul(us, v_t);
 
         println!("Reconstructed = {:?}", reconstructed.eval(g).unwrap());
         println!("Original = {:?}", matrix.eval(g).unwrap());
 
         // Print numerical error
-        let diff = sub(&reconstructed, &matrix);
-        let error = sum_all(&square(&diff));
+        let diff = sub(reconstructed, matrix);
+        let error = sum_all(square(diff));
         println!("Reconstruction error: {:?}", error.eval(g).unwrap());
     });
 }

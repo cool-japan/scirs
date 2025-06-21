@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -19,8 +19,6 @@
 
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
 
 use ndarray::{Array, IntoDimension, Ix1, Ix2, IxDyn};
 
@@ -30,30 +28,21 @@ use crate::array_protocol::{
 use crate::error::CoreError;
 
 /// Error type for array operations.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum OperationError {
     /// The operation is not implemented for the given array types.
+    #[error("Operation not implemented: {0}")]
     NotImplemented(String),
     /// The array shapes are incompatible for the operation.
+    #[error("Shape mismatch: {0}")]
     ShapeMismatch(String),
     /// The array types are incompatible for the operation.
+    #[error("Type mismatch: {0}")]
     TypeMismatch(String),
     /// Other error during operation.
+    #[error("Operation error: {0}")]
     Other(String),
 }
-
-impl fmt::Display for OperationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotImplemented(msg) => write!(f, "Operation not implemented: {}", msg),
-            Self::ShapeMismatch(msg) => write!(f, "Shape mismatch: {}", msg),
-            Self::TypeMismatch(msg) => write!(f, "Type mismatch: {}", msg),
-            Self::Other(msg) => write!(f, "Operation error: {}", msg),
-        }
-    }
-}
-
-impl Error for OperationError {}
 
 impl From<NotImplemented> for OperationError {
     fn from(_: NotImplemented) -> Self {
@@ -173,11 +162,10 @@ array_function_dispatch!(
                     }
                 }
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "matmul not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "matmul not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -229,11 +217,10 @@ array_function_dispatch!(
             ) {
                 let result = a_array.as_array() + b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "add not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "add not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -285,11 +272,10 @@ array_function_dispatch!(
             ) {
                 let result = a_array.as_array() - b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "subtract not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "subtract not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -341,11 +327,10 @@ array_function_dispatch!(
             ) {
                 let result = a_array.as_array() * b_array.as_array();
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "multiply not implemented for these array types".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "multiply not implemented for these array types".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -403,11 +388,10 @@ array_function_dispatch!(
                         return Ok(Box::new(result));
                     }
                 }
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "sum not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "sum not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -467,11 +451,10 @@ array_function_dispatch!(
                 }
 
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "transpose not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "transpose not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -512,11 +495,10 @@ where
         if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
             let result = a_array.as_array().mapv(f);
             return Ok(Box::new(NdarrayWrapper::new(result)));
-        } else {
-            return Err(OperationError::NotImplemented(
-                "apply_elementwise not implemented for this array type".to_string(),
-            ));
         }
+        return Err(OperationError::NotImplemented(
+            "apply_elementwise not implemented for this array type".to_string(),
+        ));
     }
 
     // For this operation, we need to handle the function specially
@@ -644,11 +626,10 @@ array_function_dispatch!(
                     }
                 };
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "reshape not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "reshape not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -709,11 +690,10 @@ array_function_dispatch!(
                     Box::new(NdarrayWrapper::new(s)),
                     Box::new(NdarrayWrapper::new(vt)),
                 ));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "svd not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "svd not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation
@@ -767,11 +747,10 @@ array_function_dispatch!(
                 // Placeholder: just return the identity matrix
                 let result = Array::<f64, _>::eye(m);
                 return Ok(Box::new(NdarrayWrapper::new(result)));
-            } else {
-                return Err(OperationError::NotImplemented(
-                    "inverse not implemented for this array type".to_string(),
-                ));
             }
+            return Err(OperationError::NotImplemented(
+                "inverse not implemented for this array type".to_string(),
+            ));
         }
 
         // Delegate to the implementation

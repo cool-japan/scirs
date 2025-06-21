@@ -8,8 +8,10 @@ fn main() {
     let signal = t.mapv(|ti| (2.0 * std::f64::consts::PI * (10.0 * ti + 50.0 * ti * ti)).sin());
 
     // Configure the WVD
-    let mut config = WvdConfig::default();
-    config.fs = fs;
+    let config = WvdConfig {
+        fs,
+        ..Default::default()
+    };
 
     // Compute the WVD
     let wvd = wigner_ville(&signal, config).unwrap();

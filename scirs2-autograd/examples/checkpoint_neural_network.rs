@@ -316,24 +316,24 @@ fn main() {
         let start = Instant::now();
 
         // Input tensor and first layer weight/bias - use the first_layer tensor
-        let x = first_layer.clone();
+        let x = first_layer;
 
         // Create a 4-layer block
         let w1 = ctx.variable("w0"); // Reuse existing variables
         let b1 = ctx.variable("b0");
-        let h1 = relu(add(matmul(&x, w1), b1));
+        let h1 = relu(add(matmul(x, w1), b1));
 
         let w2 = ctx.variable("w1");
         let b2 = ctx.variable("b1");
-        let h2 = relu(add(matmul(&h1, w2), b2));
+        let h2 = relu(add(matmul(h1, w2), b2));
 
         let w3 = ctx.variable("w2");
         let b3 = ctx.variable("b2");
-        let h3 = relu(add(matmul(&h2, w3), b3));
+        let h3 = relu(add(matmul(h2, w3), b3));
 
         let w4 = ctx.variable("w3");
         let b4 = ctx.variable("b3");
-        let output1 = relu(add(matmul(&h3, w4), b4));
+        let output1 = relu(add(matmul(h3, w4), b4));
 
         let normal_time = start.elapsed();
 
@@ -342,16 +342,16 @@ fn main() {
         let start = Instant::now();
 
         // Reuse first layer input but apply checkpoints at each step
-        let h1 = relu(add(matmul(&x, w1), b1));
+        let h1 = relu(add(matmul(x, w1), b1));
         let h1_ckpt = checkpoint(&h1);
 
-        let h2 = relu(add(matmul(&h1_ckpt, w2), b2));
+        let h2 = relu(add(matmul(h1_ckpt, w2), b2));
         let h2_ckpt = checkpoint(&h2);
 
-        let h3 = relu(add(matmul(&h2_ckpt, w3), b3));
+        let h3 = relu(add(matmul(h2_ckpt, w3), b3));
         let h3_ckpt = checkpoint(&h3);
 
-        let output2 = relu(add(matmul(&h3_ckpt, w4), b4));
+        let output2 = relu(add(matmul(h3_ckpt, w4), b4));
 
         // Use the checkpoint profiler to track memory usage
         CheckpointProfiler::start_tracking();

@@ -1,20 +1,14 @@
-use ndarray::{Array, Array2, Axis};
-use rand::distributions::{Distribution, Standard};
+use ndarray::Array2;
 use rand::Rng;
-use scirs2_core::array::{mask_array, masked_invalid, ArrayError, MaskedArray};
-use scirs2_core::error::ScirsError;
-use scirs2_core::memory_efficient::{
-    chunk_wise_binary_op, chunk_wise_op, chunk_wise_reduce, create_disk_array, evaluate,
-    load_chunks, ChunkedArray, ChunkingStrategy, LazyArray, OutOfCoreArray,
-};
-use std::path::Path;
+use scirs2_core::array::{mask_array, MaskedArray};
+use scirs2_core::memory_efficient::{create_disk_array, ChunkingStrategy};
 use std::time::Instant;
 use tempfile::tempdir;
 
 /// Simulates loading a chunk of a large dataset
-fn load_data_chunk(chunk_idx: usize, chunk_size: usize, n_features: usize) -> Array2<f64> {
-    let mut rng = rand::thread_rng();
-    Array2::from_shape_fn((chunk_size, n_features), |_| rng.gen_range(0.0..100.0))
+fn load_data_chunk(_chunk_idx: usize, chunk_size: usize, n_features: usize) -> Array2<f64> {
+    let mut rng = rand::rng();
+    Array2::from_shape_fn((chunk_size, n_features), |_| rng.random_range(0.0..100.0))
 }
 
 /// Normalizes data (center and scale)
@@ -57,10 +51,7 @@ fn mask_outliers(
     }
 
     // Create a masked array with the outliers masked
-    let result = mask_array(chunk.clone(), Some(mask), Some(f64::NAN))
-        .expect("Failed to create masked array");
-
-    result
+    mask_array(chunk.clone(), Some(mask), Some(f64::NAN)).expect("Failed to create masked array")
 }
 
 /// Compute correlation matrix for a dataset
@@ -118,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a temporary directory for out-of-core storage
     let temp_dir = tempdir()?;
     let normalized_path = temp_dir.path().join("normalized.bin");
-    let outliers_path = temp_dir.path().join("outliers.bin");
+    let _outliers_path = temp_dir.path().join("outliers.bin");
 
     // Step 1: Load and normalize data in chunks
     println!("Step 1: Normalize data in chunks and store on disk");
@@ -151,7 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 2: Detect outliers and create a masked array
     println!("\nStep 2: Detect outliers in normalized data");
-    let start = Instant::now();
+    let _start = Instant::now();
 
     // Load some chunks back from disk to detect outliers
     let normalized_data = disk_array.load()?;
@@ -221,8 +212,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print a few examples
     let n_examples = std::cmp::min(5, highly_correlated.len());
-    for i in 0..n_examples {
-        let (f1, f2, corr) = highly_correlated[i];
+    for &(f1, f2, corr) in highly_correlated.iter().take(n_examples) {
         println!("  Features {} and {}: correlation = {:.3}", f1, f2, corr);
     }
 

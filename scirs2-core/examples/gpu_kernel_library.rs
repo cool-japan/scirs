@@ -102,8 +102,8 @@ fn matrix_multiply_example(ctx: &GpuContext) -> Result<(), GpuError> {
 
     // Execute kernel
     kernel.dispatch([
-        (b.shape()[1] as u32 + 15) / 16,
-        (a.shape()[0] as u32 + 15) / 16,
+        (b.shape()[1] as u32).div_ceil(16),
+        (a.shape()[0] as u32).div_ceil(16),
         1,
     ]);
 
@@ -164,7 +164,7 @@ fn vector_addition_example(ctx: &GpuContext) -> Result<(), GpuError> {
     kernel.set_u32("n", x.len() as u32);
 
     // Execute kernel
-    kernel.dispatch([(x.len() as u32 + 255) / 256, 1, 1]);
+    kernel.dispatch([(x.len() as u32).div_ceil(256), 1, 1]);
 
     // Get result (overwrite y)
     y_buffer.copy_to_host(y.as_slice_mut().unwrap());
@@ -283,7 +283,7 @@ fn activation_functions_example(ctx: &GpuContext) -> Result<(), GpuError> {
     relu_kernel.set_u32("n", x.len() as u32);
 
     // Execute kernel
-    relu_kernel.dispatch([(x.len() as u32 + 255) / 256, 1, 1]);
+    relu_kernel.dispatch([(x.len() as u32).div_ceil(256), 1, 1]);
 
     // Get result
     let relu_result = output_buffer.to_vec();
@@ -299,7 +299,7 @@ fn activation_functions_example(ctx: &GpuContext) -> Result<(), GpuError> {
     sigmoid_kernel.set_u32("n", x.len() as u32);
 
     // Execute kernel
-    sigmoid_kernel.dispatch([(x.len() as u32 + 255) / 256, 1, 1]);
+    sigmoid_kernel.dispatch([(x.len() as u32).div_ceil(256), 1, 1]);
 
     // Get result
     let sigmoid_result = output_buffer.to_vec();

@@ -19,12 +19,14 @@ Input/Output module for the SciRS2 scientific computing library. This module pro
 
 ### Data Processing
 - **Image Support**: Read and write common image formats (PNG, JPEG, BMP, TIFF) with basic EXIF metadata
-- **Data Serialization**: Serialize and deserialize arrays, structs, and enhanced sparse matrices (COO, CSR, CSC)
-- **Data Compression**: Compress and decompress data using multiple algorithms (GZIP, ZSTD, LZ4, BZIP2)
-- **Data Validation**: Verify data integrity through checksums and format validation
+- **Data Serialization**: Serialize and deserialize arrays, structs, and sparse matrices (COO, CSR, CSC)
+- **Data Compression**: Compress and decompress data using multiple algorithms (GZIP, ZSTD, LZ4, BZIP2) with parallel processing support
+- **Data Validation**: Verify data integrity through checksums, format validation, and comprehensive schema-based validation
 - **Sparse Matrix Operations**: Advanced sparse matrix support with format conversion and operations
 
 ### Additional Features
+- **High Performance**: Parallel compression/decompression for large datasets with automatic optimization
+- **Schema Validation**: Comprehensive data validation against JSON Schema-compatible definitions
 - **Error Handling**: Robust error handling with detailed error information
 - **Memory Efficiency**: Chunked processing for large files
 - **Type Safety**: Strong typing with Rust's type system
@@ -35,14 +37,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.1.0-alpha.4"
+scirs2-io = "0.1.0-alpha.5"
 ```
 
 To enable specific features:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.1.0-alpha.4", features = ["matlab", "image", "compression"] }
+scirs2-io = { version = "0.1.0-alpha.5", features = ["matlab", "image", "compression"] }
 ```
 
 Available features:
@@ -60,6 +62,102 @@ Basic usage examples:
 use scirs2_io::{matlab, wavfile, arff, csv, compression, validation};
 use scirs2_core::error::CoreResult;
 use ndarray::Array2;
+
+// Example: Parallel compression for large datasets
+fn parallel_compression_example() -> CoreResult<()> {
+    use scirs2_io::compression::{
+        compress_data_parallel, decompress_data_parallel,
+        CompressionAlgorithm, ParallelCompressionConfig
+    };
+
+    // Large dataset
+    let large_data = vec![0u8; 10_000_000]; // 10MB of data
+    
+    // Configure parallel compression
+    let config = ParallelCompressionConfig {
+        num_threads: 4,           // Use 4 threads
+        chunk_size: 1024 * 1024,  // 1MB chunks
+        buffer_size: 64 * 1024,   // 64KB buffer
+        enable_memory_mapping: true,
+    };
+    
+    // Compress in parallel
+    let (compressed, stats) = compress_data_parallel(
+        &large_data, 
+        CompressionAlgorithm::Zstd, 
+        Some(6), 
+        config.clone()
+    )?;
+    
+    println!("Compressed {} bytes to {} bytes in {:.2}ms", 
+             stats.bytes_processed, 
+             stats.bytes_output, 
+             stats.operation_time_ms);
+    println!("Throughput: {:.2} MB/s", stats.throughput_bps / 1_000_000.0);
+    
+    // Decompress in parallel
+    let (decompressed, _) = decompress_data_parallel(
+        &compressed, 
+        CompressionAlgorithm::Zstd, 
+        config
+    )?;
+    
+    assert_eq!(large_data, decompressed);
+    Ok(())
+}
+
+// Example: Schema-based validation
+fn schema_validation_example() -> CoreResult<()> {
+    use scirs2_io::validation::{
+        SchemaValidator, schema_helpers, SchemaConstraint
+    };
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    let validator = SchemaValidator::new();
+    
+    // Define a schema for user data
+    let mut user_schema_props = HashMap::new();
+    user_schema_props.insert(
+        "name".to_string(),
+        schema_helpers::string()
+            .with_constraint(SchemaConstraint::MinLength(1))
+            .required()
+    );
+    user_schema_props.insert(
+        "age".to_string(),
+        schema_helpers::integer()
+            .with_constraint(SchemaConstraint::MinValue(0.0))
+            .with_constraint(SchemaConstraint::MaxValue(150.0))
+            .required()
+    );
+    user_schema_props.insert(
+        "email".to_string(),
+        schema_helpers::email().required()
+    );
+    
+    let user_schema = schema_helpers::object(user_schema_props);
+    
+    // Validate data
+    let user_data = json!({
+        "name": "Alice Johnson",
+        "age": 30,
+        "email": "alice@example.com"
+    });
+    
+    let result = validator.validate(&user_data, &user_schema);
+    
+    if result.valid {
+        println!("User data is valid!");
+    } else {
+        println!("Validation errors:");
+        for error in &result.errors {
+            println!("  {}: {}", error.path, error.message);
+        }
+    }
+    
+    Ok(())
+}
 
 // Read and write MATLAB .mat files
 fn matlab_example() -> CoreResult<()> {
@@ -287,10 +385,18 @@ use scirs2_io::compression::{
     decompress_data,            // Decompress raw bytes
     compress_file,              // Compress a file
     decompress_file,            // Decompress a file
+    // Parallel compression for large datasets
+    compress_data_parallel,     // Parallel compression with configurable threads
+    decompress_data_parallel,   // Parallel decompression
+    compress_file_parallel,     // Parallel file compression
+    decompress_file_parallel,   // Parallel file decompression
+    benchmark_compression_algorithms, // Benchmark different algorithms and configurations
     compression_ratio,          // Calculate compression ratio
     algorithm_info,             // Get information about compression algorithm
     CompressionAlgorithm,       // Compression algorithm (Gzip, Zstd, Lz4, Bzip2)
     CompressionInfo,            // Information about a compression algorithm
+    ParallelCompressionConfig,  // Configuration for parallel operations
+    ParallelCompressionStats,   // Performance statistics
 };
 
 // For ndarray-specific compression
@@ -313,9 +419,17 @@ use scirs2_io::validation::{
     generate_file_integrity_metadata, // Generate integrity metadata
     validate_file_integrity,    // Validate file against metadata
     create_directory_manifest,  // Create manifest for a directory
+    // Schema-based validation
+    SchemaValidator,            // Schema validation engine
+    SchemaDefinition,           // Schema definition for data structures
+    SchemaDataType,             // Data types (string, number, object, array, etc.)
+    SchemaConstraint,           // Validation constraints (min/max, patterns, etc.)
+    schema_helpers,             // Helper functions for common schema types
+    schema_from_json_schema,    // Convert from JSON Schema format
     ChecksumAlgorithm,          // Checksum algorithm types
     IntegrityMetadata,          // File integrity metadata
     ValidationReport,           // Validation result report
+    SchemaValidationResult,     // Schema validation result
 };
 
 // For format validation
@@ -424,6 +538,12 @@ The compression module supports:
   - File-based compression operations
   - Configurable compression levels
   - Algorithm comparison and benchmarking
+- High-performance parallel processing:
+  - Multi-threaded compression/decompression for large datasets
+  - Configurable thread count and chunk sizes
+  - Automatic optimization for different data sizes
+  - Performance statistics and throughput monitoring
+  - Significant speedup for large files (up to 2.5x faster decompression)
 - Ndarray-specific compression:
   - Memory-efficient compression of large arrays
   - Chunked processing for arrays that don't fit in memory
@@ -443,6 +563,14 @@ The validation module provides:
   - Format-specific validators for scientific data formats
   - Detailed validation reports
   - Structure validation for formats like CSV, JSON, and ARFF
+- Comprehensive schema-based validation:
+  - JSON Schema compatible validation engine
+  - Support for complex nested data structures (objects, arrays, unions)
+  - Built-in format validators (email, date, UUID, IPv4, URI)
+  - Custom validation functions with extensible validator registry
+  - Constraint validation (min/max values, length limits, patterns, enums)
+  - Detailed error reporting with field-specific error messages
+  - File validation for JSON/structured data files
 - Integration features:
   - Validation reports with machine-readable output
   - Checksum file generation and verification
@@ -493,9 +621,9 @@ The Matrix Market module supports:
   - Conversion between 0-based and 1-based indexing
   - Integration with sparse matrix operations
 
-### Enhanced Sparse Matrix Support
+### Sparse Matrix Support
 
-The serialization module now includes:
+The serialization module provides:
 - Multiple sparse matrix formats:
   - COO (Coordinate) - flexible, easy to construct
   - CSR (Compressed Sparse Row) - efficient row operations

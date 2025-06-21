@@ -11,7 +11,7 @@
 //! - Range queries for all points within a specified radius
 //! - Bulk loading optimization for large datasets
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
+use ndarray::{Array2, ArrayBase, ArrayView1, Data, Ix2};
 use num_traits::{Float, FromPrimitive};
 use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
@@ -677,6 +677,223 @@ where
     /// Get a reference to the points in the KD-tree
     pub fn points(&self) -> &Array2<F> {
         &self.points
+    }
+
+    /// Find all points within a specified radius (alias for points_within_radius)
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates
+    /// * `radius` - Search radius
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples for all points within radius
+    pub fn radius_neighbors(&self, query: &[F], radius: F) -> InterpolateResult<Vec<(usize, F)>> {
+        self.points_within_radius(query, radius)
+    }
+
+    /// Find all points within a specified radius using an array view
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates as an array view
+    /// * `radius` - Search radius
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples for all points within radius
+    pub fn radius_neighbors_view(
+        &self,
+        query: &ArrayView1<F>,
+        radius: F,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        let query_slice = query.as_slice().ok_or_else(|| {
+            InterpolateError::InvalidValue("Query must be contiguous".to_string())
+        })?;
+        self.points_within_radius(query_slice, radius)
+    }
+
+    /// Enhanced k-nearest neighbor search with early termination optimization
+    ///
+    /// This method provides improved performance for k-NN queries by using
+    /// adaptive search strategies and early termination when possible.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates
+    /// * `k` - Number of nearest neighbors to find
+    /// * `max_distance` - Optional maximum search distance for early termination
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples, sorted by distance
+    pub fn k_nearest_neighbors_optimized(
+        &self,
+        query: &[F],
+        k: usize,
+        max_distance: Option<F>,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        // Check query dimension
+        if query.len() != self.dim {
+            return Err(InterpolateError::DimensionMismatch(format!(
+                "Query dimension {} doesn't match KD-tree dimension {}",
+                query.len(),
+                self.dim
+            )));
+        }
+
+        // Handle empty tree
+        if self.root.is_none() {
+            return Err(InterpolateError::InvalidState(
+                "KD-tree is empty".to_string(),
+            ));
+        }
+
+        // Limit k to the number of points
+        let k = k.min(self.points.shape()[0]);
+
+        if k == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Very small trees (just use linear search)
+        if self.points.shape()[0] <= self.leaf_size {
+            return self.linear_k_nearest_neighbors_optimized(query, k, max_distance);
+        }
+
+        use ordered_float::OrderedFloat;
+        use std::collections::BinaryHeap;
+
+        let mut heap: BinaryHeap<(OrderedFloat<F>, usize)> = BinaryHeap::with_capacity(k + 1);
+        let mut search_radius = max_distance.unwrap_or(F::infinity());
+
+        // Start recursive search with adaptive radius
+        self.search_k_nearest_optimized(
+            self.root.unwrap(),
+            query,
+            k,
+            &mut heap,
+            &mut search_radius,
+        );
+
+        // Convert heap to sorted vector
+        let mut results: Vec<(usize, F)> = heap
+            .into_iter()
+            .map(|(dist, idx)| (idx, dist.into_inner()))
+            .collect();
+
+        // Sort by distance (heap gives us reverse order)
+        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+        Ok(results)
+    }
+
+    /// Optimized linear k-nearest neighbors search with early termination
+    fn linear_k_nearest_neighbors_optimized(
+        &self,
+        query: &[F],
+        k: usize,
+        max_distance: Option<F>,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        let n_points = self.points.shape()[0];
+        let k = k.min(n_points);
+        let max_dist = max_distance.unwrap_or(F::infinity());
+
+        let mut distances: Vec<(usize, F)> = Vec::with_capacity(n_points);
+
+        for i in 0..n_points {
+            let point = self.points.row(i);
+            let dist = self.distance(&point.to_vec(), query);
+
+            // Early termination if distance exceeds maximum
+            if dist <= max_dist {
+                distances.push((i, dist));
+            }
+        }
+
+        // Sort by distance
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+        // Return k nearest within max distance
+        distances.truncate(k);
+        Ok(distances)
+    }
+
+    /// Optimized recursive k-nearest search with adaptive pruning
+    #[allow(clippy::type_complexity)]
+    fn search_k_nearest_optimized(
+        &self,
+        node_idx: usize,
+        query: &[F],
+        k: usize,
+        heap: &mut std::collections::BinaryHeap<(OrderedFloat<F>, usize)>,
+        search_radius: &mut F,
+    ) {
+        let node = &self.nodes[node_idx];
+
+        // Calculate distance to the current node's point
+        let point_idx = node.idx;
+        let point = self.points.row(point_idx);
+        let dist = self.distance(&point.to_vec(), query);
+
+        // Add to heap if within search radius
+        if dist <= *search_radius {
+            heap.push((OrderedFloat(dist), point_idx));
+
+            // If heap is too large, remove the farthest point and update search radius
+            if heap.len() > k {
+                heap.pop();
+            }
+
+            // Update search radius to the farthest point in current k-nearest set
+            if heap.len() == k {
+                if let Some(&(max_dist, _)) = heap.peek() {
+                    *search_radius = max_dist.into_inner();
+                }
+            }
+        }
+
+        // If this is a leaf node, we're done
+        if node.left.is_none() && node.right.is_none() {
+            return;
+        }
+
+        // Get the current kth distance for pruning
+        let kth_dist = if heap.len() < k {
+            *search_radius
+        } else {
+            match heap.peek() {
+                Some(&(dist, _)) => dist.into_inner(),
+                None => *search_radius,
+            }
+        };
+
+        // Determine which side to search first
+        let dim = node.dim;
+        let query_val = query[dim];
+        let node_val = node.value;
+
+        let (first, second) = if query_val < node_val {
+            (node.left, node.right)
+        } else {
+            (node.right, node.left)
+        };
+
+        // Search the first subtree
+        if let Some(first_idx) = first {
+            self.search_k_nearest_optimized(first_idx, query, k, heap, search_radius);
+        }
+
+        // Calculate distance to the splitting plane
+        let plane_dist = (query_val - node_val).abs();
+
+        // Only search the second subtree if it could contain better points
+        if plane_dist <= kth_dist {
+            if let Some(second_idx) = second {
+                self.search_k_nearest_optimized(second_idx, query, k, heap, search_radius);
+            }
+        }
     }
 
     /// Find the nearest neighbors to a query point and return their indices

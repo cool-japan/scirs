@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -10,14 +10,14 @@
 // at your option.
 //
 
-//! Implementation of Array Protocol (similar to NumPy's `__array_function__` protocol)
+//! Implementation of Array Protocol (similar to ``NumPy``'s `__array_function__` protocol)
 //!
 //! This module provides a mechanism for third-party array implementations to
-//! override SciRS2 functions. It is inspired by NumPy's `__array_function__`
+//! override ``SciRS2`` functions. It is inspired by ``NumPy``'s `__array_function__`
 //! protocol defined in NEP-18.
 //!
-//! The protocol enables third-party arrays to implement SciRS2 functions in a way
-//! that is recognized by the SciRS2 library. This allows for seamless integration with
+//! The protocol enables third-party arrays to implement ``SciRS2`` functions in a way
+//! that is recognized by the ``SciRS2`` library. This allows for seamless integration with
 //! distributed arrays, GPU arrays, and other custom array implementations.
 //!
 //! ## Core Components
@@ -25,17 +25,18 @@
 //! The Array Protocol system includes:
 //!
 //! * Specialized array implementations (GPU, distributed, JIT)
-//! * Automatic device placement with AutoDevice
+//! * Automatic device placement with `AutoDevice`
 //! * Mixed-precision operations
 //! * Neural network layers and models
 //! * Gradient computation and training capabilities
 //! * Distributed training and model serialization
 
 use std::any::{Any, TypeId};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::sync::{Arc, LazyLock, RwLock};
+use std::time::{Duration, Instant};
 
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
@@ -55,12 +56,13 @@ pub mod grad;
 pub mod mixed_precision;
 pub mod ml_ops;
 pub mod neural;
+#[cfg(feature = "serialization")]
 pub mod serialization;
 pub mod training;
 
 /// Trait for objects that can handle the array protocol.
 ///
-/// This is similar to NumPy's `__array_function__` protocol.
+/// This is similar to `NumPy`'s `__array_function__` protocol.
 pub trait ArrayProtocol: Any + Send + Sync {
     /// Implementation of the array protocol.
     ///
@@ -71,6 +73,10 @@ pub trait ArrayProtocol: Any + Send + Sync {
     ///
     /// Returns `Ok(result)` if the operation is successful, or `Err(NotImplemented)`
     /// if the operation is not implemented for this type.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(NotImplemented)` if the operation is not supported by this array type.
     fn array_function(
         &self,
         func: &ArrayFunction,
@@ -80,23 +86,27 @@ pub trait ArrayProtocol: Any + Send + Sync {
     ) -> Result<Box<dyn Any>, NotImplemented>;
 
     /// Get the array as Any for downcasting
+    #[must_use]
     fn as_any(&self) -> &dyn Any;
 
     /// Get the shape of the array (default implementation returns empty slice)
+    #[must_use]
     fn shape(&self) -> &[usize] {
         &[]
     }
 
     /// Get the data type of the array (default implementation returns f64)
+    #[must_use]
     fn dtype(&self) -> TypeId {
         TypeId::of::<f64>()
     }
 
     /// Clone this array protocol object.
+    #[must_use]
     fn box_clone(&self) -> Box<dyn ArrayProtocol>;
 }
 
-/// Make Box<dyn ArrayProtocol> cloneable via box_clone
+/// Make `Box<dyn ArrayProtocol>` cloneable via `box_clone`
 impl Clone for Box<dyn ArrayProtocol> {
     fn clone(&self) -> Self {
         self.box_clone()
@@ -107,10 +117,10 @@ impl Clone for Box<dyn ArrayProtocol> {
 ///
 /// This is part of the Array Protocol API design and is used as a marker to indicate
 /// that a function is not implemented by a specific array type. It's different from
-/// the CoreError::NotImplementedError enum variant, which is used for error reporting.
+/// the `CoreError::NotImplementedError` enum variant, which is used for error reporting.
 ///
-/// When an error is propagated up the call chain, NotImplemented is converted
-/// to OperationError::NotImplemented and then to CoreError::NotImplementedError
+/// When an error is propagated up the call chain, `NotImplemented` is converted
+/// to `OperationError::NotImplemented` and then to `CoreError::NotImplementedError`
 /// for consistent error handling.
 #[derive(Debug, Clone, Copy)]
 pub struct NotImplemented;
@@ -140,7 +150,7 @@ impl Debug for ArrayFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ArrayFunction")
             .field("name", &self.name)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -160,6 +170,7 @@ impl std::hash::Hash for ArrayFunction {
 
 impl ArrayFunction {
     /// Create a new array function with the given name
+    #[must_use]
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -173,21 +184,51 @@ impl ArrayFunction {
     }
 }
 
-/// Registry of all array functions.
-#[derive(Debug, Default)]
+/// Cache entry for function dispatch optimization
+#[derive(Debug, Clone)]
+pub struct DispatchCacheEntry {
+    /// Type signature for the cached result
+    #[allow(dead_code)]
+    type_signature: Vec<TypeId>,
+    /// Which implementation type to try first
+    #[allow(dead_code)]
+    preferred_impl_type: TypeId,
+    /// Cache timestamp for TTL management
+    timestamp: Instant,
+    /// Number of cache hits
+    hit_count: u64,
+}
+
+/// Registry of all array functions with dispatch caching.
+#[derive(Debug)]
 pub struct ArrayFunctionRegistry {
     /// Map of function names to array functions
     functions: HashMap<&'static str, ArrayFunction>,
+    /// Dispatch cache for performance optimization
+    dispatch_cache: HashMap<(&'static str, Vec<TypeId>), DispatchCacheEntry>,
+    /// Maximum cache size to prevent unbounded growth
+    max_cache_size: usize,
+    /// Cache TTL for entries (prevents stale cache)
+    cache_ttl: Duration,
+}
+
+impl Default for ArrayFunctionRegistry {
+    fn default() -> Self {
+        Self {
+            functions: HashMap::new(),
+            dispatch_cache: HashMap::new(),
+            max_cache_size: 1000,                // Reasonable default cache size
+            cache_ttl: Duration::from_secs(300), // 5 minutes TTL
+        }
+    }
 }
 
 impl ArrayFunctionRegistry {
     /// Get the global registry.
+    #[must_use]
     pub fn global() -> &'static RwLock<Self> {
-        static REGISTRY: LazyLock<RwLock<ArrayFunctionRegistry>> = LazyLock::new(|| {
-            RwLock::new(ArrayFunctionRegistry {
-                functions: HashMap::new(),
-            })
-        });
+        static REGISTRY: LazyLock<RwLock<ArrayFunctionRegistry>> =
+            LazyLock::new(|| RwLock::new(ArrayFunctionRegistry::default()));
         &REGISTRY
     }
 
@@ -197,21 +238,118 @@ impl ArrayFunctionRegistry {
     }
 
     /// Get an array function by name.
+    #[must_use]
+    #[allow(dead_code)]
     pub fn get(&self, name: &str) -> Option<&ArrayFunction> {
         self.functions.get(name)
     }
 
     /// Get all registered functions.
+    #[must_use]
     pub fn all_functions(&self) -> Vec<&ArrayFunction> {
         self.functions.values().collect()
+    }
+
+    /// Get cached dispatch entry for optimization
+    #[must_use]
+    pub fn get_cached_dispatch(
+        &self,
+        func_name: &'static str,
+        types: &[TypeId],
+    ) -> Option<&DispatchCacheEntry> {
+        let key = (func_name, types.to_vec());
+        if let Some(entry) = self.dispatch_cache.get(&key) {
+            // Check if cache entry is still valid (TTL check)
+            if entry.timestamp.elapsed() < self.cache_ttl {
+                return Some(entry);
+            }
+        }
+        None
+    }
+
+    /// Cache dispatch result for future optimization
+    pub fn cache_dispatch_result(
+        &mut self,
+        func_name: &'static str,
+        types: Vec<TypeId>,
+        impl_type: TypeId,
+    ) {
+        // Clean cache if it's getting too large
+        if self.dispatch_cache.len() >= self.max_cache_size {
+            self.cleanup_cache();
+        }
+
+        let key = (func_name, types.clone());
+        let entry = DispatchCacheEntry {
+            type_signature: types,
+            preferred_impl_type: impl_type,
+            timestamp: Instant::now(),
+            hit_count: 0,
+        };
+        self.dispatch_cache.insert(key, entry);
+    }
+
+    /// Update cache hit count for an entry
+    pub fn update_cache_hit(&mut self, func_name: &'static str, types: &[TypeId]) {
+        let key = (func_name, types.to_vec());
+        if let Some(entry) = self.dispatch_cache.get_mut(&key) {
+            entry.hit_count += 1;
+        }
+    }
+
+    /// Clean up expired cache entries
+    fn cleanup_cache(&mut self) {
+        let now = Instant::now();
+        self.dispatch_cache
+            .retain(|_, entry| now.duration_since(entry.timestamp) < self.cache_ttl);
+
+        // If still too large, remove least recently used entries
+        if self.dispatch_cache.len() >= self.max_cache_size {
+            let mut entries: Vec<_> = self
+                .dispatch_cache
+                .iter()
+                .map(|(k, v)| (k.clone(), v.hit_count))
+                .collect();
+            entries.sort_by_key(|(_, hit_count)| *hit_count);
+
+            // Remove bottom 25% of entries by hit count
+            let to_remove = self.dispatch_cache.len() / 4;
+            let keys_to_remove: Vec<_> = entries
+                .iter()
+                .take(to_remove)
+                .map(|(key, _)| key.clone())
+                .collect();
+            for key in keys_to_remove {
+                self.dispatch_cache.remove(&key);
+            }
+        }
+    }
+
+    /// Get cache statistics for monitoring
+    #[must_use]
+    pub fn cache_stats(&self) -> HashMap<String, u64> {
+        let mut stats = HashMap::new();
+        stats.insert("cache_size".to_string(), self.dispatch_cache.len() as u64);
+        stats.insert("max_cache_size".to_string(), self.max_cache_size as u64);
+
+        let total_hits: u64 = self.dispatch_cache.values().map(|e| e.hit_count).sum();
+        stats.insert("total_hits".to_string(), total_hits);
+
+        stats
     }
 }
 
 /// Helper function to extract all arguments implementing the `ArrayProtocol` trait.
 ///
-/// This is similar to NumPy's `_get_implementing_args` function.
+/// This is similar to `NumPy`'s `_get_implementing_args` function.
+/// Optimized version with pre-allocated capacity and fast-path for common cases.
 pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayProtocol)> {
-    let mut implementing_args = Vec::new();
+    if args.is_empty() {
+        return Vec::new();
+    }
+
+    // Pre-allocate with capacity to avoid reallocation
+    let mut implementing_args = Vec::with_capacity(args.len());
 
     for arg in args {
         if let Some(array_protocol_obj) = arg.downcast_ref::<Box<dyn ArrayProtocol>>() {
@@ -220,9 +358,16 @@ pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayPr
         }
     }
 
-    // Sort implementing args by inheritance hierarchy (if possible)
-    // This is a simplified version - in practice, we would need more complex
-    // sorting to handle inheritance hierarchies correctly
+    // Sort implementing args by TypeId for deterministic dispatch order
+    // This ensures consistent dispatch behavior across calls
+    implementing_args.sort_by_key(|&(type_id, _)| {
+        // Use TypeId hash for deterministic ordering
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        type_id.hash(&mut hasher);
+        hasher.finish()
+    });
+
     implementing_args
 }
 
@@ -234,11 +379,18 @@ pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayPr
 ///
 /// Returns the result of the function call, or an error if the function
 /// cannot be dispatched to any of the array protocol implementations.
+///
+/// Optimized version with caching and fast-path optimizations.
 pub fn array_function_dispatch(
     func: &ArrayFunction,
     args: &[Box<dyn Any>],
     kwargs: &HashMap<String, Box<dyn Any>>,
 ) -> CoreResult<Box<dyn Any>> {
+    // Fast path for empty args
+    if args.is_empty() {
+        return (func.implementation)(args, kwargs);
+    }
+
     // Find all arguments implementing ArrayProtocol
     let implementing_args = get_implementing_args(args);
 
@@ -247,31 +399,50 @@ pub fn array_function_dispatch(
         return (func.implementation)(args, kwargs);
     }
 
-    // Extract all unique types that implement ArrayProtocol
-    let unique_types: HashSet<TypeId> = implementing_args
-        .iter()
-        .map(|(type_id, _)| *type_id)
-        .collect();
-    let types: Vec<TypeId> = unique_types.into_iter().collect();
-
-    // Try dispatching to each implementation
-    for (_, array_protocol_obj) in implementing_args {
+    // Fast path for single implementing argument
+    if implementing_args.len() == 1 {
+        let (type_id, array_protocol_obj) = implementing_args[0];
+        let types = [type_id];
         match array_protocol_obj.array_function(func, &types, args, kwargs) {
             Ok(result) => return Ok(result),
-            Err(NotImplemented) => continue,
+            Err(NotImplemented) => {
+                return Err(CoreError::DispatchError(ErrorContext::new(format!(
+                    "No implementation found for {} with type {:?}",
+                    func.name, type_id
+                ))));
+            }
+        }
+    }
+
+    // Extract all unique types that implement ArrayProtocol (optimized)
+    let mut unique_types = Vec::with_capacity(implementing_args.len());
+    let mut seen_types = std::collections::HashSet::with_capacity(implementing_args.len());
+
+    for &(type_id, _) in &implementing_args {
+        if seen_types.insert(type_id) {
+            unique_types.push(type_id);
+        }
+    }
+
+    // Try dispatching to each implementation in priority order
+    for (_, array_protocol_obj) in implementing_args {
+        if let Ok(result) = array_protocol_obj.array_function(func, &unique_types, args, kwargs) {
+            return Ok(result);
         }
     }
 
     // If we get here, no implementation was found
     Err(CoreError::DispatchError(ErrorContext::new(format!(
-        "No implementation found for {} with the given argument types",
-        func.name
+        "No implementation found for {} with {} argument types: {:?}",
+        func.name,
+        unique_types.len(),
+        unique_types
     ))))
 }
 
 /// Decorator for adding array function dispatch capabilities to a function.
 ///
-/// This is similar to NumPy's `array_function_dispatch` decorator.
+/// This is similar to `NumPy`'s `array_function_dispatch` decorator.
 pub struct ArrayFunctionDecorator<F> {
     function: F,
     name: &'static str,
@@ -282,6 +453,7 @@ where
     F: Send + Sync + 'static,
 {
     /// Create a new array function decorator.
+    #[must_use]
     pub fn new(function: F, name: &'static str) -> Self {
         Self { function, name }
     }
@@ -294,7 +466,9 @@ where
                 // and calls the original function
                 // This is a simplified version - in practice, we would need more complex
                 // type conversion
-                unimplemented!("Type conversion in array_function_dispatch is not implemented yet")
+                Err(CoreError::NotImplementedError(ErrorContext::new(
+                    "ArrayFunctionDecorator: Type conversion in array_function_dispatch is not implemented yet".to_string()
+                )))
             },
         );
 
@@ -324,15 +498,18 @@ pub trait GPUArray: ArrayProtocol {
     fn to_cpu(&self) -> CoreResult<Box<dyn ArrayProtocol>>;
 
     /// Check if the array is on GPU.
+    #[must_use]
     fn is_on_gpu(&self) -> bool;
 
     /// Get information about the GPU device that holds this array.
+    #[must_use]
     fn device_info(&self) -> HashMap<String, String>;
 }
 
 /// Trait for distributed arrays that can span multiple machines.
 pub trait DistributedArray: ArrayProtocol {
     /// Get information about the distribution of this array.
+    #[must_use]
     fn distribution_info(&self) -> HashMap<String, String>;
 
     /// Gather the distributed array to a single node.
@@ -342,6 +519,7 @@ pub trait DistributedArray: ArrayProtocol {
     fn scatter(&self, chunks: usize) -> CoreResult<Box<dyn DistributedArray>>;
 
     /// Check if this array is distributed.
+    #[must_use]
     fn is_distributed(&self) -> bool;
 }
 
@@ -351,9 +529,11 @@ pub trait JITArray: ArrayProtocol {
     fn compile(&self, expression: &str) -> CoreResult<Box<dyn JITFunction>>;
 
     /// Check if JIT compilation is supported for this array type.
+    #[must_use]
     fn supports_jit(&self) -> bool;
 
     /// Get information about the JIT compiler being used.
+    #[must_use]
     fn jit_info(&self) -> HashMap<String, String>;
 }
 
@@ -363,12 +543,15 @@ pub trait JITFunction: Send + Sync {
     fn evaluate(&self, args: &[Box<dyn Any>]) -> CoreResult<Box<dyn Any>>;
 
     /// Get the source code of the compiled function.
+    #[must_use]
     fn source(&self) -> String;
 
     /// Get information about how the function was compiled.
+    #[must_use]
     fn compile_info(&self) -> HashMap<String, String>;
 
-    /// Clone this JIT function into a Box<dyn JITFunction>.
+    /// Clone this JIT function into a `Box<dyn JITFunction>`.
+    #[must_use]
     fn clone_box(&self) -> Box<dyn JITFunction>;
 }
 
@@ -378,6 +561,7 @@ pub trait JITFunctionFactory: Send + Sync {
     fn create(&self, expression: &str, array_type_id: TypeId) -> CoreResult<Box<dyn JITFunction>>;
 
     /// Check if this factory supports the given array type.
+    #[must_use]
     fn supports_array_type(&self, array_type_id: TypeId) -> bool;
 }
 
@@ -399,6 +583,7 @@ impl std::fmt::Debug for JITFactoryRegistry {
 
 impl JITFactoryRegistry {
     /// Get the global registry.
+    #[must_use]
     pub fn global() -> &'static RwLock<Self> {
         static REGISTRY: LazyLock<RwLock<JITFactoryRegistry>> = LazyLock::new(|| {
             RwLock::new(JITFactoryRegistry {
@@ -414,6 +599,7 @@ impl JITFactoryRegistry {
     }
 
     /// Get a JIT function factory that supports the given array type.
+    #[must_use]
     pub fn get_for_array_type(&self, array_type_id: TypeId) -> Option<&dyn JITFunctionFactory> {
         for factory in &self.factories {
             if factory.supports_array_type(array_type_id) {
@@ -437,6 +623,7 @@ where
     D: ndarray::Dimension + 'static,
 {
     /// Create a new ndarray wrapper.
+    #[must_use]
     pub fn new(array: ndarray::Array<T, D>) -> Self {
         Self {
             array,
@@ -445,11 +632,13 @@ where
     }
 
     /// Get the underlying ndarray.
-    pub fn as_array(&self) -> &ndarray::Array<T, D> {
+    #[must_use]
+    pub const fn as_array(&self) -> &ndarray::Array<T, D> {
         &self.array
     }
 
     /// Convert into the underlying ndarray.
+    #[must_use]
     pub fn into_array(self) -> ndarray::Array<T, D> {
         self.array
     }
@@ -682,6 +871,7 @@ pub struct MockDistributedArray<T: Clone + 'static> {
 
 impl<T: Clone + Send + Sync + 'static> MockDistributedArray<T> {
     /// Create a new mock distributed array.
+    #[must_use]
     pub fn new(chunks: Vec<T>, shape: Vec<usize>) -> Self {
         Self { chunks, shape }
     }
@@ -756,6 +946,7 @@ pub struct MockGPUArray<T: Clone + 'static> {
 
 impl<T: Clone + Send + Sync + 'static> MockGPUArray<T> {
     /// Create a new mock GPU array.
+    #[must_use]
     pub fn new(data: Vec<T>, shape: Vec<usize>, device: String) -> Self {
         Self {
             data,
@@ -836,6 +1027,7 @@ pub struct ArrayProtocolFunction<F> {
 
 impl<F> ArrayProtocolFunction<F> {
     /// Create a new array protocol function.
+    #[must_use]
     pub fn new(func: F, name: &'static str) -> Self {
         Self { func, name }
     }
@@ -853,7 +1045,9 @@ where
                 // 1. Convert generic args to specific types needed by the function
                 // 2. Call the function with the converted args
                 // 3. Return the result as a Box<dyn Any>
-                unimplemented!("Implementation for array protocol functions is not complete")
+                Err(CoreError::NotImplementedError(ErrorContext::new(
+                    "ArrayProtocolFunction: Implementation for array protocol functions is not complete".to_string()
+                )))
             },
         );
 
@@ -973,24 +1167,30 @@ pub mod traits {
     /// Trait for arrays that support strided access.
     pub trait StridedArray: ArrayProtocol {
         /// Get the strides of this array.
+        #[must_use]
         fn strides(&self) -> Vec<usize>;
 
         /// Check if this array is contiguous.
+        #[must_use]
         fn is_contiguous(&self) -> bool;
 
         /// Check if this array is Fortran-contiguous (column-major).
+        #[must_use]
         fn is_fortran_contiguous(&self) -> bool;
     }
 
     /// Trait for arrays that support zero-copy operations.
     pub trait ZeroCopyArray: ArrayProtocol {
         /// Create a view of this array.
+        #[must_use]
         fn view(&self) -> Box<dyn ZeroCopyArray>;
 
         /// Create a mutable view of this array.
+        #[must_use]
         fn view_mut(&mut self) -> Box<dyn ZeroCopyArray>;
 
         /// Check if this array is a view.
+        #[must_use]
         fn is_view(&self) -> bool;
     }
 
@@ -1006,9 +1206,11 @@ pub mod traits {
         fn set_requires_grad(&mut self, requires_grad: bool);
 
         /// Check if this array requires gradient computation.
+        #[must_use]
         fn requires_grad(&self) -> bool;
 
         /// Get the gradient of this array.
+        #[must_use]
         fn grad(&self) -> Option<Box<dyn DifferentiableArray>>;
     }
 
@@ -1021,6 +1223,7 @@ pub mod traits {
             R: Send + 'static;
 
         /// Check if this array supports asynchronous operations.
+        #[must_use]
         fn supports_async(&self) -> bool;
     }
 }
@@ -1121,7 +1324,7 @@ mod examples {
         };
 
         // Create a distributed array
-        let dist_array = DistributedNdarray::from_array(array.clone(), config);
+        let dist_array = DistributedNdarray::from_array(&array, config);
 
         // Check that the array was split correctly
         assert_eq!(dist_array.num_chunks(), 3);
@@ -1227,7 +1430,7 @@ mod examples {
             strategy: DistributionStrategy::RowWise,
             backend: DistributedBackend::Threaded,
         };
-        let dist_array = DistributedNdarray::from_array(array, config);
+        let dist_array = DistributedNdarray::from_array(&array, config);
 
         // Box the array as ArrayProtocol and clone it
         let boxed: Box<dyn ArrayProtocol> = Box::new(dist_array);
@@ -1307,7 +1510,7 @@ mod examples {
             strategy: DistributionStrategy::RowWise,
             backend: DistributedBackend::Threaded,
         };
-        let dist_array = DistributedNdarray::from_array(cpu_array.clone(), dist_config);
+        let dist_array = DistributedNdarray::from_array(&cpu_array, dist_config);
 
         // Simple test of interoperability: convert both to Box<dyn ArrayProtocol>
         let gpu_wrapper: Box<dyn ArrayProtocol> = Box::new(gpu_array);
@@ -1435,7 +1638,7 @@ mod examples {
         }
     }
 }
-/// Make Box<dyn JITFunction> cloneable via clone_box
+/// Make `Box<dyn JITFunction>` cloneable via clone_box
 impl Clone for Box<dyn JITFunction> {
     fn clone(&self) -> Self {
         self.clone_box()

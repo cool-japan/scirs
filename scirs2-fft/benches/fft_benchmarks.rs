@@ -75,14 +75,14 @@ fn bench_fft_2d(c: &mut Criterion) {
 
         // Benchmark 2D FFT
         group.bench_with_input(BenchmarkId::new("fft2", size), &data_2d, |b, data| {
-            b.iter(|| fft2(black_box(&data.view()), None, None, None))
+            b.iter(|| fft2(black_box(data), None, None, None))
         });
 
         // Benchmark N-dimensional FFT
         group.bench_with_input(BenchmarkId::new("fftn", size), &data_2d, |b, data| {
             b.iter(|| {
                 fftn(
-                    black_box(&data.view().into_dyn()),
+                    black_box(&data.clone().into_dyn()),
                     None,
                     None,
                     None,

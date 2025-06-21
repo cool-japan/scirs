@@ -5,10 +5,17 @@
 
 use std::fmt::Debug;
 
+// Bilateral module exports
+pub use bilateral::bilateral_filter;
+#[cfg(feature = "simd")]
+pub use bilateral::{bilateral_filter_simd_f32, bilateral_filter_simd_f64};
+
+mod bilateral;
 mod convolve;
 mod edge;
 mod extrema;
 mod gaussian;
+mod generic;
 mod median;
 mod rank;
 mod tests;
@@ -30,6 +37,9 @@ pub use extrema::{maximum_filter, minimum_filter};
 
 // Gaussian module exports
 pub use gaussian::{gaussian_filter, gaussian_filter_f32, gaussian_filter_f64};
+
+// Generic module exports
+pub use generic::{filter_functions, generic_filter};
 
 // Median module exports
 pub use median::*;

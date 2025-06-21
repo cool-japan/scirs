@@ -31,11 +31,13 @@ fn test_auto_arima_with_options() {
     ];
 
     // Configure auto ARIMA options
-    let mut options = AutoArimaOptions::default();
-    options.max_p = 3;
-    options.max_q = 3;
-    options.information_criterion = "bic".to_string();
-    options.auto_diff = true;
+    let options = AutoArimaOptions {
+        max_p: 3,
+        max_q: 3,
+        information_criterion: "bic".to_string(),
+        auto_diff: true,
+        ..Default::default()
+    };
 
     // Test the advanced auto_arima_with_options function
     let params = auto_arima_with_options(&ts, &options).unwrap();
@@ -77,14 +79,16 @@ fn test_auto_arima_with_seasonal_options() {
     ];
 
     // Configure auto ARIMA options with seasonality
-    let mut options = AutoArimaOptions::default();
-    options.max_p = 2;
-    options.max_q = 2;
-    options.seasonal = true;
-    options.seasonal_period = Some(4);
-    options.max_seasonal_p = 1;
-    options.max_seasonal_q = 1;
-    options.information_criterion = "aic".to_string();
+    let options = AutoArimaOptions {
+        max_p: 2,
+        max_q: 2,
+        seasonal: true,
+        seasonal_period: Some(4),
+        max_seasonal_p: 1,
+        max_seasonal_q: 1,
+        information_criterion: "aic".to_string(),
+        ..Default::default()
+    };
 
     // Test the advanced auto_arima_with_options function with seasonality
     let params = auto_arima_with_options(&ts, &options).unwrap();

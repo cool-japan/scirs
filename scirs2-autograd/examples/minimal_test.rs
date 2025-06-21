@@ -20,10 +20,10 @@ fn main() {
 
         // Test matrix operations
         let matrix_a = T::convert_to_tensor(array![[1.0, 2.0], [3.0, 4.0]], ctx);
-        let det = T::determinant(&matrix_a);
+        let det = T::determinant(matrix_a);
         println!("Determinant: {}", det.eval(ctx).unwrap()[[]]);
 
-        let inv = T::matrix_inverse(&matrix_a);
+        let inv = T::matrix_inverse(matrix_a);
         println!("Inverse shape: {:?}", inv.eval(ctx).unwrap().shape());
 
         println!("All tests passed!");

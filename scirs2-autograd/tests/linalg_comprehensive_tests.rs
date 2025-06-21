@@ -66,7 +66,7 @@ fn test_matrix_functions() {
 
         // Test matrix power
         let c = convert_to_tensor(array![[2.0, 0.0], [0.0, 3.0]], g);
-        let c_squared = matrix_pow(&c, 2.0);
+        let c_squared = powm(&c, 2.0);
         let result = c_squared.eval(g).unwrap();
         assert!(((result[[0, 0]] - 4.0) as f64).abs() < EPSILON);
         assert!(((result[[1, 1]] - 9.0) as f64).abs() < EPSILON);
@@ -193,7 +193,7 @@ fn test_gradient_computation() {
         // Test gradient through inverse
         let inv_a = matrix_inverse(&a);
         let y = matmul(&inv_a, &b);
-        let loss = sum_all(&square(&y));
+        let loss = sum_all(square(&y));
 
         let grads = grad(&[&loss], &[&a]);
         let grad_a = &grads[0];
@@ -201,7 +201,7 @@ fn test_gradient_computation() {
 
         // Test gradient through solve
         let x = solve(&a, &b);
-        let loss2 = sum_all(&square(&x));
+        let loss2 = sum_all(square(&x));
 
         let grads2 = grad(&[&loss2], &[&a, &b]);
         assert!(grads2[0].eval(g).is_ok());

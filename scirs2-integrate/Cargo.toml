@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-integrate"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Numerical integration module for SciRS2"
@@ -29,6 +29,7 @@ halton = { workspace = true }
 # Optional dependencies
 scirs2-autograd = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
+wide = { version = "0.7.11", optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -39,9 +40,13 @@ plotters = { workspace = true }
 name = "integrator_bench"
 harness = false
 
+[[bench]]
+name = "scipy_comparison"
+harness = false
+
 [features]
 default = []
-simd = ["scirs2-core/simd"]
+simd = ["scirs2-core/simd", "wide"]
 parallel = ["scirs2-core/parallel", "rayon"]
 autodiff = ["scirs2-autograd"]
 symplectic = []  # Feature flag for symplectic integrators

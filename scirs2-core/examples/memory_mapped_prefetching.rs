@@ -10,11 +10,8 @@
 
 use ndarray::Array2;
 use scirs2_core::memory_efficient::{
-    CompressedMemMapBuilder, CompressionAlgorithm, PrefetchConfig, PrefetchConfigBuilder,
-    Prefetching,
+    CompressedMemMapBuilder, CompressionAlgorithm, PrefetchConfigBuilder, Prefetching,
 };
-use std::fs::File;
-use std::io::Write;
 use std::time::{Duration, Instant};
 use tempfile::tempdir;
 

@@ -114,7 +114,7 @@ fn bench_fft_multidim(c: &mut Criterion) {
         let data = generate_2d_signal(size);
 
         group.bench_with_input(BenchmarkId::new("fft2", size), &data, |b, data| {
-            b.iter(|| fft2(black_box(&data.view()), None, None, None))
+            b.iter(|| fft2(black_box(data), None, None, None))
         });
     }
 
@@ -130,7 +130,7 @@ fn bench_fft_multidim(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     fftn(
-                        black_box(&data.view().into_dyn()),
+                        black_box(&data.clone().into_dyn()),
                         None,
                         None,
                         None,
@@ -229,7 +229,7 @@ fn bench_worker_scaling(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let _ = set_workers(workers);
-                    fft2(black_box(&data.view()), None, None, None)
+                    fft2(black_box(data), None, None, None)
                 })
             },
         );

@@ -13,8 +13,10 @@ enum TestProblem {
 }
 
 // Generate a test problem function
+type OdeFunction = Box<dyn Fn(f64, ArrayView1<f64>) -> Array1<f64>>;
+
 #[allow(dead_code)]
-fn create_test_problem(problem: TestProblem) -> Box<dyn Fn(f64, ArrayView1<f64>) -> Array1<f64>> {
+fn create_test_problem(problem: TestProblem) -> OdeFunction {
     match problem {
         TestProblem::VanDerPol(mu) => Box::new(move |_t: f64, y: ArrayView1<f64>| {
             array![y[1], mu * (1.0 - y[0].powi(2)) * y[1] - y[0]]

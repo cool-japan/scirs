@@ -14,39 +14,6 @@ use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
 
-/// Compute the inertia (sum of squared distances) from samples to their cluster centers.
-///
-/// This is a utility function used by other metrics.
-///
-/// # Arguments
-///
-/// * `data` - Input data (n_samples x n_features)
-/// * `labels` - Cluster labels for each sample
-/// * `centers` - Cluster centers (n_clusters x n_features)
-///
-/// # Returns
-///
-/// The sum of squared distances from samples to their cluster centers.
-#[allow(dead_code)]
-fn compute_inertia<F>(data: ArrayView2<F>, labels: ArrayView1<i32>, centers: ArrayView2<F>) -> F
-where
-    F: Float + FromPrimitive + 'static,
-{
-    let mut inertia = F::zero();
-
-    for (i, sample) in data.outer_iter().enumerate() {
-        let label = labels[i];
-        if label >= 0 && (label as usize) < centers.shape()[0] {
-            let center = centers.row(label as usize);
-            let diff = &sample - &center;
-            let squared_distance = diff.dot(&diff);
-            inertia = inertia + squared_distance;
-        }
-    }
-
-    inertia
-}
-
 /// Davies-Bouldin score for clustering evaluation.
 ///
 /// The Davies-Bouldin index measures the average similarity between clusters,

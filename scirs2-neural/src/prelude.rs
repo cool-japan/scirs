@@ -9,11 +9,14 @@ pub use crate::callbacks::{
 };
 pub use crate::error::{Error, Result};
 pub use crate::evaluation::{
-    CrossValidationConfig, CrossValidationStrategy, CrossValidator, EarlyStoppingConfig,
-    EarlyStoppingMode, EvaluationConfig, Evaluator, Metric, MetricType, TestConfig, TestEvaluator,
-    ValidationConfig, ValidationHandler,
+    CrossValidationConfig, CrossValidator, EarlyStoppingConfig, EarlyStoppingMode,
+    EvaluationConfig, Evaluator, Metric, MetricType, TestConfig, TestEvaluator, ValidationConfig,
+    ValidationHandler,
 };
-pub use crate::layers::{Dense, Dropout, Layer, LayerConfig, Sequential};
+pub use crate::layers::{
+    ActivityRegularization, AdaptiveAvgPool2D, AdaptiveMaxPool2D, Dense, Dropout,
+    L1ActivityRegularization, L2ActivityRegularization, Layer, LayerConfig, Sequential,
+};
 pub use crate::losses::{ContrastiveLoss, CrossEntropyLoss, FocalLoss, Loss, TripletLoss};
 pub use crate::models::Model;
 pub use crate::optimizers::{Adam, Optimizer, RMSprop, SGD};
@@ -23,6 +26,45 @@ pub use crate::training::{
 };
 pub use crate::transformer::{TransformerDecoderLayer, TransformerEncoderLayer};
 pub use crate::utils::positional_encoding::{PositionalEncoding, SinusoidalPositionalEncoding};
+
+// Performance optimizations
+pub use crate::performance::{
+    OptimizationCapabilities, PerformanceOptimizer, PerformanceProfiler, ThreadPoolManager,
+};
+
+// JIT compilation - module not yet implemented
+// pub use crate::performance::jit::{
+//     CompiledElementOp, CompiledMatrixOp, JitContext, JitProfiler, JitStats, JitStrategy,
+// };
+
+// Data augmentation
+pub use crate::augmentation::{
+    AudioAugmentation, AugmentationManager, AugmentationPipelineBuilder, FillMode,
+    ImageAugmentation, MixAugmentation, TextAugmentation,
+};
+
+// Enhanced evaluation tools
+pub use crate::model_evaluation::{
+    AveragingMethod, ClassificationMetric, CrossValidationStrategy, EvaluationBuilder,
+    EvaluationMetric, ModelEvaluator, RegressionMetric,
+};
+
+// Model compression
+pub use crate::compression::{
+    CalibrationMethod, CompressionAnalyzer, ModelPruner, PostTrainingQuantizer, PruningMethod,
+    QuantizationBits, QuantizationScheme,
+};
+
+// Knowledge distillation
+pub use crate::distillation::{DistillationMethod, DistillationTrainer, FeatureAdaptation};
+
+// Transfer learning
+pub use crate::transfer_learning::{LayerState, TransferLearningManager, TransferStrategy};
+
+// Model interpretation
+pub use crate::interpretation::{
+    AttributionMethod, BaselineMethod, ModelInterpreter, VisualizationMethod,
+};
 
 // Architecture specific imports
 pub use crate::models::architectures::{

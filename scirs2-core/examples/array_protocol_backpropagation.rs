@@ -369,7 +369,7 @@ fn main() {
         let num_batches = loader.num_batches();
 
         // Training loop over batches
-        for (_batch_idx, (inputs, targets)) in loader.enumerate() {
+        for (inputs, targets) in loader {
             // Zero gradients
             optimizer.zero_grad();
 
@@ -629,8 +629,8 @@ impl GradientTensorExt for GradientTensor {
             let other_dim = other_array.as_array().shape();
 
             // Check if dimensions are compatible for matmul
-            if self_dim.len() >= 1
-                && other_dim.len() >= 1
+            if !self_dim.is_empty()
+                && !other_dim.is_empty()
                 && self_dim[self_dim.len() - 1] == other_dim[0]
             {
                 // In a real implementation, we would do an actual matrix multiplication here

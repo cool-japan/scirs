@@ -113,11 +113,11 @@ fn main() -> Result<()> {
 
     // Configure learning rate scheduler
     let mut scheduler = StepDecay::new(
-        0.01.into(), // Initial learning rate
-        0.5.into(),  // Decay factor
-        30,          // Step size
+        0.01, // Initial learning rate
+        0.5,  // Decay factor
+        30,   // Step size
         ScheduleMethod::Epoch,
-        1e-4.into(), // Min learning rate
+        1e-4, // Min learning rate
     );
 
     // Add visualization callback
@@ -199,6 +199,7 @@ fn main() -> Result<()> {
                 metrics: vec![],
                 history: &epoch_history,
                 stop_training: false,
+                model: None,
             };
 
             visualization_cb.on_event(CallbackTiming::AfterEpoch, &mut context)?;
@@ -217,6 +218,7 @@ fn main() -> Result<()> {
         metrics: vec![],
         history: &epoch_history,
         stop_training: false,
+        model: None,
     };
 
     visualization_cb.on_event(CallbackTiming::AfterTraining, &mut context)?;

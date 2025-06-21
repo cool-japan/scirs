@@ -3,7 +3,7 @@
 //! This module provides a parallel implementation of the K-means clustering algorithm
 //! that leverages multiple CPU cores for improved performance on large datasets.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{s, Array1, Array2, ArrayView2, Axis};
 use num_traits::{Float, FromPrimitive};
 use rayon::prelude::*;
 use std::fmt::Debug;
@@ -319,21 +319,6 @@ where
         .sum();
 
     Ok(inertia)
-}
-
-/// Compute squared Euclidean distance between two vectors (for performance)
-#[inline]
-#[allow(dead_code)]
-fn squared_euclidean_distance<F>(x: ArrayView1<F>, y: ArrayView1<F>) -> F
-where
-    F: Float + FromPrimitive,
-{
-    let mut sum = F::zero();
-    for i in 0..x.len() {
-        let diff = x[i] - y[i];
-        sum = sum + diff * diff;
-    }
-    sum
 }
 
 #[cfg(test)]

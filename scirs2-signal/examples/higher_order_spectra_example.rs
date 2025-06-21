@@ -240,7 +240,8 @@ fn save_matrix_to_csv(
     row_labels: &Array1<f64>,
     col_labels: &Array1<f64>,
 ) {
-    let mut file = File::create(filename).expect(&format!("Failed to create {}", filename));
+    let mut file =
+        File::create(filename).unwrap_or_else(|_| panic!("Failed to create {}", filename));
 
     // Write header with column labels
     write!(file, "f1/f2").expect("Failed to write header");
@@ -262,7 +263,8 @@ fn save_matrix_to_csv(
 
 /// Saves two 1D arrays to CSV as columns
 fn save_array_to_csv(filename: &str, array1: &Array1<f64>, array2: &Array1<f64>) {
-    let mut file = File::create(filename).expect(&format!("Failed to create {}", filename));
+    let mut file =
+        File::create(filename).unwrap_or_else(|_| panic!("Failed to create {}", filename));
 
     // Write header
     writeln!(file, "x,y").expect("Failed to write header");

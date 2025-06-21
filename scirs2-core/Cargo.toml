@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-core"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Core utilities and common functionality for SciRS2"
@@ -22,14 +22,16 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 serde = { workspace = true, optional = true }  # Serialization
 serde_json = { workspace = true, optional = true }  # JSON serialization
-uuid = { workspace = true }  # Used for unique identifiers
+uuid = { workspace = true, features = ["serde"] }  # Used for unique identifiers
 tempfile = { workspace = true, optional = true }  # For temporary files in memory_efficient
 bincode = { workspace = true, optional = true }  # For serialization in memory_efficient
 memmap2 = { workspace = true, optional = true }  # For memory-mapped arrays
+regex = { workspace = true, optional = true }  # For string pattern validation
 
 # Feature-gated dependencies
 wide = { workspace = true, optional = true }  # SIMD acceleration
 rayon = { workspace = true, optional = true }  # Parallel processing
+crossbeam = { workspace = true, optional = true }  # Used in parallel scheduler for channels
 crossbeam-utils = { workspace = true, optional = true }  # Used in parallel scheduler
 crossbeam-deque = { workspace = true, optional = true }  # Used in parallel scheduler
 num_cpus = { workspace = true, optional = true }  # CPU count detection
@@ -38,17 +40,27 @@ num_cpus = { workspace = true, optional = true }  # CPU count detection
 lz4 = { workspace = true, optional = true }   # LZ4 compression
 zstd = { workspace = true, optional = true }  # Zstandard compression
 snap = { workspace = true, optional = true }   # Snappy compression
+flate2 = { workspace = true, optional = true }  # DEFLATE compression
+bytemuck = { workspace = true, optional = true }  # Zero-copy type casting
 
 # System monitoring for resource-aware prefetching
 libc = { workspace = true, optional = true }  # System calls for resource monitoring
+sysinfo = { workspace = true, optional = true }  # System information gathering
 
 # BLAS/LAPACK dependencies for linear algebra operations
-ndarray-linalg = { workspace = true, optional = true }  # LAPACK bindings for ndarray
+ndarray-linalg = { workspace = true, optional = true, default-features = false }  # LAPACK bindings for ndarray
 
 # JIT compilation for Array Protocol
 cranelift-module = { workspace = true, optional = true }  # JIT compilation module
 cranelift-jit = { workspace = true, optional = true }  # JIT compiler (previously simplejit)
 cranelift-frontend = { workspace = true, optional = true }  # JIT compiler frontend
+
+# Async runtime for async error handling
+tokio = { workspace = true, optional = true }  # Async runtime for async error handling
+
+# Production-level feature dependencies
+reqwest = { workspace = true, optional = true }  # HTTP client for tracing export
+sha2 = { workspace = true, optional = true }  # Cryptographic hash functions
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -58,16 +70,18 @@ tempfile = { workspace = true }
 [features]
 default = ["array", "serialization"]  # Enable array module by default
 simd = ["wide"]  # SIMD operations
-parallel = ["rayon", "ndarray/rayon", "crossbeam-utils", "crossbeam-deque", "num_cpus"]  # Parallel processing with rayon
+parallel = ["rayon", "ndarray/rayon", "crossbeam", "crossbeam-utils", "crossbeam-deque", "num_cpus"]  # Parallel processing with rayon
 cache = ["cached"]  # Caching and memoization functionality
-validation = []  # Validation utilities
+validation = ["regex"]  # Validation utilities
 logging = []  # Structured logging and diagnostics
+async = ["tokio"]  # Async error handling and recovery mechanisms
 gpu = []  # GPU acceleration abstractions
 cuda = ["gpu"]  # CUDA-specific GPU acceleration
 opencl = ["gpu"]  # OpenCL-specific GPU acceleration
 metal = ["gpu"]  # Metal-specific GPU acceleration (Apple)
 wgpu = ["gpu"]  # WebGPU-specific GPU acceleration
-memory_management = []  # Advanced memory management
+rocm = ["gpu"]  # ROCm-specific GPU acceleration (AMD)
+memory_management = ["bincode", "tempfile"]  # Advanced memory management
 memory_efficient = ["tempfile", "bincode", "memmap2", "rayon"]  # Memory-efficient operations
 memory_efficient_all_types = ["memory_efficient", "float32", "float64", "all_ints"]  # Full type support for memory-efficient operations
 float32 = []  # Support for f32 in zero-copy operations
@@ -77,8 +91,9 @@ int64 = []    # Support for i64 in zero-copy operations
 uint32 = []   # Support for u32 in zero-copy operations
 uint64 = []   # Support for u64 in zero-copy operations
 all_ints = [] # Support for all integer types in zero-copy operations
-memory_compression = ["memory_efficient", "lz4", "zstd", "snap", "serde", "serde_json", "libc", "num_cpus"]  # Compressed memory-mapped arrays
+memory_compression = ["memory_efficient", "lz4", "zstd", "snap", "flate2", "bytemuck", "serde", "serde_json", "libc", "num_cpus"]  # Compressed memory-mapped arrays
 memory_metrics = ["memory_management", "serde", "serde_json"]  # Enhanced memory metrics tracking
+sysinfo = ["dep:sysinfo"]  # System information gathering
 serialization = ["serde", "serde_json"]  # Serialization support
 array = []  # Scientific array types (MaskedArray, RecordArray)
 memory_visualization = ["memory_metrics"]  # Memory usage visualization
@@ -87,10 +102,14 @@ profiling = []  # Performance profiling tools
 random = []  # Random number generation utilities
 types = []  # Type conversion utilities
 ufuncs = []  # Universal Functions (ufuncs) system
+testing = ["tempfile", "serde", "serde_json"]  # Testing framework for production systems
+benchmarking = ["testing", "serde", "serde_json"]  # Comprehensive benchmarking system
 linalg = ["ndarray-linalg"]  # Linear algebra with BLAS/LAPACK bindings
-openblas = ["ndarray-linalg/openblas-system"]  # Use OpenBLAS backend
-intel-mkl = ["ndarray-linalg/intel-mkl"]  # Use Intel MKL backend
-netlib = ["ndarray-linalg/netlib"]  # Use Netlib backend
+# LAPACK backends - these are mutually exclusive, use only one at a time
+# NOTE: We let ndarray-linalg handle BLAS backend selection internally to avoid lax conflicts
+openblas = ["linalg"]  # Use OpenBLAS backend (via ndarray-linalg default)
+intel-mkl = ["linalg"]  # Use Intel MKL backend (via ndarray-linalg default)  
+netlib = ["linalg"]  # Use Netlib backend (via ndarray-linalg default)
 array_protocol = []  # Array Protocol for third-party array implementations
 array_protocol_jit = ["array_protocol", "cranelift-module", "cranelift-jit", "cranelift-frontend"]  # JIT compilation for Array Protocol
 array_protocol_gpu = ["array_protocol", "gpu"]  # GPU support for Array Protocol
@@ -98,14 +117,28 @@ array_protocol_cuda = ["array_protocol_gpu", "cuda"]  # CUDA support for Array P
 array_protocol_opencl = ["array_protocol_gpu", "opencl"]  # OpenCL support for Array Protocol
 array_protocol_metal = ["array_protocol_gpu", "metal"]  # Metal support for Array Protocol
 array_protocol_wgpu = ["array_protocol_gpu", "wgpu"]  # WebGPU support for Array Protocol
+array_protocol_rocm = ["array_protocol_gpu", "rocm"]  # ROCm support for Array Protocol
 array_protocol_distributed = ["array_protocol", "parallel"]  # Distributed computing for Array Protocol
 array_protocol_all = ["array_protocol", "array_protocol_jit", "array_protocol_cuda", "array_protocol_distributed"]  # All Array Protocol features
+# Production-level features for enterprise deployments
+observability = ["serde", "serde_json"]  # Observability infrastructure (tracing, audit logging)
+observability_http = ["observability", "reqwest"]  # HTTP export for observability
+versioning = ["serde", "serde_json"]  # API versioning and compatibility management
+leak_detection = ["memory_management", "serde", "serde_json"]  # Memory leak detection system
+data_validation = ["validation", "serde", "serde_json", "regex"]  # Comprehensive data validation
+s3 = []  # S3 integration for remote storage
+crypto = []  # Cryptographic features (placeholder)
+compression = ["flate2"]  # Compression support
+database = []  # Database integration features
+production = ["observability", "versioning", "leak_detection", "data_validation"]  # All production features
 all = [
     "simd", "parallel", "cache", "validation", "logging",
     "gpu", "cuda", "memory_management", "memory_efficient", "memory_compression",
-    "array", "profiling", "random", "types", "linalg", "ufuncs",
-    "array_protocol_all"
-]  # Enable all features except backend-specific ones
+    "array", "profiling", "random", "types", "ufuncs", "testing", "benchmarking",
+    "array_protocol_all", "production"
+]  # Enable all features except mutually exclusive BLAS backends
+# NOTE: BLAS backends (openblas, intel-mkl, netlib) are mutually exclusive
+# Use --features openblas (default), --features intel-mkl, or --features netlib
 
 [[example]]
 name = "gpu_example"
@@ -115,6 +148,16 @@ required-features = ["gpu"]
 [[example]]
 name = "gpu_kernel_library"
 path = "examples/gpu_kernel_library.rs"
+required-features = ["gpu"]
+
+[[example]]
+name = "gpu_foundation_example"
+path = "examples/gpu_foundation_example.rs"
+required-features = ["gpu"]
+
+[[example]]
+name = "gpu_detection_example"
+path = "examples/gpu_detection_example.rs"
 required-features = ["gpu"]
 
 [[example]]
@@ -171,11 +214,6 @@ required-features = ["memory_management", "memory_metrics", "gpu"]
 name = "memory_metrics_snapshots"
 path = "examples/memory_metrics_snapshots.rs"
 required-features = ["memory_management", "memory_metrics"]
-
-[[example]]
-name = "memory_efficient_example"
-path = "examples/memory_efficient_example.rs"
-required-features = ["memory_efficient"]
 
 [[example]]
 name = "memory_mapped_array"
@@ -307,3 +345,64 @@ required-features = ["array_protocol_cuda"]
 name = "custom_array_protocol"
 path = "examples/custom_array_protocol.rs"
 required-features = ["array_protocol"]
+
+[[example]]
+name = "progress_visualization_example"
+path = "examples/progress_visualization_example.rs"
+required-features = ["logging"]
+
+[[example]]
+name = "gpu_kernel_comprehensive_example"
+path = "examples/gpu_kernel_comprehensive_example.rs"
+required-features = ["gpu"]
+
+[[example]]
+name = "batch_conversions_example"
+path = "examples/batch_conversions_example.rs"
+required-features = ["types"]
+
+[[example]]
+name = "enhanced_memory_metrics_example"
+path = "examples/enhanced_memory_metrics_example.rs"
+required-features = ["memory_management"]
+
+[[example]]
+name = "core_memory_efficient_example"
+path = "examples/core_memory_efficient_example.rs"
+required-features = ["memory_efficient"]
+
+[[example]]
+name = "advanced_error_handling"
+path = "examples/advanced_error_handling.rs"
+required-features = []
+
+[[example]]
+name = "leak_detection_demo"
+path = "examples/leak_detection_demo.rs"
+required-features = ["leak_detection"]
+
+[[example]]
+name = "adaptive_optimization_test"
+path = "examples/adaptive_optimization_test.rs"
+required-features = ["profiling"]
+
+[[example]]
+name = "coverage_analysis_demo"
+path = "examples/coverage_analysis_demo.rs"
+required-features = ["profiling"]
+
+[[example]]
+name = "production_profiling_demo"
+path = "examples/production_profiling_demo.rs"
+required-features = ["profiling"]
+
+[[example]]
+name = "adaptive_optimization_demo"
+path = "examples/adaptive_optimization_demo.rs"
+required-features = ["profiling"]
+
+[[example]]
+name = "performance_dashboards_demo"
+path = "examples/performance_dashboards_demo.rs"
+required-features = ["profiling"]
+

@@ -1,5 +1,6 @@
 use scirs2_datasets::{
     make_blobs, make_classification, make_regression, make_time_series, utils::normalize,
+    utils::train_test_split,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // Train-test split
-    let (train, test) = classification_data.train_test_split(0.2, Some(42))?;
+    let (train, test) = train_test_split(&classification_data, 0.2, Some(42))?;
 
     println!("Classification dataset:");
     println!("  Total samples: {}", classification_data.n_samples());

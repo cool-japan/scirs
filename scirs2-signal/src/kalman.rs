@@ -178,7 +178,7 @@ pub fn kalman_filter(
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &adaptive_r;
 
         // Kalman gain
-        let k = match inv(&innovation_cov.view()) {
+        let k = match inv(&innovation_cov.view(), None) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -347,7 +347,7 @@ where
         let innovation_cov = h_jac.dot(&p_pred).dot(&h_jac.t()) + &r;
 
         // Kalman gain
-        let k = match inv(&innovation_cov.view()) {
+        let k = match inv(&innovation_cov.view(), None) {
             Ok(inn_cov_inv) => p_pred.dot(&h_jac.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -532,7 +532,7 @@ where
         }
 
         // Kalman gain
-        let k = match inv(&s.view()) {
+        let k = match inv(&s.view(), None) {
             Ok(s_inv) => c.dot(&s_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -578,7 +578,7 @@ fn generate_sigma_points(
     sigma_points.push(x.clone());
 
     // Calculate square root of covariance matrix using Cholesky decomposition
-    let sqrt_p = match cholesky(&p.view()) {
+    let sqrt_p = match cholesky(&p.view(), None) {
         Ok(l) => l,
         Err(_) => {
             return Err(SignalError::Compute(
@@ -658,7 +658,7 @@ where
         }
 
         // Apply Cholesky decomposition to ensure correct covariance structure
-        let sqrt_p = match cholesky(&initial_p.view()) {
+        let sqrt_p = match cholesky(&initial_p.view(), None) {
             Ok(l) => l,
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -747,7 +747,7 @@ where
         pzz = &pzz + &r;
 
         // Kalman gain
-        let k = match inv(&pzz.view()) {
+        let k = match inv(&pzz.view(), None) {
             Ok(pzz_inv) => pxz.dot(&pzz_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1097,7 +1097,7 @@ fn kalman_filter_vector_measurement(
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Kalman gain
-        let k = match inv(&innovation_cov.view()) {
+        let k = match inv(&innovation_cov.view(), None) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1243,7 +1243,7 @@ pub fn kalman_smooth(
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Kalman gain
-        let k = match inv(&innovation_cov.view()) {
+        let k = match inv(&innovation_cov.view(), None) {
             Ok(inn_cov_inv) => p_pred.dot(&h.t()).dot(&inn_cov_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1263,7 +1263,7 @@ pub fn kalman_smooth(
         let p_pred = f.dot(&filtered_covs[i]).dot(&f.t()) + &q;
 
         // Smoother gain
-        let g = match inv(&p_pred.view()) {
+        let g = match inv(&p_pred.view(), None) {
             Ok(p_pred_inv) => filtered_covs[i].dot(&f.t()).dot(&p_pred_inv),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -1367,7 +1367,7 @@ pub fn robust_kalman_filter(
         let innovation_cov = h.dot(&p_pred).dot(&h.t()) + &r;
 
         // Calculate normalized innovation squared
-        let s_inv = match inv(&innovation_cov.view()) {
+        let s_inv = match inv(&innovation_cov.view(), None) {
             Ok(inv) => inv,
             Err(_) => {
                 return Err(SignalError::Compute(

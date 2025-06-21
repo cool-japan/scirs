@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-vision"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -25,6 +25,9 @@ rand_distr = { workspace = true }
 # Vision specific dependencies
 image = { workspace = true }
 rayon = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
 
 [features]
 default = []
@@ -64,3 +67,15 @@ path = "examples/non_rigid_transformations.rs"
 [[example]]
 name = "noise_reduction"
 path = "examples/noise_reduction.rs"
+
+[[example]]
+name = "feature_tracking"
+path = "examples/feature_tracking.rs"
+
+[[example]]
+name = "image_registration"
+path = "examples/image_registration.rs"
+
+[[example]]
+name = "simple_registration"
+path = "examples/simple_registration.rs"

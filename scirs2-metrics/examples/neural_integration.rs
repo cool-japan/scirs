@@ -16,6 +16,8 @@ use scirs2_metrics::classification::{
 #[cfg(feature = "neural_common")]
 use scirs2_metrics::integration::neural::NeuralMetricAdapter;
 #[cfg(feature = "neural_common")]
+use scirs2_metrics::integration::traits::MetricComputation;
+#[cfg(feature = "neural_common")]
 use scirs2_metrics::regression::{mean_absolute_error, mean_squared_error, r2_score};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -163,8 +165,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Use macro averaging for multiclass
                 // For multiclass we need to use specialized functions that take an average parameter
                 // For now, using individual class metrics as a placeholder
-                let targets_1d = targets.clone().into_dimensionality::<ndarray::Ix1>()?;
-                let preds_1d = preds.clone().into_dimensionality::<ndarray::Ix1>()?;
+                let targets_1d = targets
+                    .clone()
+                    .into_dimensionality::<ndarray::Ix1>()
+                    .map_err(|e| {
+                        scirs2_metrics::error::MetricsError::InvalidInput(format!(
+                            "Shape error: {}",
+                            e
+                        ))
+                    })?;
+                let preds_1d = preds
+                    .clone()
+                    .into_dimensionality::<ndarray::Ix1>()
+                    .map_err(|e| {
+                        scirs2_metrics::error::MetricsError::InvalidInput(format!(
+                            "Shape error: {}",
+                            e
+                        ))
+                    })?;
 
                 // Calculate F1 for each class and average manually
                 let mut f1_sum = 0.0;

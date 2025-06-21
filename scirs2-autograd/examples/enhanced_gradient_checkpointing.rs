@@ -54,8 +54,8 @@ fn main() {
         activations.push(input);
 
         for i in 0..depth {
-            let layer_output = T::matmul(&activations[i], &weight_tensors[i]);
-            let activation = T::relu(&layer_output);
+            let layer_output = T::matmul(activations[i], weight_tensors[i]);
+            let activation = T::relu(layer_output);
             activations.push(activation);
 
             // Estimate memory: Each activation stores a tensor of shape [1, feature_size]
@@ -108,15 +108,15 @@ fn main() {
         activations.push(input);
 
         for i in 0..depth {
-            let layer_output = T::matmul(&activations[i], &weight_tensors[i]);
+            let layer_output = T::matmul(activations[i], weight_tensors[i]);
 
             // Apply checkpointing every other layer
             let activation = if i % 2 == 0 {
                 // Normal activation - store in memory
-                T::relu(&layer_output)
+                T::relu(layer_output)
             } else {
                 // Checkpointed activation - will be recomputed during backward pass
-                T::checkpoint(&T::relu(&layer_output))
+                T::checkpoint(&T::relu(layer_output))
             };
 
             activations.push(activation);
@@ -184,8 +184,8 @@ fn main() {
         activations.push(input);
 
         for i in 0..depth {
-            let layer_output = T::matmul(&activations[i], &weight_tensors[i]);
-            let relu_output = T::relu(&layer_output);
+            let layer_output = T::matmul(activations[i], weight_tensors[i]);
+            let relu_output = T::relu(layer_output);
 
             // Use adaptive checkpointing based on tensor size
             let activation = T::adaptive_checkpoint(&relu_output, memory_threshold);
@@ -245,11 +245,11 @@ fn main() {
         let start = Instant::now();
 
         // Run without checkpointing
-        let c1 = T::matmul(&a, &b);
-        let c2 = T::transpose(&c1, &[1, 0]);
-        let c3 = T::matmul(&c1, &c2);
+        let c1 = T::matmul(a, b);
+        let c2 = T::transpose(c1, &[1, 0]);
+        let c3 = T::matmul(c1, c2);
 
-        let loss1 = T::sum_all(&c1) + T::sum_all(&c2) + T::sum_all(&c3);
+        let loss1 = T::sum_all(c1) + T::sum_all(c2) + T::sum_all(c3);
         let grad1 = T::grad(&[loss1], &[&a])[0];
         let _ = grad1.eval(ctx);
 
@@ -263,9 +263,9 @@ fn main() {
         let memory_threshold = 1024; // 1KB threshold
 
         // Manually create checkpoint operations for each step
-        let c1 = T::matmul(&a, &b);
-        let c2 = T::transpose(&c1, &[1, 0]);
-        let c3 = T::matmul(&c1, &c2);
+        let c1 = T::matmul(a, b);
+        let c2 = T::transpose(c1, &[1, 0]);
+        let c3 = T::matmul(c1, c2);
 
         // Apply adaptive checkpoints to intermediate results
         let c1_checkpoint = T::adaptive_checkpoint(&c1, memory_threshold);
@@ -273,7 +273,7 @@ fn main() {
         let c3_checkpoint = T::adaptive_checkpoint(&c3, memory_threshold);
 
         let loss2 =
-            T::sum_all(&c1_checkpoint) + T::sum_all(&c2_checkpoint) + T::sum_all(&c3_checkpoint);
+            T::sum_all(c1_checkpoint) + T::sum_all(c2_checkpoint) + T::sum_all(c3_checkpoint);
         let grad2 = T::grad(&[loss2], &[&a])[0];
         let _ = grad2.eval(ctx);
 

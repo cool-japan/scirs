@@ -24,13 +24,13 @@ fn main() {
         matrix.show().eval(ctx).unwrap();
 
         // Test matrix operations
-        let matrix_inv = T::matrix_inverse(&matrix);
+        let matrix_inv = T::matrix_inverse(matrix);
 
         println!("Matrix inverse:");
         matrix_inv.show().eval(ctx).unwrap();
 
         // Test determinant
-        let det = T::determinant(&matrix);
+        let det = T::determinant(matrix);
 
         println!("Determinant:");
         det.show().eval(ctx).unwrap();

@@ -156,6 +156,7 @@ pub trait GpuKernel: Send + Sync {
 pub struct BaseKernel {
     name: String,
     cuda_source: String,
+    rocm_source: String,
     wgpu_source: String,
     metal_source: String,
     opencl_source: String,
@@ -167,6 +168,7 @@ impl BaseKernel {
     pub fn new(
         name: &str,
         cuda_source: &str,
+        rocm_source: &str,
         wgpu_source: &str,
         metal_source: &str,
         opencl_source: &str,
@@ -175,6 +177,7 @@ impl BaseKernel {
         Self {
             name: name.to_string(),
             cuda_source: cuda_source.to_string(),
+            rocm_source: rocm_source.to_string(),
             wgpu_source: wgpu_source.to_string(),
             metal_source: metal_source.to_string(),
             opencl_source: opencl_source.to_string(),
@@ -191,6 +194,7 @@ impl GpuKernel for BaseKernel {
     fn source_for_backend(&self, backend: GpuBackend) -> Result<String, GpuError> {
         match backend {
             GpuBackend::Cuda => Ok(self.cuda_source.clone()),
+            GpuBackend::Rocm => Ok(self.rocm_source.clone()),
             GpuBackend::Wgpu => Ok(self.wgpu_source.clone()),
             GpuBackend::Metal => Ok(self.metal_source.clone()),
             GpuBackend::OpenCL => Ok(self.opencl_source.clone()),
@@ -234,14 +238,24 @@ impl KernelRegistry {
 
         // Register transform kernels
         registry.register(Box::new(transform::fft::FftKernel::new()));
+        registry.register(Box::new(transform::convolution::Conv1dKernel::new()));
+        registry.register(Box::new(transform::convolution::Conv2dKernel::new()));
 
         // Register reduction kernels
         registry.register(Box::new(reduction::sum::SumKernel::new()));
         registry.register(Box::new(reduction::norm::NormKernel::new()));
+        registry.register(Box::new(reduction::min_max::MinKernel::new()));
+        registry.register(Box::new(reduction::min_max::MaxKernel::new()));
+        registry.register(Box::new(reduction::mean::MeanKernel::new()));
+        registry.register(Box::new(reduction::std_dev::StdDevKernel::new()));
 
         // Register ML kernels
         registry.register(Box::new(ml::activation::ReluKernel::new()));
         registry.register(Box::new(ml::activation::SigmoidKernel::new()));
+        registry.register(Box::new(ml::activation::TanhKernel::new()));
+        registry.register(Box::new(ml::softmax::SoftmaxKernel::new()));
+        registry.register(Box::new(ml::pooling::MaxPoolKernel::new()));
+        registry.register(Box::new(ml::pooling::AvgPoolKernel::new()));
 
         registry
     }
@@ -252,8 +266,8 @@ impl KernelRegistry {
     }
 
     /// Get a kernel by name
-    pub fn get(&self, name: &str) -> Option<&Box<dyn GpuKernel>> {
-        self.kernels.get(name)
+    pub fn get(&self, name: &str) -> Option<&dyn GpuKernel> {
+        self.kernels.get(name).map(|k| k.as_ref())
     }
 
     /// Get a specialized kernel

@@ -9,6 +9,7 @@ use crate::advanced::fast_kriging::{
     FastKriging, FastKrigingBuilder, FastKrigingMethod, FastPredictionResult, SparseComponents,
 };
 use crate::error::{InterpolateError, InterpolateResult};
+use crate::numerical_stability::{assess_matrix_condition, safe_reciprocal, StabilityLevel};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
@@ -109,12 +110,42 @@ where
             #[cfg(feature = "linalg")]
             {
                 use ndarray_linalg::Solve;
+                
+                // Assess local covariance matrix condition before solving
+                let condition_report = assess_matrix_condition(&cov_matrix.view());
+                if let Ok(report) = condition_report {
+                    match report.stability_level {
+                        StabilityLevel::Poor => {
+                            eprintln!(
+                                "Warning: Local kriging covariance matrix is poorly conditioned \
+                                 (condition number: {:.2e}) at query point {}. Using fallback prediction.",
+                                report.condition_number, i
+                            );
+                            values[i] = local_values.mean().unwrap_or(F::zero());
+                            variances[i] = self.anisotropic_cov.sigma_sq;
+                            continue;
+                        }
+                        StabilityLevel::Marginal => {
+                            eprintln!(
+                                "Info: Local kriging covariance matrix has marginal conditioning \
+                                 (condition number: {:.2e}) at query point {}. Proceeding with caution.",
+                                report.condition_number, i
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                
                 // Convert to f64 for linear algebra
                 let cov_matrix_f64 = cov_matrix.mapv(|x| x.to_f64().unwrap());
                 let local_values_f64 = local_values.mapv(|x| x.to_f64().unwrap());
                 let weights = match cov_matrix_f64.solve(&local_values_f64) {
                     Ok(w) => w.mapv(|x| F::from_f64(x).unwrap()),
                     Err(_) => {
+                        eprintln!(
+                            "Warning: Matrix solve failed for local kriging at query point {}. \
+                             Using mean value fallback.", i
+                        );
                         // Return mean as fallback
                         values[i] = local_values.mean().unwrap_or(F::zero());
                         variances[i] = self.anisotropic_cov.sigma_sq;
@@ -198,14 +229,28 @@ where
         for i in 0..n_query {
             // Compute residual using low-rank approximation
             let query_feature = query_features.slice(ndarray::s![i, ..]);
-            let projected = u.dot(&(s.mapv(|x| x.recip()) * v.t().dot(&self.values)));
-
+            
+            // Create safe reciprocal array for singular values
+            let mut s_inv = Array1::zeros(s.len());
+            for (j, &sv) in s.iter().enumerate() {
+                match safe_reciprocal(sv) {
+                    Ok(inv_sv) => s_inv[j] = inv_sv,
+                    Err(_) => {
+                        eprintln!(
+                            "Warning: Singular value {} too small for stable reciprocal at index {}. \
+                             Using zero instead.", sv, j
+                        );
+                        s_inv[j] = F::zero();
+                    }
+                }
+            }
+            
+            let projected = u.dot(&(s_inv * v.t().dot(&self.values)));
             values[i] = query_feature.dot(&projected);
 
             // Approximate variance (simplified)
             let variance = self.anisotropic_cov.sigma_sq
-                - query_feature.dot(&s.mapv(|x| x.recip()))
-                    * query_feature.dot(&s.mapv(|x| x.recip()));
+                - query_feature.dot(&s_inv) * query_feature.dot(&s_inv);
 
             variances[i] = if variance < F::zero() {
                 F::zero()

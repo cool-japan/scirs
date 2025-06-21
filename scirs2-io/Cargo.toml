@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-io"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -36,3 +36,44 @@ regex = { workspace = true }
 glob = { workspace = true }
 netcdf3 = { workspace = true }
 kamadak-exif = { workspace = true }
+hdf5 = { workspace = true, optional = true }
+rayon = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true, features = ["fs", "io-util", "time", "rt"] }
+futures = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+memmap2 = { workspace = true }
+bytemuck = { workspace = true }
+reqwest = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+
+[features]
+default = ["csv", "compression", "validation"]
+csv = []
+compression = []
+validation = []
+hdf5 = ["dep:hdf5"]
+async = ["dep:tokio", "dep:futures", "dep:futures-util"]
+reqwest = ["dep:reqwest", "dep:log"]
+aws-sdk-s3 = []
+google-cloud-storage = []
+azure-storage-blobs = []
+all = ["csv", "compression", "validation", "hdf5", "async", "reqwest", "aws-sdk-s3", "google-cloud-storage", "azure-storage-blobs"]
+
+[[example]]
+name = "hdf5_example"
+path = "examples/hdf5_example.rs"
+required-features = ["hdf5"]
+
+[[example]]
+name = "async_io_example"
+path = "examples/async_io_example.rs"
+required-features = ["async"]
+
+[[example]]
+name = "network_cloud_example"
+path = "examples/network_cloud_example.rs"
+required-features = ["async", "reqwest"]

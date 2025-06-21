@@ -401,8 +401,33 @@ pub fn global_memory_tracker() -> &'static MemoryTracker {
 /// Advanced memory metrics system
 pub mod metrics;
 
+/// Cross-device memory management for CPU/GPU/TPU
+#[cfg(feature = "gpu")]
+pub mod cross_device;
+
+/// Out-of-core processing for datasets larger than memory
+pub mod out_of_core;
+
+/// Compressed memory buffers for memory-constrained environments
+#[cfg(feature = "memory_compression")]
+pub mod compressed_buffers;
+
+/// Production-level memory safety features with bounds checking and overflow protection
+pub mod safety;
+
+/// Memory leak detection and monitoring system
+#[cfg(feature = "memory_management")]
+pub mod leak_detection;
+
 // Re-export key metric functions for convenient usage
 pub use metrics::{
     format_memory_report, generate_memory_report, track_allocation, track_deallocation,
     track_resize,
+};
+
+// Re-export leak detection types for convenience
+#[cfg(feature = "memory_management")]
+pub use leak_detection::{
+    LeakCheckGuard, LeakDetectionConfig, LeakDetector, LeakReport, LeakType, MemoryCheckpoint,
+    MemoryLeak, ProfilerTool, ValgrindIntegration,
 };

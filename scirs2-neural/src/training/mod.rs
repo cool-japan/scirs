@@ -1,8 +1,108 @@
-//! Training utilities
+//! Training utilities and infrastructure
 //!
-//! This module provides utilities for training neural networks,
-//! including gradient accumulation, mixed precision training,
-//! distributed training, and other advanced training features.
+//! This module provides comprehensive utilities for training neural networks,
+//! including advanced features like gradient accumulation, mixed precision training,
+//! distributed training, and sophisticated training loop management.
+//!
+//! # Overview
+//!
+//! The training module consists of several key components:
+//!
+//! - **Trainer**: High-level training orchestrator that manages the entire training process
+//! - **TrainingConfig**: Configuration structure for customizing training behavior
+//! - **GradientAccumulator**: For accumulating gradients across multiple batches
+//! - **MixedPrecisionManager**: For memory-efficient mixed precision training
+//! - **ValidationSettings**: For configuring validation during training
+//!
+//! # Examples
+//!
+//! ## Basic Training Loop
+//!
+//! ```rust
+//! use scirs2_neural::training::{Trainer, TrainingConfig, ValidationSettings};
+//! use scirs2_neural::data::{DataLoader, Dataset};
+//! use scirs2_neural::models::Sequential;
+//! use scirs2_neural::layers::Dense;
+//! use scirs2_neural::losses::CrossEntropyLoss;
+//! use scirs2_neural::optimizers::Adam;
+//! use scirs2_neural::callbacks::CallbackManager;
+//! use rand::rngs::SmallRng;
+//! use rand::SeedableRng;
+//!
+//! # fn train_model() -> scirs2_neural::error::Result<()> {
+//! let mut rng = SmallRng::seed_from_u64(42);
+//!
+//! // Create a simple model
+//! let mut model: Sequential<f32> = Sequential::new();
+//! model.add_layer(Dense::new(784, 128, Some("relu"), &mut rng)?);
+//! model.add_layer(Dense::new(128, 10, Some("softmax"), &mut rng)?);
+//!
+//! // Configure training
+//! let config = TrainingConfig {
+//!     batch_size: 32,
+//!     epochs: 10,
+//!     learning_rate: 0.001,
+//!     shuffle: true,
+//!     verbose: 1,
+//!     validation: Some(ValidationSettings {
+//!         enabled: true,
+//!         validation_split: 0.2,
+//!         batch_size: 32,
+//!         num_workers: 1,
+//!     }),
+//!     ..Default::default()
+//! };
+//!
+//! // Create trainer
+//! // let trainer = Trainer::new(model, optimizer, loss_fn, config);
+//!
+//! // Set up data, loss, optimizer, and callbacks
+//! // let train_loader = DataLoader::new(...);
+//! // let loss_fn = CrossEntropyLoss::new();
+//! // let optimizer = Adam::new(0.001);
+//! // let callbacks = CallbackManager::new();
+//!
+//! // Train the model
+//! // let history = trainer.fit(&mut model, &train_loader, &loss_fn, &mut optimizer, &mut callbacks)?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Advanced Training with Gradient Accumulation
+//!
+//! ```rust
+//! use scirs2_neural::training::{TrainingConfig, GradientAccumulationConfig};
+//!
+//! let config = TrainingConfig {
+//!     batch_size: 8,  // Smaller effective batch size
+//!     gradient_accumulation: Some(GradientAccumulationConfig {
+//!         accumulation_steps: 4,  // Accumulate over 4 steps (effective batch size: 32)
+//!         clip_gradients: true,
+//!         average_gradients: true,
+//!         zero_gradients_after_update: true,
+//!         max_gradient_norm: Some(1.0),
+//!         log_gradient_stats: false,
+//!     }),
+//!     ..Default::default()
+//! };
+//! ```
+//!
+//! ## Mixed Precision Training
+//!
+//! ```rust
+//! use scirs2_neural::training::{TrainingConfig, MixedPrecisionConfig};
+//!
+//! let config = TrainingConfig {
+//!     mixed_precision: Some(MixedPrecisionConfig {
+//!         dynamic_loss_scaling: true,
+//!         initial_loss_scale: 1024.0,
+//!         scale_factor: 2.0,
+//!         scale_window: 2000,
+//!         ..Default::default()
+//!     }),
+//!     ..Default::default()
+//! };
+//! ```
 
 pub mod gradient_accumulation;
 pub mod mixed_precision;
@@ -25,26 +125,103 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-/// Training configuration
+/// Configuration for neural network training
+///
+/// This structure contains all the parameters needed to configure a training session,
+/// including batch size, learning rate, optimization settings, and advanced features
+/// like gradient accumulation and mixed precision training.
+///
+/// # Examples
+///
+/// ## Basic Configuration
+///
+/// ```rust
+/// use scirs2_neural::training::TrainingConfig;
+///
+/// let config = TrainingConfig {
+///     batch_size: 64,
+///     epochs: 20,
+///     learning_rate: 0.001,
+///     shuffle: true,
+///     verbose: 1,
+///     ..Default::default()
+/// };
+/// ```
+///
+/// ## Configuration for Large Models (with gradient accumulation)
+///
+/// ```rust
+/// use scirs2_neural::training::{TrainingConfig, GradientAccumulationConfig};
+///
+/// let config = TrainingConfig {
+///     batch_size: 8,  // Small batch due to memory constraints
+///     gradient_accumulation: Some(GradientAccumulationConfig {
+///         accumulation_steps: 8,  // Effective batch size: 64
+///         clip_gradients: true,
+///         average_gradients: true,
+///         zero_gradients_after_update: true,
+///         max_gradient_norm: Some(1.0),
+///         log_gradient_stats: false,
+///     }),
+///     ..Default::default()
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct TrainingConfig {
-    /// Batch size for training
+    /// Number of samples in each training batch
+    ///
+    /// Larger batch sizes provide more stable gradients but require more memory.
+    /// Typical values range from 16 to 512 depending on model size and hardware.
     pub batch_size: usize,
-    /// Whether to shuffle the training data
+
+    /// Whether to shuffle the training data between epochs
+    ///
+    /// Shuffling helps prevent the model from learning the order of data presentation
+    /// and generally improves training stability and generalization.
     pub shuffle: bool,
-    /// Number of workers for data loading
+
+    /// Number of parallel workers for data loading
+    ///
+    /// Setting this to 0 uses the main thread for data loading.
+    /// Higher values can speed up training if data loading is a bottleneck.
     pub num_workers: usize,
-    /// Learning rate
+
+    /// Base learning rate for the optimizer
+    ///
+    /// This is the step size used for parameter updates. Too high values can cause
+    /// training instability, while too low values lead to slow convergence.
+    /// Typical values range from 1e-5 to 1e-1 depending on the optimizer and model.
     pub learning_rate: f64,
-    /// Number of epochs to train
+
+    /// Number of complete passes through the training dataset
+    ///
+    /// One epoch means seeing each training example exactly once.
+    /// More epochs allow for better learning but risk overfitting.
     pub epochs: usize,
-    /// Verbosity level
+
+    /// Verbosity level for training output
+    ///
+    /// - 0: Silent mode (no output)
+    /// - 1: Progress bar with metrics (default)
+    /// - 2: One line per epoch with detailed metrics
     pub verbose: usize,
-    /// Validation settings
+
+    /// Validation configuration
+    ///
+    /// If provided, enables validation during training with the specified settings.
+    /// Validation helps monitor overfitting and model generalization.
     pub validation: Option<ValidationSettings>,
-    /// Gradient accumulation settings
+
+    /// Gradient accumulation configuration
+    ///
+    /// Enables accumulating gradients over multiple batches before applying updates.
+    /// Useful for simulating larger batch sizes when memory is limited.
     pub gradient_accumulation: Option<GradientAccumulationConfig>,
-    /// Mixed precision settings
+
+    /// Mixed precision training configuration
+    ///
+    /// Enables training with mixed precision (FP16/FP32) to reduce memory usage
+    /// and potentially speed up training on compatible hardware.
     pub mixed_precision: Option<MixedPrecisionConfig>,
 }
 
@@ -64,16 +241,46 @@ impl Default for TrainingConfig {
     }
 }
 
-/// Validation settings
+/// Configuration for validation during training
+///
+/// Validation helps monitor model performance on unseen data during training,
+/// which is crucial for detecting overfitting and ensuring good generalization.
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_neural::training::ValidationSettings;
+///
+/// let validation = ValidationSettings {
+///     enabled: true,
+///     validation_split: 0.2,  // Use 20% of data for validation
+///     batch_size: 64,
+///     num_workers: 2,
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct ValidationSettings {
-    /// Whether to use validation
+    /// Whether to enable validation during training
+    ///
+    /// When disabled, no validation will be performed even if this struct is provided.
     pub enabled: bool,
-    /// Validation split (0.0 to 1.0)
+
+    /// Fraction of training data to use for validation (0.0 to 1.0)
+    ///
+    /// For example, 0.2 means 20% of the data will be used for validation
+    /// and 80% for training. The data is split before training begins.
     pub validation_split: f64,
+
     /// Batch size for validation
+    ///
+    /// Can be larger than training batch size since no gradients are computed.
+    /// Larger validation batches are more memory efficient and faster.
     pub batch_size: usize,
-    /// Number of workers for validation data loading
+
+    /// Number of parallel workers for validation data loading
+    ///
+    /// Similar to training workers, but for validation data.
+    /// Setting to 0 uses the main thread.
     pub num_workers: usize,
 }
 
@@ -203,7 +410,43 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             accumulator.initialize(&*self.model)?;
         }
 
-        // TODO: Initialize mixed precision if enabled
+        // Initialize mixed precision if enabled
+        if let Some(ref mp_config) = self.config.mixed_precision {
+            if let Some(ref mut mixed_precision) = self.mixed_precision {
+                // Initialize the mixed precision manager with the model
+                // Since we need a clonable version of the model, we'll try to get it
+                if let Some(high_precision_model) = self
+                    .model
+                    .as_any()
+                    .downcast_ref::<crate::layers::Sequential<F>>()
+                {
+                    // For Sequential models, we can attempt initialization
+                    if let Err(e) = mixed_precision.initialize(high_precision_model) {
+                        eprintln!("Warning: Failed to initialize mixed precision: {}", e);
+                    }
+                } else {
+                    // For other model types that don't implement Clone, we'll skip mixed precision
+                    eprintln!("Warning: Mixed precision requires clonable models. Skipping mixed precision initialization.");
+                }
+            } else {
+                // Create mixed precision manager if it doesn't exist
+                let manager = MixedPrecisionManager::<F, F>::new(mp_config.clone());
+                self.mixed_precision = Some(manager);
+
+                // Try to initialize it
+                if let Some(ref mut mixed_precision) = self.mixed_precision {
+                    if let Some(high_precision_model) = self
+                        .model
+                        .as_any()
+                        .downcast_ref::<crate::layers::Sequential<F>>()
+                    {
+                        if let Err(e) = mixed_precision.initialize(high_precision_model) {
+                            eprintln!("Warning: Failed to initialize mixed precision: {}", e);
+                        }
+                    }
+                }
+            }
+        }
 
         // Call on_train_begin for callbacks
         self.callback_manager.on_train_begin()?;

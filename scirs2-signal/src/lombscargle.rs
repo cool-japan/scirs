@@ -39,7 +39,7 @@ use std::fmt::Debug;
 ///
 /// // Generate unevenly sampled data with a 1 Hz sinusoid
 /// let n = 100;
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rng();
 /// let mut t = Array1::linspace(0.0, 10.0, n);
 /// // Add some random noise to make sampling uneven
 /// for i in 0..n {

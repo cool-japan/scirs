@@ -37,10 +37,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     // Configure EMD
-    let mut config = EmdConfig::default();
-    config.max_imfs = 5; // Maximum number of IMFs to extract
-    config.sift_threshold = 0.05; // Stopping criterion for sifting process
-    config.max_sift_iterations = 50; // Maximum sifting iterations per IMF
+    let config = EmdConfig {
+        max_imfs: 5,             // Maximum number of IMFs to extract
+        sift_threshold: 0.05,    // Stopping criterion for sifting process
+        max_sift_iterations: 50, // Maximum sifting iterations per IMF
+        ..Default::default()
+    };
 
     println!("\nApplying EMD with parameters:");
     println!("- Max IMFs: {}", config.max_imfs);

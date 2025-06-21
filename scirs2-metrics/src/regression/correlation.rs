@@ -9,10 +9,69 @@ use num_traits::{Float, FromPrimitive, NumCast};
 use super::{check_same_shape, mean};
 use crate::error::{MetricsError, Result};
 
-/// Calculates the R^2 score (coefficient of determination)
+/// Calculates the R² score (coefficient of determination)
 ///
-/// R^2 represents the proportion of variance in the dependent variable
-/// that is predictable from the independent variable(s).
+/// # Mathematical Formulation
+///
+/// The R² score is defined as:
+///
+/// ```text
+/// R² = 1 - (SS_res / SS_tot)
+/// ```
+///
+/// Where:
+/// - SS_res = Σ(yᵢ - ŷᵢ)² (sum of squares of residuals)
+/// - SS_tot = Σ(yᵢ - ȳ)² (total sum of squares)
+/// - ȳ = mean of true values
+/// - n = number of samples
+///
+/// Alternatively, R² can be expressed as:
+///
+/// ```text
+/// R² = 1 - (Var(y_true - y_pred) / Var(y_true))
+/// ```
+///
+/// This shows R² as the proportion of variance explained by the model.
+///
+/// # Interpretation
+///
+/// R² represents the proportion of variance in the dependent variable
+/// that is predictable from the independent variable(s):
+///
+/// - R² = 1.0: Perfect predictions (all variance explained)
+/// - R² = 0.0: Model performs as well as predicting the mean
+/// - R² < 0.0: Model performs worse than predicting the mean
+/// - R² = 0.5: Model explains 50% of the variance
+///
+/// # Range and Properties
+///
+/// - Maximum value: 1.0 (perfect fit)
+/// - No minimum value (can be arbitrarily negative)
+/// - Scale-invariant (unitless metric)
+/// - Not necessarily increasing with more features (unlike adjusted R²)
+///
+/// # Relationship to Correlation
+///
+/// For simple linear regression:
+/// ```text
+/// R² = r²
+/// ```
+/// Where r is the Pearson correlation coefficient between y_true and y_pred.
+///
+/// # Use Cases
+///
+/// R² is widely used because:
+/// - It provides an intuitive interpretation (% variance explained)
+/// - It's scale-invariant and unitless
+/// - It's standard in statistical modeling
+/// - It allows comparison between different models
+///
+/// # Limitations
+///
+/// - Can be misleading with non-linear relationships
+/// - Always increases with additional features (use adjusted R² instead)
+/// - May not reflect prediction quality for extreme values
+/// - Assumes linear relationship between features and target
 ///
 /// # Arguments
 ///
@@ -21,13 +80,7 @@ use crate::error::{MetricsError, Result};
 ///
 /// # Returns
 ///
-/// * The R^2 score
-///
-/// # Notes
-///
-/// * Best possible score is 1.0
-/// * A score of 0 means the model predicts as well as using the mean
-/// * A negative score means the model is worse than predicting the mean
+/// * The R² score
 ///
 /// # Examples
 ///

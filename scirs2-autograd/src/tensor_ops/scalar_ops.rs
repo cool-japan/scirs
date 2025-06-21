@@ -4,7 +4,7 @@ use crate::Float;
 
 /// Scalar multiplication operation
 pub struct ScalarMulOp<F: Float> {
-    scalar: F,
+    pub scalar: F,
 }
 
 impl<F: Float> Op<F> for ScalarMulOp<F> {

@@ -173,7 +173,7 @@ fn main() {
         &x_simple.view(),
         &y_simple.view(),
         1.0,
-        ExtrapolateMode::Constant,
+        ExtrapolateMode::Extrapolate,
     )
     .unwrap();
 

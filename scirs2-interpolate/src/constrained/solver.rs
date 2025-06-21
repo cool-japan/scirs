@@ -5,6 +5,10 @@
 
 use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::error::{InterpolateError, InterpolateResult};
+#[cfg(feature = "linalg")]
+use crate::numerical_stability::{
+    assess_matrix_condition, solve_with_stability_monitoring, StabilityLevel,
+};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
@@ -29,7 +33,8 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     // For now, we'll provide a simplified implementation that uses a quadratic program
     // to approximate the interpolation problem
@@ -67,7 +72,8 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     // Form the normal equations: A'A*c = A'y
     let a_transpose = design_matrix.t();
@@ -84,15 +90,34 @@ where
     if constraint_matrix.shape()[0] == 0 {
         #[cfg(feature = "linalg")]
         {
-            use ndarray_linalg::Solve;
-            // Convert to f64
-            let ata_f64 = ata.mapv(|x| x.to_f64().unwrap());
-            let aty_f64 = aty.mapv(|x| x.to_f64().unwrap());
-            match ata_f64.solve(&aty_f64) {
-                Ok(solution) => return Ok(solution.mapv(|x| T::from_f64(x).unwrap())),
+            // Assess matrix condition before solving
+            let condition_report = assess_matrix_condition(&ata.view());
+            if let Ok(report) = condition_report {
+                match report.stability_level {
+                    StabilityLevel::Poor => {
+                        eprintln!(
+                            "Warning: Normal equations matrix is poorly conditioned \
+                             (condition number: {:.2e}). Results may be unreliable.",
+                            report.condition_number
+                        );
+                    }
+                    StabilityLevel::Marginal => {
+                        eprintln!(
+                            "Info: Normal equations matrix has marginal conditioning \
+                             (condition number: {:.2e}). Monitoring solution quality.",
+                            report.condition_number
+                        );
+                    }
+                    _ => {}
+                }
+            }
+
+            // Use stability-monitored solver
+            match solve_with_stability_monitoring(&ata, &aty) {
+                Ok((solution, _solve_report)) => return Ok(solution),
                 Err(_) => {
                     return Err(InterpolateError::ComputationError(
-                        "Failed to solve the unconstrained least squares problem".to_string(),
+                        "Failed to solve the unconstrained least squares problem with stability monitoring".to_string(),
                     ))
                 }
             }
@@ -110,13 +135,24 @@ where
     // Start with an initial feasible solution (unconstrained)
     #[cfg(feature = "linalg")]
     let mut c = {
-        use ndarray_linalg::Solve;
-        let ata_f64 = ata.mapv(|x| x.to_f64().unwrap());
-        let aty_f64 = aty.mapv(|x| x.to_f64().unwrap());
-        match ata_f64.solve(&aty_f64) {
-            Ok(solution) => solution.mapv(|x| T::from_f64(x).unwrap()),
+        // Use stability-monitored solver for initial solution
+        match solve_with_stability_monitoring(&ata, &aty) {
+            Ok((solution, solve_report)) => {
+                if !solve_report.is_well_conditioned {
+                    eprintln!(
+                        "Warning: Initial solution for constrained problem computed with \
+                         poorly conditioned matrix (condition number: {:.2e})",
+                        solve_report.condition_number
+                    );
+                }
+                solution
+            }
             Err(_) => {
-                // If direct solve fails, try a simpler approach
+                eprintln!(
+                    "Warning: Stability-monitored solve failed for initial solution. \
+                     Using zero initialization."
+                );
+                // If solve fails, try a simpler approach
                 let n = design_matrix.shape()[1];
                 Array1::zeros(n)
             }
@@ -254,7 +290,8 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     // Form the penalized objective: A'A*c + λ*P*c = A'y
     let a_transpose = design_matrix.t();
@@ -387,7 +424,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let n_coeffs = knots.len() - degree - 1;
 
@@ -432,7 +470,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let n_coeffs = knots.len() - degree - 1;
 
@@ -516,7 +555,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let n_coeffs = knots.len() - degree - 1;
     let x_min = x[0];
@@ -531,18 +571,20 @@ where
         let _constraint_x_max = constraint.x_max.unwrap_or(x_max);
 
         // Count evaluation points in the constraint region
+        // Note: we generate n_eval = 10 points, and add n_eval - 1 = 9 constraints
+        let n_eval = 10;
         match constraint.constraint_type {
             ConstraintType::MonotoneIncreasing | ConstraintType::MonotoneDecreasing => {
-                // For monotonicity, we need to check at multiple intermediate points
-                total_constraints += 10; // Approximately
+                // For monotonicity, we add n_eval - 1 constraints
+                total_constraints += n_eval - 1;
             }
             ConstraintType::Convex | ConstraintType::Concave => {
-                // For convexity, check at multiple intermediate points
-                total_constraints += 10; // Approximately
+                // For convexity, we add n_eval constraints (one per evaluation point)
+                total_constraints += n_eval;
             }
             _ => {
                 // For other constraints, check at multiple points
-                total_constraints += 5; // Approximately
+                total_constraints += n_eval;
             }
         }
     }

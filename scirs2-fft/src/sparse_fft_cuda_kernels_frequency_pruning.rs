@@ -246,8 +246,23 @@ impl GPUKernel for CUDAFrequencyPruningSparseFFTKernel {
         }
 
         // Copy results back to device if needed
-        self.output_values_buffer.copy_host_to_device()?;
-        self.output_indices_buffer.copy_host_to_device()?;
+        // Convert output data to byte arrays for device transfer
+        let values_bytes = unsafe {
+            std::slice::from_raw_parts(
+                output_values_ptr as *const u8,
+                self.sparsity * std::mem::size_of::<Complex64>(),
+            )
+        };
+        let indices_bytes = unsafe {
+            std::slice::from_raw_parts(
+                output_indices_ptr as *const u8,
+                self.sparsity * std::mem::size_of::<usize>(),
+            )
+        };
+        self.output_values_buffer
+            .copy_host_to_device(values_bytes)?;
+        self.output_indices_buffer
+            .copy_host_to_device(indices_bytes)?;
 
         // Calculate statistics
         let execution_time_ms =
@@ -321,7 +336,13 @@ where
     }
 
     // Transfer data to device
-    input_buffer.copy_host_to_device()?;
+    let input_bytes = unsafe {
+        std::slice::from_raw_parts(
+            signal_complex.as_ptr() as *const u8,
+            signal_complex.len() * std::mem::size_of::<Complex64>(),
+        )
+    };
+    input_buffer.copy_host_to_device(input_bytes)?;
 
     // Create and execute kernel
     let kernel = CUDAFrequencyPruningSparseFFTKernel::new(
@@ -338,8 +359,10 @@ where
     let _stats = kernel.execute()?;
 
     // Transfer results back from device
-    output_values_buffer.copy_device_to_host()?;
-    output_indices_buffer.copy_device_to_host()?;
+    let mut values_bytes = vec![0u8; sparsity * std::mem::size_of::<Complex64>()];
+    let mut indices_bytes = vec![0u8; sparsity * std::mem::size_of::<usize>()];
+    output_values_buffer.copy_device_to_host(&mut values_bytes)?;
+    output_indices_buffer.copy_device_to_host(&mut indices_bytes)?;
 
     // Read results from output buffers
     let (values_ptr, _) = output_values_buffer.get_host_ptr();

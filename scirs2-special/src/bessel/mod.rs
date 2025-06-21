@@ -67,6 +67,9 @@ pub mod modified;
 pub mod second_kind;
 pub mod spherical;
 
+/// Complex number support for Bessel functions
+pub mod complex;
+
 // Import tests
 #[cfg(test)]
 mod tests;

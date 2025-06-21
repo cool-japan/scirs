@@ -42,7 +42,7 @@ fn main() -> LinalgResult<()> {
     println!("Right-hand side b: {:?}\n", b);
 
     // Solve using standard precision
-    let x_std = match scirs2_linalg::solve(&hilbert.view(), &b.view()) {
+    let x_std = match scirs2_linalg::solve(&hilbert.view(), &b.view(), None) {
         Ok(result) => result,
         Err(e) => {
             println!("Error in standard precision solve: {}", e);
@@ -163,7 +163,7 @@ fn main() -> LinalgResult<()> {
     }
 
     // Calculate determinant with standard precision
-    let det_std = match det(&hilbert_det_f32.view()) {
+    let det_std = match det(&hilbert_det_f32.view(), None) {
         Ok(d) => d,
         Err(e) => {
             println!("Error calculating standard precision determinant: {}", e);
@@ -175,7 +175,7 @@ fn main() -> LinalgResult<()> {
     let det_ext = extended_det::<_, f64>(&hilbert_det_f32.view())?;
 
     // Calculate f64 reference
-    let det_f64 = det(&hilbert_det.view())?;
+    let det_f64 = det(&hilbert_det.view(), None)?;
     let det_f64_as_f32 = det_f64 as f32;
 
     println!(
@@ -311,7 +311,7 @@ fn main() -> LinalgResult<()> {
     }
 
     // Compute eigenvalues and eigenvectors with standard precision
-    let (eigvals_std, eigvecs_std) = match scirs2_linalg::eigh(&sym_matrix.view()) {
+    let (eigvals_std, eigvecs_std) = match scirs2_linalg::eigh(&sym_matrix.view(), None) {
         Ok(result) => result,
         Err(e) => {
             println!(

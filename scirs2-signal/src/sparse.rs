@@ -155,6 +155,7 @@ pub fn omp(
         let coefficients = match solve(
             &phi_active.t().dot(&phi_active).view(),
             &phi_active.t().dot(y).view(),
+            None,
         ) {
             Ok(coef) => coef,
             Err(_) => {
@@ -186,6 +187,7 @@ pub fn omp(
     let coefficients = match solve(
         &phi_active.t().dot(&phi_active).view(),
         &phi_active.t().dot(y).view(),
+        None,
     ) {
         Ok(coef) => coef,
         Err(_) => {
@@ -559,6 +561,7 @@ pub fn cosamp(
         let coefficients = match solve(
             &phi_restricted.t().dot(&phi_restricted).view(),
             &phi_restricted.t().dot(y).view(),
+            None,
         ) {
             Ok(coef) => coef,
             Err(_) => {
@@ -793,6 +796,7 @@ pub fn subspace_pursuit(
         let signal_proxy = match solve(
             &phi_support.t().dot(&phi_support).view(),
             &phi_support.t().dot(y).view(),
+            None,
         ) {
             Ok(proxy) => proxy,
             Err(_) => {
@@ -838,6 +842,7 @@ pub fn subspace_pursuit(
         let merged_proxy = match solve(
             &phi_merged.t().dot(&phi_merged).view(),
             &phi_merged.t().dot(y).view(),
+            None,
         ) {
             Ok(proxy) => proxy,
             Err(_) => {
@@ -890,6 +895,7 @@ pub fn subspace_pursuit(
     let coefficients = match solve(
         &phi_support.t().dot(&phi_support).view(),
         &phi_support.t().dot(y).view(),
+        None,
     ) {
         Ok(coef) => coef,
         Err(_) => {
@@ -935,7 +941,7 @@ pub fn smooth_l0(
     let phi_t = phi.t();
     let gram = phi.dot(&phi_t);
 
-    let x = match solve(&gram.view(), &y.view()) {
+    let x = match solve(&gram.view(), &y.view(), None) {
         Ok(solution) => phi_t.dot(&solution),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -974,7 +980,7 @@ pub fn smooth_l0(
             let residual = y - &phi_x;
 
             // Use least squares to find the correction
-            let correction = match solve(&gram.view(), &residual.view()) {
+            let correction = match solve(&gram.view(), &residual.view(), None) {
                 Ok(corr) => corr,
                 Err(_) => {
                     return Err(SignalError::Compute(

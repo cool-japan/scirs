@@ -33,6 +33,24 @@ impl<F: Float + FromPrimitive + Debug> TensorProductInterpolator<F> {
     /// # Returns
     ///
     /// A new `TensorProductInterpolator` object
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use ndarray::Array1;
+    /// use scirs2_interpolate::tensor::TensorProductInterpolator;
+    /// use scirs2_interpolate::interp1d::InterpolationMethod;
+    ///
+    /// // Create coordinates for a 2D grid
+    /// let x_coords = Array1::from_vec(vec![0.0, 1.0, 2.0]);
+    /// let y_coords = Array1::from_vec(vec![0.0, 0.5, 1.0]);
+    /// let coords = vec![x_coords, y_coords];
+    ///
+    /// // Create tensor product interpolator with linear interpolation
+    /// let interpolator = TensorProductInterpolator::new(coords, InterpolationMethod::Linear);
+    ///
+    /// println!("Tensor product interpolator created for 2D grid");
+    /// ```
     pub fn new(coords: Vec<Array1<F>>, method: InterpolationMethod) -> Self {
         Self { coords, method }
     }

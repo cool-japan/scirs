@@ -373,3 +373,177 @@ This is a regression dataset."
 
     Ok(dataset)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_iris() {
+        let dataset = load_iris().unwrap();
+
+        assert_eq!(dataset.n_samples(), 150);
+        assert_eq!(dataset.n_features(), 4);
+        assert!(dataset.target.is_some());
+        assert!(dataset.description.is_some());
+        assert!(dataset.feature_names.is_some());
+        assert!(dataset.target_names.is_some());
+
+        let feature_names = dataset.feature_names.as_ref().unwrap();
+        assert_eq!(feature_names.len(), 4);
+        assert_eq!(feature_names[0], "sepal_length");
+        assert_eq!(feature_names[3], "petal_width");
+
+        let target_names = dataset.target_names.as_ref().unwrap();
+        assert_eq!(target_names.len(), 3);
+        assert!(target_names.contains(&"setosa".to_string()));
+        assert!(target_names.contains(&"versicolor".to_string()));
+        assert!(target_names.contains(&"virginica".to_string()));
+
+        // Check target values are in valid range (0, 1, 2)
+        let target = dataset.target.as_ref().unwrap();
+        for &val in target.iter() {
+            assert!(val >= 0.0 && val <= 2.0);
+        }
+    }
+
+    #[test]
+    fn test_load_breast_cancer() {
+        let dataset = load_breast_cancer().unwrap();
+
+        assert_eq!(dataset.n_samples(), 30);
+        assert_eq!(dataset.n_features(), 5);
+        assert!(dataset.target.is_some());
+        assert!(dataset.description.is_some());
+        assert!(dataset.feature_names.is_some());
+        assert!(dataset.target_names.is_some());
+
+        let feature_names = dataset.feature_names.as_ref().unwrap();
+        assert_eq!(feature_names.len(), 5);
+        assert_eq!(feature_names[0], "mean_radius");
+        assert_eq!(feature_names[4], "mean_smoothness");
+
+        let target_names = dataset.target_names.as_ref().unwrap();
+        assert_eq!(target_names.len(), 2);
+        assert!(target_names.contains(&"malignant".to_string()));
+        assert!(target_names.contains(&"benign".to_string()));
+
+        // Check target values are binary (0 or 1)
+        let target = dataset.target.as_ref().unwrap();
+        for &val in target.iter() {
+            assert!(val == 0.0 || val == 1.0);
+        }
+    }
+
+    #[test]
+    fn test_load_digits() {
+        let dataset = load_digits().unwrap();
+
+        assert_eq!(dataset.n_samples(), 50);
+        assert_eq!(dataset.n_features(), 16);
+        assert!(dataset.target.is_some());
+        assert!(dataset.description.is_some());
+        assert!(dataset.feature_names.is_some());
+        assert!(dataset.target_names.is_some());
+
+        let feature_names = dataset.feature_names.as_ref().unwrap();
+        assert_eq!(feature_names.len(), 16);
+        assert_eq!(feature_names[0], "pixel_0");
+        assert_eq!(feature_names[15], "pixel_15");
+
+        let target_names = dataset.target_names.as_ref().unwrap();
+        assert_eq!(target_names.len(), 10);
+        for i in 0..10 {
+            assert!(target_names.contains(&i.to_string()));
+        }
+
+        // Check target values are digits (0-9)
+        let target = dataset.target.as_ref().unwrap();
+        for &val in target.iter() {
+            assert!(val >= 0.0 && val <= 9.0);
+        }
+
+        // Check pixel values are in valid range [0, 1]
+        for row in dataset.data.rows() {
+            for &pixel in row.iter() {
+                assert!(pixel >= 0.0 && pixel <= 1.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_load_boston() {
+        let dataset = load_boston().unwrap();
+
+        assert_eq!(dataset.n_samples(), 30);
+        assert_eq!(dataset.n_features(), 5);
+        assert!(dataset.target.is_some());
+        assert!(dataset.description.is_some());
+        assert!(dataset.feature_names.is_some());
+        assert!(dataset.feature_descriptions.is_some());
+
+        let feature_names = dataset.feature_names.as_ref().unwrap();
+        assert_eq!(feature_names.len(), 5);
+        assert_eq!(feature_names[0], "CRIM");
+        assert_eq!(feature_names[4], "NOX");
+
+        let feature_descriptions = dataset.feature_descriptions.as_ref().unwrap();
+        assert_eq!(feature_descriptions.len(), 5);
+        assert!(feature_descriptions[0].contains("crime rate"));
+
+        // Check target values are reasonable housing prices
+        let target = dataset.target.as_ref().unwrap();
+        for &val in target.iter() {
+            assert!(val > 0.0 && val < 100.0); // Reasonable housing prices in $1000s
+        }
+    }
+
+    #[test]
+    fn test_all_datasets_have_consistent_shapes() {
+        let datasets = vec![
+            ("iris", load_iris().unwrap()),
+            ("breast_cancer", load_breast_cancer().unwrap()),
+            ("digits", load_digits().unwrap()),
+            ("boston", load_boston().unwrap()),
+        ];
+
+        for (name, dataset) in datasets {
+            // Check that data and target have consistent sample counts
+            if let Some(ref target) = dataset.target {
+                assert_eq!(
+                    dataset.data.nrows(),
+                    target.len(),
+                    "Dataset '{}' has inconsistent sample counts",
+                    name
+                );
+            }
+
+            // Check that feature names match feature count (if present)
+            if let Some(ref feature_names) = dataset.feature_names {
+                assert_eq!(
+                    dataset.data.ncols(),
+                    feature_names.len(),
+                    "Dataset '{}' has inconsistent feature count",
+                    name
+                );
+            }
+
+            // Check that feature descriptions match feature count (if present)
+            if let Some(ref feature_descriptions) = dataset.feature_descriptions {
+                assert_eq!(
+                    dataset.data.ncols(),
+                    feature_descriptions.len(),
+                    "Dataset '{}' has inconsistent feature description count",
+                    name
+                );
+            }
+
+            // Check that dataset has a description
+            assert!(
+                dataset.description.is_some(),
+                "Dataset '{}' missing description",
+                name
+            );
+        }
+    }
+}

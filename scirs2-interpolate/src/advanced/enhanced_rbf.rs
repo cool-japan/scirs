@@ -1203,7 +1203,11 @@ where
         + std::ops::SubAssign
         + std::ops::MulAssign
         + std::ops::DivAssign
-        + std::ops::RemAssign,
+        + std::ops::RemAssign
+        + std::fmt::LowerExp
+        + Send
+        + Sync
+        + 'static,
 {
     // Extract data from the standard RBF interpolator
     let _points = rbf.interpolate(&Array2::ones((1, 2)).view()).map_err(|_| {

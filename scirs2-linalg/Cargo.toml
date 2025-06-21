@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-linalg"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Linear algebra module for SciRS2"
@@ -11,7 +11,7 @@ categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
 # Core dependencies
-scirs2-core = { workspace = true, features = ["linalg", "openblas", "parallel", "simd", "random"] }
+scirs2-core = { workspace = true, features = ["linalg", "parallel", "simd", "random"] }
 ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
@@ -26,18 +26,21 @@ wide = { workspace = true }
 rayon = { workspace = true }
 half = { workspace = true }
 scirs2-autograd = { workspace = true, optional = true }
-openblas-src = { workspace = true }
-blas = { workspace = true }
+
+[[example]]
+name = "test_precision"
+path = "examples/test_precision.rs"
 
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
 
 [features]
-default = ["openblas-backend", "simd"]
+default = ["openblas-backend", "simd", "linalg"]
 netlib = ["scirs2-core/netlib"]
 openblas-backend = ["scirs2-core/openblas"]
 intel-mkl = ["scirs2-core/intel-mkl"]
+linalg = ["scirs2-core/linalg"] # Linear algebra with BLAS/LAPACK bindings
 tensor_contraction = [] # Optional tensor contraction functionality
 simd = ["scirs2-core/simd"] # SIMD-accelerated operations
 autograd = ["dep:scirs2-autograd"] # Automatic differentiation support

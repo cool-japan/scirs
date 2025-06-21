@@ -44,7 +44,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let constraint = Constraint::monotone_increasing(None, None);
     ConstrainedSpline::interpolate(x, y, vec![constraint], degree, extrapolate)
@@ -82,7 +83,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let constraint = Constraint::monotone_decreasing(None, None);
     ConstrainedSpline::interpolate(x, y, vec![constraint], degree, extrapolate)
@@ -120,7 +122,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let constraint = Constraint::convex(None, None);
     ConstrainedSpline::interpolate(x, y, vec![constraint], degree, extrapolate)
@@ -158,7 +161,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let constraint = Constraint::concave(None, None);
     ConstrainedSpline::interpolate(x, y, vec![constraint], degree, extrapolate)
@@ -196,7 +200,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let constraint = Constraint::positive(None, None);
     ConstrainedSpline::interpolate(x, y, vec![constraint], degree, extrapolate)
@@ -238,7 +243,8 @@ where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + 'static,
+        + 'static
+        + std::fmt::LowerExp,
 {
     let mut constraints = Vec::new();
 

@@ -521,8 +521,10 @@ mod tests {
 
     #[test]
     fn test_bpe_tokenizer_with_special_tokens() {
-        let mut config = BpeConfig::default();
-        config.special_tokens = vec!["<pad>".to_string(), "<unk>".to_string()];
+        let config = BpeConfig {
+            special_tokens: vec!["<pad>".to_string(), "<unk>".to_string()],
+            ..Default::default()
+        };
 
         let corpus = [
             "this is a test",
@@ -559,8 +561,10 @@ mod tests {
         let tokens1 = tokenizer1.tokenize("THIS is A test").unwrap();
 
         // Test with lowercase=false
-        let mut config = BpeConfig::default();
-        config.lowercase = false;
+        let config = BpeConfig {
+            lowercase: false,
+            ..Default::default()
+        };
         let mut tokenizer2 = BpeTokenizer::new(config);
         tokenizer2.train(&corpus).unwrap();
         let tokens2 = tokenizer2.tokenize("THIS is A test").unwrap();

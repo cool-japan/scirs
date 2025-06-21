@@ -6,7 +6,7 @@
 //! - Operations that should be applied only to a subset of data
 //! - Statistical computations that should ignore certain values
 //!
-//! The implementation is inspired by NumPy's MaskedArray and provides similar functionality
+//! The implementation is inspired by ``NumPy``'s `MaskedArray` and provides similar functionality
 //! in a Rust-native way.
 
 use ndarray::{Array, ArrayBase, Data, Dimension, Ix1};
@@ -31,18 +31,17 @@ pub enum ArrayError {
 impl std::fmt::Display for ArrayError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ArrayError::ShapeMismatch {
+            Self::ShapeMismatch {
                 expected,
                 found,
                 msg,
             } => {
                 write!(
                     f,
-                    "Shape mismatch: expected {:?}, found {:?}: {}",
-                    expected, found, msg
+                    "Shape mismatch: expected {expected:?}, found {found:?}: {msg}"
                 )
             }
-            ArrayError::ValueError(msg) => write!(f, "Value error: {}", msg),
+            Self::ValueError(msg) => write!(f, "Value error: {msg}"),
         }
     }
 }
@@ -79,7 +78,10 @@ where
     S: Data<Elem = A> + Clone + ndarray::RawDataClone,
     D: Dimension,
 {
-    /// Create a new MaskedArray from data and mask
+    /// Create a new `MaskedArray` from data and mask
+    ///
+    /// # Errors
+    /// Returns `ArrayError::ShapeMismatch` if the mask shape doesn't match the data shape.
     pub fn new(
         data: ArrayBase<S, D>,
         mask: Option<Array<bool, D>>,
@@ -101,30 +103,24 @@ where
         };
 
         // Use provided fill value or create a default
-        let fill_value = match fill_value {
-            Some(v) => v,
-            None => default_fill_value(&data),
-        };
+        let fill_value = fill_value.map_or_else(|| default_fill_value(&data), |v| v);
 
-        Ok(MaskedArray {
+        Ok(Self {
             data,
             mask,
             fill_value,
         })
     }
 
-    /// Get a view of the data with masked values replaced by fill_value
+    /// Get a view of the data with masked values replaced by `fill_value`
     pub fn filled(&self, fill_value: Option<A>) -> Array<A, D>
     where
         <D as Dimension>::Pattern: ndarray::NdIndex<D>,
     {
-        let fill = match fill_value {
-            Some(v) => v,
-            None => self.fill_value.clone(),
-        };
+        let fill = fill_value.map_or_else(|| self.fill_value.clone(), |v| v);
 
         // Create new array with same shape as data
-        let mut result = Array::from_elem(self.data.raw_dim(), fill.clone());
+        let mut result = Array::from_elem(self.data.raw_dim(), fill);
 
         // Copy unmasked values from original data
         for (i, val) in self.data.iter().enumerate() {
@@ -155,6 +151,9 @@ where
     }
 
     /// Set a new mask for the array
+    ///
+    /// # Errors
+    /// Returns `ArrayError::ShapeMismatch` if the mask shape doesn't match the data shape.
     pub fn set_mask(&mut self, mask: Array<bool, D>) -> Result<(), ArrayError> {
         // Validate mask shape
         if mask.shape() != self.data.shape() {
@@ -209,18 +208,19 @@ where
     }
 
     /// Returns a tuple of (data, mask)
-    pub fn data_and_mask(&self) -> (&ArrayBase<S, D>, &Array<bool, D>) {
+    pub const fn data_and_mask(&self) -> (&ArrayBase<S, D>, &Array<bool, D>) {
         (&self.data, &self.mask)
     }
 
     /// Creates a new masked array with the given mask operation applied
+    #[must_use]
     pub fn mask_op<F>(&self, op: F) -> Self
     where
         F: Fn(&Array<bool, D>) -> Array<bool, D>,
     {
         let new_mask = op(&self.mask);
 
-        MaskedArray {
+        Self {
             data: self.data.clone(),
             mask: new_mask,
             fill_value: self.fill_value.clone(),
@@ -228,9 +228,10 @@ where
     }
 
     /// Creates a new masked array with a hardened mask (copy)
+    #[must_use]
     pub fn harden_mask(&self) -> Self {
         // Create a copy with the same mask
-        MaskedArray {
+        Self {
             data: self.data.clone(),
             mask: self.mask.clone(),
             fill_value: self.fill_value.clone(),
@@ -238,9 +239,10 @@ where
     }
 
     /// Create a new masked array with a softened mask (copy)
+    #[must_use]
     pub fn soften_mask(&self) -> Self {
         // Create a copy with the same mask
-        MaskedArray {
+        Self {
             data: self.data.clone(),
             mask: self.mask.clone(),
             fill_value: self.fill_value.clone(),
@@ -248,6 +250,7 @@ where
     }
 
     /// Create a new masked array where the result of applying the function to each element is masked
+    #[must_use]
     pub fn mask_where<F>(&self, condition: F) -> Self
     where
         F: Fn(&A) -> bool,
@@ -258,7 +261,7 @@ where
         // Combine with existing mask
         let combined_mask = &self.mask | &new_mask;
 
-        MaskedArray {
+        Self {
             data: self.data.clone(),
             mask: combined_mask,
             fill_value: self.fill_value.clone(),
@@ -266,6 +269,9 @@ where
     }
 
     /// Create a logical OR of the mask with another mask
+    ///
+    /// # Errors
+    /// Returns `ArrayError::ShapeMismatch` if the mask shapes don't match.
     pub fn mask_or(&self, other_mask: &Array<bool, D>) -> Result<Self, ArrayError> {
         // Check that shapes match
         if self.mask.shape() != other_mask.shape() {
@@ -279,7 +285,7 @@ where
         // Combine masks
         let combined_mask = &self.mask | other_mask;
 
-        Ok(MaskedArray {
+        Ok(Self {
             data: self.data.clone(),
             mask: combined_mask,
             fill_value: self.fill_value.clone(),
@@ -287,6 +293,9 @@ where
     }
 
     /// Create a logical AND of the mask with another mask
+    ///
+    /// # Errors
+    /// Returns `ArrayError::ShapeMismatch` if the mask shapes don't match.
     pub fn mask_and(&self, other_mask: &Array<bool, D>) -> Result<Self, ArrayError> {
         // Check that shapes match
         if self.mask.shape() != other_mask.shape() {
@@ -300,7 +309,7 @@ where
         // Combine masks
         let combined_mask = &self.mask & other_mask;
 
-        Ok(MaskedArray {
+        Ok(Self {
             data: self.data.clone(),
             mask: combined_mask,
             fill_value: self.fill_value.clone(),
@@ -308,6 +317,9 @@ where
     }
 
     /// Reshape the masked array
+    ///
+    /// # Errors
+    /// Returns `ArrayError::ValueError` if the reshape operation fails.
     pub fn reshape<E>(
         &self,
         shape: E,
@@ -321,8 +333,7 @@ where
             Ok(d) => d,
             Err(e) => {
                 return Err(ArrayError::ValueError(format!(
-                    "Failed to reshape data: {}",
-                    e
+                    "Failed to reshape data: {e}"
                 )))
             }
         };
@@ -331,8 +342,7 @@ where
             Ok(m) => m,
             Err(e) => {
                 return Err(ArrayError::ValueError(format!(
-                    "Failed to reshape mask: {}",
-                    e
+                    "Failed to reshape mask: {e}"
                 )))
             }
         };
@@ -345,13 +355,16 @@ where
     }
 
     /// Convert to a different type
+    ///
+    /// # Errors
+    /// Currently this method doesn't return errors, but the signature is kept for future compatibility.
     pub fn astype<B>(&self) -> Result<MaskedArray<B, ndarray::OwnedRepr<B>, D>, ArrayError>
     where
         A: Into<B> + Clone,
         B: Clone + PartialEq + 'static,
     {
         // Convert each element
-        let converted_data = self.data.mapv(|x| x.clone().into());
+        let converted_data = self.data.mapv(std::convert::Into::into);
 
         Ok(MaskedArray {
             data: converted_data,
@@ -485,6 +498,9 @@ where
     D: Dimension,
 {
     /// Compute the mean of all unmasked elements
+    ///
+    /// # Panics
+    /// Panics if the count cannot be converted to type A.
     pub fn mean(&self) -> Option<A> {
         let count = self.count();
 
@@ -504,6 +520,9 @@ where
     }
 
     /// Compute the variance of all unmasked elements
+    ///
+    /// # Panics
+    /// Panics if the count cannot be converted to type A.
     pub fn var(&self, ddof: usize) -> Option<A> {
         let count = self.count();
 
@@ -529,7 +548,7 @@ where
 
     /// Compute the standard deviation of all unmasked elements
     pub fn std(&self, ddof: usize) -> Option<A> {
-        self.var(ddof).map(|v| v.sqrt())
+        self.var(ddof).map(num_traits::Float::sqrt)
     }
 
     /// Check if all unmasked elements are finite
@@ -550,21 +569,22 @@ where
     D: Dimension,
 {
     // In a real implementation, this would use type traits to determine
-    // appropriate default values based on the type (like NumPy does)
-    if let Some(first) = data.iter().next() {
-        first.clone()
-    } else {
-        // This is a placeholder - in reality you'd need to handle this by type
-        panic!("Cannot determine default fill value for empty array");
-    }
+    // appropriate default values based on the type (like `NumPy` does)
+    data.iter().next().map_or_else(
+        || {
+            // This is a placeholder - in reality you'd need to handle this by type
+            panic!("Cannot determine default fill value for empty array");
+        },
+        std::clone::Clone::clone,
+    )
 }
 
 /// Function to check if a value is masked
-pub fn is_masked<A>(_value: &A) -> bool
+pub const fn is_masked<A>(_value: &A) -> bool
 where
     A: PartialEq,
 {
-    // In NumPy this would check against the masked singleton
+    // In `NumPy` this would check against the masked singleton
     // Here we just return false as a placeholder
     false
 }
@@ -582,7 +602,7 @@ where
     MaskedArray {
         data,
         mask,
-        fill_value: value.clone(),
+        fill_value: value,
     }
 }
 
@@ -606,6 +626,9 @@ where
 }
 
 /// Create a masked array
+///
+/// # Errors
+/// Returns `ArrayError::ShapeMismatch` if the mask shape doesn't match the data shape.
 pub fn mask_array<A, S, D>(
     data: ArrayBase<S, D>,
     mask: Option<Array<bool, D>>,
@@ -622,8 +645,8 @@ where
 /// Create a masked array with values outside a range masked
 pub fn masked_outside<A, S, D>(
     data: ArrayBase<S, D>,
-    min_val: A,
-    max_val: A,
+    min_val: &A,
+    max_val: &A,
 ) -> MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + PartialOrd,
@@ -631,7 +654,7 @@ where
     D: Dimension,
 {
     // Create a mask indicating where elements are outside the range
-    let mask = data.mapv(|x| x < min_val || x > max_val);
+    let mask = data.mapv(|x| x < *min_val || x > *max_val);
 
     // Choose a fill value (using min_val as default)
     let fill_value = min_val.clone();
@@ -644,14 +667,18 @@ where
 }
 
 /// Create a masked array with values inside a range masked
-pub fn masked_inside<A, S, D>(data: ArrayBase<S, D>, min_val: A, max_val: A) -> MaskedArray<A, S, D>
+pub fn masked_inside<A, S, D>(
+    data: ArrayBase<S, D>,
+    min_val: &A,
+    max_val: &A,
+) -> MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + PartialOrd,
     S: Data<Elem = A> + Clone + ndarray::RawDataClone,
     D: Dimension,
 {
     // Create a mask indicating where elements are inside the range
-    let mask = data.mapv(|x| x >= min_val && x <= max_val);
+    let mask = data.mapv(|x| x >= *min_val && x <= *max_val);
 
     // Choose a fill value (using min_val as default)
     let fill_value = min_val.clone();
@@ -664,14 +691,14 @@ where
 }
 
 /// Create a masked array with values greater than a given value masked
-pub fn masked_greater<A, S, D>(data: ArrayBase<S, D>, value: A) -> MaskedArray<A, S, D>
+pub fn masked_greater<A, S, D>(data: ArrayBase<S, D>, value: &A) -> MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + PartialOrd,
     S: Data<Elem = A> + Clone + ndarray::RawDataClone,
     D: Dimension,
 {
     // Create a mask indicating where elements are greater than the value
-    let mask = data.mapv(|x| x > value);
+    let mask = data.mapv(|x| x > *value);
 
     // Use the specified value as fill_value
     let fill_value = value.clone();
@@ -684,14 +711,14 @@ where
 }
 
 /// Create a masked array with values less than a given value masked
-pub fn masked_less<A, S, D>(data: ArrayBase<S, D>, value: A) -> MaskedArray<A, S, D>
+pub fn masked_less<A, S, D>(data: ArrayBase<S, D>, value: &A) -> MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + PartialOrd,
     S: Data<Elem = A> + Clone + ndarray::RawDataClone,
     D: Dimension,
 {
     // Create a mask indicating where elements are less than the value
-    let mask = data.mapv(|x| x < value);
+    let mask = data.mapv(|x| x < *value);
 
     // Use the specified value as fill_value
     let fill_value = value.clone();
@@ -719,10 +746,7 @@ where
     let mask = data.mapv(|ref x| condition(x));
 
     // Use provided fill value or create a default
-    let fill_value = match fill_value {
-        Some(v) => v,
-        None => default_fill_value(&data),
-    };
+    let fill_value = fill_value.map_or_else(|| default_fill_value(&data), |v| v);
 
     MaskedArray {
         data,
@@ -731,7 +755,7 @@ where
     }
 }
 
-/// Implementation of Display for MaskedArray
+/// Implementation of Display for `MaskedArray`
 impl<A, S, D> fmt::Display for MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + fmt::Display,
@@ -749,7 +773,7 @@ where
             if *self.mask.iter().nth(i).unwrap_or(&false) {
                 write!(f, " --,")?;
             } else {
-                write!(f, " {},", elem)?;
+                write!(f, " {elem},")?;
             }
         }
         writeln!(f, "\n  ],")?;
@@ -759,7 +783,7 @@ where
             if i > 0 && i % 10 == 0 {
                 writeln!(f)?;
             }
-            write!(f, " {},", elem)?;
+            write!(f, " {elem},")?;
         }
         writeln!(f, "\n  ],")?;
 
@@ -768,7 +792,7 @@ where
     }
 }
 
-/// Implementation of Debug for MaskedArray
+/// Implementation of Debug for `MaskedArray`
 impl<A, S, D> fmt::Debug for MaskedArray<A, S, D>
 where
     A: Clone + PartialEq + fmt::Debug,

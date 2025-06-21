@@ -58,6 +58,12 @@ use crate::error::{LinalgError, LinalgResult};
 // Export the enhanced matrix calculus operations
 pub mod enhanced;
 
+// Export matrix-specific derivative operations
+pub mod matrix_derivatives;
+
+// Export matrix optimization algorithms
+pub mod optimization;
+
 /// Compute the Jacobian matrix of a vector-valued function.
 ///
 /// For a function f: R^n -> R^m, the Jacobian is an m×n matrix where
@@ -263,3 +269,6 @@ where
 
     Ok(dir_deriv)
 }
+
+// Re-export the differential operators module
+pub use matrix_derivatives::differential_operators;

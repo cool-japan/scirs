@@ -775,18 +775,17 @@ where
         let mut iter = 0;
         loop {
             // Find small off-diagonal element
-            let mut m = l;
+            let mut m = n - 1;
             for i in l..n - 1 {
                 let dd = d[i].abs() + d[i + 1].abs();
                 if e[i].abs() <= tol * dd {
                     m = i;
                     break;
                 }
-                m = n - 1;
             }
 
-            if m == n - 1 {
-                break; // Converged for this eigenvalue
+            if m == l {
+                break; // Converged for this eigenvalue - e[l] is small
             }
 
             iter += 1;
@@ -811,13 +810,17 @@ where
                 if f.abs() >= g.abs() {
                     c = g / f;
                     r = (c * c + I::one()).sqrt();
-                    e[i + 1] = f * r;
+                    if i + 1 < n - 1 {
+                        e[i + 1] = f * r;
+                    }
                     s = I::one() / r;
                     c = c * s;
                 } else {
                     s = f / g;
                     r = (s * s + I::one()).sqrt();
-                    e[i + 1] = g * r;
+                    if i + 1 < n - 1 {
+                        e[i + 1] = g * r;
+                    }
                     c = I::one() / r;
                     s = s * c;
                 }
@@ -830,8 +833,12 @@ where
             }
 
             d[l] -= p;
-            e[l] = g;
-            e[m] = I::zero();
+            if l < n - 1 {
+                e[l] = g;
+            }
+            if m < n - 1 {
+                e[m] = I::zero();
+            }
         }
     }
 

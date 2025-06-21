@@ -120,7 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Time: {:.3} ms", spectral_time.as_millis());
 
     // 4. GPU batch processing (if available)
-    if scirs2_fft::is_cuda_available() {
+    if scirs2_fft::sparse_fft_gpu_memory::is_cuda_available() {
         println!("\n4. GPU Batch Processing (CUDA):");
         let start = Instant::now();
         let _config = BatchConfig {
@@ -182,7 +182,7 @@ fn process_signals_sequentially(
             signal,
             10, // Look for up to 10 components
             Some(SparseFFTAlgorithm::Sublinear),
-            Some(WindowFunction::Hann),
+            Some(42), // Random seed
         )?;
 
         results.push(result);

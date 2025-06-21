@@ -14,7 +14,7 @@ fn main() {
         let mat_tensor = convert_to_tensor(mat.clone().into_dyn(), g);
 
         // Compute SVD using autograd
-        let (u, s, v) = svd(&mat_tensor);
+        let (u, s, v) = svd(mat_tensor);
 
         println!("SVD result from autograd:");
         let u_val = u.eval(g).unwrap();
@@ -54,12 +54,12 @@ fn main() {
         let (u, s, vt) = simple_svd(&x);
 
         // Test reconstruction
-        let s_diag = diag(&s);
-        let reconstructed = matmul(&matmul(&u, &s_diag), &vt);
+        let s_diag = diag(s);
+        let reconstructed = matmul(matmul(u, s_diag), vt);
 
         // Calculate the reconstruction error
-        let diff = sub(&reconstructed, &x);
-        let error = sum_all(&square(&diff));
+        let diff = sub(reconstructed, x);
+        let error = sum_all(square(diff));
 
         // Check gradients
         println!("Testing gradients through reconstruction error");
@@ -77,7 +77,7 @@ fn main() {
 
         // Test gradients through sum of U
         println!("\nTesting gradients through sum of U");
-        let sum_u = sum_all(&u);
+        let sum_u = sum_all(u);
         let sum_u_grads = grad(&[sum_u], &[&x]);
         let grad_x_u = &sum_u_grads[0];
 
@@ -92,7 +92,7 @@ fn main() {
 
         // Test gradients through sum of S
         println!("\nTesting gradients through sum of S");
-        let sum_s = sum_all(&s);
+        let sum_s = sum_all(s);
         let sum_s_grads = grad(&[sum_s], &[&x]);
         let grad_x_s = &sum_s_grads[0];
 
@@ -107,7 +107,7 @@ fn main() {
 
         // Test gradients through sum of V^T
         println!("\nTesting gradients through sum of V^T");
-        let sum_vt = sum_all(&vt);
+        let sum_vt = sum_all(vt);
         let sum_vt_grads = grad(&[sum_vt], &[&x]);
         let grad_x_vt = &sum_vt_grads[0];
 

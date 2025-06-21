@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-signal"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Signal processing module for SciRS2"
@@ -15,8 +15,9 @@ scirs2-core = { workspace = true }
 ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
+num-integer = { workspace = true }
 thiserror = { workspace = true }
-openblas-src = { workspace = true }
+# BLAS dependencies handled through scirs2-core
 
 # Signal processing specific dependencies
 rustfft = { workspace = true }

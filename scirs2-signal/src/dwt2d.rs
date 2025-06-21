@@ -101,6 +101,10 @@ use std::fmt::Debug;
 use rayon::prelude::*;
 // use std::convert::TryInto;  // Not needed
 
+/// Type alias for column processing results to reduce complexity
+#[allow(dead_code)]
+type ColumnResult = (usize, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
+
 /// Result of a 2D DWT decomposition, containing the approximation and detail coefficients.
 ///
 /// The 2D DWT decomposes an image into four subbands, each representing different
@@ -287,6 +291,7 @@ where
     #[cfg(feature = "parallel")]
     {
         // Create a vector to hold the results of row processing
+        #[allow(unused_mut)]
         let mut row_results: Vec<(usize, Vec<f64>, Vec<f64>)> = (0..rows)
             .into_par_iter()
             .map(|i| {
@@ -330,7 +335,7 @@ where
     #[cfg(feature = "parallel")]
     {
         // Process columns in parallel
-        let column_results: Vec<(usize, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>)> = (0..output_cols)
+        let column_results: Vec<ColumnResult> = (0..output_cols)
             .into_par_iter()
             .map(|j| {
                 // Process low-pass filtered rows

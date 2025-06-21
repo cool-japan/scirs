@@ -11,7 +11,7 @@ fn main() {
         let feeder = ag::Feeder::new().push(a, a_data.view().into_dyn());
 
         // Test QR decomposition
-        let (q, r) = qr(&a);
+        let (q, r) = qr(a);
 
         // Evaluate
         let results = ctx

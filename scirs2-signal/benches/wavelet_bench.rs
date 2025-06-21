@@ -9,10 +9,8 @@ fn generate_signal(size: usize) -> Vec<f64> {
     // Generate a chirp signal with increasing frequency
     let fs = 1000.0; // Sample rate in Hz
     let t = (0..size).map(|i| i as f64 / fs).collect::<Vec<f64>>();
-    let signal = chirp(&t, 0.0, 1.0, 100.0, "linear", 0.5).unwrap();
-
     // Return the signal
-    signal
+    chirp(&t, 0.0, 1.0, 100.0, "linear", 0.5).unwrap()
 }
 
 fn bench_wavelets_single_level(c: &mut Criterion) {

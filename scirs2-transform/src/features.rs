@@ -6,6 +6,7 @@
 
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use num_traits::{Float, NumCast};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::error::{Result, TransformError};
 
@@ -696,6 +697,493 @@ fn box_cox_transform(x: f64, lambda: f64) -> f64 {
     }
 }
 
+/// Optimized PowerTransformer for making data more Gaussian-like
+///
+/// This is an enhanced version of the power transformation that includes:
+/// - Optimal lambda parameter estimation using maximum likelihood
+/// - Vectorized operations for better performance
+/// - Parallel processing for multiple features
+/// - Fit/transform API for reusable transformations
+/// - Inverse transformation capability
+/// - Enhanced numerical stability
+#[derive(Debug, Clone)]
+pub struct PowerTransformer {
+    /// Transformation method ('yeo-johnson' or 'box-cox')
+    method: String,
+    /// Whether to standardize the output
+    standardize: bool,
+    /// Optimal lambda parameters for each feature (computed during fit)
+    lambdas_: Option<Array1<f64>>,
+    /// Means for standardization (computed during fit)
+    means_: Option<Array1<f64>>,
+    /// Standard deviations for standardization (computed during fit)
+    stds_: Option<Array1<f64>>,
+    /// Whether the transformer has been fitted
+    is_fitted: bool,
+}
+
+impl PowerTransformer {
+    /// Creates a new PowerTransformer
+    ///
+    /// # Arguments
+    /// * `method` - The transformation method ('yeo-johnson' or 'box-cox')
+    /// * `standardize` - Whether to standardize the output to have zero mean and unit variance
+    ///
+    /// # Returns
+    /// * A new PowerTransformer instance
+    pub fn new(method: &str, standardize: bool) -> Result<Self> {
+        if method != "yeo-johnson" && method != "box-cox" {
+            return Err(TransformError::InvalidInput(
+                "method must be 'yeo-johnson' or 'box-cox'".to_string(),
+            ));
+        }
+
+        Ok(PowerTransformer {
+            method: method.to_string(),
+            standardize,
+            lambdas_: None,
+            means_: None,
+            stds_: None,
+            is_fitted: false,
+        })
+    }
+
+    /// Creates a new PowerTransformer with Yeo-Johnson method
+    pub fn yeo_johnson(standardize: bool) -> Self {
+        PowerTransformer {
+            method: "yeo-johnson".to_string(),
+            standardize,
+            lambdas_: None,
+            means_: None,
+            stds_: None,
+            is_fitted: false,
+        }
+    }
+
+    /// Creates a new PowerTransformer with Box-Cox method
+    pub fn box_cox(standardize: bool) -> Self {
+        PowerTransformer {
+            method: "box-cox".to_string(),
+            standardize,
+            lambdas_: None,
+            means_: None,
+            stds_: None,
+            is_fitted: false,
+        }
+    }
+
+    /// Fits the PowerTransformer to the input data
+    ///
+    /// This computes the optimal lambda parameters for each feature using maximum likelihood estimation
+    ///
+    /// # Arguments
+    /// * `x` - The input data, shape (n_samples, n_features)
+    ///
+    /// # Returns
+    /// * `Result<()>` - Ok if successful, Err otherwise
+    pub fn fit<S>(&mut self, x: &ArrayBase<S, Ix2>) -> Result<()>
+    where
+        S: Data,
+        S::Elem: Float + NumCast,
+    {
+        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+
+        if !x_f64.is_standard_layout() {
+            return Err(TransformError::InvalidInput(
+                "Input array must be in standard memory layout".to_string(),
+            ));
+        }
+
+        let shape = x_f64.shape();
+        let n_samples = shape[0];
+        let n_features = shape[1];
+
+        if n_samples == 0 || n_features == 0 {
+            return Err(TransformError::InvalidInput("Empty input data".to_string()));
+        }
+
+        if self.method == "box-cox" {
+            // Box-Cox requires strictly positive data
+            if x_f64.iter().any(|&x| x <= 0.0) {
+                return Err(TransformError::InvalidInput(
+                    "Box-Cox transformation requires strictly positive data".to_string(),
+                ));
+            }
+        }
+
+        // Compute optimal lambda for each feature in parallel
+        let lambdas: Vec<f64> = (0..n_features)
+            .into_par_iter()
+            .map(|j| {
+                let feature = x_f64.column(j).to_vec();
+                self.optimize_lambda(&feature)
+            })
+            .collect();
+
+        self.lambdas_ = Some(Array1::from_vec(lambdas));
+
+        // If standardization is requested, we need to compute means and stds after transformation
+        if self.standardize {
+            let mut means = Array1::zeros(n_features);
+            let mut stds = Array1::zeros(n_features);
+
+            // Transform data with optimal lambdas and compute statistics
+            for j in 0..n_features {
+                let lambda = self.lambdas_.as_ref().unwrap()[j];
+                let mut transformed_feature = Array1::zeros(n_samples);
+
+                // Apply transformation to each sample in the feature
+                for i in 0..n_samples {
+                    let x = x_f64[[i, j]];
+                    transformed_feature[i] = if self.method == "yeo-johnson" {
+                        yeo_johnson_transform(x, lambda)
+                    } else {
+                        box_cox_transform(x, lambda)
+                    };
+                }
+
+                // Compute mean and standard deviation
+                let mean = transformed_feature.sum() / n_samples as f64;
+                let variance = transformed_feature
+                    .iter()
+                    .map(|&x| (x - mean).powi(2))
+                    .sum::<f64>()
+                    / n_samples as f64;
+                let std_dev = variance.sqrt();
+
+                means[j] = mean;
+                stds[j] = if std_dev > EPSILON { std_dev } else { 1.0 };
+            }
+
+            self.means_ = Some(means);
+            self.stds_ = Some(stds);
+        }
+
+        self.is_fitted = true;
+        Ok(())
+    }
+
+    /// Transforms the input data using the fitted parameters
+    ///
+    /// # Arguments
+    /// * `x` - The input data to transform
+    ///
+    /// # Returns
+    /// * `Result<Array2<f64>>` - The transformed data
+    pub fn transform<S>(&self, x: &ArrayBase<S, Ix2>) -> Result<Array2<f64>>
+    where
+        S: Data,
+        S::Elem: Float + NumCast,
+    {
+        if !self.is_fitted {
+            return Err(TransformError::InvalidInput(
+                "PowerTransformer must be fitted before transform".to_string(),
+            ));
+        }
+
+        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+
+        if !x_f64.is_standard_layout() {
+            return Err(TransformError::InvalidInput(
+                "Input array must be in standard memory layout".to_string(),
+            ));
+        }
+
+        let shape = x_f64.shape();
+        let n_samples = shape[0];
+        let n_features = shape[1];
+
+        let lambdas = self.lambdas_.as_ref().unwrap();
+
+        if n_features != lambdas.len() {
+            return Err(TransformError::InvalidInput(
+                "Number of features in transform data does not match fitted data".to_string(),
+            ));
+        }
+
+        let mut transformed = Array2::zeros((n_samples, n_features));
+
+        // Apply transformation in parallel for each feature
+        let transformed_data: Vec<Vec<f64>> = (0..n_features)
+            .into_par_iter()
+            .map(|j| {
+                let lambda = lambdas[j];
+                // Transform all samples for this feature
+                (0..n_samples)
+                    .map(|i| {
+                        let x = x_f64[[i, j]];
+                        if self.method == "yeo-johnson" {
+                            yeo_johnson_transform(x, lambda)
+                        } else {
+                            box_cox_transform(x, lambda)
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // Copy results back to the array
+        for j in 0..n_features {
+            for i in 0..n_samples {
+                transformed[[i, j]] = transformed_data[j][i];
+            }
+        }
+
+        // Apply standardization if requested
+        if self.standardize {
+            let means = self.means_.as_ref().unwrap();
+            let stds = self.stds_.as_ref().unwrap();
+
+            for j in 0..n_features {
+                let mean = means[j];
+                let std = stds[j];
+
+                for i in 0..n_samples {
+                    transformed[[i, j]] = (transformed[[i, j]] - mean) / std;
+                }
+            }
+        }
+
+        Ok(transformed)
+    }
+
+    /// Fits the transformer and transforms the data in one step
+    ///
+    /// # Arguments
+    /// * `x` - The input data to fit and transform
+    ///
+    /// # Returns
+    /// * `Result<Array2<f64>>` - The transformed data
+    pub fn fit_transform<S>(&mut self, x: &ArrayBase<S, Ix2>) -> Result<Array2<f64>>
+    where
+        S: Data,
+        S::Elem: Float + NumCast,
+    {
+        self.fit(x)?;
+        self.transform(x)
+    }
+
+    /// Applies the inverse transformation to recover the original data
+    ///
+    /// # Arguments
+    /// * `x` - The transformed data to inverse transform
+    ///
+    /// # Returns
+    /// * `Result<Array2<f64>>` - The inverse transformed data
+    pub fn inverse_transform<S>(&self, x: &ArrayBase<S, Ix2>) -> Result<Array2<f64>>
+    where
+        S: Data,
+        S::Elem: Float + NumCast,
+    {
+        if !self.is_fitted {
+            return Err(TransformError::InvalidInput(
+                "PowerTransformer must be fitted before inverse_transform".to_string(),
+            ));
+        }
+
+        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+
+        if !x_f64.is_standard_layout() {
+            return Err(TransformError::InvalidInput(
+                "Input array must be in standard memory layout".to_string(),
+            ));
+        }
+
+        let shape = x_f64.shape();
+        let n_samples = shape[0];
+        let n_features = shape[1];
+
+        let lambdas = self.lambdas_.as_ref().unwrap();
+
+        if n_features != lambdas.len() {
+            return Err(TransformError::InvalidInput(
+                "Number of features in inverse transform data does not match fitted data"
+                    .to_string(),
+            ));
+        }
+
+        let mut x_normalized = x_f64.clone();
+
+        // Reverse standardization if it was applied
+        if self.standardize {
+            let means = self.means_.as_ref().unwrap();
+            let stds = self.stds_.as_ref().unwrap();
+
+            for j in 0..n_features {
+                let mean = means[j];
+                let std = stds[j];
+
+                for i in 0..n_samples {
+                    x_normalized[[i, j]] = x_normalized[[i, j]] * std + mean;
+                }
+            }
+        }
+
+        let mut original = Array2::zeros((n_samples, n_features));
+
+        // Apply inverse transformation in parallel for each feature
+        let original_data: Vec<Vec<f64>> = (0..n_features)
+            .into_par_iter()
+            .map(|j| {
+                let lambda = lambdas[j];
+                // Apply inverse transformation to all samples for this feature
+                (0..n_samples)
+                    .map(|i| {
+                        let y = x_normalized[[i, j]];
+                        if self.method == "yeo-johnson" {
+                            yeo_johnson_inverse_transform(y, lambda)
+                        } else {
+                            box_cox_inverse_transform(y, lambda)
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // Copy results back to the array
+        for j in 0..n_features {
+            for i in 0..n_samples {
+                original[[i, j]] = original_data[j][i];
+            }
+        }
+
+        Ok(original)
+    }
+
+    /// Optimizes the lambda parameter for a single feature using maximum likelihood estimation
+    ///
+    /// # Arguments
+    /// * `data` - The feature data to optimize lambda for
+    ///
+    /// # Returns
+    /// * The optimal lambda value
+    fn optimize_lambda(&self, data: &[f64]) -> f64 {
+        // Use golden section search to find optimal lambda
+        let mut a = -2.0;
+        let mut b = 2.0;
+        let tolerance = 1e-6;
+        let golden_ratio = (5.0_f64.sqrt() - 1.0) / 2.0;
+
+        // Golden section search
+        let mut c = b - golden_ratio * (b - a);
+        let mut d = a + golden_ratio * (b - a);
+
+        while (b - a).abs() > tolerance {
+            let fc = -self.log_likelihood(data, c);
+            let fd = -self.log_likelihood(data, d);
+
+            if fc < fd {
+                b = d;
+                d = c;
+                c = b - golden_ratio * (b - a);
+            } else {
+                a = c;
+                c = d;
+                d = a + golden_ratio * (b - a);
+            }
+        }
+
+        (a + b) / 2.0
+    }
+
+    /// Computes the log-likelihood for a given lambda parameter
+    ///
+    /// # Arguments
+    /// * `data` - The feature data
+    /// * `lambda` - The lambda parameter to evaluate
+    ///
+    /// # Returns
+    /// * The log-likelihood value
+    fn log_likelihood(&self, data: &[f64], lambda: f64) -> f64 {
+        let n = data.len() as f64;
+        let mut log_likelihood = 0.0;
+
+        // Transform the data
+        let transformed: Vec<f64> = data
+            .iter()
+            .map(|&x| {
+                if self.method == "yeo-johnson" {
+                    yeo_johnson_transform(x, lambda)
+                } else {
+                    box_cox_transform(x, lambda)
+                }
+            })
+            .collect();
+
+        // Compute mean and variance
+        let mean = transformed.iter().sum::<f64>() / n;
+        let variance = transformed.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n;
+
+        if variance <= 0.0 {
+            return f64::NEG_INFINITY;
+        }
+
+        // Log-likelihood of normal distribution
+        log_likelihood -= 0.5 * n * (2.0 * std::f64::consts::PI * variance).ln();
+        log_likelihood -=
+            0.5 * transformed.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / variance;
+
+        // Add Jacobian term
+        for &x in data {
+            if self.method == "yeo-johnson" {
+                log_likelihood += yeo_johnson_log_jacobian(x, lambda);
+            } else {
+                log_likelihood += box_cox_log_jacobian(x, lambda);
+            }
+        }
+
+        log_likelihood
+    }
+
+    /// Returns the fitted lambda parameters
+    pub fn lambdas(&self) -> Option<&Array1<f64>> {
+        self.lambdas_.as_ref()
+    }
+
+    /// Returns whether the transformer has been fitted
+    pub fn is_fitted(&self) -> bool {
+        self.is_fitted
+    }
+}
+
+/// Apply Yeo-Johnson inverse transformation to a single value
+fn yeo_johnson_inverse_transform(y: f64, lambda: f64) -> f64 {
+    if y >= 0.0 {
+        if (lambda - 0.0).abs() < EPSILON {
+            y.exp() - 1.0
+        } else {
+            (lambda * y + 1.0).powf(1.0 / lambda) - 1.0
+        }
+    } else if (lambda - 2.0).abs() < EPSILON {
+        1.0 - (-y).exp()
+    } else {
+        1.0 - (-(2.0 - lambda) * y + 1.0).powf(1.0 / (2.0 - lambda))
+    }
+}
+
+/// Apply Box-Cox inverse transformation to a single value
+fn box_cox_inverse_transform(y: f64, lambda: f64) -> f64 {
+    if (lambda - 0.0).abs() < EPSILON {
+        y.exp()
+    } else {
+        (lambda * y + 1.0).powf(1.0 / lambda)
+    }
+}
+
+/// Compute the log of the Jacobian for Yeo-Johnson transformation
+fn yeo_johnson_log_jacobian(x: f64, lambda: f64) -> f64 {
+    if x >= 0.0 {
+        (lambda - 1.0) * (x + 1.0).ln()
+    } else {
+        (1.0 - lambda) * (-x + 1.0).ln()
+    }
+}
+
+/// Compute the log of the Jacobian for Box-Cox transformation
+fn box_cox_log_jacobian(x: f64, lambda: f64) -> f64 {
+    (lambda - 1.0) * x.ln()
+}
+
 /// Creates log-transformed features
 ///
 /// # Arguments
@@ -859,5 +1347,227 @@ mod tests {
         assert_abs_diff_eq!(transformed[[0, 1]], (1.0 + 1.0).ln(), epsilon = 1e-10);
         assert_abs_diff_eq!(transformed[[1, 0]], (2.0 + 1.0).ln(), epsilon = 1e-10);
         assert_abs_diff_eq!(transformed[[1, 1]], (3.0 + 1.0).ln(), epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_power_transformer_yeo_johnson() {
+        // Test data that includes negative values (Yeo-Johnson can handle these)
+        let data =
+            Array::from_shape_vec((4, 2), vec![1.0, -1.0, 2.0, 0.5, 3.0, -2.0, 0.1, 1.5]).unwrap();
+
+        let mut transformer = PowerTransformer::yeo_johnson(false);
+
+        // Test that transformer is not fitted initially
+        assert!(!transformer.is_fitted());
+
+        // Fit the transformer
+        transformer.fit(&data).unwrap();
+        assert!(transformer.is_fitted());
+
+        // Check that lambdas were computed
+        let lambdas = transformer.lambdas().unwrap();
+        assert_eq!(lambdas.len(), 2);
+
+        // Transform the data
+        let transformed = transformer.transform(&data).unwrap();
+        assert_eq!(transformed.shape(), data.shape());
+
+        // Test inverse transformation
+        let inverse = transformer.inverse_transform(&transformed).unwrap();
+        assert_eq!(inverse.shape(), data.shape());
+
+        // Check that inverse transformation approximately recovers original data
+        for i in 0..data.shape()[0] {
+            for j in 0..data.shape()[1] {
+                assert_abs_diff_eq!(inverse[[i, j]], data[[i, j]], epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_power_transformer_box_cox() {
+        // Test data with strictly positive values (Box-Cox requirement)
+        let data =
+            Array::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+
+        let mut transformer = PowerTransformer::box_cox(false);
+
+        // Fit the transformer
+        transformer.fit(&data).unwrap();
+
+        // Transform the data
+        let transformed = transformer.transform(&data).unwrap();
+        assert_eq!(transformed.shape(), data.shape());
+
+        // Test inverse transformation
+        let inverse = transformer.inverse_transform(&transformed).unwrap();
+
+        // Check that inverse transformation approximately recovers original data
+        for i in 0..data.shape()[0] {
+            for j in 0..data.shape()[1] {
+                assert_abs_diff_eq!(inverse[[i, j]], data[[i, j]], epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_power_transformer_standardized() {
+        let data = Array::from_shape_vec(
+            (5, 2),
+            vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0],
+        )
+        .unwrap();
+
+        let mut transformer = PowerTransformer::yeo_johnson(true);
+
+        // Fit and transform with standardization
+        let transformed = transformer.fit_transform(&data).unwrap();
+
+        // Check that each feature has approximately zero mean and unit variance
+        for j in 0..transformed.shape()[1] {
+            let column = transformed.column(j);
+            let mean = column.sum() / column.len() as f64;
+            let variance =
+                column.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / column.len() as f64;
+
+            assert_abs_diff_eq!(mean, 0.0, epsilon = 1e-10);
+            assert_abs_diff_eq!(variance, 1.0, epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_power_transformer_box_cox_negative_data() {
+        // Test that Box-Cox fails with negative data
+        let data = Array::from_shape_vec((2, 2), vec![1.0, -1.0, 2.0, 3.0]).unwrap();
+
+        let mut transformer = PowerTransformer::box_cox(false);
+
+        // Should fail because data contains negative values
+        assert!(transformer.fit(&data).is_err());
+    }
+
+    #[test]
+    fn test_power_transformer_fit_transform() {
+        let data = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+
+        let mut transformer = PowerTransformer::yeo_johnson(false);
+
+        // Test fit_transform convenience method
+        let transformed1 = transformer.fit_transform(&data).unwrap();
+
+        // Compare with separate fit and transform
+        let mut transformer2 = PowerTransformer::yeo_johnson(false);
+        transformer2.fit(&data).unwrap();
+        let transformed2 = transformer2.transform(&data).unwrap();
+
+        // Results should be identical
+        for i in 0..transformed1.shape()[0] {
+            for j in 0..transformed1.shape()[1] {
+                assert_abs_diff_eq!(transformed1[[i, j]], transformed2[[i, j]], epsilon = 1e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn test_power_transformer_different_data_sizes() {
+        let train_data = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let test_data = Array::from_shape_vec((2, 2), vec![2.5, 3.5, 4.5, 5.5]).unwrap();
+
+        let mut transformer = PowerTransformer::yeo_johnson(false);
+
+        // Fit on training data
+        transformer.fit(&train_data).unwrap();
+
+        // Transform test data (different number of samples)
+        let transformed = transformer.transform(&test_data).unwrap();
+        assert_eq!(transformed.shape(), test_data.shape());
+
+        // Test inverse transformation on test data
+        let inverse = transformer.inverse_transform(&transformed).unwrap();
+
+        for i in 0..test_data.shape()[0] {
+            for j in 0..test_data.shape()[1] {
+                assert_abs_diff_eq!(inverse[[i, j]], test_data[[i, j]], epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_power_transformer_mismatched_features() {
+        let train_data = Array::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let test_data = Array::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+
+        let mut transformer = PowerTransformer::yeo_johnson(false);
+        transformer.fit(&train_data).unwrap();
+
+        // Should fail because number of features doesn't match
+        assert!(transformer.transform(&test_data).is_err());
+    }
+
+    #[test]
+    fn test_power_transformer_not_fitted() {
+        let data = Array::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let transformer = PowerTransformer::yeo_johnson(false);
+
+        // Should fail because transformer hasn't been fitted
+        assert!(transformer.transform(&data).is_err());
+        assert!(transformer.inverse_transform(&data).is_err());
+    }
+
+    #[test]
+    fn test_power_transformer_creation_methods() {
+        // Test different creation methods
+        let transformer1 = PowerTransformer::new("yeo-johnson", true).unwrap();
+        let transformer2 = PowerTransformer::yeo_johnson(true);
+
+        // Should be equivalent
+        assert_eq!(transformer1.method, transformer2.method);
+        assert_eq!(transformer1.standardize, transformer2.standardize);
+
+        let transformer3 = PowerTransformer::new("box-cox", false).unwrap();
+        let transformer4 = PowerTransformer::box_cox(false);
+
+        assert_eq!(transformer3.method, transformer4.method);
+        assert_eq!(transformer3.standardize, transformer4.standardize);
+
+        // Test invalid method
+        assert!(PowerTransformer::new("invalid", false).is_err());
+    }
+
+    #[test]
+    fn test_power_transformer_empty_data() {
+        let empty_data = Array2::<f64>::zeros((0, 2));
+        let mut transformer = PowerTransformer::yeo_johnson(false);
+
+        // Should fail with empty data
+        assert!(transformer.fit(&empty_data).is_err());
+    }
+
+    #[test]
+    fn test_yeo_johnson_inverse_functions() {
+        let test_values = vec![-2.0, -0.5, 0.0, 0.5, 1.0, 2.0];
+        let lambdas = vec![0.0, 0.5, 1.0, 1.5, 2.0];
+
+        for &lambda in &lambdas {
+            for &x in &test_values {
+                let y = yeo_johnson_transform(x, lambda);
+                let x_recovered = yeo_johnson_inverse_transform(y, lambda);
+                assert_abs_diff_eq!(x_recovered, x, epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_box_cox_inverse_functions() {
+        let test_values = vec![0.1, 0.5, 1.0, 2.0, 5.0]; // Positive values only
+        let lambdas = vec![0.0, 0.5, 1.0, 1.5, 2.0];
+
+        for &lambda in &lambdas {
+            for &x in &test_values {
+                let y = box_cox_transform(x, lambda);
+                let x_recovered = box_cox_inverse_transform(y, lambda);
+                assert_abs_diff_eq!(x_recovered, x, epsilon = 1e-10);
+            }
+        }
     }
 }

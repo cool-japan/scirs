@@ -91,12 +91,12 @@ fn is_blas_nd(shape: &[usize], stride0: isize, stride1: isize, order: MemoryOrde
     if stride0 < 1 || stride1 < 1 {
         return false;
     }
-    if (stride0 > BlasIF::max_value() as isize || stride0 < BlasIF::min_value() as isize)
-        || (stride1 > BlasIF::max_value() as isize || stride1 < BlasIF::min_value() as isize)
+    if (stride0 > BlasIF::MAX as isize || stride0 < BlasIF::MIN as isize)
+        || (stride1 > BlasIF::MAX as isize || stride1 < BlasIF::MIN as isize)
     {
         return false;
     }
-    if m > BlasIF::max_value() as usize || n > BlasIF::max_value() as usize {
+    if m > BlasIF::MAX as usize || n > BlasIF::MAX as usize {
         return false;
     }
     true
@@ -105,8 +105,8 @@ fn is_blas_nd(shape: &[usize], stride0: isize, stride1: isize, order: MemoryOrde
 #[cfg(feature = "blas")]
 fn is_blas_2d(dim: &ndarray::Ix2, stride: &[isize], order: MemoryOrder) -> bool {
     let (m, n) = dim.into_pattern();
-    let s0 = stride[0] as isize;
-    let s1 = stride[1] as isize;
+    let s0 = stride[0];
+    let s1 = stride[1];
     let (inner_stride, outer_dim) = match order {
         MemoryOrder::C => (s1, n),
         MemoryOrder::F => (s0, m),
@@ -117,12 +117,12 @@ fn is_blas_2d(dim: &ndarray::Ix2, stride: &[isize], order: MemoryOrder) -> bool 
     if s0 < 1 || s1 < 1 {
         return false;
     }
-    if (s0 > BlasIF::max_value() as isize || s0 < BlasIF::min_value() as isize)
-        || (s1 > BlasIF::max_value() as isize || s1 < BlasIF::min_value() as isize)
+    if (s0 > BlasIF::MAX as isize || s0 < BlasIF::MIN as isize)
+        || (s1 > BlasIF::MAX as isize || s1 < BlasIF::MIN as isize)
     {
         return false;
     }
-    if m > BlasIF::max_value() as usize || n > BlasIF::max_value() as usize {
+    if m > BlasIF::MAX as usize || n > BlasIF::MAX as usize {
         return false;
     }
     true

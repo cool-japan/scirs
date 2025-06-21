@@ -15,7 +15,7 @@ fn main() {
         println!("\n1. Direct tensor creation:");
         let a = T::convert_to_tensor(a_data.clone(), ctx);
         let b = T::convert_to_tensor(b_data.clone(), ctx);
-        let c = T::matmul(&a, &b);
+        let c = T::matmul(a, b);
         let result = ctx.evaluator().push(&c).run();
         if let Ok(r) = &result[0] {
             println!("Direct matmul result: {:?}", r);
@@ -40,7 +40,7 @@ fn main() {
 
         // Now try matmul with placeholders
         println!("\n3. Matmul with placeholders:");
-        let p_c = T::matmul(&p_a, &p_b);
+        let p_c = T::matmul(p_a, p_b);
         let feeder2 = ag::Feeder::new()
             .push(p_a, a_data.view().into_dyn())
             .push(p_b, b_data.view().into_dyn());

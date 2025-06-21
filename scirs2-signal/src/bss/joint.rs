@@ -81,7 +81,7 @@ pub fn joint_bss(
     }
 
     // Perform joint diagonalization on the covariance matrices
-    let (_eigvals, eigvecs) = match eigh(&joint_cov.view()) {
+    let (_eigvals, eigvecs) = match eigh(&joint_cov.view(), None) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -110,7 +110,7 @@ pub fn joint_bss(
         extracted_sources.push(sources);
 
         // Calculate mixing matrix (pseudoinverse of unmixing)
-        let (u, s, vt) = match svd(&unmixing.view(), false) {
+        let (u, s, vt) = match svd(&unmixing.view(), false, None) {
             Ok((u, s, vt)) => (u, s, vt),
             Err(_) => {
                 return Err(SignalError::Compute(
@@ -258,7 +258,7 @@ pub fn joint_diagonalization(
     let sources = w.dot(&centered);
 
     // Calculate mixing matrix (pseudoinverse of w)
-    let (u, s, vt) = match svd(&w.view(), false) {
+    let (u, s, vt) = match svd(&w.view(), false, None) {
         Ok((u, s, vt)) => (u, s, vt),
         Err(_) => {
             return Err(SignalError::Compute(

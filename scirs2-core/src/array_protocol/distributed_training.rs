@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -147,7 +147,7 @@ impl DistributedNode {
     }
 
     /// Average gradients across workers.
-    fn average_gradients(&mut self) -> CoreResult<()> {
+    fn average_gradients(&self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would use the DistributedCommunication
         // channel to exchange gradients with other workers.
@@ -167,7 +167,7 @@ impl DistributedNode {
     }
 
     /// Exchange activations and gradients between adjacent layers.
-    fn exchange_activations_and_gradients(&mut self) -> CoreResult<()> {
+    fn exchange_activations_and_gradients(&self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would use the DistributedCommunication
         // channel to exchange activations and gradients with adjacent workers.
@@ -187,7 +187,7 @@ impl DistributedNode {
     }
 
     /// Implement pipeline parallelism.
-    fn pipeline_forward_backward(&mut self) -> CoreResult<()> {
+    fn pipeline_forward_backward(&self) -> CoreResult<()> {
         // This is a simplified implementation for demonstration purposes.
         // In a real implementation, this would maintain a pipeline of mini-batches.
 
@@ -245,7 +245,7 @@ pub trait DistributedCommunication: Send + Sync {
     fn box_clone(&self) -> Box<dyn DistributedCommunication>;
 }
 
-/// A wrapper type that makes Box<dyn DistributedCommunication> cloneable
+/// A wrapper type that makes `Box<dyn DistributedCommunication>` cloneable
 #[derive(Clone)]
 pub struct CommunicationChannel(Arc<Box<dyn DistributedCommunication>>);
 
@@ -261,7 +261,7 @@ impl CommunicationChannel {
     }
 }
 
-/// Make the Box<dyn DistributedCommunication> cloneable via box_clone
+/// Make the `Box<dyn DistributedCommunication>` cloneable via box_clone
 impl Clone for Box<dyn DistributedCommunication> {
     fn clone(&self) -> Self {
         self.box_clone()
@@ -502,7 +502,7 @@ impl DistributedTrainer {
     }
 
     /// Synchronize model parameters with other workers.
-    fn synchronize_parameters(&mut self) -> CoreResult<()> {
+    fn synchronize_parameters(&self) -> CoreResult<()> {
         // In a real implementation, this would synchronize model parameters
         // across all workers.
 
@@ -539,7 +539,7 @@ impl DistributedTrainer {
 
     /// Train the model using model parallelism.
     fn train_model_parallel(
-        &mut self,
+        &self,
         _train_loader: DataLoader,
         _num_epochs: usize,
         _val_loader: Option<DataLoader>,
@@ -553,7 +553,7 @@ impl DistributedTrainer {
 
     /// Train the model using hybrid parallelism.
     fn train_hybrid_parallel(
-        &mut self,
+        &self,
         _train_loader: DataLoader,
         _num_epochs: usize,
         _val_loader: Option<DataLoader>,
@@ -567,7 +567,7 @@ impl DistributedTrainer {
 
     /// Train the model using pipeline parallelism.
     fn train_pipeline_parallel(
-        &mut self,
+        &self,
         _train_loader: DataLoader,
         _num_epochs: usize,
         _val_loader: Option<DataLoader>,

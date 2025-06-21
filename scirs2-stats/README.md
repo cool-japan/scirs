@@ -40,7 +40,7 @@ Add scirs2-stats to your Cargo.toml:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.1.0-alpha.4"
+scirs2-stats = "0.1.0-alpha.5"
 ndarray = "0.16.1"
 ```
 
@@ -244,46 +244,6 @@ let bootstrap_samples = sampling::bootstrap(&data.view(), 10, Some(42)).unwrap()
 let permutation = sampling::permutation(&data.view(), Some(123)).unwrap();
 ```
 
-## Recent Updates
-
-- Enhanced regression module:
-  - Improved robust regression with RANSAC implementation
-  - Enhanced numerical stability for regularized regression
-  - Added comprehensive model diagnostics
-  - Implemented stepwise regression with stability checks
-  - Optimized coefficient calculation for large datasets
-
-- Added dispersion measures:
-  - Mean absolute deviation (MAD)
-  - Median absolute deviation
-  - Interquartile range (IQR)
-  - Range
-  - Coefficient of variation
-- Added correlation measures:
-  - Pearson correlation coefficient
-  - Spearman rank correlation
-  - Kendall tau correlation
-  - Partial correlation
-  - Point-biserial correlation
-  - Correlation matrix computation
-- Added non-parametric statistical tests:
-  - Wilcoxon signed-rank test
-  - Kruskal-Wallis test
-  - Friedman test
-- Improved normality tests:
-  - Enhanced Shapiro-Wilk implementation
-  - Anderson-Darling test
-  - D'Agostino's K² test
-- Added discrete distributions:
-  - Hypergeometric distribution
-- Updated to use rand 0.9.0 API
-  - Changed `gen()` to `random()`
-  - Changed `thread_rng()` to `rng()`
-  - Fixed RNG initialization and type mismatches
-- Implemented SampleableDistribution trait for all distributions
-- Added integration tests for statistical functionality
-- Improved code quality with clippy fixes
-- Enhanced documentation with examples
 
 ## License
 

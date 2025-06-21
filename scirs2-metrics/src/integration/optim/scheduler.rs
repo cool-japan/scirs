@@ -13,7 +13,7 @@ use std::marker::PhantomData;
 
 /// A metric-based learning rate scheduler
 #[derive(Debug, Clone)]
-pub struct MetricScheduler<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
+pub struct MetricLRScheduler<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
     /// Current learning rate
     current_lr: F,
     /// Initial learning rate
@@ -40,7 +40,7 @@ pub struct MetricScheduler<F: Float + fmt::Debug + fmt::Display + FromPrimitive>
     metric_history: Vec<F>,
 }
 
-impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> MetricScheduler<F> {
+impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> MetricLRScheduler<F> {
     /// Create a new metric-based learning rate scheduler
     pub fn new<S: Into<String>>(
         initial_lr: F,
@@ -145,134 +145,79 @@ impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> MetricScheduler<F> {
         self.best_metric
     }
 
-    /// Create a scheduler state for use with scirs2-optim
-    #[allow(unexpected_cfgs)]
-    #[cfg(feature = "optim_integration")]
-    pub fn to_optim_scheduler(&self) -> scirs2_optim::schedulers::ReduceOnPlateau<F> {
-        let mut scheduler = scirs2_optim::schedulers::ReduceOnPlateau::new(
-            self.current_lr,
-            self.factor,
-            self.patience,
-            self.min_lr,
-        );
+    /// Create a scheduler configuration for use with external optimizers
+    ///
+    /// This returns the current state as a configuration that can be used
+    /// to create or update external schedulers from scirs2-optim.
+    pub fn to_scheduler_config(&self) -> crate::integration::optim::SchedulerConfig<F> {
+        use crate::integration::optim::SchedulerConfig;
 
-        // Set mode based on optimization mode
-        match self.mode {
-            OptimizationMode::Minimize => {
-                scheduler.mode_min();
-            }
-            OptimizationMode::Maximize => {
-                scheduler.mode_max();
-            }
+        SchedulerConfig {
+            initial_lr: self.initial_lr,
+            factor: self.factor,
+            patience: self.patience,
+            min_lr: self.min_lr,
+            mode: self.mode,
+            metric_name: self.metric_name.clone(),
         }
+    }
 
-        // Set threshold
-        scheduler.set_threshold(self.threshold);
-
-        scheduler
+    /// Get the current scheduler state for external integration
+    pub fn get_state(&self) -> SchedulerState<F> {
+        SchedulerState {
+            current_lr: self.current_lr,
+            best_metric: self.best_metric,
+            stagnation_count: self.stagnation_count,
+            threshold: self.threshold,
+            mode: self.mode,
+        }
     }
 }
 
-/// Adapter for the ReduceOnPlateau scheduler
-#[allow(unexpected_cfgs)]
-#[cfg(feature = "optim_integration")]
-#[derive(Debug)]
-pub struct ReduceOnPlateauAdapter<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
-    /// Scheduler
-    scheduler: scirs2_optim::schedulers::ReduceOnPlateau<F>,
+/// Current state of a metric-based scheduler
+#[derive(Debug, Clone)]
+pub struct SchedulerState<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
+    /// Current learning rate
+    pub current_lr: F,
+    /// Best metric value seen so far
+    pub best_metric: Option<F>,
+    /// Counter for steps with no improvement
+    pub stagnation_count: usize,
+    /// Threshold for measuring improvement
+    pub threshold: F,
+    /// Optimization mode
+    pub mode: OptimizationMode,
+}
+
+/// Trait for external scheduler integration
+///
+/// This trait can be implemented by external schedulers (like those in scirs2-optim)
+/// to provide seamless integration with metrics.
+pub trait MetricScheduler<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
+    /// Update the scheduler with a new metric value
+    fn step_with_metric(&mut self, metric: F) -> F;
+
+    /// Get the current learning rate
+    fn get_learning_rate(&self) -> F;
+
+    /// Reset the scheduler to initial state
+    fn reset(&mut self);
+
+    /// Set the mode (minimize or maximize)
+    fn set_mode(&mut self, mode: OptimizationMode);
+}
+
+/// Bridge adapter for external scheduler integration
+///
+/// This provides a standardized interface for metric-based scheduling
+/// without depending on specific external implementations.
+pub struct SchedulerBridge<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
+    /// Metric-based scheduler state
+    inner: Box<dyn MetricScheduler<F>>,
     /// Metric name
     metric_name: String,
     /// Metric history
     metric_history: Vec<F>,
     /// Learning rate history
     lr_history: Vec<F>,
-    /// Phantom data for F type
-    _phantom: PhantomData<F>,
-}
-
-#[allow(unexpected_cfgs)]
-#[cfg(feature = "optim_integration")]
-impl<
-        F: Float + fmt::Debug + fmt::Display + FromPrimitive + scirs2_optim::optimizers::ScalarOps,
-    > ReduceOnPlateauAdapter<F>
-{
-    /// Create a new ReduceOnPlateau adapter
-    pub fn new<S: Into<String>>(
-        initial_lr: F,
-        factor: F,
-        patience: usize,
-        min_lr: F,
-        metric_name: S,
-        maximize: bool,
-    ) -> Self {
-        let mut scheduler =
-            scirs2_optim::schedulers::ReduceOnPlateau::new(initial_lr, factor, patience, min_lr);
-
-        // Set mode based on maximize flag
-        if maximize {
-            scheduler.mode_max();
-        } else {
-            scheduler.mode_min();
-        }
-
-        Self {
-            scheduler,
-            metric_name: metric_name.into(),
-            metric_history: Vec::new(),
-            lr_history: vec![initial_lr],
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Update the scheduler with a new metric value
-    pub fn step_with_metric(&mut self, metric: F) -> F {
-        // Record metric
-        self.metric_history.push(metric);
-
-        // Update scheduler
-        let new_lr = self.scheduler.step_with_metric(metric);
-
-        // Record learning rate if it changed
-        if new_lr != self.lr_history.last().unwrap_or(&F::zero()) {
-            self.lr_history.push(new_lr);
-        }
-
-        new_lr
-    }
-
-    /// Get the current learning rate
-    pub fn get_learning_rate(&self) -> F {
-        self.scheduler.get_learning_rate()
-    }
-
-    /// Get the metric name
-    pub fn metric_name(&self) -> &str {
-        &self.metric_name
-    }
-
-    /// Get the metric history
-    pub fn metric_history(&self) -> &[F] {
-        &self.metric_history
-    }
-
-    /// Get the learning rate history
-    pub fn lr_history(&self) -> &[F] {
-        &self.lr_history
-    }
-
-    /// Reset the scheduler
-    pub fn reset(&mut self) {
-        self.scheduler.reset();
-        self.metric_history.clear();
-        self.lr_history = vec![self.scheduler.get_learning_rate()];
-    }
-
-    /// Apply the scheduler to an optimizer
-    pub fn apply_to<D, O>(&self, optimizer: &mut O)
-    where
-        D: scirs2_optim::optimizers::Dimension,
-        O: scirs2_optim::optimizers::Optimizer<F, D>,
-    {
-        self.scheduler.apply_to(optimizer);
-    }
 }

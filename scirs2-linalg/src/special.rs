@@ -83,6 +83,7 @@ where
 /// # Arguments
 ///
 /// * `a` - Input square matrix
+/// * `workers` - Number of worker threads (None = use default)
 ///
 /// # Returns
 ///
@@ -95,15 +96,15 @@ where
 /// use scirs2_linalg::special;
 ///
 /// let a = array![[0.0_f64, 1.0], [-1.0, 0.0]];
-/// let result = special::expm(&a.view());
+/// let result = special::expm(&a.view(), None);
 /// assert!(result.is_ok());
 /// ```
-pub fn expm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
+pub fn expm<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum,
+    F: Float + NumAssign + Sum + ndarray::ScalarOperand,
 {
     // Redirect to the implementation in matrix_functions module
-    matrix_functions::expm(a)
+    matrix_functions::expm(a, workers)
 }
 
 /// Compute the matrix logarithm.
@@ -227,7 +228,7 @@ where
 
     for _ in 0..max_iter {
         // Compute X_inv
-        let x_inv = match solve_multiple(&x.view(), &identity.view()) {
+        let x_inv = match solve_multiple(&x.view(), &identity.view(), None) {
             Ok(inv) => inv,
             Err(_) => {
                 return Err(LinalgError::InvalidInputError(
@@ -330,7 +331,7 @@ mod tests {
 
         // Test expm with zero matrix
         let zero = array![[0.0, 0.0], [0.0, 0.0]];
-        let exp_zero = expm(&zero.view()).unwrap();
+        let exp_zero = expm(&zero.view(), None).unwrap();
         assert_relative_eq!(exp_zero[[0, 0]], 1.0, epsilon = 1e-10);
         assert_relative_eq!(exp_zero[[1, 1]], 1.0, epsilon = 1e-10);
     }

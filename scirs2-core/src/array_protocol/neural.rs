@@ -1,4 +1,4 @@
-// Copyright (c) 2025, SciRS2 Team
+// Copyright (c) 2025, `SciRS2` Team
 //
 // Licensed under either of
 //
@@ -343,14 +343,14 @@ impl Conv2DBuilder {
     }
 
     /// Set filter dimensions
-    pub fn filter_size(mut self, height: usize, width: usize) -> Self {
+    pub const fn filter_size(mut self, height: usize, width: usize) -> Self {
         self.filter_height = height;
         self.filter_width = width;
         self
     }
 
     /// Set input and output channels
-    pub fn channels(mut self, input: usize, output: usize) -> Self {
+    pub const fn channels(mut self, input: usize, output: usize) -> Self {
         self.in_channels = input;
         self.out_channels = output;
         self

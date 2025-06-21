@@ -135,11 +135,11 @@ fn train_with_step_decay(rng: &mut SmallRng, x: &Array2<f32>, y: &Array2<f32>) -
     let epochs = 300;
     let mut optimizer = with_step_decay(
         Adam::new(0.1, 0.9, 0.999, 1e-8),
-        0.1.into(),   // Initial LR
-        0.5.into(),   // Factor (reduce by half)
-        50,           // Step size (every 50 epochs)
-        0.001.into(), // Min LR
-        epochs,       // Total steps
+        0.1,    // Initial LR
+        0.5,    // Factor (reduce by half)
+        50,     // Step size (every 50 epochs)
+        0.001,  // Min LR
+        epochs, // Total steps
     );
 
     println!("Starting training with step decay LR scheduling...");
@@ -208,10 +208,10 @@ fn train_with_cosine_annealing(rng: &mut SmallRng, x: &Array2<f32>, y: &Array2<f
     let cycle_length = 50;
     let mut optimizer = with_cosine_annealing(
         Adam::new(0.01, 0.9, 0.999, 1e-8),
-        0.01.into(),   // Max LR
-        0.0001.into(), // Min LR
-        cycle_length,  // Cycle length
-        epochs,        // Total steps
+        0.01,         // Max LR
+        0.0001,       // Min LR
+        cycle_length, // Cycle length
+        epochs,       // Total steps
     );
 
     println!("Starting training with cosine annealing LR scheduling...");
@@ -286,9 +286,9 @@ fn train_with_manual_scheduler_integration(
     // Create scheduler manually
     let epochs = 300;
     let scheduler = CosineAnnealingLR::new(
-        0.01.into(),   // Max LR
-        0.0001.into(), // Min LR
-        100,           // Cycle length
+        0.01,   // Max LR
+        0.0001, // Min LR
+        100,    // Cycle length
         ScheduleMethod::Epoch,
         epochs, // Total steps
     );

@@ -68,14 +68,24 @@
 //! ```no_run
 //! # #[cfg(feature = "optim_integration")]
 //! # {
-//! use scirs2_metrics::integration::optim::MetricOptimizer;
+//! use scirs2_metrics::integration::optim::{MetricOptimizer, MetricLRScheduler};
 //! use ndarray::Array1;
 //!
 //! // Create a metric optimizer for accuracy
 //! let metric_optimizer = MetricOptimizer::new("accuracy", true);
 //!
-//! // Use with optimizer schedulers
-//! let scheduler = metric_optimizer.create_lr_scheduler(0.1, 0.1, 5, 1e-6);
+//! // Create scheduler configuration for external use
+//! let scheduler_config = metric_optimizer.create_scheduler_config(0.1, 0.1, 5, 1e-6);
+//!
+//! // Create an actual scheduler using the configuration
+//! let mut scheduler = MetricLRScheduler::new(
+//!     scheduler_config.initial_lr,
+//!     scheduler_config.factor,
+//!     scheduler_config.patience,
+//!     scheduler_config.min_lr,
+//!     &scheduler_config.metric_name,
+//!     true // maximize
+//! );
 //!
 //! // Update scheduler based on a metric value
 //! let metric_value = 0.85;
@@ -91,5 +101,5 @@ pub mod traits;
 #[cfg(feature = "neural_common")]
 pub mod neural;
 
-#[cfg(feature = "neural_common")]
+#[cfg(feature = "optim_integration")]
 pub mod optim;

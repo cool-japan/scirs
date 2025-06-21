@@ -145,6 +145,57 @@ where
     components
 }
 
+/// Finds all weakly connected components in a directed graph
+///
+/// Weakly connected components are found by treating the directed graph as undirected
+/// and finding connected components. Two vertices are in the same weakly connected
+/// component if there is an undirected path between them.
+///
+/// # Arguments
+/// * `graph` - The directed graph to analyze
+///
+/// # Returns
+/// * A vector of weakly connected components
+pub fn weakly_connected_components<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Vec<Component<N>>
+where
+    N: Node,
+    E: EdgeWeight,
+    Ix: petgraph::graph::IndexType,
+{
+    let mut components: Vec<Component<N>> = Vec::new();
+    let mut visited = HashSet::new();
+
+    // For each node in the graph
+    for node_idx in graph.inner().node_indices() {
+        // Skip if already visited
+        if visited.contains(&node_idx) {
+            continue;
+        }
+
+        // BFS to find all nodes in this weakly connected component
+        let mut component = HashSet::new();
+        let mut queue = VecDeque::new();
+        queue.push_back(node_idx);
+        visited.insert(node_idx);
+
+        while let Some(current) = queue.pop_front() {
+            component.insert(graph.inner()[current].clone());
+
+            // Visit all unvisited neighbors (both incoming and outgoing)
+            for neighbor in graph.inner().neighbors_undirected(current) {
+                if !visited.contains(&neighbor) {
+                    visited.insert(neighbor);
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+
+        components.push(component);
+    }
+
+    components
+}
+
 /// Finds all articulation points (cut vertices) in an undirected graph
 ///
 /// An articulation point is a vertex whose removal increases the number of connected components.
@@ -478,6 +529,31 @@ mod tests {
 
         let result = is_bipartite(&non_bipartite);
         assert!(!result.is_bipartite);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_weakly_connected_components() -> GraphResult<()> {
+        // Create a directed graph with two weakly connected components
+        let mut graph = crate::base::DiGraph::<&str, ()>::new();
+
+        // Component 1: A -> B -> C (weakly connected but not strongly connected)
+        graph.add_edge("A", "B", ())?;
+        graph.add_edge("B", "C", ())?;
+
+        // Component 2: D -> E <- F (triangle, weakly connected)
+        graph.add_edge("D", "E", ())?;
+        graph.add_edge("F", "E", ())?;
+        graph.add_edge("D", "F", ())?;
+
+        let wccs = weakly_connected_components(&graph);
+        assert_eq!(wccs.len(), 2);
+
+        // One component should have 3 nodes, one should have 3 nodes
+        let sizes: Vec<usize> = wccs.iter().map(|c| c.len()).collect();
+        assert!(sizes.contains(&3));
+        assert_eq!(sizes.iter().filter(|&&s| s == 3).count(), 2);
 
         Ok(())
     }

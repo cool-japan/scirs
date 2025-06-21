@@ -564,7 +564,7 @@ mod tests {
 
         // These words have 3 edits apart according to our algorithm
         let ops = error_model.min_edit_operations("kitten", "sitting");
-        assert!(ops.len() > 0); // Should return some operations
+        assert!(!ops.is_empty()); // Should return some operations
 
         // These are more than 3 edits apart and should be handled appropriately
         let ops = error_model.min_edit_operations("algorithm", "logarithm");
@@ -575,7 +575,7 @@ mod tests {
             assert!(matches!(ops[0], EditOp::Substitute(_, _)));
         } else {
             // Full operations list
-            assert!(ops.len() > 0);
+            assert!(!ops.is_empty());
         }
     }
 }

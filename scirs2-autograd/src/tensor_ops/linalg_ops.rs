@@ -6,7 +6,7 @@ use ndarray::{Array1, Array2, Ix1, Ix2};
 
 /// Identity matrix operation
 pub struct EyeOp {
-    size: usize,
+    pub size: usize,
 }
 
 impl<F: Float> Op<F> for EyeOp {

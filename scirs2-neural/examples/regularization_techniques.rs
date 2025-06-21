@@ -143,7 +143,7 @@ impl Dropout {
     /// Create a new dropout layer
     fn new(drop_prob: f32) -> Self {
         assert!(
-            drop_prob >= 0.0 && drop_prob < 1.0,
+            (0.0..1.0).contains(&drop_prob),
             "Dropout probability must be between 0 and 1"
         );
 

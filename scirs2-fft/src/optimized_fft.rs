@@ -6,7 +6,7 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
-use ndarray::{Array, ArrayBase, Data, Dimension};
+use ndarray::{Array, ArrayBase, Data};
 use num_complex::Complex64;
 use num_traits::NumCast;
 use rustfft::FftPlanner;
@@ -23,6 +23,8 @@ pub enum OptimizationLevel {
     Default,
     /// Maximum runtime performance
     Maximum,
+    /// Performance-focused optimizations
+    Performance,
     /// Size-specific optimizations
     SizeSpecific,
     /// SIMD-optimized
@@ -575,20 +577,16 @@ impl OptimizedFFT {
     }
 
     /// Perform 2D FFT with optimizations
-    pub fn fft2<S, D>(&mut self, input: &ArrayBase<S, D>) -> FFTResult<Array<Complex64, D>>
+    pub fn fft2<S>(
+        &mut self,
+        input: &ArrayBase<S, ndarray::Ix2>,
+    ) -> FFTResult<Array<Complex64, ndarray::Ix2>>
     where
         S: Data,
-        D: Dimension + 'static,
         S::Elem: NumCast + Copy + Debug,
     {
         // This is a simplified implementation for testing
         let shape = input.shape();
-        if shape.len() != 2 {
-            return Err(FFTError::DimensionError(format!(
-                "Expected 2D array, got {}D",
-                shape.len()
-            )));
-        }
 
         // Limit dimensions for testing
         let rows = shape[0].min(self.config.max_fft_size / 2);

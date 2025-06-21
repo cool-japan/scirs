@@ -321,13 +321,14 @@ fn text_correction_demo(corrector: &DictionaryCorrector) -> Result<(), Box<dyn s
     let mut expected_corrections = 0;
 
     for i in 0..original_words.len() {
-        if i < corrected_words.len() && i < expected_words.len() {
-            if original_words[i] != expected_words[i] {
-                expected_corrections += 1;
+        if i < corrected_words.len()
+            && i < expected_words.len()
+            && original_words[i] != expected_words[i]
+        {
+            expected_corrections += 1;
 
-                if corrected_words[i] == expected_words[i] {
-                    corrected_count += 1;
-                }
+            if corrected_words[i] == expected_words[i] {
+                corrected_count += 1;
             }
         }
     }

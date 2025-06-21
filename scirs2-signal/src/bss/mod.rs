@@ -105,7 +105,7 @@ pub fn whiten_signals(signals: &Array2<f64>) -> SignalResult<(Array2<f64>, Array
     let cov = signals.dot(&signals.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
-    let (eigvals, eigvecs) = match eigh(&cov.view()) {
+    let (eigvals, eigvecs) = match eigh(&cov.view(), None) {
         Ok((vals, vecs)) => (vals, vecs),
         Err(_) => {
             return Err(SignalError::Compute(
@@ -315,7 +315,7 @@ pub fn estimate_source_count(signals: &Array2<f64>, threshold: f64) -> SignalRes
     let cov = centered.dot(&centered.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
-    let eigvals = match eigh(&cov.view()) {
+    let eigvals = match eigh(&cov.view(), None) {
         Ok((vals, _)) => vals,
         Err(_) => {
             return Err(SignalError::Compute(

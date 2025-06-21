@@ -15,7 +15,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u, s, v) = svd(&matrix);
+        let (u, s, v) = svd(matrix);
 
         // Check shapes and values
         println!("\nSVD components for 3x3 matrix:");
@@ -93,7 +93,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u_3x2, s_3x2, v_3x2) = svd(&matrix_3x2);
+        let (u_3x2, s_3x2, v_3x2) = svd(matrix_3x2);
 
         println!("\nSVD components for 3x2 matrix:");
 
@@ -154,10 +154,10 @@ fn main() {
         let matrix_var = variable(matrix_data.clone(), g);
 
         // Compute SVD
-        let (_u_var, s_var, _v_var) = svd(&matrix_var);
+        let (_u_var, s_var, _v_var) = svd(matrix_var);
 
         // Create a simple loss: sum of singular values
-        let loss = sum_all(&s_var);
+        let loss = sum_all(s_var);
 
         // Compute gradient
         let grads = grad(&[loss], &[&matrix_var]);

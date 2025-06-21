@@ -237,8 +237,8 @@ impl MemoryMetricsCollector {
                     *peak = (*peak).max(*component_usage);
                 }
             }
-            _ => {
-                // Other event types don't affect metrics
+            MemoryEventType::Access | MemoryEventType::Transfer => {
+                // These event types don't affect memory usage metrics
             }
         }
     }
@@ -361,16 +361,56 @@ impl MemoryMetricsCollector {
         events.iter().cloned().collect()
     }
 
-    /// Export the report as JSON
-    #[cfg(feature = "memory_metrics")]
+    /// Export the report as JSON (avoiding serialization of non-serializable fields)
     pub fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
-    }
+        // Generate a report first to get all the computed values
+        let report = self.generate_report();
 
-    /// Export the report as JSON - stub when memory_metrics is disabled
-    #[cfg(not(feature = "memory_metrics"))]
-    pub fn to_json(&self) -> String {
-        "{}".to_string()
+        let mut json_obj = serde_json::Map::new();
+
+        json_obj.insert(
+            "total_allocation_count".to_string(),
+            serde_json::Value::Number(report.total_allocation_count.into()),
+        );
+        json_obj.insert(
+            "total_peak_usage".to_string(),
+            serde_json::Value::Number(report.total_peak_usage.into()),
+        );
+        json_obj.insert(
+            "total_current_usage".to_string(),
+            serde_json::Value::Number(report.total_current_usage.into()),
+        );
+        json_obj.insert(
+            "total_allocated_bytes".to_string(),
+            serde_json::Value::Number(report.total_allocated_bytes.into()),
+        );
+
+        // Serialize component stats manually
+        let component_stats: serde_json::Value = report
+            .component_stats
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    serde_json::json!({
+                        "current_usage": v.current_usage,
+                        "peak_usage": v.peak_usage,
+                        "allocation_count": v.allocation_count,
+                        "total_allocated": v.total_allocated,
+                        "avg_allocation_size": v.avg_allocation_size
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<String, serde_json::Value>>()
+            .into();
+
+        json_obj.insert("component_stats".to_string(), component_stats);
+        json_obj.insert(
+            "duration_secs".to_string(),
+            serde_json::Value::Number(report.duration.as_secs().into()),
+        );
+
+        serde_json::Value::Object(json_obj)
     }
 }
 

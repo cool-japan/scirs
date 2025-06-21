@@ -611,36 +611,6 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ndarray::array;
-
-    #[test]
-    fn test_adf_stationary() {
-        // Test with white noise (should be stationary)
-        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
-        let result = adf_test(&data, None, ADFRegression::ConstantNoTrend, 0.05);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_kpss_stationary() {
-        // Test with white noise
-        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
-        let result = kpss_test(&data, KPSSType::Constant, None, 0.05);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_pp_stationary() {
-        // Test with white noise
-        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
-        let result = pp_test(&data, ADFRegression::ConstantNoTrend, None, 0.05);
-        assert!(result.is_ok());
-    }
-}
-
 /// Simple matrix inversion using Gauss-Jordan elimination
 fn matrix_inverse<F>(a: &Array2<F>) -> Result<Array2<F>>
 where
@@ -716,4 +686,34 @@ where
     }
 
     Ok(inv)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn test_adf_stationary() {
+        // Test with white noise (should be stationary)
+        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
+        let result = adf_test(&data, None, ADFRegression::ConstantNoTrend, 0.05);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_kpss_stationary() {
+        // Test with white noise
+        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
+        let result = kpss_test(&data, KPSSType::Constant, None, 0.05);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pp_stationary() {
+        // Test with white noise
+        let data = array![0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1];
+        let result = pp_test(&data, ADFRegression::ConstantNoTrend, None, 0.05);
+        assert!(result.is_ok());
+    }
 }

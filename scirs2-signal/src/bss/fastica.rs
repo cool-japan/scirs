@@ -185,7 +185,7 @@ pub fn fast_ica(
 
             // Decorrelate weights (symmetric decorrelation)
             let ww_t = w.dot(&w.t());
-            let (eigvals, eigvecs) = match eigh(&ww_t.view()) {
+            let (eigvals, eigvecs) = match eigh(&ww_t.view(), None) {
                 Ok((vals, vecs)) => (vals, vecs),
                 Err(_) => {
                     return Err(crate::error::SignalError::Compute(

@@ -11,12 +11,12 @@
 //! - Adaptive prefetching based on historical access patterns
 //! - Integration with the block cache system to manage prefetched blocks
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
+use std::collections::{HashSet, VecDeque};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+#[cfg(feature = "memory_compression")]
 use super::compressed_memmap::CompressedMemMappedArray;
-use super::memmap::MemoryMappedArray;
 use crate::error::{CoreError, CoreResult, ErrorContext};
 
 /// Types of access patterns that can be detected and prefetched.
@@ -71,7 +71,7 @@ impl Default for PrefetchConfig {
 }
 
 /// Builder for prefetch configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PrefetchConfigBuilder {
     config: PrefetchConfig,
 }
@@ -79,43 +79,41 @@ pub struct PrefetchConfigBuilder {
 impl PrefetchConfigBuilder {
     /// Create a new prefetch config builder with default settings.
     pub fn new() -> Self {
-        Self {
-            config: PrefetchConfig::default(),
-        }
+        Self::default()
     }
 
     /// Enable or disable prefetching.
-    pub fn enabled(mut self, enabled: bool) -> Self {
+    pub const fn enabled(mut self, enabled: bool) -> Self {
         self.config.enabled = enabled;
         self
     }
 
     /// Set the number of blocks to prefetch ahead of the current access.
-    pub fn prefetch_count(mut self, count: usize) -> Self {
+    pub const fn prefetch_count(mut self, count: usize) -> Self {
         self.config.prefetch_count = count;
         self
     }
 
     /// Set the maximum number of blocks to keep in the prefetch history.
-    pub fn history_size(mut self, size: usize) -> Self {
+    pub const fn history_size(mut self, size: usize) -> Self {
         self.config.history_size = size;
         self
     }
 
     /// Set the minimum number of accesses needed to detect a pattern.
-    pub fn min_pattern_length(mut self, length: usize) -> Self {
+    pub const fn min_pattern_length(mut self, length: usize) -> Self {
         self.config.min_pattern_length = length;
         self
     }
 
     /// Enable or disable asynchronous prefetching.
-    pub fn async_prefetch(mut self, async_prefetch: bool) -> Self {
+    pub const fn async_prefetch(mut self, async_prefetch: bool) -> Self {
         self.config.async_prefetch = async_prefetch;
         self
     }
 
     /// Set the timeout for prefetch operations.
-    pub fn prefetch_timeout(mut self, timeout: Duration) -> Self {
+    pub const fn prefetch_timeout(mut self, timeout: Duration) -> Self {
         self.config.prefetch_timeout = timeout;
         self
     }
@@ -127,7 +125,7 @@ impl PrefetchConfigBuilder {
 }
 
 /// Trait for tracking and predicting access patterns.
-pub trait AccessPatternTracker {
+pub trait AccessPatternTracker: std::fmt::Debug {
     /// Record an access to a block.
     fn record_access(&mut self, block_idx: usize);
 
@@ -163,9 +161,10 @@ pub struct BlockAccessTracker {
 impl BlockAccessTracker {
     /// Create a new block access tracker with the given configuration.
     pub fn new(config: PrefetchConfig) -> Self {
+        let history_size = config.history_size;
         Self {
             config,
-            history: VecDeque::with_capacity(config.history_size),
+            history: VecDeque::with_capacity(history_size),
             current_pattern: AccessPattern::Random,
             stride: None,
             last_update: Instant::now(),
@@ -182,7 +181,7 @@ impl BlockAccessTracker {
 
         // Check for sequential access
         let mut is_sequential = true;
-        let mut prev = *self.history.get(0).unwrap();
+        let mut prev = *self.history.front().unwrap();
 
         for &block_idx in self.history.iter().skip(1) {
             if block_idx != prev + 1 {
@@ -199,8 +198,8 @@ impl BlockAccessTracker {
 
         // Check for strided access
         let mut is_strided = true;
-        let stride = self.history.get(1).unwrap() - self.history.get(0).unwrap();
-        prev = *self.history.get(0).unwrap();
+        let stride = self.history.get(1).unwrap() - self.history.front().unwrap();
+        prev = *self.history.front().unwrap();
 
         for &block_idx in self.history.iter().skip(1) {
             if block_idx != prev + stride {
@@ -313,6 +312,7 @@ pub struct PrefetchingState {
     prefetched: HashSet<usize>,
 
     /// Statistics about prefetching
+    #[allow(dead_code)]
     stats: PrefetchStats,
 }
 
@@ -421,8 +421,9 @@ pub trait Prefetching {
 }
 
 // Extended CompressedMemMappedArray struct with prefetching support
+#[cfg(feature = "memory_compression")]
 #[derive(Debug)]
-pub struct PrefetchingCompressedArray<A: Clone + Copy + 'static> {
+pub struct PrefetchingCompressedArray<A: Clone + Copy + 'static + Send + Sync> {
     /// The underlying compressed memory-mapped array
     array: CompressedMemMappedArray<A>,
 
@@ -442,6 +443,7 @@ pub struct PrefetchingCompressedArray<A: Clone + Copy + 'static> {
 }
 
 /// Commands for the prefetching thread
+#[cfg(feature = "memory_compression")]
 enum PrefetchCommand {
     /// Prefetch a specific block
     Prefetch(usize),
@@ -450,7 +452,8 @@ enum PrefetchCommand {
     Stop,
 }
 
-impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
     /// Create a new prefetching compressed array from an existing compressed memory-mapped array.
     pub fn new(array: CompressedMemMappedArray<A>) -> Self {
         // Create prefetching state with default config
@@ -512,7 +515,7 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
                         }
 
                         // Attempt to prefetch the block (ignoring errors)
-                        if let Ok(_) = array.preload_block(block_idx) {
+                        if array.preload_block(block_idx).is_ok() {
                             // Mark the block as prefetched
                             if let Ok(mut guard) = prefetch_state.lock() {
                                 guard.mark_prefetched(block_idx);
@@ -540,7 +543,7 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
                                     }
 
                                     // Attempt to prefetch the block (ignoring errors)
-                                    if let Ok(_) = array.preload_block(block_idx) {
+                                    if array.preload_block(block_idx).is_ok() {
                                         // Mark the block as prefetched
                                         if let Ok(mut guard) = prefetch_state.lock() {
                                             guard.mark_prefetched(block_idx);
@@ -584,7 +587,7 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     }
 
     /// Get access to the underlying compressed memory-mapped array.
-    pub fn inner(&self) -> &CompressedMemMappedArray<A> {
+    pub const fn inner(&self) -> &CompressedMemMappedArray<A> {
         &self.array
     }
 
@@ -609,7 +612,8 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     }
 }
 
-impl<A: Clone + Copy + 'static> Prefetching for PrefetchingCompressedArray<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + 'static + Send + Sync> Prefetching for PrefetchingCompressedArray<A> {
     fn enable_prefetching(&mut self, config: PrefetchConfig) -> CoreResult<()> {
         // Already enabled with the same config?
         if self.prefetching_enabled {
@@ -773,7 +777,8 @@ impl<A: Clone + Copy + 'static> Prefetching for PrefetchingCompressedArray<A> {
 }
 
 // Extension methods for CompressedMemMappedArray to add prefetching support
-impl<A: Clone + Copy + 'static> CompressedMemMappedArray<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
     /// Convert into a prefetching compressed array.
     pub fn with_prefetching(self) -> PrefetchingCompressedArray<A> {
         PrefetchingCompressedArray::new(self)
@@ -789,7 +794,8 @@ impl<A: Clone + Copy + 'static> CompressedMemMappedArray<A> {
 }
 
 // For transparent pass-through to underlying array methods
-impl<A: Clone + Copy + 'static> std::ops::Deref for PrefetchingCompressedArray<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + 'static + Send + Sync> std::ops::Deref for PrefetchingCompressedArray<A> {
     type Target = CompressedMemMappedArray<A>;
 
     fn deref(&self) -> &Self::Target {
@@ -798,12 +804,13 @@ impl<A: Clone + Copy + 'static> std::ops::Deref for PrefetchingCompressedArray<A
 }
 
 // Implement wrapper method for get that records accesses
-impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
+#[cfg(feature = "memory_compression")]
+impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
     /// Get a specific element from the array, with prefetching support.
     pub fn get(&self, indices: &[usize]) -> CoreResult<A> {
         // Calculate block index from the access
         let flat_index = self.calculate_flat_index(indices)?;
-        let block_idx = flat_index / self.metadata.block_size;
+        let block_idx = flat_index / self.metadata().block_size;
 
         // Record the access
         if self.prefetching_enabled {
@@ -834,21 +841,21 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     /// Calculate the flat index from multidimensional indices.
     fn calculate_flat_index(&self, indices: &[usize]) -> CoreResult<usize> {
         // Check that the indices are valid
-        if indices.len() != self.metadata.shape.len() {
+        if indices.len() != self.metadata().shape.len() {
             return Err(CoreError::DimensionError(ErrorContext::new(format!(
                 "Expected {} indices, got {}",
-                self.metadata.shape.len(),
+                self.metadata().shape.len(),
                 indices.len()
             ))));
         }
 
         for (i, &idx) in indices.iter().enumerate() {
-            if idx >= self.metadata.shape[i] {
+            if idx >= self.metadata().shape[i] {
                 return Err(CoreError::IndexError(ErrorContext::new(format!(
                     "Index {} out of bounds for dimension {} (max {})",
                     idx,
                     i,
-                    self.metadata.shape[i] - 1
+                    self.metadata().shape[i] - 1
                 ))));
             }
         }
@@ -859,7 +866,7 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
         for i in (0..indices.len()).rev() {
             flat_index += indices[i] * stride;
             if i > 0 {
-                stride *= self.metadata.shape[i];
+                stride *= self.metadata().shape[i];
             }
         }
 
@@ -907,10 +914,10 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
     /// Calculate which blocks will be accessed for a slice operation.
     fn calculate_blocks_for_slice(&self, ranges: &[(usize, usize)]) -> CoreResult<HashSet<usize>> {
         // Check that the ranges are valid
-        if ranges.len() != self.metadata.shape.len() {
+        if ranges.len() != self.metadata().shape.len() {
             return Err(CoreError::DimensionError(ErrorContext::new(format!(
                 "Expected {} ranges, got {}",
-                self.metadata.shape.len(),
+                self.metadata().shape.len(),
                 ranges.len()
             ))));
         }
@@ -924,29 +931,32 @@ impl<A: Clone + Copy + 'static> PrefetchingCompressedArray<A> {
                     i, start, end
                 ))));
             }
-            if end > self.metadata.shape[i] {
+            if end > self.metadata().shape[i] {
                 return Err(CoreError::IndexError(ErrorContext::new(format!(
                     "Range {}..{} out of bounds for dimension {} (max {})",
-                    start, end, i, self.metadata.shape[i]
+                    start,
+                    end,
+                    i,
+                    self.metadata().shape[i]
                 ))));
             }
             result_shape.push(end - start);
         }
 
         // Calculate the strides for each dimension
-        let mut strides = Vec::with_capacity(self.metadata.shape.len());
+        let mut strides = Vec::with_capacity(self.metadata().shape.len());
         let mut stride = 1;
-        for i in (0..self.metadata.shape.len()).rev() {
+        for i in (0..self.metadata().shape.len()).rev() {
             strides.push(stride);
             if i > 0 {
-                stride *= self.metadata.shape[i];
+                stride *= self.metadata().shape[i];
             }
         }
         strides.reverse();
 
         // Calculate the blocks that will be accessed
         let mut blocks = HashSet::new();
-        let block_size = self.metadata.block_size;
+        let block_size = self.metadata().block_size;
 
         // Calculate the corners of the hypercube
         let mut corners = Vec::with_capacity(1 << ranges.len());

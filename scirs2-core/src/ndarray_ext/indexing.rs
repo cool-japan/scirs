@@ -2,7 +2,7 @@
 //!
 //! This module provides enhanced indexing capabilities including boolean
 //! masking, fancy indexing, and advanced slicing operations similar to
-//! NumPy's advanced indexing functionality.
+//! `NumPy`'s advanced indexing functionality.
 
 use ndarray::{Array, ArrayView, Ix1, Ix2};
 

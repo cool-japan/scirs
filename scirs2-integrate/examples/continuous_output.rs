@@ -9,7 +9,6 @@ use std::io::Write;
 /// This example demonstrates the continuous (dense) output capabilities
 /// of the ODE solvers, which allow evaluating the solution at any point
 /// within the integration interval.
-
 /// Pendulum system: d²θ/dt² + (g/L)·sin(θ) = 0
 ///
 /// We convert this to a system of first-order ODEs:
@@ -162,9 +161,9 @@ fn pendulum_simulation() -> IntegrateResult<()> {
 
     println!("Computing energy conservation...");
     let mut energies = Vec::with_capacity(n_points);
-    for i in 0..n_points {
-        let theta = values[i][0];
-        let omega = values[i][1];
+    for value in values.iter().take(n_points) {
+        let theta = value[0];
+        let omega = value[1];
         let kinetic = 0.5 * omega.powi(2);
         let potential = 1.0 - theta.cos();
         let energy = kinetic + potential;
@@ -225,11 +224,11 @@ fn two_body_simulation() -> IntegrateResult<()> {
 
     println!("Computing angular momentum conservation...");
     let mut angular_momenta = Vec::with_capacity(n_points);
-    for i in 0..n_points {
-        let x = values[i][0];
-        let y = values[i][1];
-        let vx = values[i][2];
-        let vy = values[i][3];
+    for value in values.iter().take(n_points) {
+        let x = value[0];
+        let y = value[1];
+        let vx = value[2];
+        let vy = value[3];
 
         let angular_momentum = x * vy - y * vx;
         angular_momenta.push(angular_momentum);

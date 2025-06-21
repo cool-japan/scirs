@@ -1,4 +1,4 @@
-//! Numeric traits and utilities for SciRS2
+//! Numeric traits and utilities for ``SciRS2``
 //!
 //! This module provides traits and utilities for working with numeric types
 //! in scientific computing contexts.
@@ -30,86 +30,112 @@ pub trait ScientificNumber:
     + NumCast
 {
     /// Absolute value
+    #[must_use]
     fn abs(self) -> Self;
 
     /// Square root
+    #[must_use]
     fn sqrt(self) -> Self;
 
     /// Square
+    #[must_use]
     fn square(self) -> Self {
         self * self
     }
 
     /// Maximum of two values
+    #[must_use]
     fn max(self, other: Self) -> Self;
 
     /// Minimum of two values
+    #[must_use]
     fn min(self, other: Self) -> Self;
 
     /// Check if the value is finite
+    #[must_use]
     fn is_finite(self) -> bool;
 
     /// Convert to f64
+    #[must_use]
     fn to_f64(self) -> Option<f64>;
 
     /// Convert from f64
+    #[must_use]
     fn from_f64(value: f64) -> Option<Self>;
 }
 
 /// A trait for real-valued floating point types
 pub trait RealNumber: ScientificNumber + Float {
     /// Returns the machine epsilon (the difference between 1.0 and the least value greater than 1.0)
+    #[must_use]
     fn epsilon() -> Self;
 
     /// Exponential function (e^x)
+    #[must_use]
     fn exp(self) -> Self;
 
     /// Natural logarithm (ln(x))
+    #[must_use]
     fn ln(self) -> Self;
 
     /// Base-10 logarithm
+    #[must_use]
     fn log10(self) -> Self;
 
     /// Base-2 logarithm
+    #[must_use]
     fn log2(self) -> Self;
 
     /// Sine function
+    #[must_use]
     fn sin(self) -> Self;
 
     /// Cosine function
+    #[must_use]
     fn cos(self) -> Self;
 
     /// Tangent function
+    #[must_use]
     fn tan(self) -> Self;
 
     /// Hyperbolic sine
+    #[must_use]
     fn sinh(self) -> Self;
 
     /// Hyperbolic cosine
+    #[must_use]
     fn cosh(self) -> Self;
 
     /// Hyperbolic tangent
+    #[must_use]
     fn tanh(self) -> Self;
 
     /// Inverse sine
+    #[must_use]
     fn asin(self) -> Self;
 
     /// Inverse cosine
+    #[must_use]
     fn acos(self) -> Self;
 
     /// Inverse tangent
+    #[must_use]
     fn atan(self) -> Self;
 
     /// Inverse tangent of y/x with correct quadrant
+    #[must_use]
     fn atan2(self, other: Self) -> Self;
 
     /// Power function
+    #[must_use]
     fn powf(self, n: Self) -> Self;
 
     /// Integer power function
+    #[must_use]
     fn powi(self, n: i32) -> Self;
 
     /// Factorial function (approximation for non-integers)
+    #[must_use]
     fn factorial(self) -> Self;
 }
 
@@ -119,69 +145,90 @@ pub trait ComplexNumber: ScientificNumber {
     type RealPart: RealNumber;
 
     /// Returns the real part of the complex number
+    #[must_use]
     fn re(&self) -> Self::RealPart;
 
     /// Returns the imaginary part of the complex number
+    #[must_use]
     fn im(&self) -> Self::RealPart;
 
     /// Create a new complex number from real and imaginary parts
+    #[must_use]
     fn new(re: Self::RealPart, im: Self::RealPart) -> Self;
 
     /// Returns the complex conjugate
+    #[must_use]
     fn conj(self) -> Self;
 
     /// Returns the magnitude (absolute value)
+    #[must_use]
     fn abs(self) -> Self::RealPart;
 
     /// Returns the argument (phase)
+    #[must_use]
     fn arg(self) -> Self::RealPart;
 
     /// Returns the complex number in exponential form (r, theta)
+    #[must_use]
     fn to_polar(self) -> (Self::RealPart, Self::RealPart);
 
     /// Creates a complex number from polar coordinates
+    #[must_use]
     fn from_polar(r: Self::RealPart, theta: Self::RealPart) -> Self;
 
     /// Exponential function
+    #[must_use]
     fn exp(self) -> Self;
 
     /// Natural logarithm
+    #[must_use]
     fn ln(self) -> Self;
 
     /// Power function with complex exponent
+    #[must_use]
     fn powc(self, exp: Self) -> Self;
 
     /// Power function with real exponent
+    #[must_use]
     fn powf(self, exp: Self::RealPart) -> Self;
 
     /// Square root
+    #[must_use]
     fn sqrt(self) -> Self;
 }
 
 /// A trait for integers that can be used in scientific calculations
 pub trait ScientificInteger: ScientificNumber + Eq {
     /// Greatest common divisor
+    #[must_use]
     fn gcd(self, other: Self) -> Self;
 
     /// Least common multiple
+    #[must_use]
     fn lcm(self, other: Self) -> Self;
 
     /// Check if the number is prime
+    #[must_use]
     fn is_prime(self) -> bool;
 
     /// Check if the number is even
+    #[must_use]
     fn is_even(self) -> bool;
 
     /// Check if the number is odd
+    #[must_use]
     fn is_odd(self) -> bool;
 
     /// Modular exponentiation (self^exp mod modulus)
+    #[must_use]
     fn mod_pow(self, exp: Self, modulus: Self) -> Self;
 
     /// Factorial
+    #[must_use]
     fn factorial(self) -> Self;
 
     /// Binomial coefficient (n choose k)
+    #[must_use]
     fn binomial(self, k: Self) -> Self;
 }
 
@@ -212,7 +259,7 @@ impl ScientificNumber for f32 {
     }
 
     fn from_f64(value: f64) -> Option<Self> {
-        if value.is_finite() && value <= f32::MAX as f64 && value >= f32::MIN as f64 {
+        if value.is_finite() && value <= Self::MAX as f64 && value >= Self::MIN as f64 {
             Some(value as f32)
         } else {
             None
@@ -223,7 +270,7 @@ impl ScientificNumber for f32 {
 // Implement RealNumber for f32
 impl RealNumber for f32 {
     fn epsilon() -> Self {
-        f32::EPSILON
+        Self::EPSILON
     }
 
     fn exp(self) -> Self {
@@ -292,7 +339,7 @@ impl RealNumber for f32 {
 
     fn factorial(self) -> Self {
         if self < 0.0 {
-            return f32::NAN;
+            return Self::NAN;
         }
 
         // Use Stirling's approximation for non-integers or large values
@@ -345,7 +392,7 @@ impl ScientificNumber for f64 {
 // Implement RealNumber for f64
 impl RealNumber for f64 {
     fn epsilon() -> Self {
-        f64::EPSILON
+        Self::EPSILON
     }
 
     fn exp(self) -> Self {
@@ -414,12 +461,12 @@ impl RealNumber for f64 {
 
     fn factorial(self) -> Self {
         if self < 0.0 {
-            return f64::NAN;
+            return Self::NAN;
         }
 
         // Use Stirling's approximation for non-integers or large values
         if self != self.trunc() || self > 170.0 {
-            const SQRT_TWO_PI: f64 = 2.5066282746310002;
+            const SQRT_TWO_PI: f64 = 2.506_628_274_631_000_2;
             return SQRT_TWO_PI * self.powf(self + 0.5) * (-self).exp();
         }
 
@@ -693,6 +740,12 @@ impl<T: ScientificNumber + Neg<Output = T>> Neg for Scalar<T> {
         Scalar(self.0.neg())
     }
 }
+
+/// Automated precision tracking for numerical computations
+pub mod precision_tracking;
+
+/// Specialized numeric types for scientific domains
+pub mod scientific_types;
 
 #[cfg(test)]
 mod tests {

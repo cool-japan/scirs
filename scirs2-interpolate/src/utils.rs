@@ -9,15 +9,48 @@ use std::fmt::Debug;
 
 /// Compute the error estimate for interpolation
 ///
+/// This function performs leave-one-out cross-validation to estimate
+/// the interpolation error. It removes each data point in turn, fits
+/// the interpolation to the remaining data, and measures the prediction
+/// error at the removed point.
+///
 /// # Arguments
 ///
 /// * `x` - Original x coordinates
-/// * `y` - Original y values
+/// * `y` - Original y values  
 /// * `interp_fn` - Function that performs interpolation at given x values
 ///
 /// # Returns
 ///
-/// Leave-one-out cross-validation error estimate
+/// Root mean square error (RMSE) from leave-one-out cross-validation
+///
+/// # Examples
+///
+/// ```rust
+/// use ndarray::{Array1, ArrayView1};
+/// use scirs2_interpolate::utils::error_estimate;
+/// use scirs2_interpolate::error::InterpolateResult;
+///
+/// // Sample data with some noise
+/// let x = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
+/// let y = Array1::from_vec(vec![0.1, 0.9, 2.1, 2.9, 4.1]);
+///
+/// // Define a simple linear interpolation function
+/// let linear_interp = |x_train: &ArrayView1<f64>, y_train: &ArrayView1<f64>, x_test: &ArrayView1<f64>| -> InterpolateResult<Array1<f64>> {
+///     // Simplified linear interpolation implementation
+///     let mut result = Array1::zeros(x_test.len());
+///     for (i, &x_val) in x_test.iter().enumerate() {
+///         // Find nearest neighbors and interpolate
+///         if x_train.len() >= 2 {
+///             result[i] = x_val; // Simplified: just return x for y=x function
+///         }
+///     }
+///     Ok(result)
+/// };
+///
+/// let rmse = error_estimate(&x.view(), &y.view(), linear_interp).unwrap();
+/// println!("Cross-validation RMSE: {}", rmse);
+/// ```
 pub fn error_estimate<F, Func>(
     x: &ArrayView1<F>,
     y: &ArrayView1<F>,
@@ -116,17 +149,46 @@ where
     Ok(best_param)
 }
 
-/// Differentiate an interpolated function
+/// Differentiate an interpolated function using finite differences
+///
+/// This function computes the derivative of an interpolated function
+/// at a given point using central finite differences. This is useful
+/// when you have an interpolant but need its derivative.
 ///
 /// # Arguments
 ///
 /// * `x` - Point at which to evaluate the derivative
-/// * `h` - Step size for the finite difference
+/// * `h` - Step size for the finite difference (smaller = more accurate, but numerical issues)
 /// * `eval_fn` - Function that evaluates the interpolant at a point
 ///
 /// # Returns
 ///
-/// The derivative of the interpolant at x
+/// The approximate derivative of the interpolant at x
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_interpolate::utils::differentiate;
+/// use scirs2_interpolate::error::InterpolateResult;
+///
+/// // Example: differentiate f(x) = x^3 at x = 2
+/// // Expected derivative: f'(2) = 3 * 2^2 = 12
+/// let cubic_fn = |x: f64| -> InterpolateResult<f64> {
+///     Ok(x * x * x)
+/// };
+///
+/// let derivative_at_2 = differentiate(2.0, 0.001, cubic_fn).unwrap();
+/// assert!((derivative_at_2 - 12.0).abs() < 0.01); // Should be close to 12
+///
+/// // Example: differentiate sin(x) at x = π/2  
+/// // Expected derivative: cos(π/2) = 0
+/// let sin_fn = |x: f64| -> InterpolateResult<f64> {
+///     Ok(x.sin())
+/// };
+///
+/// let derivative_at_pi_2 = differentiate(std::f64::consts::PI / 2.0, 0.0001, sin_fn).unwrap();
+/// assert!(derivative_at_pi_2.abs() < 0.01); // Should be close to 0
+/// ```
 pub fn differentiate<F, Func>(x: F, h: F, eval_fn: Func) -> InterpolateResult<F>
 where
     F: Float + FromPrimitive + Debug,
@@ -139,18 +201,47 @@ where
     Ok(derivative)
 }
 
-/// Integrate an interpolated function
+/// Integrate an interpolated function using Simpson's rule
+///
+/// This function computes the definite integral of an interpolated function
+/// over a specified interval using composite Simpson's rule. This is useful
+/// for computing areas under interpolated curves or other integral quantities.
 ///
 /// # Arguments
 ///
 /// * `a` - Lower bound of integration
-/// * `b` - Upper bound of integration
-/// * `n` - Number of intervals for the quadrature
+/// * `b` - Upper bound of integration  
+/// * `n` - Number of intervals for the quadrature (must be even and >= 2)
 /// * `eval_fn` - Function that evaluates the interpolant at a point
 ///
 /// # Returns
 ///
-/// The definite integral of the interpolant from a to b
+/// The approximate definite integral of the interpolant from a to b
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_interpolate::utils::integrate;
+/// use scirs2_interpolate::error::InterpolateResult;
+///
+/// // Example: integrate f(x) = x^2 from 0 to 2
+/// // Expected result: ∫₀² x² dx = [x³/3]₀² = 8/3 ≈ 2.667
+/// let quadratic_fn = |x: f64| -> InterpolateResult<f64> {
+///     Ok(x * x)
+/// };
+///
+/// let integral = integrate(0.0, 2.0, 100, quadratic_fn).unwrap();
+/// assert!((integral - 8.0/3.0).abs() < 0.001);
+///
+/// // Example: integrate sin(x) from 0 to π
+/// // Expected result: ∫₀^π sin(x) dx = [-cos(x)]₀^π = 2
+/// let sin_fn = |x: f64| -> InterpolateResult<f64> {
+///     Ok(x.sin())
+/// };
+///
+/// let integral_sin = integrate(0.0, std::f64::consts::PI, 200, sin_fn).unwrap();
+/// assert!((integral_sin - 2.0).abs() < 0.001);
+/// ```
 pub fn integrate<F, Func>(a: F, b: F, n: usize, eval_fn: Func) -> InterpolateResult<F>
 where
     F: Float + FromPrimitive + Debug,

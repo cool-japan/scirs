@@ -15,7 +15,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u, s, v) = svd(&matrix);
+        let (u, s, v) = svd(matrix);
         println!(
             "SVD shapes: U={:?}, S={:?}, V={:?}",
             u.eval(g).unwrap().shape(),
@@ -25,7 +25,7 @@ fn main() {
 
         // Test 1: Gradient through sum of U
         println!("\nTest 1: Gradient through sum of U");
-        let loss_u = sum_all(&u);
+        let loss_u = sum_all(u);
         let grads_u = grad(&[loss_u], &[&matrix]);
         let grad_matrix_u = &grads_u[0];
 
@@ -45,7 +45,7 @@ fn main() {
 
         // Test 2: Gradient through sum of S
         println!("\nTest 2: Gradient through sum of S");
-        let loss_s = sum_all(&s);
+        let loss_s = sum_all(s);
         let grads_s = grad(&[loss_s], &[&matrix]);
         let grad_matrix_s = &grads_s[0];
 
@@ -67,14 +67,14 @@ fn main() {
         println!("\nTest 3: Gradient through reconstruction loss");
 
         // Reconstruct the matrix from SVD components
-        let s_diag = diag(&s);
-        let us = matmul(&u, &s_diag);
-        let v_t = transpose(&v, &[1, 0]);
-        let reconstructed = matmul(&us, &v_t);
+        let s_diag = diag(s);
+        let us = matmul(u, s_diag);
+        let v_t = transpose(v, &[1, 0]);
+        let reconstructed = matmul(us, v_t);
 
         // Compute reconstruction loss
-        let diff = sub(&reconstructed, &matrix);
-        let loss_recon = sum_all(&square(&diff));
+        let diff = sub(reconstructed, matrix);
+        let loss_recon = sum_all(square(diff));
 
         // Compute gradient of the loss with respect to the input matrix
         let grads_recon = grad(&[loss_recon], &[&matrix]);

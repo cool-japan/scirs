@@ -137,29 +137,73 @@ impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> MetricOptimizer<F> {
         }
     }
 
-    /// Create a ReduceOnPlateau scheduler for this metric
-    #[allow(unexpected_cfgs)]
-    #[cfg(feature = "optim_integration")]
-    pub fn create_lr_scheduler(
+    /// Create scheduler configuration for this metric
+    ///
+    /// Returns a configuration that can be used to create an external scheduler.
+    /// This provides a bridge to scirs2-optim schedulers without circular dependencies.
+    pub fn create_scheduler_config(
         &self,
         initial_lr: F,
         factor: F,
         patience: usize,
         min_lr: F,
-    ) -> scirs2_optim::schedulers::ReduceOnPlateau<F> {
-        let mut scheduler =
-            scirs2_optim::schedulers::ReduceOnPlateau::new(initial_lr, factor, patience, min_lr);
-
-        // Set mode based on optimization mode
-        match self.mode {
-            OptimizationMode::Minimize => {
-                scheduler.mode_min();
-            }
-            OptimizationMode::Maximize => {
-                scheduler.mode_max();
-            }
+    ) -> SchedulerConfig<F> {
+        SchedulerConfig {
+            initial_lr,
+            factor,
+            patience,
+            min_lr,
+            mode: self.mode,
+            metric_name: self.metric_name.clone(),
         }
+    }
+}
 
-        scheduler
+/// Configuration for external scheduler creation
+#[derive(Debug, Clone)]
+pub struct SchedulerConfig<F: Float + fmt::Debug + fmt::Display + FromPrimitive> {
+    /// Initial learning rate
+    pub initial_lr: F,
+    /// Factor by which to reduce learning rate
+    pub factor: F,
+    /// Number of epochs with no improvement before reduction
+    pub patience: usize,
+    /// Minimum learning rate
+    pub min_lr: F,
+    /// Optimization mode (minimize or maximize)
+    pub mode: OptimizationMode,
+    /// Metric name for tracking
+    pub metric_name: String,
+}
+
+impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> SchedulerConfig<F> {
+    /// Get the configuration as a tuple for easy destructuring
+    pub fn as_tuple(&self) -> (F, F, usize, F, OptimizationMode) {
+        (
+            self.initial_lr,
+            self.factor,
+            self.patience,
+            self.min_lr,
+            self.mode,
+        )
+    }
+
+    /// Create a new scheduler configuration
+    pub fn new(
+        initial_lr: F,
+        factor: F,
+        patience: usize,
+        min_lr: F,
+        mode: OptimizationMode,
+        metric_name: String,
+    ) -> Self {
+        Self {
+            initial_lr,
+            factor,
+            patience,
+            min_lr,
+            mode,
+            metric_name,
+        }
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-ndimage"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -20,11 +20,26 @@ ndarray-rand = { workspace = true }
 approx = { workspace = true }
 cached = { workspace = true }
 
+[features]
+default = []
+simd = ["scirs2-core/simd"]
+parallel = ["scirs2-core/parallel"]
+
 [dev-dependencies]
 criterion = { workspace = true }
 
-# Temporarily commented out for publishing
-# [[bench]]
-# name = "rank_filter_bench"
-# path = "../benches/ndimage/rank_filter_bench.rs"
-# harness = false
+[[bench]]
+name = "filters_bench"
+harness = false
+
+[[bench]]
+name = "morphology_bench"
+harness = false
+
+[[bench]]
+name = "interpolation_bench"
+harness = false
+
+[[bench]]
+name = "distance_transform_bench"
+harness = false

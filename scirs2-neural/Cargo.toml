@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-neural"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -10,8 +10,8 @@ keywords = ["neural-network", "deep-learning", "scientific", "ai", "machine-lear
 categories = ["science", "mathematics", "algorithms"]
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, optional = true, features = ["linalg", "openblas"] }
+# Core dependencies - temporarily use minimal features until core issues are resolved
+scirs2-core = { workspace = true, optional = true, features = ["linalg"] }
 # Temporarily commented out for publishing
 # scirs2-linalg = { workspace = true, optional = true }
 # scirs2-optimize = { workspace = true, optional = true }
@@ -20,7 +20,7 @@ scirs2-core = { workspace = true, optional = true, features = ["linalg", "openbl
 scirs2-metrics = { workspace = true, optional = true, default-features = false, features = ["neural_common"] }
 ndarray = { workspace = true }
 ndarray-stats-05 = { workspace = true }
-ndarray-linalg = { workspace = true }
+ndarray-linalg = { workspace = true, default-features = false }
 ndarray-rand = { workspace = true }
 num-integer = { workspace = true }
 approx = { workspace = true }
@@ -29,8 +29,10 @@ num-complex = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
-blas = { workspace = true }
-openblas-src = { workspace = true }
+rand_chacha = { workspace = true }
+# BLAS dependencies handled through scirs2-core
+rayon = { workspace = true, optional = true }
+wide = { workspace = true, optional = true }
 
 # AI/ML specific dependencies
 autograd = { workspace = true }
@@ -45,22 +47,30 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 serde_cbor = { workspace = true }
 rmp-serde = { workspace = true }
+chrono = { workspace = true }
+tempfile = { workspace = true }
 
 # Future dependency for PandRS and NumRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
 # numrs_wrapper = { path = "../wrappers/numrs_wrapper", optional = true }
 
 [features]
-default = ["openblas"]
-full = ["core", "openblas"]  # Temporarily limited for publishing
+default = ["core", "openblas"]
+full = ["core", "gpu", "memory_efficient", "openblas"]  # Enhanced feature set
 core = ["dep:scirs2-core"]
+gpu = ["core"]  # GPU acceleration requires core
+memory_efficient = ["core"]  # Memory efficiency requires core
+memory_management = ["core"]  # Memory management features
+cache = ["core"]  # Caching features
+simd = ["core", "dep:wide"]  # SIMD acceleration requires core and wide
+rayon = ["dep:rayon"]  # Parallel processing support
 # Features temporarily disabled for publishing
 # linalg = ["dep:scirs2-linalg"] 
 # optimize = ["dep:scirs2-optimize"]
 optim = [] # Empty feature for compatibility with existing code
-openblas = ["ndarray-linalg/openblas-static"]
-netlib = ["ndarray-linalg/netlib"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
+openblas = ["scirs2-core/openblas"]
+netlib = ["scirs2-core/netlib"]
+intel-mkl = ["scirs2-core/intel-mkl"]
 # Integration with other modules
 metrics_integration = ["dep:scirs2-metrics"]
 
@@ -95,3 +105,7 @@ path = "examples/advanced_optimizers_example.rs"
 [[example]]
 name = "metrics_integration_example"
 path = "examples/metrics_integration_example.rs"
+
+[[example]]
+name = "neural_advanced_features"
+path = "examples/neural_advanced_features.rs"

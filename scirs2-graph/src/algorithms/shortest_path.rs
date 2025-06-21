@@ -443,7 +443,8 @@ where
                 if let Ok(edge_weight) = graph.edge_weight(current, &neighbor) {
                     let tentative_g = current_g + edge_weight;
 
-                    if tentative_g < *g_score.get(&neighbor).unwrap_or(&E::zero()) {
+                    let current_neighbor_g = g_score.get(&neighbor);
+                    if current_neighbor_g.is_none() || tentative_g < *current_neighbor_g.unwrap() {
                         came_from.insert(neighbor.clone(), current.clone());
                         g_score.insert(neighbor.clone(), tentative_g);
 
@@ -512,7 +513,8 @@ where
                 if let Ok(edge_weight) = graph.edge_weight(current, &neighbor) {
                     let tentative_g = current_g + edge_weight;
 
-                    if tentative_g < *g_score.get(&neighbor).unwrap_or(&E::zero()) {
+                    let current_neighbor_g = g_score.get(&neighbor);
+                    if current_neighbor_g.is_none() || tentative_g < *current_neighbor_g.unwrap() {
                         came_from.insert(neighbor.clone(), current.clone());
                         g_score.insert(neighbor.clone(), tentative_g);
 
@@ -768,14 +770,10 @@ mod tests {
         // Manhattan distance heuristic
         let heuristic = |&(x, y): &(i32, i32)| -> f64 { ((1 - x).abs() + (1 - y).abs()) as f64 };
 
-        // A* has a bug with unvisited nodes, so we'll just check that it returns an error for now
         let result = astar_search(&graph, &(0, 0), &(1, 1), heuristic);
-        assert!(result.is_err()); // Known issue: A* treats unvisited nodes as having g=0 instead of infinity
-
-        // TODO: Fix A* implementation and re-enable this test
-        // let result = result.unwrap();
-        // assert_eq!(result.cost, 2.0);
-        // assert_eq!(result.path.len(), 3); // Start, one intermediate, goal
+        let result = result.unwrap();
+        assert_eq!(result.cost, 2.0);
+        assert_eq!(result.path.len(), 3); // Start, one intermediate, goal
     }
 
     #[test]

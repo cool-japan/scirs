@@ -7,7 +7,7 @@ fn test_enhanced_error_singular_matrix() {
     let singular = array![[1.0, 2.0], [2.0, 4.0]];
 
     // Test with inverse
-    let result = inv(&singular.view());
+    let result = inv(&singular.view(), None);
     assert!(result.is_err());
     let error = result.unwrap_err();
 
@@ -16,7 +16,7 @@ fn test_enhanced_error_singular_matrix() {
     println!("Actual error message for inv: {}", error_str);
     assert!(error_str.contains("Singular matrix"));
     assert!(error_str.contains("Matrix shape"));
-    assert!(error_str.contains("Hint:"));
+    assert!(error_str.contains("Consider the following"));
     println!("Enhanced error message:\n{}", error_str);
 }
 
@@ -26,7 +26,7 @@ fn test_enhanced_error_solve() {
     let singular = array![[1.0, 2.0], [2.0, 4.0]];
     let b = array![1.0, 2.0];
 
-    let result = solve(&singular.view(), &b.view());
+    let result = solve(&singular.view(), &b.view(), None);
     assert!(result.is_err());
     let error = result.unwrap_err();
 
@@ -36,7 +36,7 @@ fn test_enhanced_error_solve() {
     assert!(error_str.contains("Singular matrix"));
     assert!(error_str.contains("Matrix shape"));
     // For small matrices, solve() calls inv() internally, so we get inv's error message
-    assert!(error_str.contains("Hint:"));
+    assert!(error_str.contains("Consider the following"));
     println!("Solve error message:\n{}", error_str);
 }
 
@@ -45,7 +45,7 @@ fn test_error_no_enhancement_for_dimension_error() {
     // Test that dimension errors don't get enhanced
     let non_square = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-    let result = inv(&non_square.view());
+    let result = inv(&non_square.view(), None);
     assert!(result.is_err());
     let error = result.unwrap_err();
 

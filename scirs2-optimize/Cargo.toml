@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-optimize"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Optimization module for SciRS2"
@@ -17,7 +17,7 @@ ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
 thiserror = { workspace = true }
-openblas-src = { workspace = true }
+# BLAS dependencies handled through scirs2-core
 
 # Optimization specific dependencies
 argmin = { workspace = true }
@@ -26,24 +26,21 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 friedrich = { workspace = true }
 scirs2-sparse = { workspace = true }
+ndarray-linalg = { workspace = true }
+
+# Async dependencies (optional)
+tokio = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+
+[features]
+default = []
+async = ["tokio", "futures"]
 
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 
-[[example]]
-name = "global_optimization"
-path = "examples/global_optimization.rs"
-
-[[example]]
-name = "sparse_numerical_differentiation"
-path = "examples/sparse_numerical_differentiation.rs"
-
-[[example]]
-name = "powell_example"
-path = "examples/powell_example.rs"
-
-[[example]]
-name = "scalar_optimization"
-path = "examples/scalar_optimization.rs"
 

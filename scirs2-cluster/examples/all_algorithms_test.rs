@@ -22,7 +22,7 @@ use scirs2_cluster::{
     // Spectral
     spectral_clustering,
     // K-means
-    vq::kmeans,
+    vq::{kmeans2, MinitMethod, MissingMethod},
     AffinityMode,
     AffinityPropagationOptions,
     BirchOptions,
@@ -62,7 +62,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. K-means
     println!("1. K-means Clustering");
-    let (_, kmeans_labels) = kmeans(data.view(), 3, None)?;
+    let (_, kmeans_labels) = kmeans2(
+        data.view(),
+        3,
+        Some(10), // iterations
+        None,     // threshold
+        Some(MinitMethod::Random),
+        Some(MissingMethod::Warn),
+        Some(true), // check_finite
+        Some(42),   // random_seed
+    )?;
     print_results(&kmeans_labels, &data);
 
     // 2. DBSCAN

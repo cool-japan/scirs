@@ -94,7 +94,7 @@ use rayon::prelude::*;
 /// This trait extends `MemoryMappedArray` with methods for processing large datasets
 /// in manageable chunks, which helps to control memory usage and enables working with
 /// arrays that might be too large to fit entirely in memory.
-pub trait MemoryMappedChunks<A: Clone + Copy + 'static> {
+pub trait MemoryMappedChunks<A: Clone + Copy + 'static + Send + Sync> {
     /// Get the number of chunks for the given chunking strategy.
     ///
     /// # Arguments
@@ -212,7 +212,7 @@ pub trait MemoryMappedChunks<A: Clone + Copy + 'static> {
 /// This trait is only available when the 'parallel' feature is enabled.
 /// It extends the `MemoryMappedChunks` trait with parallel processing capabilities.
 #[cfg(feature = "parallel")]
-pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync>:
+pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync + Send + Sync>:
     MemoryMappedChunks<A>
 {
     /// Process chunks in parallel and collect the results.
@@ -331,7 +331,7 @@ pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync>:
 /// ```
 pub struct ChunkIter<'a, A>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync + Send + Sync,
 {
     /// Reference to the memory-mapped array
     array: &'a MemoryMappedArray<A>,
@@ -343,9 +343,9 @@ where
     strategy: ChunkingStrategy,
 }
 
-impl<'a, A> Iterator for ChunkIter<'a, A>
+impl<A> Iterator for ChunkIter<'_, A>
 where
-    A: Clone + Copy + 'static,
+    A: Clone + Copy + 'static + Send + Sync,
 {
     type Item = Array1<A>;
 
@@ -359,11 +359,8 @@ where
             // Get chunk start/end indices
             let chunk_size = match self.strategy {
                 ChunkingStrategy::Fixed(size) => size,
-                ChunkingStrategy::NumChunks(n) => (self.array.size + n - 1) / n,
-                ChunkingStrategy::Auto => {
-                    let optimal_chunk_size = (self.array.size / 100).max(1);
-                    optimal_chunk_size
-                }
+                ChunkingStrategy::NumChunks(n) => self.array.size.div_ceil(n),
+                ChunkingStrategy::Auto => (self.array.size / 100).max(1),
                 ChunkingStrategy::FixedBytes(bytes) => {
                     let element_size = std::mem::size_of::<A>();
                     let elements_per_chunk = bytes / element_size;
@@ -389,14 +386,14 @@ where
     }
 }
 
-impl<'a, A> ExactSizeIterator for ChunkIter<'a, A> where A: Clone + Copy + 'static {}
+impl<A> ExactSizeIterator for ChunkIter<'_, A> where A: Clone + Copy + 'static + Send + Sync {}
 
 /// Extension trait for MemoryMappedArray to enable chunked iteration.
 ///
 /// This trait extends `MemoryMappedArray` with the ability to iterate over chunks
 /// of the array, which provides a convenient way to process large arrays sequentially
 /// in smaller, manageable pieces.
-pub trait MemoryMappedChunkIter<A: Clone + Copy + 'static> {
+pub trait MemoryMappedChunkIter<A: Clone + Copy + 'static + Send + Sync> {
     /// Create an iterator over chunks of the array (for 1D arrays only).
     ///
     /// This method returns an iterator that yields chunks of the array as
@@ -433,12 +430,14 @@ pub trait MemoryMappedChunkIter<A: Clone + Copy + 'static> {
     fn chunks(&self, strategy: ChunkingStrategy) -> ChunkIter<A>;
 }
 
-impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
+impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> MemoryMappedChunks<A>
+    for MemoryMappedArray<A>
+{
     fn chunk_count(&self, strategy: ChunkingStrategy) -> usize {
         match strategy {
             ChunkingStrategy::Fixed(size) => {
                 // Calculate how many chunks of the given size we need
-                (self.size + size - 1) / size
+                self.size.div_ceil(size)
             }
             ChunkingStrategy::NumChunks(n) => {
                 // Number of chunks is explicitly specified
@@ -448,14 +447,14 @@ impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
                 // Determine a reasonable chunk size based on the array size
                 let total_elements = self.size;
                 let optimal_chunk_size = (total_elements / 100).max(1);
-                (total_elements + optimal_chunk_size - 1) / optimal_chunk_size
+                total_elements.div_ceil(optimal_chunk_size)
             }
             ChunkingStrategy::FixedBytes(bytes) => {
                 // Calculate how many chunks based on bytes
                 let element_size = std::mem::size_of::<A>();
                 let elements_per_chunk = bytes / element_size;
                 let elements_per_chunk = elements_per_chunk.max(1); // Ensure at least 1 element per chunk
-                (self.size + elements_per_chunk - 1) / elements_per_chunk
+                self.size.div_ceil(elements_per_chunk)
             }
         }
     }
@@ -472,11 +471,10 @@ impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
             // Calculate chunk size and indices
             let chunk_size = match strategy {
                 ChunkingStrategy::Fixed(size) => size,
-                ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+                ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
                 ChunkingStrategy::Auto => {
                     let total_elements = self.size;
-                    let optimal_chunk_size = (total_elements / 100).max(1);
-                    optimal_chunk_size
+                    (total_elements / 100).max(1)
                 }
                 ChunkingStrategy::FixedBytes(bytes) => {
                     let element_size = std::mem::size_of::<A>();
@@ -513,11 +511,10 @@ impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
             // Calculate chunk size and indices
             let chunk_size = match strategy {
                 ChunkingStrategy::Fixed(size) => size,
-                ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+                ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
                 ChunkingStrategy::Auto => {
                     let total_elements = self.size;
-                    let optimal_chunk_size = (total_elements / 100).max(1);
-                    optimal_chunk_size
+                    (total_elements / 100).max(1)
                 }
                 ChunkingStrategy::FixedBytes(bytes) => {
                     let elements_per_chunk = bytes / element_size;
@@ -555,7 +552,7 @@ impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
                 let effective_offset = self.offset + start_idx * element_size;
 
                 // Seek to the position and write the data
-                if let Ok(_) = file.seek(SeekFrom::Start(effective_offset as u64)) {
+                if file.seek(SeekFrom::Start(effective_offset as u64)).is_ok() {
                     // Convert the chunk data to bytes
                     let bytes = unsafe {
                         std::slice::from_raw_parts(
@@ -578,7 +575,7 @@ impl<A: Clone + Copy + 'static> MemoryMappedChunks<A> for MemoryMappedArray<A> {
 
 // Add the parallel methods directly to the existing implementation
 #[cfg(feature = "parallel")]
-impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunksParallel<A>
+impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> MemoryMappedChunksParallel<A>
     for MemoryMappedArray<A>
 {
     fn process_chunks_parallel<F, R>(&self, strategy: ChunkingStrategy, f: F) -> Vec<R>
@@ -592,11 +589,10 @@ impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunksParallel<A>
             .map(|chunk_idx| {
                 let chunk_size = match strategy {
                     ChunkingStrategy::Fixed(size) => size,
-                    ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+                    ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
                     ChunkingStrategy::Auto => {
                         let total_elements = self.size;
-                        let optimal_chunk_size = (total_elements / 100).max(1);
-                        optimal_chunk_size
+                        (total_elements / 100).max(1)
                     }
                     ChunkingStrategy::FixedBytes(bytes) => {
                         let element_size = std::mem::size_of::<A>();
@@ -645,11 +641,10 @@ impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunksParallel<A>
             .map(|chunk_idx| {
                 let chunk_size = match strategy {
                     ChunkingStrategy::Fixed(size) => size,
-                    ChunkingStrategy::NumChunks(n) => (self.size + n - 1) / n,
+                    ChunkingStrategy::NumChunks(n) => self.size.div_ceil(n),
                     ChunkingStrategy::Auto => {
                         let total_elements = self.size;
-                        let optimal_chunk_size = (total_elements / 100).max(1);
-                        optimal_chunk_size
+                        (total_elements / 100).max(1)
                     }
                     ChunkingStrategy::FixedBytes(bytes) => {
                         let elements_per_chunk = bytes / element_size;
@@ -696,7 +691,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunksParallel<A>
                 let effective_offset = offset + start_idx * element_size;
 
                 // Seek to the position and write the data
-                if let Ok(_) = file.seek(SeekFrom::Start(effective_offset as u64)) {
+                if file.seek(SeekFrom::Start(effective_offset as u64)).is_ok() {
                     // Convert the chunk data to bytes
                     let bytes = unsafe {
                         std::slice::from_raw_parts(
@@ -717,7 +712,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunksParallel<A>
     }
 }
 
-impl<A: Clone + Copy + 'static> MemoryMappedChunkIter<A> for MemoryMappedArray<A> {
+impl<A: Clone + Copy + 'static + Send + Sync> MemoryMappedChunkIter<A> for MemoryMappedArray<A> {
     fn chunks(&self, strategy: ChunkingStrategy) -> ChunkIter<A> {
         ChunkIter {
             array: self,

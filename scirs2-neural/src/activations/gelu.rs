@@ -89,13 +89,10 @@ impl<F: Float + Debug> Activation<F> for GELU {
     fn backward(
         &self,
         grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
+        input: &Array<F, ndarray::IxDyn>,
     ) -> Result<Array<F, ndarray::IxDyn>> {
         // We need to compute the derivative of GELU
-        // For the exact implementation, this is complex
-        // So we'll recompute from the input
-        let input = output.clone(); // FIXME: This is not correct, but it's a placeholder
-
+        // The input parameter now correctly contains the input values
         let mut grad_input = Array::zeros(grad_output.raw_dim());
 
         // Compute the derivative based on the input
@@ -108,7 +105,7 @@ impl<F: Float + Debug> Activation<F> for GELU {
 
             Zip::from(&mut grad_input)
                 .and(grad_output)
-                .and(&input)
+                .and(input)
                 .for_each(|grad_in, &grad_out, &x| {
                     let x2 = x * x;
                     let x3 = x2 * x;
@@ -139,7 +136,7 @@ impl<F: Float + Debug> Activation<F> for GELU {
 
             Zip::from(&mut grad_input)
                 .and(grad_output)
-                .and(&input)
+                .and(input)
                 .for_each(|grad_in, &grad_out, &x| {
                     let x2 = x * x;
 
@@ -184,10 +181,8 @@ impl<F: Float + Debug + ScalarOperand> Layer<F> for GELU {
         input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // For GELU, we don't use the input directly in the backward pass
-        // Instead, we compute the gradient from the output
-        let output = Activation::<F>::forward(self, input)?;
-        <Self as Activation<F>>::backward(self, grad_output, &output)
+        // For GELU, we compute the gradient using the input values
+        <Self as Activation<F>>::backward(self, grad_output, input)
     }
 
     fn update(&mut self, _learning_rate: F) -> Result<()> {

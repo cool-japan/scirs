@@ -262,8 +262,10 @@ fn performance_test(
     let stat_time = start.elapsed();
 
     // Create a non-contextual statistical corrector for comparison
-    let mut non_context_config = StatisticalCorrectorConfig::default();
-    non_context_config.use_context = false;
+    let non_context_config = StatisticalCorrectorConfig {
+        use_context: false,
+        ..Default::default()
+    };
     let mut non_context_corrector = StatisticalCorrector::new(non_context_config);
 
     // Add training data to ensure fair comparison
@@ -296,33 +298,43 @@ fn configuration_demo() -> Result<(), Box<dyn std::error::Error>> {
     // Create configurations with different settings
     let configs = [
         ("Default", StatisticalCorrectorConfig::default()),
-        ("Conservative (max_edit_distance=1)", {
-            let mut config = StatisticalCorrectorConfig::default();
-            config.max_edit_distance = 1;
-            config
-        }),
-        ("Aggressive (max_edit_distance=3)", {
-            let mut config = StatisticalCorrectorConfig::default();
-            config.max_edit_distance = 3;
-            config
-        }),
-        ("Language model focused (weight=0.9)", {
-            let mut config = StatisticalCorrectorConfig::default();
-            config.language_model_weight = 0.9;
-            config.edit_distance_weight = 0.1;
-            config
-        }),
-        ("Edit distance focused (weight=0.9)", {
-            let mut config = StatisticalCorrectorConfig::default();
-            config.language_model_weight = 0.1;
-            config.edit_distance_weight = 0.9;
-            config
-        }),
-        ("No context", {
-            let mut config = StatisticalCorrectorConfig::default();
-            config.use_context = false;
-            config
-        }),
+        (
+            "Conservative (max_edit_distance=1)",
+            StatisticalCorrectorConfig {
+                max_edit_distance: 1,
+                ..Default::default()
+            },
+        ),
+        (
+            "Aggressive (max_edit_distance=3)",
+            StatisticalCorrectorConfig {
+                max_edit_distance: 3,
+                ..Default::default()
+            },
+        ),
+        (
+            "Language model focused (weight=0.9)",
+            StatisticalCorrectorConfig {
+                language_model_weight: 0.9,
+                edit_distance_weight: 0.1,
+                ..Default::default()
+            },
+        ),
+        (
+            "Edit distance focused (weight=0.9)",
+            StatisticalCorrectorConfig {
+                language_model_weight: 0.1,
+                edit_distance_weight: 0.9,
+                ..Default::default()
+            },
+        ),
+        (
+            "No context",
+            StatisticalCorrectorConfig {
+                use_context: false,
+                ..Default::default()
+            },
+        ),
     ];
 
     // Sample misspelled words with varied edit distances
@@ -429,9 +441,11 @@ fn noise_model_demo() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nImpact on correction with custom error model:");
 
     // Create a statistical corrector with a custom error model
-    let mut custom_config = StatisticalCorrectorConfig::default();
-    custom_config.language_model_weight = 0.3;
-    custom_config.edit_distance_weight = 0.7;
+    let custom_config = StatisticalCorrectorConfig {
+        language_model_weight: 0.3,
+        edit_distance_weight: 0.7,
+        ..Default::default()
+    };
 
     let mut custom_corrector = StatisticalCorrector::new(custom_config);
     train_language_model(&mut custom_corrector);

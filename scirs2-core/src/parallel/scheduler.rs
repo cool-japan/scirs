@@ -111,73 +111,73 @@ impl SchedulerConfigBuilder {
     }
 
     /// Set the number of worker threads
-    pub fn num_workers(mut self, num_workers: usize) -> Self {
+    pub const fn num_workers(mut self, num_workers: usize) -> Self {
         self.config.num_workers = num_workers;
         self
     }
 
     /// Set the scheduling policy
-    pub fn policy(mut self, policy: SchedulingPolicy) -> Self {
+    pub const fn policy(mut self, policy: SchedulingPolicy) -> Self {
         self.config.policy = policy;
         self
     }
 
     /// Set the maximum queue size
-    pub fn max_queue_size(mut self, size: usize) -> Self {
+    pub const fn max_queue_size(mut self, size: usize) -> Self {
         self.config.max_queue_size = size;
         self
     }
 
     /// Enable or disable adaptive scheduling
-    pub fn adaptive(mut self, enable: bool) -> Self {
+    pub const fn adaptive(mut self, enable: bool) -> Self {
         self.config.adaptive = enable;
         self
     }
 
     /// Enable or disable stealing heuristics
-    pub fn enable_stealing_heuristics(mut self, enable: bool) -> Self {
+    pub const fn enable_stealing_heuristics(mut self, enable: bool) -> Self {
         self.config.enable_stealing_heuristics = enable;
         self
     }
 
     /// Enable or disable task priorities
-    pub fn enable_priorities(mut self, enable: bool) -> Self {
+    pub const fn enable_priorities(mut self, enable: bool) -> Self {
         self.config.enable_priorities = enable;
         self
     }
 
     /// Set the stealing threshold
-    pub fn stealing_threshold(mut self, threshold: usize) -> Self {
+    pub const fn stealing_threshold(mut self, threshold: usize) -> Self {
         self.config.stealing_threshold = threshold;
         self
     }
 
     /// Set the worker sleep time
-    pub fn sleep_ms(mut self, ms: u64) -> Self {
+    pub const fn sleep_ms(mut self, ms: u64) -> Self {
         self.config.sleep_ms = ms;
         self
     }
 
     /// Set the minimum batch size
-    pub fn min_batch_size(mut self, size: usize) -> Self {
+    pub const fn min_batch_size(mut self, size: usize) -> Self {
         self.config.min_batch_size = size;
         self
     }
 
     /// Set the maximum batch size
-    pub fn max_batch_size(mut self, size: usize) -> Self {
+    pub const fn max_batch_size(mut self, size: usize) -> Self {
         self.config.max_batch_size = size;
         self
     }
 
     /// Set the task timeout
-    pub fn task_timeout_ms(mut self, timeout: u64) -> Self {
+    pub const fn task_timeout_ms(mut self, timeout: u64) -> Self {
         self.config.task_timeout_ms = timeout;
         self
     }
 
     /// Set the maximum number of retries
-    pub fn max_retries(mut self, retries: usize) -> Self {
+    pub const fn max_retries(mut self, retries: usize) -> Self {
         self.config.max_retries = retries;
         self
     }
@@ -1337,7 +1337,7 @@ where
     }
 
     /// Set whether to continue on errors
-    pub fn continue_on_error(mut self, continue_on_error: bool) -> Self {
+    pub const fn continue_on_error(mut self, continue_on_error: bool) -> Self {
         self.continue_on_error = continue_on_error;
         self
     }

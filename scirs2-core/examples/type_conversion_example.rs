@@ -1,5 +1,5 @@
 use num_complex::Complex64;
-use scirs2_core::types::{ComplexConversionError, ComplexExt, ComplexOps, NumericConversion};
+use scirs2_core::types::{ComplexExt, ComplexOps, NumericConversion};
 
 fn main() {
     println!("Type Conversion Example");

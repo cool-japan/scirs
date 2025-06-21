@@ -1,11 +1,10 @@
 //! Tests for the optim integration module
 
 use approx::assert_abs_diff_eq;
-use ndarray::{Array1, ArrayD};
-use num_traits::{Float, FromPrimitive};
+use scirs2_metrics::error::Result;
 use scirs2_metrics::integration::optim::{
-    HyperParameter, HyperParameterSearchResult, HyperParameterTuner, MetricOptimizer,
-    MetricScheduler, OptimizationMode,
+    HyperParameter, HyperParameterSearchResult, HyperParameterTuner, MetricLRScheduler,
+    MetricOptimizer, OptimizationMode,
 };
 use std::collections::HashMap;
 
@@ -41,17 +40,14 @@ fn test_metric_optimizer() {
     optimizer.reset();
     assert_eq!(optimizer.history().len(), 0);
     assert_eq!(optimizer.best_value(), None);
-    assert!(optimizer
-        .additional_metric_history("loss")
-        .unwrap()
-        .is_empty());
+    assert!(optimizer.additional_metric_history("loss").is_none());
 }
 
 /// Test the MetricScheduler
 #[test]
 fn test_metric_scheduler() {
     // Create a scheduler for minimizing a loss metric
-    let mut scheduler = MetricScheduler::new(
+    let mut scheduler = MetricLRScheduler::new(
         0.1,        // Initial learning rate
         0.5,        // Factor
         2,          // Patience
@@ -80,11 +76,11 @@ fn test_metric_scheduler() {
     assert_eq!(lr, 0.05);
 
     // Test multiple decreases and minimum limit
-    let lr = scheduler.step_with_metric(1.0);
+    let _lr = scheduler.step_with_metric(1.0);
     let lr = scheduler.step_with_metric(1.1);
     assert_eq!(lr, 0.025); // 0.05 * 0.5
 
-    let lr = scheduler.step_with_metric(1.2);
+    let _lr = scheduler.step_with_metric(1.2);
     let lr = scheduler.step_with_metric(1.3);
     assert_eq!(lr, 0.0125); // 0.025 * 0.5
 
@@ -96,7 +92,7 @@ fn test_metric_scheduler() {
 
     // Test history
     assert!(scheduler.history().len() > 1);
-    assert!(scheduler.metric_history().len() > 0);
+    assert!(!scheduler.metric_history().is_empty());
 
     // Test reset
     scheduler.reset();
@@ -153,10 +149,10 @@ fn test_hyperparameter_tuner() {
     assert!(random_params.contains_key("weight_decay"));
 
     let lr = random_params["learning_rate"];
-    assert!(lr >= 0.001 && lr <= 0.1);
+    assert!((0.001..=0.1).contains(&lr));
 
     // Test random search
-    let eval_fn = |params: &HashMap<f64, f64>| -> Result<f64, Box<dyn std::error::Error>> {
+    let eval_fn = |params: &HashMap<String, f64>| -> Result<f64> {
         // Simple evaluation function that favors higher learning rates
         // and lower weight decay values
         let lr = params["learning_rate"];

@@ -45,9 +45,7 @@ mod utils;
 
 // These modules have issues, not exporting directly
 mod binary;
-mod binary_fix;
 mod grayscale;
-mod grayscale_fix;
 
 // Public re-exports
 pub use binary::*;

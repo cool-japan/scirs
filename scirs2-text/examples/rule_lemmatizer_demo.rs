@@ -131,10 +131,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         PosTag::Adverb,
         PosTag::Other,
     ];
-    let mut i = 0;
-    for token in &all_tokens {
+    for (i, token) in all_tokens.iter().enumerate() {
         tokens_with_pos.push((token.to_string(), pos_tags[i % pos_tags.len()].clone()));
-        i += 1;
     }
 
     // Benchmark simple lemmatizer
@@ -154,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Benchmark rule-based lemmatizer with POS
     let start = Instant::now();
     for (token, pos) in &tokens_with_pos {
-        let _ = pos_aware_lemmatizer.lemmatize(&token, Some(pos.clone()));
+        let _ = pos_aware_lemmatizer.lemmatize(token, Some(pos.clone()));
     }
     let pos_rule_time = start.elapsed();
 

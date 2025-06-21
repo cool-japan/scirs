@@ -339,6 +339,16 @@ pub fn make_hodlr_kriging<
 ///
 /// This function selects an appropriate approximation method based on
 /// the size of the dataset, balancing accuracy and computational efficiency.
+/// 
+/// The selection strategy is:
+/// - < 500 points: Local kriging (most accurate for small datasets)
+/// - 500-5,000 points: Fixed rank with moderate rank (good balance)
+/// - 5,000-50,000 points: Tapering (efficient for large sparse datasets)
+/// - > 50,000 points: HODLR (hierarchical method for very large datasets)
+///
+/// # Arguments
+///
+/// * `n_points` - Number of data points in the dataset
 ///
 /// # Returns
 ///
@@ -348,9 +358,19 @@ pub fn make_hodlr_kriging<
 ///
 /// ```
 /// use scirs2_interpolate::advanced::fast_kriging::select_approximation_method;
+/// use scirs2_interpolate::advanced::fast_kriging::FastKrigingMethod;
 ///
-/// // Get recommended method for a dataset with 10,000 points
-/// let method = select_approximation_method(10_000);
+/// // Get recommended method for different dataset sizes
+/// let small_method = select_approximation_method(100);     // Local
+/// let medium_method = select_approximation_method(2_000);  // FixedRank(50)
+/// let large_method = select_approximation_method(20_000);  // Tapering(3.0)
+/// let huge_method = select_approximation_method(100_000);  // HODLR(64)
+///
+/// // Use the selected method
+/// match small_method {
+///     FastKrigingMethod::Local => println!("Using local kriging for small dataset"),
+///     _ => println!("Using approximation method"),
+/// }
 /// ```
 pub fn select_approximation_method(n_points: usize) -> FastKrigingMethod {
     if n_points < 500 {

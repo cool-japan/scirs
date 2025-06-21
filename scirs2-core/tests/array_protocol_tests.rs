@@ -61,7 +61,6 @@ fn test_ndarray_wrapper() {
 }
 
 #[test]
-#[ignore = "GPU array operations are not fully implemented"]
 fn test_gpu_array() {
     // Create a regular ndarray
     let arr = Array2::<f64>::ones((3, 3));
@@ -126,7 +125,7 @@ fn test_distributed_array() {
     };
 
     // Create a distributed array
-    let dist_array = DistributedNdarray::from_array(arr.clone(), config);
+    let dist_array = DistributedNdarray::from_array(&arr, config);
 
     // Check properties
     assert_eq!(dist_array.shape(), &[10, 5]);
@@ -257,7 +256,7 @@ fn test_array_interoperability() {
         strategy: DistributionStrategy::RowWise,
         backend: DistributedBackend::Threaded,
     };
-    let _dist_array = DistributedNdarray::from_array(cpu_array.clone(), dist_config);
+    let _dist_array = DistributedNdarray::from_array(&cpu_array, dist_config);
 
     // Define an operation that works with any array type
     array_function!(
@@ -342,7 +341,6 @@ fn test_array_interoperability() {
 }
 
 #[test]
-#[ignore = "Some array operations are not fully implemented"]
 fn test_array_operations() {
     // Initialize the array protocol system
     array_protocol::init();
@@ -485,7 +483,6 @@ fn test_array_operations() {
 }
 
 #[test]
-#[ignore = "Mixed array type operations are not fully implemented"]
 fn test_mixed_array_types() {
     // Initialize the array protocol system
     array_protocol::init();
@@ -509,7 +506,7 @@ fn test_mixed_array_types() {
         strategy: DistributionStrategy::RowWise,
         backend: DistributedBackend::Threaded,
     };
-    let dist_a = DistributedNdarray::from_array(a.clone(), dist_config);
+    let dist_a = DistributedNdarray::from_array(&a, dist_config);
 
     // Test operations between different array types
     // Register array operations for mixed arrays in the global registry

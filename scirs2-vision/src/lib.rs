@@ -17,6 +17,7 @@ pub mod feature;
 /// and morphological operations.
 pub mod preprocessing;
 pub mod quality;
+pub mod registration;
 pub mod segmentation;
 pub mod transform;
 

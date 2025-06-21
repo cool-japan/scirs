@@ -18,7 +18,7 @@ mod tests {
             let gradients = T::grad(&[y], &[x]);
 
             // Just check that the gradient exists and can be evaluated
-            assert!(gradients.len() > 0, "Should have at least one gradient");
+            assert!(!gradients.is_empty(), "Should have at least one gradient");
             let result = gradients[0].eval(g);
             assert!(result.is_ok(), "Gradient should be evaluable");
         });
@@ -39,7 +39,7 @@ mod tests {
             let gradients = T::grad(&[y], &[x]);
 
             // Just check that the gradient exists and can be evaluated
-            assert!(gradients.len() > 0, "Should have at least one gradient");
+            assert!(!gradients.is_empty(), "Should have at least one gradient");
             let result = gradients[0].eval(g);
             assert!(result.is_ok(), "Gradient should be evaluable");
         });

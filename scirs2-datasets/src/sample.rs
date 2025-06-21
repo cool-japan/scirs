@@ -6,6 +6,11 @@
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
 
+#[cfg(feature = "download")]
+use crate::cache::download_data;
+#[cfg(feature = "download")]
+use crate::loaders;
+
 /// URL for dataset resources
 #[allow(dead_code)]
 const DATASET_BASE_URL: &str = "https://raw.githubusercontent.com/cool-japan/scirs-datasets/main/";
@@ -23,11 +28,9 @@ pub fn load_california_housing(force_download: bool) -> Result<Dataset> {
     let temp_dir = std::env::temp_dir();
     let temp_path = temp_dir.join("scirs2_california_housing.csv");
 
-    let mut temp_file = std::fs::File::create(&temp_path).map_err(|e| DatasetsError::IoError(e))?;
+    let mut temp_file = std::fs::File::create(&temp_path).map_err(DatasetsError::IoError)?;
 
-    temp_file
-        .write_all(&data)
-        .map_err(|e| DatasetsError::IoError(e))?;
+    temp_file.write_all(&data).map_err(DatasetsError::IoError)?;
 
     // Load from the temporary file (using CSV loader)
     let mut dataset = loaders::load_csv(&temp_path, true, Some(8))?;
@@ -108,11 +111,9 @@ pub fn load_wine(force_download: bool) -> Result<Dataset> {
     let temp_dir = std::env::temp_dir();
     let temp_path = temp_dir.join("scirs2_wine.csv");
 
-    let mut temp_file = std::fs::File::create(&temp_path).map_err(|e| DatasetsError::IoError(e))?;
+    let mut temp_file = std::fs::File::create(&temp_path).map_err(DatasetsError::IoError)?;
 
-    temp_file
-        .write_all(&data)
-        .map_err(|e| DatasetsError::IoError(e))?;
+    temp_file.write_all(&data).map_err(DatasetsError::IoError)?;
 
     // Load from the temporary file (using CSV loader)
     let mut dataset = loaders::load_csv(&temp_path, true, Some(0))?;

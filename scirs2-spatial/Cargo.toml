@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-spatial"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Spatial algorithms module for SciRS2"
@@ -24,7 +24,7 @@ qhull = { workspace = true }
 rand = { workspace = true }
 
 # Linear algebra dependencies
-scirs2-linalg = { workspace = true }
+# scirs2-linalg = { workspace = true }  # Temporarily disabled due to compilation errors
 ndarray-linalg = { workspace = true }
 
 [features]
@@ -36,3 +36,24 @@ approx = { workspace = true }
 criterion = { workspace = true }
 rand_chacha = { workspace = true }
 plotters = { workspace = true }
+num_cpus = "1.16"
+
+[[bench]]
+name = "spatial_benchmarks"
+harness = false
+
+[[bench]]
+name = "simple_spatial_bench"
+harness = false
+
+[[bench]]
+name = "quick_spatial_bench"
+harness = false
+
+[[bench]]
+name = "minimal_bench"
+harness = false
+
+[[bench]]
+name = "simd_bench"
+harness = false

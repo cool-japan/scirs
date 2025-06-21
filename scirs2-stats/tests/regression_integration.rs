@@ -1,4 +1,6 @@
 use ndarray::{array, Array1, Array2};
+use rand::{Rng, SeedableRng};
+use rand_pcg::Pcg64;
 use scirs2_stats::regression::*;
 
 #[test]
@@ -284,6 +286,9 @@ fn test_huber_regression_advanced() {
 
 #[test]
 fn test_huber_regression_with_regularization() {
+    // Use a seeded RNG for reproducible tests
+    let mut rng = Pcg64::seed_from_u64(42);
+
     // Create a design matrix with many highly correlated variables
     // to test L2 regularization in Huber regression
     let mut x = Array2::zeros((30, 10)); // 30 observations, 10 variables
@@ -291,7 +296,7 @@ fn test_huber_regression_with_regularization() {
     // Generate correlated predictor variables
     for i in 0..30 {
         // Base value with noise
-        let base = i as f64 / 3.0 + rand::random::<f64>() * 0.5;
+        let base = i as f64 / 3.0 + rng.random_range(0.0..1.0) * 0.5;
 
         // First column is always 1 (intercept)
         x[[i, 0]] = 1.0;
@@ -299,7 +304,7 @@ fn test_huber_regression_with_regularization() {
         // Fill in highly correlated variables
         for j in 1..10 {
             // Add correlation with some noise
-            x[[i, j]] = base + (j as f64) * 0.1 + rand::random::<f64>() * 0.3;
+            x[[i, j]] = base + (j as f64) * 0.1 + rng.random_range(0.0..1.0) * 0.3;
         }
     }
 
@@ -318,13 +323,13 @@ fn test_huber_regression_with_regularization() {
         // Add noise and occasional outliers
         let noise = if i % 10 == 0 {
             // Add outliers
-            if rand::random::<bool>() {
-                8.0 + rand::random::<f64>() * 4.0
+            if rng.random_bool(0.5) {
+                8.0 + rng.random_range(0.0..1.0) * 4.0
             } else {
-                -8.0 - rand::random::<f64>() * 4.0
+                -8.0 - rng.random_range(0.0..1.0) * 4.0
             }
         } else {
-            (rand::random::<f64>() - 0.5) * 2.0
+            (rng.random_range(0.0..1.0) - 0.5) * 2.0
         };
 
         y[i] = y_val + noise;

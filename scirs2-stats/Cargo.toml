@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-stats"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Statistical functions module for SciRS2"
@@ -15,10 +15,9 @@ ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
 thiserror = { workspace = true }
-ndarray-linalg = { workspace = true }
-scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "linalg", "openblas"] }
+ndarray-linalg = { workspace = true, default-features = false }
+scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "linalg"] }
 scirs2-linalg = { workspace = true }
-openblas-src = { workspace = true }
 
 # Statistics specific dependencies
 rand = { workspace = true }
@@ -31,3 +30,10 @@ special-11 = { workspace = true }
 approx = { workspace = true }
 criterion = { workspace = true }
 plotters = { workspace = true }
+
+[features]
+default = ["openblas"]
+# BLAS backends - these are mutually exclusive, managed through scirs2-core
+openblas = ["scirs2-core/openblas"]
+intel-mkl = ["scirs2-core/intel-mkl"]
+netlib = ["scirs2-core/netlib"]

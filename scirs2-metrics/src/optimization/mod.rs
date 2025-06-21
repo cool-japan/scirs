@@ -82,11 +82,16 @@
 //! ```
 
 // Re-export submodules
+pub mod hardware;
 pub mod memory;
 pub mod numeric;
 pub mod parallel;
 
 // Re-export common functionality
+pub use hardware::{
+    HardwareAccelConfig, HardwareAcceleratedMatrix, HardwareCapabilities, SimdDistanceMetrics,
+    SimdStatistics, VectorWidth,
+};
 pub use memory::{ChunkedMetrics, StreamingMetric};
 pub use numeric::{StableMetric, StableMetrics};
 pub use parallel::ParallelConfig;

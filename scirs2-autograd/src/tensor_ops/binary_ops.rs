@@ -8,6 +8,10 @@ use ndarray;
 use ndarray::Axis;
 use std::mem;
 
+// Import SIMD operations from scirs2-core
+#[cfg(feature = "simd")]
+use scirs2_core::simd::{simd_add_f32, simd_add_f64, simd_mul_f32, simd_mul_f64};
+
 pub struct AddOp;
 pub struct SubOp;
 pub struct MulOp;
@@ -317,7 +321,7 @@ fn maybe_reduce<'g, T: Float>(
 }
 
 macro_rules! impl_bin_op_forward {
-    ($forward_name:ident, $bin_op:tt, $vms_op:ident, $vmd_op:ident) => {
+    ($forward_name:ident, $bin_op:tt, $vms_op:ident, $vmd_op:ident, $simd_f32:ident, $simd_f64:ident) => {
         fn $forward_name<'v, T: Float>(x0: &NdArrayView<'v, T>, x1: &NdArrayView<'v, T>) -> NdArray<T>
         {
             let shape0: &[usize] = x0.shape();
@@ -340,10 +344,44 @@ macro_rules! impl_bin_op_forward {
                 if len0 > len1 {
                     x0 $bin_op x1
                 } else {
-                    // tensor vs tensor (same shapes)
+                    // tensor vs tensor (same shapes) - try SIMD first, then MKL, then fallback
+                    if shape0 == shape1 && x0.is_standard_layout() && x1.is_standard_layout() && x0.ndim() == 1 {
+                        // Try SIMD acceleration for 1D arrays with same shape
+                        #[cfg(feature = "simd")]
+                        {
+                            use crate::same_type;
+                            if same_type::<T, f32>() {
+                                // SIMD acceleration for f32
+                                if let (Ok(x0_1d), Ok(x1_1d)) = (
+                                    x0.clone().into_dimensionality::<ndarray::Ix1>(),
+                                    x1.clone().into_dimensionality::<ndarray::Ix1>()
+                                ) {
+                                    let x0_f32 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f32>>(x0_1d.view()) };
+                                    let x1_f32 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f32>>(x1_1d.view()) };
+                                    let result_f32 = $simd_f32(&x0_f32, &x1_f32);
+                                    let result_dyn = result_f32.into_dyn();
+                                    return unsafe { std::mem::transmute::<ndarray::Array<f32, ndarray::IxDyn>, NdArray<T>>(result_dyn) };
+                                }
+                            } else if same_type::<T, f64>() {
+                                // SIMD acceleration for f64
+                                if let (Ok(x0_1d), Ok(x1_1d)) = (
+                                    x0.clone().into_dimensionality::<ndarray::Ix1>(),
+                                    x1.clone().into_dimensionality::<ndarray::Ix1>()
+                                ) {
+                                    let x0_f64 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f64>>(x0_1d.view()) };
+                                    let x1_f64 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f64>>(x1_1d.view()) };
+                                    let result_f64 = $simd_f64(&x0_f64, &x1_f64);
+                                    let result_dyn = result_f64.into_dyn();
+                                    return unsafe { std::mem::transmute::<ndarray::Array<f64, ndarray::IxDyn>, NdArray<T>>(result_dyn) };
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback to MKL if available
                     #[cfg(feature = "mkl")]
                     {
-                        use crate::{ops::mkl_ffi::*, same_type};
+                        use crate::{tensor_ops::blas_ffi::*, same_type};
                         bin_op_same_shape!($vms_op, $vmd_op, $bin_op, x0, x1)
                     }
                     #[cfg(not(feature = "mkl"))] {
@@ -358,5 +396,5 @@ macro_rules! impl_bin_op_forward {
     };
 }
 
-impl_bin_op_forward!(add_forward, +, vsAdd, vdAdd);
-impl_bin_op_forward!(mul_forward, *, vsMul, vdMul);
+impl_bin_op_forward!(add_forward, +, vsAdd, vdAdd, simd_add_f32, simd_add_f64);
+impl_bin_op_forward!(mul_forward, *, vsMul, vdMul, simd_mul_f32, simd_mul_f64);

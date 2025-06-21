@@ -4,4 +4,5 @@
 
 pub use crate::graph::AsGraph;
 pub use crate::optimizers::Optimizer;
+pub use crate::schedulers::LRScheduler;
 pub use crate::variable::{GetVariableTensor, NamespaceTrait};

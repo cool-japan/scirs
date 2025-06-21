@@ -58,3 +58,4 @@ wheels/
 **/.claude/settings.local.json
 
 **/CLAUDE.local.md
+scirs2-core/audit_logs/audit_*.log

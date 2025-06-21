@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-metrics"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"
@@ -14,8 +14,8 @@ build = "build.rs"
 # Core dependencies
 scirs2-core = { workspace = true }
 # Optional dependencies for integration with other modules
-# Optional dependencies temporarily commented out to avoid circular dependency
-# scirs2-neural = { workspace = true, optional = true, default-features = false, features = ["core"] }
+# Note: scirs2-optim integration is handled via external trait implementations to avoid circular dependencies
+# scirs2-neural = { workspace = true, optional = true, default-features = false }
 # scirs2-optim = { workspace = true, optional = true, default-features = false }
 # Temporarily removed for publishing
 # # # scirs2-stats = { workspace = true }
@@ -40,23 +40,27 @@ chrono = { workspace = true }
 plotters = { workspace = true, optional = true }
 plotly = { workspace = true, optional = true }
 
-# BLAS dependencies for linear algebra operations
-openblas-src = { workspace = true, features = ["cblas", "lapacke"] }
-blas = { workspace = true }
+# BLAS dependencies handled through scirs2-core
 
 # Future dependency for PandRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
 
 [features]
-default = ["plotly_backend"]
+default = ["plotly_backend", "optim_integration"]
 # Integration with other scirs2 modules
 # Integration features 
 neural_common = [] # Common neural functionality without dependency on scirs2-neural
-optim_integration = [] # Common optimization functionality without dependency on scirs2-optim
-# The following features are temporarily commented out to break circular dependencies
-# neural_integration = ["dep:scirs2-neural", "neural_common"]
+optim_integration = [] # Common optimization functionality - external integration via traits
+# neural_integration = ["dep:scirs2-neural", "neural_common"] # Disabled due to circular dependency
 # Visualization backends
 plotters_backend = ["dep:plotters"]
 plotly_backend = ["dep:plotly"]
 # Enable external ML library wrappers
 # pandrs = ["dep:pandrs_wrapper"]
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+name = "performance_regression"
+harness = false

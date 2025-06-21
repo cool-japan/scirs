@@ -49,14 +49,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.1.0-alpha.4"
+scirs2-optimize = "0.1.0-alpha.5"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-optimize = { version = "0.1.0-alpha.4", features = ["parallel"] }
+scirs2-optimize = { version = "0.1.0-alpha.5", features = ["parallel"] }
 ```
 
 ## Usage Examples
@@ -240,7 +240,7 @@ All functions return `OptimizeResult<OptimizeResults<T>>` where:
 
 ## Performance Considerations
 
-- Most algorithms have been optimized for numerical stability and efficiency
+- Algorithms are optimized for numerical stability and efficiency
 - The code leverages Rust's strong type system and memory safety features
 - Performance is comparable to other Rust optimization libraries
 

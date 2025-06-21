@@ -10,11 +10,11 @@ fn main() {
         println!("Identity matrix created");
 
         let a = convert_to_tensor(array![[1.0, 2.0], [3.0, 4.0]], ctx);
-        let tr = trace(&a);
+        let tr = trace(a);
         println!("Trace computed");
 
         let values = convert_to_tensor(array![1.0, 2.0, 3.0], ctx);
-        let diagonal = diag(&values);
+        let diagonal = diag(values);
         println!("Diagonal matrix created");
 
         // Try to evaluate

@@ -7,14 +7,26 @@ use ndarray::{Array1, ArrayView1};
 use std::fmt;
 
 // Sub-modules
+pub mod adaptive_convergence;
+pub mod advanced_line_search;
 pub mod bfgs;
 pub mod conjugate_gradient;
+pub mod efficient_sparse;
 pub mod lbfgs;
 pub mod line_search;
+pub mod memory_efficient;
+pub mod memory_efficient_sparse;
 pub mod nelder_mead;
 pub mod newton;
 pub mod powell;
+pub mod quasi_newton;
 pub mod result;
+pub mod robust_convergence;
+pub mod simd_bfgs;
+pub mod sparse_optimization;
+pub mod strong_wolfe;
+pub mod subspace_methods;
+pub mod truncated_newton;
 pub mod trust_region;
 pub mod utils;
 
@@ -22,12 +34,50 @@ pub mod utils;
 pub use result::OptimizeResult;
 
 // Re-export commonly used items
+pub use adaptive_convergence::{
+    check_convergence_adaptive, create_adaptive_options_for_problem, AdaptationStats,
+    AdaptiveToleranceOptions, AdaptiveToleranceState, ConvergenceStatus,
+};
+pub use advanced_line_search::{
+    advanced_line_search, create_non_monotone_state, AdvancedLineSearchOptions,
+    InterpolationStrategy, LineSearchMethod, LineSearchResult, LineSearchStats,
+};
 pub use bfgs::minimize_bfgs;
 pub use conjugate_gradient::minimize_conjugate_gradient;
+pub use efficient_sparse::{
+    minimize_efficient_sparse_newton, EfficientSparseOptions, SparsityInfo,
+};
 pub use lbfgs::{minimize_lbfgs, minimize_lbfgsb};
+pub use memory_efficient::{
+    create_memory_efficient_optimizer, minimize_memory_efficient_lbfgs, MemoryOptions,
+};
+pub use memory_efficient_sparse::{
+    create_ultra_scale_optimizer, minimize_ultra_scale, UltraScaleOptions,
+};
 pub use nelder_mead::minimize_nelder_mead;
 pub use newton::minimize_newton_cg;
 pub use powell::minimize_powell;
+pub use quasi_newton::{minimize_dfp, minimize_quasi_newton, minimize_sr1, UpdateFormula};
+pub use robust_convergence::{
+    create_robust_options_for_problem, RobustConvergenceOptions, RobustConvergenceResult,
+    RobustConvergenceState,
+};
+pub use simd_bfgs::{minimize_simd_bfgs, minimize_simd_bfgs_default, SimdBfgsOptions};
+pub use sparse_optimization::{
+    auto_detect_sparsity, minimize_sparse_bfgs, SparseOptimizationOptions,
+};
+pub use strong_wolfe::{
+    create_strong_wolfe_options_for_method, strong_wolfe_line_search, StrongWolfeOptions,
+    StrongWolfeResult,
+};
+pub use subspace_methods::{
+    minimize_adaptive_subspace, minimize_block_coordinate_descent,
+    minimize_cyclical_coordinate_descent, minimize_random_coordinate_descent,
+    minimize_random_subspace, minimize_subspace, SubspaceMethod, SubspaceOptions,
+};
+pub use truncated_newton::{
+    minimize_truncated_newton, minimize_trust_region_newton, Preconditioner, TruncatedNewtonOptions,
+};
 pub use trust_region::{minimize_trust_exact, minimize_trust_krylov, minimize_trust_ncg};
 
 /// Optimization methods for unconstrained minimization.
@@ -41,6 +91,10 @@ pub enum Method {
     CG,
     /// BFGS quasi-Newton method
     BFGS,
+    /// SR1 quasi-Newton method
+    SR1,
+    /// DFP quasi-Newton method
+    DFP,
     /// Limited-memory BFGS method
     LBFGS,
     /// Limited-memory BFGS method with bounds support
@@ -53,6 +107,10 @@ pub enum Method {
     TrustKrylov,
     /// Trust-region method with exact subproblem solver
     TrustExact,
+    /// Truncated Newton method
+    TruncatedNewton,
+    /// Trust-region Newton method with truncated CG
+    TrustRegionNewton,
 }
 
 /// Bounds for optimization variables
@@ -109,12 +167,16 @@ impl fmt::Display for Method {
             Method::Powell => write!(f, "Powell"),
             Method::CG => write!(f, "Conjugate Gradient"),
             Method::BFGS => write!(f, "BFGS"),
+            Method::SR1 => write!(f, "SR1"),
+            Method::DFP => write!(f, "DFP"),
             Method::LBFGS => write!(f, "L-BFGS"),
             Method::LBFGSB => write!(f, "L-BFGS-B"),
             Method::NewtonCG => write!(f, "Newton-CG"),
             Method::TrustNCG => write!(f, "Trust-NCG"),
             Method::TrustKrylov => write!(f, "Trust-Krylov"),
             Method::TrustExact => write!(f, "Trust-Exact"),
+            Method::TruncatedNewton => write!(f, "Truncated Newton"),
+            Method::TrustRegionNewton => write!(f, "Trust-Region Newton"),
         }
     }
 }
@@ -227,7 +289,7 @@ pub fn minimize<F, S>(
 ) -> Result<OptimizeResult<S>, OptimizeError>
 where
     F: FnMut(&ArrayView1<f64>) -> S + Clone,
-    S: Into<f64> + Clone,
+    S: Into<f64> + Clone + From<f64>,
 {
     let options = &options.unwrap_or_default();
     let x0 = Array1::from_vec(x0.to_vec());
@@ -246,13 +308,104 @@ where
         Method::Powell => powell::minimize_powell(fun, x0, options),
         Method::CG => conjugate_gradient::minimize_conjugate_gradient(fun, x0, options),
         Method::BFGS => bfgs::minimize_bfgs(fun, x0, options),
+        Method::SR1 => quasi_newton::minimize_sr1(fun, x0, options),
+        Method::DFP => quasi_newton::minimize_dfp(fun, x0, options),
         Method::LBFGS => lbfgs::minimize_lbfgs(fun, x0, options),
         Method::LBFGSB => lbfgs::minimize_lbfgsb(fun, x0, options),
         Method::NewtonCG => newton::minimize_newton_cg(fun, x0, options),
         Method::TrustNCG => trust_region::minimize_trust_ncg(fun, x0, options),
         Method::TrustKrylov => trust_region::minimize_trust_krylov(fun, x0, options),
         Method::TrustExact => trust_region::minimize_trust_exact(fun, x0, options),
+        Method::TruncatedNewton => truncated_newton_wrapper(fun, x0, options),
+        Method::TrustRegionNewton => trust_region_newton_wrapper(fun, x0, options),
     }
+}
+
+/// Wrapper function for truncated Newton method
+fn truncated_newton_wrapper<F, S>(
+    fun: F,
+    x0: Array1<f64>,
+    options: &Options,
+) -> Result<OptimizeResult<S>, OptimizeError>
+where
+    F: FnMut(&ArrayView1<f64>) -> S + Clone,
+    S: Into<f64> + Clone + From<f64>,
+{
+    let mut fun_clone = fun.clone();
+    let fun_f64 = move |x: &ArrayView1<f64>| fun_clone(x).into();
+
+    let truncated_options = TruncatedNewtonOptions {
+        max_iter: options.max_iter,
+        tol: options.gtol,
+        max_cg_iter: options.trust_max_iter.unwrap_or(100),
+        cg_tol: options.trust_tol.unwrap_or(0.1),
+        ..Default::default()
+    };
+
+    // Convert result back to generic type
+    let result = truncated_newton::minimize_truncated_newton(
+        fun_f64,
+        None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+        x0,
+        Some(truncated_options),
+    )?;
+
+    Ok(OptimizeResult {
+        x: result.x,
+        fun: result.fun.into(),
+        iterations: result.iterations,
+        nit: result.nit,
+        func_evals: result.func_evals,
+        nfev: result.nfev,
+        jacobian: result.jacobian,
+        hessian: result.hessian,
+        success: result.success,
+        message: result.message,
+    })
+}
+
+/// Wrapper function for trust-region Newton method
+fn trust_region_newton_wrapper<F, S>(
+    fun: F,
+    x0: Array1<f64>,
+    options: &Options,
+) -> Result<OptimizeResult<S>, OptimizeError>
+where
+    F: FnMut(&ArrayView1<f64>) -> S + Clone,
+    S: Into<f64> + Clone + From<f64>,
+{
+    let mut fun_clone = fun.clone();
+    let fun_f64 = move |x: &ArrayView1<f64>| fun_clone(x).into();
+
+    let truncated_options = TruncatedNewtonOptions {
+        max_iter: options.max_iter,
+        tol: options.gtol,
+        max_cg_iter: options.trust_max_iter.unwrap_or(100),
+        cg_tol: options.trust_tol.unwrap_or(0.1),
+        trust_radius: options.trust_radius,
+        ..Default::default()
+    };
+
+    // Convert result back to generic type
+    let result = truncated_newton::minimize_trust_region_newton(
+        fun_f64,
+        None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+        x0,
+        Some(truncated_options),
+    )?;
+
+    Ok(OptimizeResult {
+        x: result.x,
+        fun: result.fun.into(),
+        iterations: result.iterations,
+        nit: result.nit,
+        func_evals: result.func_evals,
+        nfev: result.nfev,
+        jacobian: result.jacobian,
+        hessian: result.hessian,
+        success: result.success,
+        message: result.message,
+    })
 }
 
 #[cfg(test)]

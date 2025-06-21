@@ -14,7 +14,7 @@ use std::time::Instant;
 use super::prefetch::AccessPattern;
 
 /// The different types of complex patterns that can be recognized.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ComplexPattern {
     /// Standard row-major traversal
     RowMajor,
@@ -235,25 +235,25 @@ impl PatternRecognizer {
         self.detect_basic_patterns();
 
         // Complex patterns based on dimensions
-        if let Some(ref dims) = self.dimensions {
+        if let Some(dims) = self.dimensions.clone() {
             // Detect matrix traversal patterns
             if dims.len() >= 2 {
-                self.detect_matrix_patterns(dims);
+                self.detect_matrix_patterns(&dims);
             }
 
             // Detect block patterns
             if self.config.detect_block && dims.len() >= 2 {
-                self.detect_block_patterns(dims);
+                self.detect_block_patterns(&dims);
             }
 
             // Detect diagonal patterns
             if self.config.detect_diagonal && dims.len() == 2 {
-                self.detect_diagonal_patterns(dims);
+                self.detect_diagonal_patterns(&dims);
             }
 
             // Detect stencil patterns
             if self.config.detect_stencil && dims.len() >= 2 {
-                self.detect_stencil_patterns(dims);
+                self.detect_stencil_patterns(&dims);
             }
         }
 
@@ -356,7 +356,7 @@ impl PatternRecognizer {
             return;
         }
 
-        let rows = dimensions[0];
+        let _rows = dimensions[0];
         let cols = dimensions[1];
         let indices: Vec<_> = self.history.iter().cloned().collect();
 
@@ -412,7 +412,7 @@ impl PatternRecognizer {
             return;
         }
 
-        let rows = dimensions[0];
+        let _rows = dimensions[0];
         let cols = dimensions[1];
         let indices: Vec<_> = self.history.iter().cloned().collect();
 
@@ -530,7 +530,7 @@ impl PatternRecognizer {
 
             // Check for complete blocks (where all elements in the block are accessed)
             let mut complete_blocks = 0;
-            for (_, accesses) in &block_accesses {
+            for accesses in block_accesses.values() {
                 if accesses.len() == block_height * block_width {
                     complete_blocks += 1;
                 }
@@ -604,7 +604,7 @@ impl PatternRecognizer {
             return;
         }
 
-        let rows = dimensions[0];
+        let _rows = dimensions[0];
         let cols = dimensions[1];
         let indices: Vec<_> = self.history.iter().cloned().collect();
 
@@ -769,8 +769,10 @@ impl PatternRecognizer {
 }
 
 /// Factory for creating pattern recognizers.
+#[allow(dead_code)]
 pub struct PatternRecognizerFactory;
 
+#[allow(dead_code)]
 impl PatternRecognizerFactory {
     /// Create a new pattern recognizer with default configuration.
     pub fn create() -> PatternRecognizer {
@@ -789,6 +791,7 @@ pub mod pattern_utils {
     use crate::memory_efficient::prefetch::AccessPattern;
 
     /// Convert from complex pattern to basic pattern.
+    #[allow(dead_code)]
     pub fn to_basic_pattern(pattern: &ComplexPattern) -> AccessPattern {
         match pattern {
             ComplexPattern::RowMajor => AccessPattern::Sequential,
@@ -807,6 +810,7 @@ pub mod pattern_utils {
     }
 
     /// Get the prefetch pattern for a complex pattern.
+    #[allow(dead_code)]
     pub fn get_prefetch_pattern(
         pattern: &ComplexPattern,
         dimensions: &[usize],
@@ -905,19 +909,19 @@ pub mod pattern_utils {
                     let col = current_idx % cols;
 
                     // Calculate block coordinates
-                    let block_row = row / block_height;
-                    let block_col = col / block_width;
+                    let block_row = row / *block_height;
+                    let block_col = col / *block_width;
 
                     // Calculate position within block
-                    let block_row_offset = row % block_height;
-                    let block_col_offset = col % block_width;
+                    let block_row_offset = row % *block_height;
+                    let block_col_offset = col % *block_width;
 
                     // Predict next positions within the block (row-major within block)
                     let mut result = Vec::with_capacity(prefetch_count);
                     let mut remaining = prefetch_count;
 
                     // First, complete the current row in the block
-                    for i in 1..=(block_width - block_col_offset).min(remaining) {
+                    for i in 1..=std::cmp::min(*block_width - block_col_offset, remaining) {
                         result.push(current_idx + i);
                         remaining -= 1;
                     }
@@ -925,9 +929,9 @@ pub mod pattern_utils {
                     // Then, continue with subsequent rows in the block
                     let mut next_row = block_row_offset + 1;
                     while remaining > 0 && next_row < *block_height {
-                        for col_offset in 0..block_width.min(remaining) {
-                            let idx = (block_row * block_height + next_row) * cols
-                                + block_col * block_width
+                        for col_offset in 0..std::cmp::min(*block_width, remaining) {
+                            let idx = (block_row * *block_height + next_row) * cols
+                                + block_col * *block_width
                                 + col_offset;
                             result.push(idx);
                             remaining -= 1;
@@ -937,13 +941,13 @@ pub mod pattern_utils {
 
                     // If still remaining, move to next block
                     if remaining > 0 {
-                        let next_block_row = if block_col + 1 < cols / block_width {
+                        let next_block_row = if block_col + 1 < cols / *block_width {
                             block_row // Same row, next column
                         } else {
                             block_row + 1 // Next row, first column
                         };
 
-                        let next_block_col = if block_col + 1 < cols / block_width {
+                        let next_block_col = if block_col + 1 < cols / *block_width {
                             block_col + 1 // Next column
                         } else {
                             0 // First column
@@ -951,10 +955,10 @@ pub mod pattern_utils {
 
                         // Add first few elements of next block
                         for i in 0..remaining {
-                            let row_offset = i / block_width;
-                            let col_offset = i % block_width;
-                            let idx = (next_block_row * block_height + row_offset) * cols
-                                + next_block_col * block_width
+                            let row_offset = i / *block_width;
+                            let col_offset = i % *block_width;
+                            let idx = (next_block_row * *block_height + row_offset) * cols
+                                + next_block_col * *block_width
                                 + col_offset;
                             result.push(idx);
                         }

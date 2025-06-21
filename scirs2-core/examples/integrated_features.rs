@@ -49,7 +49,7 @@ fn main() {
     feature = "types"
 ))]
 fn run_integrated_example() {
-    use ndarray::{Array2, Dim, IxDyn};
+    use ndarray::IxDyn;
     use rand_distr::Normal;
 
     // Initialize logging
@@ -76,8 +76,8 @@ fn run_integrated_example() {
     let mut large_buffer = buffer_pool.acquire_vec(10000);
 
     // Fill the buffer with random data
-    for i in 0..large_buffer.len() {
-        large_buffer[i] = rng.sample(normal_distribution);
+    for elem in large_buffer.iter_mut() {
+        *elem = rng.sample(normal_distribution);
     }
 
     // Create a 2D array from the buffer
@@ -95,7 +95,7 @@ fn run_integrated_example() {
     let array_view = ZeroCopyView::new(&array_data);
 
     // Process the data without copying
-    let squared_data = Timer::time_function("transform_data", || array_view.transform(|&x| x * x));
+    let _squared_data = Timer::time_function("transform_data", || array_view.transform(|&x| x * x));
 
     progress.update(2);
     timer_step2.stop();

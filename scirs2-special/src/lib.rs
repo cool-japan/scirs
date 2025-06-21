@@ -7,6 +7,8 @@
 //!
 //! * Gamma and Beta functions
 //! * Bessel functions
+//! * Combinatorial functions (factorials, binomial coefficients, Stirling numbers, etc.)
+//! * Statistical functions (logistic, softmax, log-softmax, sinc, etc.)
 //! * Orthogonal polynomials
 //! * Error functions
 //! * Airy functions
@@ -35,7 +37,9 @@ pub use error::{SpecialError, SpecialResult};
 
 // Modules
 mod airy;
+pub mod array_ops;
 pub mod bessel;
+mod combinatorial;
 mod constants;
 mod coulomb;
 mod elliptic;
@@ -46,11 +50,14 @@ mod kelvin;
 mod lambert;
 mod logint;
 mod mathieu;
-mod optimizations;
+pub mod optimizations;
 mod orthogonal;
 mod parabolic;
+pub mod precision;
+mod property_tests;
 mod spherical_harmonics;
 mod spheroidal;
+mod statistical;
 mod struve;
 mod wright;
 mod wright_bessel;
@@ -61,6 +68,8 @@ mod zeta;
 // Note: These functions require various trait bounds in their implementation,
 // including Float, FromPrimitive, Debug, AddAssign, etc.
 pub use airy::{ai, aip, bi, bip};
+// Complex Airy functions
+pub use airy::complex::{ai_complex, aip_complex, bi_complex, bip_complex};
 pub use bessel::{
     // Regular Bessel functions
     i0,
@@ -88,6 +97,10 @@ pub use bessel::{
     yn,
     yn_prime,
 };
+pub use combinatorial::{
+    bell_number, bernoulli_number, binomial, double_factorial, euler_number, factorial,
+    permutations, stirling_first, stirling_second,
+};
 pub use coulomb::{coulomb_f, coulomb_g, coulomb_h_minus, coulomb_h_plus, coulomb_phase_shift};
 pub use elliptic::{
     elliptic_e, elliptic_e_inc, elliptic_f, elliptic_k, elliptic_pi, jacobi_cn, jacobi_dn,
@@ -99,6 +112,12 @@ pub use fresnel::{
 pub use gamma::{
     beta, betainc, betainc_regularized, betaincinv, betaln, digamma, gamma, gammaln, loggamma,
 };
+// Complex gamma functions
+pub use gamma::complex::{beta_complex, digamma_complex, gamma_complex, loggamma_complex};
+// Complex Bessel functions
+pub use bessel::complex::{i0_complex, j0_complex, j1_complex, jn_complex, jv_complex, k0_complex};
+// Complex error functions
+pub use erf::complex::{erf_complex, erfc_complex, erfcx_complex, faddeeva_complex};
 pub use hypergeometric::{hyp1f1, hyp2f1, ln_pochhammer, pochhammer};
 pub use kelvin::{bei, beip, ber, berp, kei, keip, kelvin, ker, kerp};
 pub use lambert::{lambert_w, lambert_w_real};
@@ -115,6 +134,10 @@ pub use spherical_harmonics::{sph_harm, sph_harm_complex};
 pub use spheroidal::{
     obl_ang1, obl_cv, obl_cv_seq, obl_rad1, obl_rad2, pro_ang1, pro_cv, pro_cv_seq, pro_rad1,
     pro_rad2,
+};
+pub use statistical::{
+    expm1_array, log1p_array, log_abs_gamma, log_softmax, logistic, logistic_derivative, logsumexp,
+    sinc, sinc_array, softmax,
 };
 pub use struve::{it2_struve0, it_mod_struve0, it_struve0, mod_struve, struve};
 pub use wright::{wright_omega_optimized, wright_omega_real_optimized};

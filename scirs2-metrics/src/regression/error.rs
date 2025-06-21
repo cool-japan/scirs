@@ -12,8 +12,48 @@ use crate::error::{MetricsError, Result};
 
 /// Calculates the mean squared error (MSE)
 ///
-/// Mean squared error measures the average squared difference between
-/// the estimated values and the actual value.
+/// # Mathematical Formulation
+///
+/// Mean Squared Error is defined as:
+///
+/// ```text
+/// MSE = (1/n) * Σ(yᵢ - ŷᵢ)²
+/// ```
+///
+/// Where:
+/// - n = number of samples
+/// - yᵢ = true value for sample i
+/// - ŷᵢ = predicted value for sample i
+/// - Σ = sum over all samples
+///
+/// # Properties
+///
+/// - MSE is always non-negative (≥ 0)
+/// - MSE = 0 indicates perfect predictions
+/// - MSE penalizes larger errors more heavily due to squaring
+/// - Units: squared units of the target variable
+/// - Differentiable everywhere (useful for optimization)
+///
+/// # Interpretation
+///
+/// MSE measures the average squared difference between predicted and actual values:
+/// - Lower MSE indicates better model performance
+/// - Sensitive to outliers due to squaring of errors
+/// - Large errors contribute disproportionately to the total error
+///
+/// # Relationship to Other Metrics
+///
+/// - RMSE = √MSE (same units as target variable)
+/// - MAE typically ≤ RMSE, with equality when all errors are equal
+/// - MSE is the expected value of squared error in probabilistic terms
+///
+/// # Use Cases
+///
+/// MSE is widely used because:
+/// - It's differentiable (good for gradient-based optimization)
+/// - It heavily penalizes large errors
+/// - It's the basis for ordinary least squares regression
+/// - It corresponds to Gaussian likelihood in probabilistic models
 ///
 /// # Arguments
 ///

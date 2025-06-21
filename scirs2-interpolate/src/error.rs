@@ -2,18 +2,48 @@
 
 use thiserror::Error;
 
-/// Interpolation error type
+/// Interpolation error type with specific context
 #[derive(Error, Debug)]
 pub enum InterpolateError {
+    /// Invalid input data with specific details
+    #[error("Invalid input data: {message}")]
+    InvalidInput { message: String },
+
+    /// Domain error with specific point and bounds
+    #[error("Point {point:?} is outside domain [{min}, {max}] in {context}")]
+    OutOfDomain {
+        point: String,
+        min: String,
+        max: String,
+        context: String,
+    },
+
+    /// Invalid parameter value with expected range
+    #[error("Invalid {parameter}: expected {expected}, got {actual} in {context}")]
+    InvalidParameter {
+        parameter: String,
+        expected: String,
+        actual: String,
+        context: String,
+    },
+
+    /// Shape mismatch with specific details
+    #[error("Shape mismatch: expected {expected}, got {actual} for {object}")]
+    ShapeMismatch {
+        expected: String,
+        actual: String,
+        object: String,
+    },
+
     /// Computation error (generic error)
     #[error("Computation error: {0}")]
     ComputationError(String),
 
-    /// Domain error (input outside valid domain)
+    /// Domain error (input outside valid domain) - legacy
     #[error("Domain error: {0}")]
     DomainError(String),
 
-    /// Value error (invalid value)
+    /// Value error (invalid value) - legacy  
     #[error("Value error: {0}")]
     ValueError(String),
 
@@ -86,6 +116,14 @@ pub enum InterpolateError {
     /// Interpolation failed
     #[error("Interpolation failed: {0}")]
     InterpolationFailed(String),
+
+    /// Missing points data
+    #[error("Missing points data: interpolator requires training points")]
+    MissingPoints,
+
+    /// Missing values data
+    #[error("Missing values data: interpolator requires training values")]
+    MissingValues,
 }
 
 impl From<ndarray::ShapeError> for InterpolateError {
@@ -96,3 +134,55 @@ impl From<ndarray::ShapeError> for InterpolateError {
 
 /// Result type for interpolation operations
 pub type InterpolateResult<T> = Result<T, InterpolateError>;
+
+impl InterpolateError {
+    /// Create an InvalidInput error with a descriptive message
+    pub fn invalid_input(message: impl Into<String>) -> Self {
+        Self::InvalidInput {
+            message: message.into(),
+        }
+    }
+
+    /// Create an OutOfDomain error with specific context
+    pub fn out_of_domain<T: std::fmt::Display>(
+        point: T,
+        min: T,
+        max: T,
+        context: impl Into<String>,
+    ) -> Self {
+        Self::OutOfDomain {
+            point: point.to_string(),
+            min: min.to_string(),
+            max: max.to_string(),
+            context: context.into(),
+        }
+    }
+
+    /// Create an InvalidParameter error with specific context  
+    pub fn invalid_parameter<T: std::fmt::Display>(
+        parameter: impl Into<String>,
+        expected: impl Into<String>,
+        actual: T,
+        context: impl Into<String>,
+    ) -> Self {
+        Self::InvalidParameter {
+            parameter: parameter.into(),
+            expected: expected.into(),
+            actual: actual.to_string(),
+            context: context.into(),
+        }
+    }
+
+    /// Create a ShapeMismatch error with specific details
+    pub fn shape_mismatch(
+        expected: impl Into<String>,
+        actual: impl Into<String>,
+        object: impl Into<String>,
+    ) -> Self {
+        Self::ShapeMismatch {
+            expected: expected.into(),
+            actual: actual.into(),
+            object: object.into(),
+        }
+    }
+}

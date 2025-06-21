@@ -22,7 +22,8 @@
 //! # #[cfg(feature = "neural_common")]
 //! # {
 //! use scirs2_metrics::integration::neural::NeuralMetricAdapter;
-//! use ndarray::Array;
+//! use scirs2_metrics::integration::traits::MetricComputation;
+//! use ndarray::{Array, IxDyn};
 //!
 //! // Create metric adapters
 //! let accuracy = NeuralMetricAdapter::<f64>::accuracy();
@@ -30,8 +31,8 @@
 //! let f1_score = NeuralMetricAdapter::<f64>::f1_score();
 //!
 //! // Use with neural network predictions and targets
-//! let predictions = Array::<f64, _>::zeros([10, 1].into_dyn());
-//! let targets = Array::<f64, _>::zeros([10, 1].into_dyn());
+//! let predictions = Array::<f64, _>::zeros(IxDyn(&[10, 1]));
+//! let targets = Array::<f64, _>::zeros(IxDyn(&[10, 1]));
 //!
 //! // Compute metrics
 //! let acc = accuracy.compute(&predictions, &targets).unwrap();
@@ -77,12 +78,12 @@
 //!     neural_confusion_matrix_visualization,
 //!     training_history_visualization,
 //! };
-//! use ndarray::Array;
+//! use ndarray::{Array, IxDyn};
 //! use std::collections::HashMap;
 //!
 //! // Example data
-//! let y_true = Array::<f64, _>::zeros([100].into_dyn());
-//! let y_score = Array::<f64, _>::zeros([100].into_dyn());
+//! let y_true = Array::<f64, _>::zeros(IxDyn(&[100]));
+//! let y_score = Array::<f64, _>::zeros(IxDyn(&[100]));
 //! let history = vec![HashMap::from([
 //!     ("loss".to_string(), 0.5),
 //!     ("accuracy".to_string(), 0.85),

@@ -416,9 +416,7 @@ impl RecurrentClassifier for LSTMClassifier {
 
         // Calculate cross-entropy loss
         let mut total_loss = 0.0;
-        for (_i, (output_row, target_row)) in
-            output.outer_iter().zip(targets.outer_iter()).enumerate()
-        {
+        for (output_row, target_row) in output.outer_iter().zip(targets.outer_iter()) {
             for (j, &target) in target_row.iter().enumerate() {
                 if j < self.output_size && target > 0.0 {
                     total_loss -= output_row[j].ln() * target;
@@ -434,7 +432,7 @@ impl RecurrentClassifier for LSTMClassifier {
                 doutput[[i, j]] -= targets[[i, j]];
             }
         }
-        doutput = doutput / (batch_size as f32);
+        doutput /= batch_size as f32;
 
         // Backpropagate through output layer
         dw_out = dw_out + doutput.t().dot(final_hidden);
@@ -948,9 +946,7 @@ impl RecurrentClassifier for GRUClassifier {
 
         // Calculate cross-entropy loss
         let mut total_loss = 0.0;
-        for (_i, (output_row, target_row)) in
-            output.outer_iter().zip(targets.outer_iter()).enumerate()
-        {
+        for (output_row, target_row) in output.outer_iter().zip(targets.outer_iter()) {
             for (j, &target) in target_row.iter().enumerate() {
                 if j < self.output_size && target > 0.0 {
                     total_loss -= output_row[j].ln() * target;
@@ -966,7 +962,7 @@ impl RecurrentClassifier for GRUClassifier {
                 doutput[[i, j]] -= targets[[i, j]];
             }
         }
-        doutput = doutput / (batch_size as f32);
+        doutput /= batch_size as f32;
 
         // Backpropagate through output layer
         dw_out = dw_out + doutput.t().dot(final_hidden);
@@ -1293,7 +1289,7 @@ fn sentiment_analysis_example() {
     // Test with some new examples
     println!("\nTesting with new examples:");
 
-    let test_examples = vec![
+    let test_examples = [
         "wonderful movie amazing experience",
         "horrible acting terrible script",
     ];
@@ -1321,7 +1317,7 @@ fn sentiment_analysis_example() {
         // Find word indices in the vocabulary
         for (t, _word) in words.iter().enumerate() {
             // This is a simplified approach - in practice, you'd have a proper word->idx mapping
-            for (word_idx, _) in &vocab {
+            for word_idx in vocab.keys() {
                 if train_inputs
                     .iter()
                     .any(|x| x[[0, t % x.shape()[1], *word_idx]] > 0.0)

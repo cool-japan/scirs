@@ -14,7 +14,7 @@ fn main() {
         );
 
         // Compute SVD
-        let (u, s, v) = svd(&matrix);
+        let (u, s, v) = svd(matrix);
 
         // Check shapes - use a safer approach by evaluating each tensor independently
         println!("\nSVD of 3x2 matrix:");
@@ -67,14 +67,14 @@ fn main() {
                                 let s_diag = convert_to_tensor(s_diag_array, g);
 
                                 // Compute U * diag(S)
-                                let us = matmul(&u, &s_diag);
+                                let us = matmul(u, s_diag);
 
                                 // Create V^T
                                 let v_t_array = v_array.t().to_owned();
                                 let v_t = convert_to_tensor(v_t_array, g);
 
                                 // Calculate reconstructed = U * diag(S) * V^T
-                                let reconstructed = matmul(&us, &v_t);
+                                let reconstructed = matmul(us, v_t);
 
                                 println!("Reconstructed matrix:");
                                 match reconstructed.eval(g) {
@@ -109,7 +109,7 @@ fn main() {
         println!("\nTesting gradient computation through simple operations:");
 
         // Create a simple operation for gradient testing
-        let squared_sum = sum_all(&square(&matrix));
+        let squared_sum = sum_all(square(matrix));
         let grads = grad(&[squared_sum], &[&matrix]);
 
         println!("Gradient of squared sum with respect to matrix:");

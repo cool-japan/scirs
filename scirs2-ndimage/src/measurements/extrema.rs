@@ -17,7 +17,7 @@ use crate::error::{NdimageError, Result};
 /// * `Result<(T, T, Vec<usize>, Vec<usize>)>` - (min, max, min_loc, max_loc)
 pub fn extrema<T, D>(input: &Array<T, D>) -> Result<(T, T, Vec<usize>, Vec<usize>)>
 where
-    T: Float + FromPrimitive + Debug + NumAssign,
+    T: Float + FromPrimitive + Debug + NumAssign + PartialOrd,
     D: Dimension,
 {
     // Validate inputs
@@ -31,9 +31,48 @@ where
         return Err(NdimageError::InvalidInput("Input array is empty".into()));
     }
 
-    // Placeholder implementation
-    let origin = vec![0; input.ndim()];
-    Ok((T::zero(), T::one(), origin.clone(), origin))
+    // Convert to dynamic array for easier indexing
+    let input_dyn = input.clone().into_dyn();
+
+    let mut min_val = None;
+    let mut max_val = None;
+    let mut min_loc = vec![0; input.ndim()];
+    let mut max_loc = vec![0; input.ndim()];
+
+    // Find min and max values and their locations
+    for (idx, &value) in input_dyn.indexed_iter() {
+        let idx_vec: Vec<usize> = idx.as_array_view().to_vec();
+
+        match min_val {
+            None => {
+                min_val = Some(value);
+                max_val = Some(value);
+                min_loc = idx_vec.clone();
+                max_loc = idx_vec;
+            }
+            Some(current_min) => {
+                if value < current_min {
+                    min_val = Some(value);
+                    min_loc = idx_vec.clone();
+                }
+                if let Some(current_max) = max_val {
+                    if value > current_max {
+                        max_val = Some(value);
+                        max_loc = idx_vec;
+                    }
+                }
+            }
+        }
+    }
+
+    match (min_val, max_val) {
+        (Some(min), Some(max)) => Ok((min, max, min_loc, max_loc)),
+        _ => {
+            // This should not happen since we check for empty array above
+            let origin = vec![0; input.ndim()];
+            Ok((T::zero(), T::zero(), origin.clone(), origin))
+        }
+    }
 }
 
 /// Find the local extrema of an array

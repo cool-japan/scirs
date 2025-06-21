@@ -70,7 +70,9 @@ use ndarray::Array2;
 use num_traits::Float;
 use std::cmp::Ordering;
 
+// Rayon parallel processing currently not used in this module
 #[cfg(feature = "parallel")]
+#[allow(unused_imports)]
 use rayon::prelude::*;
 
 /// A rectangle representing a hyperrectangle in k-dimensional space

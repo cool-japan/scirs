@@ -130,6 +130,8 @@
 //! ```
 
 // Export common types and error types
+pub mod acceleration;
+pub mod autotuning;
 pub mod common;
 pub mod error;
 pub use common::IntegrateFloat;
@@ -137,11 +139,15 @@ pub use error::{IntegrateError, IntegrateResult};
 
 // Integration modules
 pub mod bvp;
+pub mod bvp_extended;
 pub mod cubature;
 pub mod dae;
 pub mod gaussian;
 pub mod lebedev;
+pub mod memory;
 pub mod monte_carlo;
+#[cfg(feature = "parallel")]
+pub mod monte_carlo_parallel;
 pub mod newton_cotes;
 
 // Use the new modular ODE implementation
@@ -159,11 +165,21 @@ pub mod qmc;
 pub mod quad;
 pub mod quad_vec;
 pub mod romberg;
+pub mod scheduling;
 pub mod tanhsinh;
 pub mod utils;
+pub mod verification;
 
 // Re-exports for convenience
+pub use acceleration::{AcceleratorOptions, AitkenAccelerator, AndersonAccelerator};
+pub use autotuning::{
+    AlgorithmTuner, AutoTuner, GpuInfo, HardwareDetector, HardwareInfo, SimdFeature, TuningProfile,
+};
 pub use bvp::{solve_bvp, solve_bvp_auto, BVPOptions, BVPResult};
+pub use bvp_extended::{
+    solve_bvp_extended, solve_multipoint_bvp, BoundaryConditionType as BVPBoundaryConditionType,
+    ExtendedBoundaryConditions, MultipointBVP, RobinBC,
+};
 pub use cubature::{cubature, nquad, Bound, CubatureOptions, CubatureResult};
 pub use dae::{
     bdf_implicit_dae, bdf_implicit_with_index_reduction, bdf_semi_explicit_dae,
@@ -173,6 +189,18 @@ pub use dae::{
     DAEStructure, DAEType, DummyDerivativeReducer, PantelidesReducer, ProjectionMethod,
 };
 pub use lebedev::{lebedev_integrate, lebedev_rule, LebedevOrder, LebedevRule};
+pub use memory::{
+    BlockingStrategy, CacheAwareAlgorithms, CacheFriendlyMatrix, CacheLevel, DataLayoutOptimizer,
+    MatrixLayout, MemoryPool, MemoryPrefetch, MemoryUsage, PooledBuffer,
+};
+pub use monte_carlo::{
+    importance_sampling, monte_carlo, monte_carlo_parallel, ErrorEstimationMethod,
+    MonteCarloOptions, MonteCarloResult,
+};
+#[cfg(feature = "parallel")]
+pub use monte_carlo_parallel::{
+    adaptive_parallel_monte_carlo, parallel_monte_carlo, ParallelMonteCarloOptions,
+};
 pub use newton_cotes::{newton_cotes, newton_cotes_integrate, NewtonCotesResult, NewtonCotesType};
 // Export ODE types from the new modular implementation
 pub use ode::{
@@ -213,7 +241,7 @@ pub use pde::{
 //     ImplicitMethod, ImplicitOptions, ImplicitResult,
 //     CrankNicolson1D, BackwardEuler1D, ADI2D, ADIResult
 // };
-pub use qmc::{qmc_quad, Halton, QMCQuadResult, RandomGenerator, Sobol};
+pub use qmc::{qmc_quad, qmc_quad_parallel, Faure, Halton, QMCQuadResult, RandomGenerator, Sobol};
 pub use quad::{quad, simpson, trapezoid};
 pub use quad_vec::{quad_vec, NormType, QuadRule, QuadVecOptions, QuadVecResult};
 pub use symplectic::{
@@ -222,6 +250,11 @@ pub use symplectic::{
     SeparableHamiltonian, StormerVerlet, SymplecticIntegrator, SymplecticResult,
 };
 pub use tanhsinh::{nsum, tanhsinh, TanhSinhOptions, TanhSinhResult};
+pub use verification::{
+    polynomial_solution, trigonometric_solution_2d, ConvergenceAnalysis, ErrorAnalysis,
+    ExactSolution, MMSODEProblem, MMSPDEProblem, PDEType as VerificationPDEType,
+    PolynomialSolution, TrigonometricSolution2D,
+};
 
 #[cfg(test)]
 mod tests {

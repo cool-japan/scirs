@@ -1,7 +1,7 @@
 //! Core array operations for scientific computing
 //!
 //! This module provides implementations of fundamental array operations
-//! that correspond to NumPy's core functionality, focusing on reshape,
+//! that correspond to `NumPy`'s core functionality, focusing on reshape,
 //! transpose, concatenate, split, and other basic array manipulations.
 
 use ndarray::{Array, ArrayView, Axis, Dimension, ShapeError};

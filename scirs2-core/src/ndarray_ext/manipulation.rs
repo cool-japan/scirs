@@ -1,7 +1,7 @@
-//! Array manipulation operations similar to NumPy's array manipulation routines
+//! Array manipulation operations similar to `NumPy`'s array manipulation routines
 //!
 //! This module provides functions for manipulating arrays, including flip, roll,
-//! tile, repeat, and other operations, designed to mirror NumPy's functionality.
+//! tile, repeat, and other operations, designed to mirror `NumPy`'s functionality.
 
 use ndarray::{Array, ArrayView, Ix1, Ix2};
 use num_traits::Zero;

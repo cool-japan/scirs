@@ -29,6 +29,12 @@ pub enum CentralityType {
     Katz,
     /// PageRank centrality: Google's PageRank algorithm
     PageRank,
+    /// Weighted degree centrality: sum of edge weights
+    WeightedDegree,
+    /// Weighted betweenness centrality: betweenness with edge weights
+    WeightedBetweenness,
+    /// Weighted closeness centrality: closeness with edge weights
+    WeightedCloseness,
 }
 
 /// Calculates centrality measures for nodes in an undirected graph
@@ -70,6 +76,9 @@ where
         CentralityType::Eigenvector => eigenvector_centrality(graph),
         CentralityType::Katz => katz_centrality(graph, 0.1, 1.0), // Default parameters
         CentralityType::PageRank => pagerank_centrality(graph, 0.85, 1e-6), // Default parameters
+        CentralityType::WeightedDegree => weighted_degree_centrality(graph),
+        CentralityType::WeightedBetweenness => weighted_betweenness_centrality(graph),
+        CentralityType::WeightedCloseness => weighted_closeness_centrality(graph),
     }
 }
 
@@ -112,6 +121,9 @@ where
         CentralityType::Eigenvector => eigenvector_centrality_digraph(graph),
         CentralityType::Katz => katz_centrality_digraph(graph, 0.1, 1.0), // Default parameters
         CentralityType::PageRank => pagerank_centrality_digraph(graph, 0.85, 1e-6), // Default parameters
+        CentralityType::WeightedDegree => weighted_degree_centrality_digraph(graph),
+        CentralityType::WeightedBetweenness => weighted_betweenness_centrality_digraph(graph),
+        CentralityType::WeightedCloseness => weighted_closeness_centrality_digraph(graph),
     }
 }
 
@@ -1090,6 +1102,273 @@ where
     Ok(result)
 }
 
+/// Calculates weighted degree centrality for undirected graphs
+///
+/// Weighted degree centrality is the sum of the weights of all edges incident to a node.
+fn weighted_degree_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight + Into<f64> + Clone,
+    Ix: IndexType,
+{
+    let mut centrality = HashMap::new();
+
+    for node in graph.nodes() {
+        let mut weight_sum = 0.0;
+
+        if let Ok(neighbors) = graph.neighbors(node) {
+            for neighbor in neighbors {
+                if let Ok(weight) = graph.edge_weight(node, &neighbor) {
+                    weight_sum += weight.into();
+                }
+            }
+        }
+
+        centrality.insert(node.clone(), weight_sum);
+    }
+
+    Ok(centrality)
+}
+
+/// Calculates weighted degree centrality for directed graphs
+fn weighted_degree_centrality_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node,
+    E: EdgeWeight + Into<f64> + Clone,
+    Ix: IndexType,
+{
+    let mut centrality = HashMap::new();
+
+    for node in graph.nodes() {
+        let mut in_weight = 0.0;
+        let mut out_weight = 0.0;
+
+        // Sum incoming edge weights
+        if let Ok(predecessors) = graph.predecessors(node) {
+            for pred in predecessors {
+                if let Ok(weight) = graph.edge_weight(&pred, node) {
+                    in_weight += weight.into();
+                }
+            }
+        }
+
+        // Sum outgoing edge weights
+        if let Ok(successors) = graph.successors(node) {
+            for succ in successors {
+                if let Ok(weight) = graph.edge_weight(node, &succ) {
+                    out_weight += weight.into();
+                }
+            }
+        }
+
+        centrality.insert(node.clone(), in_weight + out_weight);
+    }
+
+    Ok(centrality)
+}
+
+/// Calculates weighted betweenness centrality for undirected graphs
+///
+/// Uses Dijkstra's algorithm to find shortest weighted paths between all pairs of nodes.
+fn weighted_betweenness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, f64>>
+where
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + Copy
+        + std::fmt::Debug
+        + Default,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+    let mut centrality: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
+
+    // For each pair of nodes, find shortest weighted paths
+    for source in &nodes {
+        for target in &nodes {
+            if source != target {
+                // Find shortest weighted path
+                if let Ok(Some(path)) = shortest_path(graph, source, target) {
+                    // Count how many times each intermediate node appears
+                    for intermediate in &path.nodes[1..path.nodes.len() - 1] {
+                        *centrality.get_mut(intermediate).unwrap() += 1.0;
+                    }
+                }
+            }
+        }
+    }
+
+    // Normalize by (n-1)(n-2) for undirected graphs
+    if n > 2 {
+        let normalization = ((n - 1) * (n - 2)) as f64;
+        for value in centrality.values_mut() {
+            *value /= normalization;
+        }
+    }
+
+    Ok(centrality)
+}
+
+/// Calculates weighted betweenness centrality for directed graphs
+fn weighted_betweenness_centrality_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + Copy
+        + std::fmt::Debug
+        + Default,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+    let mut centrality: HashMap<N, f64> = nodes.iter().map(|n| (n.clone(), 0.0)).collect();
+
+    // For each pair of nodes, find shortest weighted paths
+    for source in &nodes {
+        for target in &nodes {
+            if source != target {
+                // Find shortest weighted path in directed graph
+                if let Ok(Some(path)) = shortest_path_digraph(graph, source, target) {
+                    // Count how many times each intermediate node appears
+                    for intermediate in &path.nodes[1..path.nodes.len() - 1] {
+                        *centrality.get_mut(intermediate).unwrap() += 1.0;
+                    }
+                }
+            }
+        }
+    }
+
+    // Normalize by (n-1)(n-2) for directed graphs
+    if n > 2 {
+        let normalization = ((n - 1) * (n - 2)) as f64;
+        for value in centrality.values_mut() {
+            *value /= normalization;
+        }
+    }
+
+    Ok(centrality)
+}
+
+/// Calculates weighted closeness centrality for undirected graphs
+///
+/// Weighted closeness centrality uses the shortest weighted path distances.
+fn weighted_closeness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, f64>>
+where
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + Copy
+        + std::fmt::Debug
+        + Default,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+    let mut centrality = HashMap::new();
+
+    for node in &nodes {
+        let mut total_distance = 0.0;
+        let mut reachable_count = 0;
+
+        // Calculate shortest weighted paths to all other nodes
+        for other in &nodes {
+            if node != other {
+                if let Ok(Some(path)) = shortest_path(graph, node, other) {
+                    let distance: f64 = path.total_weight.into();
+                    total_distance += distance;
+                    reachable_count += 1;
+                }
+            }
+        }
+
+        if reachable_count > 0 && total_distance > 0.0 {
+            let closeness = reachable_count as f64 / total_distance;
+            // Normalize by (n-1) to get values between 0 and 1
+            let normalized_closeness = if n > 1 {
+                closeness * (reachable_count as f64 / (n - 1) as f64)
+            } else {
+                closeness
+            };
+            centrality.insert(node.clone(), normalized_closeness);
+        } else {
+            centrality.insert(node.clone(), 0.0);
+        }
+    }
+
+    Ok(centrality)
+}
+
+/// Calculates weighted closeness centrality for directed graphs
+fn weighted_closeness_centrality_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+) -> Result<HashMap<N, f64>>
+where
+    N: Node + std::fmt::Debug,
+    E: EdgeWeight
+        + Into<f64>
+        + num_traits::Zero
+        + num_traits::One
+        + std::ops::Add<Output = E>
+        + PartialOrd
+        + Copy
+        + std::fmt::Debug
+        + Default,
+    Ix: IndexType,
+{
+    let nodes: Vec<N> = graph.nodes().into_iter().cloned().collect();
+    let n = nodes.len();
+    let mut centrality = HashMap::new();
+
+    for node in &nodes {
+        let mut total_distance = 0.0;
+        let mut reachable_count = 0;
+
+        // Calculate shortest weighted paths to all other nodes
+        for other in &nodes {
+            if node != other {
+                if let Ok(Some(path)) = shortest_path_digraph(graph, node, other) {
+                    let distance: f64 = path.total_weight.into();
+                    total_distance += distance;
+                    reachable_count += 1;
+                }
+            }
+        }
+
+        if reachable_count > 0 && total_distance > 0.0 {
+            let closeness = reachable_count as f64 / total_distance;
+            // Normalize by (n-1) to get values between 0 and 1
+            let normalized_closeness = if n > 1 {
+                closeness * (reachable_count as f64 / (n - 1) as f64)
+            } else {
+                closeness
+            };
+            centrality.insert(node.clone(), normalized_closeness);
+        } else {
+            centrality.insert(node.clone(), 0.0);
+        }
+    }
+
+    Ok(centrality)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1324,5 +1603,93 @@ mod tests {
         let hub_norm: f64 = hits.hubs.values().map(|&x| x * x).sum::<f64>();
         assert!((auth_norm - 1.0).abs() < 0.01);
         assert!((hub_norm - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_weighted_degree_centrality() {
+        let mut graph = crate::generators::create_graph::<&str, f64>();
+
+        // Create a simple weighted graph
+        graph.add_edge("A", "B", 2.0).unwrap();
+        graph.add_edge("A", "C", 3.0).unwrap();
+        graph.add_edge("B", "C", 1.0).unwrap();
+
+        let centrality = centrality(&graph, CentralityType::WeightedDegree).unwrap();
+
+        // A has edges with weights 2.0 + 3.0 = 5.0
+        assert_eq!(centrality[&"A"], 5.0);
+
+        // B has edges with weights 2.0 + 1.0 = 3.0
+        assert_eq!(centrality[&"B"], 3.0);
+
+        // C has edges with weights 3.0 + 1.0 = 4.0
+        assert_eq!(centrality[&"C"], 4.0);
+    }
+
+    #[test]
+    fn test_weighted_closeness_centrality() {
+        let mut graph = crate::generators::create_graph::<&str, f64>();
+
+        // Create a simple weighted graph
+        graph.add_edge("A", "B", 1.0).unwrap();
+        graph.add_edge("B", "C", 2.0).unwrap();
+
+        let centrality = centrality(&graph, CentralityType::WeightedCloseness).unwrap();
+
+        // All centrality values should be positive
+        for value in centrality.values() {
+            assert!(*value > 0.0);
+        }
+
+        // Node B should have highest closeness (shortest paths to others)
+        assert!(centrality[&"B"] > centrality[&"A"]);
+        assert!(centrality[&"B"] > centrality[&"C"]);
+    }
+
+    #[test]
+    fn test_weighted_betweenness_centrality() {
+        let mut graph = crate::generators::create_graph::<&str, f64>();
+
+        // Create a path graph A-B-C
+        graph.add_edge("A", "B", 1.0).unwrap();
+        graph.add_edge("B", "C", 1.0).unwrap();
+
+        let centrality = centrality(&graph, CentralityType::WeightedBetweenness).unwrap();
+
+        // B should have positive betweenness (lies on path from A to C)
+        assert!(centrality[&"B"] > 0.0);
+
+        // A and C should have zero betweenness (no paths pass through them)
+        assert_eq!(centrality[&"A"], 0.0);
+        assert_eq!(centrality[&"C"], 0.0);
+    }
+
+    #[test]
+    fn test_weighted_centrality_digraph() {
+        let mut graph = crate::generators::create_digraph::<&str, f64>();
+
+        // Create a simple directed weighted graph
+        graph.add_edge("A", "B", 2.0).unwrap();
+        graph.add_edge("B", "C", 3.0).unwrap();
+        graph.add_edge("A", "C", 1.0).unwrap();
+
+        let degree_centrality = centrality_digraph(&graph, CentralityType::WeightedDegree).unwrap();
+        let closeness_centrality =
+            centrality_digraph(&graph, CentralityType::WeightedCloseness).unwrap();
+
+        // All centrality values should be non-negative
+        for value in degree_centrality.values() {
+            assert!(*value >= 0.0);
+        }
+        for value in closeness_centrality.values() {
+            assert!(*value >= 0.0);
+        }
+
+        // A has weighted degree 2.0 + 1.0 = 3.0 (outgoing only)
+        // B has weighted degree 2.0 (incoming) + 3.0 (outgoing) = 5.0 total
+        // C has weighted degree 3.0 + 1.0 = 4.0 (incoming only)
+        // So B should have the highest total weighted degree
+        assert!(degree_centrality[&"B"] > degree_centrality[&"A"]);
+        assert!(degree_centrality[&"B"] > degree_centrality[&"C"]);
     }
 }

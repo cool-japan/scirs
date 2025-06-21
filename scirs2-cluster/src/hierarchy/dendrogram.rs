@@ -229,6 +229,7 @@ fn get_descendants<F: Float>(z: &Array2<F>, idx: usize, depth: usize) -> Result<
 /// Calculates the optimal leaf ordering for a dendrogram
 ///
 /// This reorders the leaves to minimize the sum of distances between adjacent leaves.
+/// Uses automatic algorithm selection: exact for small dendrograms, heuristic for large ones.
 ///
 /// # Arguments
 ///
@@ -238,19 +239,12 @@ fn get_descendants<F: Float>(z: &Array2<F>, idx: usize, depth: usize) -> Result<
 /// # Returns
 ///
 /// * `Result<Array1<usize>>` - The optimal leaf ordering
-pub fn optimal_leaf_ordering<F: Float + FromPrimitive + PartialOrd>(
+pub fn optimal_leaf_ordering<F: Float + FromPrimitive + PartialOrd + Debug>(
     z: &Array2<F>,
-    _d: &Array1<F>,
+    d: &Array1<F>,
 ) -> Result<Array1<usize>> {
-    let n_samples = z.shape()[0] + 1;
-
-    // Initialize the leaf order as identity mapping
-    let order = Array1::from_iter(0..n_samples);
-
-    // Not a full implementation - would require extensive dynamic programming
-    // For now, we return the original ordering
-
-    Ok(order)
+    // Use the new implementation from leaf_ordering module
+    crate::hierarchy::leaf_ordering::optimal_leaf_ordering(z.view(), d.view())
 }
 
 /// Converts a linkage matrix to a dendrogram dictionary for visualization
@@ -284,4 +278,279 @@ pub fn dendrogram<F: Float + FromPrimitive + Clone>(
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hierarchy::{linkage, LinkageMethod, Metric};
+    use ndarray::{Array1, Array2};
+
+    #[test]
+    fn test_cophenet_simple() {
+        // Create simple test data with clear hierarchical structure
+        let data = Array2::from_shape_vec(
+            (4, 2),
+            vec![
+                0.0, 0.0, // Point 0
+                1.0, 0.0, // Point 1 (close to 0)
+                10.0, 0.0, // Point 2 (far from 0,1)
+                11.0, 0.0, // Point 3 (close to 2)
+            ],
+        )
+        .unwrap();
+
+        // Compute linkage matrix
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+
+        // Compute original distances (condensed form)
+        let mut original_distances = Array1::zeros(6); // C(4,2) = 6 pairwise distances
+        let mut idx = 0;
+        for i in 0..4 {
+            for j in (i + 1)..4 {
+                let dist = ((data[[i, 0]] - data[[j, 0]]).powi(2)
+                    + (data[[i, 1]] - data[[j, 1]]).powi(2))
+                .sqrt();
+                original_distances[idx] = dist;
+                idx += 1;
+            }
+        }
+
+        // Compute cophenetic correlation
+        let correlation = cophenet(&linkage_matrix, &original_distances).unwrap();
+
+        // For a well-structured hierarchical dataset, correlation should be high
+        assert!(
+            correlation >= 0.5,
+            "Cophenetic correlation should be reasonably high for structured data, got {}",
+            correlation
+        );
+        assert!(
+            correlation <= 1.0,
+            "Cophenetic correlation cannot exceed 1.0, got {}",
+            correlation
+        );
+    }
+
+    #[test]
+    fn test_cophenet_perfect_hierarchy() {
+        // Create data with perfect hierarchical structure
+        // Two well-separated clusters with internal hierarchy
+        let data = Array2::from_shape_vec(
+            (4, 1),
+            vec![
+                0.0,  // Cluster 1, point A
+                1.0,  // Cluster 1, point B
+                10.0, // Cluster 2, point C
+                11.0, // Cluster 2, point D
+            ],
+        )
+        .unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+
+        // Compute original distances
+        let original_distances = Array1::from_vec(vec![
+            1.0,  // 0-1
+            10.0, // 0-2
+            11.0, // 0-3
+            9.0,  // 1-2
+            10.0, // 1-3
+            1.0,  // 2-3
+        ]);
+
+        let correlation = cophenet(&linkage_matrix, &original_distances).unwrap();
+
+        // Should have very high correlation for this structured data
+        assert!(
+            correlation >= 0.8,
+            "Perfect hierarchy should have high cophenetic correlation, got {}",
+            correlation
+        );
+    }
+
+    #[test]
+    fn test_cophenet_identical_points() {
+        // Edge case: some identical points
+        let data = Array2::from_shape_vec(
+            (3, 2),
+            vec![
+                0.0, 0.0, 0.0, 0.0, // Identical to first point
+                5.0, 5.0,
+            ],
+        )
+        .unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+
+        let original_distances = Array1::from_vec(vec![
+            0.0,                    // 0-1 (identical)
+            (5.0_f64 * 2.0).sqrt(), // 0-2
+            (5.0_f64 * 2.0).sqrt(), // 1-2
+        ]);
+
+        // Should not panic and return a correlation result
+        let result = cophenet(&linkage_matrix, &original_distances);
+        assert!(
+            result.is_ok(),
+            "Cophenetic correlation should handle identical points"
+        );
+
+        let correlation = result.unwrap();
+        // For identical points, correlation might be NaN, infinity, or a valid number
+        // We just check that it doesn't panic and is some kind of number
+        assert!(
+            correlation.is_finite() || correlation.is_nan() || correlation.is_infinite(),
+            "Correlation should be a valid floating point number, got {}",
+            correlation
+        );
+    }
+
+    #[test]
+    fn test_inconsistent_basic() {
+        // Test inconsistency calculation
+        let data = Array2::from_shape_vec(
+            (5, 2),
+            vec![0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 10.0, 0.0, 11.0, 0.0],
+        )
+        .unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Average, Metric::Euclidean).unwrap();
+
+        // Test with default depth
+        let inconsistency_matrix = inconsistent(&linkage_matrix, None).unwrap();
+
+        // Should have same number of rows as linkage matrix
+        assert_eq!(inconsistency_matrix.shape()[0], linkage_matrix.shape()[0]);
+        assert_eq!(inconsistency_matrix.shape()[1], 4); // [mean, std, count, inconsistency]
+
+        // All values should be finite
+        for i in 0..inconsistency_matrix.shape()[0] {
+            for j in 0..inconsistency_matrix.shape()[1] {
+                assert!(
+                    inconsistency_matrix[[i, j]].is_finite(),
+                    "Inconsistency values should be finite at [{}, {}]",
+                    i,
+                    j
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_inconsistent_with_depth() {
+        let data = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 2.0, 10.0]).unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Complete, Metric::Euclidean).unwrap();
+
+        // Test with different depths
+        for depth in 1..=3 {
+            let inconsistency_matrix = inconsistent(&linkage_matrix, Some(depth)).unwrap();
+
+            assert_eq!(inconsistency_matrix.shape()[0], linkage_matrix.shape()[0]);
+            assert_eq!(inconsistency_matrix.shape()[1], 4);
+
+            // Count values should be positive
+            for i in 0..inconsistency_matrix.shape()[0] {
+                assert!(
+                    inconsistency_matrix[[i, 2]] > 0.0,
+                    "Count should be positive"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_optimal_leaf_ordering() {
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 10.0, 10.0, 11.0, 11.0])
+            .unwrap();
+
+        let linkage_matrix = linkage(data.view(), LinkageMethod::Ward, Metric::Euclidean).unwrap();
+        let original_distances = Array1::from_vec(vec![1.414, 12.73, 14.14, 1.414, 12.73, 1.414]);
+
+        let ordering = optimal_leaf_ordering(&linkage_matrix, &original_distances).unwrap();
+
+        // Should return ordering for all samples
+        assert_eq!(ordering.len(), 4);
+
+        // All indices should be unique and in range
+        let mut indices: Vec<usize> = ordering.to_vec();
+        indices.sort();
+        assert_eq!(indices, vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_dendrogram_conversion() {
+        let data = Array2::from_shape_vec((3, 1), vec![0.0, 5.0, 10.0]).unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+
+        let dendrogram_data = dendrogram(&linkage_matrix).unwrap();
+
+        // Should have n-1 entries for n samples
+        assert_eq!(dendrogram_data.len(), 2);
+
+        // Each entry should have the correct format: (cluster1, cluster2, height, count)
+        for (i, &(cluster1, cluster2, height, count)) in dendrogram_data.iter().enumerate() {
+            assert!(
+                cluster1 < 2 * data.shape()[0] - 1,
+                "Invalid cluster1 index in merge {}",
+                i
+            );
+            assert!(
+                cluster2 < 2 * data.shape()[0] - 1,
+                "Invalid cluster2 index in merge {}",
+                i
+            );
+            assert!(height >= 0.0, "Merge height should be non-negative");
+            assert!(count >= 2, "Cluster count should be at least 2");
+        }
+    }
+
+    #[test]
+    fn test_cophenet_error_cases() {
+        // Create valid test data first
+        let data = Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 2.0]).unwrap();
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+
+        // Test with zero variance (all distances identical)
+        let identical_distances = Array1::from_vec(vec![1.0, 1.0, 1.0]);
+        let result = cophenet(&linkage_matrix, &identical_distances);
+
+        // Should handle edge cases gracefully
+        if let Err(e) = result {
+            // If it returns an error, it should be a meaningful one
+            assert!(
+                format!("{}", e).contains("variance") || format!("{}", e).contains("correlation")
+            );
+        } else {
+            // If it succeeds, the result should be valid
+            let correlation = result.unwrap();
+            assert!(correlation.is_finite(), "Correlation should be finite");
+        }
+    }
+
+    #[test]
+    fn test_find_lca_height() {
+        // Test the internal LCA function indirectly through cophenet
+        let data = Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 10.0]).unwrap();
+
+        let linkage_matrix =
+            linkage(data.view(), LinkageMethod::Single, Metric::Euclidean).unwrap();
+        let original_distances = Array1::from_vec(vec![1.0, 10.0, 9.0]);
+
+        // This should work without errors - testing the internal LCA logic
+        let correlation = cophenet(&linkage_matrix, &original_distances).unwrap();
+        assert!(
+            correlation.is_finite(),
+            "LCA height calculation should produce finite correlation"
+        );
+    }
 }

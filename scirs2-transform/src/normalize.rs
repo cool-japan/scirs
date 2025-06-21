@@ -26,6 +26,8 @@ pub enum NormalizationMethod {
     L1,
     /// L2 normalization (divide by Euclidean norm)
     L2,
+    /// Robust scaling using median and IQR (robust to outliers)
+    Robust,
 }
 
 /// Normalizes a 2D array along a specified axis
@@ -213,6 +215,61 @@ where
                 }
             }
         }
+        NormalizationMethod::Robust => {
+            let median = array_f64.map_axis(Axis(axis), |view| {
+                let mut data = view.to_vec();
+                data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let n = data.len();
+                if n % 2 == 0 {
+                    (data[n / 2 - 1] + data[n / 2]) / 2.0
+                } else {
+                    data[n / 2]
+                }
+            });
+
+            let iqr = array_f64.map_axis(Axis(axis), |view| {
+                let mut data = view.to_vec();
+                data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let n = data.len();
+
+                // Calculate Q1 (25th percentile)
+                let q1_pos = 0.25 * (n - 1) as f64;
+                let q1_idx_low = q1_pos.floor() as usize;
+                let q1_idx_high = q1_pos.ceil() as usize;
+                let q1 = if q1_idx_low == q1_idx_high {
+                    data[q1_idx_low]
+                } else {
+                    let weight = q1_pos - q1_idx_low as f64;
+                    data[q1_idx_low] * (1.0 - weight) + data[q1_idx_high] * weight
+                };
+
+                // Calculate Q3 (75th percentile)
+                let q3_pos = 0.75 * (n - 1) as f64;
+                let q3_idx_low = q3_pos.floor() as usize;
+                let q3_idx_high = q3_pos.ceil() as usize;
+                let q3 = if q3_idx_low == q3_idx_high {
+                    data[q3_idx_low]
+                } else {
+                    let weight = q3_pos - q3_idx_low as f64;
+                    data[q3_idx_low] * (1.0 - weight) + data[q3_idx_high] * weight
+                };
+
+                q3 - q1
+            });
+
+            for i in 0..shape[0] {
+                for j in 0..shape[1] {
+                    let value = array_f64[[i, j]];
+                    let idx = if axis == 0 { j } else { i };
+
+                    if iqr[idx] > EPSILON {
+                        normalized[[i, j]] = (value - median[idx]) / iqr[idx];
+                    } else {
+                        normalized[[i, j]] = 0.0; // Default for constant features
+                    }
+                }
+            }
+        }
     }
 
     Ok(normalized)
@@ -331,6 +388,51 @@ where
                 normalized.fill(0.0); // Default for constant features
             }
         }
+        NormalizationMethod::Robust => {
+            let mut data = array_f64.to_vec();
+            data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let n = data.len();
+
+            // Calculate median
+            let median = if n % 2 == 0 {
+                (data[n / 2 - 1] + data[n / 2]) / 2.0
+            } else {
+                data[n / 2]
+            };
+
+            // Calculate IQR (Interquartile Range)
+            // Calculate Q1 (25th percentile)
+            let q1_pos = 0.25 * (n - 1) as f64;
+            let q1_idx_low = q1_pos.floor() as usize;
+            let q1_idx_high = q1_pos.ceil() as usize;
+            let q1 = if q1_idx_low == q1_idx_high {
+                data[q1_idx_low]
+            } else {
+                let weight = q1_pos - q1_idx_low as f64;
+                data[q1_idx_low] * (1.0 - weight) + data[q1_idx_high] * weight
+            };
+
+            // Calculate Q3 (75th percentile)
+            let q3_pos = 0.75 * (n - 1) as f64;
+            let q3_idx_low = q3_pos.floor() as usize;
+            let q3_idx_high = q3_pos.ceil() as usize;
+            let q3 = if q3_idx_low == q3_idx_high {
+                data[q3_idx_low]
+            } else {
+                let weight = q3_pos - q3_idx_low as f64;
+                data[q3_idx_low] * (1.0 - weight) + data[q3_idx_high] * weight
+            };
+
+            let iqr = q3 - q1;
+
+            if iqr > EPSILON {
+                for (i, &value) in array_f64.iter().enumerate() {
+                    normalized[i] = (value - median) / iqr;
+                }
+            } else {
+                normalized.fill(0.0); // Default for constant features
+            }
+        }
     }
 
     Ok(normalized)
@@ -368,6 +470,11 @@ enum NormalizerParams {
     L1 { l1_norm: Array1<f64> },
     /// L2 norms for L2 normalization
     L2 { l2_norm: Array1<f64> },
+    /// Median and IQR for Robust normalization
+    Robust {
+        median: Array1<f64>,
+        iqr: Array1<f64>,
+    },
 }
 
 impl Normalizer {
@@ -405,6 +512,10 @@ impl Normalizer {
             },
             NormalizationMethod::L2 => NormalizerParams::L2 {
                 l2_norm: Array1::zeros(0),
+            },
+            NormalizationMethod::Robust => NormalizerParams::Robust {
+                median: Array1::zeros(0),
+                iqr: Array1::zeros(0),
             },
         };
 
@@ -498,6 +609,48 @@ impl Normalizer {
                     sum_squares.sqrt()
                 });
             }
+            NormalizerParams::Robust { median, iqr } => {
+                *median = array_f64.map_axis(Axis(self.axis), |view| {
+                    let mut data = view.to_vec();
+                    data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    let n = data.len();
+                    if n % 2 == 0 {
+                        (data[n / 2 - 1] + data[n / 2]) / 2.0
+                    } else {
+                        data[n / 2]
+                    }
+                });
+
+                *iqr = array_f64.map_axis(Axis(self.axis), |view| {
+                    let mut data = view.to_vec();
+                    data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    let n = data.len();
+
+                    // Calculate Q1 (25th percentile)
+                    let q1_pos = 0.25 * (n - 1) as f64;
+                    let q1_idx_low = q1_pos.floor() as usize;
+                    let q1_idx_high = q1_pos.ceil() as usize;
+                    let q1 = if q1_idx_low == q1_idx_high {
+                        data[q1_idx_low]
+                    } else {
+                        let weight = q1_pos - q1_idx_low as f64;
+                        data[q1_idx_low] * (1.0 - weight) + data[q1_idx_high] * weight
+                    };
+
+                    // Calculate Q3 (75th percentile)
+                    let q3_pos = 0.75 * (n - 1) as f64;
+                    let q3_idx_low = q3_pos.floor() as usize;
+                    let q3_idx_high = q3_pos.ceil() as usize;
+                    let q3 = if q3_idx_low == q3_idx_high {
+                        data[q3_idx_low]
+                    } else {
+                        let weight = q3_pos - q3_idx_low as f64;
+                        data[q3_idx_low] * (1.0 - weight) + data[q3_idx_high] * weight
+                    };
+
+                    q3 - q1
+                });
+            }
         }
 
         Ok(())
@@ -536,6 +689,7 @@ impl Normalizer {
             NormalizerParams::MaxAbs { max_abs } => max_abs.len(),
             NormalizerParams::L1 { l1_norm } => l1_norm.len(),
             NormalizerParams::L2 { l2_norm } => l2_norm.len(),
+            NormalizerParams::Robust { median, .. } => median.len(),
         };
 
         let actual_size = if self.axis == 0 {
@@ -628,6 +782,20 @@ impl Normalizer {
 
                         if l2_norm[idx] > EPSILON {
                             transformed[[i, j]] = value / l2_norm[idx];
+                        } else {
+                            transformed[[i, j]] = 0.0; // Default for constant features
+                        }
+                    }
+                }
+            }
+            NormalizerParams::Robust { median, iqr } => {
+                for i in 0..shape[0] {
+                    for j in 0..shape[1] {
+                        let value = array_f64[[i, j]];
+                        let idx = if self.axis == 0 { j } else { i };
+
+                        if iqr[idx] > EPSILON {
+                            transformed[[i, j]] = (value - median[idx]) / iqr[idx];
                         } else {
                             transformed[[i, j]] = 0.0; // Default for constant features
                         }
@@ -760,6 +928,91 @@ mod tests {
         for i in 0..2 {
             for j in 0..3 {
                 assert_abs_diff_eq!(transformed2[[i, j]], expected2[[i, j]], epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_normalize_vector_robust() {
+        // Test with data containing outliers
+        let data = Array::from_vec(vec![1.0, 2.0, 3.0, 4.0, 100.0]); // 100 is an outlier
+        let normalized = normalize_vector(&data, NormalizationMethod::Robust).unwrap();
+
+        // For this data: sorted = [1, 2, 3, 4, 100]
+        // median = 3.0 (middle value)
+        // Q1 = 2.0 (at 25th percentile), Q3 = 4.0 (at 75th percentile), IQR = 2.0
+        // Expected transformation: (x - 3) / 2
+        let expected = Array::from_vec(vec![
+            (1.0 - 3.0) / 2.0,   // -1.0
+            (2.0 - 3.0) / 2.0,   // -0.5
+            (3.0 - 3.0) / 2.0,   // 0
+            (4.0 - 3.0) / 2.0,   // 0.5
+            (100.0 - 3.0) / 2.0, // 48.5
+        ]);
+
+        for (a, b) in normalized.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(a, b, epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_normalize_array_robust() {
+        let data = Array::from_shape_vec((3, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0]).unwrap();
+
+        // Normalize columns (axis 0)
+        let normalized = normalize_array(&data, NormalizationMethod::Robust, 0).unwrap();
+
+        // For column 0: [1, 2, 3] -> median=2, Q1=1.5, Q3=2.5, IQR=1.0
+        // For column 1: [10, 20, 30] -> median=20, Q1=15, Q3=25, IQR=10
+        let expected = Array::from_shape_vec(
+            (3, 2),
+            vec![
+                (1.0 - 2.0) / 1.0,    // -1.0
+                (10.0 - 20.0) / 10.0, // -1.0
+                (2.0 - 2.0) / 1.0,    // 0.0
+                (20.0 - 20.0) / 10.0, // 0.0
+                (3.0 - 2.0) / 1.0,    // 1.0
+                (30.0 - 20.0) / 10.0, // 1.0
+            ],
+        )
+        .unwrap();
+
+        for i in 0..3 {
+            for j in 0..2 {
+                assert_abs_diff_eq!(normalized[[i, j]], expected[[i, j]], epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_robust_normalizer() {
+        let data =
+            Array::from_shape_vec((4, 2), vec![1.0, 100.0, 2.0, 200.0, 3.0, 300.0, 4.0, 400.0])
+                .unwrap();
+
+        let mut normalizer = Normalizer::new(NormalizationMethod::Robust, 0);
+        let transformed = normalizer.fit_transform(&data).unwrap();
+
+        // For column 0: [1, 2, 3, 4] -> median=2.5, Q1=1.75, Q3=3.25, IQR=1.5
+        // For column 1: [100, 200, 300, 400] -> median=250, Q1=175, Q3=325, IQR=150
+        let expected = Array::from_shape_vec(
+            (4, 2),
+            vec![
+                (1.0 - 2.5) / 1.5,       // -1.0
+                (100.0 - 250.0) / 150.0, // -1.0
+                (2.0 - 2.5) / 1.5,       // -0.333...
+                (200.0 - 250.0) / 150.0, // -0.333...
+                (3.0 - 2.5) / 1.5,       // 0.333...
+                (300.0 - 250.0) / 150.0, // 0.333...
+                (4.0 - 2.5) / 1.5,       // 1.0
+                (400.0 - 250.0) / 150.0, // 1.0
+            ],
+        )
+        .unwrap();
+
+        for i in 0..4 {
+            for j in 0..2 {
+                assert_abs_diff_eq!(transformed[[i, j]], expected[[i, j]], epsilon = 1e-10);
             }
         }
     }

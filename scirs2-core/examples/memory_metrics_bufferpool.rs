@@ -3,12 +3,24 @@
 //! This example demonstrates how to use the TrackedBufferPool to automatically
 //! track memory allocations and deallocations in buffer pool operations.
 
+#[cfg(not(feature = "memory_management"))]
+fn main() {
+    println!("This example requires the 'memory_management' feature to be enabled.");
+    println!(
+        "Run with: cargo run --example memory_metrics_bufferpool --features memory_management"
+    );
+}
+
+#[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
     format_bytes, format_memory_report, reset_memory_metrics, TrackedBufferPool,
 };
+#[cfg(feature = "memory_management")]
 use std::thread;
+#[cfg(feature = "memory_management")]
 use std::time::Duration;
 
+#[cfg(feature = "memory_management")]
 fn main() {
     println!("Memory Metrics with TrackedBufferPool Example");
     println!("=============================================\n");

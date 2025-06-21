@@ -329,42 +329,10 @@ impl<F: IntegrateFloat> JacobianManager<F> {
                     f(t, y.view())
                 };
 
-                // Use parallel implementation based on strategy
-                let jac = if self.strategy == JacobianStrategy::ParallelSparseFiniteDifference {
-                    // For parallel sparse computation, need sparsity pattern
-                    // Default to dense pattern if none provided
-                    let _sparsity_pattern = Array2::<bool>::from_elem((n, n), true);
-
-                    // Check if F has Send + Sync bounds required for parallel computation
-                    #[cfg(feature = "parallel")]
-                    {
-                        // Use parallel sparse Jacobian computation
-                        parallel_sparse_jacobian(
-                            &f,
-                            t,
-                            y,
-                            &f_current,
-                            Some(&sparsity_pattern),
-                            F::one(),
-                        )?
-                    }
-                    #[cfg(not(feature = "parallel"))]
-                    {
-                        // Fallback to non-parallel version
-                        finite_difference_jacobian(&f, t, y, &f_current, F::from_f64(1e-8).unwrap())
-                    }
-                } else {
-                    // Use parallel dense Jacobian computation
-                    #[cfg(feature = "parallel")]
-                    {
-                        parallel_finite_difference_jacobian(&f, t, y, &f_current, F::one())?
-                    }
-                    #[cfg(not(feature = "parallel"))]
-                    {
-                        // Fallback to non-parallel version
-                        finite_difference_jacobian(&f, t, y, &f_current, F::from_f64(1e-8).unwrap())
-                    }
-                };
+                // Use implementation based on strategy, but fall back to serial for now
+                // TODO: Fix parallel jacobian computation trait bounds
+                let jac =
+                    finite_difference_jacobian(&f, t, y, &f_current, F::from_f64(1e-8).unwrap());
 
                 // Apply scaling if needed
                 let scaled_jac = if scale_val != F::one() {

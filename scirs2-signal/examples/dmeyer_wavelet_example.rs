@@ -75,7 +75,7 @@ fn main() {
         // Add coefficient traces to comparison plot (we'll just show cD1 for comparison)
         let x_detail1 = (0..detail1.len()).map(|x| x as f64).collect::<Vec<f64>>();
         let detail1_trace = Scatter::new(x_detail1, detail1.clone())
-            .name(&format!("Detail L1 ({})", name))
+            .name(format!("Detail L1 ({})", name))
             .mode(Mode::Lines);
 
         coeffs_plot.add_trace(detail1_trace);
@@ -116,7 +116,7 @@ fn main() {
 
         // Add denoised signal to plot
         let denoised_trace = Scatter::new(t.to_vec(), denoised_signal)
-            .name(&format!("Denoised ({})", name))
+            .name(format!("Denoised ({})", name))
             .mode(Mode::Lines);
         plot.add_trace(denoised_trace);
     }

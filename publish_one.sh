@@ -9,5 +9,5 @@ fi
 CRATE=$1
 echo "===== Publishing $CRATE ====="
 cd "$CRATE" || { echo "Directory not found: $CRATE"; exit 1; }
-cargo publish --allow-dirty || { echo "Failed to publish: $CRATE"; exit 1; }
+cargo publish || { echo "Failed to publish: $CRATE"; exit 1; }
 echo "✓ Successfully published $CRATE"

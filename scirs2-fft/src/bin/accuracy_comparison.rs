@@ -374,6 +374,31 @@ pub fn generate_accuracy_report(results: &[AccuracyResult]) {
     }
 }
 
+fn main() {
+    let mut all_results = Vec::new();
+
+    println!("Running FFT accuracy tests...");
+    all_results.extend(test_fft_accuracy());
+
+    println!("Running inverse transform tests...");
+    all_results.extend(test_inverse_accuracy());
+
+    println!("Running real FFT tests...");
+    all_results.extend(test_rfft_accuracy());
+
+    println!("Running 2D FFT tests...");
+    all_results.extend(test_fft2_accuracy());
+
+    println!("Running DCT tests...");
+    all_results.extend(test_dct_accuracy());
+
+    println!("Running FrFT tests...");
+    all_results.extend(test_frft_accuracy());
+
+    println!("\n");
+    generate_accuracy_report(&all_results);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,29 +433,4 @@ mod tests {
             }
         }
     }
-}
-
-fn main() {
-    let mut all_results = Vec::new();
-
-    println!("Running FFT accuracy tests...");
-    all_results.extend(test_fft_accuracy());
-
-    println!("Running inverse transform tests...");
-    all_results.extend(test_inverse_accuracy());
-
-    println!("Running real FFT tests...");
-    all_results.extend(test_rfft_accuracy());
-
-    println!("Running 2D FFT tests...");
-    all_results.extend(test_fft2_accuracy());
-
-    println!("Running DCT tests...");
-    all_results.extend(test_dct_accuracy());
-
-    println!("Running FrFT tests...");
-    all_results.extend(test_frft_accuracy());
-
-    println!("\n");
-    generate_accuracy_report(&all_results);
 }

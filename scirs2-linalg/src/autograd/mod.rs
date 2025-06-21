@@ -52,8 +52,6 @@
 //! - Support for complex-valued matrices
 //! - Specialized operations for structured matrices
 
-#![cfg(feature = "autograd")]
-
 use scirs2_autograd as ag;
 
 pub use ag::tensor_ops;
@@ -63,20 +61,18 @@ pub use ag::{Context, Float, Tensor};
 /// Placeholder for future batch operations module
 /// Will include: batch_matmul, batch_inv, batch_det, etc.
 pub mod batch {
-    //! Batch matrix operations (coming soon)
+    // Batch matrix operations (coming soon)
 }
 
 /// Placeholder for future factorizations module
 /// Will include: lu, qr, svd, cholesky with automatic differentiation
 pub mod factorizations {
-    //! Matrix factorizations with gradients (coming soon)
+    // Matrix factorizations with gradients (coming soon)
 }
 
-/// Placeholder for future matrix calculus module
-/// Will include: gradient, hessian, jacobian computations
-pub mod matrix_calculus {
-    //! Matrix calculus operations (coming soon)
-}
+/// Matrix calculus operations with automatic differentiation support
+/// Includes: gradient, hessian, jacobian computations, VJP, JVP
+pub mod matrix_calculus;
 
 /// Helper functions for common patterns in linear algebra autodiff
 pub mod helpers {
@@ -102,7 +98,7 @@ pub mod helpers {
 
         // Element-wise multiply and sum
         let diag_elements = matrix * eye;
-        ag::tensor_ops::sum_all(&diag_elements)
+        ag::tensor_ops::sum_all(diag_elements)
     }
 
     /// Create identity matrix using available operations (workaround)

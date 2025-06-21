@@ -8,7 +8,6 @@ use std::time::Instant;
 
 /// This example demonstrates the parallel Jacobian computation capabilities
 /// for large ODE systems.
-
 /// Generate a large system of oscillators with various coupling
 ///
 /// Creates a system of n coupled oscillators, where each oscillator is

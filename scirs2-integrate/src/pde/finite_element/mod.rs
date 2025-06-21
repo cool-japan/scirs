@@ -10,6 +10,11 @@
 //! - Support for irregular domains
 //! - Various boundary condition types
 
+pub mod higher_order;
+
+#[cfg(test)]
+mod higher_order_tests;
+
 use ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -17,6 +22,11 @@ use std::time::Instant;
 use crate::pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, PDEError, PDEResult, PDESolution,
     PDESolverInfo,
+};
+
+// Re-export higher-order functionality
+pub use higher_order::{
+    HigherOrderMeshGenerator, HigherOrderTriangle, ShapeFunctions, TriangularQuadrature,
 };
 
 /// A point in 2D space
@@ -276,6 +286,9 @@ pub struct FEMOptions {
     /// Element type to use
     pub element_type: ElementType,
 
+    /// Quadrature rule order (number of integration points)
+    pub quadrature_order: usize,
+
     /// Maximum iterations for iterative solvers
     pub max_iterations: usize,
 
@@ -293,6 +306,7 @@ impl Default for FEMOptions {
     fn default() -> Self {
         FEMOptions {
             element_type: ElementType::Linear,
+            quadrature_order: 3, // 3-point rule suitable for quadratic functions
             max_iterations: 1000,
             tolerance: 1e-6,
             save_convergence_history: false,
@@ -328,6 +342,12 @@ pub struct FEMPoissonSolver {
     /// Mesh for finite element discretization
     mesh: TriangularMesh,
 
+    /// Higher-order elements (if using non-linear elements)
+    higher_order_elements: Option<Vec<HigherOrderTriangle>>,
+
+    /// Additional points for higher-order elements
+    higher_order_points: Option<Vec<Point>>,
+
     /// Source term function f(x, y)
     source_term: Box<dyn Fn(f64, f64) -> f64 + Send + Sync>,
 
@@ -335,7 +355,6 @@ pub struct FEMPoissonSolver {
     boundary_conditions: Vec<BoundaryCondition<f64>>,
 
     /// Solver options
-    #[allow(dead_code)]
     options: FEMOptions,
 }
 
@@ -354,11 +373,28 @@ impl FEMPoissonSolver {
             ));
         }
 
+        let opts = options.unwrap_or_default();
+
+        // Create higher-order elements if needed
+        let (higher_order_elements, higher_order_points) = match opts.element_type {
+            ElementType::Linear => (None, None),
+            ElementType::Quadratic => {
+                let (points, elements) = HigherOrderMeshGenerator::linear_to_quadratic(&mesh)?;
+                (Some(elements), Some(points))
+            }
+            ElementType::Cubic => {
+                let (points, elements) = HigherOrderMeshGenerator::linear_to_cubic(&mesh)?;
+                (Some(elements), Some(points))
+            }
+        };
+
         Ok(FEMPoissonSolver {
             mesh,
+            higher_order_elements,
+            higher_order_points,
             source_term: Box::new(source_term),
             boundary_conditions,
-            options: options.unwrap_or_default(),
+            options: opts,
         })
     }
 
@@ -371,7 +407,11 @@ impl FEMPoissonSolver {
             .set_boundary_conditions(&self.boundary_conditions)?;
 
         // Number of nodes (degrees of freedom)
-        let _n = self.mesh.points.len();
+        let _n = if let Some(ref higher_order_points) = self.higher_order_points {
+            higher_order_points.len()
+        } else {
+            self.mesh.points.len()
+        };
 
         // Assemble stiffness matrix and load vector
         let (mut a, mut b) = self.assemble_system()?;
@@ -399,44 +439,67 @@ impl FEMPoissonSolver {
 
     /// Assemble the stiffness matrix and load vector for the FEM system
     fn assemble_system(&self) -> PDEResult<(Array2<f64>, Array1<f64>)> {
-        let n = self.mesh.points.len();
+        let n = if let Some(ref higher_order_points) = self.higher_order_points {
+            higher_order_points.len()
+        } else {
+            self.mesh.points.len()
+        };
 
         // Initialize stiffness matrix and load vector
         let mut a = Array2::zeros((n, n));
         let mut b = Array1::zeros(n);
 
-        // Loop over all elements (triangles)
-        for element in &self.mesh.elements {
-            // Compute element stiffness matrix and load vector
-            let (a_e, b_e) = self.element_matrices(element)?;
+        match self.options.element_type {
+            ElementType::Linear => {
+                // Use existing linear element assembly
+                for element in &self.mesh.elements {
+                    let (a_e, b_e) = self.element_matrices_linear(element)?;
 
-            // Assemble into global matrices
-            let [i, j, k] = element.nodes;
+                    // Assemble into global matrices
+                    let [i, j, k] = element.nodes;
 
-            // Diagonal terms
-            a[[i, i]] += a_e[0][0];
-            a[[j, j]] += a_e[1][1];
-            a[[k, k]] += a_e[2][2];
+                    // Diagonal terms
+                    a[[i, i]] += a_e[0][0];
+                    a[[j, j]] += a_e[1][1];
+                    a[[k, k]] += a_e[2][2];
 
-            // Off-diagonal terms
-            a[[i, j]] += a_e[0][1];
-            a[[i, k]] += a_e[0][2];
-            a[[j, i]] += a_e[1][0];
-            a[[j, k]] += a_e[1][2];
-            a[[k, i]] += a_e[2][0];
-            a[[k, j]] += a_e[2][1];
+                    // Off-diagonal terms
+                    a[[i, j]] += a_e[0][1];
+                    a[[i, k]] += a_e[0][2];
+                    a[[j, i]] += a_e[1][0];
+                    a[[j, k]] += a_e[1][2];
+                    a[[k, i]] += a_e[2][0];
+                    a[[k, j]] += a_e[2][1];
 
-            // Load vector
-            b[i] += b_e[0];
-            b[j] += b_e[1];
-            b[k] += b_e[2];
+                    // Load vector
+                    b[i] += b_e[0];
+                    b[j] += b_e[1];
+                    b[k] += b_e[2];
+                }
+            }
+            _ => {
+                // Use higher-order element assembly
+                if let Some(ref higher_order_elements) = self.higher_order_elements {
+                    for element in higher_order_elements {
+                        let (a_e, b_e) = self.element_matrices_higher_order(element)?;
+
+                        // Assemble into global matrices
+                        for (i, node_i) in element.nodes.iter().enumerate() {
+                            b[*node_i] += b_e[i];
+                            for (j, node_j) in element.nodes.iter().enumerate() {
+                                a[[*node_i, *node_j]] += a_e[[i, j]];
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Ok((a, b))
     }
 
-    /// Compute element stiffness matrix and load vector
-    fn element_matrices(&self, element: &Triangle) -> PDEResult<([[f64; 3]; 3], [f64; 3])> {
+    /// Compute element stiffness matrix and load vector for linear elements
+    fn element_matrices_linear(&self, element: &Triangle) -> PDEResult<([[f64; 3]; 3], [f64; 3])> {
         // Get nodes
         let [i, j, k] = element.nodes;
         let pi = &self.mesh.points[i];
@@ -472,6 +535,107 @@ impl FEMPoissonSolver {
         b_e.iter_mut().for_each(|value| {
             *value = f_centroid * (area / 3.0);
         });
+
+        Ok((a_e, b_e))
+    }
+
+    /// Compute element stiffness matrix and load vector for higher-order elements
+    fn element_matrices_higher_order(
+        &self,
+        element: &HigherOrderTriangle,
+    ) -> PDEResult<(Array2<f64>, Array1<f64>)> {
+        let num_nodes = element.nodes.len();
+        let mut a_e = Array2::zeros((num_nodes, num_nodes));
+        let mut b_e = Array1::zeros(num_nodes);
+
+        // Get the points for this element type
+        let points = if let Some(ref ho_points) = self.higher_order_points {
+            ho_points
+        } else {
+            return Err(PDEError::FiniteElementError(
+                "Higher-order points not available".to_string(),
+            ));
+        };
+
+        // Get corner nodes to compute element area and coordinate transformation
+        let corner_nodes = element.corner_nodes();
+        let p1 = &points[corner_nodes[0]];
+        let p2 = &points[corner_nodes[1]];
+        let p3 = &points[corner_nodes[2]];
+
+        // Compute Jacobian for coordinate transformation from reference to physical element
+        let jacobian = Array2::from_shape_vec(
+            (2, 2),
+            vec![p2.x - p1.x, p3.x - p1.x, p2.y - p1.y, p3.y - p1.y],
+        )
+        .unwrap();
+
+        let det_j = jacobian[[0, 0]] * jacobian[[1, 1]] - jacobian[[0, 1]] * jacobian[[1, 0]];
+        if det_j.abs() < 1e-12 {
+            return Err(PDEError::FiniteElementError(
+                "Degenerate element with zero Jacobian determinant".to_string(),
+            ));
+        }
+
+        // Inverse of Jacobian
+        let inv_j = Array2::from_shape_vec(
+            (2, 2),
+            vec![
+                jacobian[[1, 1]] / det_j,
+                -jacobian[[0, 1]] / det_j,
+                -jacobian[[1, 0]] / det_j,
+                jacobian[[0, 0]] / det_j,
+            ],
+        )
+        .unwrap();
+
+        // Get quadrature rule
+        let (xi_coords, eta_coords, weights) =
+            TriangularQuadrature::get_rule(self.options.quadrature_order)?;
+
+        // Integrate over the element using quadrature
+        for q in 0..xi_coords.len() {
+            let xi = xi_coords[q];
+            let eta = eta_coords[q];
+            let weight = weights[q];
+
+            // Evaluate shape functions and their derivatives at quadrature point
+            let shape_funcs = ShapeFunctions::evaluate(element.element_type, xi, eta)?;
+            let (d_n_dxi, d_n_deta) =
+                ShapeFunctions::evaluate_derivatives(element.element_type, xi, eta)?;
+
+            // Transform derivatives from reference to physical coordinates
+            let mut d_n_dx = Array1::zeros(num_nodes);
+            let mut d_n_dy = Array1::zeros(num_nodes);
+
+            for i in 0..num_nodes {
+                d_n_dx[i] = inv_j[[0, 0]] * d_n_dxi[i] + inv_j[[0, 1]] * d_n_deta[i];
+                d_n_dy[i] = inv_j[[1, 0]] * d_n_dxi[i] + inv_j[[1, 1]] * d_n_deta[i];
+            }
+
+            // Compute physical coordinates of quadrature point for source term evaluation
+            let mut x_phys = 0.0;
+            let mut y_phys = 0.0;
+            for i in 0..num_nodes {
+                x_phys += shape_funcs[i] * points[element.nodes[i]].x;
+                y_phys += shape_funcs[i] * points[element.nodes[i]].y;
+            }
+
+            // Evaluate source term at quadrature point
+            let f_val = (self.source_term)(x_phys, y_phys);
+
+            // Add contributions to element matrices
+            for i in 0..num_nodes {
+                // Load vector: ∫ f * N_i * dV
+                b_e[i] += f_val * shape_funcs[i] * weight * det_j.abs();
+
+                for j in 0..num_nodes {
+                    // Stiffness matrix: ∫ (∇N_i · ∇N_j) * dV
+                    a_e[[i, j]] +=
+                        (d_n_dx[i] * d_n_dx[j] + d_n_dy[i] * d_n_dy[j]) * weight * det_j.abs();
+                }
+            }
+        }
 
         Ok((a_e, b_e))
     }

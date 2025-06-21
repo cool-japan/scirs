@@ -20,12 +20,12 @@ fn main() {
         let start = Instant::now();
 
         // Regular computation
-        let c1 = T::matmul(&a, &b); // Matrix multiplication
-        let d1 = T::relu(&c1); // Non-linear activation
-        let e1 = T::matmul(&d1, &b); // Another matrix multiplication
-        let f1 = T::tanh(&e1); // Another non-linear activation
-        let g1 = T::matmul(&f1, &b); // Final matrix multiplication
-        let h1 = T::sum_all(&g1); // Reduction to a scalar
+        let c1 = T::matmul(a, b); // Matrix multiplication
+        let d1 = T::relu(c1); // Non-linear activation
+        let e1 = T::matmul(d1, b); // Another matrix multiplication
+        let f1 = T::tanh(e1); // Another non-linear activation
+        let g1 = T::matmul(f1, b); // Final matrix multiplication
+        let h1 = T::sum_all(g1); // Reduction to a scalar
 
         // Compute gradients
         let grad1 = T::grad(&[h1], &[&a])[0];
@@ -38,16 +38,16 @@ fn main() {
         let start = Instant::now();
 
         // Manual checkpointing
-        let c2 = T::matmul(&a, &b);
+        let c2 = T::matmul(a, b);
         let c2_ckpt = T::checkpoint(&c2);
-        let d2 = T::relu(&c2_ckpt);
+        let d2 = T::relu(c2_ckpt);
         let d2_ckpt = T::checkpoint(&d2);
-        let e2 = T::matmul(&d2_ckpt, &b);
+        let e2 = T::matmul(d2_ckpt, b);
         let e2_ckpt = T::checkpoint(&e2);
-        let f2 = T::tanh(&e2_ckpt);
+        let f2 = T::tanh(e2_ckpt);
         let f2_ckpt = T::checkpoint(&f2);
-        let g2 = T::matmul(&f2_ckpt, &b);
-        let h2 = T::sum_all(&g2);
+        let g2 = T::matmul(f2_ckpt, b);
+        let h2 = T::sum_all(g2);
 
         // Compute gradients
         let grad2 = T::grad(&[h2], &[&a])[0];
@@ -65,11 +65,11 @@ fn main() {
             let b = inputs[1];
 
             let c = T::matmul(a, b);
-            let d = T::relu(&c);
-            let e = T::matmul(&d, b);
-            let f = T::tanh(&e);
-            let g = T::matmul(&f, b);
-            T::sum_all(&g)
+            let d = T::relu(c);
+            let e = T::matmul(d, b);
+            let f = T::tanh(e);
+            let g = T::matmul(f, b);
+            T::sum_all(g)
         });
 
         // Compute gradients
@@ -90,11 +90,11 @@ fn main() {
             let b = inputs[1];
 
             let c = T::matmul(a, b);
-            let d = T::relu(&c);
-            let e = T::matmul(&d, b);
-            let f = T::tanh(&e);
-            let g = T::matmul(&f, b);
-            T::sum_all(&g)
+            let d = T::relu(c);
+            let e = T::matmul(d, b);
+            let f = T::tanh(e);
+            let g = T::matmul(f, b);
+            T::sum_all(g)
         });
 
         // Compute gradients
@@ -119,16 +119,16 @@ fn main() {
             // Compute two different output paths
             let path1 = {
                 let c = T::matmul(a, b);
-                let d = T::relu(&c);
-                let e = T::matmul(&d, b);
-                T::sum_all(&e)
+                let d = T::relu(c);
+                let e = T::matmul(d, b);
+                T::sum_all(e)
             };
 
             let path2 = {
                 let c = T::matmul(a, b);
-                let d = T::tanh(&c);
-                let e = T::matmul(&d, b);
-                T::sum_all(&e)
+                let d = T::tanh(c);
+                let e = T::matmul(d, b);
+                T::sum_all(e)
             };
 
             (path1, path2)
@@ -218,14 +218,14 @@ fn main() {
 
             let c = T::matmul(a, b);
             let c_ckpt = T::checkpoint(&c);
-            let d = T::relu(&c_ckpt);
+            let d = T::relu(c_ckpt);
             let d_ckpt = T::checkpoint(&d);
-            let e = T::matmul(&d_ckpt, b);
+            let e = T::matmul(d_ckpt, b);
             let e_ckpt = T::checkpoint(&e);
-            let f = T::tanh(&e_ckpt);
+            let f = T::tanh(e_ckpt);
             let f_ckpt = T::checkpoint(&f);
-            let g = T::matmul(&f_ckpt, b);
-            T::sum_all(&g)
+            let g = T::matmul(f_ckpt, b);
+            T::sum_all(g)
         });
 
         // Compute and report memory savings

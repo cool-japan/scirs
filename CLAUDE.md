@@ -3,7 +3,7 @@
 ## Development Principles
 
 - Fix all build errors AND warnings - zero warnings policy for samples, unit tests, and DOC tests
-- Update rand API when using 0.9.0 (gen_range → random_range, thread_rng → rng)
+- Update rand API when using 0.9.1 (gen_range → random_range, thread_rng → rng)
 - Always follow this workflow:
   1. Format code with `cargo fmt`
   2. Check for linting issues with `cargo clippy`

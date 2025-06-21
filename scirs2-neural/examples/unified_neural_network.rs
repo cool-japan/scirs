@@ -668,22 +668,22 @@ impl Layer for Sigmoid {
         let output = match input.dim {
             TensorDim::Dim1(_) => {
                 let x = input.as_1d();
-                let output = x.mapv(|v| Self::sigmoid(v));
+                let output = x.mapv(Self::sigmoid);
                 Tensor::new_1d(output)
             }
             TensorDim::Dim2(_, _) => {
                 let x = input.as_2d();
-                let output = x.mapv(|v| Self::sigmoid(v));
+                let output = x.mapv(Self::sigmoid);
                 Tensor::new_2d(output)
             }
             TensorDim::Dim3(_, _, _) => {
                 let x = input.as_3d();
-                let output = x.mapv(|v| Self::sigmoid(v));
+                let output = x.mapv(Self::sigmoid);
                 Tensor::new_3d(output)
             }
             TensorDim::Dim4(_, _, _, _) => {
                 let x = input.as_4d();
-                let output = x.mapv(|v| Self::sigmoid(v));
+                let output = x.mapv(Self::sigmoid);
                 Tensor::new_4d(output)
             }
         };
@@ -1479,7 +1479,7 @@ fn create_regression_dataset(num_samples: usize, num_features: usize) -> (Tensor
 fn create_batches(x: &Tensor, y: &Tensor, batch_size: usize) -> (Vec<Tensor>, Vec<Tensor>) {
     match (x.dim.clone(), y.dim.clone()) {
         (TensorDim::Dim2(samples, features), _) => {
-            let num_batches = (samples + batch_size - 1) / batch_size;
+            let num_batches = samples.div_ceil(batch_size);
 
             let mut x_batches = Vec::with_capacity(num_batches);
             let mut y_batches = Vec::with_capacity(num_batches);

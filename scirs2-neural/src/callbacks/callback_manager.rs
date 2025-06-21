@@ -51,6 +51,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: Vec::new(),
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {
@@ -73,6 +74,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: Vec::new(),
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {
@@ -95,6 +97,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: Vec::new(),
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {
@@ -121,6 +124,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: metrics_vec,
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {
@@ -144,6 +148,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: Vec::new(),
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {
@@ -169,6 +174,7 @@ impl<F: Float + Debug + ScalarOperand> CallbackManager<F> {
             metrics: metrics_vec,
             history: &HashMap::<String, Vec<F>>::new(),
             stop_training: false,
+            model: None,
         };
 
         for callback in &mut self.callbacks {

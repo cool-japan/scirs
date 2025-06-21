@@ -23,9 +23,9 @@ fn main() {
 
     // Modify detail coefficients to denoise (simple hard threshold)
     let mut modified_details = details.clone();
-    for level in 0..details.len() {
+    for (level, detail_level) in modified_details.iter_mut().enumerate() {
         let threshold = 0.2 / (level + 1) as f64; // Decreasing threshold with level
-        for val in modified_details[level].iter_mut() {
+        for val in detail_level.iter_mut() {
             if val.abs() < threshold {
                 *val = 0.0;
             }
@@ -88,7 +88,7 @@ fn main() {
             (0..detail.len()).map(|x| x as f64).collect::<Vec<f64>>(),
             detail.clone(),
         )
-        .name(&format!("Detail (Level {})", i + 1))
+        .name(format!("Detail (Level {})", i + 1))
         .mode(Mode::Lines);
 
         coeffs_plot.add_trace(detail_trace);

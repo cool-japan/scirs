@@ -28,7 +28,7 @@ fn assert_matrix_close<F: ag::Float>(
 
 // Finite difference gradient verification
 fn verify_norm_gradient_finite_diff<F: ag::Float>(
-    norm_fn: impl Fn(&ag::Tensor<F>) -> ag::Tensor<F>,
+    norm_fn: impl Fn(ag::Tensor<F>) -> ag::Tensor<F>,
     matrix: Array2<F>,
     h: F,
     tolerance: F,
@@ -37,7 +37,7 @@ fn verify_norm_gradient_finite_diff<F: ag::Float>(
         let a = T::convert_to_tensor(matrix.clone(), ctx);
         
         // Compute analytical gradient
-        let norm = norm_fn(&a);
+        let norm = norm_fn(a);
         let grad = T::grad(&[norm], &[&a])[0];
         let analytical_grad = grad.eval(ctx).unwrap()
             .into_dimensionality::<ag::ndarray::Ix2>()
@@ -57,14 +57,14 @@ fn verify_norm_gradient_finite_diff<F: ag::Float>(
             let a_plus = T::convert_to_tensor(matrix_plus, ctx);
             let a_minus = T::convert_to_tensor(matrix_minus, ctx);
             
-            let norm_plus = norm_fn(&a_plus).eval(ctx).unwrap()[[0]];
-            let norm_minus = norm_fn(&a_minus).eval(ctx).unwrap()[[0]];
+            let norm_plus = norm_fn(a_plus).eval(ctx).unwrap()[[0]];
+            let norm_minus = norm_fn(a_minus).eval(ctx).unwrap()[[0]];
             
             numerical_grad[[i, j]] = (norm_plus - norm_minus) / (h + h);
         }
         
         // Compare analytical and numerical gradients
-        assert_matrix_close(&analytical_grad, &numerical_grad, tolerance, "gradient");
+        assert_matrix_close(analytical_grad, &numerical_grad, tolerance, "gradient");
     });
 }
 
@@ -119,9 +119,9 @@ mod template_tests {
             let a = T::convert_to_tensor(near_zero, ctx);
             
             // All norms should handle near-zero matrices gracefully
-            let frob_norm = T::frobenius_norm(&a);
-            let spec_norm = T::spectral_norm(&a);
-            let nucl_norm = T::nuclear_norm(&a);
+            let frob_norm = T::frobenius_norm(a);
+            let spec_norm = T::spectral_norm(a);
+            let nucl_norm = T::nuclear_norm(a);
             
             // Gradients should not contain NaN or infinity
             let frob_grad = T::grad(&[frob_norm], &[&a])[0].eval(ctx).unwrap();

@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Open as memory-mapped array
     let mmap = MemoryMappedArray::<f64>::open(&file_path, &[rows, cols])?;
     println!("\nOpened as memory-mapped array");
-    println!("Full array shape: {:?}", mmap.shape());
+    println!("Full array shape: {:?}", mmap.shape);
 
     // Demonstrate different slicing operations
     demo_basic_slicing(&mmap)?;
@@ -100,8 +100,8 @@ fn demo_complex_slicing(mmap: &MemoryMappedArray<f64>) -> Result<(), Box<dyn std
     println!("Shape: {:?}", array1.shape());
     println!(
         "First element: {:.0}, Last element: {:.0}",
-        array1[[0, 0]],
-        array1[[array1.shape()[0] - 1, array1.shape()[1] - 1]]
+        array1[(0, 0)],
+        array1[(array1.shape()[0] - 1, array1.shape()[1] - 1)]
     );
 
     // Open-ended range (..)
@@ -145,8 +145,8 @@ fn demo_ndarray_syntax(mmap: &MemoryMappedArray<f64>) -> Result<(), Box<dyn std:
     println!("Shape: {:?}", array1.shape());
     println!(
         "First element: {:.0}, Last element: {:.0}",
-        array1[[0, 0]],
-        array1[[array1.shape()[0] - 1, array1.shape()[1] - 1]]
+        array1[(0, 0)],
+        array1[(array1.shape()[0] - 1, array1.shape()[1] - 1)]
     );
 
     // Stride with s![]
@@ -158,7 +158,7 @@ fn demo_ndarray_syntax(mmap: &MemoryMappedArray<f64>) -> Result<(), Box<dyn std:
     for i in 0..3 {
         print!("Row {}: ", i);
         for j in 0..3 {
-            print!("{:.0} ", array2[[i, j]]);
+            print!("{:.0} ", array2[(i, j)]);
         }
         println!();
     }
@@ -203,7 +203,7 @@ fn demo_slice_chaining(
     for i in 0..3 {
         print!("Row {}: ", i);
         for j in 0..3 {
-            print!("{:.0} ", array2[[i, j]]);
+            print!("{:.0} ", array2[(i, j)]);
         }
         println!();
     }
@@ -213,9 +213,9 @@ fn demo_slice_chaining(
     println!("Second slice coordinates (0,0) -> Original coordinates (20,20)");
     println!(
         "Value at original[20,20]: {:.0}",
-        mmap.readonly_array()?[[20, 20]]
+        mmap.readonly_array()?[(20, 20)]
     );
-    println!("Value at slice2[0,0]: {:.0}", array2[[0, 0]]);
+    println!("Value at slice2[0,0]: {:.0}", array2[(0, 0)]);
 
     Ok(())
 }

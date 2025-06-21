@@ -251,10 +251,8 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
             }
 
             // Cross
-            if x.abs() < 0.1 || y.abs() < 0.1 {
-                if x.abs() < 0.7 && y.abs() < 0.7 {
-                    clean_image[[i, j]] = 0.6;
-                }
+            if (x.abs() < 0.1 || y.abs() < 0.1) && x.abs() < 0.7 && y.abs() < 0.7 {
+                clean_image[[i, j]] = 0.6;
             }
 
             // Background gradient
@@ -282,7 +280,7 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Clip to [0, 1]
-    noisy_image.mapv_inplace(|x| x.max(0.0).min(1.0));
+    noisy_image.mapv_inplace(|x| x.clamp(0.0, 1.0));
 
     (clean_image, noisy_image)
 }
@@ -336,7 +334,7 @@ fn generate_color_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Clip to [0, 1]
-    noisy_image.mapv_inplace(|x| x.max(0.0).min(1.0));
+    noisy_image.mapv_inplace(|x| x.clamp(0.0, 1.0));
 
     (clean_image, noisy_image)
 }

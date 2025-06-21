@@ -4,12 +4,39 @@
 //! operations for improved performance on modern CPUs. These implementations
 //! leverage core SIMD support through the scirs2-core::simd module.
 
+pub mod elementwise;
+pub mod gemm;
+pub mod norms;
+pub mod transpose;
+
+// Re-export commonly used SIMD operations
+#[cfg(feature = "simd")]
+pub use elementwise::{
+    simd_matrix_add_f32, simd_matrix_add_f64, simd_matrix_add_inplace_f32,
+    simd_matrix_mul_elementwise_f32, simd_matrix_scale_f32,
+};
+#[cfg(feature = "simd")]
+pub use gemm::{
+    simd_gemm_f32, simd_gemm_f64, simd_gemv_f32, simd_gemv_f64, simd_matmul_optimized_f32,
+    simd_matmul_optimized_f64, GemmBlockSizes,
+};
+#[cfg(feature = "simd")]
+pub use norms::{
+    simd_frobenius_norm_f32, simd_frobenius_norm_f64, simd_vector_norm_f32, simd_vector_norm_f64,
+};
+#[cfg(feature = "simd")]
+pub use transpose::{simd_transpose_f32, simd_transpose_f64};
+
 #[allow(unused_imports)]
 use crate::error::{LinalgError, LinalgResult};
 #[allow(unused_imports)]
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 #[allow(unused_imports)]
-use scirs2_core::simd::{simd_maximum_f32, simd_maximum_f64, simd_minimum_f32, simd_minimum_f64};
+use scirs2_core::simd::{
+    simd_add_f32, simd_add_f64, simd_dot_f32 as core_simd_dot_f32,
+    simd_dot_f64 as core_simd_dot_f64, simd_maximum_f32, simd_maximum_f64, simd_minimum_f32,
+    simd_minimum_f64, simd_mul_f32, simd_mul_f64, simd_scalar_mul_f32, simd_scalar_mul_f64,
+};
 #[allow(unused_imports)]
 use wide::{f32x8, f64x4};
 
@@ -853,279 +880,4 @@ pub fn simd_dot_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> LinalgResult<f6
     }
 
     Ok(sum)
-}
-
-/// Compute Frobenius norm of matrix using SIMD acceleration (squared sum of all elements)
-///
-/// # Arguments
-///
-/// * `a` - Input matrix
-///
-/// # Returns
-///
-/// * Frobenius norm
-#[cfg(feature = "simd")]
-pub fn simd_frobenius_norm_f32(a: &ArrayView2<f32>) -> f32 {
-    let n = a.len();
-    let a_flat = a.as_slice().unwrap();
-
-    // Process 8 elements at a time with SIMD
-    let mut i = 0;
-    let chunk_size = 8;
-    let mut sum_vec = f32x8::splat(0.0);
-
-    while i + chunk_size <= n {
-        // Load chunks
-        let a_chunk = [
-            a_flat[i],
-            a_flat[i + 1],
-            a_flat[i + 2],
-            a_flat[i + 3],
-            a_flat[i + 4],
-            a_flat[i + 5],
-            a_flat[i + 6],
-            a_flat[i + 7],
-        ];
-
-        // Convert to SIMD vector
-        let a_vec = f32x8::new(a_chunk);
-
-        // Square and accumulate
-        sum_vec += a_vec * a_vec;
-
-        i += chunk_size;
-    }
-
-    // Extract and sum the SIMD vector components
-    let sum_arr: [f32; 8] = sum_vec.into();
-    let mut sum_sq = sum_arr.iter().sum::<f32>();
-
-    // Process remaining elements
-    for &val in a_flat.iter().skip(i).take(n - i) {
-        sum_sq += val * val;
-    }
-
-    sum_sq.sqrt()
-}
-
-/// Compute Frobenius norm of matrix using SIMD acceleration (squared sum of all elements)
-///
-/// # Arguments
-///
-/// * `a` - Input matrix
-///
-/// # Returns
-///
-/// * Frobenius norm
-#[cfg(feature = "simd")]
-pub fn simd_frobenius_norm_f64(a: &ArrayView2<f64>) -> f64 {
-    let n = a.len();
-    let a_flat = a.as_slice().unwrap();
-
-    // Process 4 elements at a time with SIMD
-    let mut i = 0;
-    let chunk_size = 4;
-    let mut sum_vec = f64x4::splat(0.0);
-
-    while i + chunk_size <= n {
-        // Load chunks
-        let a_chunk = [a_flat[i], a_flat[i + 1], a_flat[i + 2], a_flat[i + 3]];
-
-        // Convert to SIMD vector
-        let a_vec = f64x4::new(a_chunk);
-
-        // Square and accumulate
-        sum_vec += a_vec * a_vec;
-
-        i += chunk_size;
-    }
-
-    // Extract and sum the SIMD vector components
-    let sum_arr: [f64; 4] = sum_vec.into();
-    let mut sum_sq = sum_arr.iter().sum::<f64>();
-
-    // Process remaining elements
-    for &val in a_flat.iter().skip(i).take(n - i) {
-        sum_sq += val * val;
-    }
-
-    sum_sq.sqrt()
-}
-
-#[cfg(test)]
-mod tests {
-    // Import only what is needed when tests are run
-    #[allow(unused_imports)]
-    use {super::*, approx::assert_relative_eq, ndarray::array};
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_matvec_f32() {
-        // Create test matrices and vectors
-        let mat = array![
-            [1.0f32, 2.0, 3.0, 4.0],
-            [5.0, 6.0, 7.0, 8.0],
-            [9.0, 10.0, 11.0, 12.0]
-        ];
-
-        let vec = array![2.0f32, 3.0, 4.0, 5.0];
-
-        // Compute using SIMD
-        let result = simd_matvec_f32(&mat.view(), &vec.view()).unwrap();
-
-        // Expected result: [2*1 + 3*2 + 4*3 + 5*4, 2*5 + 3*6 + 4*7 + 5*8, 2*9 + 3*10 + 4*11 + 5*12]
-        let expected = array![40.0f32, 96.0, 152.0];
-
-        // Verify correctness
-        assert_eq!(result.len(), expected.len());
-        for (a, b) in result.iter().zip(expected.iter()) {
-            assert_relative_eq!(a, b, epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_matvec_f64() {
-        // Create test matrices and vectors
-        let mat = array![
-            [1.0f64, 2.0, 3.0, 4.0],
-            [5.0, 6.0, 7.0, 8.0],
-            [9.0, 10.0, 11.0, 12.0]
-        ];
-
-        let vec = array![2.0f64, 3.0, 4.0, 5.0];
-
-        // Compute using SIMD
-        let result = simd_matvec_f64(&mat.view(), &vec.view()).unwrap();
-
-        // Expected result: [2*1 + 3*2 + 4*3 + 5*4, 2*5 + 3*6 + 4*7 + 5*8, 2*9 + 3*10 + 4*11 + 5*12]
-        let expected = array![40.0f64, 96.0, 152.0];
-
-        // Verify correctness
-        assert_eq!(result.len(), expected.len());
-        for (a, b) in result.iter().zip(expected.iter()) {
-            assert_relative_eq!(a, b, epsilon = 1e-12);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_matmul_f32() {
-        // Create test matrices
-        let a = array![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]];
-
-        let b = array![[7.0f32, 8.0, 9.0], [10.0, 11.0, 12.0], [13.0, 14.0, 15.0]];
-
-        // Compute using SIMD
-        let result = simd_matmul_f32(&a.view(), &b.view()).unwrap();
-
-        // Expected result:
-        // [1*7 + 2*10 + 3*13, 1*8 + 2*11 + 3*14, 1*9 + 2*12 + 3*15]
-        // [4*7 + 5*10 + 6*13, 4*8 + 5*11 + 6*14, 4*9 + 5*12 + 6*15]
-        let expected = array![[66.0f32, 72.0, 78.0], [156.0, 171.0, 186.0]];
-
-        // Verify correctness
-        assert_eq!(result.shape(), expected.shape());
-        for ((i, j), &val) in result.indexed_iter() {
-            assert_relative_eq!(val, expected[[i, j]], epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_matmul_f64() {
-        // Create test matrices
-        let a = array![[1.0f64, 2.0, 3.0], [4.0, 5.0, 6.0]];
-
-        let b = array![[7.0f64, 8.0, 9.0], [10.0, 11.0, 12.0], [13.0, 14.0, 15.0]];
-
-        // Compute using SIMD
-        let result = simd_matmul_f64(&a.view(), &b.view()).unwrap();
-
-        // Expected result:
-        // [1*7 + 2*10 + 3*13, 1*8 + 2*11 + 3*14, 1*9 + 2*12 + 3*15]
-        // [4*7 + 5*10 + 6*13, 4*8 + 5*11 + 6*14, 4*9 + 5*12 + 6*15]
-        let expected = array![[66.0f64, 72.0, 78.0], [156.0, 171.0, 186.0]];
-
-        // Verify correctness
-        assert_eq!(result.shape(), expected.shape());
-        for ((i, j), &val) in result.indexed_iter() {
-            assert_relative_eq!(val, expected[[i, j]], epsilon = 1e-12);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_matrix_max() {
-        // Create test matrices
-        let a = array![[1.0f32, 5.0, 3.0], [4.0, 2.0, 6.0]];
-
-        let b = array![[3.0f32, 2.0, 7.0], [1.0, 8.0, 4.0]];
-
-        // Compute using SIMD
-        let result = simd_matrix_max_f32(&a.view(), &b.view()).unwrap();
-
-        // Expected result is element-wise maximum
-        let expected = array![[3.0f32, 5.0, 7.0], [4.0, 8.0, 6.0]];
-
-        // Verify correctness
-        assert_eq!(result.shape(), expected.shape());
-        for ((i, j), &val) in result.indexed_iter() {
-            assert_relative_eq!(val, expected[[i, j]], epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_axpy_f32() {
-        // Create test vectors
-        let x = array![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-        let mut y = array![9.0f32, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
-        let alpha = 2.0f32;
-
-        // Compute y = alpha * x + y using SIMD
-        simd_axpy_f32(alpha, &x.view(), &mut y).unwrap();
-
-        // Expected result: 2*[1,2,3,4,5,6,7,8,9] + [9,8,7,6,5,4,3,2,1]
-        let expected = array![11.0f32, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0];
-
-        // Verify correctness
-        assert_eq!(y.len(), expected.len());
-        for (a, b) in y.iter().zip(expected.iter()) {
-            assert_relative_eq!(a, b, epsilon = 1e-6);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_dot_f32() {
-        // Create test vectors
-        let a = array![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-        let b = array![9.0f32, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
-
-        // Compute dot product using SIMD
-        let result = simd_dot_f32(&a.view(), &b.view()).unwrap();
-
-        // Expected: 1*9 + 2*8 + 3*7 + 4*6 + 5*5 + 6*4 + 7*3 + 8*2 + 9*1
-        let expected = 9.0 + 16.0 + 21.0 + 24.0 + 25.0 + 24.0 + 21.0 + 16.0 + 9.0;
-
-        // Verify correctness
-        assert_relative_eq!(result, expected, epsilon = 1e-6);
-    }
-
-    #[test]
-    #[cfg(feature = "simd")]
-    fn test_simd_frobenius_norm_f32() {
-        // Create test matrix
-        let a = array![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]];
-
-        // Compute Frobenius norm using SIMD
-        let result = simd_frobenius_norm_f32(&a.view());
-
-        // Expected: sqrt(1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2)
-        let expected = (1.0f32 + 4.0 + 9.0 + 16.0 + 25.0 + 36.0).sqrt();
-
-        // Verify correctness
-        assert_relative_eq!(result, expected, epsilon = 1e-6);
-    }
 }

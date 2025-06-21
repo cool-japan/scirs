@@ -225,16 +225,13 @@ fn fast_col_x_filter_kernel<F: Float>(
     batch_size: usize,
 ) -> Vec<F> {
     let y_len = batch_size * ych * yh * yw;
-    let mut y = Vec::with_capacity(y_len);
-    unsafe {
-        y.set_len(y_len);
-    }
+    let mut y = vec![F::zero(); y_len];
     // params for blas gemm
     let m = ych as BlasIF;
     let n = (yh * yw) as BlasIF;
     let k = (xch * kh * kw) as BlasIF;
-    let col_size_per_batch = (xch * kw * kh * yh * yw) as usize;
-    let y_size_per_batch = (ych * yh * yw) as usize;
+    let col_size_per_batch = xch * kw * kh * yh * yw;
+    let y_size_per_batch = ych * yh * yw;
 
     let a = y.par_iter_mut().step_by(y_size_per_batch);
     let b = cols.par_iter().step_by(col_size_per_batch);

@@ -285,11 +285,19 @@ where
             })
         }
         _ => {
-            // For higher dimensions, just return a copy for now (placeholder)
-            // Will be properly implemented later
-            Err(NdimageError::ImplementationError(
-                "Rank filter for arrays with more than 2 dimensions is not yet implemented".into(),
-            ))
+            // For higher dimensions, convert to IxDyn, process, and convert back
+            let input_dyn = input
+                .to_owned()
+                .into_dimensionality::<ndarray::IxDyn>()
+                .map_err(|_| {
+                    NdimageError::DimensionError("Failed to convert to dynamic array".into())
+                })?;
+
+            let result_dyn = rank_filter_nd(&input_dyn, rank, size, &border_mode)?;
+
+            result_dyn.into_dimensionality::<D>().map_err(|_| {
+                NdimageError::DimensionError("Failed to convert back from dynamic array".into())
+            })
         }
     }
 }
@@ -783,6 +791,80 @@ where
     Ok(output)
 }
 
+/// Apply a rank filter to an n-dimensional IxDyn array (3D and higher)
+fn rank_filter_nd<T>(
+    input: &Array<T, ndarray::IxDyn>,
+    rank: usize,
+    size: &[usize],
+    mode: &BorderMode,
+) -> Result<Array<T, ndarray::IxDyn>>
+where
+    T: Float + FromPrimitive + Debug + PartialOrd + Clone + Send + Sync + 'static,
+{
+    let shape = input.shape();
+    let ndim = input.ndim();
+
+    // Calculate total size of the filter window
+    let window_size = size.iter().product();
+
+    // Calculate radii for each dimension
+    let radii: Vec<usize> = size.iter().map(|&s| s / 2).collect();
+
+    // Create output array
+    let mut output = Array::zeros(input.raw_dim());
+
+    // Pad input for border handling
+    let pad_width: Vec<(usize, usize)> = radii.iter().map(|&r| (r, r)).collect();
+    let padded_input = pad_array(input, &pad_width, mode, None)?;
+
+    // Use sequential processing with a reused buffer
+    let mut window = Vec::with_capacity(window_size);
+
+    for idx in ndarray::indices(shape) {
+        let idx_vec: Vec<_> = idx.slice().to_vec();
+        window.clear();
+
+        // Calculate padded coordinates for the center
+        let center_coords: Vec<usize> = idx_vec
+            .iter()
+            .zip(&radii)
+            .map(|(&idx, &radius)| idx + radius)
+            .collect();
+
+        // Generate all offsets for the window
+        let mut offset_stack = vec![Vec::new()];
+        for &window_dim_size in size {
+            let mut new_stack = Vec::new();
+            for existing_offset in offset_stack {
+                for offset in 0..window_dim_size {
+                    let mut new_offset = existing_offset.clone();
+                    new_offset.push(offset);
+                    new_stack.push(new_offset);
+                }
+            }
+            offset_stack = new_stack;
+        }
+
+        // Extract all values in the window
+        for offsets in offset_stack {
+            let mut padded_coords = Vec::with_capacity(ndim);
+            for ((&center, &radius), &offset) in center_coords.iter().zip(&radii).zip(&offsets) {
+                padded_coords.push(center - radius + offset);
+            }
+
+            // Convert to slice for ndarray indexing
+            let value = padded_input[padded_coords.as_slice()];
+            window.push(value);
+        }
+
+        // Sort window and find element at specified rank
+        window.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        output[idx_vec.as_slice()] = window[rank];
+    }
+
+    Ok(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -959,5 +1041,87 @@ mod tests {
 
         // Should get an error
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_rank_filter_3d() {
+        use ndarray::Array3;
+
+        // Create a 3D test array
+        let mut array = Array3::zeros((4, 4, 4));
+
+        // Set some values to create a pattern
+        array[[1, 1, 1]] = 10.0;
+        array[[1, 2, 1]] = 8.0;
+        array[[2, 1, 1]] = 6.0;
+        array[[2, 2, 1]] = 4.0;
+        array[[1, 1, 2]] = 2.0;
+
+        // Apply maximum filter (rank = window_size - 1) with 3x3x3 window
+        let window_size = 3 * 3 * 3;
+        let result = rank_filter(&array, window_size - 1, &[3, 3, 3], None).unwrap();
+
+        // Check that result has the same shape
+        assert_eq!(result.shape(), array.shape());
+
+        // The maximum value (10.0) should propagate to nearby locations
+        // At position [1,1,1], the 3x3x3 window should see the maximum value 10.0
+        assert_eq!(result[[1, 1, 1]], 10.0);
+
+        // Check that the shape is preserved and no errors occur
+        assert_eq!(result.ndim(), 3);
+        assert_eq!(result.len(), array.len());
+    }
+
+    #[test]
+    fn test_minimum_filter_3d() {
+        use ndarray::Array3;
+
+        // Create a 3D test array with all ones except one zero
+        let mut array = Array3::ones((4, 4, 4));
+        array[[2, 2, 2]] = 0.0; // Set center to minimum value
+
+        // Apply minimum filter with 3x3x3 window
+        let result = minimum_filter(&array, &[3, 3, 3], None).unwrap();
+
+        // Check that result has the same shape
+        assert_eq!(result.shape(), array.shape());
+
+        // The minimum value (0.0) should propagate to all positions within the window
+        // At position [2,2,2], the minimum should be 0.0
+        assert_eq!(result[[2, 2, 2]], 0.0);
+
+        // Positions adjacent to [2,2,2] should also see the minimum
+        assert_eq!(result[[1, 2, 2]], 0.0);
+        assert_eq!(result[[3, 2, 2]], 0.0);
+        assert_eq!(result[[2, 1, 2]], 0.0);
+        assert_eq!(result[[2, 3, 2]], 0.0);
+        assert_eq!(result[[2, 2, 1]], 0.0);
+        assert_eq!(result[[2, 2, 3]], 0.0);
+    }
+
+    #[test]
+    fn test_percentile_filter_3d() {
+        use ndarray::Array3;
+
+        // Create a 3D test array
+        let array = Array3::from_shape_fn((3, 3, 3), |(i, j, k)| {
+            (i * 9 + j * 3 + k) as f64 // Values from 0 to 26
+        });
+
+        // Apply 50th percentile (median) filter with 3x3x3 window
+        let result = percentile_filter(&array, 50.0, &[3, 3, 3], None).unwrap();
+
+        // Check that result has the same shape
+        assert_eq!(result.shape(), array.shape());
+
+        // Check that no errors occur and output is reasonable
+        assert_eq!(result.ndim(), 3);
+        assert_eq!(result.len(), array.len());
+
+        // The result should contain finite values
+        for &value in result.iter() {
+            assert!(value.is_finite());
+        }
     }
 }

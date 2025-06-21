@@ -5,7 +5,7 @@
 
 use ndarray::{Array1, Array2};
 use scirs2_cluster::metrics::{davies_bouldin_score, silhouette_score};
-use scirs2_cluster::vq::{kmeans, KMeansInit, KMeansOptions};
+use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
 
 fn generate_dataset() -> (Array2<f64>, Array1<i32>) {
     // Generate three well-separated clusters
@@ -79,16 +79,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for k in test_k_values {
         println!("\nTesting with k={} clusters:", k);
 
-        // Configure K-means
-        let options = KMeansOptions {
-            init_method: KMeansInit::KMeansPlusPlus,
-            max_iter: 300,
-            n_init: 10,
-            ..Default::default()
-        };
-
         // Run K-means
-        let (centroids, labels) = kmeans(data.view(), k, Some(options))?;
+        let (centroids, labels) = kmeans2(
+            data.view(),
+            k,
+            Some(300),
+            None,
+            Some(MinitMethod::PlusPlus),
+            Some(MissingMethod::Warn),
+            Some(true),
+            Some(42),
+        )?;
 
         println!("Found {} non-empty clusters", centroids.shape()[0]);
 
@@ -101,23 +102,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=========================================");
 
     let init_methods = vec![
-        ("Random", KMeansInit::Random),
-        ("K-means++", KMeansInit::KMeansPlusPlus),
-        ("K-means||", KMeansInit::KMeansParallel),
+        ("Random", MinitMethod::Random),
+        ("K-means++", MinitMethod::PlusPlus),
+        ("Points", MinitMethod::Points),
     ];
 
     for (name, init_method) in init_methods {
         println!("\n{} initialization:", name);
 
-        let options = KMeansOptions {
-            init_method,
-            max_iter: 300,
-            n_init: 5,
-            random_seed: Some(42), // For reproducibility
-            ..Default::default()
-        };
-
-        let (_centroids, labels) = kmeans(data.view(), 3, Some(options))?;
+        let (_centroids, labels) = kmeans2(
+            data.view(),
+            3,
+            Some(300),
+            None,
+            Some(init_method),
+            Some(MissingMethod::Warn),
+            Some(true),
+            Some(42),
+        )?;
 
         evaluate_clustering(&data, &labels);
     }

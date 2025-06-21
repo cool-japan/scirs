@@ -52,20 +52,33 @@ This module provides signal processing functionality similar to SciPy's signal m
 
 ## Future Tasks
 
-- [ ] Implement advanced filter types and design methods
-  - [ ] Parks-McClellan optimal FIR filters (Remez exchange algorithm)
-  - [ ] Minimum phase filter conversion
-  - [ ] Filter design in the Z-domain
-  - [ ] Matched filter implementation
-  - [ ] Adaptive filters (LMS, RLS, Kalman)
-  - [ ] Comb filters and notch filters
-  - [ ] Filter bank design (QMF, wavelet filter banks)
-  - [ ] IIR filter stabilization methods
-  - [ ] Bessel filter improvements
-  - [ ] Allpass filter design
-  - [ ] Digital filter analysis (group delay, passband ripple)
+- [x] Implement advanced filter types and design methods
+  - [x] Parks-McClellan optimal FIR filters (Remez exchange algorithm)
+  - [x] Minimum phase filter conversion
+  - [x] Filter design in the Z-domain
+    - [x] Direct Z-domain Butterworth bandpass/bandstop filters
+    - [x] Direct Z-domain Chebyshev Type I filters (lowpass/highpass)
+    - [x] Direct Z-domain IIR optimization design
+  - [x] Matched filter implementation
+  - [x] Adaptive filters (LMS, RLS, Kalman)
+  - [x] Elliptic (Cauer) filter design with optimal transition characteristics
+  - [x] Comb filters and notch filters
+  - [x] Peak filters for frequency-specific enhancement
+  - [x] Allpass filter design for phase equalization
+  - [x] Digital filter analysis (group delay, passband ripple)
+  - [x] Comprehensive filter stability analysis
+  - [x] Filter bank design (QMF, wavelet filter banks)
+    - [x] Quadrature Mirror Filter (QMF) banks with perfect reconstruction
+    - [x] Wavelet filter banks for multi-resolution analysis
+    - [x] Cosine modulated filter banks for efficient implementation
+    - [x] Filter bank analysis (aliasing, distortion, stopband attenuation)
+    - [x] Multi-rate signal processing operations
+  - [x] IIR filter stabilization methods
+    - [x] Radial projection stabilization
+    - [x] Zero placement stabilization
+    - [x] Balanced truncation stabilization
 
-- [ ] Enhance linear system modeling and analysis
+- [x] Enhance linear system modeling and analysis
   - [x] Linear Time-Invariant (LTI) systems
     - [x] State-space models
     - [x] Transfer function models
@@ -76,12 +89,18 @@ This module provides signal processing functionality similar to SciPy's signal m
   - [x] Complete impulse response analysis
   - [x] Complete step response simulation
   - [x] Linear system simulation with arbitrary inputs
-  - [ ] System interconnection (series, parallel, feedback)
-  - [ ] Controllability and observability analysis
-  - [ ] Laplace transform support
-  - [ ] Conversion between discrete and continuous systems
-  - [ ] System reduction and minimal realizations
-  - [ ] System identification from data
+  - [x] System interconnection (series, parallel, feedback)
+  - [x] Controllability and observability analysis
+  - [x] Laplace transform support
+  - [x] Conversion between discrete and continuous systems
+  - [x] System reduction and minimal realizations
+  - [x] System identification from data
+    - [x] Transfer function estimation (least squares, frequency domain, instrumental variables)
+    - [x] AR/ARMA model identification with order selection (AIC, BIC)
+    - [x] Frequency response estimation (Welch, H1/H2 estimators)
+    - [x] Model validation and selection criteria
+    - [x] Recursive least squares (RLS) for online estimation
+    - [x] Simple N4SID subspace identification
 
 - [ ] Implement advanced spectral analysis techniques
   - [x] Multitaper spectral estimation
@@ -144,8 +163,20 @@ This module provides signal processing functionality similar to SciPy's signal m
   - [x] Various padding options (zero, symmetric, reflect)
   - [x] Phase-shift controls
   - [x] Customizable normalization schemes
-  - [ ] Streaming STFT computation
-  - [ ] Memory-efficient implementation for large signals
+  - [x] Streaming STFT computation
+    - [x] Real-time STFT processing with bounded latency
+    - [x] Frame-by-frame processing for continuous streams
+    - [x] Configurable overlap and window functions
+    - [x] Memory-efficient fixed-size buffers
+    - [x] Block-based processing for real-time applications
+    - [x] Magnitude-only processing for efficiency
+    - [x] Log scaling and power spectrum options
+  - [x] Memory-efficient implementation for large signals
+    - [x] Chunked processing for large signals
+    - [x] Automatic memory management
+    - [x] Memory usage analysis and optimization
+    - [x] Parallel chunked processing support
+    - [x] Magnitude-only processing for reduced memory usage
 
 - [x] Signal enhancement and restoration
   - [x] Implement denoising algorithms
@@ -197,43 +228,48 @@ This module provides signal processing functionality similar to SciPy's signal m
     - [x] Sparse signal denoising
     - [x] Random sensing matrix generation
     - [x] Matrix coherence and RIP estimation
-  - [ ] Robust filtering for outliers
-  - [ ] Multi-band signal separation
-  - [ ] Harmonic/percussive separation for audio
+  - [x] Robust filtering for outliers
+    - [x] Alpha-trimmed mean filtering
+    - [x] Hampel filter for outlier detection and replacement
+    - [x] Winsorized filtering
+    - [x] Huber loss-based robust filtering
+    - [x] 2D robust filtering for image processing
+  - [x] Multi-band signal separation
+  - [x] Harmonic/percussive separation for audio
 
 - [x] Window function enhancements
   - [x] Organize into dedicated namespace
   - [x] Extended window catalog
     - [x] Kaiser-Bessel derived
-    - [ ] DPSS (Slepian) windows
-    - [ ] Lanczos
+    - [x] DPSS (Slepian) windows
+    - [x] Lanczos
     - [x] Flat-top windows
-  - [ ] Window design tools
-  - [ ] Window analysis utilities
+  - [x] Window design tools
+  - [x] Window analysis utilities
 
-- [ ] Special function generators and analysis
-  - [ ] Maximum length sequences (MLS)
-  - [ ] Pink and brown noise generation
-  - [ ] Pseudo-random binary sequences (PRBS)
-  - [ ] Synchronized swept-sine generation
-  - [ ] Exponential sine sweeps
-  - [ ] Golomb rulers and perfect sequences
+- [x] Special function generators and analysis
+  - [x] Maximum length sequences (MLS)
+  - [x] Pink and brown noise generation
+  - [x] Pseudo-random binary sequences (PRBS)
+  - [x] Synchronized swept-sine generation
+  - [x] Exponential sine sweeps
+  - [x] Golomb rulers and perfect sequences
   - [x] Hilbert transform implementation
   - [x] Analytic signal generation
   - [x] Instantaneous frequency estimation
   - [x] Instantaneous phase computation
   - [x] Signal envelope detection
   - [x] B-splines and spline filtering
-  - [ ] Polynomial interpolation
+  - [x] Polynomial interpolation
 
-- [ ] Advanced resampling and interpolation
-  - [ ] Sinc interpolation
-  - [ ] Lagrange interpolation
-  - [ ] Hermite interpolation
-  - [ ] Time-varying resampling
-  - [ ] Non-uniform sampling conversion
-  - [ ] Fractional delay filtering
-  - [ ] Phase vocoder for time-stretching
+- [x] Advanced resampling and interpolation
+  - [x] Sinc interpolation
+  - [x] Lagrange interpolation
+  - [x] Hermite interpolation
+  - [x] Time-varying resampling
+  - [x] Non-uniform sampling conversion
+  - [x] Fractional delay filtering
+  - [x] Phase vocoder for time-stretching
 
 - [ ] Performance and usability optimization
   - [x] Parallelization for multi-core processing

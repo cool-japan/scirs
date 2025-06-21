@@ -352,6 +352,69 @@ where
     Ok(result)
 }
 
+/// Calculates the cross-correlation function (CCF) between two time series
+///
+/// # Arguments
+///
+/// * `x` - First time series
+/// * `y` - Second time series
+/// * `max_lag` - Maximum lag to compute (default: min(length) / 4)
+///
+/// # Returns
+///
+/// * The cross-correlation values for each lag
+///
+/// # Examples
+///
+/// ```
+/// use ndarray::array;
+/// use scirs2_series::utils::cross_correlation;
+///
+/// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
+/// let y = array![2.0, 3.0, 4.0, 5.0, 6.0];
+/// let ccf = cross_correlation(&x, &y, Some(3)).unwrap();
+/// ```
+pub fn cross_correlation<F>(
+    x: &Array1<F>,
+    y: &Array1<F>,
+    max_lag: Option<usize>,
+) -> Result<Array1<F>>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    let min_len = x.len().min(y.len());
+
+    if min_len < 2 {
+        return Err(TimeSeriesError::InvalidInput(
+            "Time series must have at least 2 points for cross-correlation".to_string(),
+        ));
+    }
+
+    let default_max_lag = min_len / 4;
+    let max_lag = max_lag.unwrap_or(default_max_lag).min(min_len - 1);
+
+    let x_mean = x.sum() / F::from(x.len()).unwrap();
+    let y_mean = y.sum() / F::from(y.len()).unwrap();
+
+    let mut result = Array1::zeros(max_lag + 1);
+
+    for lag in 0..=max_lag {
+        let mut numerator = F::zero();
+        let mut count = 0;
+
+        for i in 0..(min_len - lag) {
+            numerator = numerator + (x[i] - x_mean) * (y[i + lag] - y_mean);
+            count += 1;
+        }
+
+        if count > 0 {
+            result[lag] = numerator / F::from(count).unwrap();
+        }
+    }
+
+    Ok(result)
+}
+
 /// Calculates the partial autocorrelation function (PACF) for a time series
 ///
 /// # Arguments

@@ -1,5 +1,7 @@
 use ndarray::Array2;
-use scirs2_cluster::vq::{kmeans, kmeans_plus_plus, KMeansOptions};
+use scirs2_cluster::vq::{
+    kmeans2, kmeans_plus_plus, kmeans_with_options, KMeansOptions, MinitMethod, MissingMethod,
+};
 
 fn main() {
     println!("K-means Clustering Example");
@@ -18,7 +20,17 @@ fn main() {
     .unwrap();
 
     println!("\nRunning standard K-means with k=3...");
-    let (centroids, labels) = kmeans(data.view(), 3, None).unwrap();
+    let (centroids, labels) = kmeans2(
+        data.view(),
+        3,
+        Some(10), // iterations
+        None,     // threshold
+        Some(MinitMethod::Random),
+        Some(MissingMethod::Warn),
+        Some(true), // check_finite
+        Some(42),   // random_seed
+    )
+    .unwrap();
 
     println!("\nCentroids:");
     for (i, centroid) in centroids.outer_iter().enumerate() {
@@ -49,9 +61,9 @@ fn main() {
     // Run K-means++
     println!("\nRunning K-means++ with k=3...");
     let _initial_centroids = kmeans_plus_plus(data.view(), 3, None).unwrap();
-    // Using the default options but with our initial centroids
+    // Using the default options but with k-means++ initialization
     let options = KMeansOptions::<f64>::default();
-    let (centroids_pp, _labels_pp) = kmeans(data.view(), 3, Some(options)).unwrap();
+    let (centroids_pp, _labels_pp) = kmeans_with_options(data.view(), 3, Some(options)).unwrap();
 
     println!("\nK-means++ Centroids:");
     for (i, centroid) in centroids_pp.outer_iter().enumerate() {

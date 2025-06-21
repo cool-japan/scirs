@@ -1,9 +1,8 @@
-//! Configuration system for SciRS2
+//! Configuration system for ``SciRS2``
 //!
-//! This module provides a centralized configuration system for SciRS2, allowing
+//! This module provides a centralized configuration system for ``SciRS2``, allowing
 //! users to customize the behavior of various algorithms and functions.
 
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
@@ -23,7 +22,7 @@ pub const DEFAULT_MAX_ITERATIONS: usize = 1000;
 /// Default memory limit for operations (in bytes)
 pub const DEFAULT_MEMORY_LIMIT: usize = 1_073_741_824; // 1 GB
 
-/// Global configuration for SciRS2
+/// Global configuration for ``SciRS2``
 ///
 /// This struct is not intended to be instantiated directly.
 /// Instead, use the `get_config` and `set_config` functions to access and modify the configuration.
@@ -31,7 +30,7 @@ pub const DEFAULT_MEMORY_LIMIT: usize = 1_073_741_824; // 1 GB
 pub struct Config {
     /// Configuration values
     values: HashMap<String, ConfigValue>,
-    /// Environment prefix for SciRS2 environment variables
+    /// Environment prefix for ``SciRS2`` environment variables
     env_prefix: String,
 }
 
@@ -53,11 +52,11 @@ pub enum ConfigValue {
 impl fmt::Display for ConfigValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConfigValue::Bool(b) => write!(f, "{}", b),
-            ConfigValue::Int(i) => write!(f, "{}", i),
-            ConfigValue::UInt(u) => write!(f, "{}", u),
-            ConfigValue::Float(fl) => write!(f, "{}", fl),
-            ConfigValue::String(s) => write!(f, "{}", s),
+            ConfigValue::Bool(b) => write!(f, "{b}"),
+            ConfigValue::Int(i) => write!(f, "{i}"),
+            ConfigValue::UInt(u) => write!(f, "{u}"),
+            ConfigValue::Float(fl) => write!(f, "{fl}"),
+            ConfigValue::String(s) => write!(f, "{s}"),
         }
     }
 }
@@ -93,11 +92,13 @@ impl Default for Config {
 
 impl Config {
     /// Create a new configuration with default values
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Get a configuration value
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<&ConfigValue> {
         self.values.get(key)
     }
@@ -113,62 +114,75 @@ impl Config {
     }
 
     /// Get a boolean configuration value
+    ///
+    /// # Errors
+    ///
+    /// Returns `CoreError::ConfigError` if the key is not found or if the value is not a boolean.
     pub fn get_bool(&self, key: &str) -> CoreResult<bool> {
         match self.get(key) {
             Some(ConfigValue::Bool(b)) => Ok(*b),
             Some(value) => Err(CoreError::ConfigError(
                 ErrorContext::new(format!(
-                    "Expected boolean value for key '{}', got: {}",
-                    key, value
+                    "Expected boolean value for key '{key}', got: {value}"
                 ))
                 .with_location(ErrorLocation::new(file!(), line!())),
             )),
             None => Err(CoreError::ConfigError(
-                ErrorContext::new(format!("Configuration key '{}' not found", key))
+                ErrorContext::new(format!("Configuration key '{key}' not found"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
     }
 
     /// Get an integer configuration value
+    ///
+    /// # Errors
+    ///
+    /// Returns `CoreError::ConfigError` if the key is not found or if the value is not an integer.
     pub fn get_int(&self, key: &str) -> CoreResult<i64> {
         match self.get(key) {
             Some(ConfigValue::Int(i)) => Ok(*i),
             Some(ConfigValue::UInt(u)) if *u <= i64::MAX as u64 => Ok(*u as i64),
             Some(value) => Err(CoreError::ConfigError(
                 ErrorContext::new(format!(
-                    "Expected integer value for key '{}', got: {}",
-                    key, value
+                    "Expected integer value for key '{key}', got: {value}"
                 ))
                 .with_location(ErrorLocation::new(file!(), line!())),
             )),
             None => Err(CoreError::ConfigError(
-                ErrorContext::new(format!("Configuration key '{}' not found", key))
+                ErrorContext::new(format!("Configuration key '{key}' not found"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
     }
 
     /// Get an unsigned integer configuration value
+    ///
+    /// # Errors
+    ///
+    /// Returns `CoreError::ConfigError` if the key is not found or if the value is not an unsigned integer.
     pub fn get_uint(&self, key: &str) -> CoreResult<u64> {
         match self.get(key) {
             Some(ConfigValue::UInt(u)) => Ok(*u),
             Some(ConfigValue::Int(i)) if *i >= 0 => Ok(*i as u64),
             Some(value) => Err(CoreError::ConfigError(
                 ErrorContext::new(format!(
-                    "Expected unsigned integer value for key '{}', got: {}",
-                    key, value
+                    "Expected unsigned integer value for key '{key}', got: {value}"
                 ))
                 .with_location(ErrorLocation::new(file!(), line!())),
             )),
             None => Err(CoreError::ConfigError(
-                ErrorContext::new(format!("Configuration key '{}' not found", key))
+                ErrorContext::new(format!("Configuration key '{key}' not found"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
     }
 
     /// Get a floating-point configuration value
+    ///
+    /// # Errors
+    ///
+    /// Returns `CoreError::ConfigError` if the key is not found or if the value cannot be converted to a float.
     pub fn get_float(&self, key: &str) -> CoreResult<f64> {
         match self.get(key) {
             Some(ConfigValue::Float(f)) => Ok(*f),
@@ -176,25 +190,28 @@ impl Config {
             Some(ConfigValue::UInt(u)) => Ok(*u as f64),
             Some(value) => Err(CoreError::ConfigError(
                 ErrorContext::new(format!(
-                    "Expected float value for key '{}', got: {}",
-                    key, value
+                    "Expected float value for key '{key}', got: {value}"
                 ))
                 .with_location(ErrorLocation::new(file!(), line!())),
             )),
             None => Err(CoreError::ConfigError(
-                ErrorContext::new(format!("Configuration key '{}' not found", key))
+                ErrorContext::new(format!("Configuration key '{key}' not found"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
     }
 
     /// Get a string configuration value
+    ///
+    /// # Errors
+    ///
+    /// Returns `CoreError::ConfigError` if the key is not found.
     pub fn get_string(&self, key: &str) -> CoreResult<String> {
         match self.get(key) {
             Some(ConfigValue::String(s)) => Ok(s.clone()),
             Some(value) => Ok(value.to_string()),
             None => Err(CoreError::ConfigError(
-                ErrorContext::new(format!("Configuration key '{}' not found", key))
+                ErrorContext::new(format!("Configuration key '{key}' not found"))
                     .with_location(ErrorLocation::new(file!(), line!())),
             )),
         }
@@ -224,7 +241,8 @@ impl Config {
     }
 }
 
-static GLOBAL_CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| RwLock::new(Config::default()));
+static GLOBAL_CONFIG: std::sync::LazyLock<RwLock<Config>> =
+    std::sync::LazyLock::new(|| RwLock::new(Config::default()));
 
 thread_local! {
     static THREAD_LOCAL_CONFIG: Arc<Mutex<Option<Config>>> = Arc::new(Mutex::new(None));
@@ -233,6 +251,7 @@ thread_local! {
 /// Get the current configuration
 ///
 /// This function first checks for a thread-local configuration, and falls back to the global configuration.
+#[must_use]
 pub fn get_config() -> Config {
     // Try to get thread-local config first
     let thread_local = THREAD_LOCAL_CONFIG.with(|config| {
@@ -276,6 +295,7 @@ pub fn set_config_value(key: &str, value: ConfigValue) {
 }
 
 /// Get a global configuration value
+#[must_use]
 pub fn get_config_value(key: &str) -> Option<ConfigValue> {
     let config = get_config();
     config.get(key).cloned()
@@ -407,3 +427,6 @@ mod tests {
         final_config.values.remove(test_key);
     }
 }
+
+/// Production-level configuration management with validation, hot reloading, and feature flags
+pub mod production;

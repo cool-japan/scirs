@@ -1,6 +1,6 @@
 //! Statistical functions for ndarray arrays
 //!
-//! This module provides statistical functions for ndarray arrays, similar to NumPy's
+//! This module provides statistical functions for ndarray arrays, similar to `NumPy`'s
 //! statistical functions.
 
 // Module declarations

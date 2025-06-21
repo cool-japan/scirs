@@ -171,7 +171,7 @@ where
 
     // Generate random orthogonal matrix using QR decomposition
     let a = random_general(size, size, Distribution1D::StandardNormal, rng)?;
-    let qr_result = qr(&a.view())?;
+    let qr_result = qr(&a.view(), None)?;
     let (q, _) = qr_result;
 
     // Generate random eigenvalues in the specified range
@@ -206,7 +206,7 @@ where
     let a = random_general(size, size, Distribution1D::StandardNormal, rng)?;
 
     // Perform QR decomposition
-    let qr_result = qr(&a.view())?;
+    let qr_result = qr(&a.view(), None)?;
 
     // Q is orthogonal
     let (q, _) = qr_result;
@@ -478,7 +478,7 @@ mod tests {
 
         // Should have positive eigenvalues (we won't compute them here, just test Cholesky)
         use crate::cholesky;
-        let result = cholesky(&matrix.view());
+        let result = cholesky(&matrix.view(), None);
         assert!(result.is_ok(), "Matrix should be positive definite");
     }
 

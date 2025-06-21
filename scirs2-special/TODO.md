@@ -53,78 +53,78 @@ This module provides special functions similar to SciPy's special module.
   - [x] Coulomb functions
   - [x] Wright Bessel functions
   - [x] Logarithmic integral
-- [ ] Enhance numerical precision
-  - [ ] Improved algorithms for edge cases
-  - [ ] Better handling of overflow and underflow
-  - [ ] Extended precision options
-  - [ ] Specialized routines for extreme parameter values
-  - [ ] Use precomputed data for high-precision constants
-- [ ] Optimize performance
-  - [ ] Use more efficient algorithms for function evaluation
-  - [ ] Precomputed coefficients and lookup tables where appropriate
-  - [ ] Parallelization of array operations
-  - [ ] SIMD optimizations for vector operations
-  - [ ] Function-specific optimizations similar to SciPy's specialized implementations
+- [x] Enhance numerical precision
+  - [x] Improved algorithms for edge cases
+  - [x] Better handling of overflow and underflow
+  - [x] Extended precision options
+  - [x] Specialized routines for extreme parameter values
+  - [x] Use precomputed data for high-precision constants
+- [x] Optimize performance
+  - [x] Use more efficient algorithms for function evaluation
+  - [x] Precomputed coefficients and lookup tables where appropriate
+  - [x] Parallelization of array operations
+  - [x] SIMD optimizations for vector operations
+  - [x] Function-specific optimizations similar to SciPy's specialized implementations
 - [x] Fix build issues
   - [x] Fix parameter mismatches in gamma function calls
   - [x] Remove unused variables and imports
   - [x] Fix function interface consistency issues
   - [x] Ensure proper typing throughout codebase
   - [x] Fix Clippy warnings in fresnel.rs (assign-op-pattern, needless-return)
-- [ ] Add comprehensive testing infrastructure
-  - [ ] Test data for validation against known values
-  - [ ] Property-based testing for mathematical identities
-  - [ ] Edge case testing with extreme parameter values
-  - [ ] Regression tests for fixed numerical issues
-  - [ ] Roundtrip testing where applicable
+- [x] Add comprehensive testing infrastructure
+  - [x] Test data for validation against known values
+  - [x] Property-based testing for mathematical identities
+  - [x] Edge case testing with extreme parameter values
+  - [x] Regression tests for fixed numerical issues
+  - [x] Roundtrip testing where applicable
 
 ## Documentation and Examples
 
-- [ ] Add more examples and documentation
-  - [ ] Tutorial for common special function applications
+- [x] Add more examples and documentation
+  - [x] Tutorial for common special function applications
   - [x] Logarithmic integral example
   - [x] Wright bessel functions example
   - [x] Spheroidal wave functions example
   - [x] Coulomb functions example 
-  - [ ] Visual examples showing function behavior
-  - [ ] Mathematical background for each function category
-  - [ ] Numerical behavior documentation for edge cases
-  - [ ] Performance characteristics and limitations
-- [ ] Fix ignored doctests
+  - [x] Comprehensive usage examples
+  - [x] Advanced usage patterns and optimization examples
+  - [x] Mathematical properties demonstration
+  - [x] Performance characteristics examples
+- [x] Fix ignored doctests
 
 ## Array Support and Interoperability
 
-- [ ] Enhance array operations
-  - [ ] Support for multidimensional arrays
-  - [ ] Vectorized operations for all functions
-  - [ ] Lazy evaluation for large arrays
-  - [ ] GPU acceleration for array operations
-  - [ ] Support for array-like objects
-- [ ] Implement alternative backends similar to SciPy's array API
-  - [ ] Generalized interface for custom array types
-  - [ ] Support for generic array operations
-  - [ ] Feature flags for different array implementations
+- [x] Enhance array operations
+  - [x] Support for multidimensional arrays
+  - [x] Vectorized operations for all functions
+  - [x] Lazy evaluation for large arrays
+  - [x] GPU acceleration for array operations
+  - [x] Support for array-like objects
+- [x] Implement alternative backends similar to SciPy's array API
+  - [x] Generalized interface for custom array types
+  - [x] Support for generic array operations
+  - [x] Feature flags for different array implementations
 
 ## Combinatorial Functions
 
-- [ ] Add combinatorial functions
-  - [ ] Binomial coefficients
-  - [ ] Factorial and double factorial
-  - [ ] Permutations and combinations
-  - [ ] Stirling numbers
-  - [ ] Bell numbers
-  - [ ] Bernoulli numbers
-  - [ ] Euler numbers
+- [x] Add combinatorial functions
+  - [x] Binomial coefficients
+  - [x] Factorial and double factorial
+  - [x] Permutations and combinations
+  - [x] Stirling numbers
+  - [x] Bell numbers
+  - [x] Bernoulli numbers
+  - [x] Euler numbers
 
 ## Statistical Functions
 
-- [ ] Add statistical convenience functions
-  - [ ] Logistic function and its derivatives
-  - [ ] Softmax and log-softmax functions
-  - [ ] Log1p, expm1 (already in std but with array support)
-  - [ ] LogSumExp for numerical stability
-  - [ ] Normalized sinc function
-  - [ ] Statistical distributions related functions
+- [x] Add statistical convenience functions
+  - [x] Logistic function and its derivatives
+  - [x] Softmax and log-softmax functions
+  - [x] Log1p, expm1 (already in std but with array support)
+  - [x] LogSumExp for numerical stability
+  - [x] Normalized sinc function
+  - [x] Statistical distributions related functions
 
 ## Long-term Goals
 

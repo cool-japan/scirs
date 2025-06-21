@@ -641,6 +641,388 @@ where
     pub fn points(&self) -> &Array2<F> {
         &self.points
     }
+
+    /// Find all points within a specified radius (alias for points_within_radius)
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates
+    /// * `radius` - Search radius
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples for all points within radius
+    pub fn radius_neighbors(&self, query: &[F], radius: F) -> InterpolateResult<Vec<(usize, F)>> {
+        self.points_within_radius(query, radius)
+    }
+
+    /// Find all points within a specified radius using an array view
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates as an array view
+    /// * `radius` - Search radius
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples for all points within radius
+    pub fn radius_neighbors_view(
+        &self,
+        query: &ndarray::ArrayView1<F>,
+        radius: F,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        let query_slice = query.as_slice().ok_or_else(|| {
+            InterpolateError::InvalidValue("Query must be contiguous".to_string())
+        })?;
+        self.points_within_radius(query_slice, radius)
+    }
+
+    /// Enhanced k-nearest neighbor search with distance bounds optimization
+    ///
+    /// This method provides improved performance for k-NN queries by using
+    /// tighter distance bounds and more efficient ball pruning strategies.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates
+    /// * `k` - Number of nearest neighbors to find
+    /// * `max_distance` - Optional maximum search distance for early termination
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples, sorted by distance
+    pub fn k_nearest_neighbors_optimized(
+        &self,
+        query: &[F],
+        k: usize,
+        max_distance: Option<F>,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        // Check query dimension
+        if query.len() != self.dim {
+            return Err(InterpolateError::DimensionMismatch(format!(
+                "Query dimension {} doesn't match Ball Tree dimension {}",
+                query.len(),
+                self.dim
+            )));
+        }
+
+        // Handle empty tree
+        if self.root.is_none() {
+            return Err(InterpolateError::InvalidState(
+                "Ball Tree is empty".to_string(),
+            ));
+        }
+
+        // Limit k to the number of points
+        let k = k.min(self.points.shape()[0]);
+
+        if k == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Very small trees (just use linear search)
+        if self.points.shape()[0] <= self.leaf_size {
+            return self.linear_k_nearest_neighbors_optimized(query, k, max_distance);
+        }
+
+        use std::collections::BinaryHeap;
+
+        let mut heap = BinaryHeap::with_capacity(k + 1);
+        let mut search_radius = max_distance.unwrap_or(F::infinity());
+
+        // Start recursive search with adaptive bounds
+        self.search_k_nearest_optimized(
+            self.root.unwrap(),
+            query,
+            k,
+            &mut heap,
+            &mut search_radius,
+        );
+
+        // Convert heap to sorted vector
+        let mut results: Vec<(usize, F)> = heap
+            .into_iter()
+            .map(|(dist, idx)| (idx, dist.into_inner()))
+            .collect();
+
+        // Sort by distance (since heap gives reverse order)
+        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+        Ok(results)
+    }
+
+    /// Optimized linear k-nearest neighbors search with early termination
+    fn linear_k_nearest_neighbors_optimized(
+        &self,
+        query: &[F],
+        k: usize,
+        max_distance: Option<F>,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        let n_points = self.points.shape()[0];
+        let k = k.min(n_points);
+        let max_dist = max_distance.unwrap_or(F::infinity());
+
+        let mut distances: Vec<(usize, F)> = Vec::with_capacity(n_points);
+
+        for i in 0..n_points {
+            let point = self.points.row(i);
+            let dist = euclidean_distance(query, &point.to_vec());
+
+            // Early termination if distance exceeds maximum
+            if dist <= max_dist {
+                distances.push((i, dist));
+            }
+        }
+
+        // Sort by distance
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+        // Return k nearest within max distance
+        distances.truncate(k);
+        Ok(distances)
+    }
+
+    /// Optimized recursive k-nearest search with enhanced ball pruning
+    #[allow(clippy::type_complexity)]
+    fn search_k_nearest_optimized(
+        &self,
+        node_idx: usize,
+        query: &[F],
+        k: usize,
+        heap: &mut std::collections::BinaryHeap<(OrderedFloat<F>, usize)>,
+        search_radius: &mut F,
+    ) {
+        let node = &self.nodes[node_idx];
+
+        // Calculate distance from query to ball center
+        let center_dist = euclidean_distance(query, &node.center);
+
+        // Enhanced distance bounds checking
+        let min_possible_dist = if center_dist > node.radius {
+            center_dist - node.radius
+        } else {
+            F::zero()
+        };
+
+        // Get current kth distance for pruning
+        let kth_dist = if heap.len() < k {
+            *search_radius
+        } else {
+            match heap.peek() {
+                Some(&(dist, _)) => dist.into_inner(),
+                None => *search_radius,
+            }
+        };
+
+        // Early pruning: if the closest possible point in this ball is farther than kth distance
+        if min_possible_dist > kth_dist {
+            return;
+        }
+
+        // If this is a leaf node, check all points
+        if node.left.is_none() && node.right.is_none() {
+            for &idx in &node.indices {
+                let point = self.points.row(idx);
+                let dist = euclidean_distance(query, &point.to_vec());
+
+                // Only consider points within search radius
+                if dist <= *search_radius {
+                    heap.push((OrderedFloat(dist), idx));
+
+                    // If heap is too large, remove the farthest point and update search radius
+                    if heap.len() > k {
+                        heap.pop();
+                    }
+
+                    // Update search radius to the farthest point in current k-nearest set
+                    if heap.len() == k {
+                        if let Some(&(max_dist, _)) = heap.peek() {
+                            *search_radius = max_dist.into_inner();
+                        }
+                    }
+                }
+            }
+            return;
+        }
+
+        // Process children with improved ordering strategy
+        let left_idx = node.left.unwrap();
+        let right_idx = node.right.unwrap();
+
+        let left_node = &self.nodes[left_idx];
+        let right_node = &self.nodes[right_idx];
+
+        // Calculate minimum possible distances to each child ball
+        let left_center_dist = euclidean_distance(query, &left_node.center);
+        let right_center_dist = euclidean_distance(query, &right_node.center);
+
+        let left_min_dist = if left_center_dist > left_node.radius {
+            left_center_dist - left_node.radius
+        } else {
+            F::zero()
+        };
+
+        let right_min_dist = if right_center_dist > right_node.radius {
+            right_center_dist - right_node.radius
+        } else {
+            F::zero()
+        };
+
+        // Order children by minimum possible distance
+        let (first_idx, second_idx, second_min_dist) = if left_min_dist < right_min_dist {
+            (left_idx, right_idx, right_min_dist)
+        } else {
+            (right_idx, left_idx, left_min_dist)
+        };
+
+        // Search the closer child first
+        self.search_k_nearest_optimized(first_idx, query, k, heap, search_radius);
+
+        // Re-check pruning condition for second child after first search
+        let updated_kth_dist = if heap.len() < k {
+            *search_radius
+        } else {
+            match heap.peek() {
+                Some(&(dist, _)) => dist.into_inner(),
+                None => *search_radius,
+            }
+        };
+
+        // Only search second child if it could contain better points
+        if second_min_dist <= updated_kth_dist {
+            self.search_k_nearest_optimized(second_idx, query, k, heap, search_radius);
+        }
+    }
+
+    /// Approximate nearest neighbor search with controlled accuracy
+    ///
+    /// This method provides faster approximate nearest neighbor search by
+    /// exploring only a limited number of branches in the tree.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Query point coordinates
+    /// * `k` - Number of nearest neighbors to find
+    /// * `max_checks` - Maximum number of distance computations
+    ///
+    /// # Returns
+    ///
+    /// Vector of (point_index, distance) tuples, sorted by distance
+    pub fn approximate_k_nearest_neighbors(
+        &self,
+        query: &[F],
+        k: usize,
+        max_checks: usize,
+    ) -> InterpolateResult<Vec<(usize, F)>> {
+        // Check query dimension
+        if query.len() != self.dim {
+            return Err(InterpolateError::DimensionMismatch(format!(
+                "Query dimension {} doesn't match Ball Tree dimension {}",
+                query.len(),
+                self.dim
+            )));
+        }
+
+        // Handle empty tree
+        if self.root.is_none() {
+            return Err(InterpolateError::InvalidState(
+                "Ball Tree is empty".to_string(),
+            ));
+        }
+
+        // Limit k to the number of points
+        let k = k.min(self.points.shape()[0]);
+
+        if k == 0 {
+            return Ok(Vec::new());
+        }
+
+        // For very small trees or large max_checks, use exact search
+        if self.points.shape()[0] <= self.leaf_size || max_checks >= self.points.shape()[0] {
+            return self.k_nearest_neighbors(query, k);
+        }
+
+        use std::collections::{BinaryHeap, VecDeque};
+
+        let mut heap = BinaryHeap::with_capacity(k + 1);
+        let mut checks_performed = 0;
+        let mut nodes_to_visit = VecDeque::new();
+
+        // Start with root
+        nodes_to_visit.push_back((self.root.unwrap(), F::zero()));
+
+        while let Some((node_idx, _min_dist)) = nodes_to_visit.pop_front() {
+            if checks_performed >= max_checks {
+                break;
+            }
+
+            let node = &self.nodes[node_idx];
+
+            // Calculate distance from query to ball center
+            let _center_dist = euclidean_distance(query, &node.center);
+
+            // If this is a leaf node, check all points
+            if node.left.is_none() && node.right.is_none() {
+                for &idx in &node.indices {
+                    if checks_performed >= max_checks {
+                        break;
+                    }
+
+                    let point = self.points.row(idx);
+                    let dist = euclidean_distance(query, &point.to_vec());
+                    checks_performed += 1;
+
+                    heap.push((OrderedFloat(dist), idx));
+
+                    // If heap is too large, remove the farthest point
+                    if heap.len() > k {
+                        heap.pop();
+                    }
+                }
+            } else {
+                // Add children to queue, prioritizing by distance
+                if let Some(left_idx) = node.left {
+                    let left_node = &self.nodes[left_idx];
+                    let left_center_dist = euclidean_distance(query, &left_node.center);
+                    let left_min_dist = if left_center_dist > left_node.radius {
+                        left_center_dist - left_node.radius
+                    } else {
+                        F::zero()
+                    };
+
+                    nodes_to_visit.push_back((left_idx, left_min_dist));
+                }
+
+                if let Some(right_idx) = node.right {
+                    let right_node = &self.nodes[right_idx];
+                    let right_center_dist = euclidean_distance(query, &right_node.center);
+                    let right_min_dist = if right_center_dist > right_node.radius {
+                        right_center_dist - right_node.radius
+                    } else {
+                        F::zero()
+                    };
+
+                    nodes_to_visit.push_back((right_idx, right_min_dist));
+                }
+
+                // Sort queue by minimum distance to prioritize closer nodes
+                nodes_to_visit
+                    .make_contiguous()
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+            }
+        }
+
+        // Convert heap to sorted vector
+        let mut results: Vec<(usize, F)> = heap
+            .into_iter()
+            .map(|(dist, idx)| (idx, dist.into_inner()))
+            .collect();
+
+        // Sort by distance
+        results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+        Ok(results)
+    }
 }
 
 /// Compute the centroid (center) of a set of points

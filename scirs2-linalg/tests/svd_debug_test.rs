@@ -30,7 +30,7 @@ fn debug_svd_implementation() {
 
     // Now try calling eigh directly on this
     use scirs2_linalg::eigh;
-    match eigh(&ata.view()) {
+    match eigh(&ata.view(), None) {
         Ok((eigenvalues, eigenvectors)) => {
             println!("Eigenvalues: {:?}", eigenvalues);
             println!("Eigenvectors shape: {:?}", eigenvectors.shape());

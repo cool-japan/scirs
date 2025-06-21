@@ -153,7 +153,7 @@ where
     let dev = x - mean;
 
     // Solve the system cov * y = dev to get cov^-1 * dev
-    let inv_dev = crate::solve::solve(cov, &dev.view())?;
+    let inv_dev = crate::solve::solve(cov, &dev.view(), None)?;
 
     // Compute the square distance: dev^T * cov^-1 * dev
     let dist_sq = dev.dot(&inv_dev);

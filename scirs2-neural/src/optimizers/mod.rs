@@ -12,8 +12,9 @@ use num_traits::Float;
 use std::fmt::Debug;
 
 // Re-export scirs2-optim's optimizers when the feature is enabled
-#[cfg(feature = "optim")]
-pub use scirs2_optim::optimizers as optim_optimizers;
+// Note: scirs2_optim crate may not exist yet - commented out for compilation
+// #[cfg(feature = "optim")]
+// pub use scirs2_optim::optimizers as optim_optimizers;
 
 /// Trait for neural network optimizers
 pub trait Optimizer<F: Float + Debug + ScalarOperand> {
@@ -66,7 +67,7 @@ mod wrappers {
     use super::*;
     use crate::NeuralError;
     use ndarray::Dimension;
-    use scirs2_optim::optimizers as optim;
+    // use scirs2_optim::optimizers as optim;
 
     /// Wrapper for optim optimizers to conform to our Optimizer trait
     pub struct OptimOptimizerWrapper<F, D, O>

@@ -498,14 +498,12 @@ pub(crate) fn fast_inplace_exp_impl<F: Float>(x: &mut NdArray<F>) {
                 x.as_ptr() as *const f32,
                 x.as_mut_ptr() as *mut f32,
             );
-            return;
         } else if same_type::<F, f64>() {
             vdExp(
                 x.len() as BlasIF,
                 x.as_ptr() as *const f64,
                 x.as_mut_ptr() as *mut f64,
             );
-            return;
         } else {
             x.mapv_inplace(move |a| a.exp());
         }
@@ -521,14 +519,12 @@ pub(crate) fn fast_inplace_ln_impl<F: Float>(x: &mut NdArray<F>) {
                 x.as_ptr() as *const f32,
                 x.as_mut_ptr() as *mut f32,
             );
-            return;
         } else if same_type::<F, f64>() {
             vdLn(
                 x.len() as BlasIF,
                 x.as_ptr() as *const f64,
                 x.as_mut_ptr() as *mut f64,
             );
-            return;
         } else {
             x.mapv_inplace(move |a| a.ln());
         }

@@ -316,6 +316,44 @@ where
     }
 }
 
+/// Armijo line search (standalone)
+fn line_search_armijo<F, Func, Grad>(
+    x: &Array1<F>,
+    d: &Array1<F>,
+    f: &Func,
+    grad: &Grad,
+    options: &OptimizationOptions<F>,
+) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+    Func: Fn(&Array1<F>) -> F,
+    Grad: Fn(&Array1<F>) -> Array1<F>,
+{
+    let mut alpha = F::one();
+    let f0 = f(x);
+    let g0 = grad(x);
+    let dg0 = g0.dot(d);
+
+    if dg0 > F::zero() {
+        return Err(TimeSeriesError::ComputationError(
+            "Invalid search direction".to_string(),
+        ));
+    }
+
+    while alpha > F::from(1e-10).unwrap() {
+        let x_new = x + &(d * alpha);
+        let f_new = f(&x_new);
+
+        if f_new <= f0 + options.line_search_alpha * alpha * dg0 {
+            return Ok(alpha);
+        }
+
+        alpha = alpha * options.line_search_beta;
+    }
+
+    Ok(F::from(1e-10).unwrap())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -365,42 +403,4 @@ mod tests {
         assert!((result.x[0] - 1.0).abs() < 0.01);
         assert!((result.x[1] - 1.0).abs() < 0.01);
     }
-}
-
-/// Armijo line search (standalone)
-fn line_search_armijo<F, Func, Grad>(
-    x: &Array1<F>,
-    d: &Array1<F>,
-    f: &Func,
-    grad: &Grad,
-    options: &OptimizationOptions<F>,
-) -> Result<F>
-where
-    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
-    Func: Fn(&Array1<F>) -> F,
-    Grad: Fn(&Array1<F>) -> Array1<F>,
-{
-    let mut alpha = F::one();
-    let f0 = f(x);
-    let g0 = grad(x);
-    let dg0 = g0.dot(d);
-
-    if dg0 > F::zero() {
-        return Err(TimeSeriesError::ComputationError(
-            "Invalid search direction".to_string(),
-        ));
-    }
-
-    while alpha > F::from(1e-10).unwrap() {
-        let x_new = x + &(d * alpha);
-        let f_new = f(&x_new);
-
-        if f_new <= f0 + options.line_search_alpha * alpha * dg0 {
-            return Ok(alpha);
-        }
-
-        alpha = alpha * options.line_search_beta;
-    }
-
-    Ok(F::from(1e-10).unwrap())
 }

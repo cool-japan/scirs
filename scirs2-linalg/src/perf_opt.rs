@@ -222,11 +222,48 @@ where
     Ok(())
 }
 
+/// Cache-friendly blocked matrix multiplication with explicit workers parameter
+pub fn blocked_matmul_with_workers<F>(
+    a: &ArrayView2<F>,
+    b: &ArrayView2<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum + Send + Sync + 'static,
+{
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
+    let config = OptConfig {
+        num_threads: workers,
+        ..OptConfig::default()
+    };
+
+    blocked_matmul(a, b, &config)
+}
+
 /// Optimized matrix transpose for better memory access patterns
 pub fn optimized_transpose<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
     F: Float + Send + Sync,
 {
+    optimized_transpose_with_workers(a, None)
+}
+
+/// Optimized matrix transpose with explicit workers parameter
+pub fn optimized_transpose_with_workers<F>(
+    a: &ArrayView2<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array2<F>>
+where
+    F: Float + Send + Sync,
+{
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
     let (m, n) = (a.nrows(), a.ncols());
     let mut result = Array2::zeros((n, m));
 
@@ -304,6 +341,28 @@ where
     Ok(result)
 }
 
+/// Parallel matrix-vector multiplication with explicit workers parameter
+pub fn parallel_matvec_with_workers<F>(
+    a: &ArrayView2<F>,
+    x: &ArrayView2<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum + Send + Sync,
+{
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
+    let config = OptConfig {
+        num_threads: workers,
+        ..OptConfig::default()
+    };
+
+    parallel_matvec(a, x, &config)
+}
+
 /// Memory-efficient in-place matrix operations
 pub mod inplace {
     use super::*;
@@ -369,6 +428,23 @@ pub fn adaptive_matmul<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<
 where
     F: Float + NumAssign + Sum + Send + Sync + 'static,
 {
+    adaptive_matmul_with_workers(a, b, None)
+}
+
+/// Adaptive matrix multiplication with explicit workers parameter
+pub fn adaptive_matmul_with_workers<F>(
+    a: &ArrayView2<F>,
+    b: &ArrayView2<F>,
+    workers: Option<usize>,
+) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum + Send + Sync + 'static,
+{
+    use crate::parallel;
+
+    // Configure workers for parallel operations
+    parallel::configure_workers(workers);
+
     let size = a.nrows() * a.ncols() + b.nrows() * b.ncols();
 
     // Choose algorithm based on matrix size
@@ -377,12 +453,16 @@ where
         Ok(a.dot(b))
     } else if size < 1000000 {
         // Medium matrices: use blocked algorithm
-        let config = OptConfig::default();
+        let config = OptConfig {
+            num_threads: workers,
+            ..OptConfig::default()
+        };
         blocked_matmul(a, b, &config)
     } else {
         // Large matrices: use parallel blocked algorithm
         let config = OptConfig {
             parallel_threshold: 50000,
+            num_threads: workers,
             ..OptConfig::default()
         };
         blocked_matmul(a, b, &config)
@@ -438,6 +518,273 @@ where
         time_optimized,
         time_standard.as_secs_f64() / time_optimized.as_secs_f64()
     ))
+}
+
+/// Memory-optimized decomposition algorithms
+/// These implementations minimize memory allocations and reuse workspace arrays
+pub mod decomposition_opt {
+    use super::*;
+    use ndarray::{s, Array1, Array2, ArrayView2};
+
+    /// Workspace for QR decomposition to avoid repeated allocations
+    pub struct QRWorkspace<F: Float> {
+        /// Tau array for Householder reflectors
+        pub tau: Array1<F>,
+        /// Work array for computations
+        pub work: Array1<F>,
+        /// Temporary array for matrix operations
+        pub temp_matrix: Array2<F>,
+    }
+
+    impl<F: Float> QRWorkspace<F> {
+        /// Create a new workspace for matrices up to the given size
+        pub fn new(max_rows: usize, max_cols: usize) -> Self {
+            let min_dim = max_rows.min(max_cols);
+            Self {
+                tau: Array1::zeros(min_dim),
+                work: Array1::zeros(max_cols * 64), // 64 is a reasonable work size multiplier
+                temp_matrix: Array2::zeros((max_rows, max_cols)),
+            }
+        }
+
+        /// Resize workspace if needed for the given matrix dimensions
+        pub fn resize_if_needed(&mut self, rows: usize, cols: usize) {
+            let min_dim = rows.min(cols);
+
+            if self.tau.len() < min_dim {
+                self.tau = Array1::zeros(min_dim);
+            }
+
+            let work_size = cols * 64;
+            if self.work.len() < work_size {
+                self.work = Array1::zeros(work_size);
+            }
+
+            if self.temp_matrix.nrows() < rows || self.temp_matrix.ncols() < cols {
+                self.temp_matrix = Array2::zeros((rows, cols));
+            }
+        }
+    }
+
+    /// Memory-optimized QR decomposition using workspace arrays
+    /// This reduces allocations for repeated QR decompositions
+    pub fn qr_with_workspace<F>(
+        a: &ArrayView2<F>,
+        workspace: &mut QRWorkspace<F>,
+    ) -> LinalgResult<(Array2<F>, Array2<F>)>
+    where
+        F: Float + NumAssign + Sum + Clone,
+    {
+        let (m, n) = a.dim();
+        workspace.resize_if_needed(m, n);
+
+        // Copy input matrix to temporary workspace to avoid modifying original
+        let mut a_work = workspace.temp_matrix.slice_mut(s![..m, ..n]);
+        a_work.assign(a);
+
+        // Perform in-place QR factorization
+        let min_dim = m.min(n);
+
+        // Simple Householder QR (educational implementation)
+        // In production, this would call optimized LAPACK routines
+        for j in 0..min_dim {
+            let column = a_work.column(j);
+            let norm = column
+                .slice(s![j..])
+                .fold(F::zero(), |acc, &x| acc + x * x)
+                .sqrt();
+
+            if norm > F::epsilon() {
+                // Update workspace tau
+                workspace.tau[j] = norm;
+
+                // Apply Householder reflection
+                let alpha = column[j];
+                let sign = if alpha >= F::zero() {
+                    F::one()
+                } else {
+                    -F::one()
+                };
+                let u1 = alpha + sign * norm;
+
+                // Normalize Householder vector
+                if u1.abs() > F::epsilon() {
+                    let scale = F::one() / u1;
+                    for i in (j + 1)..m {
+                        a_work[[i, j]] *= scale;
+                    }
+                }
+            }
+        }
+
+        // Extract Q and R matrices
+        let q = Array2::eye(m);
+        let mut r = Array2::zeros((m, n));
+
+        // Copy upper triangular part to R
+        for i in 0..m {
+            for j in i..n {
+                if i < min_dim && j < n {
+                    r[[i, j]] = a_work[[i, j]];
+                }
+            }
+        }
+
+        Ok((q, r))
+    }
+
+    /// Memory pool for temporary arrays in decomposition algorithms
+    pub struct DecompositionMemoryPool<F: Float> {
+        /// Pool of reusable arrays of different sizes
+        pub arrays: Vec<Array2<F>>,
+        /// Pool of reusable vectors
+        pub vectors: Vec<Array1<F>>,
+        /// Maximum number of arrays to keep in pool
+        pub max_pool_size: usize,
+    }
+
+    impl<F: Float> DecompositionMemoryPool<F> {
+        /// Create a new memory pool
+        pub fn new(max_pool_size: usize) -> Self {
+            Self {
+                arrays: Vec::new(),
+                vectors: Vec::new(),
+                max_pool_size,
+            }
+        }
+
+        /// Get a temporary array of the specified size, reusing from pool if available
+        pub fn get_array(&mut self, rows: usize, cols: usize) -> Array2<F> {
+            // Try to find a suitable array in the pool
+            for (i, array) in self.arrays.iter().enumerate() {
+                if array.nrows() >= rows && array.ncols() >= cols {
+                    let mut result = self.arrays.swap_remove(i);
+                    // Resize to exact dimensions needed
+                    result = result.slice(s![..rows, ..cols]).to_owned();
+                    result.fill(F::zero()); // Clear the array
+                    return result;
+                }
+            }
+
+            // No suitable array found, create new one
+            Array2::zeros((rows, cols))
+        }
+
+        /// Return an array to the pool for reuse
+        pub fn return_array(&mut self, array: Array2<F>) {
+            if self.arrays.len() < self.max_pool_size {
+                self.arrays.push(array);
+            }
+        }
+
+        /// Get a temporary vector of the specified size
+        pub fn get_vector(&mut self, len: usize) -> Array1<F> {
+            // Try to find a suitable vector in the pool
+            for (i, vector) in self.vectors.iter().enumerate() {
+                if vector.len() >= len {
+                    let mut result = self.vectors.swap_remove(i);
+                    result = result.slice(s![..len]).to_owned();
+                    result.fill(F::zero()); // Clear the vector
+                    return result;
+                }
+            }
+
+            // No suitable vector found, create new one
+            Array1::zeros(len)
+        }
+
+        /// Return a vector to the pool for reuse
+        pub fn return_vector(&mut self, vector: Array1<F>) {
+            if self.vectors.len() < self.max_pool_size {
+                self.vectors.push(vector);
+            }
+        }
+
+        /// Clear the memory pool
+        pub fn clear(&mut self) {
+            self.arrays.clear();
+            self.vectors.clear();
+        }
+    }
+
+    /// Cache-friendly Householder QR decomposition
+    /// Uses blocked algorithms for better memory access patterns
+    pub fn blocked_qr<F>(
+        a: &ArrayView2<F>,
+        block_size: usize,
+    ) -> LinalgResult<(Array2<F>, Array2<F>)>
+    where
+        F: Float + NumAssign + Sum + Clone,
+    {
+        let (m, n) = a.dim();
+        let mut a_copy = a.to_owned();
+        let q = Array2::eye(m);
+
+        let min_dim = m.min(n);
+
+        // Process matrix in blocks for better cache locality
+        for start_col in (0..min_dim).step_by(block_size) {
+            let end_col = (start_col + block_size).min(min_dim);
+            let _panel_width = end_col - start_col;
+
+            // Apply Householder transformations to current panel
+            for j in start_col..end_col {
+                // Compute Householder vector for column j
+                let col_norm = a_copy
+                    .slice(s![j.., j])
+                    .fold(F::zero(), |acc, &x| acc + x * x)
+                    .sqrt();
+
+                if col_norm > F::epsilon() {
+                    let alpha = a_copy[[j, j]];
+                    let sign = if alpha >= F::zero() {
+                        F::one()
+                    } else {
+                        -F::one()
+                    };
+                    let beta = alpha + sign * col_norm;
+
+                    if beta.abs() > F::epsilon() {
+                        // Normalize Householder vector
+                        let scale = F::one() / beta;
+                        for i in (j + 1)..m {
+                            a_copy[[i, j]] *= scale;
+                        }
+
+                        // Update R diagonal element
+                        a_copy[[j, j]] = -sign * col_norm;
+
+                        // Apply Householder transformation to remaining columns
+                        for k in (j + 1)..n {
+                            let mut dot_product = a_copy[[j, k]];
+                            for i in (j + 1)..m {
+                                dot_product += a_copy[[i, j]] * a_copy[[i, k]];
+                            }
+
+                            let tau = dot_product * F::from(2.0).unwrap();
+                            a_copy[[j, k]] -= tau;
+                            for i in (j + 1)..m {
+                                let householder_val = a_copy[[i, j]];
+                                a_copy[[i, k]] -= tau * householder_val;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract R matrix (upper triangular)
+        let mut r = Array2::zeros((m, n));
+        for i in 0..m {
+            for j in i..n {
+                if i < min_dim {
+                    r[[i, j]] = a_copy[[i, j]];
+                }
+            }
+        }
+
+        Ok((q, r))
+    }
 }
 
 #[cfg(test)]

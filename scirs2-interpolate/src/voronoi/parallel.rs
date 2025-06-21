@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use super::natural::{InterpolationMethod, NaturalNeighborInterpolator};
 use super::voronoi_cell::VoronoiDiagram;
 use crate::error::InterpolateResult;
+use crate::parallel::ParallelConfig;
 
 /// Parallel implementation of Natural Neighbor interpolation
 ///
@@ -33,25 +34,6 @@ pub struct ParallelNaturalNeighborInterpolator<
 
     /// Configuration for parallel execution
     parallel_config: ParallelConfig,
-}
-
-/// Configuration for parallel execution
-#[derive(Debug, Clone, Copy)]
-pub struct ParallelConfig {
-    /// Minimum number of query points per thread
-    pub min_points_per_thread: usize,
-
-    /// Target number of threads to use
-    pub target_threads: Option<usize>,
-}
-
-impl Default for ParallelConfig {
-    fn default() -> Self {
-        ParallelConfig {
-            min_points_per_thread: 10,
-            target_threads: None,
-        }
-    }
 }
 
 impl<
@@ -118,20 +100,13 @@ impl<
         let n_queries = queries.nrows();
         let _dim = queries.ncols();
 
+        // Determine the chunk size to use
+        let chunk_size = self.parallel_config.get_chunk_size(n_queries);
+
         // For very small numbers of queries, just use the sequential version
-        if n_queries <= self.parallel_config.min_points_per_thread {
+        if n_queries <= chunk_size {
             return self.interpolator.interpolate_multi(queries);
         }
-
-        // Determine the number of threads to use
-        let num_threads = match self.parallel_config.target_threads {
-            Some(n) => n,
-            None => rayon::current_num_threads()
-                .min(n_queries / self.parallel_config.min_points_per_thread),
-        }
-        .max(1);
-
-        let chunk_size = n_queries.div_ceil(num_threads);
 
         // Create a container for the results
         let results = Arc::new(Mutex::new(Array1::zeros(n_queries)));

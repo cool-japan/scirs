@@ -29,7 +29,7 @@ use num_traits::{Float, FromPrimitive};
 /// assert!((corr + 1.0_f64).abs() < 1e-10); // Perfect negative correlation (-1.0)
 /// ```
 ///
-/// This function is similar to NumPy's `np.corrcoef` function but returns a single value.
+/// This function is similar to ``NumPy``'s `np.corrcoef` function but returns a single value.
 pub fn corrcoef<T>(x: ArrayView<T, Ix1>, y: ArrayView<T, Ix1>) -> Result<T, &'static str>
 where
     T: Clone + Float + FromPrimitive,
@@ -103,7 +103,7 @@ where
 /// assert_eq!(cov_matrix.shape(), &[3, 3]);
 /// ```
 ///
-/// This function is equivalent to NumPy's `np.cov` function.
+/// This function is equivalent to ``NumPy``'s `np.cov` function.
 pub fn cov<T>(array: ArrayView<T, Ix2>, ddof: usize) -> Result<Array<T, Ix2>, &'static str>
 where
     T: Clone + Float + FromPrimitive,

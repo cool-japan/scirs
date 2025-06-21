@@ -299,7 +299,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
         }
 
         // Compute log normalization
-        let log_prob_norm = self.logsumexp(log_prob.view(), Axis(1));
+        let log_prob_norm = self.logsumexp(log_prob.view(), Axis(1))?;
 
         // Compute responsibilities
         let mut resp = log_prob.clone();
@@ -421,7 +421,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
     }
 
     /// Compute log-sum-exp along an axis
-    fn logsumexp(&self, arr: ArrayView2<F>, axis: Axis) -> Array1<F> {
+    fn logsumexp(&self, arr: ArrayView2<F>, axis: Axis) -> Result<Array1<F>> {
         let max_vals = arr.fold_axis(axis, F::neg_infinity(), |&a, &b| a.max(b));
         let mut result = Array1::zeros(max_vals.len());
 
@@ -435,10 +435,14 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum> GaussianMixture<F> 
                     result[i] = max_vals[i] + sum.ln();
                 }
             }
-            _ => unimplemented!("Only axis 1 is supported"),
+            _ => {
+                return Err(ClusteringError::InvalidInput(
+                    "Only axis 1 is supported for logsumexp".to_string(),
+                ));
+            }
         }
 
-        result
+        Ok(result)
     }
 
     /// Compute outer product of two vectors
@@ -560,5 +564,266 @@ mod tests {
         // Check that we have 2 clusters
         let unique_labels: std::collections::HashSet<_> = labels.iter().cloned().collect();
         assert!(unique_labels.len() <= 2);
+    }
+
+    #[test]
+    fn test_gmm_different_covariance_types() {
+        let data = Array2::from_shape_vec(
+            (8, 2),
+            vec![
+                1.0, 1.0, 1.1, 1.1, 0.9, 0.9, 1.2, 0.8, 5.0, 5.0, 5.1, 5.1, 4.9, 4.9, 5.2, 4.8,
+            ],
+        )
+        .unwrap();
+
+        let covariance_types = vec![
+            CovarianceType::Full,
+            CovarianceType::Diagonal,
+            CovarianceType::Spherical,
+            CovarianceType::Tied,
+        ];
+
+        for cov_type in covariance_types {
+            let options = GMMOptions {
+                n_components: 2,
+                covariance_type: cov_type,
+                max_iter: 50,
+                ..Default::default()
+            };
+
+            let result = gaussian_mixture(data.view(), options);
+            assert!(
+                result.is_ok(),
+                "Failed with covariance type: {:?}",
+                cov_type
+            );
+
+            let labels = result.unwrap();
+            assert_eq!(labels.len(), 8);
+        }
+    }
+
+    #[test]
+    fn test_gmm_initialization_methods() {
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
+        let init_methods = vec![GMMInit::KMeans, GMMInit::Random];
+
+        for init_method in init_methods {
+            let options = GMMOptions {
+                n_components: 2,
+                init_method,
+                random_seed: Some(42),
+                max_iter: 20,
+                ..Default::default()
+            };
+
+            let result = gaussian_mixture(data.view(), options);
+            assert!(result.is_ok(), "Failed with init method: {:?}", init_method);
+
+            let labels = result.unwrap();
+            assert_eq!(labels.len(), 6);
+        }
+    }
+
+    #[test]
+    fn test_gmm_parameter_validation() {
+        let data =
+            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0]).unwrap();
+
+        // Test with n_components = 0 (invalid)
+        let options = GMMOptions {
+            n_components: 0,
+            ..Default::default()
+        };
+        let result = gaussian_mixture(data.view(), options);
+        assert!(result.is_err());
+
+        // Test with n_components > n_samples (questionable but should work)
+        let options = GMMOptions {
+            n_components: 10,
+            max_iter: 5, // Keep low to avoid long convergence
+            ..Default::default()
+        };
+        let result = gaussian_mixture(data.view(), options);
+        // This might succeed or fail depending on implementation
+        // Just check it doesn't panic
+        let _result = result;
+    }
+
+    #[test]
+    fn test_gmm_convergence_criteria() {
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
+        // Test with different tolerance values
+        let tolerances = vec![1e-3, 1e-6, 1e-9];
+
+        for tol in tolerances {
+            let options = GMMOptions {
+                n_components: 2,
+                tol,
+                max_iter: 100,
+                ..Default::default()
+            };
+
+            let result = gaussian_mixture(data.view(), options);
+            assert!(result.is_ok(), "Failed with tolerance: {}", tol);
+        }
+    }
+
+    #[test]
+    fn test_gmm_single_component() {
+        let data =
+            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 1.1, 2.1]).unwrap();
+
+        let options = GMMOptions {
+            n_components: 1,
+            max_iter: 20,
+            ..Default::default()
+        };
+
+        let result = gaussian_mixture(data.view(), options);
+        assert!(result.is_ok());
+
+        let labels = result.unwrap();
+        assert_eq!(labels.len(), 4);
+
+        // All labels should be 0 for single component
+        assert!(labels.iter().all(|&l| l == 0));
+    }
+
+    #[test]
+    fn test_gmm_reproducibility_with_seed() {
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
+        let options1 = GMMOptions {
+            n_components: 2,
+            random_seed: Some(42),
+            max_iter: 50,
+            ..Default::default()
+        };
+
+        let options2 = GMMOptions {
+            n_components: 2,
+            random_seed: Some(42),
+            max_iter: 50,
+            ..Default::default()
+        };
+
+        let labels1 = gaussian_mixture(data.view(), options1).unwrap();
+        let labels2 = gaussian_mixture(data.view(), options2).unwrap();
+
+        // With same seed, results should be consistent in clustering structure
+        // Note: cluster labels might be swapped (0->1, 1->0) but the clustering should be the same
+        assert_eq!(labels1.len(), labels2.len());
+
+        // Check that the number of unique clusters is the same
+        let unique1: std::collections::HashSet<_> = labels1.iter().cloned().collect();
+        let unique2: std::collections::HashSet<_> = labels2.iter().cloned().collect();
+        assert_eq!(unique1.len(), unique2.len());
+    }
+
+    #[test]
+    fn test_gmm_many_components() {
+        let data = Array2::from_shape_vec(
+            (10, 2),
+            vec![
+                1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 3.0, 3.0, 3.1, 3.1, 3.2, 3.2, 5.0, 5.0, 5.1, 5.1,
+                5.2, 5.2, 7.0, 7.0,
+            ],
+        )
+        .unwrap();
+
+        let options = GMMOptions {
+            n_components: 3,
+            max_iter: 50,
+            ..Default::default()
+        };
+
+        let result = gaussian_mixture(data.view(), options);
+        assert!(result.is_ok());
+
+        let labels = result.unwrap();
+        assert_eq!(labels.len(), 10);
+
+        // Should find up to 3 clusters
+        let unique_labels: std::collections::HashSet<_> = labels.iter().cloned().collect();
+        assert!(unique_labels.len() <= 3);
+        assert!(!unique_labels.is_empty());
+    }
+
+    #[test]
+    fn test_gmm_regularization() {
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 2.0, 1.2, 1.8, 0.8, 1.9, 4.0, 5.0, 4.2, 4.8, 3.9, 5.1],
+        )
+        .unwrap();
+
+        // Test with different regularization values
+        let reg_values = vec![1e-6, 1e-3, 1e-1];
+
+        for reg_covar in reg_values {
+            let options = GMMOptions {
+                n_components: 2,
+                reg_covar,
+                max_iter: 20,
+                ..Default::default()
+            };
+
+            let result = gaussian_mixture(data.view(), options);
+            assert!(result.is_ok(), "Failed with reg_covar: {}", reg_covar);
+        }
+    }
+
+    #[test]
+    fn test_gmm_fit_predict_workflow() {
+        let data = Array2::from_shape_vec(
+            (8, 2),
+            vec![
+                1.0, 1.0, 1.1, 1.1, 0.9, 0.9, 1.2, 0.8, 5.0, 5.0, 5.1, 5.1, 4.9, 4.9, 5.2, 4.8,
+            ],
+        )
+        .unwrap();
+
+        let options = GMMOptions {
+            n_components: 2,
+            max_iter: 50,
+            random_seed: Some(42),
+            ..Default::default()
+        };
+
+        // Test the fit-predict workflow using the struct directly
+        let mut gmm = GaussianMixture::new(options);
+
+        // Fit the model
+        let fit_result = gmm.fit(data.view());
+        assert!(fit_result.is_ok());
+
+        // Predict on the same data
+        let predict_result = gmm.predict(data.view());
+        assert!(predict_result.is_ok());
+
+        let labels = predict_result.unwrap();
+        assert_eq!(labels.len(), 8);
+
+        // Predict on new data (should work after fitting)
+        let new_data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 5.0, 5.0]).unwrap();
+
+        let new_labels = gmm.predict(new_data.view());
+        assert!(new_labels.is_ok());
+        assert_eq!(new_labels.unwrap().len(), 2);
     }
 }

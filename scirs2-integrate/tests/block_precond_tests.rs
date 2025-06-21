@@ -257,6 +257,7 @@ where
     // Solve triangular system to get solution update
     for j in (0..iters).rev() {
         let mut sum = g[j];
+        #[allow(clippy::needless_range_loop)]
         for k in j + 1..iters {
             sum -= h[j][k] * y[k];
         }

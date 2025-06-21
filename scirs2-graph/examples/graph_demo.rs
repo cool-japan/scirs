@@ -2,6 +2,7 @@
 
 use scirs2_graph::algorithms::*;
 use scirs2_graph::generators::*;
+use scirs2_graph::Hypergraph;
 
 fn main() {
     println!("=== SciRS2 Graph Module Demo ===\n");
@@ -141,6 +142,44 @@ fn main() {
     for (node, k) in k_cores {
         println!("     {}: {}-core", node, k);
     }
+
+    // 11. Hypergraph operations
+    println!("\n11. Hypergraph Operations");
+    let mut hypergraph: Hypergraph<&str, f64> = Hypergraph::new();
+
+    // Add hyperedges representing group activities
+    let he1 = hypergraph
+        .add_hyperedge_from_vec(vec!["Alice", "Bob", "Charlie"], 1.0)
+        .unwrap();
+    let he2 = hypergraph
+        .add_hyperedge_from_vec(vec!["Bob", "Charlie", "David"], 1.2)
+        .unwrap();
+    let he3 = hypergraph
+        .add_hyperedge_from_vec(vec!["Alice", "David"], 0.8)
+        .unwrap();
+
+    println!(
+        "   Created hypergraph with {} hyperedges",
+        hypergraph.hyperedge_count()
+    );
+    println!("   Hyperedge {} connects: Alice-Bob-Charlie", he1);
+    println!("   Hyperedge {} connects: Bob-Charlie-David", he2);
+    println!("   Hyperedge {} connects: Alice-David", he3);
+
+    // Analyze hypergraph properties
+    let (min_size, max_size, avg_size) = hypergraph.hyperedge_size_stats();
+    println!(
+        "   Hyperedge sizes - Min: {}, Max: {}, Avg: {:.2}",
+        min_size, max_size, avg_size
+    );
+
+    // Convert hypergraph to regular graph
+    let converted_graph = hypergraph.to_graph();
+    println!(
+        "   Converted to regular graph: {} nodes, {} edges",
+        converted_graph.node_count(),
+        converted_graph.edge_count()
+    );
 
     println!("\n=== Demo Complete ===");
 }

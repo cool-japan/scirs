@@ -24,11 +24,11 @@
 //!
 //! // Compute determinant
 //! let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
-//! let d = det(&a.view()).unwrap();
+//! let d = det(&a.view(), None).unwrap();
 //! assert!((d - (-2.0)).abs() < 1e-10);
 //!
 //! // Compute inverse
-//! let a_inv = inv(&a.view()).unwrap();
+//! let a_inv = inv(&a.view(), None).unwrap();
 //! ```
 //!
 //! Matrix decompositions:
@@ -40,10 +40,10 @@
 //! let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
 //!
 //! // LU decomposition
-//! let (p, l, u) = lu(&a.view()).unwrap();
+//! let (p, l, u) = lu(&a.view(), None).unwrap();
 //!
 //! // QR decomposition
-//! let (q, r) = qr(&a.view()).unwrap();
+//! let (q, r) = qr(&a.view(), None).unwrap();
 //! ```
 //!
 //! Iterative solvers:
@@ -56,7 +56,7 @@
 //! let b = array![1.0_f64, 2.0];
 //!
 //! // Solve using conjugate gradient
-//! let x = conjugate_gradient(&a.view(), &b.view(), 10, 1e-10).unwrap();
+//! let x = conjugate_gradient(&a.view(), &b.view(), 10, 1e-10, None).unwrap();
 //! ```
 //!
 //! Matrix functions:
@@ -67,7 +67,7 @@
 //!
 //! // Compute matrix exponential
 //! let a = array![[0.0_f64, 1.0], [-1.0, 0.0]]; // Rotation matrix
-//! let exp_a = expm(&a.view()).unwrap();
+//! let exp_a = expm(&a.view(), None).unwrap();
 //! ```
 //!
 //! Accelerated operations using native BLAS/LAPACK:
@@ -82,8 +82,7 @@
 //! // Fast matrix multiplication for large matrices
 //! let c = blas_accelerated::matmul(&a.view(), &b.view()).unwrap();
 //! ```
-extern crate blas as _;
-extern crate openblas_src;
+// Note: BLAS/LAPACK functionality is provided through ndarray-linalg from scirs2-core
 
 // Export error types
 pub mod error;
@@ -97,35 +96,36 @@ pub mod broadcast;
 pub mod complex;
 pub mod convolution;
 mod decomposition;
+pub mod decomposition_advanced;
 // Main eigen module
 pub mod eigen;
-pub use self::eigen::{eig, eigh, eigvals, eigvalsh, power_iteration};
+pub use self::eigen::{
+    eig, eig_gen, eigh, eigh_gen, eigvals, eigvals_gen, eigvalsh, eigvalsh_gen, power_iteration,
+    ultra_precision_eig,
+};
 
 // Specialized eigen solvers in separate module
-pub mod eigen_specialized {
-    pub mod banded;
-    pub mod sparse;
-    pub mod symmetric;
-    pub mod tridiagonal;
-    pub use banded::{banded_eigh, banded_eigvalsh};
-    pub use sparse::{largest_k_eigh, smallest_k_eigh};
-    pub use symmetric::{symmetric_eigh, symmetric_eigvalsh};
-    pub use tridiagonal::{tridiagonal_eigh, tridiagonal_eigvalsh};
-}
+pub mod eigen_specialized;
 pub mod extended_precision;
 pub mod generic;
 pub mod gradient;
+pub mod hierarchical;
 mod iterative_solvers;
 pub mod kronecker;
+pub mod large_scale;
 pub mod lowrank;
 pub mod matrix_calculus;
+pub mod matrix_dynamics;
+pub mod matrix_equations;
 pub mod matrix_factorization;
 pub mod matrix_functions;
 pub mod matrixfree;
 pub mod mixed_precision;
 mod norm;
 pub mod optim;
+pub mod parallel;
 pub mod perf_opt;
+pub mod preconditioners;
 pub mod projection;
 /// Quantization-aware linear algebra operations
 pub mod quantization;
@@ -135,11 +135,15 @@ pub use self::quantization::calibration::{
 };
 pub mod random;
 pub mod random_matrices;
-// 一時的にrandom_newモジュールを無効化（コンパイル問題解決まで）
+// Temporarily disabled due to validation trait dependency issues
 // pub mod random_new;
+pub mod circulant_toeplitz;
 mod diagnostics;
+pub mod fft;
+pub mod scalable;
 pub mod simd_ops;
 mod solve;
+pub mod solvers;
 pub mod sparse_dense;
 pub mod special;
 pub mod specialized;
@@ -147,12 +151,15 @@ pub mod stats;
 pub mod structured;
 #[cfg(feature = "tensor_contraction")]
 pub mod tensor_contraction;
+pub mod tensor_train;
+mod validation;
 // Automatic differentiation support
 #[cfg(feature = "autograd")]
 pub mod autograd;
 
 // SciPy-compatible API wrappers
 pub mod compat;
+pub mod compat_wrappers;
 
 // Accelerated implementations using BLAS/LAPACK
 pub mod blas_accelerated;
@@ -177,8 +184,11 @@ pub mod accelerated {
 // accelerated実装は既にpubモジュールとして公開されているので、ここでの再エクスポートは不要
 
 // Re-exports for user convenience
-pub use self::basic::{det, inv, matrix_power};
-pub use self::eigen_specialized::sparse::{largest_k_eigh, smallest_k_eigh};
+pub use self::basic::{det, inv, matrix_power, trace as basic_trace};
+pub use self::eigen_specialized::{
+    banded_eigen, banded_eigh, banded_eigvalsh, circulant_eigenvalues, largest_k_eigh,
+    partial_eigen, smallest_k_eigh, tridiagonal_eigen, tridiagonal_eigh, tridiagonal_eigvalsh,
+};
 // Re-export complex module functions explicitly to avoid conflicts
 pub use self::complex::enhanced_ops::{
     det as complex_det, frobenius_norm, hermitian_part, inner_product, is_hermitian, is_unitary,
@@ -186,14 +196,32 @@ pub use self::complex::enhanced_ops::{
     schur as complex_schur, skew_hermitian_part, trace,
 };
 pub use self::complex::{complex_inverse, complex_matmul, hermitian_transpose};
-pub use self::decomposition::*;
+// Main decomposition functions with workers parameter
+pub use self::decomposition::{cholesky, lu, qr, schur, svd};
+// Backward compatibility versions (deprecated)
+pub use self::decomposition::{cholesky_default, lu_default, qr_default, svd_default};
+// Advanced decomposition functions
+pub use self::decomposition_advanced::{
+    jacobi_svd, polar_decomposition as advanced_polar_decomposition, polar_decomposition_newton,
+    qr_with_column_pivoting,
+};
+// Backward compatibility versions for basic functions (deprecated)
+pub use self::basic::{det_default, inv_default, matrix_power_default};
+// Backward compatibility versions for iterative solvers (deprecated)
+pub use self::iterative_solvers::conjugate_gradient_default;
 // Eigen module exports included in other use statements
-pub use self::eigen_specialized::*;
 pub use self::extended_precision::*;
 pub use self::iterative_solvers::*;
-pub use self::matrix_calculus::*;
+// pub use self::matrix_calculus::*; // Temporarily disabled
+pub use self::matrix_equations::{
+    solve_continuous_riccati, solve_discrete_riccati, solve_generalized_sylvester, solve_stein,
+    solve_sylvester,
+};
 pub use self::matrix_factorization::{
     cur_decomposition, interpolative_decomposition, nmf, rank_revealing_qr, utv_decomposition,
+};
+pub use self::matrix_functions::{
+    acosm, asinm, atanm, coshm, cosm, expm, logm, signm, sinhm, sinm, sqrtm, tanhm, tanm,
 };
 pub use self::matrixfree::{
     block_diagonal_operator, conjugate_gradient as matrix_free_conjugate_gradient,
@@ -202,7 +230,15 @@ pub use self::matrixfree::{
     LinearOperator, MatrixFreeOp,
 };
 pub use self::norm::*;
-pub use self::solve::*;
+// Main solve functions with workers parameter
+pub use self::solve::{lstsq, solve, solve_multiple, solve_triangular, LstsqResult};
+// Backward compatibility versions (deprecated)
+pub use self::solve::{lstsq_default, solve_default, solve_multiple_default};
+// Iterative solvers
+pub use self::solvers::iterative::{
+    bicgstab, conjugate_gradient as cg_solver, gmres,
+    preconditioned_conjugate_gradient as pcg_solver, IterativeSolverOptions, IterativeSolverResult,
+};
 pub use self::specialized::{
     specialized_to_operator, BandedMatrix, SpecializedMatrix, SymmetricMatrix, TridiagonalMatrix,
 };
@@ -249,12 +285,19 @@ pub mod prelude {
         conv2d_backward_kernel, conv2d_im2col, conv_transpose2d, im2col, max_pool2d,
         max_pool2d_backward,
     };
-    pub use super::decomposition::{cholesky, lu, qr, svd};
-    pub use super::eigen::{eig, eigh, eigvals, eigvalsh, power_iteration};
-    pub use super::eigen_specialized::banded::{banded_eigh, banded_eigvalsh};
-    pub use super::eigen_specialized::sparse::{largest_k_eigh, smallest_k_eigh};
-    pub use super::eigen_specialized::symmetric::{symmetric_eigh, symmetric_eigvalsh};
-    pub use super::eigen_specialized::tridiagonal::{tridiagonal_eigh, tridiagonal_eigvalsh};
+    pub use super::decomposition::{cholesky, lu, qr, schur, svd};
+    pub use super::decomposition_advanced::{
+        jacobi_svd, polar_decomposition as advanced_polar_decomposition,
+        polar_decomposition_newton, qr_with_column_pivoting,
+    };
+    pub use super::eigen::{
+        eig, eig_gen, eigh, eigh_gen, eigvals, eigvals_gen, eigvalsh, eigvalsh_gen,
+        power_iteration, ultra_precision_eig,
+    };
+    pub use super::eigen_specialized::{
+        banded_eigen, banded_eigh, banded_eigvalsh, circulant_eigenvalues, largest_k_eigh,
+        partial_eigen, smallest_k_eigh, tridiagonal_eigen, tridiagonal_eigh, tridiagonal_eigvalsh,
+    };
     pub use super::extended_precision::eigen::{
         extended_eig, extended_eigh, extended_eigvals, extended_eigvalsh,
     };
@@ -264,23 +307,47 @@ pub mod prelude {
     pub use super::extended_precision::{
         extended_det, extended_matmul, extended_matvec, extended_solve,
     };
+    pub use super::hierarchical::{
+        adaptive_block_lowrank, build_cluster_tree, BlockType, ClusterNode, HMatrix, HMatrixBlock,
+        HMatrixMemoryInfo, HSSMatrix, HSSNode,
+    };
     pub use super::iterative_solvers::{
         bicgstab, conjugate_gradient, gauss_seidel, geometric_multigrid, jacobi_method, minres,
         successive_over_relaxation,
     };
     pub use super::kronecker::{
-        kfac_factorization, kfac_update, kron, kron_factorize, kron_matmul, kron_matvec,
+        advanced_kfac_step, kfac_factorization, kfac_update, kron, kron_factorize, kron_matmul,
+        kron_matvec, BlockDiagonalFisher, BlockFisherMemoryInfo, KFACOptimizer,
     };
-    pub use super::lowrank::{nmf as lowrank_nmf, pca, randomized_svd, truncated_svd};
-    pub use super::matrix_calculus::enhanced::{
-        hessian_vector_product, jacobian_vector_product, matrix_gradient, taylor_approximation,
-        vector_jacobian_product,
+    pub use super::large_scale::{
+        block_krylov_solve, ca_gmres, incremental_svd, randomized_block_lanczos,
+        randomized_least_squares, randomized_norm,
     };
-    pub use super::matrix_calculus::{directional_derivative, gradient, hessian, jacobian};
+    pub use super::lowrank::{
+        cur_decomposition, nmf as lowrank_nmf, pca, randomized_svd, truncated_svd,
+    };
+    pub use super::solvers::iterative::{
+        bicgstab as iterative_bicgstab, conjugate_gradient as iterative_cg,
+        gmres as iterative_gmres, preconditioned_conjugate_gradient as iterative_pcg,
+        IterativeSolverOptions, IterativeSolverResult,
+    };
+    // Matrix calculus temporarily disabled due to compilation issues
+    // pub use super::matrix_calculus::enhanced::{
+    //     hessian_vector_product, jacobian_vector_product, matrix_gradient, taylor_approximation,
+    //     vector_jacobian_product,
+    // };
+    // pub use super::matrix_calculus::{directional_derivative, gradient, hessian, jacobian};
+    pub use super::matrix_dynamics::{
+        lyapunov_solve, matrix_exp_action, matrix_ode_solve, quantum_evolution, riccati_solve,
+        stability_analysis, DynamicsConfig, ODEResult,
+    };
     pub use super::matrix_factorization::{
-        cur_decomposition, interpolative_decomposition, nmf, rank_revealing_qr, utv_decomposition,
+        interpolative_decomposition, nmf, rank_revealing_qr, utv_decomposition,
     };
-    pub use super::matrix_functions::{expm, logm, matrix_power, sqrtm};
+    pub use super::matrix_functions::{
+        acosm, asinm, atanm, coshm, cosm, expm, logm, matrix_power, signm, sinhm, sinm, sqrtm,
+        tanhm, tanm,
+    };
     pub use super::matrixfree::{
         block_diagonal_operator, conjugate_gradient as matrix_free_conjugate_gradient,
         diagonal_operator, gmres as matrix_free_gmres, jacobi_preconditioner,
@@ -288,10 +355,9 @@ pub mod prelude {
         LinearOperator, MatrixFreeOp,
     };
     pub use super::mixed_precision::{
-        convert, convert_2d, iterative_refinement_solve, mixed_precision_cholesky,
-        mixed_precision_cond, mixed_precision_det, mixed_precision_dot, mixed_precision_inv,
-        mixed_precision_lstsq, mixed_precision_lu, mixed_precision_matmul, mixed_precision_matvec,
-        mixed_precision_qr, mixed_precision_solve, mixed_precision_svd, MixedPrecisionLstsqResult,
+        convert, convert_2d, iterative_refinement_solve, mixed_precision_cond, mixed_precision_det,
+        mixed_precision_dot, mixed_precision_inv, mixed_precision_matmul, mixed_precision_matvec,
+        mixed_precision_qr, mixed_precision_solve, mixed_precision_svd,
     };
     #[cfg(feature = "simd")]
     pub use super::mixed_precision::{
@@ -303,6 +369,13 @@ pub mod prelude {
     pub use super::perf_opt::{
         blocked_matmul, inplace_add, inplace_scale, matmul_benchmark, optimized_transpose,
         OptAlgorithm, OptConfig,
+    };
+    pub use super::preconditioners::{
+        analyze_preconditioner, create_preconditioner, preconditioned_conjugate_gradient,
+        preconditioned_gmres, AdaptivePreconditioner, BlockJacobiPreconditioner,
+        DiagonalPreconditioner, IncompleteCholeskyPreconditioner, IncompleteLUPreconditioner,
+        PolynomialPreconditioner, PreconditionerAnalysis, PreconditionerConfig, PreconditionerOp,
+        PreconditionerType,
     };
     pub use super::projection::{
         gaussian_random_matrix, johnson_lindenstrauss_min_dim, johnson_lindenstrauss_transform,
@@ -334,16 +407,50 @@ pub mod prelude {
     //     orthogonal as enhanced_orthogonal, unitary, hilbert as enhanced_hilbert,
     //     toeplitz as enhanced_toeplitz, vandermonde as enhanced_vandermonde
     // };
+    pub use super::fft::{
+        apply_window, dct_1d, dst_1d, fft_1d, fft_2d, fft_3d, fft_convolve, fft_frequencies,
+        idct_1d, irfft_1d, periodogram_psd, rfft_1d, welch_psd, Complex32, Complex64, FFTAlgorithm,
+        FFTPlan, WindowFunction,
+    };
     pub use super::generic::{
         gdet, geig, gemm, gemv, ginv, gnorm, gqr, gsolve, gsvd, GenericEigen, GenericQR,
         GenericSVD, LinalgScalar, PrecisionSelector,
     };
+    pub use super::scalable::{
+        adaptive_decomposition, blocked_matmul as scalable_blocked_matmul, classify_aspect_ratio,
+        lq_decomposition, randomized_svd as scalable_randomized_svd, tsqr, AdaptiveResult,
+        AspectRatio, ScalableConfig,
+    };
     #[cfg(feature = "simd")]
     pub use super::simd_ops::{
-        simd_axpy_f32, simd_axpy_f64, simd_dot_f32, simd_dot_f64, simd_frobenius_norm_f32,
-        simd_frobenius_norm_f64, simd_matmul_f32, simd_matmul_f64, simd_matrix_max_f32,
-        simd_matrix_max_f64, simd_matrix_min_f32, simd_matrix_min_f64, simd_matvec_f32,
+        simd_axpy_f32,
+        simd_axpy_f64,
+        simd_dot_f32,
+        simd_dot_f64,
+        simd_frobenius_norm_f32,
+        simd_frobenius_norm_f64,
+        // GEMM operations
+        simd_gemm_f32,
+        simd_gemm_f64,
+        simd_gemv_f32,
+        simd_gemv_f64,
+        simd_matmul_f32,
+        simd_matmul_f64,
+        simd_matmul_optimized_f32,
+        simd_matmul_optimized_f64,
+        simd_matrix_max_f32,
+        simd_matrix_max_f64,
+        simd_matrix_min_f32,
+        simd_matrix_min_f64,
+        simd_matvec_f32,
         simd_matvec_f64,
+        // Transpose operations
+        simd_transpose_f32,
+        simd_transpose_f64,
+        // Vector norm operations
+        simd_vector_norm_f32,
+        simd_vector_norm_f64,
+        GemmBlockSizes,
     };
     pub use super::solve::{lstsq, solve, solve_multiple, solve_triangular};
     pub use super::sparse_dense::{
@@ -353,8 +460,8 @@ pub mod prelude {
     };
     pub use super::special::block_diag;
     pub use super::specialized::{
-        specialized_to_operator, BandedMatrix, SpecializedMatrix, SymmetricMatrix,
-        TridiagonalMatrix,
+        specialized_to_operator, BandedMatrix, BlockTridiagonalMatrix, SpecializedMatrix,
+        SymmetricMatrix, TridiagonalMatrix,
     };
     pub use super::stats::{correlation_matrix, covariance_matrix};
     pub use super::structured::{
@@ -363,6 +470,7 @@ pub mod prelude {
     };
     #[cfg(feature = "tensor_contraction")]
     pub use super::tensor_contraction::{batch_matmul, contract, einsum, hosvd};
+    pub use super::tensor_train::{tt_add, tt_decomposition, tt_hadamard, TTTensor};
 
     // Automatic differentiation support
     #[cfg(feature = "autograd")]
@@ -386,6 +494,75 @@ pub mod prelude {
         pub use super::super::lapack_accelerated::{
             cholesky as fast_cholesky, eig as fast_eig, eigh as fast_eigh, lu as fast_lu,
             qr as fast_qr, svd as fast_svd,
+        };
+    }
+
+    // SciPy-compatible API
+    pub mod scipy_compat {
+        //! SciPy-compatible linear algebra functions
+        //!
+        //! This module provides functions with the same signatures and behavior
+        //! as SciPy's linalg module, making migration from Python to Rust easier.
+        //!
+        //! # Examples
+        //!
+        //! ```
+        //! use ndarray::array;
+        //! use scirs2_linalg::prelude::scipy_compat;
+        //!
+        //! let a = array![[4.0, 2.0], [2.0, 3.0]];
+        //!
+        //! // SciPy-style determinant computation
+        //! let det = scipy_compat::det(&a.view(), false, true).unwrap();
+        //!
+        //! // SciPy-style matrix norm
+        //! let norm = scipy_compat::norm(&a.view(), Some("fro"), None, false, true).unwrap();
+        //! ```
+
+        pub use super::super::compat::{
+            // Utilities
+            block_diag,
+            cholesky,
+            // Linear system solvers
+            compat_solve as solve,
+            cond,
+            cosm,
+            // Basic matrix operations
+            det,
+            // Eigenvalue problems
+            eig,
+            eig_banded,
+            eigh,
+            eigh_tridiagonal,
+            eigvals,
+            eigvals_banded,
+            eigvalsh,
+            eigvalsh_tridiagonal,
+            // Matrix functions
+            expm,
+            fractional_matrix_power,
+            funm,
+            inv,
+            logm,
+            lstsq,
+            // Matrix decompositions
+            lu,
+            matrix_rank,
+            norm,
+            pinv,
+            polar,
+            qr,
+            rq,
+            schur,
+            sinm,
+            solve_banded,
+            solve_triangular,
+            sqrtm,
+            svd,
+            tanm,
+            vector_norm,
+            // Type aliases
+            SvdResult,
         };
     }
 }

@@ -160,8 +160,8 @@ fn main() {
         backend: DistributedBackend::Threaded,
     };
 
-    let dist_a = DistributedNdarray::from_array(a.clone(), dist_config.clone());
-    let dist_b = DistributedNdarray::from_array(b.clone(), dist_config);
+    let dist_a = DistributedNdarray::from_array(&a, dist_config.clone());
+    let dist_b = DistributedNdarray::from_array(&b, dist_config);
 
     println!(
         "Created distributed arrays with {} and {} chunks",

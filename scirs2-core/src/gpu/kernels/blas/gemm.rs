@@ -41,7 +41,14 @@ impl fmt::Display for GemmImpl {
 /// General matrix-matrix multiplication kernel
 pub struct GemmKernel {
     base: BaseKernel,
+    #[allow(dead_code)]
     implementation: GemmImpl,
+}
+
+impl Default for GemmKernel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GemmKernel {
@@ -84,13 +91,14 @@ impl GemmKernel {
             },
         };
 
-        let (name, cuda_source, wgpu_source, metal_source, opencl_source) =
+        let (name, cuda_source, rocm_source, wgpu_source, metal_source, opencl_source) =
             Self::get_sources_for_implementation(implementation);
 
         Self {
             base: BaseKernel::new(
                 &name,
                 &cuda_source,
+                &rocm_source,
                 &wgpu_source,
                 &metal_source,
                 &opencl_source,
@@ -113,7 +121,7 @@ impl GemmKernel {
     /// Get kernel sources for the specified implementation
     fn get_sources_for_implementation(
         implementation: GemmImpl,
-    ) -> (String, String, String, String, String) {
+    ) -> (String, String, String, String, String, String) {
         let name = format!("gemm_{}", implementation);
 
         // In a real implementation, we would have different optimized kernel sources
@@ -441,7 +449,17 @@ __kernel void gemm_standard(
 "#
         .to_string();
 
-        (name, cuda_source, wgpu_source, metal_source, opencl_source)
+        // ROCm (HIP) kernel - similar to CUDA
+        let rocm_source = cuda_source.clone();
+
+        (
+            name,
+            cuda_source,
+            rocm_source,
+            wgpu_source,
+            metal_source,
+            opencl_source,
+        )
     }
 
     /// Generate a specialized kernel for the given dimensions
@@ -500,7 +518,7 @@ impl GpuKernel for GemmKernel {
         }
 
         // Extract dimensions
-        let m = params.input_dims.get(0).copied().unwrap_or(0);
+        let m = params.input_dims.first().copied().unwrap_or(0);
         let k = params.input_dims.get(1).copied().unwrap_or(0);
         let n = params.output_dims.get(1).copied().unwrap_or(0);
 

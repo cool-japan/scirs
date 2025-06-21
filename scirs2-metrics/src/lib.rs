@@ -638,18 +638,25 @@
 //#![warn(missing_docs)]
 
 pub mod anomaly;
+pub mod bayesian;
 pub mod classification;
 pub mod clustering;
+pub mod custom;
+pub mod dashboard;
+pub mod domains;
 pub mod error;
 pub mod evaluation;
 pub mod fairness;
 
 // Integration modules with conditional compilation
-#[cfg(feature = "neural_common")]
+#[cfg(any(feature = "neural_common", feature = "optim_integration"))]
 pub mod integration;
 
 pub mod optimization;
 pub mod ranking;
 pub mod regression;
+pub mod selection;
 pub mod serialization;
+pub mod sklearn_compat;
+pub mod streaming;
 pub mod visualization;

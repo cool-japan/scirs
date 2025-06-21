@@ -23,8 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Define frequency components
-    let frequencies = vec![0.5, 1.2, 3.5]; // Hz
-    let amplitudes = vec![1.0, 0.5, 0.3]; // Amplitude of each component
+    let frequencies = [0.5, 1.2, 3.5]; // Hz
+    let amplitudes = [1.0, 0.5, 0.3]; // Amplitude of each component
 
     println!("Signal components:");
     for (&freq, &amp) in frequencies.iter().zip(amplitudes.iter()) {
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Add some noise
     let noise_level = 0.2;
     println!("  Adding noise with amplitude: {:.1}", noise_level);
-    for i in 0..n_samples {
-        y[i] += noise_level * (2.0 * rng.random::<f64>() - 1.0);
+    for y_val in y.iter_mut().take(n_samples) {
+        *y_val += noise_level * (2.0 * rng.random::<f64>() - 1.0);
     }
 
     // Create frequency grid to evaluate periodogram

@@ -503,7 +503,6 @@ pub(crate) fn inplace_add_impl<F: Float>(mut a: NdArrayViewMut<F>, b: &NdArrayVi
                 b.as_ptr() as *const f32,
                 a.as_mut_ptr() as *mut f32,
             );
-            return;
         } else if same_type::<F, f64>() {
             vdAdd(
                 a.len() as MklInt,

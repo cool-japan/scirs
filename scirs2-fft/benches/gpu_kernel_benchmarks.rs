@@ -185,7 +185,7 @@ fn bench_gpu_vs_cpu(c: &mut Criterion) {
                 &noisy_signal,
                 5, // Look for 5 frequency components
                 Some(SparseFFTAlgorithm::Sublinear),
-                Some(WindowFunction::Hann),
+                None, // seed parameter
             )
             .unwrap()
         })

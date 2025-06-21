@@ -1,6 +1,7 @@
-use ndarray::{Array, Dim, IxDyn};
+use ndarray::Array;
 use scirs2_core::memory_efficient::{
-    ArithmeticOps, BroadcastOps, ChunkingStrategy, MemoryMappedArray, ZeroCopyOps,
+    ArithmeticOps, BroadcastOps, ChunkingStrategy, MemoryMappedArray, MemoryMappedChunks,
+    ZeroCopyOps,
 };
 use std::fs::File;
 use std::io::Write;
@@ -43,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let array = MemoryMappedArray::<f64>::open(&file_path, &[size])?;
     println!(
         "Opened as memory-mapped array with shape: {:?}",
-        array.shape()
+        array.shape
     );
 
     // Demonstrate various zero-copy operations
@@ -56,8 +57,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let elapsed = start.elapsed();
     println!("Sum: {:.0} (calculated in {:.2?})", sum, elapsed);
 
+    // Note: mean_zero_copy requires From<usize> trait bound
+    // let start = Instant::now();
+    // let mean = array.mean_zero_copy()?;
+    // let elapsed = start.elapsed();
+    // println!("Mean: {:.2} (calculated in {:.2?})", mean, elapsed);
+
+    // Alternative: calculate mean manually
     let start = Instant::now();
-    let mean = array.mean_zero_copy()?;
+    let data = array.as_array::<ndarray::Ix1>()?;
+    let mean = data.mean().unwrap_or(0.0);
     let elapsed = start.elapsed();
     println!("Mean: {:.2} (calculated in {:.2?})", mean, elapsed);
 
@@ -73,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compare with loading the entire array
     println!("\nComparison with loading the entire array:");
     let start = Instant::now();
-    let loaded_array = array.readonly_array()?;
+    let loaded_array = array.readonly_array::<ndarray::Ix1>()?;
     let loaded_sum: f64 = loaded_array.iter().sum();
     let elapsed = start.elapsed();
     println!(
@@ -92,13 +101,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Squared all values in {:.2?}", elapsed);
 
     // Calculate statistics on the mapped array
-    let squared_mean = squared.mean_zero_copy()?;
+    // Note: mean_zero_copy requires From<usize> trait bound
+    // let squared_mean = squared.mean_zero_copy()?;
+    // println!("Mean of squared values: {:.2}", squared_mean);
+
+    // Alternative: calculate mean manually
+    let squared_data = squared.as_array::<ndarray::Ix1>()?;
+    let squared_mean = squared_data.mean().unwrap_or(0.0);
     println!("Mean of squared values: {:.2}", squared_mean);
 
     // Compare with conventional approach
     println!("\nComparison with conventional approach:");
     let start = Instant::now();
-    let loaded_array = array.readonly_array()?;
+    let loaded_array = array.readonly_array::<ndarray::Ix1>()?;
     let squared_loaded: Array<f64, _> = loaded_array.map(|&x| x * x);
     let squared_loaded_mean = squared_loaded.mean().unwrap();
     let elapsed = start.elapsed();
@@ -136,7 +151,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Added arrays in {:.2?}", elapsed);
 
     // Calculate statistics on the combined array
-    let sum_mean = sum_array.mean_zero_copy()?;
+    // Note: mean_zero_copy requires From<usize> trait bound
+    // let sum_mean = sum_array.mean_zero_copy()?;
+
+    // Alternative: calculate mean manually
+    let sum_data = sum_array.as_array::<ndarray::Ix1>()?;
+    let sum_mean = sum_data.mean().unwrap_or(0.0);
     println!(
         "Mean of sum array: {:.2} (expected: {:.2})",
         sum_mean,
@@ -190,8 +210,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Created matrix with shape {:?} and factors with shape {:?}",
-        matrix.shape(),
-        factors.shape()
+        matrix.shape, factors.shape
     );
 
     // Perform broadcasting
@@ -200,14 +219,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let elapsed = start.elapsed();
 
     println!("Applied broadcasting operation in {:.2?}", elapsed);
-    println!("Result shape: {:?}", broadcast_result.shape());
+    println!("Result shape: {:?}", broadcast_result.shape);
 
     // Display a small sample of the result
     let result_array = broadcast_result.readonly_array()?;
     println!("\nSample of the broadcast result:");
     for i in 0..3 {
         for j in 0..3 {
-            print!("{:.0} ", result_array[[i, j]]);
+            print!("{:.0} ", result_array[(i, j)]);
         }
         println!();
     }
@@ -244,7 +263,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut result = 0.0;
     for _ in 0..n_runs {
         let start = Instant::now();
-        let full_array = bench_array.readonly_array()?;
+        let full_array = bench_array.readonly_array::<ndarray::Ix1>()?;
         result = full_array.iter().sum();
         total_time += start.elapsed().as_millis();
     }
@@ -277,8 +296,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let strategy = ChunkingStrategy::Fixed(chunk_size);
 
         // Process chunks
-        let chunk_sums =
-            bench_array.process_chunks(strategy, |chunk, _| chunk.iter().sum::<f64>())?;
+        let chunk_sums = bench_array.process_chunks(strategy, |chunk, _| chunk.iter().sum::<f64>());
 
         // Calculate final sum
         result = chunk_sums.iter().sum();
@@ -303,8 +321,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let strategy = ChunkingStrategy::Fixed(chunk_size);
 
             // Process chunks in parallel
-            let chunk_sums = bench_array
-                .process_chunks_parallel(strategy, |chunk, _| chunk.iter().sum::<f64>())?;
+            let chunk_sums =
+                bench_array.process_chunks_parallel(strategy, |chunk, _| chunk.iter().sum::<f64>());
 
             // Calculate final sum
             result = chunk_sums.iter().sum();

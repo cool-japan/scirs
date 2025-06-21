@@ -5,7 +5,7 @@
 
 use crate::error::OptimizeError;
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
-use scirs2_sparse::{csr_array::CsrArray, sparray::SparseArray};
+use scirs2_sparse::csr_array::CsrArray;
 use std::collections::{HashMap, HashSet};
 
 /// Get the list of non-zero columns in a specific row of a sparse matrix

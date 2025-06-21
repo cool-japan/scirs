@@ -205,7 +205,7 @@ where
     
     for _ in 0..max_iter {
         // Do a QR step
-        let (q, r) = match crate::decomposition::qr(&tri_matrix.view()) {
+        let (q, r) = match crate::decomposition::qr(&tri_matrix.view(), None) {
             Ok((q, r)) => (q, r),
             Err(e) => return Err(e),
         };
