@@ -91,7 +91,6 @@ mod tests {
         let file_path = temp_dir.path().join("test_chunks_mutation.bin");
 
         // Use save_array to create the file with proper header
-        use scirs2_core::memory_efficient::ZeroCopySerialization;
         MemoryMappedArray::<i32>::save_array(&data, &file_path, None).unwrap();
 
         // Open for read-write access

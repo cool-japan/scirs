@@ -424,7 +424,6 @@ mod tests {
         let data = Array2::<f64>::from_shape_fn((10, 10), |(i, j)| (i * 10 + j) as f64);
 
         // Use save_array which handles headers correctly
-        use super::super::zero_serialization::ZeroCopySerialization;
         MemoryMappedArray::<f64>::save_array(&data, &file_path, None).unwrap();
 
         // Open using open_zero_copy which handles headers correctly
