@@ -25,7 +25,7 @@ thiserror = { workspace = true }
 petgraph = { workspace = true }
 rand = { workspace = true }
 itertools = "0.13"
-ordered-float = "3.9"
+ordered-float = "5.0"
 
 # Performance dependencies
 # rayon = "1.8"  # Now use scirs2-core parallel abstractions
