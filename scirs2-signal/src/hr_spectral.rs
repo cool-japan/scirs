@@ -467,7 +467,7 @@ fn estimate_correlation_matrix(data: &Array2<Complex64>) -> SignalResult<Array2<
     // Add small diagonal regularization to ensure numerical stability
     let regularization = 1e-8;
     for i in 0..n_samples {
-        correlation[[i, i]] = correlation[[i, i]] + Complex64::new(regularization, 0.0);
+        correlation[[i, i]] += Complex64::new(regularization, 0.0);
     }
 
     Ok(correlation)
@@ -651,7 +651,7 @@ fn create_autocorrelation_matrix(
     // Add small diagonal regularization to ensure numerical stability
     let regularization = 1e-8;
     for i in 0..order {
-        autocorr[[i, i]] = autocorr[[i, i]] + Complex64::new(regularization, 0.0);
+        autocorr[[i, i]] += Complex64::new(regularization, 0.0);
     }
 
     Ok(autocorr)

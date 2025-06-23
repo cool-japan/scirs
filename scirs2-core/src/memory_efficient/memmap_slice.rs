@@ -73,7 +73,7 @@ where
     /// This method materializes the slice by loading only the necessary data
     /// from the memory-mapped file.
     pub fn load(&self) -> CoreResult<ArrayBase<ndarray::OwnedRepr<A>, D>> {
-        use ndarray::{IxDyn, ShapeBuilder};
+        use ndarray::IxDyn;
 
         // Get the raw data slice
         let data_slice = self.source.as_slice();
@@ -128,7 +128,7 @@ where
                         };
                         let end = end.map(|e| e as usize).unwrap_or(dim_size);
                         let step = *step as usize;
-                        let len = (end - start + step - 1) / step;
+                        let len = (end - start).div_ceil(step);
                         new_shape.push(len);
                     }
                     SliceInfoElem::Index(_) => {
@@ -142,16 +142,26 @@ where
             // Create the properly shaped array
             if new_shape.len() == 2 {
                 // Debug output
-                eprintln!("DEBUG: Trying to reshape from {:?} to {:?}", owned.shape(), (new_shape[0], new_shape[1]));
-                eprintln!("DEBUG: owned.len() = {}, new_shape product = {}", owned.len(), new_shape[0] * new_shape[1]);
-                
-                let reshaped = owned.into_shape((new_shape[0], new_shape[1])).map_err(|e| {
-                    CoreError::ShapeError(ErrorContext::new(format!(
-                        "Failed to reshape sliced array: {}",
-                        e
-                    )))
-                })?;
-                
+                eprintln!(
+                    "DEBUG: Trying to reshape from {:?} to {:?}",
+                    owned.shape(),
+                    (new_shape[0], new_shape[1])
+                );
+                eprintln!(
+                    "DEBUG: owned.len() = {}, new_shape product = {}",
+                    owned.len(),
+                    new_shape[0] * new_shape[1]
+                );
+
+                let reshaped = owned
+                    .into_shape_with_order((new_shape[0], new_shape[1]))
+                    .map_err(|e| {
+                        CoreError::ShapeError(ErrorContext::new(format!(
+                            "Failed to reshape sliced array: {}",
+                            e
+                        )))
+                    })?;
+
                 // Convert to the target dimension type
                 match reshaped.into_dimensionality::<D>() {
                     Ok(array) => Ok(array),
@@ -446,7 +456,7 @@ mod tests {
         // Debug: print slice info
         println!("slice.source.shape: {:?}", slice.source.shape);
         println!("slice_info: {:?}", slice.slice_info.as_ref());
-        
+
         // Load the slice data
         let array = slice.load().unwrap();
 

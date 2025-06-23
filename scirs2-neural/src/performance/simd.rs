@@ -8,7 +8,7 @@
 //! in compliance with the project-wide SIMD policy. Direct use of SIMD intrinsics is FORBIDDEN.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array1, ArrayD, ArrayView, ArrayViewMut, IxDyn};
+use ndarray::{ArrayD, ArrayView, ArrayViewMut, IxDyn};
 #[allow(unused_imports)]
 use num_traits::{Float, FromPrimitive, Zero};
 

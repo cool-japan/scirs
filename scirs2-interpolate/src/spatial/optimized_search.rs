@@ -12,9 +12,8 @@
 
 use crate::error::InterpolateResult;
 use crate::spatial::{BallTree, KdTree};
-use ndarray::{Array1, ArrayView2, Axis};
+use ndarray::{ArrayView2, Axis};
 use num_traits::{Float, FromPrimitive};
-use std::cmp::Ordering;
 use std::fmt::Debug;
 
 #[cfg(feature = "simd")]
@@ -132,6 +131,7 @@ impl SimdDistanceOps {
 }
 
 /// Cache-friendly kNN search with distance precomputation
+#[allow(dead_code)]
 pub struct CacheFriendlyKNN<F: Float> {
     /// Maximum number of distances to cache
     cache_size: usize,

@@ -220,6 +220,7 @@ pub fn j0_f32_simd(input: &ArrayView1<f32>) -> SpecialResult<Array1<f32>> {
 }
 
 /// Vectorized array operations with SIMD when available
+#[allow(dead_code)]
 pub fn vectorized_special_ops() -> SpecialResult<()> {
     #[cfg(feature = "simd")]
     {
@@ -396,6 +397,7 @@ pub fn benchmark_parallel_performance(size: usize) -> SpecialResult<()> {
 }
 
 /// Adaptive processing strategy based on array size and available features
+#[allow(dead_code)]
 pub fn adaptive_gamma_processing(input: &ArrayView1<f64>) -> SpecialResult<Array1<f64>> {
     let len = input.len();
 

@@ -25,7 +25,7 @@ pub use warping::*;
 
 use crate::error::{Result, VisionError};
 use ndarray::{Array1, Array2};
-use scirs2_linalg::{lstsq, solve, svd};
+use scirs2_linalg::{lstsq, solve};
 use std::fmt::Debug;
 
 /// 2D transformation matrix (3x3 homogeneous coordinates)
@@ -581,7 +581,7 @@ fn estimate_homography_transform(matches: &[PointMatch]) -> Result<TransformMatr
     // We want to minimize ||Ah|| subject to ||h|| = 1
     // Add regularization to avoid h33 = 0
     let mut ata = a_mat.t().dot(&a_mat);
-    
+
     // Add small regularization to ensure numerical stability
     for i in 0..9 {
         ata[[i, i]] += 1e-10;

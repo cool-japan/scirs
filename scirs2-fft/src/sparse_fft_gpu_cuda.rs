@@ -9,12 +9,13 @@ use crate::sparse_fft::{
 };
 use num_complex::Complex64;
 use num_traits::NumCast;
-use scirs2_core::gpu::{GpuBackend, GpuDevice, GpuKernel};
+use scirs2_core::gpu::{GpuBackend, GpuDevice};
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::fmt::Debug;
 use std::time::Instant;
 
 /// Placeholder for GPU buffer descriptor - to be implemented with core GPU abstractions
+#[allow(dead_code)]
 pub struct BufferDescriptor {
     size: usize,
     id: u64,
@@ -34,6 +35,7 @@ pub enum BufferType {
 }
 
 /// Placeholder for GPU stream - to be implemented with core GPU abstractions
+#[allow(dead_code)]
 pub struct GpuStream {
     id: u64,
 }
@@ -109,6 +111,7 @@ impl GpuDeviceInfo {
 }
 
 /// GPU context for FFT operations using core abstractions
+#[allow(dead_code)]
 pub struct GpuContext {
     /// Device ID
     device_id: i32,

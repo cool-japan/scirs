@@ -249,7 +249,7 @@ impl<A: Clone + Copy + 'static + Send + Sync + Send + Sync> AdaptiveChunking<A>
         chunk_size = chunk_size.min(total_elements);
 
         // Consider dimensionality-specific adjustments
-        let (chunk_size, mut decision_factors) =
+        let (chunk_size, decision_factors) =
             self.optimize_for_dimensionality(chunk_size, &params)?;
 
         // Factor in parallel processing if requested

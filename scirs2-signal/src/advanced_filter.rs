@@ -336,7 +336,7 @@ pub fn least_squares_design(
     let mut ata_reg = ata.clone();
     let eps = 1e-10;
     for i in 0..ata_reg.nrows() {
-        ata_reg[[i, i]] = ata_reg[[i, i]] + eps;
+        ata_reg[[i, i]] += eps;
     }
 
     let coefficients = solve(&ata_reg.view(), &atb.view(), None).map_err(|e| {
@@ -423,7 +423,7 @@ pub fn constrained_least_squares_design(
     let mut ata_reg = ata.clone();
     let eps = 1e-10;
     for i in 0..ata_reg.nrows() {
-        ata_reg[[i, i]] = ata_reg[[i, i]] + eps;
+        ata_reg[[i, i]] += eps;
     }
 
     let coefficients = solve(&ata_reg.view(), &atb.view(), None).map_err(|e| {

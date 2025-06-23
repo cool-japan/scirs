@@ -107,13 +107,8 @@ where
     fn clone(&self) -> Self {
         // Create a new memory mapping with the same parameters
         // This is safe because we're creating a new mapping to the same file
-        Self::new::<ndarray::OwnedRepr<A>, ndarray::IxDyn>(
-            None,
-            &self.file_path,
-            self.mode,
-            self.offset,
-        )
-        .expect("Failed to clone memory mapped array")
+        Self::new::<ndarray::OwnedRepr<A>, IxDyn>(None, &self.file_path, self.mode, self.offset)
+            .expect("Failed to clone memory mapped array")
     }
 }
 
@@ -127,13 +122,13 @@ where
         // This will properly initialize the mmap views
         let element_size = mem::size_of::<A>();
         let data_size = self.size * element_size;
-        
+
         // Open file based on access mode
         match self.mode {
             AccessMode::ReadOnly => {
                 let file = File::open(&self.file_path)
                     .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
-                
+
                 let mmap = unsafe {
                     MmapOptions::new()
                         .offset(self.offset as u64)
@@ -141,7 +136,7 @@ where
                         .map(&file)
                         .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
-                
+
                 Ok(Self {
                     shape: self.shape.clone(),
                     file_path: self.file_path.clone(),
@@ -160,7 +155,7 @@ where
                     .write(true)
                     .open(&self.file_path)
                     .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?;
-                
+
                 let mmap = unsafe {
                     MmapOptions::new()
                         .offset(self.offset as u64)
@@ -168,7 +163,7 @@ where
                         .map_mut(&file)
                         .map_err(|e| CoreError::IoError(ErrorContext::new(e.to_string())))?
                 };
-                
+
                 Ok(Self {
                     shape: self.shape.clone(),
                     file_path: self.file_path.clone(),
@@ -185,7 +180,7 @@ where
                 // For Write mode, we typically shouldn't clone
                 Err(CoreError::InvalidArgument(
                     ErrorContext::new("Cannot clone a write-only memory-mapped array".to_string())
-                        .with_location(ErrorLocation::new(file!(), line!()))
+                        .with_location(ErrorLocation::new(file!(), line!())),
                 ))
             }
         }

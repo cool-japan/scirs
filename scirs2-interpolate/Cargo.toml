@@ -42,3 +42,6 @@ linalg = []
 # Enable SIMD optimizations for performance-critical operations
 # Provides 2-4x speedup for B-spline evaluation and distance calculations
 simd = ["scirs2-core/simd"]
+
+# Enable parallel processing features
+parallel = ["scirs2-core/parallel"]
