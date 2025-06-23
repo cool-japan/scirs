@@ -7,7 +7,7 @@ use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand_distr::{Distribution, Normal};
 use scirs2_fft::{
-    sparse_fft::{reconstruct_time_domain, SparseFFTAlgorithm, SparseFFTResult, WindowFunction},
+    sparse_fft::{reconstruct_time_domain, SparseFFTAlgorithm, SparseFFTResult},
     sparse_fft_cuda_kernels::execute_cuda_sublinear_sparse_fft,
     sparse_fft_cuda_kernels_iterative::execute_cuda_iterative_sparse_fft,
     sparse_fft_gpu::GPUBackend,

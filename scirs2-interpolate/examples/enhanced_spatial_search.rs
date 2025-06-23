@@ -7,7 +7,7 @@
 //! - Cache-friendly memory layouts
 //! - Batch and parallel query processing
 
-use ndarray::{Array2, ArrayView2, Axis};
+use ndarray::Array2;
 #[cfg(feature = "parallel")]
 use scirs2_interpolate::spatial::ParallelQueryProcessor;
 use scirs2_interpolate::spatial::{

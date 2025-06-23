@@ -245,16 +245,16 @@ fn benchmark_jacobian_strategies(
     );
     println!("Speedup:     {:.2}x", speedup);
 
-    #[cfg(feature = "rayon")]
+    #[cfg(feature = "parallel")]
     {
-        use rayon;
-        let n_threads = rayon::current_num_threads();
+        use scirs2_core::parallel_ops::num_threads;
+        let n_threads = num_threads();
         println!("Using {} threads", n_threads);
         println!("Efficiency:  {:.1}%", 100.0 * speedup / n_threads as f64);
     }
-    #[cfg(not(feature = "rayon"))]
+    #[cfg(not(feature = "parallel"))]
     {
-        println!("Rayon not available - showing serial performance only");
+        println!("Parallel processing not available - showing serial performance only");
     }
 
     Ok(())

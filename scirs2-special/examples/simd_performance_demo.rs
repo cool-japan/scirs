@@ -145,8 +145,8 @@ fn demonstrate_precision_comparison() -> Result<(), Box<dyn std::error::Error>> 
     println!("{}", "-".repeat(40));
 
     let test_values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 1.5, 2.5];
-    let data_f32 = Array1::from_vec(test_values.iter().map(|&x| x as f32).collect());
-    let data_f64 = Array1::from_vec(test_values.clone());
+    let _data_f32 = Array1::from_vec(test_values.iter().map(|&x| x as f32).collect());
+    let _data_f64 = Array1::from_vec(test_values.clone());
 
     println!("Gamma function precision (first 8 values):");
     println!("Value    Scalar f64      SIMD f64       Error");

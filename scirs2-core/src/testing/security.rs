@@ -9,7 +9,7 @@
 //! - Memory safety verification
 //! - Denial of service attack simulation
 
-use crate::error::{CoreError, CoreResult};
+use crate::error::{CoreError, CoreResult, ErrorContext};
 use crate::testing::{TestConfig, TestResult};
 use std::time::{Duration, Instant};
 
