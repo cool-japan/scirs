@@ -9,8 +9,6 @@ use std::process::Command;
 #[cfg(target_os = "macos")]
 use serde_json;
 
-#[cfg(all(feature = "metal", target_os = "macos"))]
-use metal::Device;
 
 // Backend implementation modules
 #[cfg(all(feature = "metal", target_os = "macos"))]
@@ -314,6 +312,7 @@ fn detect_metal_devices() -> Result<Vec<GpuInfo>, GpuError> {
                 // Check if Metal is available
                 #[cfg(feature = "metal")]
                 {
+                    use metal::Device;
                     if let Some(device) = Device::system_default() {
                         let name = device.name().to_string();
                         let mut gpu_info = GpuInfo {
@@ -349,6 +348,7 @@ fn detect_metal_devices() -> Result<Vec<GpuInfo>, GpuError> {
             // system_profiler failed, try Metal API directly
             #[cfg(feature = "metal")]
             {
+                use metal::Device;
                 if let Some(device) = Device::system_default() {
                     devices.push(GpuInfo {
                         backend: GpuBackend::Metal,

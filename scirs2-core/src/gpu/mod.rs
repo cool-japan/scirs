@@ -617,6 +617,9 @@ pub(crate) trait GpuBufferImpl: Send + Sync {
 
     /// Copy data from device to host
     unsafe fn copy_to_host(&self, data: *mut u8, size: usize);
+
+    /// Get a reference to self as Any for downcasting
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// GPU kernel implementation trait
@@ -709,6 +712,10 @@ impl GpuBufferImpl for CpuBuffer {
     unsafe fn copy_to_host(&self, data: *mut u8, size: usize) {
         let data_ptr = self.data.as_ptr();
         std::ptr::copy_nonoverlapping(data_ptr, data, size);
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

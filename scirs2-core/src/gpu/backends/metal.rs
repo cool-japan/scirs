@@ -8,9 +8,11 @@
 use crate::gpu::{GpuBufferImpl, GpuCompilerImpl, GpuContextImpl, GpuError, GpuKernelImpl};
 use metal::{
     Buffer, CommandQueue, ComputePipelineDescriptor, ComputePipelineState,
-    Device, Library, MTLCPUCacheMode, MTLHazardTrackingMode,
-    MTLResourceOptions,
+    Library, MTLCPUCacheMode, MTLHazardTrackingMode,
+    MTLResourceOptions, MTLSize,
 };
+// Import Device directly from the re-export
+pub use metal::Device;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -236,6 +238,10 @@ impl GpuBufferImpl for MetalBuffer {
         let contents = self.buffer.contents();
         std::ptr::copy_nonoverlapping(contents as *const u8, data, size);
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Metal compiler implementation
@@ -281,9 +287,9 @@ impl MetalCompiler {
             .map_err(|e| GpuError::KernelCompilationError(e.to_string()))?;
 
         // Get the main compute function
-        let function = library.get_function("main0", None).ok_or_else(|| {
-            GpuError::KernelCompilationError("Function 'main0' not found".to_string())
-        })?;
+        let function = library
+            .get_function("main0", None)
+            .map_err(|e| GpuError::KernelCompilationError(e))?;
 
         // Create compute pipeline
         let pipeline_descriptor = ComputePipelineDescriptor::new();
@@ -458,7 +464,7 @@ impl GpuKernelImpl for MetalKernel {
             work_groups[2] as u64,
         );
 
-        encoder.dispatch_threadgroups(threadgroups, threads_per_threadgroup);
+        encoder.dispatch_thread_groups(threadgroups, threads_per_threadgroup);
 
         // Finish encoding and commit
         encoder.end_encoding();
@@ -467,22 +473,6 @@ impl GpuKernelImpl for MetalKernel {
     }
 }
 
-/// Extension trait to support downcasting
-trait AsAny {
-    fn as_any(&self) -> &dyn std::any::Any;
-}
-
-impl AsAny for MetalBuffer {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
-impl<T: GpuBufferImpl + 'static> AsAny for T {
-    default fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
 
 #[cfg(test)]
 mod tests {
