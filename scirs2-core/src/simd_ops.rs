@@ -489,7 +489,7 @@ impl PlatformCapabilities {
             gpu_available: cfg!(feature = "gpu"),
             cuda_available: cfg!(all(feature = "gpu", feature = "cuda")),
             opencl_available: cfg!(all(feature = "gpu", feature = "opencl")),
-            metal_available: cfg!(all(feature = "gpu", target_os = "macos")),
+            metal_available: cfg!(all(feature = "gpu", feature = "metal", target_os = "macos")),
             avx2_available: cfg!(target_feature = "avx2"),
             avx512_available: cfg!(target_feature = "avx512f"),
             neon_available: cfg!(target_arch = "aarch64"),
@@ -551,6 +551,13 @@ impl AutoOptimizer {
         self.capabilities.gpu_available && size > 10000
     }
 
+    /// Determine if Metal should be used on macOS
+    pub fn should_use_metal(&self, size: usize) -> bool {
+        // Use Metal for medium to large problems on macOS
+        // Metal has lower overhead than CUDA/OpenCL, so we can use it for smaller problems
+        self.capabilities.metal_available && size > 1024
+    }
+
     /// Determine if SIMD should be used
     pub fn should_use_simd(&self, size: usize) -> bool {
         // Use SIMD for medium to large problems
@@ -561,12 +568,124 @@ impl AutoOptimizer {
     pub fn select_gemm_impl(&self, m: usize, n: usize, k: usize) -> &'static str {
         let total_ops = m * n * k;
 
+        // Metal-specific heuristics for macOS
+        if self.capabilities.metal_available {
+            // For Apple Silicon with unified memory, Metal is efficient even for smaller matrices
+            if total_ops > 8192 {
+                // 16x16x32 or larger
+                return "Metal";
+            }
+        }
+
         if self.should_use_gpu(total_ops) {
-            "GPU"
+            if self.capabilities.cuda_available {
+                "CUDA"
+            } else if self.capabilities.metal_available {
+                "Metal"
+            } else if self.capabilities.opencl_available {
+                "OpenCL"
+            } else {
+                "GPU"
+            }
         } else if self.should_use_simd(total_ops) {
             "SIMD"
         } else {
             "Scalar"
+        }
+    }
+
+    /// Select the best implementation for vector operations
+    pub fn select_vector_impl(&self, size: usize) -> &'static str {
+        // Metal is efficient for vector operations on Apple Silicon
+        if self.capabilities.metal_available && size > 1024 {
+            return "Metal";
+        }
+
+        if self.should_use_gpu(size) {
+            if self.capabilities.cuda_available {
+                "CUDA"
+            } else if self.capabilities.metal_available {
+                "Metal"
+            } else if self.capabilities.opencl_available {
+                "OpenCL"
+            } else {
+                "GPU"
+            }
+        } else if self.should_use_simd(size) {
+            if self.capabilities.avx512_available {
+                "AVX512"
+            } else if self.capabilities.avx2_available {
+                "AVX2"
+            } else if self.capabilities.neon_available {
+                "NEON"
+            } else {
+                "SIMD"
+            }
+        } else {
+            "Scalar"
+        }
+    }
+
+    /// Select the best implementation for reduction operations
+    pub fn select_reduction_impl(&self, size: usize) -> &'static str {
+        // Reductions benefit from GPU parallelism at larger sizes
+        // Metal has efficient reduction primitives
+        if self.capabilities.metal_available && size > 4096 {
+            return "Metal";
+        }
+
+        if self.should_use_gpu(size * 2) {
+            // Higher threshold for reductions
+            if self.capabilities.cuda_available {
+                "CUDA"
+            } else if self.capabilities.metal_available {
+                "Metal"
+            } else {
+                "GPU"
+            }
+        } else if self.should_use_simd(size) {
+            "SIMD"
+        } else {
+            "Scalar"
+        }
+    }
+
+    /// Select the best implementation for FFT operations
+    pub fn select_fft_impl(&self, size: usize) -> &'static str {
+        // FFT benefits greatly from GPU acceleration
+        // Metal Performance Shaders has optimized FFT
+        if self.capabilities.metal_available && size > 512 {
+            return "Metal-MPS";
+        }
+
+        if self.capabilities.cuda_available && size > 1024 {
+            "cuFFT"
+        } else if self.should_use_simd(size) {
+            "SIMD"
+        } else {
+            "Scalar"
+        }
+    }
+
+    /// Check if running on Apple Silicon with unified memory
+    pub fn has_unified_memory(&self) -> bool {
+        cfg!(all(target_os = "macos", target_arch = "aarch64"))
+    }
+
+    /// Get optimization recommendation for a specific operation
+    pub fn recommend(&self, operation: &str, size: usize) -> String {
+        let recommendation = match operation {
+            "gemm" | "matmul" => self.select_gemm_impl(size, size, size),
+            "vector" | "axpy" | "dot" => self.select_vector_impl(size),
+            "reduction" | "sum" | "mean" => self.select_reduction_impl(size),
+            "fft" => self.select_fft_impl(size),
+            _ => "Scalar",
+        };
+
+        if self.has_unified_memory() && recommendation == "Metal" {
+            format!("{} (Unified Memory)", recommendation)
+        } else {
+            recommendation.to_string()
         }
     }
 }

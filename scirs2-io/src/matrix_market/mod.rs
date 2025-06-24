@@ -761,7 +761,7 @@ pub fn read_sparse_matrix_parallel<P: AsRef<Path>>(
         }
 
         stats.entries_processed = entries.len();
-        stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+        stats.io_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
         stats.throughput_eps = if stats.io_time_ms > 0.0 {
             stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
         } else {
@@ -838,7 +838,7 @@ pub fn read_sparse_matrix_parallel<P: AsRef<Path>>(
         .unwrap();
 
     stats.entries_processed = final_entries.len();
-    stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+    stats.io_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
     stats.throughput_eps = if stats.io_time_ms > 0.0 {
         stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
     } else {
@@ -1014,7 +1014,7 @@ pub fn write_sparse_matrix_parallel<P: AsRef<Path>>(
         .map_err(|e| IoError::FileError(e.to_string()))?;
 
     stats.entries_processed = matrix.entries.len();
-    stats.io_time_ms = start_time.elapsed().as_millis() as f64;
+    stats.io_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
     stats.throughput_eps = if stats.io_time_ms > 0.0 {
         stats.entries_processed as f64 / (stats.io_time_ms / 1000.0)
     } else {

@@ -188,6 +188,7 @@ sysinfo = "0.35.2"
 
 # GPU backends
 metal = "0.31.0"
+objc2-metal-performance-shaders = "0.3.0"
 
 # Python integration (optional)
 pyo3 = { version = "0.25.1", features = ["auto-initialize"] }

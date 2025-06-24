@@ -3,8 +3,7 @@
 //! This module provides memory system detection and analysis for
 //! optimizing memory-intensive operations.
 
-use crate::error::{CoreError, CoreResult};
-use std::fs;
+use crate::error::CoreResult;
 
 /// Memory system information
 #[derive(Debug, Clone)]

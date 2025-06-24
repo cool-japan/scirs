@@ -1,10 +1,30 @@
-//! GPU backend detection and initialization utilities
+//! GPU backend implementations and detection utilities
 //!
-//! This module provides utilities for detecting available GPU backends
-//! and initializing them appropriately.
+//! This module contains backend-specific implementations for various GPU platforms
+//! and utilities for detecting available GPU backends.
 
 use crate::gpu::{GpuBackend, GpuError};
 use std::process::Command;
+
+#[cfg(target_os = "macos")]
+use serde_json;
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use metal::Device;
+
+// Backend implementation modules
+#[cfg(all(feature = "metal", target_os = "macos"))]
+pub mod metal;
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+pub mod metal_mps;
+
+// Re-export backend implementations
+#[cfg(all(feature = "metal", target_os = "macos"))]
+pub use metal::{MetalBufferOptions, MetalContext, MetalStorageMode};
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+pub use metal_mps::{MPSContext, MPSDataType, MPSOperations};
 
 /// Information about available GPU hardware
 #[derive(Debug, Clone)]
@@ -185,11 +205,12 @@ fn detect_cuda_devices() -> Result<Vec<GpuInfo>, GpuError> {
                     let compute_capability = parts[2].to_string();
 
                     // Parse compute capability to determine tensor core support
-                    let supports_tensors = if let Some(major_str) = compute_capability.split('.').next() {
-                        major_str.parse::<u32>().unwrap_or(0) >= 7 // Tensor cores available on Volta+ (7.0+)
-                    } else {
-                        false
-                    };
+                    let supports_tensors =
+                        if let Some(major_str) = compute_capability.split('.').next() {
+                            major_str.parse::<u32>().unwrap_or(0) >= 7 // Tensor cores available on Volta+ (7.0+)
+                        } else {
+                            false
+                        };
 
                     devices.push(GpuInfo {
                         backend: GpuBackend::Cuda,
@@ -220,31 +241,139 @@ fn detect_cuda_devices() -> Result<Vec<GpuInfo>, GpuError> {
 /// Detect Metal devices (macOS only)
 #[cfg(target_os = "macos")]
 fn detect_metal_devices() -> Result<Vec<GpuInfo>, GpuError> {
+    use std::str::FromStr;
+
     let mut devices = Vec::new();
 
     // Try to detect Metal devices using system_profiler
     match Command::new("system_profiler")
         .arg("SPDisplaysDataType")
-        .arg("-xml")
+        .arg("-json")
         .output()
     {
         Ok(output) if output.status.success() => {
-            // In a real implementation, we would parse the XML output
-            // to extract GPU information. For now, just add a generic Metal device.
-            devices.push(GpuInfo {
-                backend: GpuBackend::Metal,
-                device_name: "Metal GPU".to_string(),
-                memory_bytes: None,
-                compute_capability: None,
-                supports_tensors: true, // Modern Apple GPUs support tensor operations
-            });
+            let output_str = String::from_utf8_lossy(&output.stdout);
+
+            // Try to parse JSON output
+            if let Ok(json_value) = serde_json::Value::from_str(&output_str) {
+                if let Some(displays) = json_value
+                    .get("SPDisplaysDataType")
+                    .and_then(|v| v.as_array())
+                {
+                    for display in displays {
+                        // Extract GPU information from each display
+                        if let Some(model) = display.get("sppci_model").and_then(|v| v.as_str()) {
+                            let mut gpu_info = GpuInfo {
+                                backend: GpuBackend::Metal,
+                                device_name: model.to_string(),
+                                memory_bytes: None,
+                                compute_capability: None,
+                                supports_tensors: true,
+                            };
+
+                            // Try to extract VRAM if available
+                            if let Some(vram_str) = display
+                                .get("vram_pcie")
+                                .and_then(|v| v.as_str())
+                                .or_else(|| display.get("vram").and_then(|v| v.as_str()))
+                            {
+                                // Parse VRAM string like "8 GB" or "8192 MB"
+                                if let Some(captures) = regex::Regex::new(r"(\d+)\s*(GB|MB)")
+                                    .ok()
+                                    .and_then(|re| re.captures(vram_str))
+                                {
+                                    if let (Some(value), Some(unit)) =
+                                        (captures.get(1), captures.get(2))
+                                    {
+                                        if let Ok(num) = u64::from_str(value.as_str()) {
+                                            gpu_info.memory_bytes = Some(match unit.as_str() {
+                                                "GB" => num * 1024 * 1024 * 1024,
+                                                "MB" => num * 1024 * 1024,
+                                                _ => 0,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Extract Metal family support
+                            if let Some(metal_family) =
+                                display.get("sppci_metal_family").and_then(|v| v.as_str())
+                            {
+                                gpu_info.compute_capability = Some(metal_family.to_string());
+                            }
+
+                            devices.push(gpu_info);
+                        }
+                    }
+                }
+            }
+
+            // If JSON parsing failed or no devices found, try to detect via Metal API
+            if devices.is_empty() {
+                // Check if Metal is available
+                #[cfg(feature = "metal")]
+                {
+                    if let Some(device) = Device::system_default() {
+                        let name = device.name().to_string();
+                        let mut gpu_info = GpuInfo {
+                            backend: GpuBackend::Metal,
+                            device_name: name.clone(),
+                            memory_bytes: None,
+                            compute_capability: None,
+                            supports_tensors: true,
+                        };
+
+                        // GPU family detection would go here
+                        // Note: MTLGPUFamily is not exposed in the current metal crate
+                        gpu_info.compute_capability = Some("Metal GPU".to_string());
+
+                        devices.push(gpu_info);
+                    }
+                }
+
+                // Fallback if Metal crate not available but we're on macOS
+                #[cfg(not(feature = "metal"))]
+                {
+                    devices.push(GpuInfo {
+                        backend: GpuBackend::Metal,
+                        device_name: "Metal GPU".to_string(),
+                        memory_bytes: None,
+                        compute_capability: None,
+                        supports_tensors: true,
+                    });
+                }
+            }
         }
         _ => {
-            return Err(GpuError::BackendNotAvailable("Metal".to_string()));
+            // system_profiler failed, try Metal API directly
+            #[cfg(feature = "metal")]
+            {
+                if let Some(device) = Device::system_default() {
+                    devices.push(GpuInfo {
+                        backend: GpuBackend::Metal,
+                        device_name: device.name().to_string(),
+                        memory_bytes: None,
+                        compute_capability: None,
+                        supports_tensors: true,
+                    });
+                } else {
+                    return Err(GpuError::BackendNotAvailable("Metal".to_string()));
+                }
+            }
+
+            #[cfg(not(feature = "metal"))]
+            {
+                return Err(GpuError::BackendNotAvailable("Metal".to_string()));
+            }
         }
     }
 
-    Ok(devices)
+    if devices.is_empty() {
+        Err(GpuError::BackendNotAvailable("Metal".to_string()))
+    } else {
+        Ok(devices)
+    }
 }
 
 /// Detect Metal devices (non-macOS - not available)

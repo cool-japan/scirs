@@ -66,6 +66,7 @@ tokio = { workspace = true, optional = true }  # Async runtime for async error h
 
 # GPU backend dependencies
 metal = { workspace = true, optional = true }  # Metal GPU backend for macOS
+objc2-metal-performance-shaders = { workspace = true, optional = true }  # MPS integration for Metal
 
 # Production-level feature dependencies
 reqwest = { workspace = true, optional = true }  # HTTP client for tracing export
@@ -103,7 +104,7 @@ async = ["tokio"]  # Async error handling and recovery mechanisms
 gpu = []  # GPU acceleration abstractions
 cuda = ["gpu"]  # CUDA-specific GPU acceleration
 opencl = ["gpu"]  # OpenCL-specific GPU acceleration
-metal = ["gpu", "dep:metal"]  # Metal-specific GPU acceleration (Apple)
+metal = ["gpu", "dep:metal", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple)
 wgpu = ["gpu"]  # WebGPU-specific GPU acceleration
 rocm = ["gpu"]  # ROCm-specific GPU acceleration (AMD)
 memory_management = ["bincode", "tempfile"]  # Advanced memory management

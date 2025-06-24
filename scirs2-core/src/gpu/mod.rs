@@ -418,7 +418,7 @@ impl GpuContext {
                 .devices
                 .iter()
                 .any(|d| d.backend == backend && d.backend != GpuBackend::Cpu);
-            
+
             if !backend_available {
                 return Err(GpuError::BackendNotAvailable(format!(
                     "{} (no devices detected at runtime)",
@@ -481,13 +481,15 @@ impl GpuContext {
                 }
             }
             GpuBackend::Metal => {
-                #[cfg(feature = "metal")]
+                #[cfg(all(feature = "metal", target_os = "macos"))]
                 {
-                    // This is just a stub - in a real implementation, we would use the metal crate
-                    // to create a context and return it
-                    return Err(GpuError::BackendNotImplemented(backend));
+                    use crate::gpu::backends::metal::MetalContext;
+                    match MetalContext::new() {
+                        Ok(ctx) => Arc::new(ctx) as Arc<dyn GpuContextImpl>,
+                        Err(e) => return Err(e),
+                    }
                 }
-                #[cfg(not(feature = "metal"))]
+                #[cfg(not(all(feature = "metal", target_os = "macos")))]
                 {
                     return Err(GpuError::UnsupportedBackend(backend));
                 }

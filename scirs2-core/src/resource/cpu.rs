@@ -4,7 +4,6 @@
 //! optimizing computational workloads.
 
 use crate::error::{CoreError, CoreResult};
-use std::fs;
 
 /// CPU information and capabilities
 #[derive(Debug, Clone)]

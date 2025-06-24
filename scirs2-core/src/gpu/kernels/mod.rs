@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub mod blas;
+pub mod complex;
 pub mod ml;
 pub mod reduction;
 pub mod transform;
@@ -256,6 +257,11 @@ impl KernelRegistry {
         registry.register(Box::new(ml::softmax::SoftmaxKernel::new()));
         registry.register(Box::new(ml::pooling::MaxPoolKernel::new()));
         registry.register(Box::new(ml::pooling::AvgPoolKernel::new()));
+
+        // Register complex number kernels
+        registry.register(Box::new(complex::ComplexMultiplyKernel::new()));
+        registry.register(Box::new(complex::ComplexConjugateKernel::new()));
+        registry.register(Box::new(complex::ComplexMatMulKernel::new()));
 
         registry
     }
