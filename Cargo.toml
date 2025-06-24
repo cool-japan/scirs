@@ -186,6 +186,9 @@ log = "0.4"
 # System information
 sysinfo = "0.35.2"
 
+# GPU backends
+metal = "0.31.0"
+
 # Python integration (optional)
 pyo3 = { version = "0.25.1", features = ["auto-initialize"] }
 

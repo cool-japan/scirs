@@ -64,6 +64,9 @@ cranelift-frontend = { workspace = true, optional = true }  # JIT compiler front
 # Async runtime for async error handling
 tokio = { workspace = true, optional = true }  # Async runtime for async error handling
 
+# GPU backend dependencies
+metal = { workspace = true, optional = true }  # Metal GPU backend for macOS
+
 # Production-level feature dependencies
 reqwest = { workspace = true, optional = true }  # HTTP client for tracing export
 sha2 = { workspace = true, optional = true }  # Cryptographic hash functions
@@ -100,7 +103,7 @@ async = ["tokio"]  # Async error handling and recovery mechanisms
 gpu = []  # GPU acceleration abstractions
 cuda = ["gpu"]  # CUDA-specific GPU acceleration
 opencl = ["gpu"]  # OpenCL-specific GPU acceleration
-metal = ["gpu"]  # Metal-specific GPU acceleration (Apple)
+metal = ["gpu", "dep:metal"]  # Metal-specific GPU acceleration (Apple)
 wgpu = ["gpu"]  # WebGPU-specific GPU acceleration
 rocm = ["gpu"]  # ROCm-specific GPU acceleration (AMD)
 memory_management = ["bincode", "tempfile"]  # Advanced memory management
