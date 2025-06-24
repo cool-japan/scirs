@@ -7,33 +7,45 @@
 //! - Multi-kernel workflows
 //! - Error handling and fallback strategies
 
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::kernels::{DataType, KernelParams};
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::{GpuBackend, GpuContext};
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Comprehensive GPU Kernel Library Example ===");
 
-    // Initialize GPU context with fallback strategy
-    let context = initialize_gpu_context()?;
-    println!(
-        "Successfully initialized GPU context with backend: {}\n",
-        context.backend_name()
-    );
+    #[cfg(feature = "gpu")]
+    {
+        // Initialize GPU context with fallback strategy
+        let context = initialize_gpu_context()?;
+        println!(
+            "Successfully initialized GPU context with backend: {}\n",
+            context.backend_name()
+        );
 
-    // Run comprehensive kernel demos
-    demo_blas_advanced(&context)?;
-    demo_reduction_comprehensive(&context)?;
-    demo_ml_kernels_complete(&context)?;
-    demo_transform_operations(&context)?;
-    demo_kernel_chaining(&context)?;
-    demo_performance_analysis(&context)?;
+        // Run comprehensive kernel demos
+        demo_blas_advanced(&context)?;
+        demo_reduction_comprehensive(&context)?;
+        demo_ml_kernels_complete(&context)?;
+        demo_transform_operations(&context)?;
+        demo_kernel_chaining(&context)?;
+        demo_performance_analysis(&context)?;
 
-    println!("\n=== Comprehensive GPU Kernel Demo Complete ===");
+        println!("\n=== Comprehensive GPU Kernel Demo Complete ===");
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    {
+        println!("GPU feature not enabled. Run with --features=\"gpu\" to see the GPU examples.");
+    }
+
     Ok(())
 }
 
 /// Initialize GPU context with intelligent fallback
+#[cfg(feature = "gpu")]
 fn initialize_gpu_context() -> Result<GpuContext, Box<dyn std::error::Error>> {
     // Try different backends in order of preference
     let backends = [
@@ -65,6 +77,7 @@ fn initialize_gpu_context() -> Result<GpuContext, Box<dyn std::error::Error>> {
 }
 
 /// Advanced BLAS operations with different matrix sizes
+#[cfg(feature = "gpu")]
 fn demo_blas_advanced(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("Demo: Advanced BLAS Operations");
     println!("===============================");
@@ -170,6 +183,7 @@ fn demo_blas_advanced(context: &GpuContext) -> Result<(), Box<dyn std::error::Er
 }
 
 /// Comprehensive reduction operations testing
+#[cfg(feature = "gpu")]
 fn demo_reduction_comprehensive(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nDemo: Comprehensive Reduction Operations");
     println!("========================================");
@@ -238,6 +252,7 @@ fn demo_reduction_comprehensive(context: &GpuContext) -> Result<(), Box<dyn std:
 }
 
 /// Complete machine learning kernels demonstration
+#[cfg(feature = "gpu")]
 fn demo_ml_kernels_complete(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nDemo: Complete Machine Learning Kernels");
     println!("=======================================");
@@ -359,6 +374,7 @@ fn demo_ml_kernels_complete(context: &GpuContext) -> Result<(), Box<dyn std::err
 }
 
 /// Transform operations including FFT and convolution
+#[cfg(feature = "gpu")]
 fn demo_transform_operations(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nDemo: Transform Operations");
     println!("==========================");
@@ -476,6 +492,7 @@ fn demo_transform_operations(context: &GpuContext) -> Result<(), Box<dyn std::er
 }
 
 /// Demonstrate kernel chaining and complex workflows
+#[cfg(feature = "gpu")]
 fn demo_kernel_chaining(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nDemo: Kernel Chaining and Complex Workflows");
     println!("============================================");
@@ -586,6 +603,7 @@ fn demo_kernel_chaining(context: &GpuContext) -> Result<(), Box<dyn std::error::
 }
 
 /// Performance analysis and comparison
+#[cfg(feature = "gpu")]
 fn demo_performance_analysis(context: &GpuContext) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nDemo: Performance Analysis");
     println!("==========================");

@@ -16,9 +16,9 @@
 //! and how to perform GPU-accelerated operations on arrays.
 
 use ndarray::{Array2, Ix2};
-use scirs2_core::array_protocol::{
-    self, add, matmul, GPUBackend, GPUConfig, GPUNdarray, NdarrayWrapper,
-};
+#[cfg(feature = "gpu")]
+use scirs2_core::array_protocol::{GPUBackend, GPUConfig, GPUNdarray};
+use scirs2_core::array_protocol::{self, add, matmul, NdarrayWrapper};
 
 fn main() {
     // Initialize the array protocol system
@@ -65,8 +65,10 @@ fn main() {
         Err(e) => println!("Error in CPU addition: {}", e),
     }
 
-    // 2. Operations with CUDA GPU backend
-    println!("\n2. Operations with CUDA GPU backend:");
+    #[cfg(feature = "gpu")]
+    {
+        // 2. Operations with CUDA GPU backend
+        println!("\n2. Operations with CUDA GPU backend:");
 
     // Create GPU configuration for CUDA
     let cuda_config = GPUConfig {
@@ -161,5 +163,12 @@ fn main() {
         cpu_duration.as_secs_f64() / gpu_duration.as_secs_f64()
     );
 
-    println!("\nArray Protocol GPU examples completed successfully!");
+        println!("\nArray Protocol GPU examples completed successfully!");
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    {
+        println!("\n2. GPU support is not enabled.");
+        println!("To run GPU examples, compile with: cargo run --example array_protocol_gpu --features gpu");
+    }
 }

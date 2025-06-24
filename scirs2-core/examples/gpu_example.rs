@@ -1,3 +1,4 @@
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::{GpuBackend, GpuContext};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

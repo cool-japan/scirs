@@ -4,8 +4,10 @@
 //! This example allocates large buffers and performs repeated operations
 //! to stress test the GPU backend.
 
-use scirs2_core::gpu::{GpuBackend, GpuContext};
 use std::error::Error;
+
+#[cfg(feature = "gpu")]
+use scirs2_core::gpu::{GpuBackend, GpuContext};
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("=== SciRS2 GPU Stress Test Example ===");
@@ -17,9 +19,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     #[cfg(feature = "gpu")]
-    run_stress_test()?;
-
-    Ok(())
+    {
+        run_stress_test()?;
+        Ok(())
+    }
 }
 
 #[cfg(feature = "gpu")]

@@ -2,7 +2,9 @@
 //!
 //! This example demonstrates intensive GPU computation using SciRS2's GPU abstractions
 
-use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuError};
+#[cfg(feature = "gpu")]
+use scirs2_core::gpu::{GpuBackend, GpuContext, GpuError};
+#[cfg(feature = "gpu")]
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -80,7 +82,7 @@ fn test_large_matrix_ops(ctx: &GpuContext) -> Result<(), GpuError> {
         // Allocate GPU buffers
         let start = Instant::now();
         let gpu_a = ctx.create_buffer_from_slice(&a);
-        let gpu_b = ctx.create_buffer_from_slice(&b);
+        let _gpu_b = ctx.create_buffer_from_slice(&b);
         let alloc_time = start.elapsed();
         println!("  Allocation time: {:?}", alloc_time);
 

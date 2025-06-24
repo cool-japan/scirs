@@ -4,6 +4,8 @@
 //! optimizing memory-intensive operations.
 
 use crate::error::CoreResult;
+use crate::CoreError;
+use std::fs;
 
 /// Memory system information
 #[derive(Debug, Clone)]

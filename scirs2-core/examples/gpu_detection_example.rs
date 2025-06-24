@@ -2,9 +2,11 @@
 //!
 //! Demonstrates GPU backend detection and device information gathering
 
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::backends::{
     check_backend_installation, detect_gpu_backends, get_device_info,
 };
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::GpuBackend;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

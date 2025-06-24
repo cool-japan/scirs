@@ -3,48 +3,59 @@
 //! This example shows how to use the kernel library for common operations.
 
 use ndarray::{Array1, Array2};
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::kernels::{DataType, KernelParams};
+#[cfg(feature = "gpu")]
 use scirs2_core::gpu::{GpuBackend, GpuContext, GpuError};
 
-fn main() -> Result<(), GpuError> {
-    // Try to create a GPU context with the preferred backend
-    let ctx = match GpuContext::new(GpuBackend::preferred()) {
-        Ok(ctx) => {
-            println!("Using GPU acceleration with {} backend", ctx.backend_name());
-            ctx
-        }
-        Err(e) => {
-            println!("GPU acceleration not available: {}. Using CPU fallback.", e);
-            GpuContext::new(GpuBackend::Cpu)?
-        }
-    };
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(feature = "gpu")]
+    {
+        // Try to create a GPU context with the preferred backend
+        let ctx = match GpuContext::new(GpuBackend::preferred()) {
+            Ok(ctx) => {
+                println!("Using GPU acceleration with {} backend", ctx.backend_name());
+                ctx
+            }
+            Err(e) => {
+                println!("GPU acceleration not available: {}. Using CPU fallback.", e);
+                GpuContext::new(GpuBackend::Cpu)?
+            }
+        };
 
-    // Example 1: Matrix multiplication with GEMM kernel
-    println!("\nExample 1: Matrix multiplication (GEMM)");
-    matrix_multiply_example(&ctx)?;
+        // Example 1: Matrix multiplication with GEMM kernel
+        println!("\nExample 1: Matrix multiplication (GEMM)");
+        matrix_multiply_example(&ctx)?;
 
-    // Example 2: Vector addition with AXPY kernel
-    println!("\nExample 2: Vector addition (AXPY)");
-    vector_addition_example(&ctx)?;
+        // Example 2: Vector addition with AXPY kernel
+        println!("\nExample 2: Vector addition (AXPY)");
+        vector_addition_example(&ctx)?;
 
-    // Example 3: Vector sum reduction
-    println!("\nExample 3: Vector sum reduction");
-    vector_sum_example(&ctx)?;
+        // Example 3: Vector sum reduction
+        println!("\nExample 3: Vector sum reduction");
+        vector_sum_example(&ctx)?;
 
-    // Example 4: Using a specialized kernel for L2 norm
-    println!("\nExample 4: Vector L2 norm");
-    vector_norm_example(&ctx)?;
+        // Example 4: Using a specialized kernel for L2 norm
+        println!("\nExample 4: Vector L2 norm");
+        vector_norm_example(&ctx)?;
 
-    // Example 5: Neural network activation functions
-    println!("\nExample 5: Neural network activation functions");
-    activation_functions_example(&ctx)?;
+        // Example 5: Neural network activation functions
+        println!("\nExample 5: Neural network activation functions");
+        activation_functions_example(&ctx)?;
 
-    println!("\nAll examples completed successfully!");
+        println!("\nAll examples completed successfully!");
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    {
+        println!("GPU feature not enabled. Run with --features=\"gpu\" to see the GPU examples.");
+    }
 
     Ok(())
 }
 
 /// Example demonstrating matrix multiplication with the GEMM kernel
+#[cfg(feature = "gpu")]
 fn matrix_multiply_example(ctx: &GpuContext) -> Result<(), GpuError> {
     // Create two matrices
     let a = Array2::from_shape_vec(
@@ -138,6 +149,7 @@ fn matrix_multiply_example(ctx: &GpuContext) -> Result<(), GpuError> {
 }
 
 /// Example demonstrating vector addition with the AXPY kernel
+#[cfg(feature = "gpu")]
 fn vector_addition_example(ctx: &GpuContext) -> Result<(), GpuError> {
     // Create two vectors
     let x = Array1::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0]);
@@ -184,6 +196,7 @@ fn vector_addition_example(ctx: &GpuContext) -> Result<(), GpuError> {
 }
 
 /// Example demonstrating vector sum reduction
+#[cfg(feature = "gpu")]
 fn vector_sum_example(ctx: &GpuContext) -> Result<(), GpuError> {
     // Create a vector
     let x = Array1::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
@@ -224,6 +237,7 @@ fn vector_sum_example(ctx: &GpuContext) -> Result<(), GpuError> {
 }
 
 /// Example demonstrating vector L2 norm
+#[cfg(feature = "gpu")]
 fn vector_norm_example(ctx: &GpuContext) -> Result<(), GpuError> {
     // Create a vector
     let x = Array1::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0]);
@@ -264,6 +278,7 @@ fn vector_norm_example(ctx: &GpuContext) -> Result<(), GpuError> {
 }
 
 /// Example demonstrating neural network activation functions
+#[cfg(feature = "gpu")]
 fn activation_functions_example(ctx: &GpuContext) -> Result<(), GpuError> {
     // Create an input vector
     let x = Array1::from_vec(vec![-2.0f32, -1.0, 0.0, 1.0, 2.0]);
