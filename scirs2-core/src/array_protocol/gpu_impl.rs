@@ -401,12 +401,10 @@ where
         Ok(Box::new(array) as Box<dyn ArrayProtocol>)
     }
 
-    #[must_use]
     fn is_on_gpu(&self) -> bool {
         self.on_gpu
     }
 
-    #[must_use]
     fn device_info(&self) -> HashMap<String, String> {
         let mut info = HashMap::new();
         info.insert(

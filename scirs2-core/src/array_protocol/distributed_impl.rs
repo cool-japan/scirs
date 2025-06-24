@@ -526,7 +526,6 @@ where
         + num_traits::One,
     D: Dimension + Clone + Send + Sync + 'static + ndarray::RemoveAxis,
 {
-    #[must_use]
     fn distribution_info(&self) -> HashMap<String, String> {
         let mut info = HashMap::new();
         info.insert("type".to_string(), "distributed_ndarray".to_string());
@@ -584,7 +583,6 @@ where
         Ok(Box::new(new_dist_array))
     }
 
-    #[must_use]
     fn is_distributed(&self) -> bool {
         true
     }

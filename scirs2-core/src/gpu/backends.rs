@@ -166,7 +166,7 @@ fn detect_cuda_devices() -> Result<Vec<GpuInfo>, GpuError> {
 
     // Try to run nvidia-smi to detect CUDA devices
     match Command::new("nvidia-smi")
-        .arg("--query-gpu=name,memory.total,compute_capability.major,compute_capability.minor")
+        .arg("--query-gpu=name,memory.total,compute_cap")
         .arg("--format=csv,noheader,nounits")
         .output()
     {
@@ -179,18 +179,24 @@ fn detect_cuda_devices() -> Result<Vec<GpuInfo>, GpuError> {
                 }
 
                 let parts: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
-                if parts.len() >= 4 {
+                if parts.len() >= 3 {
                     let device_name = parts[0].to_string();
                     let memory_mb = parts[1].parse::<u64>().unwrap_or(0) * 1024 * 1024; // Convert MB to bytes
-                    let compute_major = parts[2].parse::<u32>().unwrap_or(0);
-                    let compute_minor = parts[3].parse::<u32>().unwrap_or(0);
+                    let compute_capability = parts[2].to_string();
+
+                    // Parse compute capability to determine tensor core support
+                    let supports_tensors = if let Some(major_str) = compute_capability.split('.').next() {
+                        major_str.parse::<u32>().unwrap_or(0) >= 7 // Tensor cores available on Volta+ (7.0+)
+                    } else {
+                        false
+                    };
 
                     devices.push(GpuInfo {
                         backend: GpuBackend::Cuda,
                         device_name,
                         memory_bytes: Some(memory_mb),
-                        compute_capability: Some(format!("{}.{}", compute_major, compute_minor)),
-                        supports_tensors: compute_major >= 7, // Tensor cores available on Volta+ (7.0+)
+                        compute_capability: Some(compute_capability),
+                        supports_tensors,
                     });
                 }
             }

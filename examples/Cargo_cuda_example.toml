@@ -1,0 +1,17 @@
+[package]
+name = "cuda_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Option 1: High-level CUDA wrapper
+cust = "0.3"
+
+# Option 2: Low-level CUDA bindings
+cuda-sys = "0.2"
+
+# Option 3: cuBLAS for linear algebra
+cublas-sys = "0.12"
+
+# For array operations
+ndarray = "0.16"
