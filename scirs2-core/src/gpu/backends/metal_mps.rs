@@ -9,9 +9,9 @@
 use crate::gpu::{GpuBufferImpl, GpuError};
 use metal::{Buffer, CommandQueue, Device};
 use objc2_metal_performance_shaders::{
-    MPSCNNConvolution, MPSCNNPoolingAverage, MPSCNNPoolingMax,
-    MPSImageGaussianBlur, MPSMatrix, MPSMatrixDescriptor, MPSMatrixFindTopK,
-    MPSMatrixMultiplication, MPSMatrixSoftMax, MPSMatrixSum,
+    MPSCNNConvolution, MPSCNNPoolingAverage, MPSCNNPoolingMax, MPSImageGaussianBlur, MPSMatrix,
+    MPSMatrixDescriptor, MPSMatrixFindTopK, MPSMatrixMultiplication, MPSMatrixSoftMax,
+    MPSMatrixSum,
 };
 use std::sync::Arc;
 
@@ -44,7 +44,10 @@ impl MPSContext {
         // TODO: Fix MPS initialization to use proper objc2 patterns
         // The objc2 crate requires allocating the object first, then initializing it
         // For now, return an error to get the build passing
-        Err(GpuError::Other("MPS matrix multiplication temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS matrix multiplication temporarily disabled - needs objc2 init pattern fix"
+                .to_string(),
+        ))
     }
 
     /// Create a matrix descriptor
@@ -55,7 +58,9 @@ impl MPSContext {
         _data_type: MPSDataType,
     ) -> Result<MPSMatrixDescriptor, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS matrix descriptor temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS matrix descriptor temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Create an MPS matrix from a Metal buffer
@@ -65,7 +70,9 @@ impl MPSContext {
         _descriptor: &MPSMatrixDescriptor,
     ) -> Result<MPSMatrix, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS matrix creation temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS matrix creation temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Perform matrix multiplication using MPS
@@ -77,19 +84,25 @@ impl MPSContext {
         _matmul: &MPSMatrixMultiplication,
     ) -> Result<(), GpuError> {
         // TODO: Fix MPS operations to use proper objc2 patterns
-        Err(GpuError::Other("MPS matrix multiply temporarily disabled - needs objc2 pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS matrix multiply temporarily disabled - needs objc2 pattern fix".to_string(),
+        ))
     }
 
     /// Create a softmax operation
     pub fn create_softmax(&self, _axis: i32) -> Result<MPSMatrixSoftMax, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS softmax temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS softmax temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Create a sum reduction operation
     pub fn create_sum(&self) -> Result<MPSMatrixSum, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS sum temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS sum temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     // Note: MPSMatrixMeanAndVariance is not available in current objc2 bindings
@@ -98,7 +111,9 @@ impl MPSContext {
     /// Create a top-k operation
     pub fn create_find_top_k(&self, _k: usize) -> Result<MPSMatrixFindTopK, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS top-k temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS top-k temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Create a 2D convolution operation
@@ -125,7 +140,9 @@ impl MPSContext {
         _stride_y: usize,
     ) -> Result<MPSCNNPoolingMax, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS max pooling temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS max pooling temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Create an average pooling operation
@@ -137,13 +154,17 @@ impl MPSContext {
         _stride_y: usize,
     ) -> Result<MPSCNNPoolingAverage, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS average pooling temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS average pooling temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 
     /// Create a Gaussian blur operation
     pub fn create_gaussian_blur(&self, _sigma: f32) -> Result<MPSImageGaussianBlur, GpuError> {
         // TODO: Fix MPS initialization to use proper objc2 patterns
-        Err(GpuError::Other("MPS Gaussian blur temporarily disabled - needs objc2 init pattern fix".to_string()))
+        Err(GpuError::Other(
+            "MPS Gaussian blur temporarily disabled - needs objc2 init pattern fix".to_string(),
+        ))
     }
 }
 

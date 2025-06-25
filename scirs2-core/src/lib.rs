@@ -1,4 +1,5 @@
 #![recursion_limit = "512"]
+#![allow(dead_code)]
 
 //! # ``SciRS2`` Core (Alpha 6 Enhanced)
 //!

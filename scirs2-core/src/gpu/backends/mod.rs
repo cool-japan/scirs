@@ -9,7 +9,6 @@ use std::process::Command;
 #[cfg(target_os = "macos")]
 use serde_json;
 
-
 // Backend implementation modules
 #[cfg(all(feature = "metal", target_os = "macos"))]
 pub mod metal;

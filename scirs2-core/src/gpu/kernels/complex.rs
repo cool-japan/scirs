@@ -5,9 +5,7 @@
 
 use std::collections::HashMap;
 
-use crate::gpu::kernels::{
-    BaseKernel, GpuKernel, KernelMetadata, KernelParams, OperationType,
-};
+use crate::gpu::kernels::{BaseKernel, GpuKernel, KernelMetadata, KernelParams, OperationType};
 use crate::gpu::{GpuBackend, GpuError};
 
 /// Complex multiplication kernel (elementwise)

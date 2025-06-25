@@ -16,9 +16,9 @@
 //! and how to perform GPU-accelerated operations on arrays.
 
 use ndarray::{Array2, Ix2};
+use scirs2_core::array_protocol::{self, add, matmul, NdarrayWrapper};
 #[cfg(feature = "gpu")]
 use scirs2_core::array_protocol::{GPUBackend, GPUConfig, GPUNdarray};
-use scirs2_core::array_protocol::{self, add, matmul, NdarrayWrapper};
 
 fn main() {
     // Initialize the array protocol system
@@ -70,98 +70,98 @@ fn main() {
         // 2. Operations with CUDA GPU backend
         println!("\n2. Operations with CUDA GPU backend:");
 
-    // Create GPU configuration for CUDA
-    let cuda_config = GPUConfig {
-        backend: GPUBackend::CUDA,
-        device_id: 0,
-        async_ops: false,
-        mixed_precision: false,
-        memory_fraction: 0.8,
-    };
+        // Create GPU configuration for CUDA
+        let cuda_config = GPUConfig {
+            backend: GPUBackend::CUDA,
+            device_id: 0,
+            async_ops: false,
+            mixed_precision: false,
+            memory_fraction: 0.8,
+        };
 
-    // Move arrays to GPU
-    let gpu_a = GPUNdarray::new(a.clone(), cuda_config.clone());
-    let gpu_b = GPUNdarray::new(b.clone(), cuda_config.clone());
-    let gpu_c = GPUNdarray::new(c.clone(), cuda_config.clone());
+        // Move arrays to GPU
+        let gpu_a = GPUNdarray::new(a.clone(), cuda_config.clone());
+        let gpu_b = GPUNdarray::new(b.clone(), cuda_config.clone());
+        let gpu_c = GPUNdarray::new(c.clone(), cuda_config.clone());
 
-    println!(
-        "Created GPU arrays with shapes {:?}, {:?}, and {:?}",
-        gpu_a.shape(),
-        gpu_b.shape(),
-        gpu_c.shape()
-    );
+        println!(
+            "Created GPU arrays with shapes {:?}, {:?}, and {:?}",
+            gpu_a.shape(),
+            gpu_b.shape(),
+            gpu_c.shape()
+        );
 
-    // Matrix multiplication on GPU: A * B
-    match matmul(&gpu_a, &gpu_b) {
-        Ok(result) => {
-            if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
-                println!("CUDA GPU: A * B shape: {:?}", gpu_result.shape());
+        // Matrix multiplication on GPU: A * B
+        match matmul(&gpu_a, &gpu_b) {
+            Ok(result) => {
+                if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
+                    println!("CUDA GPU: A * B shape: {:?}", gpu_result.shape());
 
-                // Note: to_cpu() method not available in current API
-                println!("CUDA GPU: A * B completed successfully");
+                    // Note: to_cpu() method not available in current API
+                    println!("CUDA GPU: A * B completed successfully");
+                }
             }
+            Err(e) => println!("Error in CUDA GPU matrix multiplication: {}", e),
         }
-        Err(e) => println!("Error in CUDA GPU matrix multiplication: {}", e),
-    }
 
-    // Matrix addition on GPU: A + C
-    match add(&gpu_a, &gpu_c) {
-        Ok(result) => {
-            if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
-                println!("CUDA GPU: A + C shape: {:?}", gpu_result.shape());
+        // Matrix addition on GPU: A + C
+        match add(&gpu_a, &gpu_c) {
+            Ok(result) => {
+                if let Some(gpu_result) = result.as_any().downcast_ref::<GPUNdarray<f64, Ix2>>() {
+                    println!("CUDA GPU: A + C shape: {:?}", gpu_result.shape());
 
-                // Note: to_cpu() method not available in current API
-                println!("CUDA GPU: A + C completed successfully");
+                    // Note: to_cpu() method not available in current API
+                    println!("CUDA GPU: A + C completed successfully");
+                }
             }
+            Err(e) => println!("Error in CUDA GPU addition: {}", e),
         }
-        Err(e) => println!("Error in CUDA GPU addition: {}", e),
-    }
 
-    // 3. Using AutoDevice for automatic device selection
-    println!("\n3. Using AutoDevice for automatic device selection:");
-    println!("Note: AutoDevice API requires trait bounds not satisfied in this example");
-    println!("Skipping AutoDevice demonstration");
+        // 3. Using AutoDevice for automatic device selection
+        println!("\n3. Using AutoDevice for automatic device selection:");
+        println!("Note: AutoDevice API requires trait bounds not satisfied in this example");
+        println!("Skipping AutoDevice demonstration");
 
-    // 4. Comparing performance
-    println!("\n4. Performance comparison:");
+        // 4. Comparing performance
+        println!("\n4. Performance comparison:");
 
-    // Create larger arrays for performance testing
-    let size = 500;
-    let large_a = Array2::<f64>::eye(size);
-    let large_b = Array2::<f64>::ones((size, size));
+        // Create larger arrays for performance testing
+        let size = 500;
+        let large_a = Array2::<f64>::eye(size);
+        let large_b = Array2::<f64>::ones((size, size));
 
-    // Wrap in CPU arrays
-    let cpu_large_a = NdarrayWrapper::new(large_a.clone());
-    let cpu_large_b = NdarrayWrapper::new(large_b.clone());
+        // Wrap in CPU arrays
+        let cpu_large_a = NdarrayWrapper::new(large_a.clone());
+        let cpu_large_b = NdarrayWrapper::new(large_b.clone());
 
-    // Wrap in GPU arrays
-    let gpu_large_a = GPUNdarray::new(large_a.clone(), cuda_config.clone());
-    let gpu_large_b = GPUNdarray::new(large_b.clone(), cuda_config.clone());
+        // Wrap in GPU arrays
+        let gpu_large_a = GPUNdarray::new(large_a.clone(), cuda_config.clone());
+        let gpu_large_b = GPUNdarray::new(large_b.clone(), cuda_config.clone());
 
-    // CPU timing
-    println!(
-        "Starting CPU matrix multiplication for {}x{} matrices...",
-        size, size
-    );
-    let cpu_start = std::time::Instant::now();
-    let _ = matmul(&cpu_large_a, &cpu_large_b);
-    let cpu_duration = cpu_start.elapsed();
-    println!("CPU computation time: {:?}", cpu_duration);
+        // CPU timing
+        println!(
+            "Starting CPU matrix multiplication for {}x{} matrices...",
+            size, size
+        );
+        let cpu_start = std::time::Instant::now();
+        let _ = matmul(&cpu_large_a, &cpu_large_b);
+        let cpu_duration = cpu_start.elapsed();
+        println!("CPU computation time: {:?}", cpu_duration);
 
-    // GPU timing
-    println!(
-        "Starting GPU matrix multiplication for {}x{} matrices...",
-        size, size
-    );
-    let gpu_start = std::time::Instant::now();
-    let _ = matmul(&gpu_large_a, &gpu_large_b);
-    let gpu_duration = gpu_start.elapsed();
-    println!("GPU computation time: {:?}", gpu_duration);
+        // GPU timing
+        println!(
+            "Starting GPU matrix multiplication for {}x{} matrices...",
+            size, size
+        );
+        let gpu_start = std::time::Instant::now();
+        let _ = matmul(&gpu_large_a, &gpu_large_b);
+        let gpu_duration = gpu_start.elapsed();
+        println!("GPU computation time: {:?}", gpu_duration);
 
-    println!(
-        "\nGPU speedup: {:.2}x",
-        cpu_duration.as_secs_f64() / gpu_duration.as_secs_f64()
-    );
+        println!(
+            "\nGPU speedup: {:.2}x",
+            cpu_duration.as_secs_f64() / gpu_duration.as_secs_f64()
+        );
 
         println!("\nArray Protocol GPU examples completed successfully!");
     }

@@ -7,9 +7,8 @@
 
 use crate::gpu::{GpuBufferImpl, GpuCompilerImpl, GpuContextImpl, GpuError, GpuKernelImpl};
 use metal::{
-    Buffer, CommandQueue, ComputePipelineDescriptor, ComputePipelineState,
-    Library, MTLCPUCacheMode, MTLHazardTrackingMode,
-    MTLResourceOptions, MTLSize,
+    Buffer, CommandQueue, ComputePipelineDescriptor, ComputePipelineState, Library,
+    MTLCPUCacheMode, MTLHazardTrackingMode, MTLResourceOptions, MTLSize,
 };
 // Import Device directly from the re-export
 pub use metal::Device;
@@ -472,7 +471,6 @@ impl GpuKernelImpl for MetalKernel {
         command_buffer.wait_until_completed();
     }
 }
-
 
 #[cfg(test)]
 mod tests {
