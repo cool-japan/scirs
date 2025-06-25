@@ -1,4 +1,4 @@
-# SciRS2 Graph - Production TODO (v0.1.0-alpha.5)
+# SciRS2 Graph - Production TODO (v0.1.0-alpha.6)
 
 This is the **final alpha release** before 1.0. The module is production-ready with comprehensive graph functionality.
 

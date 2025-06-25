@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-autograd"
-version = "0.1.0-alpha.5"
+version.workspace = true
 edition = "2021"
 authors = ["SciRS2 Team"]
 license = "MIT OR Apache-2.0"

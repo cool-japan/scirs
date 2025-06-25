@@ -1,10 +1,10 @@
-# scirs2-integrate - Production Release 0.1.0-alpha.5
+# scirs2-integrate - Production Release 0.1.0-alpha.6
 
 This is the **final alpha release** of scirs2-integrate, a comprehensive numerical integration module providing SciPy-compatible functionality in Rust. This release represents feature-complete, production-ready code.
 
 ## 🎯 Release Status: Production-Ready Alpha 5
 
-**Version:** 0.1.0-alpha.5 (Final Alpha)  
+**Version:** 0.1.0-alpha.6 (Final Alpha)  
 **Status:** ✅ Production-Ready  
 **All Tests Passing:** ✅ 193/193  
 **Clippy Warnings:** ✅ None  
@@ -181,7 +181,7 @@ All major SciPy integration methods have been successfully implemented and are p
 
 ## 🎉 Conclusion
 
-**scirs2-integrate 0.1.0-alpha.5** represents a **production-ready**, **feature-complete** numerical integration library that provides comprehensive SciPy compatibility with enhanced performance, memory safety, and parallel processing capabilities.
+**scirs2-integrate 0.1.0-alpha.6** represents a **production-ready**, **feature-complete** numerical integration library that provides comprehensive SciPy compatibility with enhanced performance, memory safety, and parallel processing capabilities.
 
 This final alpha release establishes a solid foundation for the Rust scientific computing ecosystem, offering researchers and engineers a robust, fast, and reliable integration toolkit.
 
@@ -189,4 +189,4 @@ This final alpha release establishes a solid foundation for the Rust scientific 
 
 ---
 
-*Generated for scirs2-integrate v0.1.0-alpha.5 - Final Alpha Release*
+*Generated for scirs2-integrate v0.1.0-alpha.6 - Final Alpha Release*

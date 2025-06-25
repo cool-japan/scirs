@@ -173,7 +173,7 @@ cargo update --dry-run
 ```toml
 # Cargo.toml - Pin critical dependencies
 [dependencies]
-scirs2-core = "=0.1.0-alpha.5"  # Exact version
+scirs2-core = "=0.1.0-alpha.6"  # Exact version
 ```
 
 ## File System Security
@@ -301,4 +301,4 @@ Subscribe to security announcements:
 
 ---
 
-*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.5*
+*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.6*

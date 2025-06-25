@@ -1,6 +1,6 @@
 # scirs2-cluster Roadmap
 
-**Version 0.1.0-alpha.5 - Final Alpha Release**
+**Version 0.1.0-alpha.6 - Final Alpha Release**
 
 This is the final alpha release of the SciRS2 clustering module. The module provides comprehensive clustering algorithms with production-ready implementations, extensive test coverage (189+ tests), and full SciPy API compatibility.
 

@@ -2,7 +2,7 @@
 
 This module provides signal processing functionality similar to SciPy's signal module.
 
-## Production-Ready Features (v0.1.0-alpha.5)
+## Production-Ready Features (v0.1.0-alpha.6)
 
 ### Core Signal Processing ✅
 - [x] Module structure and error handling

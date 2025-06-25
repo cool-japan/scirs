@@ -4,7 +4,7 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
 
-**Production-ready** time series analysis module for the SciRS2 scientific computing library. This final alpha release (0.1.0-alpha.5) provides comprehensive, tested, and optimized tools for analyzing, decomposing, and forecasting time series data with feature parity to leading Python libraries.
+**Production-ready** time series analysis module for the SciRS2 scientific computing library. This final alpha release (0.1.0-alpha.6) provides comprehensive, tested, and optimized tools for analyzing, decomposing, and forecasting time series data with feature parity to leading Python libraries.
 
 ## Features
 
@@ -28,7 +28,7 @@
 
 ## Production Readiness
 
-**🚀 Final Alpha Release (0.1.0-alpha.5)**
+**🚀 Final Alpha Release (0.1.0-alpha.6)**
 
 This release represents the culmination of the alpha development phase and is **production-ready** for time series analysis applications:
 
@@ -49,15 +49,15 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-series = "0.1.0-alpha.5"
+scirs2-series = "0.1.0-alpha.6"
 ```
 
 **Recommended for Production**: Enable performance optimizations:
 
 ```toml
 [dependencies]
-scirs2-series = { version = "0.1.0-alpha.5", features = ["parallel", "simd"] }
-scirs2-core = { version = "0.1.0-alpha.5", features = ["parallel", "simd"] }
+scirs2-series = { version = "0.1.0-alpha.6", features = ["parallel", "simd"] }
+scirs2-core = { version = "0.1.0-alpha.6", features = ["parallel", "simd"] }
 ```
 
 **Available Features:**

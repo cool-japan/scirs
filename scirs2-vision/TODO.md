@@ -1,4 +1,4 @@
-# scirs2-vision - Production Status (0.1.0-alpha.5)
+# scirs2-vision - Production Status (0.1.0-alpha.6)
 
 Computer vision module for SciRS2 - **PRODUCTION READY** for final alpha release.
 
@@ -113,7 +113,7 @@ The following features are planned for future releases but are **NOT** part of t
 
 ## Production Release Notes
 
-**Version 0.1.0-alpha.5** represents a comprehensive computer vision library with:
+**Version 0.1.0-alpha.6** represents a comprehensive computer vision library with:
 
 - **217 unit tests** covering all implemented functionality
 - **Working examples** demonstrating real-world usage

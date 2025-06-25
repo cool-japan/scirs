@@ -4,13 +4,13 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-integrate)](https://docs.rs/scirs2-integrate)
 
-**🚀 Production-Ready Release 0.1.0-alpha.5 (Final Alpha)**
+**🚀 Production-Ready Release 0.1.0-alpha.6 (Final Alpha)**
 
 A comprehensive, high-performance numerical integration library for Rust that provides SciPy-compatible functionality with enhanced performance, memory safety, and parallel processing capabilities.
 
 ## 🎯 Production Release Status
 
-- **Version:** 0.1.0-alpha.5 (Final Alpha Release)
+- **Version:** 0.1.0-alpha.6 (Final Alpha Release)
 - **Status:** ✅ Production-Ready
 - **API Stability:** ✅ Stable (semantic versioning)
 - **Test Coverage:** ✅ 193/193 tests passing
@@ -79,7 +79,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = "0.1.0-alpha.5"
+scirs2-integrate = "0.1.0-alpha.6"
 ndarray = "0.16.1"
 ```
 
@@ -89,7 +89,7 @@ Enable optional features for enhanced performance:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.1.0-alpha.5", features = ["simd", "parallel"] }
+scirs2-integrate = { version = "0.1.0-alpha.6", features = ["simd", "parallel"] }
 ```
 
 Available features:
@@ -385,7 +385,7 @@ Vectorized operations for better performance on modern CPUs:
 
 ```rust
 // Enable SIMD features in Cargo.toml:
-// scirs2-integrate = { version = "0.1.0-alpha.5", features = ["simd"] }
+// scirs2-integrate = { version = "0.1.0-alpha.6", features = ["simd"] }
 
 use scirs2_integrate::ode::utils::simd_ops;
 
@@ -898,7 +898,7 @@ For production deployments, we recommend:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.1.0-alpha.5", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.1.0-alpha.6", features = ["parallel", "simd"] }
 ```
 
 Enable all optimizations for maximum performance in production environments.
@@ -914,4 +914,4 @@ You can choose to use either license. See the [LICENSE](../LICENSE) file for det
 
 ---
 
-**scirs2-integrate v0.1.0-alpha.5** - Production-ready numerical integration for Rust
+**scirs2-integrate v0.1.0-alpha.6** - Production-ready numerical integration for Rust

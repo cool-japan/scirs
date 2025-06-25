@@ -1,4 +1,4 @@
-# scirs2-core TODO - Version 0.1.0-alpha.5 (Final Alpha)
+# scirs2-core TODO - Version 0.1.0-alpha.6 (Final Alpha)
 
 Core utilities and foundation for the SciRS2 scientific computing library in Rust.
 
@@ -204,5 +204,5 @@ Core utilities and foundation for the SciRS2 scientific computing library in Rus
 
 ---
 
-*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.5 (Final Alpha) → Beta 1 Progress*  
+*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.6 (Final Alpha) → Beta 1 Progress*  
 *Next Milestone: Beta 1 - API Stabilization & Performance Validation*

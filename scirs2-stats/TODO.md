@@ -1,6 +1,6 @@
 # scirs2-stats Development Roadmap
 
-## Production Status (v0.1.0-alpha.5)
+## Production Status (v0.1.0-alpha.6)
 
 This release represents a **production-ready** statistical computing library. All core functionality has been implemented, tested, and is ready for production use.
 
@@ -114,6 +114,6 @@ See the main repository for contribution guidelines.
 
 ## Version History
 
-- **v0.1.0-alpha.5** (Current): Production-ready release with comprehensive statistical functionality
+- **v0.1.0-alpha.6** (Current): Production-ready release with comprehensive statistical functionality
 - **v1.0.0** (Planned): Stable API with performance optimizations and extended testing
 - **v1.1.0+** (Future): Advanced statistical methods and ecosystem integration

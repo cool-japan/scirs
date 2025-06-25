@@ -252,7 +252,7 @@ pub fn init_integration_registry() -> &'static std::sync::Mutex<IntegrationRegis
 
         // Register autograd module
         let autograd_info =
-            ModuleInfo::new("scirs2-autograd".to_string(), "0.1.0-alpha.5".to_string())
+            ModuleInfo::new("scirs2-autograd".to_string(), "0.1.0-alpha.6".to_string())
                 .with_feature("automatic_differentiation".to_string())
                 .with_feature("computation_graphs".to_string())
                 .with_feature("gradient_computation".to_string())

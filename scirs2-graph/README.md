@@ -6,7 +6,7 @@
 
 **Production-ready graph processing module for the SciRS2 scientific computing library.**
 
-This is the **final alpha release (0.1.0-alpha.5)** featuring a comprehensive, high-performance graph theory and network analysis library designed for scientific computing and machine learning applications.
+This is the **final alpha release (0.1.0-alpha.6)** featuring a comprehensive, high-performance graph theory and network analysis library designed for scientific computing and machine learning applications.
 
 ## 🚀 Production Features
 
@@ -63,13 +63,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.1.0-alpha.5"
+scirs2-graph = "0.1.0-alpha.6"
 ```
 
 For performance features:
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.1.0-alpha.5", features = ["parallel"] }
+scirs2-graph = { version = "0.1.0-alpha.6", features = ["parallel"] }
 ```
 
 ## Quick Start

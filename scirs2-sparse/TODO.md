@@ -1,6 +1,6 @@
 # scirs2-sparse TODO
 
-## Release Status: 0.1.0-alpha.5 (Final Alpha)
+## Release Status: 0.1.0-alpha.6 (Final Alpha)
 
 This is the final alpha release before the stable 1.0.0 release. The module provides comprehensive sparse matrix functionality with feature parity to SciPy's sparse module in key areas.
 

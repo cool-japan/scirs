@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-benchmarks"
-version = "0.1.0-alpha.5"
+version.workspace = true
 edition = "2021"
 authors = ["SciRS2 Contributors"]
 description = "Comprehensive performance benchmarks for SciRS2 against SciPy"

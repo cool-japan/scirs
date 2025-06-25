@@ -1,6 +1,6 @@
 # scirs2-io Production Status
 
-**Version**: 0.1.0-alpha.5 (Final Alpha Release)
+**Version**: 0.1.0-alpha.6 (Final Alpha Release)
 
 This module provides production-ready input/output functionality for scientific data formats, comparable to SciPy's io module.
 
@@ -117,6 +117,6 @@ For production release contributions:
 
 ---
 
-**Status**: Production-ready for 0.1.0-alpha.5 release
+**Status**: Production-ready for 0.1.0-alpha.6 release
 **Quality Level**: Enterprise-ready with comprehensive testing
 **API Stability**: Stable (semver compatibility maintained)

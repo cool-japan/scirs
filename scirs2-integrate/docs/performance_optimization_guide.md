@@ -10,7 +10,7 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 scirs2-integrate = { 
-    version = "0.1.0-alpha.5", 
+    version = "0.1.0-alpha.6", 
     features = ["parallel", "simd", "autotuning"] 
 }
 ```

@@ -964,7 +964,7 @@ impl<F: Float> SciRS2Integration for LinalgResult<'_, F> {
     }
 
     fn module_version() -> &'static str {
-        "0.1.0-alpha.5"
+        "0.1.0-alpha.6"
     }
 
     fn check_compatibility() -> Result<(), IntegrationError> {

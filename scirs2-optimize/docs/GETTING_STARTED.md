@@ -23,11 +23,11 @@ Add `scirs2-optimize` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.1.0-alpha.4"
+scirs2-optimize = "0.1.0-alpha.6"
 ndarray = "0.16"
 
 # Optional: Enable additional features
-scirs2-optimize = { version = "0.1.0-alpha.4", features = ["parallel", "simd"] }
+scirs2-optimize = { version = "0.1.0-alpha.6", features = ["parallel", "simd"] }
 ```
 
 ### Verify Installation
@@ -577,12 +577,12 @@ where F: Fn(&ArrayView1<f64>) -> f64 {
 
 1. **Enable Parallelization**:
    ```toml
-   scirs2_optimize = { version = "0.1.0-alpha.4", features = ["parallel"] }
+   scirs2_optimize = { version = "0.1.0-alpha.6", features = ["parallel"] }
    ```
 
 2. **Use SIMD Operations**:
    ```toml
-   scirs2_optimize = { version = "0.1.0-alpha.4", features = ["simd"] }
+   scirs2_optimize = { version = "0.1.0-alpha.6", features = ["simd"] }
    ```
 
 3. **Profile Your Code**:

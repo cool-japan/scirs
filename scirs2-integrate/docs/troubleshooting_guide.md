@@ -435,7 +435,7 @@ fn check_memory_usage() {
 # Ensure all required features are enabled
 [dependencies]
 scirs2-integrate = { 
-    version = "0.1.0-alpha.5", 
+    version = "0.1.0-alpha.6", 
     features = ["parallel", "simd", "autotuning", "plotting"] 
 }
 ```

@@ -1,5 +1,23 @@
 # SciRS2 Release Notes
 
+## 0.1.0-alpha.6 (June 2025)
+
+### 🚀 Major Features Added
+
+*To be updated with release highlights*
+
+### 🛠️ Infrastructure Improvements
+
+*To be updated with infrastructure changes*
+
+### 🐛 Bug Fixes
+
+*To be updated with bug fixes*
+
+### 📈 Performance Improvements
+
+*To be updated with performance improvements*
+
 ## 0.1.0-alpha.5 (June 2025)
 
 ### 🚀 Major Features Added

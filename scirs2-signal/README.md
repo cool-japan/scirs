@@ -23,8 +23,8 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-signal = "0.1.0-alpha.5"
-scirs2-core = "0.1.0-alpha.5"
+scirs2-signal = "0.1.0-alpha.6"
+scirs2-core = "0.1.0-alpha.6"
 ndarray = "0.16.1"
 ```
 
@@ -336,7 +336,7 @@ let filtered = filter::filtfilt(&b, &a, &data)?;
 
 ## Development Status
 
-**Current Release**: 0.1.0-alpha.5 (Final Alpha)
+**Current Release**: 0.1.0-alpha.6 (Final Alpha)
 
 ### Production-Ready Features ✅
 - Digital filtering (IIR/FIR design and application)

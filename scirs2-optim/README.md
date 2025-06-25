@@ -1,4 +1,4 @@
-# SciRS2 Optim - Production Ready v0.1.0-alpha.5
+# SciRS2 Optim - Production Ready v0.1.0-alpha.6
 
 [![crates.io](https://img.shields.io/crates/v/scirs2-optim.svg)](https://crates.io/crates/scirs2-optim)
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
@@ -49,7 +49,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optim = "0.1.0-alpha.5"
+scirs2-optim = "0.1.0-alpha.6"
 ```
 
 To enable advanced features:
@@ -57,7 +57,7 @@ To enable advanced features:
 ```toml
 [dependencies]
 # For metrics integration and hyperparameter optimization
-scirs2-optim = { version = "0.1.0-alpha.5", features = ["metrics_integration"] }
+scirs2-optim = { version = "0.1.0-alpha.6", features = ["metrics_integration"] }
 ```
 
 **Available Features**:

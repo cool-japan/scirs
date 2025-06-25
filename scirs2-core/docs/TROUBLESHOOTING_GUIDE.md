@@ -71,7 +71,7 @@ Error: FeatureNotEnabled { feature: "gpu" }
 ```toml
 # Cargo.toml
 [dependencies]
-scirs2-core = { version = "0.1.0-alpha.5", features = ["gpu", "parallel"] }
+scirs2-core = { version = "0.1.0-alpha.6", features = ["gpu", "parallel"] }
 ```
 
 ## Build and Compilation Issues
@@ -574,9 +574,9 @@ let c = a.dot(&b); // Panics here
 **Environment:**
 - OS: Ubuntu 22.04
 - Rust: 1.70.0
-- scirs2-core: 0.1.0-alpha.5
+- scirs2-core: 0.1.0-alpha.6
 ```
 
 ---
 
-*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.5*
+*Last Updated: 2025-06-22 | Version: 0.1.0-alpha.6*

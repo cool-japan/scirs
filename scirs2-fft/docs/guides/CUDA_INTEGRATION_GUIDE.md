@@ -16,7 +16,7 @@ To use CUDA acceleration, enable the `cuda` feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-fft = { version = "0.1.0-alpha.5", features = ["cuda"] }
+scirs2-fft = { version = "0.1.0-alpha.6", features = ["cuda"] }
 ```
 
 ## System Requirements

@@ -1,6 +1,6 @@
 # TODO List for scirs2-transform
 
-**Version: 0.1.0-alpha.5 (Production Ready)**
+**Version: 0.1.0-alpha.6 (Production Ready)**
 
 ## Production Ready Features ✅
 
@@ -78,7 +78,7 @@
 
 ## API Stability Commitment 📝
 
-For the 0.1.0-alpha.5 release, the following APIs are **stable** and backwards compatible:
+For the 0.1.0-alpha.6 release, the following APIs are **stable** and backwards compatible:
 - All normalization and scaling transformers
 - Feature engineering utilities (polynomial, power transforms, discretization)
 - Dimensionality reduction algorithms (PCA, SVD, LDA, t-SNE)  
@@ -105,4 +105,4 @@ Current performance targets achieved:
 
 ---
 
-**Ready for Production**: This module is ready for production use in the 0.1.0-alpha.5 release with comprehensive data transformation capabilities that match and exceed scikit-learn's preprocessing module in performance and safety.
+**Ready for Production**: This module is ready for production use in the 0.1.0-alpha.6 release with comprehensive data transformation capabilities that match and exceed scikit-learn's preprocessing module in performance and safety.

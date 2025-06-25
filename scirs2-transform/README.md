@@ -53,14 +53,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.1.0-alpha.5"
+scirs2-transform = "0.1.0-alpha.6"
 ```
 
 For parallel processing and enhanced performance:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.1.0-alpha.5", features = ["parallel"] }
+scirs2-transform = { version = "0.1.0-alpha.6", features = ["parallel"] }
 ```
 
 ## 🎯 Quick Start
@@ -333,4 +333,4 @@ You may choose to use either license.
 
 ---
 
-**Ready for Production**: SciRS2 Transform v0.1.0-alpha.5 provides production-ready data transformation capabilities with performance that meets or exceeds established Python libraries while offering Rust's safety and performance guarantees.
+**Ready for Production**: SciRS2 Transform v0.1.0-alpha.6 provides production-ready data transformation capabilities with performance that meets or exceeds established Python libraries while offering Rust's safety and performance guarantees.

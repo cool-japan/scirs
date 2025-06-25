@@ -117,7 +117,7 @@ Enable these features in your `Cargo.toml` as needed:
 ```toml
 [dependencies]
 scirs2_optimize = { 
-    version = "0.1.0-alpha.4", 
+    version = "0.1.0-alpha.6", 
     features = ["parallel", "simd", "async", "jit"] 
 }
 ```

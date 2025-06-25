@@ -6,7 +6,7 @@
 
 Computer vision module for SciRS2, providing comprehensive functionality for image processing, feature detection, segmentation, and color transformations.
 
-## Production Status (0.1.0-alpha.5)
+## Production Status (0.1.0-alpha.6)
 
 **✅ PRODUCTION READY** - Final alpha release with complete functionality:
 - **217 unit tests** passing with zero warnings
@@ -202,14 +202,14 @@ Add `scirs2-vision` to your dependencies in `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.1.0-alpha.5"
+scirs2-vision = "0.1.0-alpha.6"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-vision = { version = "0.1.0-alpha.5", features = ["parallel"] }
+scirs2-vision = { version = "0.1.0-alpha.6", features = ["parallel"] }
 ```
 
 ## Documentation
@@ -272,7 +272,7 @@ This project is dual-licensed under:
 You can choose to use either license. See the [LICENSE](../LICENSE) file for details.
 ## Production Readiness
 
-This **0.1.0-alpha.5** release represents a mature, production-ready computer vision library suitable for:
+This **0.1.0-alpha.6** release represents a mature, production-ready computer vision library suitable for:
 
 ### 🏭 Production Applications
 - **Scientific Computing**: Research applications requiring reliable computer vision algorithms

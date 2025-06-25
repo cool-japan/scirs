@@ -874,7 +874,7 @@ To run these tutorials:
 1. **Add to your Cargo.toml:**
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.1.0-alpha.5", features = ["tutorials"] }
+scirs2-metrics = { version = "0.1.0-alpha.6", features = ["tutorials"] }
 ```
 
 2. **Run individual tutorials:**

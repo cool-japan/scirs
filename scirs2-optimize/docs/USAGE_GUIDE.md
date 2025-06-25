@@ -20,11 +20,11 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2_optimize = "0.1.0-alpha.4"
+scirs2_optimize = "0.1.0-alpha.6"
 ndarray = "0.16"
 
 # Optional: Enable parallelization
-scirs2_optimize = { version = "0.1.0-alpha.4", features = ["parallel"] }
+scirs2_optimize = { version = "0.1.0-alpha.6", features = ["parallel"] }
 ```
 
 ### Basic Example

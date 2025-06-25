@@ -1,10 +1,10 @@
 # scirs2-ndimage Development Status
 
-**Status: PRODUCTION READY - Version 0.1.0-alpha.5 (Final Alpha)**
+**Status: PRODUCTION READY - Version 0.1.0-alpha.6 (Final Alpha)**
 
 This module provides comprehensive multidimensional image processing functionality similar to SciPy's ndimage module. It includes functions for filtering, interpolation, measurements, and morphological operations on n-dimensional arrays.
 
-## Release Status - 0.1.0-alpha.5 (Final Alpha)
+## Release Status - 0.1.0-alpha.6 (Final Alpha)
 
 This is the **final alpha release** before the first stable release. All core functionality has been implemented, tested, and optimized.
 
@@ -38,7 +38,7 @@ This is the **final alpha release** before the first stable release. All core fu
   - [x] Reorganization into specialized submodules
   - [x] Clear API boundaries and exports
 
-## Recently Completed (Version 0.1.0-alpha.5 Improvements)
+## Recently Completed (Version 0.1.0-alpha.6 Improvements)
 
 - [x] Generic Filter Framework
   - [x] Implemented generic_filter function with custom function support
@@ -276,7 +276,7 @@ This is the **final alpha release** before the first stable release. All core fu
   - [ ] Performance comparison benchmarks
   - [ ] API compatibility verification
 
-## Production Release Summary (0.1.0-alpha.5)
+## Production Release Summary (0.1.0-alpha.6)
 
 ### ✅ Core Implementation Status
 - **Complete n-dimensional image processing suite**
@@ -326,7 +326,7 @@ This is the **final alpha release** before the first stable release. All core fu
 
 ## Module Status Summary
 
-🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-alpha.5 (Final Alpha)
+🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-alpha.6 (Final Alpha)
 
 ### Release Highlights
 - **142 unit tests + 39 doctests**: All passing with zero warnings

@@ -2,7 +2,7 @@
 
 This module provides comprehensive dataset loading utilities similar to scikit-learn's datasets module and SciPy's datasets module.
 
-## Production Status - 0.1.0-alpha.5 (Final Alpha)
+## Production Status - 0.1.0-alpha.6 (Final Alpha)
 
 This is the final alpha release before 1.0.0. All core functionality is implemented and tested.
 

@@ -13,7 +13,7 @@
 
 ## ✅ Production Status
 
-**Version 0.1.0-alpha.5** marks the **final alpha release** and is **production-ready** with:
+**Version 0.1.0-alpha.6** marks the **final alpha release** and is **production-ready** with:
 - ✅ Zero compilation warnings
 - ✅ 303 tests passing (100% coverage of core functionality)  
 - ✅ Clippy clean code quality
@@ -65,20 +65,20 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-neural = "0.1.0-alpha.5"
+scirs2-neural = "0.1.0-alpha.6"
 ```
 
 To enable optimizations and optional features:
 
 ```toml
 [dependencies]
-scirs2-neural = { version = "0.1.0-alpha.5", features = ["simd", "parallel"] }
+scirs2-neural = { version = "0.1.0-alpha.6", features = ["simd", "parallel"] }
 
 # For performance optimization
-scirs2-neural = { version = "0.1.0-alpha.5", features = ["jit", "cuda"] }
+scirs2-neural = { version = "0.1.0-alpha.6", features = ["jit", "cuda"] }
 
 # For integration with scirs2-metrics
-scirs2-neural = { version = "0.1.0-alpha.5", features = ["metrics_integration"] }
+scirs2-neural = { version = "0.1.0-alpha.6", features = ["metrics_integration"] }
 ```
 
 ## Quick Start

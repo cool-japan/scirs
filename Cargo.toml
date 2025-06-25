@@ -36,7 +36,7 @@ resolver = "2"
 bench_crates = ["scirs2-ndimage"]
 
 [workspace.package]
-version = "0.1.0-alpha.5"
+version = "0.1.0-alpha.6"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "A Rust port of SciPy with AI/ML extensions - Scientific Computing and AI Library"
@@ -194,35 +194,35 @@ objc2-metal-performance-shaders = "0.3.0"
 pyo3 = { version = "0.25.1", features = ["auto-initialize"] }
 
 # Base scirs2 crates
-scirs2-core = { version = "0.1.0-alpha.5", path = "./scirs2-core" }
-scirs2 = { version = "0.1.0-alpha.5", path = "./scirs2", default-features = false }
-scirs2-linalg = { version = "0.1.0-alpha.5", path = "./scirs2-linalg" }
-scirs2-integrate = { version = "0.1.0-alpha.5", path = "./scirs2-integrate" }
-scirs2-interpolate = { version = "0.1.0-alpha.5", path = "./scirs2-interpolate" }
-scirs2-optimize = { version = "0.1.0-alpha.5", path = "./scirs2-optimize" }
-scirs2-fft = { version = "0.1.0-alpha.5", path = "./scirs2-fft" }
-scirs2-stats = { version = "0.1.0-alpha.5", path = "./scirs2-stats" }
-scirs2-special = { version = "0.1.0-alpha.5", path = "./scirs2-special" }
-scirs2-signal = { version = "0.1.0-alpha.5", path = "./scirs2-signal" }
-scirs2-sparse = { version = "0.1.0-alpha.5", path = "./scirs2-sparse" }
-scirs2-spatial = { version = "0.1.0-alpha.5", path = "./scirs2-spatial" }
+scirs2-core = { version = "0.1.0-alpha.6", path = "./scirs2-core" }
+scirs2 = { version = "0.1.0-alpha.6", path = "./scirs2", default-features = false }
+scirs2-linalg = { version = "0.1.0-alpha.6", path = "./scirs2-linalg" }
+scirs2-integrate = { version = "0.1.0-alpha.6", path = "./scirs2-integrate" }
+scirs2-interpolate = { version = "0.1.0-alpha.6", path = "./scirs2-interpolate" }
+scirs2-optimize = { version = "0.1.0-alpha.6", path = "./scirs2-optimize" }
+scirs2-fft = { version = "0.1.0-alpha.6", path = "./scirs2-fft" }
+scirs2-stats = { version = "0.1.0-alpha.6", path = "./scirs2-stats" }
+scirs2-special = { version = "0.1.0-alpha.6", path = "./scirs2-special" }
+scirs2-signal = { version = "0.1.0-alpha.6", path = "./scirs2-signal" }
+scirs2-sparse = { version = "0.1.0-alpha.6", path = "./scirs2-sparse" }
+scirs2-spatial = { version = "0.1.0-alpha.6", path = "./scirs2-spatial" }
 
 # Advanced modules
-scirs2-cluster = { version = "0.1.0-alpha.5", path = "./scirs2-cluster" }
-scirs2-ndimage = { version = "0.1.0-alpha.5", path = "./scirs2-ndimage" }
-scirs2-io = { version = "0.1.0-alpha.5", path = "./scirs2-io" }
-scirs2-datasets = { version = "0.1.0-alpha.5", path = "./scirs2-datasets" }
+scirs2-cluster = { version = "0.1.0-alpha.6", path = "./scirs2-cluster" }
+scirs2-ndimage = { version = "0.1.0-alpha.6", path = "./scirs2-ndimage" }
+scirs2-io = { version = "0.1.0-alpha.6", path = "./scirs2-io" }
+scirs2-datasets = { version = "0.1.0-alpha.6", path = "./scirs2-datasets" }
 
 # AI/ML modules
-scirs2-neural = { version = "0.1.0-alpha.5", path = "./scirs2-neural" }
-scirs2-optim = { version = "0.1.0-alpha.5", path = "./scirs2-optim" }
-scirs2-graph = { version = "0.1.0-alpha.5", path = "./scirs2-graph" }
-scirs2-transform = { version = "0.1.0-alpha.5", path = "./scirs2-transform" }
-scirs2-metrics = { version = "0.1.0-alpha.5", path = "./scirs2-metrics", default-features = false }
-scirs2-text = { version = "0.1.0-alpha.5", path = "./scirs2-text" }
-scirs2-vision = { version = "0.1.0-alpha.5", path = "./scirs2-vision" }
-scirs2-series = { version = "0.1.0-alpha.5", path = "./scirs2-series" }
-scirs2-autograd = { version = "0.1.0-alpha.5", path = "./scirs2-autograd" }
+scirs2-neural = { version = "0.1.0-alpha.6", path = "./scirs2-neural" }
+scirs2-optim = { version = "0.1.0-alpha.6", path = "./scirs2-optim" }
+scirs2-graph = { version = "0.1.0-alpha.6", path = "./scirs2-graph" }
+scirs2-transform = { version = "0.1.0-alpha.6", path = "./scirs2-transform" }
+scirs2-metrics = { version = "0.1.0-alpha.6", path = "./scirs2-metrics", default-features = false }
+scirs2-text = { version = "0.1.0-alpha.6", path = "./scirs2-text" }
+scirs2-vision = { version = "0.1.0-alpha.6", path = "./scirs2-vision" }
+scirs2-series = { version = "0.1.0-alpha.6", path = "./scirs2-series" }
+scirs2-autograd = { version = "0.1.0-alpha.6", path = "./scirs2-autograd" }
 
 
 [profile.release]

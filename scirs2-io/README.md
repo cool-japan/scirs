@@ -52,14 +52,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.1.0-alpha.5"
+scirs2-io = "0.1.0-alpha.6"
 ```
 
 Enable specific features as needed:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.1.0-alpha.5", features = ["hdf5", "async", "compression"] }
+scirs2-io = { version = "0.1.0-alpha.6", features = ["hdf5", "async", "compression"] }
 ```
 
 ### Available Features
@@ -317,4 +317,4 @@ Choose the license that works best for your project.
 
 ---
 
-**Ready for Production**: scirs2-io v0.1.0-alpha.5 provides enterprise-grade I/O capabilities for scientific computing applications.
+**Ready for Production**: scirs2-io v0.1.0-alpha.6 provides enterprise-grade I/O capabilities for scientific computing applications.

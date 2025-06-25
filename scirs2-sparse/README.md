@@ -4,7 +4,7 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-sparse)](https://docs.rs/scirs2-sparse)
 
-**Production-ready sparse matrix library for Rust** - The final alpha release (0.1.0-alpha.5) before stable 1.0.0.
+**Production-ready sparse matrix library for Rust** - The final alpha release (0.1.0-alpha.6) before stable 1.0.0.
 
 SciRS2 Sparse provides comprehensive sparse matrix functionality with feature parity to SciPy's sparse module. Designed for high-performance scientific computing applications with memory-efficient storage and optimized algorithms.
 
@@ -24,7 +24,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-sparse = "0.1.0-alpha.5"
+scirs2-sparse = "0.1.0-alpha.6"
 ```
 
 ### Optional Performance Features
@@ -33,7 +33,7 @@ For enhanced performance in production environments:
 
 ```toml
 [dependencies]
-scirs2-sparse = { version = "0.1.0-alpha.5", features = ["parallel", "simd"] }
+scirs2-sparse = { version = "0.1.0-alpha.6", features = ["parallel", "simd"] }
 ```
 
 **Available Features:**

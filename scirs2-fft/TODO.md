@@ -2,7 +2,7 @@
 
 This module provides Fast Fourier Transform functionality similar to SciPy's fft module.
 
-## 🎯 **PRODUCTION STATUS: 0.1.0-alpha.5 (FINAL ALPHA)**
+## 🎯 **PRODUCTION STATUS: 0.1.0-alpha.6 (FINAL ALPHA)**
 
 **✅ ALL DEVELOPMENT COMPLETE - PRODUCTION READY**
 
@@ -132,7 +132,7 @@ This is the final alpha release before production. All major features, optimizat
 
 ## 🔮 **Post-Production Roadmap** (v0.2.0+)
 
-While 0.1.0-alpha.5 is feature-complete and production-ready, future enhancements may include:
+While 0.1.0-alpha.6 is feature-complete and production-ready, future enhancements may include:
 
 ### **Advanced Features** (Low Priority)
 - [ ] Quantum computing integration
@@ -172,7 +172,7 @@ While 0.1.0-alpha.5 is feature-complete and production-ready, future enhancement
 
 ## 🎯 **FINAL STATUS: READY FOR PRODUCTION**
 
-**scirs2-fft v0.1.0-alpha.5** represents a complete, production-ready FFT implementation with:
+**scirs2-fft v0.1.0-alpha.6** represents a complete, production-ready FFT implementation with:
 
 - **World-class performance** through multi-GPU and specialized hardware acceleration
 - **Comprehensive functionality** covering all major FFT variants and applications  

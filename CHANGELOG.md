@@ -1,4 +1,53 @@
-# SciRS2 0.1.0-alpha.5 Release Notes
+# SciRS2 0.1.0-alpha.6 Release Notes
+
+## 🚀 Major Features Added
+
+*To be updated with release highlights*
+
+## 🛠️ Improvements
+
+*To be updated with improvements*
+
+## 🐛 Bug Fixes
+
+*To be updated with bug fixes*
+
+## 📚 Documentation
+
+*To be updated with documentation changes*
+
+## 📈 Performance Improvements
+
+*To be updated with performance improvements*
+
+## 🔮 What's Next
+
+*To be updated with future plans*
+
+## 📦 Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+scirs2 = "0.1.0-alpha.6"
+```
+
+For specific modules:
+
+```toml
+[dependencies]
+scirs2-core = { version = "0.1.0-alpha.6", features = ["memory_management"] }
+scirs2-linalg = "0.1.0-alpha.6"
+scirs2-fft = "0.1.0-alpha.6"
+# ... other modules
+```
+
+---
+
+# Previous Releases
+
+## SciRS2 0.1.0-alpha.5 Release Notes
 
 ## 🚀 Major Features Added
 

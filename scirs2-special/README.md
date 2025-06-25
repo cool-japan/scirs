@@ -10,7 +10,7 @@ This module provides a comprehensive collection of special mathematical function
 
 ## Production Status
 
-✅ **Ready for production use** - Version 0.1.0-alpha.5 (Final Alpha)
+✅ **Ready for production use** - Version 0.1.0-alpha.6 (Final Alpha)
 - Zero warnings build with full clippy compliance
 - Comprehensive test coverage with property-based validation
 - Memory-safe implementations with proper error handling
@@ -54,7 +54,7 @@ Add this production-ready crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = "0.1.0-alpha.5"
+scirs2-special = "0.1.0-alpha.6"
 ```
 
 ### Recommended Configuration
@@ -63,7 +63,7 @@ For optimal performance in production applications:
 
 ```toml
 [dependencies]
-scirs2-special = { version = "0.1.0-alpha.5", features = ["parallel"] }
+scirs2-special = { version = "0.1.0-alpha.6", features = ["parallel"] }
 ```
 
 ### Available Features
