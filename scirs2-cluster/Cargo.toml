@@ -26,7 +26,7 @@ approx = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.4.0"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 
 [features]
 default = []
