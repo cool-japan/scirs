@@ -39,7 +39,7 @@ scirs2-cluster = { path = "../scirs2-cluster" }
 scirs2-interpolate = { path = "../scirs2-interpolate" }
 
 # Benchmarking framework
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 plotters = "0.3"
 
 # Array operations
@@ -47,7 +47,7 @@ ndarray = { version = "0.16.1", features = ["rayon"] }
 ndarray-rand = "0.15"
 
 # Random number generation
-rand = "0.8"
+rand = "0.9"
 rand_chacha = "0.3"
 
 # Scientific computing utilities
