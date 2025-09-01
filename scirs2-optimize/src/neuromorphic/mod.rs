@@ -187,7 +187,7 @@ impl NeuromorphicNetwork {
             for j in 0..config.num_neurons {
                 if i != j {
                     // Random connection strength
-                    connectivity[[i, j]] = rand::rng().gen_range(-0.05..0.05);
+                    connectivity[[i, j]] = rand::rng().random_range(-0.05..0.05);
                 }
             }
         }
@@ -277,7 +277,7 @@ impl NeuromorphicNetwork {
             // Add noise
             if self.config.noise_level > 0.0 {
                 let noise =
-                    rand::rng().gen_range(-self.config.noise_level..self.config.noise_level);
+                    rand::rng().random_range(-self.config.noise_level..self.config.noise_level);
                 self.neurons[i].potential += noise;
             }
 

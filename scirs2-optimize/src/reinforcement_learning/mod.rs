@@ -275,7 +275,7 @@ impl ExperienceBuffer {
     pub fn sample_batch(&self, batchsize: usize) -> Vec<Experience> {
         let mut batch = Vec::with_capacity(batchsize);
         for _ in 0..batchsize.min(self.buffer.len()) {
-            let idx = rand::rng().gen_range(0..self.buffer.len());
+            let idx = rand::rng().random_range(0..self.buffer.len());
             batch.push(self.buffer[idx].clone());
         }
         batch

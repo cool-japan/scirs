@@ -777,7 +777,7 @@ fn simulate_reconstruction_test(
 ) -> SignalResult<f64> {
     // Simulate perfect reconstruction test
     // In real implementation, this would perform actual DWT and IDWT
-    let error = 1e-14 * (1.0 + rand::rng().gen_range(0.0..1.0));
+    let error = 1e-14 * (1.0 + rand::rng().random_range(0.0..1.0));
     Ok(error)
 }
 

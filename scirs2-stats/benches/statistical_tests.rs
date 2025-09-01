@@ -3,7 +3,8 @@
 //! This benchmark suite measures the performance of various statistical tests
 //! in scirs2-stats across different sample sizes and data conditions.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::prelude::*;
 use rand_distr::{Normal, StandardNormal};

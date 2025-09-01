@@ -2096,8 +2096,8 @@ impl<F: Float> SpikingNeuralNetwork<F> {
         let new_connections = (current_connections as f64 * factor) as usize;
 
         for _ in 0..new_connections {
-            let pre_neuron = rng.gen_range(0..total_neurons);
-            let post_neuron = rng.gen_range(0..total_neurons);
+            let pre_neuron = rng.random_range(0..total_neurons);
+            let post_neuron = rng.random_range(0..total_neurons);
 
             if pre_neuron != post_neuron
                 && !self
@@ -2476,7 +2476,7 @@ impl<F: Float> SynapticConnections<F> {
                                     },
                                 };
 
-                                let delay = Duration::from_millis(rng.gen_range(1..20));
+                                let delay = Duration::from_millis(rng.random_range(1..20));
                                 self.connections.insert((pre_global, post_global), synapse);
                                 self.delays.insert((pre_global, post_global), delay);
                             }
@@ -2519,7 +2519,7 @@ impl<F: Float> SynapticConnections<F> {
                                     },
                                 };
 
-                                let delay = Duration::from_millis(rng.gen_range(1..20));
+                                let delay = Duration::from_millis(rng.random_range(1..20));
                                 self.connections.insert((pre_global, post_global), synapse);
                                 self.delays.insert((pre_global, post_global), delay);
                             }

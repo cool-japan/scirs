@@ -2716,7 +2716,7 @@ pub mod accelerated {
             let mut centers = Array2::zeros((k, n_features));
 
             // Choose first center randomly
-            let first_idx = rng.gen_range(0..n_samples);
+            let first_idx = rng.random_range(0..n_samples);
             centers.row_mut(0).assign(&data.row(first_idx));
 
             // Choose remaining centers using K-means++ algorithm
@@ -2768,8 +2768,8 @@ pub mod accelerated {
 
             // Sample random pairs and calculate distances
             for _ in 0..sample_size {
-                let i = rng.gen_range(0..n_samples);
-                let j = rng.gen_range(0..n_samples);
+                let i = rng.random_range(0..n_samples);
+                let j = rng.random_range(0..n_samples);
                 if i != j {
                     let dist = data
                         .row(i)

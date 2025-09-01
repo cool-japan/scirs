@@ -56,8 +56,8 @@ fn create_drifting_data_sequence(_num_matrices: usize, driftfactor: f32) -> Vec<
 
         // Add some outliers occasionally
         if i % 3 == 0 {
-            let r = rng.gen_range(0..10);
-            let c = rng.gen_range(0..10);
+            let r = rng.random_range(0..10);
+            let c = rng.random_range(0..10);
             matrix[[r, c]] = if rng.random_bool(0.5) {
                 mean + std_dev * 5.0
             } else {
@@ -68,8 +68,8 @@ fn create_drifting_data_sequence(_num_matrices: usize, driftfactor: f32) -> Vec<
         result.push(matrix);
 
         // Drift the distribution parameters
-        mean += driftfactor * rng.gen_range(-1.0..1.0);
-        std_dev = (std_dev + driftfactor * rng.gen_range(-0.1..0.3)).clamp(0.5f32..3.0f32);
+        mean += driftfactor * rng.random_range(-1.0..1.0);
+        std_dev = (std_dev + driftfactor * rng.random_range(-0.1..0.3)).clamp(0.5f32..3.0f32);
     }
 
     result
@@ -252,11 +252,11 @@ fn simulate_streaming_data() {
     // Simulate streaming data over time
     for t in 0..10 {
         // Update data distribution parameters (simulating real-world drift)
-        drift += rng.gen_range(-0.2..0.2);
+        drift += rng.random_range(-0.2..0.2);
 
         // Every few time steps..introduce a significant change
         if t % 3 == 0 {
-            amplitude *= rng.gen_range(0.8..1.3);
+            amplitude *= rng.random_range(0.8..1.3);
         }
 
         // Generate new data batch
@@ -311,8 +311,8 @@ fn generate_sensor_batch(
     // Add occasional outliers (sensor glitches)
     let num_outliers = (size as f32 * 0.05) as usize; // 5% outliers
     for _ in 0..num_outliers {
-        let idx = rng.gen_range(0..size);
-        let outlier_factor = rng.gen_range(3.0..5.0);
+        let idx = rng.random_range(0..size);
+        let outlier_factor = rng.random_range(3.0..5.0);
         data[[idx, 0]] = if rng.random_bool(0.5) {
             drift + amplitude * outlier_factor
         } else {

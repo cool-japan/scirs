@@ -189,12 +189,12 @@ pub fn random(shape: (usize, usize), density: f64) -> SparseResult<CsrMatrix<f64
     let mut rng = rand::rng();
 
     while count < nnz {
-        let i = rng.gen_range(0..rows);
-        let j = rng.gen_range(0..cols);
+        let i = rng.random_range(0..rows);
+        let j = rng.random_range(0..cols);
 
         if !used[i][j] {
             used[i][j] = true;
-            data.push(rng.gen_range(-1.0..1.0));
+            data.push(rng.random_range(-1.0..1.0));
             row_indices.push(i);
             col_indices.push(j);
             count += 1;

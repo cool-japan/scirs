@@ -323,7 +323,7 @@ impl QuantumHamiltonian {
         // Initialize with random energies representing computational costs
         let mut rng = rand::rng();
         for stagename in _stagenames {
-            stage_energies.insert(stagename.clone(), rng.gen_range(0.1..2.0));
+            stage_energies.insert(stagename.clone(), rng.random_range(0.1..2.0));
             external_fields.insert(stagename.clone(), 0.0);
         }
 
@@ -540,7 +540,7 @@ impl QuantumAnnealingStage {
 
         let mut param_entries: Vec<_> = neighbor_params.iter_mut().collect();
         if let Some((_param_name, param_value)) = param_entries.choose_mut(&mut rng) {
-            let perturbation = rng.gen_range(-0.1..0.1) * self.temperature / 100.0;
+            let perturbation = rng.random_range(-0.1..0.1) * self.temperature / 100.0;
             **param_value += perturbation;
             **param_value = param_value.clamp(0.0, 1.0); // Keep in valid range
         }
@@ -859,9 +859,9 @@ impl QuantumSuperpositionStage {
         for i in 0.._numvariants {
             let variant = ProcessingVariant {
                 name: format!("Variant_{i}"),
-                sigma: rng.gen_range(0.5..2.0),
-                threshold: rng.gen_range(0.05..0.3),
-                enhancement_factor: rng.gen_range(0.8..1.2),
+                sigma: rng.random_range(0.5..2.0),
+                threshold: rng.random_range(0.05..0.3),
+                enhancement_factor: rng.random_range(0.8..1.2),
             };
 
             processing_variants.push(variant);

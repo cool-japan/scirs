@@ -348,7 +348,7 @@ where
         // Sample a mini-batch
         let mut batch_indices = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
-            batch_indices.push(rng.gen_range(0..n_samples));
+            batch_indices.push(rng.random_range(0..n_samples));
         }
 
         // Create mini-batch data
@@ -461,7 +461,7 @@ where
     let mut centroids = Array2::zeros((k, n_features));
 
     // Choose the first centroid randomly
-    let first_idx = rng.gen_range(0..n_samples);
+    let first_idx = rng.random_range(0..n_samples);
     for j in 0..n_features {
         centroids[[0, j]] = data[[first_idx, j]];
     }
@@ -562,7 +562,7 @@ where
         }
 
         // Select next centroid using weighted random selection
-        let r = rng.gen_range(0.0..1.0);
+        let r = rng.random_range(0.0..1.0);
         let r_f = F::from(r).unwrap();
 
         let mut selected_idx = n_samples - 1;

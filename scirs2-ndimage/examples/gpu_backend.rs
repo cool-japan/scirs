@@ -125,6 +125,7 @@ fn gpu_with_fallback() {
 
 /// Custom operation with backend support
 #[derive(Clone)]
+#[allow(dead_code)]
 struct CustomBlurOp {
     iterations: usize,
     sigma: f32,

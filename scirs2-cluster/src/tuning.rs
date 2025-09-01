@@ -497,7 +497,7 @@ where
             let k = params.get("n_clusters").map(|&x| x as usize).unwrap_or(3);
             let max_iter = params.get("max_iter").map(|&x| x as usize);
             let tol = params.get("tolerance").copied();
-            let seed = rng.gen_range(0..u64::MAX);
+            let seed = rng.random_range(0..u64::MAX);
 
             // Perform cross-validation
             let cv_scores = self.cross_validate_kmeans(data, k, max_iter, tol, Some(seed))?;
@@ -1713,13 +1713,13 @@ where
 
             for (name, param) in &search_space.parameters {
                 let value = match param {
-                    HyperParameter::Integer { min, max } => rng.gen_range(*min..=*max) as f64,
-                    HyperParameter::Float { min, max } => rng.gen_range(*min..=*max),
+                    HyperParameter::Integer { min, max } => rng.random_range(*min..=*max) as f64,
+                    HyperParameter::Float { min, max } => rng.random_range(*min..=*max),
                     HyperParameter::Categorical { choices } => {
-                        rng.gen_range(0..choices.len()) as f64
+                        rng.random_range(0..choices.len()) as f64
                     }
                     HyperParameter::Boolean => {
-                        if rng.gen_range(0.0..1.0) < 0.5 {
+                        if rng.random_range(0.0..1.0) < 0.5 {
                             1.0
                         } else {
                             0.0
@@ -1728,11 +1728,11 @@ where
                     HyperParameter::LogUniform { min, max } => {
                         let log_min = min.ln();
                         let log_max = max.ln();
-                        let log_value = rng.gen_range(log_min..=log_max);
+                        let log_value = rng.random_range(log_min..=log_max);
                         log_value.exp()
                     }
                     HyperParameter::IntegerChoices { choices } => {
-                        let idx = rng.gen_range(0..choices.len());
+                        let idx = rng.random_range(0..choices.len());
                         choices[idx] as f64
                     }
                 };
@@ -2029,7 +2029,7 @@ where
             AcquisitionFunction::ThompsonSampling => {
                 // Sample from posterior
                 let mut rng = rand::rng();
-                let sample: f64 = rng.gen_range(0.0..1.0);
+                let sample: f64 = rng.random_range(0.0..1.0);
                 mean + std_dev * self.inverse_normal_cdf(sample)
             }
         }
@@ -2416,13 +2416,13 @@ where
                     // Add some exploration around high-variance regions
                     use rand::Rng;
                     let mut rng = rand::rng();
-                    let noise = rng.gen_range(-variance.sqrt()..variance.sqrt());
+                    let noise = rng.random_range(-variance.sqrt()..variance.sqrt());
                     (mean + noise).clamp(*min, *max)
                 }
                 HyperParameter::Integer { min, max } => {
                     use rand::Rng;
                     let mut rng = rand::rng();
-                    rng.gen_range(*min..=*max) as f64
+                    rng.random_range(*min..=*max) as f64
                 }
                 _ => mean, // Simplified for other parameter types
             };
@@ -2494,7 +2494,7 @@ where
                 HyperParameter::Integer { min, max } => {
                     use rand::Rng;
                     let mut rng = rand::rng();
-                    rng.gen_range(*min..=*max) as f64
+                    rng.random_range(*min..=*max) as f64
                 }
                 _ => {
                     let mean = values.iter().sum::<f64>() / values.len() as f64;
@@ -2542,17 +2542,17 @@ where
                 let parent2 = self.tournament_selection(&population, &mut rng)?;
 
                 // Crossover
-                let (mut child1, mut child2) = if rng.gen_range(0.0..1.0) < crossover_rate {
+                let (mut child1, mut child2) = if rng.random_range(0.0..1.0) < crossover_rate {
                     self.crossover(&parent1, &parent2, search_space, &mut rng)?
                 } else {
                     (parent1.clone(), parent2.clone())
                 };
 
                 // Mutation
-                if rng.gen_range(0.0..1.0) < mutation_rate {
+                if rng.random_range(0.0..1.0) < mutation_rate {
                     self.mutate(&mut child1, search_space, &mut rng)?;
                 }
-                if rng.gen_range(0.0..1.0) < mutation_rate {
+                if rng.random_range(0.0..1.0) < mutation_rate {
                     self.mutate(&mut child2, search_space, &mut rng)?;
                 }
 
@@ -2586,7 +2586,7 @@ where
         let mut best_individual = None;
 
         for _ in 0..tournament_size {
-            let idx = rng.gen_range(0..population.len());
+            let idx = rng.random_range(0..population.len());
             let individual = &population[idx];
 
             // In a real implementation..we would evaluate fitness here
@@ -2619,14 +2619,14 @@ where
                 HyperParameter::Float { min, max } => {
                     // Blend crossover for continuous parameters
                     let alpha = 0.5;
-                    let beta = rng.gen_range(0.0..1.0) * (1.0 + 2.0 * alpha) - alpha;
+                    let beta = rng.random_range(0.0..1.0) * (1.0 + 2.0 * alpha) - alpha;
                     let v1 = (1.0 - beta) * val1 + beta * val2;
                     let v2 = beta * val1 + (1.0 - beta) * val2;
                     (v1.clamp(*min, *max), v2.clamp(*min, *max))
                 }
                 HyperParameter::Integer { min, max } => {
                     // Single-point crossover for discrete parameters
-                    if rng.gen_range(0.0..1.0) < 0.5 {
+                    if rng.random_range(0.0..1.0) < 0.5 {
                         (
                             val1.clamp(*min as f64, *max as f64),
                             val2.clamp(*min as f64, *max as f64),
@@ -2640,7 +2640,7 @@ where
                 }
                 _ => {
                     // For other types, just swap randomly
-                    if rng.gen_range(0.0..1.0) < 0.5 {
+                    if rng.random_range(0.0..1.0) < 0.5 {
                         (val1, val2)
                     } else {
                         (val2, val1)
@@ -2663,7 +2663,7 @@ where
         rng: &mut rand::rngs::StdRng,
     ) -> Result<()> {
         for (param_name, param_spec) in &search_space.parameters {
-            if rng.gen_range(0.0..1.0) < 0.1 {
+            if rng.random_range(0.0..1.0) < 0.1 {
                 // 10% chance to mutate each parameter
                 let current_val = individual.get(param_name).copied().unwrap_or(0.0);
 
@@ -2680,13 +2680,13 @@ where
                     }
                     HyperParameter::Integer { min, max } => {
                         // Random reset mutation for discrete parameters
-                        rng.gen_range(*min..=*max) as f64
+                        rng.random_range(*min..=*max) as f64
                     }
                     HyperParameter::Categorical { choices } => {
-                        rng.gen_range(0..choices.len()) as f64
+                        rng.random_range(0..choices.len()) as f64
                     }
                     HyperParameter::Boolean => {
-                        if rng.gen_range(0.0..1.0) < 0.5 {
+                        if rng.random_range(0.0..1.0) < 0.5 {
                             1.0
                         } else {
                             0.0
@@ -2695,11 +2695,11 @@ where
                     HyperParameter::LogUniform { min, max } => {
                         let log_min = min.ln();
                         let log_max = max.ln();
-                        let log_val = rng.gen_range(log_min..=log_max);
+                        let log_val = rng.random_range(log_min..=log_max);
                         log_val.exp()
                     }
                     HyperParameter::IntegerChoices { choices } => {
-                        let idx = rng.gen_range(0..choices.len());
+                        let idx = rng.random_range(0..choices.len());
                         choices[idx] as f64
                     }
                 };
@@ -2776,7 +2776,7 @@ where
                 // LHS sampling: divide parameter _space into n_points intervals
                 let interval_size = 1.0 / n_points as f64;
                 let base_point = i as f64 * interval_size;
-                let random_offset = rng.gen_range(0.0..1.0) * interval_size;
+                let random_offset = rng.random_range(0.0..1.0) * interval_size;
                 let normalized_value = base_point + random_offset;
 
                 let value = match param_spec {
@@ -2991,11 +2991,11 @@ where
                     let perturbed_value = match param_spec {
                         HyperParameter::Float { min, max } => {
                             let noise_scale = (max - min) * 0.1; // 10% of range
-                            let noise = rng.gen_range(-noise_scale..noise_scale);
+                            let noise = rng.random_range(-noise_scale..noise_scale);
                             (center_value + noise).clamp(*min, *max)
                         }
                         HyperParameter::Integer { min, max } => {
-                            let noise = rng.gen_range(-2..=2);
+                            let noise = rng.random_range(-2..=2);
                             (center_value + noise as f64)
                                 .round()
                                 .clamp(*min as f64, *max as f64)
@@ -3059,7 +3059,7 @@ where
             AcquisitionFunction::ThompsonSampling => {
                 // Thompson sampling: sample from posterior
                 let mut rng = rand::rng();
-                mean + std_dev * rng.gen_range(-1.0..1.0)
+                mean + std_dev * rng.random_range(-1.0..1.0)
             }
         }
     }
@@ -4452,8 +4452,8 @@ pub mod advanced_optimization {
 
             for (name, param) in &search_space.parameters {
                 let value = match param {
-                    HyperParameter::Float { min, max } => rng.gen_range(*min..*max),
-                    HyperParameter::Integer { min, max } => rng.gen_range(*min..*max) as f64,
+                    HyperParameter::Float { min, max } => rng.random_range(*min..*max),
+                    HyperParameter::Integer { min, max } => rng.random_range(*min..*max) as f64,
                     _ => 1.0, // Stub
                 };
                 params.insert(name.clone(), value);
@@ -4770,10 +4770,10 @@ pub mod neural_architecture_search {
 
             // Simple 2-layer network for hyperparameter generation
             let w1 = Array2::from_shape_fn((input_dim, hiddendim), |_| {
-                F::from(rng.gen_range(-0.1..0.1)).unwrap()
+                F::from(rng.random_range(-0.1..0.1)).unwrap()
             });
             let w2 = Array2::from_shape_fn((hiddendim, self.search_space.parameters.len()), |_| {
-                F::from(rng.gen_range(-0.1..0.1)).unwrap()
+                F::from(rng.random_range(-0.1..0.1)).unwrap()
             });
 
             self.controller_weights = vec![w1, w2];
@@ -5036,20 +5036,20 @@ pub mod neural_architecture_search {
                 for (param_name, param_def) in &self.search_space.parameters {
                     let value = match param_def {
                         HyperParameter::Float { min, max } => {
-                            let random_val = rng.gen_range(0.0..1.0);
+                            let random_val = rng.random_range(0.0..1.0);
                             F::from(*min).unwrap()
                                 + F::from(random_val).unwrap() * F::from(max - min).unwrap()
                         }
                         HyperParameter::Integer { min, max } => {
-                            let val = rng.gen_range(*min..=*max);
+                            let val = rng.random_range(*min..=*max);
                             F::from(val).unwrap()
                         }
                         HyperParameter::Categorical { choices } => {
-                            let idx = rng.gen_range(0..choices.len());
+                            let idx = rng.random_range(0..choices.len());
                             F::from(idx).unwrap()
                         }
                         HyperParameter::Boolean => {
-                            if rng.gen_range(0.0..1.0) > 0.5 {
+                            if rng.random_range(0.0..1.0) > 0.5 {
                                 F::one()
                             } else {
                                 F::zero()
@@ -5059,11 +5059,11 @@ pub mod neural_architecture_search {
                             let log_min = min.ln();
                             let log_max = max.ln();
                             let log_val =
-                                log_min + rng.gen_range(0.0..1.0) * (log_max - log_min);
+                                log_min + rng.random_range(0.0..1.0) * (log_max - log_min);
                             F::from(log_val.exp()).unwrap()
                         }
                         HyperParameter::IntegerChoices { choices } => {
-                            let idx = rng.gen_range(0..choices.len());
+                            let idx = rng.random_range(0..choices.len());
                             F::from(choices[idx]).unwrap()
                         }
                     };
@@ -5089,9 +5089,9 @@ pub mod neural_architecture_search {
             match &self.algorithm {
                 BanditAlgorithm::EpsilonGreedy { epsilon } => {
                     let mut rng = rand::rng();
-                    if rng.gen_range(0.0..1.0) < *epsilon {
+                    if rng.random_range(0.0..1.0) < *epsilon {
                         // Explore: choose random arm
-                        Ok(rng.gen_range(0..self.arms.len()))
+                        Ok(rng.random_range(0..self.arms.len()))
                     } else {
                         // Exploit: choose best arm
                         let mut best_arm = 0;
@@ -5140,7 +5140,7 @@ pub mod neural_architecture_search {
                 _ => {
                     // Default to random selection for other algorithms
                     let mut rng = rand::rng();
-                    Ok(rng.gen_range(0..self.arms.len()))
+                    Ok(rng.random_range(0..self.arms.len()))
                 }
             }
         }
@@ -5314,20 +5314,20 @@ pub mod neural_architecture_search {
                 for (param_name, param_def) in &self.search_space.parameters {
                     let value = match param_def {
                         HyperParameter::Float { min, max } => {
-                            let random_val = rng.gen_range(0.0..1.0);
+                            let random_val = rng.random_range(0.0..1.0);
                             F::from(*min).unwrap()
                                 + F::from(random_val).unwrap() * F::from(max - min).unwrap()
                         }
                         HyperParameter::Integer { min, max } => {
-                            let val = rng.gen_range(*min..=*max);
+                            let val = rng.random_range(*min..=*max);
                             F::from(val).unwrap()
                         }
                         HyperParameter::Categorical { choices } => {
-                            let idx = rng.gen_range(0..choices.len());
+                            let idx = rng.random_range(0..choices.len());
                             F::from(idx).unwrap()
                         }
                         HyperParameter::Boolean => {
-                            if rng.gen_range(0.0..1.0) > 0.5 {
+                            if rng.random_range(0.0..1.0) > 0.5 {
                                 F::one()
                             } else {
                                 F::zero()
@@ -5337,11 +5337,11 @@ pub mod neural_architecture_search {
                             let log_min = min.ln();
                             let log_max = max.ln();
                             let log_val =
-                                log_min + rng.gen_range(0.0..1.0) * (log_max - log_min);
+                                log_min + rng.random_range(0.0..1.0) * (log_max - log_min);
                             F::from(log_val.exp()).unwrap()
                         }
                         HyperParameter::IntegerChoices { choices } => {
-                            let idx = rng.gen_range(0..choices.len());
+                            let idx = rng.random_range(0..choices.len());
                             F::from(choices[idx]).unwrap()
                         }
                     };
@@ -5398,15 +5398,15 @@ pub mod neural_architecture_search {
 
             while new_population.len() < self.population_size {
                 // Select two parents (tournament selection)
-                let parent1_idx = rng.gen_range(0..survivors.len());
-                let parent2_idx = rng.gen_range(0..survivors.len());
+                let parent1_idx = rng.random_range(0..survivors.len());
+                let parent2_idx = rng.random_range(0..survivors.len());
                 let parent1 = &survivors[parent1_idx];
                 let parent2 = &survivors[parent2_idx];
 
                 // Crossover
                 let mut child_config = HashMap::new();
                 for (param_name, _) in &self.search_space.parameters {
-                    let value = if rng.gen_range(0.0..1.0) < 0.5 {
+                    let value = if rng.random_range(0.0..1.0) < 0.5 {
                         parent1.config[param_name]
                     } else {
                         parent2.config[param_name]
@@ -5415,7 +5415,7 @@ pub mod neural_architecture_search {
                 }
 
                 // Mutation
-                if rng.gen_range(0.0..1.0) < self.mutation_rate {
+                if rng.random_range(0.0..1.0) < self.mutation_rate {
                     self.mutate_config(&mut child_config)?;
                 }
 
@@ -5442,7 +5442,7 @@ pub mod neural_architecture_search {
                 return Ok(());
             }
 
-            let param_name = &param_names[rng.gen_range(0..param_names.len())];
+            let param_name = &param_names[rng.random_range(0..param_names.len())];
 
             if let Some(param_def) = self
                 .search_space
@@ -5454,18 +5454,18 @@ pub mod neural_architecture_search {
                 let new_value = match param_def {
                     HyperParameter::Float { min, max } => {
                         let current = config[param_name];
-                        let noise_val = rng.gen_range(-0.1..0.1);
+                        let noise_val = rng.random_range(-0.1..0.1);
                         let noise = F::from(noise_val).unwrap() * F::from(max - min).unwrap();
                         (current + noise)
                             .max(F::from(*min).unwrap())
                             .min(F::from(*max).unwrap())
                     }
                     HyperParameter::Integer { min, max } => {
-                        let val = rng.gen_range(*min..=*max);
+                        let val = rng.random_range(*min..=*max);
                         F::from(val).unwrap()
                     }
                     HyperParameter::Categorical { choices } => {
-                        let idx = rng.gen_range(0..choices.len());
+                        let idx = rng.random_range(0..choices.len());
                         F::from(idx).unwrap()
                     }
                     HyperParameter::Boolean => {
@@ -5478,11 +5478,11 @@ pub mod neural_architecture_search {
                     HyperParameter::LogUniform { min, max } => {
                         let log_min = min.ln();
                         let log_max = max.ln();
-                        let log_val = rng.gen_range(log_min..log_max);
+                        let log_val = rng.random_range(log_min..log_max);
                         F::from(log_val.exp()).unwrap()
                     }
                     HyperParameter::IntegerChoices { choices } => {
-                        let idx = rng.gen_range(0..choices.len());
+                        let idx = rng.random_range(0..choices.len());
                         F::from(choices[idx]).unwrap()
                     }
                 };

@@ -59,13 +59,13 @@ impl EvolutionaryStrategy {
 
         // Generate new population
         for i in elite_size..self.population_size {
-            let parent_idx = indices[rand::rng().gen_range(0..elite_size)];
+            let parent_idx = indices[rand::rng().random_range(0..elite_size)];
             let parent = &self.population[parent_idx];
 
             // Mutate
             let mut offspring = parent.clone();
             for j in 0..offspring.len() {
-                offspring[j] += self.sigma * (rand::rng().gen_range(-0.5..0.5));
+                offspring[j] += self.sigma * (rand::rng().random_range(-0.5..0.5));
             }
 
             self.population[i] = offspring;

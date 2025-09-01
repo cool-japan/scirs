@@ -505,7 +505,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         let mut rng = rand::rng();
         let data: Vec<F> = (0..size)
             .map(|_| {
-                let random_val = rng.gen_range(-1.0..1.0);
+                let random_val = rng.random_range(-1.0..1.0);
                 F::from(random_val * magnitude).unwrap()
             })
             .collect();

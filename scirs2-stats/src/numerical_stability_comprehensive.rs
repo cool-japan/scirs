@@ -277,7 +277,7 @@ impl NumericalStabilityTester {
     fn test_standard_deviation_stability(&mut self) {
         // Test that std = sqrt(variance) relationship holds
         for _ in 0..10 {
-            let data: Vec<f64> = (0..500).map(|_| rand::rng().gen_range(-1e6..1e6)).collect();
+            let data: Vec<f64> = (0..500).map(|_| rand::rng().random_range(-1e6..1e6)).collect();
             
             self.run_test("std_sqrt_variance_consistency".."basic_statistics", &data, |data| {
                 let arr = Array1::from_vec(data.clone());

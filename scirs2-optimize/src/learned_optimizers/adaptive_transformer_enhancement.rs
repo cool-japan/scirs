@@ -1382,7 +1382,7 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
                 }
                 super::ParameterDistribution::Custom { samples } => {
                     if !samples.is_empty() {
-                        samples[rand::rng().gen_range(0..samples.len())].clone()
+                        samples[rand::rng().random_range(0..samples.len())].clone()
                     } else {
                         Array1::zeros(task.problem.dimension)
                     }

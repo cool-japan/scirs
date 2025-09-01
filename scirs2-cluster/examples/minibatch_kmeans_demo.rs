@@ -128,8 +128,8 @@ fn generate_clustered_data(n_samples: usize, ndim: usize) -> Array2<f64> {
     let cluster2_dist = Uniform::new(-0.5, 0.5).unwrap();
 
     // Create centers for the clusters
-    let center1: Vec<f64> = (0..ndim).map(|_| rng.gen_range(0.0..2.0)).collect();
-    let center2: Vec<f64> = (0..ndim).map(|_| rng.gen_range(8.0..10.0)).collect();
+    let center1: Vec<f64> = (0..ndim).map(|_| rng.random_range(0.0..2.0)).collect();
+    let center2: Vec<f64> = (0..ndim).map(|_| rng.random_range(8.0..10.0)).collect();
 
     // Allocate data array
     let mut data = Vec::with_capacity(n_samples * ndim);

@@ -808,7 +808,7 @@ fn calculate_isolation_path_length(
     }
 
     // Randomly select a feature and split value
-    let feature_idx = rng.gen_range(0..data.ncols());
+    let feature_idx = rng.random_range(0..data.ncols());
     let feature_values: Vec<f64> = data.column(feature_idx).to_vec();
     let min_val = feature_values.iter().copied().fold(f64::INFINITY, f64::min);
     let max_val = feature_values

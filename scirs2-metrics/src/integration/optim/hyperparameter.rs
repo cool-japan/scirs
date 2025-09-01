@@ -124,7 +124,7 @@ impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> HyperParameter<F> {
         if self.is_categorical {
             if let Some(values) = &self.categorical_values {
                 let mut rng = rand::rng();
-                let idx = rng.gen_range(0..values.len());
+                let idx = rng.random_range(0..values.len());
                 return values[idx];
             }
         }

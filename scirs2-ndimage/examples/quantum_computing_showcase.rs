@@ -89,6 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[allow(dead_code)]
 struct TestImages {
     original: Array2<f64>,
     noisy: Array2<f64>,

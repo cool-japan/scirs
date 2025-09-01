@@ -353,7 +353,7 @@ where
 
             // Add quantum noise
             let noise =
-                T::from_f64(config.noise_level * rng.gen_range(-0.5..0.5)).ok_or_else(|| {
+                T::from_f64(config.noise_level * rng.random_range(-0.5..0.5)).ok_or_else(|| {
                     NdimageError::ComputationError("Noise generation failed".to_string())
                 })?;
 
@@ -533,9 +533,9 @@ where
                 NdimageError::ComputationError("Tunneling probability failed".to_string())
             })?;
 
-            if rng.gen_range(0.0..1.0) < tunneling_prob.to_f64().unwrap_or(0.0) {
+            if rng.random_range(0.0..1.0) < tunneling_prob.to_f64().unwrap_or(0.0) {
                 // Quantum tunnel to new state
-                segmentation[(y, x)] = rng.gen_range(0..4); // Assuming 4 segments max for demo
+                segmentation[(y, x)] = rng.random_range(0..4); // Assuming 4 segments max for demo
             }
         }
     }
@@ -554,7 +554,7 @@ fn apply_quantum_decoherence<T>(
 
     for y in 0..height {
         for x in 0..width {
-            if rng.gen_range(0.0..1.0) > coherence_threshold {
+            if rng.random_range(0.0..1.0) > coherence_threshold {
                 // Decoherence event - collapse to classical state
                 segmentation[(y, x)] = 0;
             }
@@ -603,7 +603,7 @@ where
         let prob_right = image[(y, (x + 1).min(width - 1))].to_f64().unwrap_or(0.0);
         let total_prob = prob_up + prob_right;
 
-        if total_prob > 0.0 && rng.gen_range(0.0..1.0) < prob_up / total_prob {
+        if total_prob > 0.0 && rng.random_range(0.0..1.0) < prob_up / total_prob {
             y = y.saturating_sub(1);
         } else {
             x = (x + 1).min(width - 1);
@@ -1167,7 +1167,7 @@ where
 
     // Initialize with small random values
     for i in 0..param_count {
-        let random_value = T::from_f64(rng.gen_range(-0.05..0.05)).unwrap();
+        let random_value = T::from_f64(rng.random_range(-0.05..0.05)).unwrap();
         parameters[i] = random_value;
     }
 

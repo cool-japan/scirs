@@ -3,7 +3,8 @@
 //! This module contains benchmarks for distance transform algorithms,
 //! comparing the optimized separable algorithm against the brute force approach.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::{Array2, Array3, IxDyn};
 use scirs2_ndimage::morphology::{distance_transform_bf, distance_transform_edt};
 

@@ -391,7 +391,7 @@ where
 
     // Shuffle and take first k
     for i in 0..k {
-        let j = rng.gen_range(i..n_samples);
+        let j = rng.random_range(i..n_samples);
         indices.swap(i, j);
     }
 
@@ -425,7 +425,7 @@ where
     let mut centroids = Array2::zeros((k, n_features));
 
     // Choose first centroid randomly
-    let first_idx = rng.gen_range(0..n_samples);
+    let first_idx = rng.random_range(0..n_samples);
     for j in 0..n_features {
         centroids[[0, j]] = data[[first_idx, j]];
     }

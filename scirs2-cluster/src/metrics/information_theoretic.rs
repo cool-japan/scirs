@@ -1041,7 +1041,7 @@ pub mod advanced_validation {
                     // Create bootstrap sample indices
                     let mut rng = rand::rng();
                     let indices: Vec<usize> = (0..sample_size)
-                        .map(|_| rng.gen_range(0..n_samples))
+                        .map(|_| rng.random_range(0..n_samples))
                         .collect();
 
                     // Extract bootstrap sample
@@ -1151,7 +1151,7 @@ pub mod advanced_validation {
                                 rand::rngs::StdRng::seed_from_u64(self.seed.wrapping_add(1));
 
                             let indices: Vec<usize> = (0..sample_size)
-                                .map(|_| rng.gen_range(0..n_samples))
+                                .map(|_| rng.random_range(0..n_samples))
                                 .collect();
 
                             let mut bootstrapdata = Array2::zeros((sample_size, data.ncols()));

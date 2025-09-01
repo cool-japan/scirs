@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates and validates basic Advanced mode functionality.
 
-use rand::thread_rng;
+use rand::rng;
 use scirs2_graph::{
     algorithms::{connected_components, dijkstra_path},
     generators::erdos_renyi_graph,
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     println!("====================================");
 
     // Create a small test graph
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let graph = erdos_renyi_graph(100, 0.1, &mut rng)?;
 
     println!("✅ Generated test graph:");

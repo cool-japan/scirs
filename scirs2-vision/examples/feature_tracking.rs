@@ -175,9 +175,9 @@ fn create_synthetic_sequence() -> Result<Vec<DynamicImage>> {
         // Add some noise
         let mut rng = rand::rng();
         for _ in 0..100 {
-            let x = rng.gen_range(0..width);
-            let y = rng.gen_range(0..height);
-            let intensity = rng.gen_range(100u8..200u8);
+            let x = rng.random_range(0..width);
+            let y = rng.random_range(0..height);
+            let intensity = rng.random_range(100u8..200u8);
             if x < width && y < height {
                 img.put_pixel(x, y, Luma([intensity]));
             }

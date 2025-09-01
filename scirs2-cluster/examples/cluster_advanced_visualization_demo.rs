@@ -488,8 +488,8 @@ fn generate_2d_clustering_data_size(size: usize) -> (Array2<f64>, Array1<i32>, A
         let start_idx = cluster_id * points_per_cluster;
 
         for _ in start_idx..end_idx {
-            data_vec.push(cx + rng.gen_range(-0.5..0.5));
-            data_vec.push(cy + rng.gen_range(-0.5..0.5));
+            data_vec.push(cx + rng.random_range(-0.5..0.5));
+            data_vec.push(cy + rng.random_range(-0.5..0.5));
             labels_vec.push(cluster_id as i32);
         }
     }
@@ -545,7 +545,7 @@ fn generate_high_dimensional_data() -> (Array2<f64>, Array1<i32>, Array2<f64>) {
 
         for _ in 0..(n_samples / n_clusters) {
             for j in 0..n_features {
-                data_vec.push(cluster_center[j] + rng.gen_range(-1.0..1.0));
+                data_vec.push(cluster_center[j] + rng.random_range(-1.0..1.0));
             }
             labels_vec.push(cluster_id as i32);
         }
@@ -568,7 +568,7 @@ fn generate_random_centroids(k: usize, nfeatures: usize) -> Array2<f64> {
 
     for i in 0..k {
         for j in 0..nfeatures {
-            centroids[[i, j]] = rng.gen_range(-2.0..8.0);
+            centroids[[i, j]] = rng.random_range(-2.0..8.0);
         }
     }
 

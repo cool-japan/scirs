@@ -6,7 +6,7 @@ use std::hint::black_box;
 
 #[allow(dead_code)]
 fn generate_sparse_matrix(size: usize, density: f64) -> (Vec<usize>, Vec<usize>, Vec<f64>) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut rows = Vec::new();
     let mut cols = Vec::new();
     let mut data = Vec::new();
@@ -187,7 +187,7 @@ fn bench_linear_solvers(c: &mut Criterion) {
         }
 
         // Add some off-diagonal elements
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 0..*size {
             for j in (i + 1)..*size {
                 if rng.random::<f64>() < 0.02 {
@@ -239,7 +239,7 @@ fn bench_symmetric_operations(c: &mut Criterion) {
         let mut rows = Vec::new();
         let mut cols = Vec::new();
         let mut data = Vec::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for i in 0..*size {
             for j in 0..=i {

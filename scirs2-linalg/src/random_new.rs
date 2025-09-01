@@ -470,7 +470,7 @@ where
     let mut rng = create&mut rng(seed);
     
     // Generate a random matrix
-    let a = normal(n, n, F::zero(), F::one(), Some(rng.gen_range(0..u64::MAX)));
+    let a = normal(n, n, F::zero(), F::one(), Some(rng.random_range(0..u64::MAX)));
     
     // Compute A^T * A which is guaranteed to be symmetric positive semidefinite
     let at = a.t();
@@ -540,7 +540,7 @@ where
     let mut rng = create&mut rng(seed);
     
     // Generate a random complex matrix
-    let a = complex(n, n, F::zero(), F::one(), F::zero(), F::one(), Some(rng.gen_range(0..u64::MAX)));
+    let a = complex(n, n, F::zero(), F::one(), F::zero(), F::one(), Some(rng.random_range(0..u64::MAX)));
     
     // Compute A^H * A which is guaranteed to be Hermitian positive semidefinite
     let mut result = Array2::<Complex<F>>::zeros((n, n));

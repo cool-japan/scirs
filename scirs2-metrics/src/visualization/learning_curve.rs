@@ -397,14 +397,14 @@ where
 
         let train_fold_scores: Vec<f64> = (0..config.cv_folds)
             .map(|_| {
-                let noise = rng.gen_range(-fold_variance..fold_variance);
+                let noise = rng.random_range(-fold_variance..fold_variance);
                 (base_train_score + noise).clamp(0.0, 1.0)
             })
             .collect();
 
         let val_fold_scores: Vec<f64> = (0..config.cv_folds)
             .map(|_| {
-                let noise = rng.gen_range(-fold_variance * 1.5..fold_variance * 1.5);
+                let noise = rng.random_range(-fold_variance * 1.5..fold_variance * 1.5);
                 (base_val_score + noise).clamp(0.0, 1.0)
             })
             .collect();
@@ -502,7 +502,7 @@ where
         for fold in 0..cv {
             // Shuffle indices for this fold
             for i in 0..indices.len() {
-                let j = rng.gen_range(0..indices.len());
+                let j = rng.random_range(0..indices.len());
                 indices.swap(i, j);
             }
 

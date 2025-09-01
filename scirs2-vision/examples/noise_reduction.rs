@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Load or create an image
     let input_image = get_input_image()?;
-    let (_width_height) = input_image.dimensions();
+    let _width_height = input_image.dimensions();
 
     // Create a copy with random noise (salt and pepper)
     let mut noisy_image = input_image.to_rgba8();

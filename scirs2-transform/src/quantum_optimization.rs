@@ -968,7 +968,7 @@ impl AdvancedQuantumOptimizer {
         let progress = iteration as f64 / maxiterations as f64;
 
         // ✅ Advanced OPTIMIZATION: Adaptive quantum collapse
-        if rand::rng().gen_range(0.0..1.0) < self.adaptive_params.collapse_probability {
+        if rand::rng().random_range(0.0..1.0) < self.adaptive_params.collapse_probability {
             self.quantum_collapse_advanced()?;
         }
 

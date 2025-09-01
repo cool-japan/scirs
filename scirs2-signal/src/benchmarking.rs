@@ -994,7 +994,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
                     let t = i as f64 / 44100.0; // 44.1 kHz sample rate
                     0.5 * (2.0 * PI * 440.0 * t).sin() + // A4 note
                     0.3 * (2.0 * PI * 880.0 * t).sin() + // A5 note
-                    0.1 * rand::rng().gen_range(-1.0..1.0) // Noise
+                    0.1 * rand::rng().random_range(-1.0..1.0) // Noise
                 })
                 .collect()
         }
@@ -1009,7 +1009,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
                     } else {
                         0.0
                     };
-                    heartbeat + qrs + 0.05 * rand::rng().gen_range(-1.0..1.0)
+                    heartbeat + qrs + 0.05 * rand::rng().random_range(-1.0..1.0)
                 })
                 .collect()
         }

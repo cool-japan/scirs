@@ -120,7 +120,7 @@ where
         for &i in dims.iter().take(num_dims_to_perturb) {
             let perturbation = self
                 .rng
-                .gen_range(-self.options.step_size..self.options.step_size);
+                .random_range(-self.options.step_size..self.options.step_size);
             neighbor[i] += perturbation;
 
             // Apply bounds if specified

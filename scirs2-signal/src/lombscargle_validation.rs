@@ -3508,7 +3508,7 @@ fn validate_against_scipy_reference(
         // Generate test signal
         let n = 1000;
         let t: Vec<f64> = (0..n)
-            .map(|i| i as f64 * 0.01 + rand::rng().gen_range(0.0..0.001))
+            .map(|i| i as f64 * 0.01 + rand::rng().random_range(0.0..0.001))
             .collect();
         let freq1 = 0.5;
         let freq2 = 1.5;

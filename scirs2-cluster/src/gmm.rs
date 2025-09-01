@@ -218,7 +218,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum + std::borrow::Borro
 
                 let mut means = Array2::zeros((n_components, n_features));
                 for i in 0..n_components {
-                    let idx = rng.gen_range(0..n_samples);
+                    let idx = rng.random_range(0..n_samples);
                     means.slice_mut(s![i, ..]).assign(&data.slice(s![idx, ..]));
                 }
                 means

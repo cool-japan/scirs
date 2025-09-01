@@ -26,7 +26,7 @@ fn create_randomarray2_f32(rows: usize, cols: usize) -> Array2<f32> {
 
     for i in 0.._rows {
         for j in 0..cols {
-            matrix[[i, j]] = rng.gen_range(-1.0..1.0);
+            matrix[[i, j]] = rng.random_range(-1.0..1.0);
         }
     }
 

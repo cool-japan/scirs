@@ -433,7 +433,7 @@ impl LatentDirichletAllocation {
         let mut components = Array2::zeros((self.config.ntopics, n_features));
         for mut row in components.axis_iter_mut(Axis(0)) {
             for val in row.iter_mut() {
-                *val = rng.gen_range(0.0..1.0);
+                *val = rng.random_range(0.0..1.0);
             }
             // Normalize each topic
             let row_sum: f64 = row.sum();

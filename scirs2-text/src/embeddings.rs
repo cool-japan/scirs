@@ -606,7 +606,7 @@ impl Word2Vec {
         for pos in 0..sentence.len() {
             // Determine context window (with random size)
             let mut rng = rand::rng();
-            let window = 1 + rng.gen_range(0..window_size);
+            let window = 1 + rng.random_range(0..window_size);
             let target_word = sentence[pos];
 
             // Collect context words and average their vectors
@@ -715,7 +715,7 @@ impl Word2Vec {
         for pos in 0..sentence.len() {
             // Determine context window (with random size)
             let mut rng = rand::rng();
-            let window = 1 + rng.gen_range(0..window_size);
+            let window = 1 + rng.random_range(0..window_size);
             let target_word = sentence[pos];
 
             // For each context position

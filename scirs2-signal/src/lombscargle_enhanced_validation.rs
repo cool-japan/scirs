@@ -2536,7 +2536,7 @@ fn test_cross_validation(
     let f_true = 8.0;
     let signal: Vec<f64> = t
         .iter()
-        .map(|&ti| (2.0 * PI * f_true * ti).sin() + 0.1 * rand::rng().gen_range(-1.0..1.0))
+        .map(|&ti| (2.0 * PI * f_true * ti).sin() + 0.1 * rand::rng().random_range(-1.0..1.0))
         .collect();
 
     // K-fold cross-validation (k=5)
@@ -2647,7 +2647,7 @@ fn perform_bootstrap_validation(
         let mut boot_signal = Vec::new();
 
         for _ in 0..n {
-            let idx = rand::rng().gen_range(0..n);
+            let idx = rand::rng().random_range(0..n);
             boot_t.push(t[idx]);
             boot_signal.push(signal[idx]);
         }

@@ -443,7 +443,7 @@ impl AdvancedParallelSwarmOptimizer {
             for i in 0..swarm_size {
                 for j in 0..problem_dim {
                     let (lower, upper) = bounds[j];
-                    let random_pos = rand::rng().gen_range(lower..upper);
+                    let random_pos = rand::rng().random_range(lower..upper);
                     swarm.positions[[i, j]] = random_pos;
                     swarm.personal_bests[[i, j]] = random_pos;
                 }
@@ -515,17 +515,17 @@ impl AdvancedParallelSwarmOptimizer {
                 let (lower, upper) = bounds[j];
                 let velocity_range = (upper - lower) * 0.1;
                 swarm.velocities[[i, j]] =
-                    rand::rng().gen_range(-velocity_range..velocity_range);
+                    rand::rng().random_range(-velocity_range..velocity_range);
             }
         }
 
         // Initialize PSO-specific state
         let inertia_weights = Array1::from_shape_fn(self.config.swarm_size, |_| {
-            rand::rng().gen_range(0.4..0.9) // Random inertia weights between 0.4 and 0.9
+            rand::rng().random_range(0.4..0.9) // Random inertia weights between 0.4 and 0.9
         });
 
         let acceleration_coefficients = Array2::from_shape_fn((self.config.swarm_size, 2), |_| {
-            rand::rng().gen_range(1.5..2.5) // c1 and c2 between 1.5 and 2.5
+            rand::rng().random_range(1.5..2.5) // c1 and c2 between 1.5 and 2.5
         });
 
         // Create neighborhood topology (ring topology by default)
@@ -595,7 +595,7 @@ impl AdvancedParallelSwarmOptimizer {
 
         let trial_counters = Array1::zeros(self.config.swarm_size);
         let nectar_amounts = Array1::from_shape_fn(self.config.swarm_size, |_| {
-            rand::rng().gen_range(0.0..1.0)
+            rand::rng().random_range(0.0..1.0)
         });
 
         swarm.algorithm_state = AlgorithmSpecificState::ArtificialBee {
@@ -616,16 +616,16 @@ impl AdvancedParallelSwarmOptimizer {
     ) -> ScirsResult<()> {
         let brightness_matrix =
             Array2::from_shape_fn((self.config.swarm_size, self.config.swarm_size), |_| {
-                rand::rng().gen_range(0.0..1.0)
+                rand::rng().random_range(0.0..1.0)
             });
 
         let attraction_matrix =
             Array2::from_shape_fn((self.config.swarm_size, self.config.swarm_size), |_| {
-                rand::rng().gen_range(0.0..1.0)
+                rand::rng().random_range(0.0..1.0)
             });
 
         let randomization_factors = Array1::from_shape_fn(self.config.swarm_size, |_| {
-            rand::rng().gen_range(0.2..0.8)
+            rand::rng().random_range(0.2..0.8)
         });
 
         swarm.algorithm_state = AlgorithmSpecificState::Firefly {
@@ -652,13 +652,13 @@ impl AdvancedParallelSwarmOptimizer {
                 / (tgamma((1.0 + beta) / 2.0) * beta * 2.0_f64.powf((beta - 1.0) / 2.0)))
             .powf(1.0 / beta);
 
-            let u = rand::rng().gen_range(0.0..1.0) * sigma;
-            let v: f64 = rand::rng().gen_range(0.0..1.0);
+            let u = rand::rng().random_range(0.0..1.0) * sigma;
+            let v: f64 = rand::rng().random_range(0.0..1.0);
             u / v.abs().powf(1.0 / beta)
         });
 
         let step_sizes = Array1::from_shape_fn(self.config.swarm_size, |_| {
-            rand::rng().gen_range(0.01..0.11)
+            rand::rng().random_range(0.01..0.11)
         });
 
         swarm.algorithm_state = AlgorithmSpecificState::CuckooSearch {
@@ -841,8 +841,8 @@ impl AdvancedParallelSwarmOptimizer {
 
             for i in 0..self.config.swarm_size {
                 for j in 0..problem_dim {
-                    let r1 = rand::rng().gen_range(0.0..1.0);
-                    let r2 = rand::rng().gen_range(0.0..1.0);
+                    let r1 = rand::rng().random_range(0.0..1.0);
+                    let r2 = rand::rng().random_range(0.0..1.0);
 
                     let cognitive_component = acceleration_coefficients[[i, 0]]
                         * r1
@@ -923,7 +923,7 @@ impl AdvancedParallelSwarmOptimizer {
 
                     // Update ant position
                     swarm.positions[[ant_idx, dim]] +=
-                        best_move + rand::rng().gen_range(-0.005..0.005);
+                        best_move + rand::rng().random_range(-0.005..0.005);
                 }
 
                 // Pheromone deposition based on solution quality
@@ -973,14 +973,14 @@ impl AdvancedParallelSwarmOptimizer {
                 if employed_bees[i] {
                     // Generate new solution in neighborhood
                     let partner = loop {
-                        let p = rand::rng().gen_range(0..self.config.swarm_size);
+                        let p = rand::rng().random_range(0..self.config.swarm_size);
                         if p != i {
                             break p;
                         }
                     };
 
-                    let dimension = rand::rng().gen_range(0..problem_dim);
-                    let phi = rand::rng().gen_range(-1.0..1.0);
+                    let dimension = rand::rng().random_range(0..problem_dim);
+                    let phi = rand::rng().random_range(-1.0..1.0);
 
                     let mut new_position = swarm.positions.row(i).to_owned();
                     new_position[dimension] = swarm.positions[[i, dimension]]
@@ -990,7 +990,7 @@ impl AdvancedParallelSwarmOptimizer {
 
                     // Evaluate new position (simplified)
                     let new_fitness =
-                        swarm.current_fitness[i] + rand::rng().gen_range(-0.05..0.05);
+                        swarm.current_fitness[i] + rand::rng().random_range(-0.05..0.05);
 
                     // Greedy selection
                     if new_fitness < swarm.current_fitness[i] {
@@ -1012,14 +1012,14 @@ impl AdvancedParallelSwarmOptimizer {
                 if onlooker_bees[i] && total_nectar > 0.0 {
                     // Probability-based source selection
                     let mut cumulative = 0.0;
-                    let random_val = rand::rng().gen_range(0.0..1.0);
+                    let random_val = rand::rng().random_range(0.0..1.0);
 
                     for j in 0..self.config.swarm_size {
                         cumulative += nectar_amounts[j] / total_nectar;
                         if random_val <= cumulative {
                             // Follow employed bee j
-                            let dimension = rand::rng().gen_range(0..problem_dim);
-                            let phi = rand::rng().gen_range(-1.0..1.0);
+                            let dimension = rand::rng().random_range(0..problem_dim);
+                            let phi = rand::rng().random_range(-1.0..1.0);
 
                             swarm.positions[[i, dimension]] = swarm.positions[[j, dimension]]
                                 + phi
@@ -1036,10 +1036,10 @@ impl AdvancedParallelSwarmOptimizer {
                 if trial_counters[i] > limit {
                     // Abandon solution and scout for new one
                     for j in 0..problem_dim {
-                        swarm.positions[[i, j]] = rand::rng().gen_range(-1.0..1.0);
+                        swarm.positions[[i, j]] = rand::rng().random_range(-1.0..1.0);
                     }
                     trial_counters[i] = 0;
-                    nectar_amounts[i] = rand::rng().gen_range(0.0..1.0);
+                    nectar_amounts[i] = rand::rng().random_range(0.0..1.0);
                 }
             }
         }
@@ -1090,7 +1090,7 @@ impl AdvancedParallelSwarmOptimizer {
                         // Move firefly i towards j
                         for k in 0..problem_dim {
                             let randomization = alpha
-                                * rand::rng().gen_range(-0.5..0.5)
+                                * rand::rng().random_range(-0.5..0.5)
                                 * randomization_factors[i];
                             swarm.positions[[i, k]] += attraction
                                 * (swarm.positions[[j, k]] - swarm.positions[[i, k]])
@@ -1111,7 +1111,7 @@ impl AdvancedParallelSwarmOptimizer {
                 if !moved {
                     for k in 0..problem_dim {
                         let randomization =
-                            alpha * rand::rng().gen_range(-0.5..0.5) * randomization_factors[i];
+                            alpha * rand::rng().random_range(-0.5..0.5) * randomization_factors[i];
                         swarm.positions[[i, k]] += randomization;
                     }
                 }
@@ -1150,8 +1150,8 @@ impl AdvancedParallelSwarmOptimizer {
                 }
 
                 // Evaluate new solution
-                let random_nest = rand::rng().gen_range(0..self.config.swarm_size);
-                if rand::rng().gen_range(0.0..1.0) < 0.5
+                let random_nest = rand::rng().random_range(0..self.config.swarm_size);
+                if rand::rng().random_range(0.0..1.0) < 0.5
                     && swarm.current_fitness[i] < swarm.current_fitness[random_nest]
                 {
                     // Replace the random nest if current solution is better
@@ -1163,10 +1163,10 @@ impl AdvancedParallelSwarmOptimizer {
 
             // Abandon some nests and build new ones
             for i in 0..self.config.swarm_size {
-                if rand::rng().gen_range(0.0..1.0) < discovery_probability {
+                if rand::rng().random_range(0.0..1.0) < discovery_probability {
                     // Generate new random solution
                     for j in 0..problem_dim {
-                        swarm.positions[[i, j]] = rand::rng().gen_range(-1.0..1.0);
+                        swarm.positions[[i, j]] = rand::rng().random_range(-1.0..1.0);
                     }
                 }
             }
@@ -1181,8 +1181,8 @@ impl AdvancedParallelSwarmOptimizer {
             / (tgamma((1.0 + beta) / 2.0) * beta * 2.0_f64.powf((beta - 1.0) / 2.0)))
         .powf(1.0 / beta);
 
-        let u = rand::rng().gen_range(0.0..1.0) * sigma;
-        let v: f64 = rand::rng().gen_range(0.0..1.0);
+        let u = rand::rng().random_range(0.0..1.0) * sigma;
+        let v: f64 = rand::rng().random_range(0.0..1.0);
 
         u / v.abs().powf(1.0 / beta)
     }
@@ -1238,7 +1238,7 @@ impl AdvancedParallelSwarmOptimizer {
                     SelectionStrategy::Random => {
                         // Random selection
                         (0..migration_count)
-                            .map(|_| rand::rng().gen_range(0..self.config.swarm_size))
+                            .map(|_| rand::rng().random_range(0..self.config.swarm_size))
                             .collect()
                     }
                     SelectionStrategy::Diverse => {
@@ -1344,8 +1344,8 @@ impl AdvancedParallelSwarmOptimizer {
             TopologyType::Random => {
                 // Random connections between swarms
                 for _ in 0..self.config.num_swarms {
-                    let source = rand::rng().gen_range(0..self.config.num_swarms);
-                    let target = rand::rng().gen_range(0..self.config.num_swarms);
+                    let source = rand::rng().random_range(0..self.config.num_swarms);
+                    let target = rand::rng().random_range(0..self.config.num_swarms);
                     if source != target {
                         self.topology_manager
                             .migration_patterns
@@ -1395,10 +1395,10 @@ impl AdvancedParallelSwarmOptimizer {
             if *diversity < self.config.diversity_threshold {
                 let reinit_count = (self.config.swarm_size as f64 * 0.1) as usize;
                 for i in 0..reinit_count {
-                    let idx = rand::rng().gen_range(0..self.config.swarm_size);
+                    let idx = rand::rng().random_range(0..self.config.swarm_size);
                     // Reinitialize position
                     for j in 0..swarm.positions.ncols() {
-                        swarm.positions[[idx, j]] = rand::rng().gen_range(-1.0..1.0);
+                        swarm.positions[[idx, j]] = rand::rng().random_range(-1.0..1.0);
                     }
                 }
             }

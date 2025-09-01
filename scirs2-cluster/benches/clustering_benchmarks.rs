@@ -37,13 +37,13 @@ fn generate_clustered_data(
         // Create cluster center
         let mut center = Array1::zeros(n_features);
         for j in 0..n_features {
-            center[j] = rng.gen_range(-10.0..10.0);
+            center[j] = rng.random_range(-10.0..10.0);
         }
 
         // Generate points around cluster center
         for i in start_idx..end_idx {
             for j in 0..n_features {
-                data[[i, j]] = center[j] + rng.gen_range(-noise..noise);
+                data[[i, j]] = center[j] + rng.random_range(-noise..noise);
             }
         }
     }
@@ -59,7 +59,7 @@ fn generate_random_data(_n_samples: usize, nfeatures: usize) -> Array2<f64> {
 
     for i in 0.._n_samples {
         for j in 0..nfeatures {
-            data[[i, j]] = rng.gen_range(-1.0..1.0);
+            data[[i, j]] = rng.random_range(-1.0..1.0);
         }
     }
 
@@ -336,14 +336,14 @@ fn bench_data_structures(c: &mut Criterion) {
                     // Perform random unions
                     let mut rng = StdRng::seed_from_u64(42);
                     for _ in 0..(n / 2) {
-                        let i = rng.gen_range(0..n);
-                        let j = rng.gen_range(0..n);
+                        let i = rng.random_range(0..n);
+                        let j = rng.random_range(0..n);
                         ds.union(i, j);
                     }
 
                     // Perform random finds
                     for _ in 0..n {
-                        let i = rng.gen_range(0..n);
+                        let i = rng.random_range(0..n);
                         ds.find(&i);
                     }
                 })

@@ -231,9 +231,9 @@ fn create_test_images() -> Result<(DynamicImage, DynamicImage, Array2<f64>)> {
     // Add some noise
     let mut rng = rand::rng();
     for _ in 0..500 {
-        let x = rng.gen_range(0..width);
-        let y = rng.gen_range(0..height);
-        let intensity = rng.gen_range(100u8..255u8);
+        let x = rng.random_range(0..width);
+        let y = rng.random_range(0..height);
+        let intensity = rng.random_range(100u8..255u8);
         ref_img.put_pixel(x, y, Luma([intensity]));
     }
 
@@ -362,29 +362,29 @@ fn create_synthetic_matches(_nummatches: usize) -> Vec<PointMatch> {
 
     for _ in 0..(_nummatches * 8 / 10) {
         // 80% good _matches
-        let source = Point2D::new(rng.gen_range(50.0..250.0)..rng.gen_range(50.0..250.0));
+        let source = Point2D::new(rng.random_range(50.0..250.0), rng.random_range(50.0..250.0));
 
         let target = transform_point(source, &true_transform);
 
         // Add small amount of noise
         let noisy_target = Point2D::new(
-            target.x + rng.gen_range(-2.0..2.0),
-            target.y + rng.gen_range(-2.0..2.0),
+            target.x + rng.random_range(-2.0..2.0),
+            target.y + rng.random_range(-2.0..2.0),
         );
 
         _matches.push(PointMatch {
             source,
             target: noisy_target,
-            confidence: rng.gen_range(0.8..1.0),
+            confidence: rng.random_range(0.8..1.0),
         });
     }
 
     // Add outliers
     for _ in (_nummatches * 8 / 10).._nummatches {
         _matches.push(PointMatch {
-            source: Point2D::new(rng.gen_range(50.0..250.0)..rng.gen_range(50.0..250.0)),
-            target: Point2D::new(rng.gen_range(50.0..250.0)..rng.gen_range(50.0..250.0)),
-            confidence: rng.gen_range(0.3..0.7),
+            source: Point2D::new(rng.random_range(50.0..250.0), rng.random_range(50.0..250.0)),
+            target: Point2D::new(rng.random_range(50.0..250.0), rng.random_range(50.0..250.0)),
+            confidence: rng.random_range(0.3..0.7),
         });
     }
 

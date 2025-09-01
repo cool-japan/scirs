@@ -75,7 +75,7 @@ impl SegmentationDataset {
                     let start_x = self.rng.gen_range(0..(width.saturating_sub(rect_width)));
                     let start_y = self
                         .rng
-                        .gen_range(0..(height.saturating_sub(rect_height)));
+                        .random_range(0..(height.saturating_sub(rect_height)));
                     for i in start_y..(start_y + rect_height).min(height) {
                         for j in start_x..(start_x + rect_width).min(width) {
                             mask[[i..j]] = class_id;
@@ -88,10 +88,10 @@ impl SegmentationDataset {
                     // Circle
                     let radius = self.rng.gen_range(8..25) as f32;
                     let center_x = self
-                        .gen_range(radius as usize..(width - radius as usize))
+                        .random_range(radius as usize..(width - radius as usize))
                         as f32;
                     let center_y = self
-                        .gen_range(radius as usize..(height - radius as usize))
+                        .random_range(radius as usize..(height - radius as usize))
                     for i in 0..height {
                         for j in 0..width {
                             let dx = j as f32 - center_x;

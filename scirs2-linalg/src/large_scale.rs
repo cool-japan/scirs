@@ -212,8 +212,8 @@ where
             let mut sampled = std::collections::HashSet::new();
 
             while sampled.len() < samplesize {
-                let i = rng.gen_range(0..m);
-                let j = rng.gen_range(0..n);
+                let i = rng.random_range(0..m);
+                let j = rng.random_range(0..n);
 
                 if sampled.insert((i, j)) {
                     sum_sq += a[[i, j]] * a[[i, j]];

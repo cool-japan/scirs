@@ -400,7 +400,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
         let mut centroids = Array2::zeros((self.k, data.ncols()));
 
         // Choose first centroid randomly
-        let first_idx = rng.gen_range(0..data.nrows());
+        let first_idx = rng.random_range(0..data.nrows());
         centroids.row_mut(0).assign(&data.row(first_idx));
 
         // Choose remaining centroids using K-means++ method
@@ -423,7 +423,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
             let total_dist: f64 = distances.iter().map(|&d| d * d).sum();
             if total_dist <= 0.0 {
                 // Fallback to random selection
-                let random_idx = rng.gen_range(0..data.nrows());
+                let random_idx = rng.random_range(0..data.nrows());
                 centroids.row_mut(k).assign(&data.row(random_idx));
             } else {
                 let mut cumulative = 0.0;

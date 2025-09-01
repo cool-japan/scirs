@@ -137,7 +137,7 @@ where
             let mut sample = Array1::<F>::zeros(n);
 
             for b in 0..num_blocks {
-                let start_idx = rng.gen_range(0..(n - block_length.min(n) + 1));
+                let start_idx = rng.random_range(0..(n - block_length.min(n) + 1));
                 let end_idx = start_idx + block_length.min(n - start_idx);
 
                 for i in 0..end_idx.saturating_sub(start_idx) {
@@ -154,7 +154,7 @@ where
             let mut sample = Array1::<F>::zeros(n);
 
             for i in 0..n {
-                let residual_idx = rng.gen_range(0..n);
+                let residual_idx = rng.random_range(0..n);
                 sample[i] = trend[i] + residuals[residual_idx];
             }
 

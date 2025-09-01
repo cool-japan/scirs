@@ -98,7 +98,7 @@ where
     for i in 0..rows {
         for j in 0..cols {
             // Generate random value between 0 and 1
-            let r: f64 = rng.gen_range(0.0..1.0);
+            let r: f64 = rng.random_range(0.0..1.0);
             // Scale to range [low..high]
             let val = low + F::from_f64(r).unwrap() * range;
             result[[i, j]] = val;
@@ -174,8 +174,8 @@ where
     for i in 0..rows {
         for j in 0..cols {
             // Box-Muller transform for generating normal values
-            let u1: f64 = rng.gen_range(0.00001..0.99999); // Avoid 0
-            let u2: f64 = rng.gen_range(0.0..1.0);
+            let u1: f64 = rng.random_range(0.00001..0.99999); // Avoid 0
+            let u2: f64 = rng.random_range(0.0..1.0);
             let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
 
             // Convert to target float type and scale to desired mean/std
@@ -315,7 +315,7 @@ where
 
     let mut diag_values = Array1::<F>::zeros(n);
     for i in 0..n {
-        let r: f64 = rng.gen_range(0.0..1.0);
+        let r: f64 = rng.random_range(0.0..1.0);
         let range = maxeigenval - min_eigenval;
         diag_values[i] = min_eigenval + F::from_f64(r).unwrap() * range;
     }
@@ -374,7 +374,7 @@ where
     let range = high - low;
     let mut diag = Array1::<F>::zeros(n);
     for i in 0..n {
-        let r: f64 = rng.gen_range(0.0..1.0);
+        let r: f64 = rng.random_range(0.0..1.0);
         diag[i] = low + F::from_f64(r).unwrap() * range;
     }
 
@@ -447,7 +447,7 @@ where
         let j_end = (i + upper_bandwidth + 1).min(cols);
 
         for j in j_start..j_end {
-            let r: f64 = rng.gen_range(0.0..1.0);
+            let r: f64 = rng.random_range(0.0..1.0);
             result[[i, j]] = low + F::from_f64(r).unwrap() * range;
         }
     }
@@ -517,9 +517,9 @@ where
     for i in 0..rows {
         for j in 0..cols {
             // Decide whether this element should be non-zero
-            let p: f64 = rng.gen_range(0.0..1.0);
+            let p: f64 = rng.random_range(0.0..1.0);
             if p < density {
-                let r: f64 = rng.gen_range(0.0..1.0);
+                let r: f64 = rng.random_range(0.0..1.0);
                 result[[i, j]] = low + F::from_f64(r).unwrap() * range;
             }
         }
@@ -577,7 +577,7 @@ where
     let mut first_col = Array1::<F>::zeros(n);
 
     for i in 0..n {
-        let r: f64 = rng.gen_range(0.0..1.0);
+        let r: f64 = rng.random_range(0.0..1.0);
         first_row[i] = low + F::from_f64(r).unwrap() * range;
     }
 
@@ -585,7 +585,7 @@ where
     first_col[0] = first_row[0];
 
     for i in 1..n {
-        let r: f64 = rng.gen_range(0.0..1.0);
+        let r: f64 = rng.random_range(0.0..1.0);
         first_col[i] = low + F::from_f64(r).unwrap() * range;
     }
 
@@ -1118,7 +1118,7 @@ where
 
     // Shuffle the indices using Fisher-Yates algorithm
     for i in (1..n).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         indices.swap(i, j);
     }
 

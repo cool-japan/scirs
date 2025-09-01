@@ -136,7 +136,7 @@ where
         // Sample init_size data points for initialization (simpler method for this example)
         let mut indices = Vec::with_capacity(init_size);
         for _ in 0..init_size {
-            indices.push(rng.gen_range(0..n_samples));
+            indices.push(rng.random_range(0..n_samples));
         }
 
         let init_data =
@@ -163,7 +163,7 @@ where
         let batch_size = opts.batch_size.min(n_samples);
         let mut batch_indices = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
-            batch_indices.push(rng.gen_range(0..n_samples));
+            batch_indices.push(rng.random_range(0..n_samples));
         }
 
         // Perform mini-batch step

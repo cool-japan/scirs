@@ -60,11 +60,11 @@ impl<F: Float + Debug + ScalarOperand> Augmentation<F> for RandomErasing<F> {
         let h = result.shape()[1];
         let w = result.shape()[2];
         // Determine erase size (10% to 30% of the image)
-        let erase_h = ((h as f64) * rng.gen_range(0.1..0.3)) as usize;
-        let erase_w = ((w as f64) * rng.gen_range(0.1..0.3)) as usize;
+        let erase_h = ((h as f64) * rng.random_range(0.1..0.3)) as usize;
+        let erase_w = ((w as f64) * rng.random_range(0.1..0.3)) as usize;
         // Determine erase position
-        let i = rng.gen_range(0..(h - erase_h).max(1));
-        let j = rng.gen_range(0..(w - erase_w).max(1));
+        let i = rng.random_range(0..(h - erase_h).max(1));
+        let j = rng.random_range(0..(w - erase_w).max(1));
         // Erase the region
         for img in 0..result.shape()[0] {
             for c in 0..result.shape()[3].min(3) {

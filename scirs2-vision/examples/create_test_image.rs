@@ -81,9 +81,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::rng();
 
     for _ in 0..1000 {
-        let x = rng.gen_range(0..400);
-        let y = rng.gen_range(0..400);
-        let val = rng.gen_range(0..256) as u8;
+        let x = rng.random_range(0..400);
+        let y = rng.random_range(0..400);
+        let val = rng.random_range(0..256) as u8;
         img.put_pixel(x, y, Rgb([val, val, val]));
     }
 

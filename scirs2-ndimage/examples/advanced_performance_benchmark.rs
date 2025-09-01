@@ -30,6 +30,7 @@ use scirs2_ndimage::features::{canny, sobel_edges};
 
 /// Benchmark configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct BenchmarkConfig {
     /// Number of iterations for each benchmark
     iterations: usize,
@@ -60,6 +61,7 @@ impl Default for BenchmarkConfig {
 
 /// Benchmark results for a single operation
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct BenchmarkResult {
     operation_name: String,
     image_size: (usize, usize),
@@ -71,6 +73,7 @@ struct BenchmarkResult {
     throughput_mpix_per_sec: f64,
 }
 
+#[allow(dead_code)]
 impl BenchmarkResult {
     fn new(operation_name: String, image_size: (usize, usize), durations: &[Duration]) -> Self {
         let mean_duration = Duration::from_nanos(

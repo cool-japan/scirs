@@ -3,8 +3,9 @@
 //! This benchmark tests the performance of graph algorithms on very large graphs
 //! (>1M nodes) using Advanced mode for optimization.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use rand::{thread_rng, Rng};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+use rand::{rng, Rng};
 use scirs2_graph::advanced::{
     create_enhanced_advanced_processor, create_large_graph_advanced_processor,
     create_realtime_advanced_processor, execute_with_enhanced_advanced, AdvancedConfig,
@@ -26,7 +27,7 @@ const MEMORY_PRESSURE_THRESHOLD: usize = 8 * 1024 * 1024 * 1024; // 8GB threshol
 #[allow(dead_code)]
 fn generate_large_random_graph(num_nodes: usize, edge_probability: f64) -> Graph<usize, f64> {
     let mut graph = Graph::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     println!("  🏗️  Generating random graph with {} nodes...", num_nodes);
 
@@ -74,7 +75,7 @@ fn generate_large_random_graph(num_nodes: usize, edge_probability: f64) -> Graph
 #[allow(dead_code)]
 fn generate_scale_free_graph(num_nodes: usize, initial_edges: usize) -> Graph<usize, f64> {
     let mut graph = Graph::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut degree_sum = 0;
     let mut node_degrees: HashMap<usize, usize> = HashMap::new();
 
@@ -137,7 +138,7 @@ fn generate_scale_free_graph(num_nodes: usize, initial_edges: usize) -> Graph<us
 #[allow(dead_code)]
 fn generate_memory_efficient_graph(num_nodes: usize) -> Graph<usize, f64> {
     let mut graph = Graph::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     println!(
         "  🧠 Generating memory-efficient graph with {} nodes...",
@@ -203,7 +204,7 @@ fn generate_memory_efficient_graph(num_nodes: usize) -> Graph<usize, f64> {
 #[allow(dead_code)]
 fn generate_biological_network(num_nodes: usize) -> Graph<usize, f64> {
     let mut graph = Graph::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut degrees = vec![0; num_nodes];
 
     println!(
@@ -245,7 +246,7 @@ fn generate_biological_network(num_nodes: usize) -> Graph<usize, f64> {
 #[allow(dead_code)]
 fn generate_social_network(num_nodes: usize) -> Graph<usize, f64> {
     let mut graph = Graph::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     println!("  👥 Generating social network with {} nodes...", num_nodes);
 
@@ -280,7 +281,7 @@ fn generate_social_network(num_nodes: usize) -> Graph<usize, f64> {
                 let source = rng.gen_range(cluster_start..cluster_end);
                 let target_cluster = rng.gen_range(0..cluster_id);
                 let target = rng
-                    .gen_range(target_cluster * CLUSTER_SIZE..(target_cluster + 1) * CLUSTER_SIZE);
+                    .random_range(target_cluster * CLUSTER_SIZE..(target_cluster + 1) * CLUSTER_SIZE);
                 let weight = rng.random::<f64>() * 0.3 + 0.2; // Weaker inter-cluster weights
                 let _ = graph.add_edge(source, target, weight);
             }
@@ -1109,7 +1110,7 @@ fn bench_memory_usage_analysis(c: &mut Criterion) {
                             }
 
                             // Random access simulation
-                            let mut rng = thread_rng();
+                            let mut rng = rng();
                             for _ in 0..1000 {
                                 let idx = rng.gen_range(0..memory_data.len());
                                 memory_data[idx] *= 1.1;

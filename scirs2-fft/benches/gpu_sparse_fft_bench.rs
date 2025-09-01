@@ -1,4 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
+use criterion::{criterion_group, criterion_main, Bencher, Criterion};
+use std::hint::black_box;
 use rand::Rng;
 use scirs2_fft::{
     sparse_fft,

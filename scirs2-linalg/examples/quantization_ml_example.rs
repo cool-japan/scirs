@@ -67,9 +67,9 @@ fn create_activations(_batchsize: usize, featuresize: usize) -> Array2<f32> {
 
     // Add some larger activation values to simulate feature importance
     for _ in 0..5 {
-        let i = rng.gen_range(0.._batchsize);
-        let j = rng.gen_range(0..featuresize);
-        activations[[i, j]] = rng.gen_range(2.0..5.0);
+        let i = rng.random_range(0.._batchsize);
+        let j = rng.random_range(0..featuresize);
+        activations[[i, j]] = rng.random_range(2.0..5.0);
     }
 
     activations

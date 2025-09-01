@@ -1843,7 +1843,7 @@ pub mod ensemble {
 
             // Sample with replacement
             let bootstrap_indices: Vec<usize> = (0..n_samples)
-                .map(|_| indices[rng.gen_range(0..n_samples)])
+                .map(|_| indices[rng.random_range(0..n_samples)])
                 .collect();
 
             // Extract _bootstrap sample
@@ -2202,7 +2202,7 @@ pub mod advanced_stability {
                 // Add noise to data
                 let mut noisydata = data.to_owned();
                 for element in noisydata.iter_mut() {
-                    let noise = rng.gen_range(-current_noise..current_noise);
+                    let noise = rng.random_range(-current_noise..current_noise);
                     *element = *element + F::from(noise).unwrap();
                 }
 

@@ -21,7 +21,7 @@ impl Embedding {
         // Initialize with random values
         let mut weight = Array2::<f32>::zeros((vocab_size, embedding_dim));
         for elem in weight.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         Embedding {
             vocab_size,
@@ -154,10 +154,10 @@ impl LSTMCell {
         let mut w_ii = Array2::<f32>::zeros((hidden_size, input_size));
         let mut w_hi = Array2::<f32>::zeros((hidden_size, hidden_size));
         for elem in w_ii.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         for elem in w_hi.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         let b_i = Array1::zeros(hidden_size);
 
@@ -165,10 +165,10 @@ impl LSTMCell {
         let mut w_if = Array2::<f32>::zeros((hidden_size, input_size));
         let mut w_hf = Array2::<f32>::zeros((hidden_size, hidden_size));
         for elem in w_if.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         for elem in w_hf.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         let b_f = Array1::ones(hidden_size);
 
@@ -176,10 +176,10 @@ impl LSTMCell {
         let mut w_ig = Array2::<f32>::zeros((hidden_size, input_size));
         let mut w_hg = Array2::<f32>::zeros((hidden_size, hidden_size));
         for elem in w_ig.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         for elem in w_hg.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         let b_g = Array1::zeros(hidden_size);
 
@@ -187,10 +187,10 @@ impl LSTMCell {
         let mut w_io = Array2::<f32>::zeros((hidden_size, input_size));
         let mut w_ho = Array2::<f32>::zeros((hidden_size, hidden_size));
         for elem in w_io.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         for elem in w_ho.iter_mut() {
-            *elem = rng.gen_range(-bound..bound);
+            *elem = rng.random_range(-bound..bound);
         }
         let b_o = Array1::zeros(hidden_size);
         LSTMCell {
@@ -333,7 +333,7 @@ impl BiLSTMClassifier {
         // Initialize output weights with random values
         let mut w_out = Array2::<f32>::zeros((output_size, output_input_size));
         for elem in w_out.iter_mut() {
-            *elem = rng.gen_range(-output_bound..output_bound);
+            *elem = rng.random_range(-output_bound..output_bound);
         }
         let b_out = Array1::zeros(output_size);
 
@@ -343,11 +343,11 @@ impl BiLSTMClassifier {
             // Initialize attention weights with random values
             let mut w_att = Array2::<f32>::zeros((hidden_size * 2, hidden_size * 2));
             for elem in w_att.iter_mut() {
-                *elem = rng.gen_range(-attention_bound..attention_bound);
+                *elem = rng.random_range(-attention_bound..attention_bound);
             }
             let mut v_att = Array1::<f32>::zeros(hidden_size * 2);
             for elem in v_att.iter_mut() {
-                *elem = rng.gen_range(-attention_bound..attention_bound);
+                *elem = rng.random_range(-attention_bound..attention_bound);
             }
             (Some(w_att), Some(v_att))
         } else {

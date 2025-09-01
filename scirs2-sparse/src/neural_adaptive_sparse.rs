@@ -491,7 +491,7 @@ impl NeuralAdaptiveSparseProcessor {
             // Epsilon-greedy exploration
             if rand::rng().random::<f64>() < self.current_exploration_rate {
                 // Explore: random strategy
-                let random_idx = rand::rng().gen_range(0..self.optimization_strategies.len());
+                let random_idx = rand::rng().random_range(0..self.optimization_strategies.len());
                 self.optimization_strategies[random_idx]
             } else {
                 // Exploit: best strategy according to Q-network
@@ -2129,7 +2129,7 @@ impl ExperienceBuffer {
 
         // Simple random sampling (in practice, prioritized experience replay would be better)
         for _ in 0..batchsize.min(buffer_size) {
-            let idx = rand::rng().gen_range(0..buffer_size);
+            let idx = rand::rng().random_range(0..buffer_size);
             if let Some(exp) = self.buffer.get(idx) {
                 batch.push(exp.clone());
             }

@@ -509,7 +509,7 @@ where
     // Initialize with random vector
     let mut rng = rand::rng();
     for i in 0..n {
-        qmatrix[[i, 0]] = F::from(rng.gen_range(-1.0..=1.0)).unwrap();
+        qmatrix[[i, 0]] = F::from(rng.random_range(-1.0..=1.0)).unwrap();
     }
 
     // Normalize

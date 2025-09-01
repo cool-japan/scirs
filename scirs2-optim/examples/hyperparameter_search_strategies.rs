@@ -40,7 +40,7 @@ impl MockModel {
         let mut rng = rand::rng();
 
         // Base performance with some randomness
-        let mut performance = 0.5 + rng.gen::<f64>() * 0.1;
+        let mut performance = 0.5 + rng.random::<f64>() * 0.1;
 
         // Learning rate effects
         if self.learning_rate > 0.0001 && self.learning_rate < 0.01 {
@@ -342,16 +342,16 @@ fn population_based_training_example() -> Result<()> {
         let hyperparams = HashMap::from([
             (
                 "learning_rate".to_string(),
-                0.001 * (1.0 + rand::rng().gen::<f64>()),
+                0.001 * (1.0 + rand::rng().random::<f64>()),
             ),
-            ("weight_decay".to_string(), 0.01 * rand::rng().gen::<f64>()),
+            ("weight_decay".to_string(), 0.01 * rand::rng().random::<f64>()),
             (
                 "batch_size".to_string(),
-                32.0 + rand::rng().gen::<f64>() * 96.0,
+                32.0 + rand::rng().random::<f64>() * 96.0,
             ),
             (
                 "momentum".to_string(),
-                0.9 + rand::rng().gen::<f64>() * 0.09,
+                0.9 + rand::rng().random::<f64>() * 0.09,
             ),
         ]);
 
@@ -377,7 +377,7 @@ fn population_based_training_example() -> Result<()> {
 
             // Perturb hyperparameters
             for (param, value) in new_hyperparams.iter_mut() {
-                let perturbation = 1.0 + (rand::rng().gen::<f64>() - 0.5) * 0.2;
+                let perturbation = 1.0 + (rand::rng().random::<f64>() - 0.5) * 0.2;
                 *value *= perturbation;
 
                 // Apply bounds
@@ -457,25 +457,25 @@ fn neural_predictor_example() -> Result<()> {
         // Simulate different problem characteristics
         let mut rng = rand::rng();
         let features = Array1::from_vec(vec![
-            rng.gen::<f64>() * 10000.0,    // dataset_size
-            rng.gen::<f64>() * 1000.0,     // input_dims
-            2.0 + rng.gen::<f64>() * 98.0, // num_classes
-            0.6 + rng.gen::<f64>() * 0.3,  // train_ratio
-            0.1 + rng.gen::<f64>() * 0.2,  // val_ratio
-            0.1 + rng.gen::<f64>() * 0.2,  // test_ratio
-            rng.gen::<f64>(),              // sparsity
-            rng.gen::<f64>() * 0.1,        // noise_level
+            rng.random::<f64>() * 10000.0,    // dataset_size
+            rng.random::<f64>() * 1000.0,     // input_dims
+            2.0 + rng.random::<f64>() * 98.0, // num_classes
+            0.6 + rng.random::<f64>() * 0.3,  // train_ratio
+            0.1 + rng.random::<f64>() * 0.2,  // val_ratio
+            0.1 + rng.random::<f64>() * 0.2,  // test_ratio
+            rng.random::<f64>(),              // sparsity
+            rng.random::<f64>() * 0.1,        // noise_level
         ]);
 
         // Simulate optimal hyperparameters for this problem
         let optimal_hyperparams = HashMap::from([
             (
                 "learning_rate".to_string(),
-                0.001 + rng.gen::<f64>() * 0.009,
+                0.001 + rng.random::<f64>() * 0.009,
             ),
-            ("weight_decay".to_string(), rng.gen::<f64>() * 0.01),
-            ("batch_size".to_string(), 16.0 + rng.gen::<f64>() * 112.0),
-            ("momentum".to_string(), 0.9 + rng.gen::<f64>() * 0.09),
+            ("weight_decay".to_string(), rng.random::<f64>() * 0.01),
+            ("batch_size".to_string(), 16.0 + rng.random::<f64>() * 112.0),
+            ("momentum".to_string(), 0.9 + rng.random::<f64>() * 0.09),
         ]);
 
         training_features.push(features);
@@ -509,15 +509,15 @@ fn neural_predictor_example() -> Result<()> {
 
         // Compare with random hyperparameters
         let random_hyperparams = HashMap::from([
-            ("learning_rate".to_string(), rand::rng().gen::<f64>() * 0.01),
-            ("weight_decay".to_string(), rand::rng().gen::<f64>() * 0.01),
+            ("learning_rate".to_string(), rand::rng().random::<f64>() * 0.01),
+            ("weight_decay".to_string(), rand::rng().random::<f64>() * 0.01),
             (
                 "batch_size".to_string(),
-                16.0 + rand::rng().gen::<f64>() * 112.0,
+                16.0 + rand::rng().random::<f64>() * 112.0,
             ),
             (
                 "momentum".to_string(),
-                0.9 + rand::rng().gen::<f64>() * 0.09,
+                0.9 + rand::rng().random::<f64>() * 0.09,
             ),
         ]);
 

@@ -305,16 +305,16 @@ impl MultiHeadAttention {
         let scale = (2.0 / d_model as f64).sqrt();
 
         let w_q = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().gen_range(-scale..scale)
+            rand::rng().random_range(-scale..scale)
         });
         let w_k = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().gen_range(-scale..scale)
+            rand::rng().random_range(-scale..scale)
         });
         let w_v = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().gen_range(-scale..scale)
+            rand::rng().random_range(-scale..scale)
         });
         let w_o = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().gen_range(-scale..scale)
+            rand::rng().random_range(-scale..scale)
         });
 
         Ok(Self {
@@ -489,8 +489,8 @@ impl FeedForward {
     pub fn new(_dmodel: usize, dff: usize) -> Self {
         let scale = (2.0 / _dmodel as f64).sqrt();
 
-        let w1 = Array2::from_shape_fn((_dmodel, dff), |_| rand::rng().gen_range(-scale..scale));
-        let w2 = Array2::from_shape_fn((dff, _dmodel), |_| rand::rng().gen_range(-scale..scale));
+        let w1 = Array2::from_shape_fn((_dmodel, dff), |_| rand::rng().random_range(-scale..scale));
+        let w2 = Array2::from_shape_fn((dff, _dmodel), |_| rand::rng().random_range(-scale..scale));
         let b1 = Array1::zeros(dff);
         let b2 = Array1::zeros(_dmodel);
 
@@ -849,7 +849,7 @@ impl TokenEmbedding {
     pub fn new(_vocab_size: usize, dmodel: usize) -> Self {
         let scale = (1.0 / dmodel as f64).sqrt();
         let embeddings = Array2::from_shape_fn((_vocab_size, dmodel), |_| {
-            rand::rng().gen_range(-scale..scale)
+            rand::rng().random_range(-scale..scale)
         });
 
         Self {

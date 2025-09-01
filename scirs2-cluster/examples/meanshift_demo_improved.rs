@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         match mean_shift(&data2.view(), options) {
-            Ok((centers_)) => {
+            Ok(centers_) => {
                 println!("  Clusters found: {}", centers.nrows());
             }
             Err(e) => println!("  Error: {}", e),
@@ -124,7 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         match mean_shift(&data2.view(), options) {
-            Ok((centers_)) => {
+            Ok(centers_) => {
                 print!("  Bandwidth {:.1}: {} clusters", bw, centers.nrows());
                 if centers.nrows() == 3 {
                     print!(" ✓ (optimal)");

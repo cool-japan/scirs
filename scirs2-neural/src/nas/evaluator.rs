@@ -160,7 +160,7 @@ impl ArchitectureEvaluator {
             let mut probs = vec![0.1; num_classes];
             // Make one class more likely
             use rand::Rng;
-            let idx = rng().gen_range(0..num_classes);
+            let idx = rng().random_range(0..num_classes);
             probs[idx] = 0.9;
             // Normalize
             let sum: f64 = probs.iter().sum();

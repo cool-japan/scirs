@@ -1735,14 +1735,14 @@ impl TextGenerationPipeline {
                 candidates = vec!["and", "the", "a"];
             }
 
-            if let Some(&next_word) = candidates.get(rng.gen_range(0..candidates.len())) {
+            if let Some(&next_word) = candidates.get(rng.random_range(0..candidates.len())) {
                 generated.push(' ');
                 generated.push_str(next_word);
             }
 
             // Add punctuation occasionally
-            if rng.gen_range(0..10) == 0 {
-                let punct = [".", ",", ";"][rng.gen_range(0..3)];
+            if rng.random_range(0..10) == 0 {
+                let punct = [".", ",", ";"][rng.random_range(0..3)];
                 generated.push_str(punct);
                 if punct == "." {
                     break; // End generation on period

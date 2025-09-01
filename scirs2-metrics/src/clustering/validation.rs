@@ -210,7 +210,7 @@ where
         // Add Gaussian noise
         for i in 0..n_samples {
             for j in 0..x.ncols() {
-                let noise: f64 = rng.gen_range(-1.0..1.0);
+                let noise: f64 = rng.random_range(-1.0..1.0);
                 let noise_value = F::from(noise).unwrap() * perturbation_scale;
                 perturbed_data[[i, j]] = x[[i, j]] + noise_value;
             }
@@ -488,7 +488,7 @@ where
 
         // Shuffle available indices
         for i in (1..available_indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             available_indices.swap(i, j);
         }
 

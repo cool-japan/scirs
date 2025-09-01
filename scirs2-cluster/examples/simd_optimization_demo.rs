@@ -291,7 +291,7 @@ fn generate_synthetic_data(
     let mut centers = Array2::zeros((n_clusters, n_features));
     for i in 0..n_clusters {
         for j in 0..n_features {
-            centers[[i, j]] = rng.gen_range(-10.0..10.0);
+            centers[[i, j]] = rng.random_range(-10.0..10.0);
         }
     }
 
@@ -308,7 +308,7 @@ fn generate_synthetic_data(
 
         while sample_idx < end_idx {
             for j in 0..n_features {
-                let noise = rng.gen_range(-1.0..1.0);
+                let noise = rng.random_range(-1.0..1.0);
                 data[[sample_idx, j]] = centers[[cluster, j]] + noise;
             }
             labels.push(cluster);
@@ -329,7 +329,7 @@ fn generate_centroids(n_clusters: usize, nfeatures: usize) -> Array2<f64> {
 
     for i in 0..n_clusters {
         for j in 0..nfeatures {
-            centroids[[i, j]] = rng.gen_range(-5.0..5.0);
+            centroids[[i, j]] = rng.random_range(-5.0..5.0);
         }
     }
 

@@ -778,7 +778,7 @@ impl<F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum> QuantumMetricsCom
         let num_parameters = self.config.vqe_parameters.ansatz_depth * matrixsize;
 
         let parameters = (0..num_parameters)
-            .map(|_| rng.gen_range(-PI..PI))
+            .map(|_| rng.random_range(-PI..PI))
             .collect();
 
         Ok(parameters)

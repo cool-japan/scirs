@@ -243,29 +243,29 @@ fn create_synthetic_matches(_num_matches: usize, truetransform: &Array2<f64>) ->
     // Create good _matches with known transformation
     for _ in 0..(_num_matches * 9 / 10) {
         // 90% good _matches
-        let source = Point2D::new(rng.gen_range(20.0..180.0)..rng.gen_range(20.0..180.0));
+        let source = Point2D::new(rng.random_range(20.0..180.0), rng.random_range(20.0..180.0));
 
         let target = transform_point(source, truetransform);
 
         // Add small amount of noise
         let noisy_target = Point2D::new(
-            target.x + rng.gen_range(-1.0..1.0),
-            target.y + rng.gen_range(-1.0..1.0),
+            target.x + rng.random_range(-1.0..1.0),
+            target.y + rng.random_range(-1.0..1.0),
         );
 
         _matches.push(PointMatch {
             source,
             target: noisy_target,
-            confidence: rng.gen_range(0.8..1.0),
+            confidence: rng.random_range(0.8..1.0),
         });
     }
 
     // Add some outliers
     for _ in (_num_matches * 9 / 10).._num_matches {
         _matches.push(PointMatch {
-            source: Point2D::new(rng.gen_range(20.0..180.0)..rng.gen_range(20.0..180.0)),
-            target: Point2D::new(rng.gen_range(20.0..180.0)..rng.gen_range(20.0..180.0)),
-            confidence: rng.gen_range(0.3..0.7),
+            source: Point2D::new(rng.random_range(20.0..180.0), rng.random_range(20.0..180.0)),
+            target: Point2D::new(rng.random_range(20.0..180.0), rng.random_range(20.0..180.0)),
+            confidence: rng.random_range(0.3..0.7),
         });
     }
 

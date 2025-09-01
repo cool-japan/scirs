@@ -414,7 +414,7 @@ where
 
     // Select k unique random points from the _data
     while selected_indices.len() < k {
-        let idx = rng.gen_range(0..n_samples);
+        let idx = rng.random_range(0..n_samples);
         if !selected_indices.contains(&idx) {
             selected_indices.push(idx);
         }
@@ -465,7 +465,7 @@ where
     let mut centroids = Array2::zeros((k, n_features));
 
     // Choose the first centroid randomly
-    let first_idx = rng.gen_range(0..n_samples);
+    let first_idx = rng.random_range(0..n_samples);
     for j in 0..n_features {
         centroids[[0, j]] = data[[first_idx, j]];
     }
@@ -511,7 +511,7 @@ where
         }
 
         // Sample the next centroid based on the probability distribution
-        let rand_val = F::from(rng.gen_range(0.0..1.0)).unwrap();
+        let rand_val = F::from(rng.random_range(0.0..1.0)).unwrap();
         let mut next_idx = 0;
 
         for j in 0..n_samples {
@@ -578,7 +578,7 @@ where
     let mut weights = Vec::new();
 
     // Choose the first center randomly
-    let first_idx = rng.gen_range(0..n_samples);
+    let first_idx = rng.random_range(0..n_samples);
     let mut first_center = Vec::with_capacity(n_features);
     for j in 0..n_features {
         first_center.push(data[[first_idx, j]]);
@@ -622,7 +622,7 @@ where
             let probability = min_distances[sample_idx] * min_distances[sample_idx] * oversampling;
 
             // Sample with probability proportional to distance^2
-            if F::from(rng.gen_range(0.0..1.0)).unwrap() < probability {
+            if F::from(rng.random_range(0.0..1.0)).unwrap() < probability {
                 let mut new_center = Vec::with_capacity(n_features);
                 for j in 0..n_features {
                     new_center.push(data[[sample_idx, j]]);
@@ -659,7 +659,7 @@ where
 
             // Initialize with random k centers from the candidate centers
             let init_indices: Vec<usize> = (0..n_centers)
-            .filter(|_| rng.gen_range(0.0..1.0) < 0.5) // Randomly select some centers
+            .filter(|_| rng.random_range(0.0..1.0) < 0.5) // Randomly select some centers
             .take(k) // Take at most k centers
             .collect();
 
@@ -701,7 +701,7 @@ where
             // Add random points to reach k centers
             let mut selected_indices = Vec::with_capacity(k - centers.len());
             while selected_indices.len() < k - centers.len() {
-                let idx = rng.gen_range(0..n_samples);
+                let idx = rng.random_range(0..n_samples);
                 if !selected_indices.contains(&idx) {
                     selected_indices.push(idx);
                 }

@@ -388,7 +388,7 @@ fn pattern_matching_demo() {
     println!("    Oscillation pattern: {:?}", oscillation);
 
     // Generate data stream with embedded patterns
-    let mut data_stream = vec![2.0, 3.0, 2.5, 2.8, 3.2]; // Initial data
+    let data_stream = vec![2.0, 3.0, 2.5, 2.8, 3.2]; // Initial data
 
     // Add spike pattern at position 20
     for i in 0..50 {

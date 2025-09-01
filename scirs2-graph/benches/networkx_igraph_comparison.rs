@@ -9,7 +9,8 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;

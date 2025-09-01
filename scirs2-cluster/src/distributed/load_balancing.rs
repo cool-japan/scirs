@@ -508,7 +508,7 @@ impl LoadBalancingCoordinator {
             if rng.random::<f64>() < exploration_rate {
                 // Explore: random adjustment
                 let max_change = (current_assignment as f64 * 0.2) as usize; // Max 20% change
-                let change = rng.gen_range(0..=max_change * 2) as i32 - max_change as i32;
+                let change = rng.random_range(0..=max_change * 2) as i32 - max_change as i32;
                 let new_assignment = (current_assignment as i32 + change).max(0) as usize;
                 new_assignments.insert(worker_id, new_assignment);
             } else {
@@ -562,7 +562,7 @@ impl LoadBalancingCoordinator {
                     remaining_data
                 } else {
                     let max_assignment = remaining_data.min(datasize / 2);
-                    let assignment = rng.gen_range(0..=max_assignment);
+                    let assignment = rng.random_range(0..=max_assignment);
                     assignment.min(remaining_data)
                 };
 

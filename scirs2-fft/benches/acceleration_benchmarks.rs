@@ -3,7 +3,8 @@
 //! This benchmark suite provides formal performance measurement for all acceleration
 //! features including multi-GPU processing and specialized hardware support.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use scirs2_fft::{
     // GPU backends
     gpu_sparse_fft,

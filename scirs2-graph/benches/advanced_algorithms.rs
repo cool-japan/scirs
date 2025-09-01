@@ -6,7 +6,8 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -37,8 +38,8 @@ fn bench_community_detection(c: &mut Criterion) {
         // Louvain algorithm
         group.bench_with_input(BenchmarkId::new("louvain", size), &graph, |b, g| {
             b.iter(|| {
-                use scirs2_graph::algorithms::community::louvain_communities;
-                let result = louvain_communities(g);
+                use scirs2_graph::algorithms::community::louvain_communities_result;
+                let result = louvain_communities_result(g);
                 black_box(result)
             });
         });
@@ -49,8 +50,8 @@ fn bench_community_detection(c: &mut Criterion) {
             &graph,
             |b, g| {
                 b.iter(|| {
-                    use scirs2_graph::algorithms::community::label_propagation;
-                    let result = label_propagation(g, 100);
+                    use scirs2_graph::algorithms::community::label_propagation_result;
+                    let result = label_propagation_result(g, 100);
                     black_box(result)
                 });
             },
@@ -62,8 +63,8 @@ fn bench_community_detection(c: &mut Criterion) {
             &graph,
             |b, g| {
                 b.iter(|| {
-                    use scirs2_graph::algorithms::community::greedy_modularity_optimization;
-                    let result = greedy_modularity_optimization(g, 100);
+                    use scirs2_graph::algorithms::community::greedy_modularity_optimization_result;
+                    let result = greedy_modularity_optimization_result(g, 100);
                     black_box(result)
                 });
             },

@@ -367,8 +367,8 @@ impl<F: Float + FromPrimitive + Debug> QAOAClustering<F> {
         let mut rng = rand::rng();
 
         for i in 0..self.config.p_layers {
-            self.gamma_params[i] = rng.gen_range(0.0..PI);
-            self.beta_params[i] = rng.gen_range(0.0..PI / 2.0);
+            self.gamma_params[i] = rng.random_range(0.0..PI);
+            self.beta_params[i] = rng.random_range(0.0..PI / 2.0);
         }
     }
 
@@ -706,7 +706,7 @@ impl<F: Float + FromPrimitive + Debug> VQEClustering<F> {
         let mut rng = rand::rng();
 
         for i in 0..self.circuit_parameters.len() {
-            self.circuit_parameters[i] = rng.gen_range(-PI..PI);
+            self.circuit_parameters[i] = rng.random_range(-PI..PI);
         }
     }
 

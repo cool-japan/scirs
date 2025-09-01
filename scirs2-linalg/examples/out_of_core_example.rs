@@ -255,7 +255,7 @@ fn create_random_spdmatrix(size: usize) -> Array2<f32> {
 
     for i in 0..size {
         for j in 0..size {
-            matrix[[i, j]] = rng.gen_range(-1.0..1.0);
+            matrix[[i, j]] = rng.random_range(-1.0..1.0);
         }
     }
 

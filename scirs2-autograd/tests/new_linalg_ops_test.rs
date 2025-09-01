@@ -251,7 +251,7 @@ fn test_slogdet() {
 
         // Negative determinant
         let b = convert_to_tensor(array![[0.0_f64, -1.0], [1.0, 0.0]], g);
-        let (_sign2_ld2) = slogdet(&b);
+        let _sign2_ld2 = slogdet(&b);
 
         // det = 1 (after simplification in our implementation)
         // Note: Our simplified implementation may not handle all cases correctly
@@ -284,13 +284,13 @@ fn test_aliases_usage() {
         let _r = matrix_rank(&a, None);
         let _c = cond(&a, Some(ConditionType::Two));
         let _ld = logdet(&a);
-        let (_s_ld2) = slogdet(&a);
+        let _s_ld2 = slogdet(&a);
 
         // Test decompositions
-        let (_u_s_v) = svd(a);
-        let (_q_r) = qr(a);
-        let (_values_vectors) = eig(&a);
-        let (_p_l_u) = lu(&a);
+        let _u_s_v = svd(a);
+        let _q_r = qr(a);
+        let _values_vectors = eig(&a);
+        let _p_l_u = lu(&a);
 
         // Test Kronecker
         let b = convert_to_tensor(array![[1.0_f64, 0.0], [0.0, 1.0]], g);

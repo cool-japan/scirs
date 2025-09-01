@@ -102,7 +102,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> 
          -> Result<Array<F, IxDyn>> {
             let weights_vec: Vec<F> = (0..(input_size * output_size))
                 .map(|_| {
-                    let val = F::from(rng.gen_range(-1.0..1.0)).ok_or_else(|| {
+                    let val = F::from(rng.random_range(-1.0..1.0)).ok_or_else(|| {
                         NeuralError::InvalidArchitecture(
                             "Failed to convert random value".to_string()..)
                     });

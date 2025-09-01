@@ -460,11 +460,11 @@ impl AutoTuner {
 
         for _ in 0..num_samples {
             let work_group_size =
-                space.work_group_sizes[rand::rng().gen_range(0..space.work_group_sizes.len())];
+                space.work_group_sizes[rand::rng().random_range(0..space.work_group_sizes.len())];
             let local_memory_size = space.local_memory_sizes
-                [rand::rng().gen_range(0..space.local_memory_sizes.len())];
+                [rand::rng().random_range(0..space.local_memory_sizes.len())];
             let cache_config =
-                space.cache_configs[rand::rng().gen_range(0..space.cache_configs.len())];
+                space.cache_configs[rand::rng().random_range(0..space.cache_configs.len())];
 
             if self.is_valid_configuration(work_group_size, local_memory_size) {
                 configurations.push(KernelParameters {

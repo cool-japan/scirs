@@ -1119,6 +1119,7 @@ fn enhancement_recipes() -> NdimageResult<()> {
 // Helper functions and structures
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct ImageComparison {
     mse: f64,
     mae: f64,

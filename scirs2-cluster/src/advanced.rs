@@ -204,7 +204,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumKMeans<F> {
     fn quantum_noise(&self) -> F {
         // Simplified quantum noise generation
         let mut rng = rand::rng();
-        F::from(rng.gen_range(-1.0..1.0)).unwrap()
+        F::from(rng.random_range(-1.0..1.0)).unwrap()
     }
 
     /// Perform quantum optimization iterations
@@ -940,7 +940,7 @@ impl<F: Float + FromPrimitive + Debug> RLClustering<F> {
 
             // Initialize random assignment
             for i in 0..n_samples {
-                current_assignments[i] = rng.gen_range(0..self.config.n_actions.min(n_samples));
+                current_assignments[i] = rng.random_range(0..self.config.n_actions.min(n_samples));
             }
 
             // Episode simulation
@@ -950,7 +950,7 @@ impl<F: Float + FromPrimitive + Debug> RLClustering<F> {
                 // Choose action (cluster assignment)
                 let action = if rng.random::<f64>() < exploration_rate {
                     // Exploration
-                    rng.gen_range(0..self.config.n_actions.min(n_samples))
+                    rng.random_range(0..self.config.n_actions.min(n_samples))
                 } else {
                     // Exploitation
                     self.choose_best_action(state)
@@ -1706,7 +1706,7 @@ impl<F: Float + FromPrimitive + Debug + 'static> DeepEmbeddedClustering<F> {
         let mut prev_dim = inputdim;
         for &dim in &self.config.encoder_dims {
             let weight = Array2::from_shape_fn((prev_dim, dim), |_| {
-                F::from(rng.gen_range(-0.1..0.1)).unwrap()
+                F::from(rng.random_range(-0.1..0.1)).unwrap()
             });
             let bias = Array1::zeros(dim);
 
@@ -1717,7 +1717,7 @@ impl<F: Float + FromPrimitive + Debug + 'static> DeepEmbeddedClustering<F> {
 
         // Add final embedding layer
         let embedding_weight = Array2::from_shape_fn((prev_dim, self.config.embedding_dim), |_| {
-            F::from(rng.gen_range(-0.1..0.1)).unwrap()
+            F::from(rng.random_range(-0.1..0.1)).unwrap()
         });
         let embedding_bias = Array1::zeros(self.config.embedding_dim);
         self.encoder_weights.push(embedding_weight);
@@ -1727,7 +1727,7 @@ impl<F: Float + FromPrimitive + Debug + 'static> DeepEmbeddedClustering<F> {
         prev_dim = self.config.embedding_dim;
         for &dim in &self.config.decoder_dims {
             let weight = Array2::from_shape_fn((prev_dim, dim), |_| {
-                F::from(rng.gen_range(-0.1..0.1)).unwrap()
+                F::from(rng.random_range(-0.1..0.1)).unwrap()
             });
             let bias = Array1::zeros(dim);
 
@@ -1738,7 +1738,7 @@ impl<F: Float + FromPrimitive + Debug + 'static> DeepEmbeddedClustering<F> {
 
         // Add final reconstruction layer
         let output_weight = Array2::from_shape_fn((prev_dim, inputdim), |_| {
-            F::from(rng.gen_range(-0.1..0.1)).unwrap()
+            F::from(rng.random_range(-0.1..0.1)).unwrap()
         });
         let output_bias = Array1::zeros(inputdim);
         self.decoder_weights.push(output_weight);
@@ -2177,11 +2177,11 @@ impl<F: Float + FromPrimitive + Debug + 'static> QAOAClustering<F> {
 
         // Initialize QAOA parameters randomly
         let gamma_params = Array1::from_shape_fn(config.p_layers, |_| {
-            F::from(rng.gen_range(0.0..std::f64::consts::PI)).unwrap()
+            F::from(rng.random_range(0.0..std::f64::consts::PI)).unwrap()
         });
 
         let beta_params = Array1::from_shape_fn(config.p_layers, |_| {
-            F::from(rng.gen_range(0.0..std::f64::consts::PI / 2.0)).unwrap()
+            F::from(rng.random_range(0.0..std::f64::consts::PI / 2.0)).unwrap()
         });
 
         Self {
@@ -2570,7 +2570,7 @@ impl<F: Float + FromPrimitive + Debug + 'static> VQEClustering<F> {
 
         // Initialize variational parameters
         let params = Array1::from_shape_fn(config.n_params, |_| {
-            F::from(rng.gen_range(0.0..2.0 * std::f64::consts::PI)).unwrap()
+            F::from(rng.random_range(0.0..2.0 * std::f64::consts::PI)).unwrap()
         });
 
         Self {

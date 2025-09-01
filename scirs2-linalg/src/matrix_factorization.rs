@@ -567,14 +567,14 @@ where
 
             // Simple random sampling without replacement
             while col_indices.len() < c_samples {
-                let idx = rand::rng().gen_range(0..n);
+                let idx = rand::rng().random_range(0..n);
                 if !col_indices.contains(&idx) {
                     col_indices.push(idx);
                 }
             }
 
             while row_indices.len() < r_samples {
-                let idx = rand::rng().gen_range(0..m);
+                let idx = rand::rng().random_range(0..m);
                 if !row_indices.contains(&idx) {
                     row_indices.push(idx);
                 }

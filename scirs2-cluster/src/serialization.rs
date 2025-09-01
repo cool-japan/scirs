@@ -4029,7 +4029,8 @@ mod tests {
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         {
             // Features may or may not be present, but the detection should not crash
-            assert!(platform_info.cpu_features.len() >= 0);
+            // CPU features should be detected (may be empty on some platforms)
+            let _ = platform_info.cpu_features.len();
         }
     }
 

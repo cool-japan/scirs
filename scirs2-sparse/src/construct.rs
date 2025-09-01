@@ -395,10 +395,10 @@ where
 
             // Generate random non-zero value
             // For simplicity, using values between -1 and 1
-            let mut val: f64 = rng.gen_range(-1.0..1.0);
+            let mut val: f64 = rng.random_range(-1.0..1.0);
             // Make sure the value is not zero
             while val.abs() < 1e-10 {
-                val = rng.gen_range(-1.0..1.0);
+                val = rng.random_range(-1.0..1.0);
             }
             data.push(T::from(val).unwrap());
         }
@@ -407,8 +407,8 @@ where
         let mut positions = std::collections::HashSet::with_capacity(nnz);
 
         while positions.len() < nnz {
-            let row = rng.gen_range(0..m);
-            let col = rng.gen_range(0..n);
+            let row = rng.random_range(0..m);
+            let col = rng.random_range(0..n);
             let pos = row * n + col; // Using row/col as usize indices
 
             if positions.insert(pos) {
@@ -416,10 +416,10 @@ where
                 cols.push(col);
 
                 // Generate random non-zero value
-                let mut val: f64 = rng.gen_range(-1.0..1.0);
+                let mut val: f64 = rng.random_range(-1.0..1.0);
                 // Make sure the value is not zero
                 while val.abs() < 1e-10 {
-                    val = rng.gen_range(-1.0..1.0);
+                    val = rng.random_range(-1.0..1.0);
                 }
                 data.push(T::from(val).unwrap());
             }
@@ -570,10 +570,10 @@ where
             // Take the first row_expected_nnz columns
             for &col in col_indices.iter().take(row_expected_nnz) {
                 // Generate random value
-                let mut val = rng.gen_range(-1.0..1.0);
+                let mut val = rng.random_range(-1.0..1.0);
                 // Make sure the value is not zero
                 while val.abs() < 1e-10 {
-                    val = rng.gen_range(-1.0..1.0);
+                    val = rng.random_range(-1.0..1.0);
                 }
 
                 local_rows.push(row);

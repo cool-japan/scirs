@@ -3,7 +3,8 @@
 //! This suite provides comparative benchmarks that can be used alongside
 //! Python/SciPy benchmarks to assess relative performance.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use ndarray::Array1;
 use rand::prelude::*;
 use rand_distr::StandardNormal;
