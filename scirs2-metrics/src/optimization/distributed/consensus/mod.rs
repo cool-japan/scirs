@@ -617,7 +617,7 @@ mod tests {
     fn test_raft_consensus_creation() {
         let config = ConsensusConfig::default();
         let peers = vec!["node1".to_string(), "node2".to_string()];
-        let mut raft = RaftConsensus::new("node0".to_string(), peers, config);
+        let raft = RaftConsensus::new("node0".to_string(), peers, config);
 
         assert_eq!(raft.current_term(), 0);
         assert_eq!(*raft.current_state(), NodeState::Follower);

@@ -21,8 +21,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create points in a specific region (unit square)
     let mut points_vec = Vec::with_capacity(n_points * 2);
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..=1.0);
-        let y = rng.gen_range(0.0..=1.0);
+        let x = rng.random_range(0.0..=1.0);
+        let y = rng.random_range(0.0..=1.0);
         points_vec.push(x);
         points_vec.push(y);
     }

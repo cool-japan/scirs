@@ -279,7 +279,7 @@ fn generate_impulse_signal() -> (Array1<f64>, Array1<f64>) {
 
     for i in 0..n {
         // Random value between 0 and 1
-        let r = rng.gen_range(0.0..1.0);
+        let r = rng.random_range(0.0..1.0);
 
         if r < impulse_rate {
             // Add high impulse (salt)
@@ -339,7 +339,7 @@ fn generate_impulse_image() -> (Array2<f64>, Array2<f64>) {
     for i in 0..size {
         for j in 0..size {
             // Random value between 0 and 1
-            let r = rng.gen_range(0.0..1.0);
+            let r = rng.random_range(0.0..1.0);
 
             if r < impulse_rate {
                 // Add high impulse (salt)
@@ -411,15 +411,15 @@ fn generate_color_impulse_image() -> (Array3<f64>, Array3<f64>) {
     for i in 0..size {
         for j in 0..size {
             // Random value between 0 and 1
-            let r = rng.gen_range(0.0..1.0);
+            let r = rng.random_range(0.0..1.0);
 
             if r < impulse_rate {
                 // Add high impulse (salt) to a random channel
-                let channel = rng.gen_range(0..3);
+                let channel = rng.random_range(0..3);
                 noisy_image[[i, j, channel]] = 1.0;
             } else if r < 2.0 * impulse_rate {
                 // Add low impulse (pepper) to a random channel
-                let channel = rng.gen_range(0..3);
+                let channel = rng.random_range(0..3);
                 noisy_image[[i, j, channel]] = 0.0;
             }
         }

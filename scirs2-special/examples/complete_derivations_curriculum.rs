@@ -41,6 +41,7 @@ use std::f64::consts::{E, PI};
 use std::io::{self, Write};
 use std::time::Duration;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationCurriculum {
     modules: Vec<DerivationModule>,
@@ -49,6 +50,7 @@ struct DerivationCurriculum {
     verification_engine: VerificationEngine,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationModule {
     id: String,
@@ -62,6 +64,7 @@ struct DerivationModule {
     follow_up_applications: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct CompleteDerivation {
     id: String,
@@ -75,6 +78,7 @@ struct CompleteDerivation {
     connections_to_other_functions: Vec<Connection>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct HistoricalContext {
     discoverer: String,
@@ -84,6 +88,7 @@ struct HistoricalContext {
     modern_significance: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct HistoricalMilestone {
     year: u32,
@@ -103,6 +108,7 @@ struct DerivationApproach {
     common_pitfalls: Vec<Pitfall>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationStep {
     step_number: usize,
@@ -134,6 +140,7 @@ struct Pitfall {
     example: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ComputationalVerification {
     numerical_examples: Vec<NumericalExample>,
@@ -142,6 +149,7 @@ struct ComputationalVerification {
     precision_analysis: PrecisionAnalysis,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct NumericalExample {
     description: String,
@@ -151,6 +159,7 @@ struct NumericalExample {
     implementation_notes: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SymbolicCheck {
     property_statement: String,
@@ -158,6 +167,7 @@ struct SymbolicCheck {
     code_implementation: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct EdgeCase {
     case_description: String,
@@ -166,6 +176,7 @@ struct EdgeCase {
     numerical_considerations: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PrecisionAnalysis {
     floating_point_considerations: Vec<String>,
@@ -173,6 +184,7 @@ struct PrecisionAnalysis {
     recommended_precision: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AccuracyBound {
     parameter_range: String,
@@ -180,6 +192,7 @@ struct AccuracyBound {
     improvement_strategies: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Extension {
     title: String,
@@ -189,6 +202,7 @@ struct Extension {
     research_directions: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Connection {
     target_function: String,
@@ -197,6 +211,7 @@ struct Connection {
     significance: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserProgress {
     completed_derivations: Vec<String>,
@@ -206,6 +221,7 @@ struct UserProgress {
     learning_analytics: LearningAnalytics,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningAnalytics {
     comprehension_patterns: HashMap<String, f64>,
@@ -214,6 +230,7 @@ struct LearningAnalytics {
     retention_analysis: RetentionAnalysis,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct EngagementMetrics {
     average_session_length: Duration,
@@ -222,6 +239,7 @@ struct EngagementMetrics {
     verification_attempt_rate: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct RetentionAnalysis {
     concept_retention_rates: HashMap<String, f64>,
@@ -229,6 +247,7 @@ struct RetentionAnalysis {
     review_recommendations: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VerificationEngine {
     numerical_tolerance: f64,
@@ -236,12 +255,14 @@ struct VerificationEngine {
     proof_validator: ProofValidator,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SymbolicChecker {
     expression_parser: String, // Would be actual parser in real implementation
     simplification_rules: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofValidator {
     logic_checker: String, // Would be actual logic system

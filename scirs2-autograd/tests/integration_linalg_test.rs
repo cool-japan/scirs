@@ -29,9 +29,9 @@ fn test_complete_linear_algebra_pipeline() {
         // Test decompositions
         // let (q, r) = qr(a); // QR not implemented yet
         // let (_l_u_p) = lu(a); // LU not implemented yet
-        let (_u_svd_s_v) = svd(a);
+        let _u_svd_s_v = svd(a);
         let _chol = cholesky(&a);
-        let (_eigenvals_eigenvecs) = eigen(a);
+        let _eigenvals_eigenvecs = eigen(a);
 
         // Test matrix operations
         let _inv = matrix_inverse(a);

@@ -18,7 +18,7 @@ use std::time::Instant;
 #[allow(dead_code)]
 fn generate_points(n_points: usize, dimensions: usize, seed: u64) -> Array2<f64> {
     let mut rng = StdRng::seed_from_u64(seed);
-    Array2::from_shape_fn((n_points, dimensions), |_| rng.gen_range(-10.0..10.0))
+    Array2::from_shape_fn((n_points, dimensions), |_| rng.random_range(-10.0..10.0))
 }
 
 /// Test SIMD vs scalar distance calculations
@@ -154,7 +154,7 @@ fn test_knn_performance() {
 
     for &k in &[1, 5, 10, 20] {
         let start = Instant::now();
-        let (_indicesdistances) =
+        let _indicesdistances =
             simd_knn_search(&query_points.view(), &data_points.view(), k, "euclidean").unwrap();
         let time = start.elapsed();
 

@@ -37,8 +37,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut values_vec = Vec::with_capacity(n_points);
 
     for _ in 0..n_points {
-        let x = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
-        let y = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+        let x = rng.random_range(0.0..2.0 * std::f64::consts::PI);
+        let y = rng.random_range(0.0..2.0 * std::f64::consts::PI);
 
         points_vec.push(x);
         points_vec.push(y);

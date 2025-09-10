@@ -30,7 +30,7 @@ fn add_noise(signal: &[f64], noise_level: f64) -> Vec<f64> {
     let mut rng = rand::rng();
     signal
         .iter()
-        .map(|&x| x + rng.gen_range(-noise_level..noise_level))
+        .map(|&x| x + rng.random_range(-noise_level..noise_level))
         .collect()
 }
 

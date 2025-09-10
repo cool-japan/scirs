@@ -818,7 +818,7 @@ fn computer_graphics_applications() -> Result<(), Box<dyn std::error::Error>> {
         (sphere_radius, 0.0, 0.0),
     ];
 
-    for (i, &(_x_y_z)) in test_points.iter().enumerate() {
+    for (i, &_x_y_z) in test_points.iter().enumerate() {
         let gaussian_curvature = analytical_curvature;
         let mean_curvature = 1.0 / sphere_radius;
         let k1 = 1.0 / sphere_radius;

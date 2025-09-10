@@ -1368,8 +1368,8 @@ mod tests {
             },
         ];
 
-        let desc1 = Array2::from_shape_fn((2, 64), |(__)| rand::random::<f32>());
-        let desc2 = Array2::from_shape_fn((2, 64), |(__)| rand::random::<f32>());
+        let desc1 = Array2::from_shape_fn((2, 64), |__| rand::random::<f32>());
+        let desc2 = Array2::from_shape_fn((2, 64), |__| rand::random::<f32>());
 
         let result =
             matcher.match_with_attention(&keypoints1, &desc1.view(), &keypoints2, &desc2.view());

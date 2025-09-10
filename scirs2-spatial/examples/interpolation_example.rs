@@ -181,8 +181,8 @@ fn generate_random_points(n: usize, x_min: f64, x_max: f64, y_min: f64, y_max: f
     let mut points = Array2::zeros((n, 2));
 
     for i in 0..n {
-        points[[i, 0]] = rng.gen_range(x_min..x_max);
-        points[[i, 1]] = rng.gen_range(y_min..y_max);
+        points[[i, 0]] = rng.random_range(x_min..x_max);
+        points[[i, 1]] = rng.random_range(y_min..y_max);
     }
 
     points

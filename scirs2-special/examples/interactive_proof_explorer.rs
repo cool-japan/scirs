@@ -21,6 +21,7 @@ use std::f64::consts::PI;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofExplorer {
     available_proofs: Vec<ProofModule>,
@@ -29,6 +30,7 @@ struct ProofExplorer {
     difficulty_settings: DifficultySettings,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofModule {
     id: String,
@@ -43,6 +45,7 @@ struct ProofModule {
     computational_examples: Vec<ComputationalExample>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum MathematicalLevel {
     Undergraduate,
@@ -51,6 +54,7 @@ enum MathematicalLevel {
     Research,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Theorem {
     statement: String,
@@ -60,6 +64,7 @@ struct Theorem {
     historical_context: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofStep {
     id: String,
@@ -73,6 +78,7 @@ struct ProofStep {
     hints: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractiveElement {
     UserInput {
@@ -99,6 +105,7 @@ enum InteractiveElement {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum PlotType {
     FunctionGraph {
@@ -120,6 +127,7 @@ enum PlotType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum VerificationMethod {
     NumericalCheck {
@@ -136,6 +144,7 @@ enum VerificationMethod {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TestCase {
     input: f64,
@@ -144,6 +153,7 @@ struct TestCase {
     description: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Application {
     title: String,
@@ -152,6 +162,7 @@ struct Application {
     practical_example: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ComputationalExample {
     title: String,
@@ -161,6 +172,7 @@ struct ComputationalExample {
     learning_objective: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserProgress {
     completed_proofs: Vec<String>,
@@ -171,6 +183,7 @@ struct UserProgress {
     achievements: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofSession {
     proof_id: String,
@@ -181,6 +194,7 @@ struct ProofSession {
     understanding_score: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserResponse {
     step_id: String,
@@ -190,6 +204,7 @@ struct UserResponse {
     time_taken: Duration,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DifficultySettings {
     show_hints_automatically: bool,
@@ -1318,6 +1333,7 @@ impl ProofExplorer {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum ElementResult {
     Correct(String),

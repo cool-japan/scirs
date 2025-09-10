@@ -21,6 +21,7 @@ use std::f64::consts::{E, PI};
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationStudio {
     available_derivations: Vec<DerivationModule>,
@@ -29,6 +30,7 @@ struct DerivationStudio {
     visualization_engine: VisualizationEngine,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationModule {
     id: String,
@@ -51,6 +53,7 @@ enum DifficultyLevel {
     Expert,       // Research level
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationPath {
     id: String,
@@ -61,6 +64,7 @@ struct DerivationPath {
     insights: Vec<MathematicalInsight>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum DerivationApproach {
     DirectCalculation,
@@ -73,6 +77,7 @@ enum DerivationApproach {
     AlgebraicManipulation,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DerivationStep {
     id: String,
@@ -95,6 +100,7 @@ struct MathematicalExpression {
     computational_form: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractiveTask {
     SymbolicManipulation {
@@ -128,6 +134,7 @@ enum InteractiveTask {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum Operation {
     Substitution {
@@ -153,6 +160,7 @@ enum Operation {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum QuestionType {
     MultipleChoice {
@@ -171,6 +179,7 @@ enum QuestionType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum VisualizationType {
     FunctionPlot {
@@ -200,6 +209,7 @@ enum VisualizationType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Parameter {
     name: String,
@@ -210,6 +220,7 @@ struct Parameter {
     stepsize: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ParameterType {
     Continuous,
@@ -218,6 +229,7 @@ enum ParameterType {
     Discrete(Vec<String>),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum GuidanceLevel {
     Minimal,    // Just the goal
@@ -234,6 +246,7 @@ struct VerificationPoint {
     critical: bool, // Must pass to continue
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum CheckType {
     NumericalEquality {
@@ -259,6 +272,7 @@ enum CheckType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MathematicalInsight {
     title: String,
@@ -268,6 +282,7 @@ struct MathematicalInsight {
     connections: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InsightType {
     ConceptualBreakthrough,
@@ -279,6 +294,7 @@ enum InsightType {
     ComputationalAspect,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ApplicationContext {
     title: String,
@@ -288,6 +304,7 @@ struct ApplicationContext {
     mathematical_connection: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ApplicationDomain {
     Physics,
@@ -300,6 +317,7 @@ enum ApplicationDomain {
     Biology,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserSession {
     session_id: String,
@@ -310,6 +328,7 @@ struct UserSession {
     progress_tracking: ProgressTracking,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserPreferences {
     preferred_notation: NotationStyle,
@@ -318,6 +337,7 @@ struct UserPreferences {
     visualization_preferences: VisualizationPreferences,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum NotationStyle {
     Traditional,
@@ -327,6 +347,7 @@ enum NotationStyle {
     ComputerScience,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum DetailLevel {
     Overview,
@@ -335,6 +356,7 @@ enum DetailLevel {
     Exhaustive,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractionStyle {
     Guided,
@@ -343,6 +365,7 @@ enum InteractionStyle {
     Collaborative,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationPreferences {
     prefer_static: bool,
@@ -351,6 +374,7 @@ struct VisualizationPreferences {
     animation_speed: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ColorScheme {
     Default,
@@ -360,6 +384,7 @@ enum ColorScheme {
     Scientific,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProgressTracking {
     steps_completed: usize,
@@ -369,6 +394,7 @@ struct ProgressTracking {
     achievement_points: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ComputationalEngine {
     symbolic_capability: bool,
@@ -376,6 +402,7 @@ struct ComputationalEngine {
     verification_tolerance: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationEngine {
     available_backends: Vec<String>,
@@ -383,6 +410,7 @@ struct VisualizationEngine {
     quality_settings: QualitySettings,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct QualitySettings {
     resolution: (usize, usize),
@@ -390,6 +418,7 @@ struct QualitySettings {
     frame_rate: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VerificationTest {
     description: String,

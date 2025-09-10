@@ -22,6 +22,7 @@ use std::f64::consts::{PI, TAU};
 use std::io::{self, Write};
 use std::time::Instant;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PhysicsLab {
     experiments: Vec<PhysicsExperiment>,
@@ -30,6 +31,7 @@ struct PhysicsLab {
     visualization_data: VisualizationData,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PhysicsExperiment {
     id: String,
@@ -43,6 +45,7 @@ struct PhysicsExperiment {
     visualization_config: VisualizationConfig,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ExperimentParameter {
     name: String,
@@ -55,6 +58,7 @@ struct ExperimentParameter {
     physical_meaning: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SimulationEngine {
     time_evolution: bool,
@@ -63,6 +67,7 @@ struct SimulationEngine {
     numerical_method: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationConfig {
     plot_type: PlotType,
@@ -71,6 +76,7 @@ struct VisualizationConfig {
     animation_enabled: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum PlotType {
     Line2D,
@@ -80,6 +86,7 @@ enum PlotType {
     MultiPanel,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AxisConfig {
     label: String,
@@ -87,6 +94,7 @@ struct AxisConfig {
     scale: String, // "linear", "log", "symlog"
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserSession {
     completed_experiments: Vec<String>,
@@ -95,6 +103,7 @@ struct UserSession {
     session_start: Instant,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationData {
     x_data: Array1<f64>,
@@ -1487,7 +1496,7 @@ fn run_tunneling_simulation() -> Result<(), Box<dyn std::error::Error>> {
     let barrier_width = 1e-9_f64; // m
     let mass = 9.109e-31_f64; // electron mass kg
     let hbar = 1.055e-34_f64; // J·s
-    let eV_to_J = 1.602e-19_f64;
+    let e_v_to_j = 1.602e-19_f64;
 
     println!("⚡ Tunneling parameters:");
     println!("   Particle energy: {:.1} eV", particle_energy);
@@ -1500,8 +1509,8 @@ fn run_tunneling_simulation() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // WKB approximation
-    let energy_diff_J = (barrier_height - particle_energy) * eV_to_J;
-    let momentum_inside = (2.0 * mass * energy_diff_J).sqrt();
+    let energy_diff_j = (barrier_height - particle_energy) * e_v_to_j;
+    let momentum_inside = (2.0 * mass * energy_diff_j).sqrt();
     let action_integral = 2.0 * momentum_inside * barrier_width / hbar;
     let transmission_wkb = (-action_integral).exp();
 
@@ -1527,7 +1536,7 @@ fn run_tunneling_simulation() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Characteristic lengths
-    let de_broglie = 2.0 * PI * hbar / (2.0 * mass * particle_energy * eV_to_J).sqrt();
+    let de_broglie = 2.0 * PI * hbar / (2.0 * mass * particle_energy * e_v_to_j).sqrt();
     let penetration_depth = hbar / momentum_inside;
 
     println!("\n📏 Characteristic length scales:");

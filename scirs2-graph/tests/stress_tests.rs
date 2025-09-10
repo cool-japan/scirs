@@ -205,9 +205,9 @@ fn test_large_directed_graph_algorithms() -> CoreResult<()> {
 
     for i in 1..n {
         // Add edges from new nodes to existing nodes
-        let num_edges = rng.gen_range(1..=5);
+        let num_edges = rng.random_range(1..=5);
         for _ in 0..num_edges {
-            let target = rng.gen_range(0..i);
+            let target = rng.random_range(0..i);
             graph
                 .add_edge(i, target, 1.0)
                 .map_err(|e| scirs2_core::error::CoreError::from(e.to_string()))?;
@@ -294,7 +294,7 @@ fn test_memory_efficient_operations() -> CoreResult<()> {
     let mut clustering_sum = 0.0;
     if let Ok(coefficients) = measures::clustering_coefficient(&graph) {
         for _ in 0..sample_size {
-            let node = rng.gen_range(0..graph.node_count());
+            let node = rng.random_range(0..graph.node_count());
             if let Some(cc) = coefficients.get(&node) {
                 clustering_sum += cc;
             }
@@ -378,7 +378,7 @@ fn estimate_diameter(graph: &Graph<usize, f64>, samples: usize) -> CoreResult<us
     let mut max_distance = 0;
 
     for _ in 0..samples {
-        let source = rng.gen_range(0..graph.node_count());
+        let source = rng.random_range(0..graph.node_count());
         // Use BFS to compute distances manually
         let bfs_nodes = algorithms::breadth_first_search(&graph, &source)
             .map_err(|e| scirs2_core::error::CoreError::from(e.to_string()))?;

@@ -5,6 +5,8 @@
 //!
 //! Run with: cargo run --example interactive_tutorial
 
+#![allow(unexpected_cfgs)]
+
 use ndarray::Array1;
 use num_complex::Complex64;
 use scirs2_special::*;
@@ -749,9 +751,9 @@ fn elliptic_integral_tutorial() -> Result<(), Box<dyn std::error::Error>> {
     let k_values = vec![0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99];
 
     for &k in &k_values {
-        let K_val = elliptic_k(k);
-        let E_val = elliptic_e(k);
-        println!("k = {:.2}: K(k) = {:.4}, E(k) = {:.4}", k, K_val, E_val);
+        let k_val = elliptic_k(k);
+        let e_val = elliptic_e(k);
+        println!("k = {:.2}: K(k) = {:.4}, E(k) = {:.4}", k, k_val, e_val);
 
         if k == 0.0 {
             println!("  → K(0) = E(0) = π/2 = {:.4}", std::f64::consts::PI / 2.0);
@@ -773,11 +775,11 @@ fn elliptic_integral_tutorial() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nFor k = 0.5:");
     for &phi in &phi_values {
-        let F_val = elliptic_f(phi, k);
-        let E_val = elliptic_e_inc(phi, k);
+        let f_val = elliptic_f(phi, k);
+        let e_val = elliptic_e_inc(phi, k);
         println!(
             "φ = {:.3}: F(φ,k) = {:.4}, E(φ,k) = {:.4}",
-            phi, F_val, E_val
+            phi, f_val, e_val
         );
     }
 
@@ -816,8 +818,8 @@ fn elliptic_integral_tutorial() -> Result<(), Box<dyn std::error::Error>> {
     println!("where L is length, g is gravity, and K is the complete elliptic integral.\n");
 
     let g: f64 = 9.81; // gravity
-    let L: f64 = 1.0; // length in meters
-    let small_angle_period = 2.0 * std::f64::consts::PI * (L / g).sqrt();
+    let l: f64 = 1.0; // length in meters
+    let small_angle_period = 2.0 * std::f64::consts::PI * (l / g).sqrt();
 
     println!("For a 1-meter pendulum:");
     println!("Small angle period: T₀ = {:.3} seconds", small_angle_period);
@@ -826,8 +828,8 @@ fn elliptic_integral_tutorial() -> Result<(), Box<dyn std::error::Error>> {
     for &angle_deg in &angles_deg {
         let angle_rad = angle_deg * std::f64::consts::PI / 180.0;
         let k = (angle_rad / 2.0).sin();
-        let K_val = elliptic_k(k);
-        let period = 4.0 * (L / g).sqrt() * K_val;
+        let k_val = elliptic_k(k);
+        let period = 4.0 * (l / g).sqrt() * k_val;
         let ratio = period / small_angle_period;
 
         println!(
@@ -897,8 +899,8 @@ fn elliptic_integral_tutorial() -> Result<(), Box<dyn std::error::Error>> {
 
                 let angle_rad = angle_deg * std::f64::consts::PI / 180.0;
                 let k = (angle_rad / 2.0).sin();
-                let K_val = elliptic_k(k);
-                let period = 4.0 * (length / 9.81).sqrt() * K_val;
+                let k_val = elliptic_k(k);
+                let period = 4.0 * (length / 9.81).sqrt() * k_val;
                 let small_angle_period = 2.0 * std::f64::consts::PI * (length / 9.81).sqrt();
 
                 println!("Pendulum period: {:.4} seconds", period);

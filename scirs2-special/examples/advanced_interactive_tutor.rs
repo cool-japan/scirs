@@ -1149,18 +1149,18 @@ fn solve_engineering_problems(profile: &mut UserProfile) -> Result<(), Box<dyn s
     let m_r = m * r;
     let c1 = (t_base - t_inf) / i0(m_r);
 
-    println!("C₁ = {:.2} °C", C1);
+    println!("C₁ = {:.2} °C", c1);
 
     // Temperature profile
     println!("\n🌡️  Temperature distribution:");
     let r_values = vec![0.0, 0.01, 0.02, 0.03, 0.04, 0.05];
     for &r in &r_values {
         let t = t_inf + c1 * i0(m * r);
-        println!("T({:.3} m) = {:.1} °C", r, T);
+        println!("T({:.3} m) = {:.1} °C", r, t);
     }
 
     // Heat transfer rate
-    let q = -k * delta * 2.0 * PI * R * c1 * m * i1(mR);
+    let q = -k * delta * 2.0 * PI * r * c1 * m * i1(m_r);
     println!("\n🔥 Heat transfer rate: {:.1} W", q);
 
     profile.add_experience(50);
@@ -1190,15 +1190,15 @@ fn solve_financial_problems(profile: &mut UserProfile) -> Result<(), Box<dyn std
     let sigma: f64 = 0.2; // Volatility
 
     println!("\n🔢 Parameters:");
-    println!("S₀ = ${:.2}", S0);
+    println!("S₀ = ${:.2}", s0);
     println!("K = ${:.2}", k);
     println!("r = {:.1}%", r * 100.0);
-    println!("T = {:.2} years", T);
+    println!("T = {:.2} years", t);
     println!("σ = {:.1}%", sigma * 100.0);
 
     // Calculate d1 and d2
-    let d1 = ((s0 / k).ln() + (r + 0.5 * sigma * sigma) * T) / (sigma * T.sqrt());
-    let d2 = d1 - sigma * T.sqrt();
+    let d1 = ((s0 / k).ln() + (r + 0.5 * sigma * sigma) * t) / (sigma * t.sqrt());
+    let d2 = d1 - sigma * t.sqrt();
 
     println!("\n🧮 Calculations:");
     println!("d₁ = {:.4}", d1);
@@ -1212,14 +1212,14 @@ fn solve_financial_problems(profile: &mut UserProfile) -> Result<(), Box<dyn std
     println!("N(d₂) = {:.4}", n_d2);
 
     // Calculate option price
-    let call_price = s0 * n_d1 - K * (-r * T).exp() * n_d2;
+    let call_price = s0 * n_d1 - k * (-r * t).exp() * n_d2;
 
     println!("\n💰 Call Option Price: ${:.2}", call_price);
 
     // Sensitivity analysis
     println!("\n📊 Greeks:");
     let delta = n_d1;
-    let gamma = (-(d1 * d1) / 2.0).exp() / (S0 * sigma * T.sqrt() * (2.0 * PI).sqrt());
+    let gamma = (-(d1 * d1) / 2.0).exp() / (s0 * sigma * t.sqrt() * (2.0 * PI).sqrt());
 
     println!("Delta (∂C/∂S) = {:.4}", delta);
     println!("Gamma (∂²C/∂S²) = {:.6}", gamma);
@@ -1606,7 +1606,7 @@ fn bioinformatics_lab(profile: &mut UserProfile) -> Result<(), Box<dyn std::erro
     let n_a: f64 = 6.022e23; // Avogadro's number
 
     let delta_g_per_molecule: f64 = delta_g / n_a;
-    let equilibrium_constant: f64 = (-delta_g_per_molecule / (k_b * T)).exp();
+    let equilibrium_constant: f64 = (-delta_g_per_molecule / (k_b * t)).exp();
 
     println!("ΔG = {:.1} kJ/mol", delta_g / 1000.0);
     println!("K_eq = exp(-ΔG/RT) = {:.2e}", equilibrium_constant);
@@ -1667,7 +1667,7 @@ fn climate_science_lab(profile: &mut UserProfile) -> Result<(), Box<dyn std::err
 
     for &tau in &optical_depths {
         let intensity: f64 = i_0 * ((-tau) as f64).exp();
-        let attenuation = (1.0 - intensity / I_0) * 100.0;
+        let attenuation = (1.0 - intensity / i_0) * 100.0;
         println!(
             "τ = {}: I = {:.1} W/m² ({:.1}% attenuated)",
             tau, intensity, attenuation

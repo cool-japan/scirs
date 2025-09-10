@@ -33,8 +33,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut points = Array2::zeros((n_points, 2));
 
     for i in 0..n_points {
-        points[[i, 0]] = rng.gen_range(0.0..100.0);
-        points[[i, 1]] = rng.gen_range(0.0..100.0);
+        points[[i, 0]] = rng.random_range(0.0..100.0);
+        points[[i, 1]] = rng.random_range(0.0..100.0);
     }
 
     println!("📊 Generated {n_points} test points");

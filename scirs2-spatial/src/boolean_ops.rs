@@ -802,7 +802,7 @@ mod tests {
     }
 
     #[test]
-    fn test__intersection() {
+    fn test_intersection() {
         // Non-self-intersecting square
         let square = arr2(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
         assert!(!is_self_intersecting(&square.view()).unwrap());
