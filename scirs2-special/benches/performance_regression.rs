@@ -74,7 +74,7 @@ fn array_operation_benchmarks(c: &mut Criterion) {
         group.throughput(Throughput::Elements(size as u64));
 
         // Gamma function array operations
-        group.bench_withinput(
+        group.bench_with_input(
             BenchmarkId::new("gamma_array_scalar", size),
             &data,
             |b, data| {
@@ -89,7 +89,7 @@ fn array_operation_benchmarks(c: &mut Criterion) {
         );
 
         // Error function array operations
-        group.bench_withinput(
+        group.bench_with_input(
             BenchmarkId::new("erf_array_scalar", size),
             &data,
             |b, data| {
@@ -104,7 +104,7 @@ fn array_operation_benchmarks(c: &mut Criterion) {
         );
 
         // Bessel function array operations
-        group.bench_withinput(
+        group.bench_with_input(
             BenchmarkId::new("bessel_j0_array_scalar", size),
             &data,
             |b, data| {

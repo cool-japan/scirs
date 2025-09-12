@@ -362,12 +362,12 @@ fn mixed_precision_quantization(network: &[SimpleLayer], input: &Array2<f32>) {
         // Quantize weights
         let weights_params =
             calibrate_matrix(&layer.weights.view(), w_bits, &weights_config).unwrap();
-        let (quantized_weights) =
+        let quantized_weights =
             quantize_matrix(&layer.weights.view(), w_bits, weights_params.method);
 
         // Quantize biases (typically keep biases at higher precision)
         let bias_params = calibrate_matrix(&layer.biases.view(), 8, &bias_config).unwrap();
-        let (quantized_biases) = quantize_matrix(&layer.biases.view(), 8, bias_params.method);
+        let quantized_biases = quantize_matrix(&layer.biases.view(), 8, bias_params.method);
 
         quantized_layers.push((quantized_weights, quantized_biases));
         quantization_params.push((weights_params.clone(), bias_params));

@@ -10,7 +10,7 @@ use tempfile::tempdir;
 #[allow(dead_code)]
 fn load_dataset_chunk(chunk_size: usize, nfeatures: usize) -> Array2<f64> {
     let mut rng = rand::rng();
-    Array2::from_shape_fn((chunk_size, nfeatures), |_| rng.gen_range(0.0..100.0))
+    Array2::from_shape_fn((chunk_size, nfeatures), |_| rng.random_range(0.0..100.0))
 }
 
 /// Normalizes data (center and scale)

@@ -90,7 +90,7 @@ fn bench_jn(c: &mut Criterion) {
 
     // Different orders with medium inputs
     for n in [2, 5, 10, 20] {
-        group.bench_withinput(BenchmarkId::new("order", n), &n, |b, &n| {
+        group.bench_with_input(BenchmarkId::new("order", n), &n, |b, &n| {
             b.iter(|| {
                 for i in 0..50 {
                     let x = i as f64 * 0.2 + 5.0;
@@ -111,7 +111,7 @@ fn bench_jv(c: &mut Criterion) {
     let orders = [0.0, 1.0, 2.0, 0.5, 1.5, 2.5];
 
     for v in orders {
-        group.bench_withinput(BenchmarkId::new("order", v), &v, |b, &v| {
+        group.bench_with_input(BenchmarkId::new("order", v), &v, |b, &v| {
             b.iter(|| {
                 for i in 0..50 {
                     let x = i as f64 * 0.2 + 5.0;

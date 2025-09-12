@@ -87,7 +87,7 @@ fn bench_bessel_comprehensive(c: &mut Criterion) {
 
     // jn with different orders
     for n in [2, 5, 10, 20] {
-        group.bench_withinput(BenchmarkId::new("jn_order", n), &n, |b, &n| {
+        group.bench_with_input(BenchmarkId::new("jn_order", n), &n, |b, &n| {
             b.iter(|| {
                 for i in 0..50 {
                     let x = i as f64 * 0.2 + 5.0;
@@ -99,7 +99,7 @@ fn bench_bessel_comprehensive(c: &mut Criterion) {
 
     // jv with different orders
     for v in [0.0, 1.0, 2.0, 0.5, 1.5, 2.5] {
-        group.bench_withinput(
+        group.bench_with_input(
             BenchmarkId::new("jv_order", format!("{v:.1}")),
             &v,
             |b, &v| {
@@ -324,7 +324,7 @@ fn bench_memory_usage(c: &mut Criterion) {
     for size in [100, 1000, 10000, 100000] {
         let values: Vec<f64> = (0..size).map(|i| i as f64 * 0.001 + 1.0).collect();
 
-        group.bench_withinput(
+        group.bench_with_input(
             BenchmarkId::new("gamma_array_like", size),
             &values,
             |b, vals| {

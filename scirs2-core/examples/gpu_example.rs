@@ -38,7 +38,7 @@ fn run_gpu_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Allocate buffer on GPU and copy data
     let buffer = ctx.create_buffer::<f32>(data_size);
-    buffer.copy_from_host(&host_data);
+    let _ = buffer.copy_from_host(&host_data);
     println!("Copied data to GPU buffer");
 
     // Execute a simple computation (add 1.0 to each element)
@@ -63,7 +63,7 @@ fn run_gpu_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Copy results back to host
     let mut result = vec![0.0f32; data_size];
-    buffer.copy_to_host(&mut result);
+    let _ = buffer.copy_to_host(&mut result);
 
     // Verify results (should be i+1 for each element)
     println!("Verifying results...");

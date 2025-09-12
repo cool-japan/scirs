@@ -98,7 +98,7 @@ fn test_largematrix_operations(ctx: &GpuContext) -> Result<(), GpuError> {
             // In a real implementation, we would use a kernel here
             // For now, just copy data back and forth to simulate work
             let mut temp = vec![0.0f32; n_elements];
-            gpu_a.copy_to_host(&mut temp);
+            let _ = gpu_a.copy_to_host(&mut temp);
 
             if i % 2 == 0 {
                 print!(".");
@@ -186,7 +186,7 @@ fn test_intensive_computation_loop(ctx: &GpuContext) -> Result<(), GpuError> {
         // In a real implementation, we would use a kernel here
         // For now, just copy data back and forth to simulate work
         let mut temp = vec![0.0f32; n];
-        gpu_data.copy_to_host(&mut temp);
+        let _ = gpu_data.copy_to_host(&mut temp);
 
         if i % 10 == 0 {
             println!("Progress: {}%", i);

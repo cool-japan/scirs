@@ -69,7 +69,7 @@ fn create_drifting_data_sequence(_num_matrices: usize, driftfactor: f32) -> Vec<
 
         // Drift the distribution parameters
         mean += driftfactor * rng.random_range(-1.0..1.0);
-        std_dev = (std_dev + driftfactor * rng.random_range(-0.1..0.3)).clamp(0.5f32..3.0f32);
+        std_dev = (std_dev + driftfactor * rng.random_range(-0.1..0.3)).clamp(0.5f32, 3.0f32);
     }
 
     result

@@ -398,7 +398,7 @@ fn simulate_iterative_solver(matrix_size: usize, max_iterations: usize) -> CoreR
     // Simulate different failure modes
     use rand::Rng;
     let mut rng = rand::rng();
-    let failure_mode = rng.gen_range(0..4);
+    let failure_mode = rng.random_range(0..4);
 
     match failure_mode {
         0 => {
