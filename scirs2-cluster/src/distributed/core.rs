@@ -12,7 +12,6 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -101,8 +100,7 @@ pub enum InitializationMethod {
 }
 
 /// Convergence information
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConvergenceInfo {
     pub iteration: usize,
     pub inertia: f64,

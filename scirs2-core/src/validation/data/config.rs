@@ -5,12 +5,10 @@
 
 use std::collections::HashMap;
 
-
 use serde::{Deserialize, Serialize};
 
 /// Data validation configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationConfig {
     /// Enable strict mode (fail fast on first error)
     pub strict_mode: bool,
@@ -46,8 +44,7 @@ impl Default for ValidationConfig {
 }
 
 /// Error severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ErrorSeverity {
     /// Warning - data may still be usable
     Warning,
@@ -58,8 +55,7 @@ pub enum ErrorSeverity {
 }
 
 /// Types of data quality issues
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QualityIssueType {
     /// Missing or null values
     MissingData,
@@ -82,8 +78,7 @@ pub enum QualityIssueType {
 }
 
 /// Enhanced validation error type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationErrorType {
     /// Required field missing
     MissingRequiredField,

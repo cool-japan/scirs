@@ -25,7 +25,6 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-
 use serde::{Deserialize, Serialize};
 
 /// Central coordinator for advanced mode ecosystem
@@ -48,8 +47,7 @@ pub struct AdvancedEcosystemCoordinator {
 
 /// Configuration for advanced ecosystem
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvancedEcosystemConfig {
     /// Enable cross-module optimization
     pub enable_cross_module_optimization: bool,
@@ -83,8 +81,7 @@ impl Default for AdvancedEcosystemConfig {
 
 /// Status of the advanced ecosystem
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EcosystemStatus {
     /// Overall health status
     pub health: EcosystemHealth,
@@ -103,8 +100,7 @@ pub struct EcosystemStatus {
 
 /// Health status of the ecosystem
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EcosystemHealth {
     Healthy,
     Warning,
@@ -115,8 +111,7 @@ pub enum EcosystemHealth {
 
 /// Resource utilization metrics
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUtilization {
     /// CPU utilization (0.0-1.0)
     pub cpu_usage: f64,
@@ -208,8 +203,7 @@ pub struct ProcessingContext {
 
 /// Priority levels for processing
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Priority {
     Low,
     Normal,
@@ -220,8 +214,7 @@ pub enum Priority {
 
 /// Processing strategy for advanced operations
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ProcessingStrategy {
     SingleModule,
     Sequential,
@@ -243,8 +236,7 @@ pub struct ProcessingPlan {
 
 /// Cross-module optimization configuration
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrossModuleOptimizationConfig {
     pub enable_data_sharing: bool,
     pub enable_compute_sharing: bool,
@@ -255,8 +247,7 @@ pub struct CrossModuleOptimizationConfig {
 
 /// Optimization level for cross-module operations
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OptimizationLevel {
     Conservative,
     Balanced,
@@ -277,8 +268,7 @@ pub struct DistributedWorkflow {
 
 /// Workflow stage specification
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowStage {
     pub name: String,
     pub module: String,
@@ -289,8 +279,7 @@ pub struct WorkflowStage {
 
 /// Result of workflow execution
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowResult {
     pub workflow_name: String,
     pub execution_time: Duration,
@@ -301,8 +290,7 @@ pub struct WorkflowResult {
 
 /// Result of a single workflow stage
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StageResult {
     pub stage_name: String,
     pub execution_time: Duration,
@@ -366,8 +354,7 @@ impl WorkflowState {
 
 /// Performance metrics for operations
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
     pub throughput: f64,
     pub latency: Duration,
@@ -810,8 +797,7 @@ pub struct CommunicationStatistics {
 
 /// Optimization opportunity identified by the ecosystem
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizationOpportunity {
     /// Module name
     pub modulename: String,
@@ -1559,7 +1545,7 @@ impl AdvancedEcosystemCoordinator {
                 from: "ecosystem_coordinator".to_string(),
                 to: modulename.to_string(),
                 messagetype: MessageType::OptimizationHint,
-                
+
                 payload: serde_json::to_vec(&opportunity).unwrap_or_default(),
                 #[cfg(not(feature = "serde"))]
                 payload: Vec::new(),

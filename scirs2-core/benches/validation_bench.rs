@@ -33,14 +33,11 @@ fn bench_simple_validation(c: &mut Criterion) {
 
     c.bench_function("simple_validation", |b| {
         b.iter(|| {
-            
-            {
-                let data = serde_json::json!({
-                    name: black_box("John Doe"),
-                    "age": black_box(30)
-                });
-                let _ = validator.validate(&data, &schema);
-            }
+            let data = serde_json::json!({
+                name: black_box("John Doe"),
+                "age": black_box(30)
+            });
+            let _ = validator.validate(&data, &schema);
         })
     });
 }
@@ -75,13 +72,10 @@ fn bench_complex_constraints(c: &mut Criterion) {
 
     c.bench_function("complex_constraints", |b| {
         b.iter(|| {
-            
-            {
-                let data = serde_json::json!({
-                    value: black_box(42.0)
-                });
-                let _ = validator.validate(&data, &schema);
-            }
+            let data = serde_json::json!({
+                value: black_box(42.0)
+            });
+            let _ = validator.validate(&data, &schema);
         })
     });
 }
@@ -125,13 +119,10 @@ fn bench_pattern_matching(c: &mut Criterion) {
 
     c.bench_function("pattern_matching", |b| {
         b.iter(|| {
-            
-            {
-                let data = serde_json::json!({
-                    "email": black_box("test.user@example.com")
-                });
-                let _ = validator.validate(&data, &schema);
-            }
+            let data = serde_json::json!({
+                "email": black_box("test.user@example.com")
+            });
+            let _ = validator.validate(&data, &schema);
         })
     });
 }
@@ -183,13 +174,10 @@ fn bench_large_or_constraint(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("or_size", size), size, |b_| {
             b.iter(|| {
-                
-                {
-                    let data = serde_json::json!({
-                        "text": black_box(pattern42)
-                    });
-                    let _ = validator.validate(&data, &schema);
-                }
+                let data = serde_json::json!({
+                    "text": black_box(pattern42)
+                });
+                let _ = validator.validate(&data, &schema);
             })
         });
     }
@@ -219,7 +207,6 @@ fn bench_cache_performance(c: &mut Criterion) {
     // First run - cache miss
     group.bench_function("cache_miss", |b| {
         b.iter(|| {
-            
             {
                 let data = serde_json::json!({
                     value: black_box(50.0)
@@ -231,7 +218,7 @@ fn bench_cache_performance(c: &mut Criterion) {
     });
 
     // Warm up cache
-    
+
     {
         let data = serde_json::json!({ value: 50.0 });
         let _ = validator.validate(&data, &schema);
@@ -240,13 +227,10 @@ fn bench_cache_performance(c: &mut Criterion) {
     // Subsequent runs - cache hit
     group.bench_function("cache_hit", |b| {
         b.iter(|| {
-            
-            {
-                let data = serde_json::json!({
-                    value: black_box(50.0)
-                });
-                let _ = validator.validate(&data, &schema);
-            }
+            let data = serde_json::json!({
+                value: black_box(50.0)
+            });
+            let _ = validator.validate(&data, &schema);
         })
     });
 

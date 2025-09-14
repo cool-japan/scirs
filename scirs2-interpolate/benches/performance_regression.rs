@@ -5,7 +5,6 @@
 //! on stable, reproducible measurements across different operations and scales.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use scirs2_interpolate::{
     advanced::{
@@ -18,6 +17,7 @@ use scirs2_interpolate::{
     spline::{CubicSpline, SplineBoundaryCondition},
     traits::{Interpolator, SplineInterpolator},
 };
+use std::hint::black_box;
 use std::time::Duration;
 
 // Fixed seeds for reproducible benchmarks

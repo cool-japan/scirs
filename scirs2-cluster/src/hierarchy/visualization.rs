@@ -8,7 +8,6 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -316,8 +315,7 @@ pub struct Branch<F: Float> {
 }
 
 /// Represents a leaf (terminal node) in the dendrogram
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Leaf {
     /// Position (x, y)
     pub position: (f64, f64),
@@ -1100,8 +1098,7 @@ pub mod interactive {
     }
 
     /// Tooltip information for dendrogram nodes
-    #[derive(Debug, Clone)]
-    #[derive(Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct TooltipInfo {
         /// Cluster ID
         pub cluster_id: usize,

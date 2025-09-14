@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array2, Array3};
 use scirs2_ndimage::morphology::{
     binary_dilation,
@@ -18,6 +17,7 @@ use scirs2_ndimage::morphology::{
     simple_morph::{binary_dilation_2d, binary_erosion_2d, grey_dilation_2d, grey_erosion_2d},
     white_tophat,
 };
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Benchmark binary morphological operations

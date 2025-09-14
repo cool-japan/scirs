@@ -7,7 +7,6 @@
 #![allow(dead_code)]
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -20,6 +19,7 @@ use scirs2_graph::{
     DiGraph, Graph,
 };
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Benchmark community detection algorithms

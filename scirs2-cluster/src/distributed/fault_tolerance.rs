@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-
 use serde::{Deserialize, Serialize};
 
 use super::message_passing::RecoveryStrategy;
@@ -88,8 +87,7 @@ impl Default for FaultToleranceConfig {
 }
 
 /// Clustering checkpoint for recovery
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusteringCheckpoint<F: Float> {
     pub iteration: usize,
     pub centroids: Option<Array2<F>>,
@@ -100,8 +98,7 @@ pub struct ClusteringCheckpoint<F: Float> {
 }
 
 /// Convergence metrics for checkpoints
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConvergenceMetrics {
     pub iteration: usize,
     pub inertia: f64,

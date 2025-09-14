@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::distr::Uniform;
 use rand::{Rng, SeedableRng};
@@ -8,6 +7,7 @@ use scirs2_linalg::{cholesky, det, inv, lstsq, lu, matrix_norm, qr, solve};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::hint::black_box;
 use std::time::Instant;
 
 const SEED: u64 = 42;

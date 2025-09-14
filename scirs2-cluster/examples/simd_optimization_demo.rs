@@ -259,7 +259,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         "Core abstractions used"
     };
-    
+
     println!("   📦 Parallel Processing: {}", parallel_status);
 
     println!("\n✅ SIMD Optimization Demonstration Complete!");

@@ -6,10 +6,8 @@
 #![allow(dead_code)]
 
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
-use std::hint::black_box;
 use scirs2_graph::advanced::{
     create_advanced_processor, execute_with_advanced, AdvancedConfig, AdvancedProcessor,
 };
@@ -22,6 +20,7 @@ use scirs2_graph::generators::{barabasi_albert_graph, erdos_renyi_graph};
 use scirs2_graph::measures::pagerank_centrality;
 use scirs2_graph::pagerank;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::Instant;
 
 /// Benchmark configuration for Advanced tests

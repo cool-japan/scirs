@@ -6,7 +6,6 @@
 #![allow(unused_imports)]
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -29,6 +28,7 @@ use scirs2_graph::{
     Node,
 };
 use std::collections::HashSet;
+use std::hint::black_box;
 
 /// Benchmark graph creation and basic operations
 #[allow(dead_code)]

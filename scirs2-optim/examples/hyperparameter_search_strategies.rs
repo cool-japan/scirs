@@ -344,7 +344,10 @@ fn population_based_training_example() -> Result<()> {
                 "learning_rate".to_string(),
                 0.001 * (1.0 + rand::rng().random::<f64>()),
             ),
-            ("weight_decay".to_string(), 0.01 * rand::rng().random::<f64>()),
+            (
+                "weight_decay".to_string(),
+                0.01 * rand::rng().random::<f64>(),
+            ),
             (
                 "batch_size".to_string(),
                 32.0 + rand::rng().random::<f64>() * 96.0,
@@ -509,8 +512,14 @@ fn neural_predictor_example() -> Result<()> {
 
         // Compare with random hyperparameters
         let random_hyperparams = HashMap::from([
-            ("learning_rate".to_string(), rand::rng().random::<f64>() * 0.01),
-            ("weight_decay".to_string(), rand::rng().random::<f64>() * 0.01),
+            (
+                "learning_rate".to_string(),
+                rand::rng().random::<f64>() * 0.01,
+            ),
+            (
+                "weight_decay".to_string(),
+                rand::rng().random::<f64>() * 0.01,
+            ),
             (
                 "batch_size".to_string(),
                 16.0 + rand::rng().random::<f64>() * 112.0,

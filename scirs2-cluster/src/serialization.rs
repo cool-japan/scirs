@@ -1478,8 +1478,7 @@ pub fn save_spectral_clustering<P: AsRef<Path>>(
 }
 
 /// Export formats for clustering models
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExportFormat {
     /// JSON format
     Json,
@@ -2533,8 +2532,7 @@ pub mod persistence {
     }
 
     /// Entry in the model registry
-    #[derive(Debug, Clone)]
-    #[derive(Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ModelRegistryEntry {
         /// Unique model identifier
         pub model_id: String,
@@ -2567,7 +2565,7 @@ pub mod persistence {
         }
 
         /// Register a new model
-        
+
         pub fn register_model<T: SerializableModel + AdvancedExport>(
             &mut self,
             model_id: String,
@@ -2630,7 +2628,7 @@ pub mod persistence {
         }
 
         /// Remove a model from registry
-        
+
         pub fn remove_model(&mut self, model_id: &str) -> Result<()> {
             if let Some(entry) = self.models.remove(model_id) {
                 let fullpath = self.base_directory.join(&entry.filepath);
@@ -2660,7 +2658,7 @@ pub mod persistence {
         }
 
         /// Compact registry by removing unused models
-        
+
         pub fn compact_registry(&mut self) -> Result<Vec<String>> {
             let mut removed = Vec::new();
             let entries_to_check: Vec<_> = self.models.iter().collect();
@@ -2684,7 +2682,7 @@ pub mod persistence {
         }
 
         /// Load registry from disk
-        
+
         pub fn load_registry(&mut self) -> Result<()> {
             let registrypath = self.base_directory.join("registry.json");
             if registrypath.exists() {
@@ -2699,7 +2697,7 @@ pub mod persistence {
         }
 
         /// Save registry to disk
-        
+
         fn save_registry(&self) -> Result<()> {
             std::fs::create_dir_all(&self.base_directory).map_err(|e| {
                 ClusteringError::InvalidInput(format!("Failed to create directory: {}", e))

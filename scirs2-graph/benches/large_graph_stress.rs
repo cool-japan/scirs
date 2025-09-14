@@ -6,11 +6,11 @@
 #![allow(unused_imports)]
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rand::{rng, Rng};
 use scirs2_graph::{algorithms, generators, measures, DiGraph, EdgeWeight, Graph, Node};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 /// Configuration for stress tests

@@ -4,7 +4,6 @@
 //! against reference implementations and theoretical expectations.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::Array1;
 use scirs2_stats::distributions::{
     beta, binom, chi2, expon, f, gamma, norm, poisson, t, uniform, Beta, Binomial, ChiSquare,
@@ -12,6 +11,7 @@ use scirs2_stats::distributions::{
 };
 use scirs2_stats::Distribution;
 use statrs::statistics::Statistics;
+use std::hint::black_box;
 
 /// Benchmark PDF calculations for continuous distributions
 #[allow(dead_code)]

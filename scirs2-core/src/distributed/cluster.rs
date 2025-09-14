@@ -14,7 +14,6 @@ use std::time::{Duration, Instant, SystemTime};
 #[cfg(feature = "logging")]
 use log;
 
-
 use serde::{Deserialize, Serialize};
 
 /// Global cluster manager instance
@@ -1771,8 +1770,7 @@ pub struct NodeInfo {
     pub metadata: NodeMetadata,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeType {
     Master,
     Worker,
@@ -1808,8 +1806,7 @@ impl Default for NodeCapabilities {
 }
 
 /// Specialized computing units available on a node
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SpecializedUnit {
     TensorCore,
     QuantumProcessor,
@@ -1997,8 +1994,7 @@ pub struct ResourceRequirements {
     pub specialized_requirements: Vec<SpecializedRequirement>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpecializedRequirement {
     pub unit_type: SpecializedUnit,
     pub count: usize,

@@ -5,7 +5,6 @@
 //! parallel processing implementations.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::{Array1, Array2, Axis};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -19,6 +18,7 @@ use scirs2_stats::{
     QuantileInterpolation,
 };
 use statrs::statistics::Statistics;
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Generate test data of various sizes for benchmarking

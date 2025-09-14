@@ -58,12 +58,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-
 use serde::{Deserialize, Serialize};
 
 /// Comprehensive benchmarking configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkConfig {
     /// Number of warmup iterations before measurement
     pub warmup_iterations: usize,
@@ -105,8 +103,7 @@ impl Default for BenchmarkConfig {
 }
 
 /// Statistical analysis of performance measurements
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceStatistics {
     /// Mean execution time
     pub mean: Duration,
@@ -135,8 +132,7 @@ pub struct PerformanceStatistics {
 }
 
 /// Memory usage profiling data
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryProfile {
     /// Peak memory usage during execution
     pub peak_memory_mb: f64,
@@ -155,8 +151,7 @@ pub struct MemoryProfile {
 }
 
 /// Single algorithm benchmark result
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlgorithmBenchmark {
     /// Algorithm name
     pub algorithm: String,
@@ -177,8 +172,7 @@ pub struct AlgorithmBenchmark {
 }
 
 /// GPU vs CPU performance comparison
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuVsCpuComparison {
     /// CPU execution time
     pub cpu_time: Duration,
@@ -197,8 +191,7 @@ pub struct GpuVsCpuComparison {
 }
 
 /// Clustering quality metrics
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityMetrics {
     /// Silhouette score
     pub silhouette_score: Option<f64>,
@@ -215,8 +208,7 @@ pub struct QualityMetrics {
 }
 
 /// Scalability analysis across different data sizes
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScalabilityAnalysis {
     /// Data size to execution time mapping
     pub size_to_time: Vec<(usize, Duration)>,
@@ -231,8 +223,7 @@ pub struct ScalabilityAnalysis {
 }
 
 /// Algorithm complexity classification
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ComplexityClass {
     /// O(n) - Linear complexity
     Linear,
@@ -247,8 +238,7 @@ pub enum ComplexityClass {
 }
 
 /// Performance optimization suggestion
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizationSuggestion {
     /// Suggestion category
     pub category: OptimizationCategory,
@@ -263,8 +253,7 @@ pub struct OptimizationSuggestion {
 }
 
 /// Optimization suggestion categories
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OptimizationCategory {
     /// Algorithm parameter tuning
     ParameterTuning,
@@ -281,8 +270,7 @@ pub enum OptimizationCategory {
 }
 
 /// Optimization priority levels
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum OptimizationPriority {
     /// Low priority optimization
     Low,
@@ -295,8 +283,7 @@ pub enum OptimizationPriority {
 }
 
 /// Comprehensive benchmark results
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkResults {
     /// Benchmark configuration used
     pub config: BenchmarkConfig,
@@ -317,8 +304,7 @@ pub struct BenchmarkResults {
 }
 
 /// Comparison between two algorithms
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlgorithmComparison {
     /// First algorithm name
     pub algorithm_a: String,
@@ -337,8 +323,7 @@ pub struct AlgorithmComparison {
 }
 
 /// Performance regression alert
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegressionAlert {
     /// Algorithm affected
     pub algorithm: String,
@@ -353,8 +338,7 @@ pub struct RegressionAlert {
 }
 
 /// Regression severity levels
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RegressionSeverity {
     /// Minor regression (< 10%)
     Minor,
@@ -367,8 +351,7 @@ pub enum RegressionSeverity {
 }
 
 /// System information for benchmarking context
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemInfo {
     /// CPU model and specifications
     pub cpu_info: String,

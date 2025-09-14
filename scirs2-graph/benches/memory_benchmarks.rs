@@ -1,12 +1,12 @@
 //! Memory usage and performance benchmarks for different graph representations
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use scirs2_graph::{
     generators,
     memory::{BitPackedGraph, CSRGraph, CompressedAdjacencyList, HybridGraph, MemoryProfiler},
     Graph,
 };
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Benchmark memory usage for different graph representations

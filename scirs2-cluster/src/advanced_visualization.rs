@@ -9,13 +9,11 @@ use crate::error::{ClusteringError, Result};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 
-
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 
 /// Visualization configuration for Advanced clustering results
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvancedVisualizationConfig {
     /// Show quantum coherence visualization
     pub show_quantum_coherence: bool,
@@ -32,8 +30,7 @@ pub struct AdvancedVisualizationConfig {
 }
 
 /// Color schemes for quantum state visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum QuantumColorScheme {
     /// Quantum rainbow (blue to red gradient)
     QuantumRainbow,
@@ -46,8 +43,7 @@ pub enum QuantumColorScheme {
 }
 
 /// Export formats for Advanced visualizations
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VisualizationExportFormat {
     /// Interactive HTML with JavaScript
     InteractiveHTML,
@@ -77,8 +73,7 @@ pub struct AdvancedVisualizer {
 }
 
 /// Snapshot of quantum state for visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantumStateSnapshot {
     /// Timestamp
     pub timestamp: f64,
@@ -93,8 +88,7 @@ pub struct QuantumStateSnapshot {
 }
 
 /// Snapshot of neuromorphic adaptation for visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeuromorphicSnapshot {
     /// Timestamp
     pub timestamp: f64,
@@ -109,8 +103,7 @@ pub struct NeuromorphicSnapshot {
 }
 
 /// AI algorithm selection insights for visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AISelectionInsights {
     /// Algorithm performance predictions
     pub algorithm_predictions: HashMap<String, f64>,
@@ -123,8 +116,7 @@ pub struct AISelectionInsights {
 }
 
 /// Data characteristics for visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataCharacteristicsVisualization {
     /// Dimensionality
     pub dimensionality: usize,
@@ -139,8 +131,7 @@ pub struct DataCharacteristicsVisualization {
 }
 
 /// Quantum coherence visualization plot
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct QuantumCoherencePlot {
     /// Time points
     pub time_points: Array1<f64>,
@@ -153,8 +144,7 @@ pub struct QuantumCoherencePlot {
 }
 
 /// Neuromorphic adaptation visualization
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NeuromorphicAdaptationPlot {
     /// Neuron activity heatmap
     pub neuron_activity: Array2<f64>,
@@ -694,7 +684,6 @@ impl AdvancedVisualizer {
 
     /// Export to JSON format
     fn export_to_json(&self, output: &AdvancedVisualizationOutput, filename: &str) -> Result<()> {
-        
         {
             use std::fs::File;
             use std::io::Write;
@@ -766,7 +755,7 @@ impl AdvancedVisualizer {
     }
 
     /// Create comprehensive JSON export data
-    
+
     fn create_json_export_data(&self, output: &AdvancedVisualizationOutput) -> serde_json::Value {
         use serde_json::json;
 

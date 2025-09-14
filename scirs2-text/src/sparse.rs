@@ -727,12 +727,7 @@ pub struct CompressedBlock {
 
 impl HierarchicalSparseMatrix {
     /// Create new hierarchical sparse matrix
-    pub fn new(
-        _n_rows: usize,
-        n_cols: usize,
-        top_blocksize: usize,
-        sub_blocksize: usize,
-    ) -> Self {
+    pub fn new(_n_rows: usize, n_cols: usize, top_blocksize: usize, sub_blocksize: usize) -> Self {
         Self {
             top_level_blocks: HashMap::new(),
             top_blocksize,

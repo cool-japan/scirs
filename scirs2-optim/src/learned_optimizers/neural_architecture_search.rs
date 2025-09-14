@@ -2840,8 +2840,7 @@ impl<
             // Update biases
             rlstate.controller.biases[layer_idx] = rlstate.controller.biases[layer_idx].mapv(|b| {
                 b + gradient_scale
-                    * T::from(scirs2_core::random::Random::seed(42).gen_range(-0.1..0.1))
-                        .unwrap()
+                    * T::from(scirs2_core::random::Random::seed(42).gen_range(-0.1..0.1)).unwrap()
             });
         }
 

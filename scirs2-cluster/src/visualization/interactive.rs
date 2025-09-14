@@ -9,15 +9,13 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-
 use serde::{Deserialize, Serialize};
 
 use super::{ColorScheme, ScatterPlot3D, VisualizationConfig};
 use crate::error::{ClusteringError, Result};
 
 /// Configuration for interactive 3D visualizations
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InteractiveConfig {
     /// Enable camera controls (rotation, zoom, pan)
     pub enable_camera_controls: bool,
@@ -74,8 +72,7 @@ impl Default for InteractiveConfig {
 }
 
 /// Camera state for 3D visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CameraState {
     /// Camera position (x, y, z)
     pub position: (f64, f64, f64),
@@ -218,8 +215,7 @@ pub enum ViewMode {
 }
 
 /// Real-time cluster statistics for interactive display
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterStats {
     /// Cluster ID
     pub cluster_id: i32,
@@ -768,8 +764,7 @@ pub struct BoundingBox3D {
 }
 
 /// Export format for interactive view state
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct InteractiveViewExport {
     camera: CameraState,
     view_mode: ViewMode,

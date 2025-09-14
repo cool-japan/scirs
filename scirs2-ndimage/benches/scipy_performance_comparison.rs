@@ -4,12 +4,12 @@
 //! that would be comparable to SciPy's ndimage performance characteristics.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array1, Array2, Array3, Array4};
 use scirs2_ndimage::filters::*;
 use scirs2_ndimage::interpolation::*;
 use scirs2_ndimage::measurements::*;
 use scirs2_ndimage::morphology::*;
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Benchmark filters against baseline implementations

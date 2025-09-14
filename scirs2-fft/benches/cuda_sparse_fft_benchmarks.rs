@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-use std::hint::black_box;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rand_distr::{Distribution, Normal};
@@ -11,6 +10,7 @@ use scirs2_fft::{
     sparse_fft_gpu_memory::{init_global_memory_manager, AllocationStrategy},
 };
 use std::f64::consts::PI;
+use std::hint::black_box;
 
 // Helper function to create a sparse signal
 #[allow(dead_code)]

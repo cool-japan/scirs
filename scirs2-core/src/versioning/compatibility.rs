@@ -7,12 +7,10 @@ use super::{ApiVersion, Version};
 use crate::error::CoreError;
 use std::collections::HashMap;
 
-
 use serde::{Deserialize, Serialize};
 
 /// Compatibility levels between API versions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CompatibilityLevel {
     /// Fully backward compatible
     BackwardCompatible,
@@ -60,8 +58,7 @@ impl CompatibilityLevel {
 }
 
 /// Detailed compatibility report
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompatibilityReport {
     /// Source version
     pub from_version: Version,
@@ -84,8 +81,7 @@ pub struct CompatibilityReport {
 }
 
 /// Specific compatibility issue
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompatibilityIssue {
     /// Issue severity
     pub severity: IssueSeverity,
@@ -100,8 +96,7 @@ pub struct CompatibilityIssue {
 }
 
 /// Issue severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum IssueSeverity {
     /// Informational - no action required
     Info,
@@ -114,8 +109,7 @@ pub enum IssueSeverity {
 }
 
 /// Impact level of compatibility issues
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ImpactLevel {
     /// No user impact
     None,
@@ -130,8 +124,7 @@ pub enum ImpactLevel {
 }
 
 /// Breaking change information
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreakingChange {
     /// Change type
     pub change_type: ChangeType,
@@ -146,8 +139,7 @@ pub struct BreakingChange {
 }
 
 /// Types of breaking changes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChangeType {
     /// API signature changed
     ApiSignatureChange,

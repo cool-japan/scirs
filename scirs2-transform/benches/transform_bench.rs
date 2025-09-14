@@ -3,11 +3,11 @@
 //! Run with: cargo bench --bench transform_bench
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::{Array2, ArrayBase, Axis, Data};
 use ndarray_rand::rand::distributions::Uniform;
 use ndarray_rand::RandomExt;
 use scirs2_transform::*;
+use std::hint::black_box;
 
 const SAMPLE_SIZES: &[usize] = &[100, 1000, 10_000];
 const FEATURE_SIZES: &[usize] = &[10, 50, 100];

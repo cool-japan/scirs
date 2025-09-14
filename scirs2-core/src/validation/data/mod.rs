@@ -36,7 +36,7 @@
 //! let validator = Validator::new(config)?;
 //!
 //! // For JSON validation (when serde feature is enabled)
-//! 
+//!
 //! {
 //!     let data = serde_json::json!({
 //!         name: "Test Dataset",
@@ -208,7 +208,6 @@ mod tests {
         assert!(result.is_valid());
     }
 
-    
     #[test]
     fn test_json_validation_integration() {
         // Test JSON validation functionality

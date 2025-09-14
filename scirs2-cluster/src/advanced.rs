@@ -11,15 +11,13 @@ use rand_distr::{Distribution, Uniform};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
 use crate::vq::euclidean_distance;
 
 /// Configuration for quantum-inspired clustering algorithms
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantumConfig {
     /// Number of quantum states (superposition states)
     pub n_quantum_states: usize,
@@ -422,8 +420,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumKMeans<F> {
 }
 
 /// Configuration for adaptive online clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdaptiveOnlineConfig {
     /// Initial learning rate
     pub initial_learning_rate: f64,
@@ -842,8 +839,7 @@ pub fn adaptive_online_clustering<F: Float + FromPrimitive + Debug>(
 }
 
 /// Configuration for reinforcement learning-based clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RLClusteringConfig {
     /// Number of actions (cluster assignments)
     pub n_actions: usize,
@@ -879,8 +875,7 @@ impl Default for RLClusteringConfig {
 }
 
 /// Reward functions for reinforcement learning
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RewardFunction {
     /// Silhouette score-based reward
     SilhouetteScore,
@@ -1241,8 +1236,7 @@ impl<F: Float + FromPrimitive + Debug> RLClustering<F> {
 }
 
 /// Configuration for transfer learning clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransferLearningConfig {
     /// Source domain weight in transfer
     pub source_weight: f64,
@@ -1272,8 +1266,7 @@ impl Default for TransferLearningConfig {
 }
 
 /// Feature alignment methods for domain adaptation
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FeatureAlignment {
     /// Linear transformation matrix
     LinearTransform,
@@ -1622,8 +1615,7 @@ pub fn transfer_learning_clustering<F: Float + FromPrimitive + Debug + 'static>(
 // ===========================================
 
 /// Configuration for deep clustering algorithms
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeepClusteringConfig {
     /// Encoder hidden layer dimensions
     pub encoder_dims: Vec<usize>,
@@ -2110,8 +2102,7 @@ pub fn variational_deep_embedding<F: Float + FromPrimitive + Debug + 'static>(
 // ===========================================
 
 /// Configuration for QAOA-based clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QAOAConfig {
     /// Number of QAOA layers
     pub p_layers: usize,
@@ -2130,8 +2121,7 @@ pub struct QAOAConfig {
 }
 
 /// Cost function types for QAOA clustering
-#[derive(Debug, Clone, Copy)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum QAOACostFunction {
     /// Modularity-based cost for graph clustering
     Modularity,
@@ -2509,8 +2499,7 @@ pub fn qaoa_clustering<F: Float + FromPrimitive + Debug + 'static>(
 // ===========================================
 
 /// Configuration for VQE-based clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VQEConfig {
     /// Number of variational parameters
     pub n_params: usize,
@@ -2527,8 +2516,7 @@ pub struct VQEConfig {
 }
 
 /// VQE ansatz types
-#[derive(Debug, Clone, Copy)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum VQEAnsatz {
     /// Hardware-efficient ansatz
     HardwareEfficient,

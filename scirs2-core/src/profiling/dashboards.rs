@@ -59,12 +59,10 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
-
 use serde::{Deserialize, Serialize};
 
 /// Dashboard configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardConfig {
     /// Dashboard title
     pub title: String,
@@ -148,8 +146,7 @@ impl DashboardConfig {
 }
 
 /// Dashboard theme options
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DashboardTheme {
     /// Light theme
     Light,
@@ -162,8 +159,7 @@ pub enum DashboardTheme {
 }
 
 /// Chart types for dashboard widgets
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChartType {
     /// Line chart for time series data
     LineChart,
@@ -184,8 +180,7 @@ pub enum ChartType {
 }
 
 /// Metric data sources
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MetricSource {
     /// System CPU usage
     SystemCpu,
@@ -206,8 +201,7 @@ pub enum MetricSource {
 }
 
 /// Dashboard widget configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Widget {
     /// Widget ID
     pub id: String,
@@ -230,8 +224,7 @@ pub struct Widget {
 }
 
 /// Widget layout and positioning
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetLayout {
     /// X position (grid units)
     pub x: u32,
@@ -255,8 +248,7 @@ impl Default for WidgetLayout {
 }
 
 /// Alert configuration for widgets
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlertConfig {
     /// Alert threshold value
     pub threshold: f64,
@@ -271,8 +263,7 @@ pub struct AlertConfig {
 }
 
 /// Alert conditions
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertCondition {
     /// Greater than threshold
     GreaterThan,
@@ -287,8 +278,7 @@ pub enum AlertCondition {
 }
 
 /// Alert severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum AlertSeverity {
     /// Informational alert
     Info,
@@ -301,8 +291,7 @@ pub enum AlertSeverity {
 }
 
 /// Notification channels for alerts
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NotificationChannel {
     /// Email notification
     Email(String),
@@ -317,8 +306,7 @@ pub enum NotificationChannel {
 }
 
 /// Display options for widgets
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayOptions {
     /// Show data labels
     pub show_labels: bool,
@@ -348,8 +336,7 @@ impl Default for DisplayOptions {
 }
 
 /// Number formatting options
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NumberFormat {
     /// Automatic formatting
     Auto,
@@ -448,8 +435,7 @@ impl Default for Widget {
 }
 
 /// Metric data point
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricDataPoint {
     /// Timestamp
     pub timestamp: SystemTime,
@@ -460,8 +446,7 @@ pub struct MetricDataPoint {
 }
 
 /// Time series data for a metric
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricTimeSeries {
     /// Metric name
     pub name: String,
@@ -536,8 +521,7 @@ impl MetricTimeSeries {
 }
 
 /// Dashboard alert
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardAlert {
     /// Alert ID
     pub id: String,
@@ -558,8 +542,7 @@ pub struct DashboardAlert {
 }
 
 /// Alert status
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertStatus {
     /// Alert is active
     Active,
@@ -588,8 +571,7 @@ pub struct PerformanceDashboard {
 }
 
 /// Dashboard state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DashboardState {
     /// Dashboard is stopped
     Stopped,
@@ -732,7 +714,6 @@ impl PerformanceDashboard {
 
     /// Export dashboard configuration
     pub fn export_config(&self) -> CoreResult<String> {
-        
         {
             let export_data = DashboardExport {
                 config: self.config.clone(),
@@ -754,7 +735,6 @@ impl PerformanceDashboard {
 
     /// Import dashboard configuration
     pub fn import_configuration(&mut self, configjson: &str) -> CoreResult<()> {
-        
         {
             let import_data: DashboardExport = serde_json::from_str(configjson).map_err(|e| {
                 CoreError::from(std::io::Error::other(format!(
@@ -918,8 +898,7 @@ impl PerformanceDashboard {
 }
 
 /// Dashboard export/import structure
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardExport {
     /// Dashboard configuration
     pub config: DashboardConfig,

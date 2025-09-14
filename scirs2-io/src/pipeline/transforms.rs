@@ -652,10 +652,7 @@ impl DataTransformer for FeatureEngineeringTransform {
                             .unwrap();
                         }
                     }
-                    FeatureOperation::Binning {
-                        n_bins,
-                        strategy,
-                    } => {
+                    FeatureOperation::Binning { n_bins, strategy } => {
                         // Simple uniform binning implementation
                         let mut binned_features = Array2::zeros((result.nrows(), result.ncols()));
 

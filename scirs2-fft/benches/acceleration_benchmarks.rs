@@ -4,7 +4,6 @@
 //! features including multi-GPU processing and specialized hardware support.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use scirs2_fft::{
     // GPU backends
     gpu_sparse_fft,
@@ -25,6 +24,7 @@ use scirs2_fft::{
 
     GPUBackend,
 };
+use std::hint::black_box;
 
 /// Create a test signal with specified sparse frequency components
 #[allow(dead_code)]

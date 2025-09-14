@@ -55,7 +55,6 @@ use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::time::Instant;
 
-
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 
@@ -115,8 +114,7 @@ pub struct QuantumClusterState {
 }
 
 /// Advanced clustering result
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdvancedClusteringResult {
     /// Final cluster assignments
     pub clusters: Array1<usize>,
@@ -139,8 +137,7 @@ pub struct AdvancedClusteringResult {
 }
 
 /// Performance metrics for Advanced clustering
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdvancedPerformanceMetrics {
     /// Clustering quality (silhouette score)
     pub silhouette_score: f64,
@@ -159,8 +156,7 @@ pub struct AdvancedPerformanceMetrics {
 }
 
 /// Configuration for Advanced clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvancedConfig {
     /// Maximum number of clusters to consider
     pub max_clusters: usize,

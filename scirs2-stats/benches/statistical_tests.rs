@@ -4,7 +4,6 @@
 //! in scirs2-stats across different sample sizes and data conditions.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::prelude::*;
 use rand_distr::{Normal, StandardNormal};
@@ -28,6 +27,7 @@ use scirs2_stats::{
     ttest_rel,
     wilcoxon,
 };
+use std::hint::black_box;
 
 /// Generate random normal data
 #[allow(dead_code)]

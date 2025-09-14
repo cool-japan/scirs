@@ -1309,8 +1309,7 @@ impl MemristiveCrossbar {
         let endurance_cycles = Array2::zeros((rows, cols));
         let programming_voltages = Array2::from_elem((rows, cols), 1.0);
         let temperature_coefficients = Array2::from_elem((rows, cols), 0.01);
-        let device_variability =
-            Array2::from_shape_fn((rows, cols), |_| rng.gen_range(0.0..0.01));
+        let device_variability = Array2::from_shape_fn((rows, cols), |_| rng.gen_range(0.0..0.01));
 
         Self {
             conductances,

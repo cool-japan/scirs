@@ -366,9 +366,7 @@ impl Embedding {
 
     /// Create a random embedding
     pub fn random(dimensions: usize, rng: &mut impl Rng) -> Self {
-        let vector: Vec<f64> = (0..dimensions)
-            .map(|_| rng.gen_range(-0.5..0.5))
-            .collect();
+        let vector: Vec<f64> = (0..dimensions).map(|_| rng.gen_range(-0.5..0.5)).collect();
         Embedding { vector }
     }
 
@@ -1887,9 +1885,7 @@ impl<N: Node + Clone + Hash + Eq + std::fmt::Debug> FastGraphEmbedding<N> {
         let projection_size = dimensions * qualityfactor;
         let mut projection_matrix = Vec::new();
         for _ in 0..projection_size {
-            let row: Vec<f32> = (0..dimensions)
-                .map(|_| rng.gen_range(-1.0..1.0))
-                .collect();
+            let row: Vec<f32> = (0..dimensions).map(|_| rng.gen_range(-1.0..1.0)).collect();
             projection_matrix.push(row);
         }
 

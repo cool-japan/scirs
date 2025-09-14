@@ -4,9 +4,9 @@
 //! comparing the optimized separable algorithm against the brute force approach.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array2, Array3, IxDyn};
 use scirs2_ndimage::morphology::{distance_transform_bf, distance_transform_edt};
+use std::hint::black_box;
 
 #[allow(dead_code)]
 fn create_test_pattern_2d(rows: usize, cols: usize) -> Array2<bool> {

@@ -4,13 +4,13 @@
 //! Python/SciPy benchmarks to assess relative performance.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::Array1;
 use rand::prelude::*;
 use rand_distr::StandardNormal;
 use scirs2_stats::{
     kurtosis, mean, pearson_r, quantile, spearman_r, std, var, QuantileInterpolation,
 };
+use std::hint::black_box;
 
 /// Generate large datasets for throughput testing
 #[allow(dead_code)]

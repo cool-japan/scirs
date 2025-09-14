@@ -7,13 +7,13 @@
 //! - Memory layouts (cache efficiency)
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_interpolate::bspline::{BSpline, ExtrapolateMode};
 use scirs2_interpolate::simd_optimized::{
     is_simd_available, simd_bspline_basis_functions, simd_bspline_batch_evaluate,
     simd_distance_matrix, simd_rbf_evaluate, RBFKernel, SimdConfig,
 };
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Generate test data for SIMD validation

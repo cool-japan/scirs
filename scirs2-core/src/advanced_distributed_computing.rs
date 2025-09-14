@@ -26,7 +26,6 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-
 use serde::{Deserialize, Serialize};
 
 // Helper function for serde default
@@ -60,8 +59,7 @@ pub struct AdvancedDistributedComputer {
 }
 
 /// Configuration for distributed computing
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributedComputingConfig {
     /// Enable automatic node discovery
     pub enable_auto_discovery: bool,
@@ -112,8 +110,7 @@ impl Default for DistributedComputingConfig {
 }
 
 /// Configuration for fault tolerance
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FaultToleranceConfig {
     /// Enable predictive failure detection
     pub enable_predictive_detection: bool,
@@ -146,8 +143,7 @@ impl Default for FaultToleranceConfig {
 }
 
 /// Requirements specification for distributed tasks
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskRequirements {
     /// Minimum CPU cores required
     pub min_cpu_cores: u32,
@@ -189,8 +185,7 @@ impl Default for TaskRequirements {
 }
 
 /// Distribution strategy for distributed tasks
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DistributionStrategy {
     DataParallel,
     ModelParallel,
@@ -205,8 +200,7 @@ impl Default for DistributionStrategy {
 }
 
 /// Fault tolerance level for tasks
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FaultToleranceLevel {
     None,
     Basic,
@@ -232,8 +226,7 @@ pub struct ResourceAnalysis {
 }
 
 /// Resource profile for grouping tasks by requirements
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceProfile {
     LowMemoryLowCpu,
     LowMemoryHighCpu,
@@ -291,13 +284,11 @@ pub struct ClusterManager {
 }
 
 /// Unique identifier for compute nodes
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeId(pub String);
 
 /// Compute node representation
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComputeNode {
     /// Node identifier
     pub id: NodeId,
@@ -334,8 +325,7 @@ impl Default for ComputeNode {
 }
 
 /// Node capabilities
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeCapabilities {
     /// CPU cores
     pub cpu_cores: u32,
@@ -374,8 +364,7 @@ impl Default for NodeCapabilities {
 }
 
 /// GPU device information
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuDevice {
     /// Device name
     pub name: String,
@@ -390,8 +379,7 @@ pub struct GpuDevice {
 }
 
 /// GPU device types
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GpuType {
     CUDA,
     OpenCL,
@@ -401,8 +389,7 @@ pub enum GpuType {
 }
 
 /// Supported compute types
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ComputeType {
     CPU,
     GPU,
@@ -415,8 +402,7 @@ pub enum ComputeType {
 }
 
 /// Node status
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeStatus {
     Initializing,
     Available,
@@ -428,8 +414,7 @@ pub enum NodeStatus {
 }
 
 /// Node performance metrics
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodePerformanceMetrics {
     /// Average task completion time
     pub avg_task_completion_time: Duration,
@@ -459,8 +444,7 @@ impl Default for NodePerformanceMetrics {
 }
 
 /// Node resource usage
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeResourceUsage {
     /// CPU utilization (0.0.saturating_sub(1).0)
     pub cpu_utilization: f64,
@@ -490,8 +474,7 @@ impl Default for NodeResourceUsage {
 }
 
 /// Node metadata
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeMetadata {
     /// Node name
     pub name: String,
@@ -527,8 +510,7 @@ impl Default for NodeMetadata {
 }
 
 /// Geographic location
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeographicLocation {
     /// Latitude
     pub latitude: f64,
@@ -541,8 +523,7 @@ pub struct GeographicLocation {
 }
 
 /// Security credentials
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityCredentials {
     /// Public key
     pub public_key: Vec<u8>,
@@ -569,8 +550,7 @@ pub struct NodeDiscoveryService {
 }
 
 /// Discovery methods
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiscoveryMethod {
     Multicast,
     Broadcast,
@@ -583,8 +563,7 @@ pub enum DiscoveryMethod {
 }
 
 /// Discovered node information
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoveredNode {
     /// Node information
     pub node: ComputeNode,
@@ -650,8 +629,7 @@ pub enum HealthCheck {
 }
 
 /// Health record
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthRecord {
     /// Timestamp
     #[cfg_attr(feature = "serde", serde(skip, default = "default_instant"))]
@@ -879,8 +857,7 @@ pub struct TaskQueue {
 }
 
 /// Task identifier
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskId(pub String);
 
 /// Distributed task representation
@@ -925,8 +902,7 @@ pub struct DistributedTask {
 }
 
 /// Task types
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
     MatrixOperation,
     MatrixMultiplication,
@@ -941,8 +917,7 @@ pub enum TaskType {
 }
 
 /// Task data
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskData {
     /// Data payload
     pub payload: Vec<u8>,
@@ -957,8 +932,7 @@ pub struct TaskData {
 }
 
 /// Resource requirements
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceRequirements {
     /// Minimum CPU cores
     pub min_cpu_cores: u32,
@@ -977,8 +951,7 @@ pub struct ResourceRequirements {
 }
 
 /// Execution constraints
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionConstraints {
     /// Maximum execution time
     pub maxexecution_time: Duration,
@@ -993,8 +966,7 @@ pub struct ExecutionConstraints {
 }
 
 /// Task priority levels
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TaskPriority {
     Critical,
     High,
@@ -1392,13 +1364,11 @@ pub struct Message {
 }
 
 /// Message identifier
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageId(pub String);
 
 /// Message types
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageType {
     TaskAssignment,
     TaskResult,
@@ -1410,8 +1380,7 @@ pub enum MessageType {
 }
 
 /// Message priority
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MessagePriority {
     Critical,
     High,

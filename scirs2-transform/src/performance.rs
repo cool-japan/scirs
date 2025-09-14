@@ -1178,8 +1178,7 @@ impl EnhancedPCA {
         // Start with a random vector
         use rand::Rng;
         let mut rng = rand::rng();
-        let mut vector: Array1<f64> =
-            Array1::from_shape_fn(n, |_| rng.gen_range(0.0..1.0) - 0.5);
+        let mut vector: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(0.0..1.0) - 0.5);
 
         // Normalize the initial vector
         let norm = vector.dot(&vector).sqrt();

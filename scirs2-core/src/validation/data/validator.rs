@@ -26,7 +26,7 @@
 //!     .require_field(name, DataType::String)
 //!     .require_field("age", DataType::Integer);
 //!
-//! # 
+//! #
 //! # {
 //! let data = serde_json::json!({
 //!     name: "John Doe",
@@ -76,7 +76,6 @@ use ndarray::{ArrayBase, Data, Dimension, ScalarOperand};
 use num_traits::{Float, FromPrimitive};
 use std::fmt;
 
-
 use serde_json::Value as JsonValue;
 
 use std::collections::hash_map::DefaultHasher;
@@ -93,7 +92,7 @@ struct CacheEntry {
 /// Trait for custom validation rules
 pub trait ValidationRule {
     /// Validate a value
-    
+
     fn validate(&self, value: &JsonValue, fieldpath: &str) -> Result<(), String>;
 
     /// Get rule name
@@ -167,7 +166,7 @@ impl Validator {
     /// # Example
     ///
     /// ```rust
-    /// # 
+    /// #
     /// # {
     /// use scirs2_core::validation::data::{Validator, ValidationSchema, DataType, Constraint, ValidationConfig};
     ///
@@ -186,7 +185,7 @@ impl Validator {
     /// # }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    
+
     pub fn validate(
         &self,
         data: &JsonValue,
@@ -417,7 +416,7 @@ impl Validator {
     }
 
     /// Validate individual fields
-    
+
     fn validate_fields(
         &self,
         data: &JsonValue,
@@ -515,7 +514,7 @@ impl Validator {
     }
 
     /// Validate field type
-    
+
     fn validate_field_type(
         &self,
         value: &JsonValue,
@@ -555,7 +554,7 @@ impl Validator {
     }
 
     /// Validate field constraints
-    
+
     #[allow(clippy::only_used_in_recursion)]
     fn validate_field_constraints(
         &self,
@@ -1350,7 +1349,7 @@ impl Validator {
     }
 
     /// Validate global constraints
-    
+
     #[allow(clippy::ptr_arg)]
     fn validate_global_constraints(
         &self,
@@ -1365,7 +1364,7 @@ impl Validator {
     }
 
     /// Check for additional fields
-    
+
     #[allow(clippy::ptr_arg)]
     fn check_additional_fields(
         &self,
@@ -1394,7 +1393,7 @@ impl Validator {
     }
 
     /// Get the type name for a JSON value
-    
+
     fn get_value_type_name(&self, value: &JsonValue) -> String {
         match value {
             JsonValue::Null => "null".to_string(),
@@ -1413,7 +1412,7 @@ impl Validator {
     }
 
     /// Generate cache key for validation result
-    
+
     fn generate_cache_key(
         &self,
         data: &JsonValue,
@@ -1557,7 +1556,6 @@ mod tests {
         assert_eq!(hit_rate, 0.0); // No hits yet
     }
 
-    
     #[test]
     fn test_json_validation() {
         let config = ValidationConfig::default();
@@ -1586,7 +1584,6 @@ mod tests {
         assert_eq!(result.errors().len(), 1);
     }
 
-    
     #[test]
     fn test_allowed_values_constraint() {
         let config = ValidationConfig::default();
@@ -1617,7 +1614,6 @@ mod tests {
         assert!(!result.is_valid());
     }
 
-    
     #[test]
     fn test_precision_constraint() {
         let config = ValidationConfig::default();
@@ -1641,7 +1637,6 @@ mod tests {
         assert!(!result.is_valid());
     }
 
-    
     #[test]
     fn test_array_size_constraint() {
         let config = ValidationConfig::default();
@@ -1665,7 +1660,6 @@ mod tests {
         assert!(!result.is_valid());
     }
 
-    
     #[test]
     fn test_array_elements_constraint() {
         let config = ValidationConfig::default();
@@ -1696,7 +1690,7 @@ mod tests {
     }
 
     #[test]
-    
+
     fn test_composite_constraint_validation() {
         let validator = Validator::new(ValidationConfig::default()).unwrap();
 
@@ -1794,7 +1788,7 @@ mod tests {
     }
 
     #[test]
-    
+
     fn test_edge_case_validations() {
         let validator = Validator::new(ValidationConfig::default()).unwrap();
 
@@ -1920,7 +1914,7 @@ mod tests {
     }
 
     #[test]
-    
+
     fn test_constrainterror_messages() {
         let validator = Validator::new(ValidationConfig::default()).unwrap();
 
@@ -1970,7 +1964,7 @@ mod tests {
     }
 
     #[test]
-    
+
     fn test_performance_edge_cases() {
         let validator = Validator::new(ValidationConfig::default()).unwrap();
 

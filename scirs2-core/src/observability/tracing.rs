@@ -49,7 +49,6 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 use uuid::Uuid;
 
-
 use serde::{Deserialize, Serialize};
 
 // W3C Trace Context constants for OpenTelemetry compatibility
@@ -60,8 +59,7 @@ const TRACE_HEADER_NAME: &str = "traceparent";
 const TRACE_STATE_HEADER_NAME: &str = "tracestate";
 
 /// Distributed tracing system configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TracingConfig {
     /// Service name for trace identification
     pub service_name: String,
@@ -109,8 +107,7 @@ impl Default for TracingConfig {
 }
 
 /// Span kind for categorizing operations
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SpanKind {
     /// Internal span within the same process
     Internal,
@@ -125,8 +122,7 @@ pub enum SpanKind {
 }
 
 /// Span status for tracking operation outcomes
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SpanStatus {
     /// Operation completed successfully
     Ok,
@@ -139,8 +135,7 @@ pub enum SpanStatus {
 }
 
 /// Trace context for distributed tracing (W3C Trace Context compatible)
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceContext {
     /// Unique trace identifier (16 bytes for W3C compatibility)
     pub trace_id: Uuid,
@@ -345,8 +340,7 @@ impl Default for TraceContext {
 }
 
 /// Performance metrics for a span
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanMetrics {
     /// Duration of the span
     pub duration: Duration,
@@ -379,8 +373,7 @@ impl Default for SpanMetrics {
 }
 
 /// Span data structure
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Span {
     /// Trace context
     pub context: TraceContext,
@@ -407,8 +400,7 @@ pub struct Span {
 }
 
 /// Event recorded during a span
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanEvent {
     /// Event timestamp
     pub timestamp: SystemTime,
@@ -1019,8 +1011,7 @@ impl Clone for TracingSystem {
 }
 
 /// Tracing metrics for monitoring system health
-#[derive(Debug, Clone, Default)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TracingMetrics {
     /// Total spans started
     pub spans_started: u64,
@@ -1392,7 +1383,6 @@ impl HttpExporter {
 #[cfg(feature = "reqwest")]
 impl TraceExporter for HttpExporter {
     fn export_span(&self, span: &Span) -> Result<(), CoreError> {
-        
         {
             let json = serde_json::to_string(span).map_err(|e| {
                 CoreError::ComputationError(crate::error::ErrorContext::new(format!(
@@ -1506,8 +1496,7 @@ macro_rules! trace_async_fn {
 }
 
 /// Version negotiation for distributed tracing compatibility
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TracingVersion {
     pub major: u32,
     pub minor: u32,
@@ -1541,8 +1530,7 @@ impl std::fmt::Display for TracingVersion {
 }
 
 /// Negotiation result for version compatibility
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NegotiationResult {
     pub agreed_version: TracingVersion,
     pub features_supported: Vec<String>,
@@ -1550,8 +1538,7 @@ pub struct NegotiationResult {
 }
 
 /// Resource attribution tracker for performance analysis
-#[derive(Debug, Clone, Default)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResourceAttribution {
     /// CPU time consumed (in nanoseconds)
     pub cpu_timens: Option<u64>,
@@ -1638,8 +1625,7 @@ impl ResourceAttribution {
 }
 
 /// Enhanced span metrics with resource attribution
-#[derive(Debug, Clone, Default)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EnhancedSpanMetrics {
     /// Basic span metrics
     pub basic: SpanMetrics,

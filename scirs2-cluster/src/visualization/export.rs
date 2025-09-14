@@ -9,7 +9,6 @@ use ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::path::Path;
 
-
 use serde::{Deserialize, Serialize};
 
 use super::animation::{AnimationFrame, StreamingFrame};
@@ -18,8 +17,7 @@ use super::{ScatterPlot2D, ScatterPlot3D, VisualizationConfig};
 use crate::error::{ClusteringError, Result};
 
 /// Export format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExportFormat {
     /// Static PNG image
     PNG,
@@ -60,8 +58,7 @@ pub enum ExportFormat {
 }
 
 /// Export configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportConfig {
     /// Output format
     pub format: ExportFormat,
@@ -235,7 +232,7 @@ pub fn export_scatter_2d_to_json<P: AsRef<Path>>(
         std::fs::write(output_path, json_string)
             .map_err(|e| ClusteringError::ComputationError(format!("File write failed: {}", e)))?;
 
-        return Ok(())
+        return Ok(());
     }
 
     #[cfg(not(feature = "serde"))]
@@ -270,7 +267,7 @@ pub fn export_scatter_3d_to_json<P: AsRef<Path>>(
         std::fs::write(output_path, json_string)
             .map_err(|e| ClusteringError::ComputationError(format!("File write failed: {}", e)))?;
 
-        return Ok(())
+        return Ok(());
     }
 
     #[cfg(not(feature = "serde"))]
@@ -890,7 +887,7 @@ fn export_animation_to_json<P: AsRef<Path>>(
         std::fs::write(output_path, json_string)
             .map_err(|e| ClusteringError::ComputationError(format!("File write failed: {}", e)))?;
 
-        return Ok(())
+        return Ok(());
     }
 
     #[cfg(not(feature = "serde"))]
@@ -913,8 +910,7 @@ fn create_metadata() -> ExportMetadata {
 }
 
 /// Export metadata
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ExportMetadata {
     created_at: String,
     software: String,
@@ -923,8 +919,7 @@ struct ExportMetadata {
 }
 
 /// 2D scatter plot export wrapper
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Scatter2DExport {
     format_version: String,
     export_config: ExportConfig,
@@ -933,8 +928,7 @@ struct Scatter2DExport {
 }
 
 /// 3D scatter plot export wrapper
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Scatter3DExport {
     format_version: String,
     export_config: ExportConfig,

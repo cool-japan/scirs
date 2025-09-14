@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
-use std::hint::black_box;
 use rand::Rng;
 use scirs2_fft::{
     sparse_fft,
@@ -7,6 +6,7 @@ use scirs2_fft::{
     sparse_fft_gpu::{gpu_batch_sparse_fft, gpu_sparse_fft, GPUBackend},
 };
 use std::f64::consts::PI;
+use std::hint::black_box;
 
 // Helper function to create a sparse signal
 #[allow(dead_code)]

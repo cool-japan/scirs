@@ -74,8 +74,7 @@ impl QuantumInspiredOptimizer {
                 Array1::from_iter(bounds.iter().map(|(min, max)| rng.gen_range(*min..*max)));
 
             let velocity = Array1::zeros(dimension);
-            let superposition =
-                Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
+            let superposition = Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
 
             particles.push(QuantumParticle {
                 position: position.clone(),
@@ -750,8 +749,7 @@ impl AdvancedQuantumOptimizer {
             }));
 
             let velocity = Array1::zeros(dimension);
-            let superposition =
-                Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
+            let superposition = Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
 
             particles.push(QuantumParticle {
                 position: position.clone(),

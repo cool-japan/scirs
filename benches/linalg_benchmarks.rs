@@ -1,8 +1,6 @@
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
-use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::distr::Uniform;
 use rand::{Rng, SeedableRng};
@@ -10,6 +8,7 @@ use rand_chacha::ChaCha8Rng;
 use scirs2_linalg::{
     cholesky, det, eigen, inv, lstsq, lu, matrix_norm, qr, solve, solve_triangular, svd,
 };
+use std::hint::black_box;
 use std::time::Instant;
 
 // Benchmark configuration

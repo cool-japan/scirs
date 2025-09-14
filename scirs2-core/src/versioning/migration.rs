@@ -7,12 +7,10 @@ use super::Version;
 use crate::error::CoreError;
 use std::collections::{HashMap, VecDeque};
 
-
 use serde::{Deserialize, Serialize};
 
 /// Migration plan for upgrading between versions
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationPlan {
     /// Source version
     pub from_version: Version,
@@ -33,8 +31,7 @@ pub struct MigrationPlan {
 }
 
 /// Individual migration step
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationStep {
     /// Step identifier
     pub id: String,
@@ -61,8 +58,7 @@ pub struct MigrationStep {
 }
 
 /// Types of migration steps
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StepType {
     /// Code changes required
     CodeChange,
@@ -85,8 +81,7 @@ pub enum StepType {
 }
 
 /// Step priority levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum StepPriority {
     /// Optional step
     Optional,
@@ -101,8 +96,7 @@ pub enum StepPriority {
 }
 
 /// Risk levels for migrations
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum RiskLevel {
     /// Low risk migration
     Low,
@@ -115,8 +109,7 @@ pub enum RiskLevel {
 }
 
 /// Rollback plan for migration failures
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RollbackPlan {
     /// Rollback steps in order
     pub steps: Vec<RollbackStep>,
@@ -129,8 +122,7 @@ pub struct RollbackPlan {
 }
 
 /// Individual rollback step
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RollbackStep {
     /// Step identifier
     pub id: String,
@@ -143,8 +135,7 @@ pub struct RollbackStep {
 }
 
 /// Migration execution status
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationExecution {
     /// Migration plan being executed
     pub plan: MigrationPlan,
@@ -165,8 +156,7 @@ pub struct MigrationExecution {
 }
 
 /// Execution status
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionStatus {
     /// Migration not started
     NotStarted,
@@ -183,8 +173,7 @@ pub enum ExecutionStatus {
 }
 
 /// Log entry for migration execution
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
     /// Timestamp
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -199,8 +188,7 @@ pub struct LogEntry {
 }
 
 /// Log levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LogLevel {
     /// Debug information
     Debug,

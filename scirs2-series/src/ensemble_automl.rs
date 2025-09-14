@@ -943,11 +943,9 @@ impl<F: Float + Debug + Clone + FromPrimitive + std::iter::Sum + 'static> Ensemb
     ) -> Result<Array1<F>> {
         match &modelwrapper.model_type {
             BaseModel::ARIMA { p, d, q } => self.predict_arima(modelwrapper, steps, *p, *q),
-            BaseModel::ExponentialSmoothing {
-                alpha,
-                beta,
-                gamma,
-            } => self.predict_exponential_smoothing(modelwrapper, steps, beta.is_some()),
+            BaseModel::ExponentialSmoothing { alpha, beta, gamma } => {
+                self.predict_exponential_smoothing(modelwrapper, steps, beta.is_some())
+            }
             BaseModel::LinearTrend => self.predict_linear_trend(modelwrapper, steps),
             BaseModel::SeasonalNaive { period: _period } => {
                 self.predict_seasonal_naive(modelwrapper, steps)

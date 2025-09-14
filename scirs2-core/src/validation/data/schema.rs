@@ -6,12 +6,10 @@
 use super::constraints::Constraint;
 use std::collections::HashMap;
 
-
 use serde::{Deserialize, Serialize};
 
 /// Data types supported by the validation system
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DataType {
     /// Boolean value
     Boolean,
@@ -56,8 +54,7 @@ pub enum DataType {
 }
 
 /// Field definition in a validation schema
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldDefinition {
     /// Field data type
     pub datatype: DataType,
@@ -118,8 +115,7 @@ impl FieldDefinition {
 }
 
 /// Validation schema definition
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationSchema {
     /// Schema name
     pub name: String,

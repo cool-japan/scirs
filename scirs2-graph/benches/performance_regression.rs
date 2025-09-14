@@ -4,9 +4,9 @@
 //! and establishes baseline performance metrics for various graph operations.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_graph::*;
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Performance baselines established for regression testing

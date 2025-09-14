@@ -61,7 +61,7 @@ fn basic_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         .require_field("scores", DataType::Array(Box::new(DataType::Float64)));
 
     // Valid data
-    
+
     {
         use serde__json::json;
 
@@ -132,7 +132,6 @@ fn temporal_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         .require_field("values", DataType::Array(Box::new(DataType::Float64)))
         .add_constraint("timestamps", Constraint::Temporal(time_constraints));
 
-    
     {
         use serde__json::json;
 
@@ -193,7 +192,6 @@ fn statistical_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         .require_field("measurements", DataType::Array(Box::new(DataType::Float64)))
         .add_constraint("measurements", Constraint::Statistical(stats_constraints));
 
-    
     {
         use serde__json::json;
 
@@ -254,7 +252,6 @@ fn shape_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         )
         .add_constraint("matrix", Constraint::Shape(shape_constraints));
 
-    
     {
         use serde__json::json;
 
@@ -350,7 +347,6 @@ fn complex_schema_example() -> Result<(), Box<dyn std::error::Error>> {
             },
         );
 
-    
     {
         use serde__json::json;
 
@@ -494,7 +490,6 @@ fn custom_validation_example() -> Result<(), Box<dyn std::error::Error>> {
     // Add the field to the schema
     schema.fields.insert("email".to_string(), email_field);
 
-    
     {
         use serde__json::json;
 

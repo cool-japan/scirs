@@ -9,12 +9,10 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
 
-
 use serde::{Deserialize, Serialize};
 
 /// Semantic version representation following `SemVer` 2.0.0
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Version {
     /// Major version (breaking changes)
     major: u64,
@@ -314,8 +312,7 @@ fn compare_prerelease(a: &str, b: &str) -> Ordering {
 }
 
 /// Version constraint for specifying version requirements
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VersionConstraint {
     /// Exact version match
     Exact(Version),
@@ -448,8 +445,7 @@ impl fmt::Display for VersionConstraint {
 }
 
 /// Version range specification
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionRange {
     /// Minimum version (inclusive)
     pub min: Option<Version>,

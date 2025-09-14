@@ -64,7 +64,7 @@ pub use optimization::lookup_tables::cached_windows;
 // Include the kaiser.rs file as a module
 mod kaiser;
 
-// Re-export kaiser functions for backward compatibility  
+// Re-export kaiser functions for backward compatibility
 pub use kaiser::{kaiser, kaiser_bessel_derived};
 
 /// Helper function to handle small or incorrect window lengths

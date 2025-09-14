@@ -507,24 +507,14 @@ impl NeuralNetworkPredictor {
 
         // Initialize weights randomly
         let input_weights = (0..hidden_size)
-            .map(|_| {
-                (0.._input_size)
-                    .map(|_| rng.gen_range(-0.5..0.5))
-                    .collect()
-            })
+            .map(|_| (0.._input_size).map(|_| rng.gen_range(-0.5..0.5)).collect())
             .collect();
 
         let hidden_weights = (0..outputsize)
-            .map(|_| {
-                (0..hidden_size)
-                    .map(|_| rng.gen_range(-0.5..0.5))
-                    .collect()
-            })
+            .map(|_| (0..hidden_size).map(|_| rng.gen_range(-0.5..0.5)).collect())
             .collect();
 
-        let output_weights = (0..outputsize)
-            .map(|_| rng.gen_range(-0.5..0.5))
-            .collect();
+        let output_weights = (0..outputsize).map(|_| rng.gen_range(-0.5..0.5)).collect();
         let biases = (0..hidden_size + outputsize)
             .map(|_| rng.gen_range(-0.1..0.1))
             .collect();
@@ -1009,8 +999,7 @@ impl GeneticPipelineOptimizer {
                     }
                     MutationStrategy::Cauchy => {
                         // Cauchy mutation with heavy tails
-                        let cauchy_sample =
-                            (rng.gen_range(0.0..1.0) - 0.5) * std::f64::consts::PI;
+                        let cauchy_sample = (rng.gen_range(0.0..1.0) - 0.5) * std::f64::consts::PI;
                         let delta = cauchy_sample.tan() * 0.1;
                         *value += delta;
                     }
@@ -1606,9 +1595,8 @@ impl NeuralArchitectureSearch {
         let mut rng = rng();
 
         for i in 0..numcandidates {
-            let depth = rng.gen_range(
-                self._searchspace.depth_range.0..self._searchspace.depth_range.1 + 1
-            );
+            let depth =
+                rng.gen_range(self._searchspace.depth_range.0..self._searchspace.depth_range.1 + 1);
             let mut layers = Vec::new();
             let mut connections = Vec::new();
 

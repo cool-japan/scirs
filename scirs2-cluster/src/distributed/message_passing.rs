@@ -11,14 +11,12 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
 
 /// Message types for distributed clustering coordination
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClusteringMessage<F: Float> {
     /// Initialize worker with partition data
     InitializeWorker {
@@ -88,8 +86,7 @@ pub enum ClusteringMessage<F: Float> {
 }
 
 /// Recovery strategies for failed workers
-#[derive(Debug, Clone, Copy)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RecoveryStrategy {
     /// Redistribute failed worker's data to other workers
     Redistribute,

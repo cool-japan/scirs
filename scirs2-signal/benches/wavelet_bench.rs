@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use scirs2_signal::dwt::{dwt_decompose, dwt_reconstruct, wavedec, waverec, Wavelet};
 use scirs2_signal::swt::{iswt, swt, swt_decompose, swt_reconstruct};
 use scirs2_signal::waveforms::chirp;
+use std::hint::black_box;
 // use scirs2_signal::wpt::{reconstruct_from_nodes, wp_decompose}; // wpt module not available
 use std::time::Duration;
 

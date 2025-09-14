@@ -4,7 +4,6 @@
 //! (>1M nodes) using Advanced mode for optimization.
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use std::hint::black_box;
 use rand::{rng, Rng};
 use scirs2_graph::advanced::{
     create_enhanced_advanced_processor, create_large_graph_advanced_processor,
@@ -14,6 +13,7 @@ use scirs2_graph::advanced::{
 use scirs2_graph::base::Graph;
 use scirs2_graph::measures::pagerank_centrality;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 // Configuration for large graph stress tests
@@ -280,8 +280,9 @@ fn generate_social_network(num_nodes: usize) -> Graph<usize, f64> {
                 // 5 inter-cluster connections per cluster
                 let source = rng.gen_range(cluster_start..cluster_end);
                 let target_cluster = rng.gen_range(0..cluster_id);
-                let target = rng
-                    .random_range(target_cluster * CLUSTER_SIZE..(target_cluster + 1) * CLUSTER_SIZE);
+                let target = rng.random_range(
+                    target_cluster * CLUSTER_SIZE..(target_cluster + 1) * CLUSTER_SIZE,
+                );
                 let weight = rng.random::<f64>() * 0.3 + 0.2; // Weaker inter-cluster weights
                 let _ = graph.add_edge(source, target, weight);
             }

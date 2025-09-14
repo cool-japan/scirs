@@ -5,7 +5,6 @@
 #![allow(dead_code)]
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use ndarray::{Array1, ArrayView1};
 use rand::prelude::*;
 use rand::rngs::StdRng;
@@ -18,6 +17,7 @@ use scirs2_graph::{
     performance::*,
     Graph,
 };
+use std::hint::black_box;
 use std::time::Duration;
 use tempfile::NamedTempFile;
 

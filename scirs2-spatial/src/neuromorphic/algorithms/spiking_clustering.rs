@@ -216,9 +216,7 @@ impl SpikingNeuralClusterer {
         // Create output neurons (cluster centers)
         let mut rng = rand::rng();
         for _i in 0..self.num_clusters {
-            let position = (0..input_dims)
-                .map(|_| rng.gen_range(0.0..1.0))
-                .collect();
+            let position = (0..input_dims).map(|_| rng.gen_range(0.0..1.0)).collect();
             let mut neuron = SpikingNeuron::new(position);
             neuron.set_threshold(self.spike_threshold);
             self.neurons.push(neuron);

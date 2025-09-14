@@ -3536,8 +3536,8 @@ impl<T: Float + Send + Sync> ArchitectureCandidateGenerator<T> {
                         *value *= scirs2_core::random::rng().gen_range(0.8..1.2);
                     }
                     LayerParameter::Integer(ref mut value) => {
-                        *value = (*value as f64 * scirs2_core::random::rng().gen_range(0.9..1.1))
-                            as i64;
+                        *value =
+                            (*value as f64 * scirs2_core::random::rng().gen_range(0.9..1.1)) as i64;
                     }
                     _ => {}
                 }

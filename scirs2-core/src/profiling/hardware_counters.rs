@@ -191,7 +191,7 @@ impl CounterValue {
     /// Create a new counter value
     pub fn new(countertype: CounterType, value: u64) -> Self {
         Self {
-            countertype: countertype,
+            countertype,
             value,
             timestamp: Instant::now(),
             enabled: true,

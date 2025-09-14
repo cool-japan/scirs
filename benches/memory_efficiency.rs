@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::distr::Uniform;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use scirs2_core::memory::BufferPool;
 use scirs2_linalg::{det, solve};
+use std::hint::black_box;
 use std::time::Instant;
 
 const SEED: u64 = 42;

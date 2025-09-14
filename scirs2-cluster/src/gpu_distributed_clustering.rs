@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-
 use serde::{Deserialize, Serialize};
 
 /// GPU-accelerated Advanced clusterer
@@ -58,8 +57,7 @@ pub struct HybridGpuDistributedClusterer {
 }
 
 /// GPU acceleration configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuAccelerationConfig {
     /// GPU device selection strategy
     pub device_selection: GpuDeviceSelection,
@@ -76,8 +74,7 @@ pub struct GpuAccelerationConfig {
 }
 
 /// GPU device selection strategies
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GpuDeviceSelection {
     /// Automatically select best available GPU
     Automatic,
@@ -92,8 +89,7 @@ pub enum GpuDeviceSelection {
 }
 
 /// GPU memory management strategies
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GpuMemoryStrategy {
     /// Conservative memory usage
     Conservative,
@@ -106,8 +102,7 @@ pub enum GpuMemoryStrategy {
 }
 
 /// GPU optimization levels
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GpuOptimizationLevel {
     /// Basic GPU acceleration
     Basic,
@@ -120,8 +115,7 @@ pub enum GpuOptimizationLevel {
 }
 
 /// Custom GPU optimization configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomGpuOptimization {
     /// Use custom CUDA kernels
     pub use_custom_kernels: bool,
@@ -134,8 +128,7 @@ pub struct CustomGpuOptimization {
 }
 
 /// Worker node configuration for distributed clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerNodeConfig {
     /// Worker node identifier
     pub node_id: String,
@@ -152,8 +145,7 @@ pub struct WorkerNodeConfig {
 }
 
 /// Coordination strategies for distributed clustering
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CoordinationStrategy {
     /// Master-worker coordination
     MasterWorker,
@@ -168,8 +160,7 @@ pub enum CoordinationStrategy {
 }
 
 /// GPU-accelerated clustering result
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GpuAdvancedResult {
     /// Base clustering result
     pub base_result: AdvancedClusteringResult,
@@ -182,8 +173,7 @@ pub struct GpuAdvancedResult {
 }
 
 /// Distributed clustering result
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DistributedAdvancedResult {
     /// Base clustering result
     pub base_result: AdvancedClusteringResult,
@@ -198,8 +188,7 @@ pub struct DistributedAdvancedResult {
 }
 
 /// Hybrid GPU-distributed result
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HybridGpuDistributedResult {
     /// GPU acceleration result
     pub gpu_result: GpuAdvancedResult,
@@ -912,8 +901,7 @@ pub struct WorkerClusteringResult {
 }
 
 // Result structures
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuAccelerationMetrics {
     pub total_gpu_time: f64,
     pub data_transfer_time: f64,
@@ -925,8 +913,7 @@ pub struct GpuAccelerationMetrics {
     pub speedup_factor: f64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuMemoryStats {
     pub allocated_memory_mb: f64,
     pub peak_memory_mb: f64,
@@ -934,8 +921,7 @@ pub struct GpuMemoryStats {
     pub fragmentation_ratio: f64,
 }
 
-#[derive(Debug, Clone, Default)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GpuKernelStats {
     pub kernels_initialized: bool,
     pub preprocessing_kernel_calls: usize,
@@ -944,8 +930,7 @@ pub struct GpuKernelStats {
     pub average_kernel_efficiency: f64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributedProcessingMetrics {
     pub total_workers: usize,
     pub successful_workers: usize,
@@ -958,16 +943,14 @@ pub struct DistributedProcessingMetrics {
     pub scalability_factor: f64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadBalancingStats {
     pub load_variance: f64,
     pub balancing_efficiency: f64,
     pub redistribution_count: usize,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommunicationOverhead {
     pub total_bytes_transmitted: usize,
     pub network_latency_ms: f64,
@@ -975,8 +958,7 @@ pub struct CommunicationOverhead {
     pub compression_ratio: f64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerPerformanceStats {
     pub worker_id: String,
     pub execution_time: f64,
@@ -987,8 +969,7 @@ pub struct WorkerPerformanceStats {
     pub fault_count: usize,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HybridCoordinationMetrics {
     pub gpu_workers_used: usize,
     pub cpu_workers_used: usize,
@@ -996,8 +977,7 @@ pub struct HybridCoordinationMetrics {
     pub resource_efficiency: f64,
 }
 
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUtilizationStats {
     pub total_gpu_utilization: f64,
     pub total_cpu_utilization: f64,

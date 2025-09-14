@@ -95,7 +95,7 @@ impl<R: Rng> Random<R> {
     ) -> T {
         self.sample(rand_distr::Uniform::new(min, max).unwrap())
     }
-    
+
     /// Generate a random value within the given range (using range syntax)
     #[allow(deprecated)]
     pub fn gen_range<T, RNG>(&mut self, range: RNG) -> T

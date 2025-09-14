@@ -50,7 +50,6 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -190,8 +189,7 @@ impl Default for VisualizationConfig {
 }
 
 /// 2D scatter plot visualization data
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScatterPlot2D {
     /// Point coordinates
     pub points: Array2<f64>,
@@ -212,8 +210,7 @@ pub struct ScatterPlot2D {
 }
 
 /// 3D scatter plot visualization data
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScatterPlot3D {
     /// Point coordinates (x, y, z)
     pub points: Array2<f64>,
@@ -234,8 +231,7 @@ pub struct ScatterPlot3D {
 }
 
 /// Legend entry for visualizations
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LegendEntry {
     /// Cluster ID
     pub cluster_id: i32,
@@ -248,8 +244,7 @@ pub struct LegendEntry {
 }
 
 /// Cluster boundary representation
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterBoundary {
     /// Cluster ID
     pub cluster_id: i32,
