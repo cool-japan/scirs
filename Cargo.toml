@@ -42,6 +42,7 @@ unused_imports = "allow"
 mismatched_lifetime_syntaxes = "allow"
 dead_code = "allow"
 unpredictable_function_pointer_comparisons = "allow"
+unknown_lints = "allow"
 
 [workspace.package]
 version = "0.1.0-beta.1"
