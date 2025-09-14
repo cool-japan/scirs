@@ -404,7 +404,7 @@ where
         }
 
         // Project query coordinates
-        let (_x_coords_y_coords) = self.project_coordinates(latitudes, longitudes)?;
+        let _x_coords_y_coords = self.project_coordinates(latitudes, longitudes)?;
 
         // Use the fitted interpolator
         if let Some(ref interpolator) = self.interpolator {

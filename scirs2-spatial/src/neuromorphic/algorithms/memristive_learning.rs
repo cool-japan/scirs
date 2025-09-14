@@ -942,7 +942,7 @@ impl AdvancedMemristiveLearning {
     fn apply_device_variability(&mut self, row: usize, col: usize) {
         let variability = self.crossbar_array.device_variability[[row, col]];
         let mut rng = rand::rng();
-        let noise = (rng.random_range(0.0..1.0) - 0.5) * variability;
+        let noise = (rng.gen_range(0.0..1.0) - 0.5) * variability;
 
         self.crossbar_array.conductances[[row, col]] += noise;
         self.crossbar_array.conductances[[row, col]] =
@@ -1302,7 +1302,7 @@ impl MemristiveCrossbar {
     /// Create new memristive crossbar
     pub fn new(rows: usize, cols: usize, device_type: MemristiveDeviceType) -> Self {
         let mut rng = rand::rng();
-        let conductances = Array2::from_shape_fn((rows, cols), |_| rng.random_range(0.0..0.1));
+        let conductances = Array2::from_shape_fn((rows, cols), |_| rng.gen_range(0.0..0.1));
         let resistances = conductances.mapv(|g| if g > 1e-12 { 1.0 / g } else { 1e12 });
         let switching_thresholds = Array2::from_elem((rows, cols), 0.5);
         let retention_times = Array2::from_elem((rows, cols), 1e6);
@@ -1310,7 +1310,7 @@ impl MemristiveCrossbar {
         let programming_voltages = Array2::from_elem((rows, cols), 1.0);
         let temperature_coefficients = Array2::from_elem((rows, cols), 0.01);
         let device_variability =
-            Array2::from_shape_fn((rows, cols), |_| rng.random_range(0.0..0.01));
+            Array2::from_shape_fn((rows, cols), |_| rng.gen_range(0.0..0.01));
 
         Self {
             conductances,

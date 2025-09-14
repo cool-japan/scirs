@@ -13,7 +13,7 @@ fn main() {
     let mut matrix = vec![vec![0; num_classes]; num_classes];
     // Set diagonal elements (correct classifications) with high values
     for i in 0..num_classes {
-        matrix[i][i] = 70 + rng.random_range(0..15); // 70-85 correct per class
+        matrix[i][i] = 70 + rng.gen_range(0..15); // 70-85 correct per class
     }
     // Create specific error patterns:
     // - Classes 0 and 1 often confused
@@ -29,7 +29,7 @@ fn main() {
     // - Some minor errors scattered about
         for j in 0..num_classes {
             if i != j && matrix[i][j] == 0 {
-                matrix[i][j] = rng.random_range(0..5);
+                matrix[i][j] = rng.gen_range(0..5);
             }
         }
     // Convert to ndarray

@@ -65,12 +65,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Coverage configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageConfig {
     /// Types of coverage to collect
     pub coverage_types: Vec<CoverageType>,
@@ -205,7 +205,7 @@ impl CoverageConfig {
 
 /// Types of coverage analysis
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum CoverageType {
     /// Line coverage - tracks executed lines
     Line,
@@ -225,7 +225,7 @@ pub enum CoverageType {
 
 /// Report output formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum ReportFormat {
     /// HTML report with interactive visualization
     Html,
@@ -243,7 +243,7 @@ pub enum ReportFormat {
 
 /// Coverage data for a single source file
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct FileCoverage {
     /// File path
     pub file_path: PathBuf,
@@ -318,7 +318,7 @@ impl FileCoverage {
 
 /// Branch coverage information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct BranchCoverage {
     /// Line number of the branch
     pub line_number: u32,
@@ -359,7 +359,7 @@ impl BranchCoverage {
 
 /// Types of branches
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum BranchType {
     /// If-else statement
     IfElse,
@@ -379,7 +379,7 @@ pub enum BranchType {
 
 /// Function coverage information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct FunctionCoverage {
     /// Function name
     pub function_name: String,
@@ -413,7 +413,7 @@ impl FunctionCoverage {
 
 /// Integration coverage point
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct IntegrationPoint {
     /// Integration point ID
     pub id: String,
@@ -433,7 +433,7 @@ pub struct IntegrationPoint {
 
 /// Types of integration points
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum IntegrationType {
     /// Function call
     FunctionCall,
@@ -455,7 +455,7 @@ pub enum IntegrationType {
 
 /// Overall coverage report
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageReport {
     /// Report generation timestamp
     pub generated_at: SystemTime,
@@ -522,7 +522,7 @@ impl CoverageReport {
 
 /// Coverage statistics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageStatistics {
     /// Total lines across all files
     pub total_lines: u32,
@@ -554,7 +554,7 @@ pub struct CoverageStatistics {
 
 /// Coverage trends over time
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageTrends {
     /// Historical coverage data points
     pub history: Vec<CoverageDataPoint>,
@@ -568,7 +568,7 @@ pub struct CoverageTrends {
 
 /// Historical coverage data point
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageDataPoint {
     /// Timestamp
     pub timestamp: SystemTime,
@@ -584,7 +584,7 @@ pub struct CoverageDataPoint {
 
 /// Trend direction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum TrendDirection {
     /// Coverage is improving
     Improving,
@@ -598,7 +598,7 @@ pub enum TrendDirection {
 
 /// Quality gate results
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QualityGateResults {
     /// Overall quality gate status
     pub overall_passed: bool,
@@ -614,7 +614,7 @@ pub struct QualityGateResults {
 
 /// Quality gate failure details
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QualityGateFailure {
     /// Gate type that failed
     pub gate_type: String,
@@ -630,7 +630,7 @@ pub struct QualityGateFailure {
 
 /// Failure severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum FailureSeverity {
     /// Minor failure - coverage slightly below threshold
     Minor,
@@ -644,7 +644,7 @@ pub enum FailureSeverity {
 
 /// Performance impact of coverage collection
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceImpact {
     /// Overhead percentage (execution time increase)
     pub execution_overhead_percent: f64,
@@ -660,7 +660,7 @@ pub struct PerformanceImpact {
 
 /// Coverage improvement recommendations
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageRecommendation {
     /// Recommendation type
     pub recommendation_type: RecommendationType,
@@ -678,7 +678,7 @@ pub struct CoverageRecommendation {
 
 /// Types of coverage recommendations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum RecommendationType {
     /// Add missing unit tests
     AddUnitTests,
@@ -698,7 +698,7 @@ pub enum RecommendationType {
 
 /// Recommendation priority levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum RecommendationPriority {
     /// Low priority recommendation
     Low,
@@ -1318,7 +1318,7 @@ impl CoverageAnalyzer {
 
     /// Generate JSON report
     fn generate_json_report(&self, report: &CoverageReport) -> CoreResult<()> {
-        #[cfg(feature = "serde")]
+        
         {
             let json_content = serde_json::to_string_pretty(report).map_err(|e| {
                 CoreError::from(std::io::Error::other(format!(

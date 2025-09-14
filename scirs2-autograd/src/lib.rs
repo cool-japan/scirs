@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Differentiable operations and tensors backed by [ndarray](https://github.com/rust-ndarray/ndarray).
 #![recursion_limit = "1024"]
 //!

@@ -55,7 +55,7 @@ impl SpikingNeuron {
             refractory_period: 2.0,
             refractory_counter: 0.0,
             spike_history: VecDeque::with_capacity(100),
-            synaptic_weights: Array1::from_iter((0.._ninputs).map(|_| rng.random_range(-0.5..0.5))),
+            synaptic_weights: Array1::from_iter((0.._ninputs).map(|_| rng.gen_range(-0.5..0.5))),
             learning_rate: 0.01,
             ltp_trace: 0.0,
             ltd_trace: 0.0,
@@ -189,14 +189,14 @@ impl NeuromorphicAdaptationNetwork {
         // Connect input to hidden
         for i in 0..input_size {
             for j in input_size..(input_size + hidden_size) {
-                connectivity[[i, j]] = rng.random_range(-0.3..0.3);
+                connectivity[[i, j]] = rng.gen_range(-0.3..0.3);
             }
         }
 
         // Connect hidden to output
         for i in input_size..(input_size + hidden_size) {
             for j in (input_size + hidden_size)..total_neurons {
-                connectivity[[i, j]] = rng.random_range(-0.3..0.3);
+                connectivity[[i, j]] = rng.gen_range(-0.3..0.3);
             }
         }
 

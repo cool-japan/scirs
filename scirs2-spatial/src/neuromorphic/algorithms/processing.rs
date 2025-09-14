@@ -266,7 +266,7 @@ impl NeuromorphicProcessor {
         for i in 0..rows {
             for j in 0..cols {
                 // Random conductance between 0.1 and 1.0 (normalized)
-                self.conductances[[i, j]] = 0.1 + rng.random_range(0.0..0.9);
+                self.conductances[[i, j]] = 0.1 + rng.gen_range(0.0..0.9);
             }
         }
     }

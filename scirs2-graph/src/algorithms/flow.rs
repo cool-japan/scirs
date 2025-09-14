@@ -112,7 +112,7 @@ where
 
     for _ in 0..10 {
         let mut partition = vec![false; n];
-        let size_a = rng.random_range(1..n);
+        let size_a = rng.gen_range(1..n);
 
         // Randomly select nodes for partition A
         let mut indices: Vec<usize> = (0..n).collect();

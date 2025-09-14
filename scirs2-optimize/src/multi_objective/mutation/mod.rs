@@ -27,7 +27,7 @@ impl PolynomialMutation {
     }
 
     fn calculate_delta(&self, rng: &mut impl Rng) -> f64 {
-        let u = rng.gen::<f64>();
+        let u = rng.random::<f64>();
         if u < 0.5 {
             (2.0 * u).powf(1.0 / (self.distribution_index + 1.0)) - 1.0
         } else {
@@ -42,7 +42,7 @@ impl MutationOperator for PolynomialMutation {
         let n = solution.len();
 
         for i in 0..n {
-            if rng.gen::<f64>() <= self.mutation_probability {
+            if rng.random::<f64>() <= self.mutation_probability {
                 let (lower, upper) = bounds[i];
                 let delta = self.calculate_delta(&mut rng);
                 let max_delta = upper - lower;
@@ -76,7 +76,7 @@ impl MutationOperator for GaussianMutation {
         let normal = Normal::new(0.0, self.std_dev).unwrap();
 
         for i in 0..solution.len() {
-            if rng.gen::<f64>() <= self.mutation_probability {
+            if rng.random::<f64>() <= self.mutation_probability {
                 let (lower, upper) = bounds[i];
                 let perturbation = normal.sample(&mut rng);
 
@@ -106,7 +106,7 @@ impl MutationOperator for UniformMutation {
         let mut rng = rand::rng();
 
         for i in 0..solution.len() {
-            if rng.gen::<f64>() <= self.mutation_probability {
+            if rng.random::<f64>() <= self.mutation_probability {
                 let (lower, upper) = bounds[i];
                 solution[i] = rng.gen_range(lower..upper);
             }

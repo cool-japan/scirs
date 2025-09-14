@@ -12,11 +12,18 @@ pub mod neuromorphic;
 pub mod quantum;
 pub mod temporal;
 
-// Re-export all public types for backward compatibility
+// Re-export all public types - suppress ambiguity warnings
+#[allow(ambiguous_glob_reexports)]
 pub use consciousness::*;
+#[allow(ambiguous_glob_reexports)]
 pub use distributed::*;
+#[allow(ambiguous_glob_reexports)]
 pub use evolution::*;
+#[allow(ambiguous_glob_reexports)]
 pub use meta_learning::*;
+#[allow(ambiguous_glob_reexports)]
 pub use neuromorphic::*;
+#[allow(ambiguous_glob_reexports)]
 pub use quantum::*;
+#[allow(ambiguous_glob_reexports)]
 pub use temporal::*;

@@ -19,6 +19,7 @@ use std::f64::consts::PI;
 use std::io::{self, Write};
 use std::time::Instant;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MathExpression {
     expression: String,
@@ -41,6 +42,7 @@ struct TheoremExplorer {
     difficulty_level: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProofStep {
     step_number: usize,
@@ -61,6 +63,7 @@ struct TheoremExample {
     explanation: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractiveElement {
     ParameterSlider {
@@ -89,6 +92,7 @@ enum InteractiveElement {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MathLaboratory {
     expression_history: VecDeque<MathExpression>,
@@ -100,6 +104,7 @@ struct MathLaboratory {
     current_session: LaboratorySession,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationState {
     active_plots: Vec<PlotDefinition>,
@@ -107,6 +112,7 @@ struct VisualizationState {
     animation_state: Option<AnimationState>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PlotDefinition {
     id: String,
@@ -117,6 +123,7 @@ struct PlotDefinition {
     style: PlotStyle,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum PlotType {
     Function2D,
@@ -127,6 +134,7 @@ enum PlotType {
     VectorField,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PlotStyle {
     color: String,
@@ -135,6 +143,7 @@ struct PlotStyle {
     transparency: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PlotSettings {
     grid_enabled: bool,
@@ -144,6 +153,7 @@ struct PlotSettings {
     export_format: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AnimationState {
     parameter: String,
@@ -154,6 +164,7 @@ struct AnimationState {
     loop_animation: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MathematicalDiscovery {
     timestamp: Instant,
@@ -164,6 +175,7 @@ struct MathematicalDiscovery {
     verification_status: VerificationStatus,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum DiscoveryType {
     NumericalPattern,
@@ -174,6 +186,7 @@ enum DiscoveryType {
     ComputationalOptimization,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum VerificationStatus {
     Unverified,
@@ -182,6 +195,7 @@ enum VerificationStatus {
     Disproven,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LaboratorySession {
     session_id: String,
@@ -835,6 +849,7 @@ impl MathLaboratory {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct FunctionAnalysis {
     functionexpr: String,
@@ -1917,7 +1932,7 @@ fn find_zeros_and_extrema() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, unused_assignments)]
 fn bisection_method<F>(f: F, mut a: f64, mut b: f64, tolerance: f64) -> Option<f64>
 where
     F: Fn(f64) -> f64,

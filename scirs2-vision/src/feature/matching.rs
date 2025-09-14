@@ -801,7 +801,7 @@ impl RansacMatcher {
 
             let mut sample_indices = Vec::new();
             while sample_indices.len() < 4 {
-                let idx = rng.random_range(0..matches.len());
+                let idx = rng.gen_range(0..matches.len());
                 if !sample_indices.contains(&idx) {
                     sample_indices.push(idx);
                 }
@@ -872,7 +872,7 @@ impl RansacMatcher {
 
             let mut sample_indices = Vec::new();
             while sample_indices.len() < 8 {
-                let idx = rng.random_range(0..matches.len());
+                let idx = rng.gen_range(0..matches.len());
                 if !sample_indices.contains(&idx) {
                     sample_indices.push(idx);
                 }
@@ -941,7 +941,7 @@ impl RansacMatcher {
 
             let mut sample_indices = Vec::new();
             while sample_indices.len() < 5 {
-                let idx = rng.random_range(0..matches.len());
+                let idx = rng.gen_range(0..matches.len());
                 if !sample_indices.contains(&idx) {
                     sample_indices.push(idx);
                 }
@@ -1011,7 +1011,7 @@ impl RansacMatcher {
 
             let mut sample_indices = Vec::new();
             while sample_indices.len() < 3 {
-                let idx = rng.random_range(0..matches.len());
+                let idx = rng.gen_range(0..matches.len());
                 if !sample_indices.contains(&idx) {
                     sample_indices.push(idx);
                 }

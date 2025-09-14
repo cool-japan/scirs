@@ -1326,7 +1326,7 @@ where
 
     // Simple nearest-neighbor downsampling
     let output_dyn = ndarray::ArrayD::<T>::zeros(newshape.clone());
-    let mut output = output_dyn.into_dimensionality::<D>().map_err(|_| {
+    let output = output_dyn.into_dimensionality::<D>().map_err(|_| {
         NdimageError::DimensionError("Failed to convert output array to correct dimension".into())
     })?;
 

@@ -66,7 +66,7 @@ fn hypervolume_monte_carlo(
 
     for _ in 0..n_samples {
         let point: Vec<f64> = (0..n_objectives)
-            .map(|i| rng.gen::<f64>() * reference_point[i])
+            .map(|i| rng.random::<f64>() * reference_point[i])
             .collect();
 
         if is_dominated_by_front(&point, pareto_front) {

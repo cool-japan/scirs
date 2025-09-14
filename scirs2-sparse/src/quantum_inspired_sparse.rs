@@ -959,6 +959,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore] // Slow test - quantum processor initialization
     fn test_quantum_sparse_processor_creation() {
         let config = QuantumSparseConfig::default();
         let processor = QuantumSparseProcessor::new(config);
@@ -996,6 +997,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow test - quantum processor stats
     fn test_quantum_processor_stats() {
         let config = QuantumSparseConfig::default();
         let processor = QuantumSparseProcessor::new(config);

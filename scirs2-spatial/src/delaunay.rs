@@ -199,7 +199,7 @@ impl Delaunay {
                 for i in 0..npoints {
                     let mut pt = points.row(i).to_vec();
                     for val in pt.iter_mut().take(ndim) {
-                        *val += rng.random_range(-0.0001..0.0001);
+                        *val += rng.gen_range(-0.0001..0.0001);
                     }
                     perturbed_points.push(pt);
                 }
@@ -1231,8 +1231,8 @@ mod tests {
         let mut points_data = Vec::with_capacity(n * 2);
 
         for _ in 0..n {
-            points_data.push(rng.random_range(0.0..1.0));
-            points_data.push(rng.random_range(0.0..1.0));
+            points_data.push(rng.gen_range(0.0..1.0));
+            points_data.push(rng.gen_range(0.0..1.0));
         }
 
         let points = Array2::from_shape_vec((n, 2), points_data).unwrap();

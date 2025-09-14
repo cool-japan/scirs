@@ -85,17 +85,17 @@ impl DetectionDataset {
         for c in 0..3 {
             for i in 0..height {
                 for j in 0..width {
-                    image[[c, i, j]] = self.rng.random_range(0.0..0.3);
+                    image[[c, i, j]] = self.rng.gen_range(0.0..0.3);
                 }
             }
         let mut objects = Vec::new();
-        let num_objects = self.rng.random_range(1..=self.config.max_objects.min(3));
+        let num_objects = self.rng.gen_range(1..=self.config.max_objects.min(3));
         for _ in 0..num_objects {
-            let obj_width = self.rng.random_range(8..24) as f32;
-            let obj_height = self.rng.random_range(8..24) as f32;
-            let obj_x = self.rng.random_range(0.0..(width as f32 - obj_width));
-            let obj_y = self.rng.random_range(0.0..(height as f32 - obj_height));
-            let class_id = self.rng.random_range(1..self.config.num_classes); // Skip background class 0
+            let obj_width = self.rng.gen_range(8..24) as f32;
+            let obj_height = self.rng.gen_range(8..24) as f32;
+            let obj_x = self.rng.gen_range(0.0..(width as f32 - obj_width));
+            let obj_y = self.rng.gen_range(0.0..(height as f32 - obj_height));
+            let class_id = self.rng.gen_range(1..self.config.num_classes); // Skip background class 0
             // Draw rectangular object
             let color_intensity = match class_id {
                 1 => [0.8..0.2, 0.2], // Red-ish for class 1
@@ -105,7 +105,7 @@ impl DetectionDataset {
             for c in 0..3 {
                 for i in (obj_y as usize)..((obj_y + obj_height) as usize).min(height) {
                     for j in (obj_x as usize)..((obj_x + obj_width) as usize).min(width) {
-                        image[[c, i, j]] = color_intensity[c] + self.rng.random_range(-0.1..0.1);
+                        image[[c, i, j]] = color_intensity[c] + self.rng.gen_range(-0.1..0.1);
                     }
             objects.push(BoundingBox::new(
                 obj_x..obj_y, obj_width, obj_height, class_id, 1.0,));

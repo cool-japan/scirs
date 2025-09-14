@@ -600,7 +600,7 @@ where
         let coords = index_to_coords(linear_idx, inputshape);
 
         // Initialize extrema with the first element in the window
-        let mut extrema_coords = coords.clone();
+        let extrema_coords = coords.clone();
         let padded_dyn = padded_input.view().into_dyn();
         let mut extrema = padded_dyn[ndarray::IxDyn(&extrema_coords)];
 

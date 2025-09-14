@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let b_identity = array![[1.0, 0.0], [0.0, 1.0]];
 
     match eig_gen(&a_test.view(), &b_identity.view(), None) {
-        Ok((gen_eigenvalues_)) => {
+        Ok(gen_eigenvalues_) => {
             println!("   Generalized eigenvalues: {:?}", gen_eigenvalues_);
             println!("   Success: Identity matrix case works!");
         }

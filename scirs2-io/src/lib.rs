@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Input/Output utilities module for SciRS2
 //!
 //! This module provides functionality for reading and writing various file formats

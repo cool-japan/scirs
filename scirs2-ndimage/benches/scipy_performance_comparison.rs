@@ -3,7 +3,8 @@
 //! This benchmark suite provides performance comparisons against baseline implementations
 //! that would be comparable to SciPy's ndimage performance characteristics.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::{Array1, Array2, Array3, Array4};
 use scirs2_ndimage::filters::*;
 use scirs2_ndimage::interpolation::*;

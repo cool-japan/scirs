@@ -73,7 +73,7 @@ mod gpu_implementation {
     /// Configuration for advanced tensor core operations
     #[allow(dead_code)]
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct AdvancedTensorConfig {
         /// Enable AI-driven optimization
         pub enable_ai_optimization: bool,

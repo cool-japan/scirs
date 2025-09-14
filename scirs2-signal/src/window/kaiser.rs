@@ -5,6 +5,7 @@
 
 use crate::error::SignalResult;
 use scirs2_special::i0;
+use std::f64::consts::PI;
 
 #[allow(unused_imports)]
 /// Kaiser window.

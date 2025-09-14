@@ -396,10 +396,10 @@ fn generate_brief_pattern() -> Vec<(i32, i32, i32, i32)> {
     let mut rng = StdRng::seed_from_u64(42); // Fixed seed for reproducibility
 
     for _ in 0..256 {
-        let x1 = rng.random_range(-max_offset..max_offset + 1);
-        let y1 = rng.random_range(-max_offset..max_offset + 1);
-        let x2 = rng.random_range(-max_offset..max_offset + 1);
-        let y2 = rng.random_range(-max_offset..max_offset + 1);
+        let x1 = rng.gen_range(-max_offset..max_offset + 1);
+        let y1 = rng.gen_range(-max_offset..max_offset + 1);
+        let x2 = rng.gen_range(-max_offset..max_offset + 1);
+        let y2 = rng.gen_range(-max_offset..max_offset + 1);
         pattern.push((x1, y1, x2, y2));
     }
 

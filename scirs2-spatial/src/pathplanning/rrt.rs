@@ -174,7 +174,7 @@ impl RRTPlanner {
         let mut point = Array1::zeros(self.dimension);
 
         for i in 0..self.dimension {
-            point[i] = self.rng.random_range(min_bounds[i]..max_bounds[i]);
+            point[i] = self.rng.gen_range(min_bounds[i]..max_bounds[i]);
         }
 
         Ok(point)
@@ -182,7 +182,7 @@ impl RRTPlanner {
 
     /// Sample a random point with goal bias
     fn sample_with_goal_bias(&mut self, goal: &ArrayView1<f64>) -> SpatialResult<Array1<f64>> {
-        if self.rng.random_range(0.0..1.0) < self.config.goal_bias {
+        if self.rng.gen_range(0.0..1.0) < self.config.goal_bias {
             Ok(goal.to_owned())
         } else {
             self.sample_random_point()

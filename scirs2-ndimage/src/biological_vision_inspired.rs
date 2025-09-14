@@ -2291,7 +2291,7 @@ fn store_in_memory_slot(
         let existing_weight = 1.0 - integration_weight;
 
         let existing_memory = &vwm_result.memory_slots[slot_idx];
-        let mut new_memory = features * integration_weight + existing_memory * existing_weight;
+        let new_memory = features * integration_weight + existing_memory * existing_weight;
 
         vwm_result.memory_slots[slot_idx] = new_memory;
     }

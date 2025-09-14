@@ -125,8 +125,8 @@ impl SubspaceState {
             // Generate sparse random vector
             let num_nonzeros = (n / 10).clamp(1, 20); // At most 20 nonzeros
             for _ in 0..num_nonzeros {
-                let idx = self.rng.random_range(0..n);
-                vec[idx] = self.rng.random_range(-1.0..1.0); // Random value in [-1..1]
+                let idx = self.rng.gen_range(0..n);
+                vec[idx] = self.rng.gen_range(-1.0..1.0); // Random value in [-1..1]
             }
             // Normalize
             let norm = vec.mapv(|x: f64| x.powi(2)).sum().sqrt();
@@ -234,7 +234,7 @@ where
         // Perform coordinate descent on random coordinates
         for _ in 0..options.coord_max_iter {
             // Select random coordinate
-            let coord = state.rng.random_range(0..n);
+            let coord = state.rng.gen_range(0..n);
 
             // Line search along coordinate direction
             let _f_current = fun(&x.view());

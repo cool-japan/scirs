@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 use std::time::{Duration, Instant, SystemTime};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TutorialSystem {
     user_profile: UserProfile,
@@ -25,6 +26,7 @@ struct TutorialSystem {
     conceptual_graph: ConceptualGraph,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserProfile {
     name: String,
@@ -36,6 +38,7 @@ struct UserProfile {
     total_study_time: Duration,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum LearningStyle {
     Visual,                     // Prefers graphs, animations, visual proofs
@@ -47,6 +50,7 @@ enum LearningStyle {
     Hybrid(Vec<LearningStyle>), // Combination of multiple styles
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum SkillLevel {
     Novice,     // 0-25%
@@ -56,6 +60,7 @@ enum SkillLevel {
     Expert,     // 90-100%
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningPreferences {
     preferred_pace: PacePreference,
@@ -65,6 +70,7 @@ struct LearningPreferences {
     interaction_style: InteractionStyle,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum PacePreference {
     SelfPaced,
@@ -73,6 +79,7 @@ enum PacePreference {
     Casual,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ProofDetailLevel {
     Overview, // High-level sketch
@@ -81,6 +88,7 @@ enum ProofDetailLevel {
     Rigorous, // Formal mathematical rigor
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ApplicationDomain {
     PureMathematics,
@@ -93,6 +101,7 @@ enum ApplicationDomain {
     SignalProcessing,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractionStyle {
     Exploratory,   // Free-form exploration
@@ -101,6 +110,7 @@ enum InteractionStyle {
     Collaborative, // Discussion and sharing
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TutorialModule {
     id: String,
@@ -115,6 +125,7 @@ struct TutorialModule {
     applications: Vec<PracticalApplication>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MathematicalConcept {
     name: String,
@@ -128,6 +139,7 @@ struct MathematicalConcept {
     common_misconceptions: Vec<Misconception>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct VisualizationSpec {
     title: String,
@@ -137,6 +149,7 @@ struct VisualizationSpec {
     interactive_elements: Vec<InteractiveElement>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum PlotType {
     Function2D {
@@ -165,6 +178,7 @@ enum PlotType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PlotParameter {
     name: String,
@@ -174,6 +188,7 @@ struct PlotParameter {
     description: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractiveElement {
     Slider {
@@ -202,6 +217,7 @@ enum InteractiveElement {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Property {
     statement: String,
@@ -210,6 +226,7 @@ struct Property {
     related_properties: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ConceptConnection {
     target_concept: String,
@@ -218,6 +235,7 @@ struct ConceptConnection {
     strength: f64, // 0.0-1.0
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum RelationshipType {
     Generalization,
@@ -229,6 +247,7 @@ enum RelationshipType {
     LimitingCase,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct WorkedExample {
     title: String,
@@ -239,6 +258,7 @@ struct WorkedExample {
     difficulty: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SolutionStep {
     description: String,
@@ -248,6 +268,7 @@ struct SolutionStep {
     common_errors: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Misconception {
     description: String,
@@ -256,6 +277,7 @@ struct Misconception {
     clarifying_example: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Assessment {
     id: String,
@@ -265,6 +287,7 @@ struct Assessment {
     adaptive_parameters: AdaptiveParameters,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum AssessmentType {
     Diagnostic, // Assess current understanding
@@ -273,6 +296,7 @@ enum AssessmentType {
     Adaptive,   // Adjust to user performance
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Question {
     id: String,
@@ -285,6 +309,7 @@ struct Question {
     metacognitive_prompts: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum QuestionType {
     MultipleChoice {
@@ -321,6 +346,7 @@ enum QuestionType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Hint {
     level: u32,
@@ -329,6 +355,7 @@ struct Hint {
     when_to_show: HintTrigger,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum HintType {
     Conceptual,   // Clarify underlying concept
@@ -338,6 +365,7 @@ enum HintType {
     Corrective,   // Address misconception
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum HintTrigger {
     OnRequest,
@@ -347,6 +375,7 @@ enum HintTrigger {
     OnLowConfidence,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DetailedSolution {
     overview: String,
@@ -356,6 +385,7 @@ struct DetailedSolution {
     extensions: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AlternativeSolution {
     approach_name: String,
@@ -364,12 +394,14 @@ struct AlternativeSolution {
     trade_offs: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct RubricCriterion {
     criterion: String,
     levels: Vec<(String, u32)>, // (description, points)
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ScoringRubric {
     total_points: u32,
@@ -377,6 +409,7 @@ struct ScoringRubric {
     partial_credit_rules: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AdaptiveParameters {
     difficulty_adjustment: f64,
@@ -385,6 +418,7 @@ struct AdaptiveParameters {
     content_selection_weights: HashMap<String, f64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PracticalApplication {
     title: String,
@@ -397,6 +431,7 @@ struct PracticalApplication {
     extensions: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TutorialSession {
     start_time: Instant,
@@ -407,6 +442,7 @@ struct TutorialSession {
     adaptive_state: AdaptiveState,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SessionProgress {
     concepts_covered: Vec<String>,
@@ -416,6 +452,7 @@ struct SessionProgress {
     difficulty_progression: Vec<(String, u32)>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserInteraction {
     timestamp: Instant,
@@ -426,6 +463,7 @@ struct UserInteraction {
     correctness: Option<f64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum InteractionType {
     QuestionAnswer,
@@ -437,6 +475,7 @@ enum InteractionType {
     PreferenceChange,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PerformanceMetrics {
     accuracy_by_concept: HashMap<String, f64>,
@@ -447,6 +486,7 @@ struct PerformanceMetrics {
     learning_velocity: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AdaptiveState {
     current_difficulty: f64,
@@ -457,6 +497,7 @@ struct AdaptiveState {
     motivation_level: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum ExplanationStyle {
     Concise,
@@ -467,6 +508,7 @@ enum ExplanationStyle {
     Historical,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningAnalytics {
     session_data: Vec<SessionData>,
@@ -475,6 +517,7 @@ struct LearningAnalytics {
     predictive_models: PredictiveModels,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SessionData {
     date: SystemTime,
@@ -484,6 +527,7 @@ struct SessionData {
     user_feedback: Option<UserFeedback>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserFeedback {
     satisfaction_rating: u32,   // 1-5
@@ -493,6 +537,7 @@ struct UserFeedback {
     preferred_improvements: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningPatterns {
     optimal_session_length: Duration,
@@ -502,6 +547,7 @@ struct LearningPatterns {
     retention_rates: HashMap<String, f64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct KnowledgeGraphState {
     mastered_concepts: Vec<String>,
@@ -510,6 +556,7 @@ struct KnowledgeGraphState {
     concept_connections_strength: HashMap<(String, String), f64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PredictiveModels {
     mastery_prediction: HashMap<String, f64>,
@@ -518,6 +565,7 @@ struct PredictiveModels {
     dropout_risk: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ConceptualGraph {
     nodes: HashMap<String, ConceptNode>,
@@ -525,6 +573,7 @@ struct ConceptualGraph {
     learning_paths: Vec<LearningPath>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ConceptNode {
     id: String,
@@ -536,6 +585,7 @@ struct ConceptNode {
     estimated_learning_time: Duration,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ConceptEdge {
     source: String,
@@ -545,6 +595,7 @@ struct ConceptEdge {
     bidirectional: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningPath {
     name: String,
@@ -555,6 +606,7 @@ struct LearningPath {
     target_audience: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct ProgressRecord {
     timestamp: SystemTime,
@@ -2691,6 +2743,7 @@ impl TutorialSystem {
 }
 
 // Helper structs and implementations
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct GuidedProblem {
     title: String,

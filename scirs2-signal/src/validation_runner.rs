@@ -429,7 +429,7 @@ fn validate_parametric_module(
         let mut prev2 = 0.0;
 
         for i in 0..n {
-            let innovation = rng.random_range(-1.0..1.0);
+            let innovation = rng.gen_range(-1.0..1.0);
             signal[i] = a1 * prev1 + a2 * prev2 + innovation;
             prev2 = prev1;
             prev1 = signal[i];
@@ -550,7 +550,7 @@ fn validate_sysid_module(
     let a = 0.9; // System pole
 
     // Generate test input (random signal)
-    let input: Array1<f64> = Array1::from_iter((0..n).map(|_| rng.random_range(-1.0..1.0)));
+    let input: Array1<f64> = Array1::from_iter((0..n).map(|_| rng.gen_range(-1.0..1.0)));
 
     // Generate system output
     let mut output = Array1::zeros(n);
@@ -654,7 +654,7 @@ fn run_performance_benchmarks(
     let mut module_benchmarks = HashMap::new();
 
     // Benchmark multitaper
-    let signal: Array1<f64> = Array1::from_iter((0..1024).map(|_| rng.random_range(-1.0..1.0)));
+    let signal: Array1<f64> = Array1::from_iter((0..1024).map(|_| rng.gen_range(-1.0..1.0)));
     let start = Instant::now();
 
     let mt_config = crate::multitaper::enhanced::MultitaperConfig::default();

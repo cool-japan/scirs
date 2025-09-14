@@ -93,7 +93,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + 'static> ThreadSafeRNN<F> 
         // Initialize input-to-hidden weights
         let mut weight_ih_vec: Vec<F> = Vec::with_capacity(hidden_size * input_size);
         for _ in 0..(hidden_size * input_size) {
-            let rand_val = rng.random_range(-1.0f64..1.0f64);
+            let rand_val = rng.gen_range(-1.0f64..1.0f64);
             let val = F::from(rand_val).ok_or_else(|| {
                 NeuralError::InvalidArchitecture("Failed to convert random value".to_string())
             })?;
@@ -391,7 +391,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + 'static> ThreadSafeLSTM<F>
          -> Result<Array<F, IxDyn>> {
             let mut weight_vec: Vec<F> = Vec::with_capacity(rows * cols);
             for _ in 0..(rows * cols) {
-                let rand_val = rng.random_range(-1.0f64..1.0f64);
+                let rand_val = rng.gen_range(-1.0f64..1.0f64);
                 let val = F::from(rand_val).ok_or_else(|| {
                     NeuralError::InvalidArchitecture("Failed to convert random value".to_string())
                 })?;

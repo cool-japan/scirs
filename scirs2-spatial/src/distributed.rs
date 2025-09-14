@@ -660,6 +660,7 @@ impl DistributedSpatialCluster {
     }
 
     /// Default recovery strategies for different failure types
+    #[allow(dead_code)]
     fn default_recovery_strategies(&self) -> HashMap<FailureType, RecoveryStrategy> {
         let mut strategies = HashMap::new();
         strategies.insert(FailureType::NodeUnresponsive, RecoveryStrategy::Restart);

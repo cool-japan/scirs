@@ -4,7 +4,8 @@
 //! operations, demonstrating the efficiency gains from SIMD optimizations and
 //! parallel processing implementations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use ndarray::{Array1, Array2, Axis};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};

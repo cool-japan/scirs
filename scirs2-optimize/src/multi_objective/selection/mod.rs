@@ -107,7 +107,7 @@ impl SelectionOperator for RouletteWheelSelection {
 
         for _ in 0..n_select {
             let mut accumulator = 0.0;
-            let random_value = rng.gen::<f64>() * total_fitness;
+            let random_value = rng.random::<f64>() * total_fitness;
 
             for (i, &fitness) in fitness_scores.iter().enumerate() {
                 accumulator += fitness;

@@ -30,7 +30,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Central coordinator for advanced interpolation operations
@@ -60,7 +60,7 @@ pub struct AdvancedInterpolationCoordinator<F: Float + Debug> {
 
 /// Configuration for advanced interpolation operations
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AdvancedInterpolationConfig {
     /// Enable intelligent method selection
     pub enable_method_selection: bool,

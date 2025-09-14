@@ -71,11 +71,11 @@ impl QuantumInspiredOptimizer {
         // Initialize quantum particles
         for _ in 0..population_size {
             let position: Array1<f64> =
-                Array1::from_iter(bounds.iter().map(|(min, max)| rng.random_range(*min..*max)));
+                Array1::from_iter(bounds.iter().map(|(min, max)| rng.gen_range(*min..*max)));
 
             let velocity = Array1::zeros(dimension);
             let superposition =
-                Array1::from_iter((0..dimension).map(|_| rng.random_range(0.0..1.0)));
+                Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
 
             particles.push(QuantumParticle {
                 position: position.clone(),
@@ -83,8 +83,8 @@ impl QuantumInspiredOptimizer {
                 best_position: position,
                 best_fitness: f64::NEG_INFINITY,
                 superposition,
-                phase: rng.random_range(0.0..2.0 * std::f64::consts::PI),
-                entanglement: rng.random_range(0.0..1.0),
+                phase: rng.gen_range(0.0..2.0 * std::f64::consts::PI),
+                entanglement: rng.gen_range(0.0..1.0),
             });
         }
 
@@ -147,7 +147,7 @@ impl QuantumInspiredOptimizer {
             self.update_quantum_entanglement()?;
 
             // Quantum collapse with probability
-            if rng.random_range(0.0..1.0) < self.collapse_probability {
+            if rng.gen_range(0.0..1.0) < self.collapse_probability {
                 self.quantum_collapse()?;
             }
 
@@ -214,8 +214,8 @@ impl QuantumInspiredOptimizer {
         for particle in &mut self.particles {
             // Collapse superposition with probability
             for i in 0..particle.superposition.len() {
-                if rng.random_range(0.0..1.0) < 0.3 {
-                    particle.superposition[i] = if rng.random_range(0.0..1.0) < 0.5 {
+                if rng.gen_range(0.0..1.0) < 0.3 {
+                    particle.superposition[i] = if rng.gen_range(0.0..1.0) < 0.5 {
                         1.0
                     } else {
                         0.0
@@ -224,7 +224,7 @@ impl QuantumInspiredOptimizer {
             }
 
             // Reset quantum phase
-            particle.phase = rng.random_range(0.0..2.0 * std::f64::consts::PI);
+            particle.phase = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
         }
 
         Ok(())
@@ -745,13 +745,13 @@ impl AdvancedQuantumOptimizer {
         for _ in 0..population_size {
             let position: Array1<f64> = Array1::from_iter(bounds.iter().map(|(min, max)| {
                 // Use Sobol sequence for better initial distribution
-                let uniform = rng.random_range(0.0..1.0);
+                let uniform = rng.gen_range(0.0..1.0);
                 min + uniform * (max - min)
             }));
 
             let velocity = Array1::zeros(dimension);
             let superposition =
-                Array1::from_iter((0..dimension).map(|_| rng.random_range(0.0..1.0)));
+                Array1::from_iter((0..dimension).map(|_| rng.gen_range(0.0..1.0)));
 
             particles.push(QuantumParticle {
                 position: position.clone(),
@@ -759,8 +759,8 @@ impl AdvancedQuantumOptimizer {
                 best_position: position,
                 best_fitness: f64::NEG_INFINITY,
                 superposition,
-                phase: rng.random_range(0.0..2.0 * std::f64::consts::PI),
-                entanglement: rng.random_range(0.0..1.0),
+                phase: rng.gen_range(0.0..2.0 * std::f64::consts::PI),
+                entanglement: rng.gen_range(0.0..1.0),
             });
         }
 
@@ -940,7 +940,7 @@ impl AdvancedQuantumOptimizer {
                     + c2 * r2 * social_component[j];
 
                 // Apply quantum tunneling effect
-                if rng.random_range(0.0..1.0) < self.adaptive_params.tunneling_probability {
+                if rng.gen_range(0.0..1.0) < self.adaptive_params.tunneling_probability {
                     particle.velocity[j] *= 2.0; // Quantum tunneling boost
                 }
             }
@@ -1025,8 +1025,8 @@ impl AdvancedQuantumOptimizer {
             };
 
             for i in 0..particle.superposition.len() {
-                if rng.random_range(0.0..1.0) < collapse_strength {
-                    particle.superposition[i] = if rng.random_range(0.0..1.0) < 0.5 {
+                if rng.gen_range(0.0..1.0) < collapse_strength {
+                    particle.superposition[i] = if rng.gen_range(0.0..1.0) < 0.5 {
                         1.0
                     } else {
                         0.0
@@ -1036,8 +1036,8 @@ impl AdvancedQuantumOptimizer {
 
             // ✅ Advanced OPTIMIZATION: Quantum phase reset with memory
             let phase_reset_prob = collapse_strength * 0.5;
-            if rng.random_range(0.0..1.0) < phase_reset_prob {
-                particle.phase = rng.random_range(0.0..2.0 * std::f64::consts::PI);
+            if rng.gen_range(0.0..1.0) < phase_reset_prob {
+                particle.phase = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
             }
         }
 

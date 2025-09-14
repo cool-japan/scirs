@@ -253,14 +253,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   ⚠️  SIMD Instructions: May not be available");
     }
 
-    println!(
-        "   📦 Parallel Processing: {}",
-        if cfg!(feature = "rayon") {
-            "Available"
-        } else {
-            "Core abstractions used"
-        }
-    );
+    #[allow(unexpected_cfgs)]
+    let parallel_status = if cfg!(feature = "parallel") {
+        "Available"
+    } else {
+        "Core abstractions used"
+    };
+    
+    println!("   📦 Parallel Processing: {}", parallel_status);
 
     println!("\n✅ SIMD Optimization Demonstration Complete!");
     println!("────────────────────────────────────────────");

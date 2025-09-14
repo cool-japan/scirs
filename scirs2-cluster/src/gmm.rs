@@ -213,7 +213,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum + std::borrow::Borro
                 // Random selection from data points
                 let mut rng = match self.options.random_seed {
                     Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                    None => rand::rngs::StdRng::seed_from_u64(rand::rng().gen::<u64>()),
+                    None => rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>()),
                 };
 
                 let mut means = Array2::zeros((n_components, n_features));

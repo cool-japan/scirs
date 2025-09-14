@@ -154,7 +154,7 @@ fn test_knn_performance() {
 
     for &k in &[1, 5, 10, 20] {
         let start = Instant::now();
-        let (_indicesdistances) =
+        let _indicesdistances =
             simd_knn_search(&query_points.view(), &data_points.view(), k, "euclidean").unwrap();
         let time = start.elapsed();
 

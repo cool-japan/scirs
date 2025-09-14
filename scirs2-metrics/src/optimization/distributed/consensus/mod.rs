@@ -93,7 +93,7 @@ impl RaftConsensus {
 
         // Reset election timeout with randomization
         let base_timeout = self.config.election_timeout_ms;
-        let jitter = rand::rng().gen_range(0..base_timeout / 2);
+        let jitter = rand::rng().random_range(0..base_timeout / 2);
         self.election_timeout = Duration::from_millis(base_timeout + jitter);
 
         // TODO: Send vote requests to all peers
@@ -510,7 +510,7 @@ impl SimpleMajorityConsensus {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis(),
-            rand::rng().gen::<u64>()
+            rand::rng().random::<u64>()
         );
 
         let vote = Vote {
@@ -617,7 +617,7 @@ mod tests {
     fn test_raft_consensus_creation() {
         let config = ConsensusConfig::default();
         let peers = vec!["node1".to_string(), "node2".to_string()];
-        let mut raft = RaftConsensus::new("node0".to_string(), peers, config);
+        let raft = RaftConsensus::new("node0".to_string(), peers, config);
 
         assert_eq!(raft.current_term(), 0);
         assert_eq!(*raft.current_state(), NodeState::Follower);

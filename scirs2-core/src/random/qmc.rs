@@ -36,6 +36,7 @@
 //! ```
 
 use ndarray::{Array1, Array2};
+use rand::Rng;
 use std::f64;
 use thiserror::Error;
 
@@ -381,13 +382,13 @@ impl<R: rand::Rng> LatinHypercubeSampler<R> {
 
             // Fisher-Yates shuffle
             for i in (1..n).rev() {
-                let j = self.rng.random_range(0, i + 1);
+                let j = self.rng.gen_range(0..i + 1);
                 permutation.swap(i, j);
             }
 
             // Convert to Latin hypercube coordinates
             for (idx, &perm_val) in permutation.iter().enumerate() {
-                let uniform_sample = self.rng.random_range(0.0, 1.0);
+                let uniform_sample = self.rng.gen_range(0.0..1.0);
                 let lh_value = (perm_val as f64 + uniform_sample) / n as f64;
                 points[[idx, dim]] = lh_value;
             }

@@ -1188,8 +1188,8 @@ impl AdvancedMetaLearningSystem {
         let mut distances = Vec::new();
 
         for _ in 0..sample_size {
-            let i = rng.random_range(0..n_samples);
-            let j = rng.random_range(0..n_samples);
+            let i = rng.gen_range(0..n_samples);
+            let j = rng.gen_range(0..n_samples);
             if i != j {
                 let dist = self.euclidean_distance(&x.row(i)..&x.row(j));
                 distances.push(dist);
@@ -1257,7 +1257,7 @@ impl AdvancedMetaLearningSystem {
             // Random point in data space
             let mut random_point = vec![0.0; n_features];
             for j in 0..n_features {
-                random_point[j] = rng.random_range(min_vals[j]..=max_vals[j]);
+                random_point[j] = rng.gen_range(min_vals[j]..=max_vals[j]);
             }
 
             // Find nearest neighbor distance for random point
@@ -1269,7 +1269,7 @@ impl AdvancedMetaLearningSystem {
             u_distances.push(min_dist_u);
 
             // Random data point
-            let random_idx = rng.random_range(0..n_samples);
+            let random_idx = rng.gen_range(0..n_samples);
             let data_point = x.row(random_idx).to_vec();
 
             // Find nearest neighbor distance for data point
@@ -1308,8 +1308,8 @@ impl AdvancedMetaLearningSystem {
         let max_pairs = 50.min((n_features * (n_features - 1)) / 2);
 
         for _ in 0..max_pairs {
-            let i = rng.random_range(0..n_features);
-            let j = rng.random_range(0..n_features);
+            let i = rng.gen_range(0..n_features);
+            let j = rng.gen_range(0..n_features);
             if i != j {
                 let mi = self.estimate_mutual_information(&x.column(i)..&x.column(j))?;
                 mi_sum += mi;
@@ -1673,8 +1673,8 @@ impl AdvancedMetaLearningSystem {
         let mut rng = rand::rng();
 
         for _ in 0..max_pairs {
-            let i = rng.random_range(0..n_features);
-            let j = rng.random_range(0..n_features);
+            let i = rng.gen_range(0..n_features);
+            let j = rng.gen_range(0..n_features);
 
             if i != j {
                 let col_i = x.column(i);

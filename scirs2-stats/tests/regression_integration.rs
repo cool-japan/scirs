@@ -311,14 +311,14 @@ fn test_huber_regression_with_regularization() {
     // Generate predictor variables with controlled correlation
     for i in 0..50 {
         // Base value with more variation
-        let base = i as f64 / 5.0 + rng.gen_range(0.0..2.0);
+        let base = i as f64 / 5.0 + rng.random_range(0.0..2.0);
 
         // Generate features with different scales and correlations
-        x[[i, 0]] = base + rng.gen_range(-1.0..1.0);
-        x[[i, 1]] = base * 0.5 + rng.gen_range(-2.0..2.0);
-        x[[i, 2]] = (i as f64).sin() + rng.gen_range(-0.5..0.5);
-        x[[i, 3]] = (i as f64 * 0.2).cos() + rng.gen_range(-0.5..0.5);
-        x[[i, 4]] = rng.gen_range(-3.0..3.0); // Less correlated feature
+        x[[i, 0]] = base + rng.random_range(-1.0..1.0);
+        x[[i, 1]] = base * 0.5 + rng.random_range(-2.0..2.0);
+        x[[i, 2]] = (i as f64).sin() + rng.random_range(-0.5..0.5);
+        x[[i, 3]] = (i as f64 * 0.2).cos() + rng.random_range(-0.5..0.5);
+        x[[i, 4]] = rng.random_range(-3.0..3.0); // Less correlated feature
     }
 
     // Create response variable with true coefficients
@@ -336,12 +336,12 @@ fn test_huber_regression_with_regularization() {
         let noise = if i % 10 == 0 {
             // Add outliers
             if rng.random_bool(0.5) {
-                8.0 + rng.gen_range(0.0..1.0) * 4.0
+                8.0 + rng.random_range(0.0..1.0) * 4.0
             } else {
-                -8.0 - rng.gen_range(0.0..1.0) * 4.0
+                -8.0 - rng.random_range(0.0..1.0) * 4.0
             }
         } else {
-            (rng.gen_range(0.0..1.0) - 0.5) * 2.0
+            (rng.random_range(0.0..1.0) - 0.5) * 2.0
         };
 
         y[i] = y_val + noise;

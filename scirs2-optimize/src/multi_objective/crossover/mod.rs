@@ -36,9 +36,9 @@ impl CrossoverOperator for SimulatedBinaryCrossover {
         let mut child1 = vec![0.0; n];
         let mut child2 = vec![0.0; n];
 
-        if rng.gen::<f64>() <= self.crossover_probability {
+        if rng.random::<f64>() <= self.crossover_probability {
             for i in 0..n {
-                if rng.gen::<f64>() <= 0.5 {
+                if rng.random::<f64>() <= 0.5 {
                     let beta = self.calculate_beta(&mut rng);
                     child1[i] = 0.5 * ((1.0 + beta) * parent1[i] + (1.0 - beta) * parent2[i]);
                     child2[i] = 0.5 * ((1.0 - beta) * parent1[i] + (1.0 + beta) * parent2[i]);
@@ -58,7 +58,7 @@ impl CrossoverOperator for SimulatedBinaryCrossover {
 
 impl SimulatedBinaryCrossover {
     fn calculate_beta(&self, rng: &mut impl Rng) -> f64 {
-        let u = rng.gen::<f64>();
+        let u = rng.random::<f64>();
         if u <= 0.5 {
             (2.0 * u).powf(1.0 / (self.distribution_index + 1.0))
         } else {
@@ -88,7 +88,7 @@ impl CrossoverOperator for UniformCrossover {
         let mut child1 = vec![0.0; n];
         let mut child2 = vec![0.0; n];
 
-        if rng.gen::<f64>() <= self.crossover_probability {
+        if rng.random::<f64>() <= self.crossover_probability {
             for i in 0..n {
                 if rng.gen_bool(0.5) {
                     child1[i] = parent1[i];

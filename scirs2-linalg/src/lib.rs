@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Linear algebra functions
 //!
 //! This module provides functions for linear algebra operations,

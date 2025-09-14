@@ -47,7 +47,7 @@ pub fn multivariate_emd(
 
         // Generate random normal vector
         for _ in 0..n_signals {
-            v.push(rng.random_range(-1.0..1.0));
+            v.push(rng.gen_range(-1.0..1.0));
         }
 
         // Normalize

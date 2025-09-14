@@ -8,7 +8,7 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -317,7 +317,7 @@ pub struct Branch<F: Float> {
 
 /// Represents a leaf (terminal node) in the dendrogram
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Leaf {
     /// Position (x, y)
     pub position: (f64, f64),
@@ -1101,7 +1101,7 @@ pub mod interactive {
 
     /// Tooltip information for dendrogram nodes
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct TooltipInfo {
         /// Cluster ID
         pub cluster_id: usize,
@@ -2048,9 +2048,9 @@ pub mod export {
                 ),
             };
 
-            serde_json::to_string_pretty(&jsonplot).map_err(|e| {
+            return serde_json::to_string_pretty(&jsonplot).map_err(|e| {
                 ClusteringError::InvalidInput(format!("JSON serialization failed: {}", e))
-            })
+            });
         }
 
         #[cfg(not(feature = "serde"))]

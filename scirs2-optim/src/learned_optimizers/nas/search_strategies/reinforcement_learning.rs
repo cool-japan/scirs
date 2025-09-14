@@ -401,7 +401,7 @@ impl<T: Float + Default + Clone> RLArchitectureAgent<T> {
         let mut rng = rand::rng();
         
         // Epsilon-greedy exploration
-        if rng.gen::<f64>() < self.config.exploration_rate.to_f64().unwrap_or(0.1) {
+        if rng.random::<f64>() < self.config.exploration_rate.to_f64().unwrap_or(0.1) {
             // Random action
             self.select_random_action(state)
         } else {
@@ -424,7 +424,7 @@ impl<T: Float + Default + Clone> RLArchitectureAgent<T> {
                 let layer_types = vec![
                     LayerTypeAction::AddDense { units: rng.gen_range(32..512) },
                     LayerTypeAction::AddLSTM { units: rng.gen_range(64..256) },
-                    LayerTypeAction::AddAttention { heads: rng.gen_range(4..16), dim: rng.gen_range(64..256) },
+                    LayerTypeAction::AddAttention { heads: rng.gen_range(4..16)..dim: rng.gen_range(64..256) },
                     LayerTypeAction::AddBatchNorm,
                     LayerTypeAction::AddDropout { rate: rng.gen_range(0.1..0.5) },
                 ];

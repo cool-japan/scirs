@@ -47,7 +47,7 @@ where
             let neighbor_vec: Vec<N> = neighbors;
 
             if !neighbor_vec.is_empty() {
-                let idx = rng.random_range(0..neighbor_vec.len());
+                let idx = rng.gen_range(0..neighbor_vec.len());
                 current = neighbor_vec[idx].clone();
                 walk.push(current.clone());
             } else {
@@ -266,7 +266,7 @@ impl AliasTable {
             return 0;
         }
 
-        let i = rng.random_range(0..self.prob.len());
+        let i = rng.gen_range(0..self.prob.len());
         let coin_flip = rng.random::<f64>();
 
         if coin_flip <= self.prob[i] {
@@ -449,7 +449,7 @@ where
             return Ok(walk);
         }
 
-        let idx = rng.random_range(0..neighbors.len());
+        let idx = rng.gen_range(0..neighbors.len());
         walk.push(neighbors[idx].clone());
     } else {
         return Ok(walk);
@@ -576,7 +576,7 @@ where
         if let Ok(neighbors) = graph.neighbors(&current) {
             let neighbors: Vec<_> = neighbors;
             if !neighbors.is_empty() {
-                let idx = rng.random_range(0..neighbors.len());
+                let idx = rng.gen_range(0..neighbors.len());
                 current = neighbors[idx].clone();
                 walk.push(current.clone());
             } else {

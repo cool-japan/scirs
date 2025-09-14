@@ -1198,14 +1198,14 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
             let parent2 = self.tournament_selection(2)?;
 
             // Crossover
-            let mut offspring = if self.rng.random_range(0.0, 1.0) < self.crossover_prob {
+            let mut offspring = if self.rng.gen_range(0.0..1.0) < self.crossover_prob {
                 self.crossover(&parent1, &parent2)?
             } else {
                 parent1.clone()
             };
 
             // Mutation
-            if self.rng.random_range(0.0, 1.0) < self.mutation_prob {
+            if self.rng.gen_range(0.0..1.0) < self.mutation_prob {
                 self.mutate(&mut offspring)?;
             }
 
@@ -1233,10 +1233,10 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
             return Err(OptimError::InvalidConfig("Empty population".to_string()));
         }
 
-        let mut best_idx = self.rng.random_range(0, self.population.len());
+        let mut best_idx = self.rng.gen_range(0..self.population.len());
 
         for _ in 1..tournamentsize {
-            let idx = self.rng.random_range(0, self.population.len());
+            let idx = self.rng.gen_range(0..self.population.len());
 
             // Compare based on rank and crowding distance
             if self.population[idx].rank < self.population[best_idx].rank
@@ -1258,14 +1258,14 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
     ) -> Result<Individual<T>> {
         // Simplified crossover - in practice would be more sophisticated
         let mut offspring = parent1.clone();
-        offspring.id = format!("offspring_{}", self.rng.random_range(0, u32::MAX));
+        offspring.id = format!("offspring_{}", self.rng.gen_range(0..u32::MAX));
 
         // Randomly mix hyperparameters
         if !parent1.architecture.components.is_empty()
             && !parent2.architecture.components.is_empty()
         {
             for (key, value) in &parent1.architecture.components[0].hyperparameters {
-                if self.rng.random_range(0.0, 1.0) < 0.5 {
+                if self.rng.gen_range(0.0..1.0) < 0.5 {
                     if let Some(parent2_value) =
                         parent2.architecture.components[0].hyperparameters.get(key)
                     {
@@ -1287,9 +1287,9 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
                 .hyperparameters
                 .iter_mut()
             {
-                if self.rng.random_range(0.0, 1.0) < 0.1 {
+                if self.rng.gen_range(0.0..1.0) < 0.1 {
                     // 10% mutation rate per parameter
-                    let noise = T::from(self.rng.random_range(-0.05, 0.05)).unwrap(); // ±5% noise
+                    let noise = T::from(self.rng.gen_range(-0.05..0.05)).unwrap(); // ±5% noise
                     *value = *value + noise;
                 }
             }

@@ -61,25 +61,10 @@ pub use families::triangular::*;
 // Re-export optimized window generation
 pub use optimization::lookup_tables::cached_windows;
 
-// Legacy kaiser module for backward compatibility
-#[allow(unused_imports)]
-pub mod kaiser {
-    //! Legacy kaiser module - use families::exponential::kaiser instead
+// Include the kaiser.rs file as a module
+mod kaiser;
 
-    use crate::error::SignalResult;
-
-    /// Kaiser window - redirects to families::exponential::kaiser
-    pub fn kaiser(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
-        super::families::exponential::kaiser(m, beta, sym)
-    }
-
-    /// Kaiser-Bessel derived window - implementation in kaiser.rs
-    pub fn kaiser_bessel_derived(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
-        crate::window::kaiser::kaiser_bessel_derived(m, beta, sym)
-    }
-}
-
-// Maintain backward compatibility by re-exporting Kaiser functions
+// Re-export kaiser functions for backward compatibility  
 pub use kaiser::{kaiser, kaiser_bessel_derived};
 
 /// Helper function to handle small or incorrect window lengths

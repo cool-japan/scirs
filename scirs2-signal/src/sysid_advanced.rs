@@ -839,7 +839,7 @@ fn simulate_bj_model(
     // Generate innovations (would be estimated in practice)
     let mut rng = rand::rng();
     for i in 0..n {
-        noise[i] = rng.random_range(-0.1..0.1);
+        noise[i] = rng.gen_range(-0.1..0.1);
     }
 
     // Filter through C/D
@@ -1223,11 +1223,11 @@ mod tests {
         // Generate test data
         let mut rng = rand::rng();
         for i in 2..n {
-            input[i] = rng.random_range(-1.0..1.0);
+            input[i] = rng.gen_range(-1.0..1.0);
             output[i] = 0.7 * output[i - 1] - 0.2 * output[i - 2]
                 + 0.5 * input[i - 1]
                 + 0.3 * input[i - 2]
-                + 0.1 * rng.random_range(-1.0..1.0);
+                + 0.1 * rng.gen_range(-1.0..1.0);
         }
 
         let (model__, converged_) = identify_armax_complete(&input, &output, 2, 2, 1, 1).unwrap();

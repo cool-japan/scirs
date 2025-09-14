@@ -367,7 +367,7 @@ impl Embedding {
     /// Create a random embedding
     pub fn random(dimensions: usize, rng: &mut impl Rng) -> Self {
         let vector: Vec<f64> = (0..dimensions)
-            .map(|_| rng.random_range(-0.5..0.5))
+            .map(|_| rng.gen_range(-0.5..0.5))
             .collect();
         Embedding { vector }
     }
@@ -1888,7 +1888,7 @@ impl<N: Node + Clone + Hash + Eq + std::fmt::Debug> FastGraphEmbedding<N> {
         let mut projection_matrix = Vec::new();
         for _ in 0..projection_size {
             let row: Vec<f32> = (0..dimensions)
-                .map(|_| rng.random_range(-1.0..1.0))
+                .map(|_| rng.gen_range(-1.0..1.0))
                 .collect();
             projection_matrix.push(row);
         }
@@ -2136,7 +2136,7 @@ impl<N: Node + Clone + Hash + Eq> Graph2Vec<N> {
         let mut rng = rand::rng();
         for graph_id in graph_patterns.keys() {
             let embedding: Vec<f64> = (0..self.dimensions)
-                .map(|_| rng.random_range(-0.1..0.1))
+                .map(|_| rng.gen_range(-0.1..0.1))
                 .collect();
             self.graph_embeddings.insert(graph_id.clone(), embedding);
         }

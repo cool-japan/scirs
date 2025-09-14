@@ -229,7 +229,7 @@ fn validate_basic_accuracy() -> SignalResult<LombScargleAccuracyValidation> {
         let mut current_time = 0.0;
         for _ in 0..n {
             t.push(current_time);
-            current_time += 0.1 + 0.05 * rng.random_range(-1.0..1.0); // Irregular sampling
+            current_time += 0.1 + 0.05 * rng.gen_range(-1.0..1.0); // Irregular sampling
         }
 
         // Generate signal with known frequency
@@ -327,7 +327,7 @@ fn validate_statistical_robustness() -> SignalResult<StatisticalRobustnessMetric
         let n = 200;
         let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.01).collect();
         let mut rng = rand::rng();
-        let y: Vec<f64> = (0..n).map(|_| rng.random_range(-1.0..1.0)).collect();
+        let y: Vec<f64> = (0..n).map(|_| rng.gen_range(-1.0..1.0)).collect();
 
         let freq_grid = Array1::linspace(0.1, 10.0, 100);
         let (freqs, power) = lombscargle(

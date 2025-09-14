@@ -752,7 +752,7 @@ mod tests {
         // AR(2): x[t] = 0.7*x[t-1] - 0.2*x[t-2] + e[t]
         for t in 2..n {
             signal[t] =
-                0.7 * signal[t - 1] - 0.2 * signal[t - 2] + 0.1 * rng.random_range(-1.0..1.0);
+                0.7 * signal[t - 1] - 0.2 * signal[t - 2] + 0.1 * rng.gen_range(-1.0..1.0);
         }
 
         let config = AdvancedModelSelection::default();

@@ -110,8 +110,8 @@ where
 
             for j in 0..ndim {
                 let (lb, ub) = bounds[j];
-                position[j] = rng.random_range(lb..ub);
-                velocity[j] = rng.random_range(options.vmin..options.vmax) * (ub - lb);
+                position[j] = rng.gen_range(lb..ub);
+                velocity[j] = rng.gen_range(options.vmin..options.vmax) * (ub - lb);
             }
 
             // Evaluate initial position
@@ -164,8 +164,8 @@ where
 
         // Update velocity
         for j in 0..self.ndim {
-            let r1 = self.rng.random_range(0.0..1.0);
-            let r2 = self.rng.random_range(0.0..1.0);
+            let r1 = self.rng.gen_range(0.0..1.0);
+            let r2 = self.rng.gen_range(0.0..1.0);
 
             // Velocity update formula
             let cognitive =

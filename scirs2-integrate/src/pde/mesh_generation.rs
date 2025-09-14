@@ -560,7 +560,7 @@ impl AutoMeshGenerator {
         if boundary_spec.boundary_markers.is_empty() {
             // Mark all boundary edges with marker 1
             let boundary_edges = AutoMeshGenerator::find_boundary_edges(mesh);
-            for (_p1_p2) in boundary_edges {
+            for _p1_p2 in boundary_edges {
                 // Mark boundary points
                 // In a complete implementation, would track edge markers
             }

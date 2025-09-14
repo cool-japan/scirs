@@ -509,7 +509,7 @@ pub mod algorithms {
             for i in 0..local_size {
                 for j in 0..dims {
                     let (low, high) = bounds[j];
-                    population[[i, j]] = rng.random_range(low..=high);
+                    population[[i, j]] = rng.gen_range(low..=high);
                 }
             }
 
@@ -570,7 +570,7 @@ pub mod algorithms {
                 // Select three random individuals
                 let mut indices = Vec::new();
                 while indices.len() < 3 {
-                    let idx = rng.random_range(0..pop_size);
+                    let idx = rng.gen_range(0..pop_size);
                     if idx != i && !indices.contains(&idx) {
                         indices.push(idx);
                     }
@@ -581,9 +581,9 @@ pub mod algorithms {
                 let c = indices[2];
 
                 // Mutation and crossover
-                let j_rand = rng.random_range(0..dims);
+                let j_rand = rng.gen_range(0..dims);
                 for j in 0..dims {
-                    if rng.gen::<f64>() < self.crossover_rate || j == j_rand {
+                    if rng.random::<f64>() < self.crossover_rate || j == j_rand {
                         trial_population[[i, j]] = population[[a, j]]
                             + self.f_scale * (population[[b, j]] - population[[c, j]]);
                     } else {
@@ -775,7 +775,7 @@ pub mod algorithms {
             for i in 0..local_size {
                 for j in 0..dims {
                     let (low, high) = bounds[j];
-                    positions[[i, j]] = rng.random_range(low..=high);
+                    positions[[i, j]] = rng.gen_range(low..=high);
                 }
             }
 

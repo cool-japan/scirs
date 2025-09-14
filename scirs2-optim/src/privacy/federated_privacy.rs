@@ -3089,7 +3089,7 @@ impl<
                 let mut selected = Vec::new();
                 let mut remaining = availableclients.to_vec();
                 for _ in 0..target_count.min(remaining.len()) {
-                    let index = rng.random_range(0, remaining.len());
+                    let index = rng.gen_range(0..remaining.len());
                     selected.push(remaining.swap_remove(index));
                 }
                 Ok(selected)
@@ -3151,7 +3151,7 @@ impl<
         let mut selected = Vec::new();
         let mut rng = scirs2_core::random::rng();
 
-        for (clients) in device_groups {
+        for clients in device_groups {
             if clients.1.is_empty() {
                 continue;
             }
@@ -3163,7 +3163,7 @@ impl<
             let mut group_clients = clients;
             let mut group_selected = Vec::new();
             for _ in 0..group_target.min(group_clients.1.len()) {
-                let index = rng.random_range(0, group_clients.1.len());
+                let index = rng.gen_range(0..group_clients.1.len());
                 group_selected.push(group_clients.1.swap_remove(index));
             }
             selected.extend(group_selected);
@@ -3240,7 +3240,7 @@ impl<
         for (_, cluster_clients) in clusters {
             if !cluster_clients.is_empty() && selected.len() < target_count {
                 if !cluster_clients.is_empty() {
-                    let index = rng.random_range(0, cluster_clients.len());
+                    let index = rng.gen_range(0..cluster_clients.len());
                     let client = &cluster_clients[index];
                     selected.push(client.clone());
                     remaining_clients.retain(|c| c != client);
@@ -3251,7 +3251,7 @@ impl<
         // Fill remaining slots randomly
         let remaining_slots = target_count.saturating_sub(selected.len());
         for _ in 0..remaining_slots.min(remaining_clients.len()) {
-            let index = rng.random_range(0, remaining_clients.len());
+            let index = rng.gen_range(0..remaining_clients.len());
             selected.push(remaining_clients.swap_remove(index));
         }
 
@@ -3648,7 +3648,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> SecureAggregator<T> {
             let mask_size = self.config.masking_dimension;
 
             let mask = Array1::from_iter(
-                (0..mask_size).map(|_| T::from(client_rng.random_range(-1.0, 1.0)).unwrap()),
+                (0..mask_size).map(|_| T::from(client_rng.gen_range(-1.0..1.0)).unwrap()),
             );
 
             self.client_masks.insert(clientid.clone(), mask);

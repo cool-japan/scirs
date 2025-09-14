@@ -633,8 +633,8 @@ fn svd_controllability_analysis(
 
     // Simplified SVD computation (placeholder for full implementation)
     let mut singular_values = Array1::zeros(m.min(n));
-    let mut left_singular_vectors = Array2::eye(m);
-    let mut right_singular_vectors = Array2::eye(n);
+    let left_singular_vectors = Array2::eye(m);
+    let right_singular_vectors = Array2::eye(n);
 
     // Compute singular values (simplified implementation)
     // In practice, would use sophisticated SVD algorithms
@@ -668,8 +668,8 @@ fn svd_controllability_analysis(
         .count();
 
     // Effective rank based on condition number
-    let condition_number = if singular_values[(numerical_rank - 1)] > 1e-15 {
-        max_sv / singular_values[(numerical_rank - 1)]
+    let condition_number = if singular_values[numerical_rank - 1] > 1e-15 {
+        max_sv / singular_values[numerical_rank - 1]
     } else {
         f64::INFINITY
     };
@@ -681,7 +681,7 @@ fn svd_controllability_analysis(
     };
 
     // Compute singular value gaps
-    let mut gaps = Array1::zeros((singular_values.len() - 1));
+    let mut gaps = Array1::zeros(singular_values.len() - 1);
     for i in 0..gaps.len() {
         gaps[i] = singular_values[i] - singular_values[i + 1];
     }
@@ -706,8 +706,8 @@ fn svd_observability_analysis(
 
     // Simplified SVD computation (placeholder for full implementation)
     let mut singular_values = Array1::zeros(m.min(n));
-    let mut left_singular_vectors = Array2::eye(m);
-    let mut right_singular_vectors = Array2::eye(n);
+    let left_singular_vectors = Array2::eye(m);
+    let right_singular_vectors = Array2::eye(n);
 
     // Compute singular values (simplified implementation)
     for i in 0..m.min(n) {
@@ -740,8 +740,8 @@ fn svd_observability_analysis(
         .count();
 
     // Effective rank based on condition number
-    let condition_number = if singular_values[(numerical_rank - 1)] > 1e-15 {
-        max_sv / singular_values[(numerical_rank - 1)]
+    let condition_number = if singular_values[numerical_rank - 1] > 1e-15 {
+        max_sv / singular_values[numerical_rank - 1]
     } else {
         f64::INFINITY
     };
@@ -753,7 +753,7 @@ fn svd_observability_analysis(
     };
 
     // Compute singular value gaps
-    let mut gaps = Array1::zeros((singular_values.len() - 1));
+    let mut gaps = Array1::zeros(singular_values.len() - 1);
     for i in 0..gaps.len() {
         gaps[i] = singular_values[i] - singular_values[i + 1];
     }

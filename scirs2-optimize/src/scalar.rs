@@ -157,7 +157,7 @@ where
 
     let tol = 3.0 * SQRT_EPS;
     // a, b, c form the bracket, reorder if needed
-    let (mut bracket_a, mut bracket_b) = if b < c { (b, c) } else { (c, b) };
+    let (bracket_a, bracket_b) = if b < c { (b, c) } else { (c, b) };
     let (mut a, mut b) = if a < bracket_a {
         (a, bracket_a)
     } else {
@@ -451,7 +451,7 @@ where
     };
 
     // a, b, c form the bracket, reorder if needed
-    let (mut bracket_a, mut bracket_b) = if b < c { (b, c) } else { (c, b) };
+    let (bracket_a, bracket_b) = if b < c { (b, c) } else { (c, b) };
     let (mut a, mut b) = if a < bracket_a {
         (a, bracket_a)
     } else {

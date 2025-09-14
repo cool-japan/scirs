@@ -254,7 +254,7 @@ where
 /// let uniform_sampler = |rng: &mut StdRng, dims: usize| {
 ///     let mut point = Array1::zeros(dims);
 ///     for i in 0..dims {
-///         point[i] = rng.random_range(0.0, 1.0);
+///         point[i] = rng.random_range(0.0..1.0);
 ///     }
 ///     point
 /// };

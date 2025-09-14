@@ -322,7 +322,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
 
         // Generate random feature vector
         let features = Array1::from_shape_fn(self.architecture_encoder.encoding_dim, |_| {
-            T::from(rng.gen::<f64>()).unwrap()
+            T::from(rng.random::<f64>()).unwrap()
         });
 
         let complexity = T::from(rng.gen_range(0.1..1.0)).unwrap();
@@ -395,7 +395,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
         // Start with random point
         let mut current_features = Array1::from_shape_fn(
             self.architecture_encoder.encoding_dim,
-            |_| T::from(rng.gen::<f64>()).unwrap()
+            |_| T::from(rng.random::<f64>()).unwrap()
         );
 
         let step_size = T::from(0.01).unwrap();

@@ -571,7 +571,7 @@ pub fn quantum_enhancedimage_processing<T>(
 where
     T: Float + FromPrimitive + Copy + Send + Sync,
 {
-    let (_height_width) = image.dim();
+    let _height_width = image.dim();
 
     // Create quantum-GPU task
     let task = create_quantumimage_processing_task(&image, &processing_type, config)?;

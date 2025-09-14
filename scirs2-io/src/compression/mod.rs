@@ -110,7 +110,7 @@ impl CompressionAlgorithm {
 
 /// Convert a compression level (0-9) to the appropriate internal level for each algorithm
 #[allow(dead_code)]
-fn normalize__level(level: Option<u32>, algorithm: CompressionAlgorithm) -> Result<u32> {
+fn normalize_level(level: Option<u32>, algorithm: CompressionAlgorithm) -> Result<u32> {
     let _level = level.unwrap_or(6); // Default compression level
 
     if _level > 9 {
@@ -155,7 +155,7 @@ pub fn compress_data(
     algorithm: CompressionAlgorithm,
     level: Option<u32>,
 ) -> Result<Vec<u8>> {
-    let normalized_level = normalize__level(level, algorithm)?;
+    let normalized_level = normalize_level(level, algorithm)?;
 
     match algorithm {
         CompressionAlgorithm::Gzip => {

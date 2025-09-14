@@ -44,12 +44,12 @@ use std::fmt::Debug;
 /// use rand::Rng;
 /// let mut rng = rand::rng();
 /// let signal1: Vec<f64> = t.iter()
-///     .map(|&ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.random_range(0.0..1.0))
+///     .map(|&ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.gen_range(0.0..1.0))
 ///     .collect();
 ///     
 /// // Signal 2: 10 Hz cosine (highly coherent with signal1 at 10 Hz)
 /// let signal2: Vec<f64> = t.iter()
-///     .map(|&ti| (2.0 * PI * 10.0 * ti).cos() + 0.1 * rng.random_range(0.0..1.0))
+///     .map(|&ti| (2.0 * PI * 10.0 * ti).cos() + 0.1 * rng.gen_range(0.0..1.0))
 ///     .collect();
 ///
 /// // Compute coherence

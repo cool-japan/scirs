@@ -10,12 +10,12 @@ use num_traits::{Float, FromPrimitive};
 use rand::Rng;
 use std::collections::HashMap;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// GPU acceleration backends
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum GpuBackend {
     /// NVIDIA CUDA backend
     Cuda,
@@ -33,7 +33,7 @@ pub enum GpuBackend {
 
 /// GPU device information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct GpuDevice {
     /// Device ID
     pub device_id: u32,
@@ -55,7 +55,7 @@ pub struct GpuDevice {
 
 /// GPU memory allocation strategy
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum MemoryStrategy {
     /// Use unified memory (CUDA/HIP)
     Unified,
@@ -195,7 +195,7 @@ impl GpuMemoryManager {
 
 /// Memory usage statistics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct MemoryStats {
     /// Total memory currently allocated
     pub total_allocated: usize,
@@ -209,7 +209,7 @@ pub struct MemoryStats {
 
 /// GPU acceleration configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct GpuConfig {
     /// Preferred backend
     pub backend: GpuBackend,
@@ -229,7 +229,7 @@ pub struct GpuConfig {
 
 /// Device selection strategy
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum DeviceSelection {
     /// Use device with most memory
     MostMemory,
@@ -629,7 +629,7 @@ enum BackendContext {
 
 /// GPU performance statistics
 #[derive(Debug, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct GpuStats {
     /// Total GPU memory allocations
     pub total_allocations: usize,
@@ -2315,7 +2315,7 @@ pub mod benchmark {
 
     /// Individual benchmark result
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct BenchmarkResult {
         /// Benchmark name
         pub name: String,
@@ -2813,7 +2813,7 @@ pub mod accelerated {
 
     /// Performance profile for algorithm execution
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct PerformanceProfile {
         /// Execution time on CPU (seconds)
         pub cpu_time: f64,
@@ -2831,7 +2831,7 @@ pub mod accelerated {
 
     /// Data characteristics for algorithm selection
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct DataCharacteristics {
         /// Number of samples
         pub n_samples: usize,
@@ -2864,7 +2864,7 @@ pub mod accelerated {
 
     /// Algorithm selection strategy
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub enum SelectionStrategy {
         /// Minimize execution time
         MinimizeTime,
@@ -2897,7 +2897,7 @@ pub mod accelerated {
 
     /// Execution target specification
     #[derive(Debug, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub enum ExecutionTarget {
         /// CPU execution with specified parallelism
         Cpu { num_threads: usize },
@@ -2911,7 +2911,7 @@ pub mod accelerated {
 
     /// Expected performance metrics
     #[derive(Debug, Clone)]
-    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+    #[derive(Serialize, Deserialize)]
     pub struct ExpectedPerformance {
         /// Estimated execution time (seconds)
         pub execution_time: f64,

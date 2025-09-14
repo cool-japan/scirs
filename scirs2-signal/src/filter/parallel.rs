@@ -952,7 +952,7 @@ pub fn parallel_polyphase_filter(
     }
 
     let output_length = signal.len() / decimation_factor;
-    let mut output = vec![0.0; output_length];
+    let output = vec![0.0; output_length];
 
     // Process decimated samples in parallel
     let output_indices: Vec<usize> = (0..output_length).collect();
@@ -2032,7 +2032,7 @@ fn sequential_lfilter(b: &[f64], a: &[f64], x: &[f64]) -> SignalResult<Vec<f64>>
     let n = x.len();
     let mut y = vec![0.0; n];
     let mut memory_b = vec![0.0; b.len()];
-    let mut memory_a = vec![0.0; a.len()];
+    let memory_a = vec![0.0; a.len()];
 
     for i in 0..n {
         // Shift memory

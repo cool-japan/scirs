@@ -31,7 +31,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Central coordinator for advanced FFT operations
@@ -62,7 +62,7 @@ pub struct advancedFftCoordinator<F: Float + Debug> {
 
 /// Configuration for advanced FFT operations
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct advancedFftConfig {
     /// Enable intelligent method selection
     pub enable_method_selection: bool,

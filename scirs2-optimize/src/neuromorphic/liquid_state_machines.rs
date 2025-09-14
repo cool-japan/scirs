@@ -36,8 +36,8 @@ impl LiquidStateMachine {
         // Random sparse connectivity for reservoir
         for i in 0..reservoir_size {
             for j in 0..reservoir_size {
-                if i != j && rand::rng().gen::<f64>() < 0.1 {
-                    reservoir_weights[[i, j]] = (rand::rng().gen::<f64>() - 0.5) * 0.1;
+                if i != j && rand::rng().random::<f64>() < 0.1 {
+                    reservoir_weights[[i, j]] = (rand::rng().random::<f64>() - 0.5) * 0.1;
                 }
             }
         }
@@ -45,7 +45,7 @@ impl LiquidStateMachine {
         // Random input weights
         for i in 0..reservoir_size {
             for j in 0..input_size {
-                input_weights[[i, j]] = (rand::rng().gen::<f64>() - 0.5) * 0.5;
+                input_weights[[i, j]] = (rand::rng().random::<f64>() - 0.5) * 0.5;
             }
         }
 

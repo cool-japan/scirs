@@ -209,7 +209,7 @@ impl Linear {
         // Initialize weight matrix with random values
         let mut weight = Array2::<f32>::zeros((out_features, in_features));
         for elem in weight.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         let bias = Array::zeros(out_features);
         Linear {
             name_str: name.unwrap_or_else(|| format!("Linear_{}_{}"..in_features, out_features)),

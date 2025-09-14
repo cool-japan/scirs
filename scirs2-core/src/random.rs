@@ -95,6 +95,16 @@ impl<R: Rng> Random<R> {
     ) -> T {
         self.sample(rand_distr::Uniform::new(min, max).unwrap())
     }
+    
+    /// Generate a random value within the given range (using range syntax)
+    #[allow(deprecated)]
+    pub fn gen_range<T, RNG>(&mut self, range: RNG) -> T
+    where
+        T: rand_distr::uniform::SampleUniform,
+        RNG: rand_distr::uniform::SampleRange<T>,
+    {
+        self.rng.gen_range(range)
+    }
 
     /// Generate a random f64 value between 0.0 and 1.0
     pub fn random_f64(&mut self) -> f64 {

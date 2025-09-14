@@ -1370,7 +1370,7 @@ pub fn predictive_coding_hierarchy<T>(
 where
     T: Float + FromPrimitive + Copy + Send + Sync,
 {
-    let (_height_width) = image.dim();
+    let _height_width = image.dim();
     let consciousness_config = ConsciousnessConfig::default();
 
     if hierarchy_sizes.is_empty() {

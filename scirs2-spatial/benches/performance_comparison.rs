@@ -39,7 +39,7 @@ impl DatasetGenerator {
         let cluster_centers: Vec<Vec<f64>> = (0..n_clusters)
             .map(|_| {
                 (0..dimensions)
-                    .map(|_| rng.random_range(-50.0..50.0))
+                    .map(|_| rng.gen_range(-50.0..50.0))
                     .collect()
             })
             .collect();
@@ -50,7 +50,7 @@ impl DatasetGenerator {
             let center = &cluster_centers[cluster_idx];
 
             for j in 0..dimensions {
-                points[[i, j]] = center[j] + rng.random_range(-cluster_std..cluster_std);
+                points[[i, j]] = center[j] + rng.gen_range(-cluster_std..cluster_std);
             }
         }
 
@@ -60,7 +60,7 @@ impl DatasetGenerator {
     /// Generate uniformly distributed data
     pub fn generate_uniform_data(&self, npoints: usize, dimensions: usize) -> Array2<f64> {
         let mut rng = StdRng::seed_from_u64(self.seed);
-        Array2::from_shape_fn((npoints, dimensions), |_| rng.random_range(-100.0..100.0))
+        Array2::from_shape_fn((npoints, dimensions), |_| rng.gen_range(-100.0..100.0))
     }
 
     /// Generate data with outliers (common in spatial analysis)
@@ -78,14 +78,14 @@ impl DatasetGenerator {
         // Generate normal points
         for i in 0..(n_points - n_outliers) {
             for j in 0..dimensions {
-                points[[i, j]] = rng.random_range(-10.0..10.0);
+                points[[i, j]] = rng.gen_range(-10.0..10.0);
             }
         }
 
         // Generate outliers
         for i in (n_points - n_outliers)..n_points {
             for j in 0..dimensions {
-                points[[i, j]] = rng.random_range(-100.0..100.0);
+                points[[i, j]] = rng.gen_range(-100.0..100.0);
             }
         }
 
@@ -105,7 +105,7 @@ impl DatasetGenerator {
         for i in 0..n_points {
             for j in 0..dimensions {
                 if rng.random::<f64>() > sparsity {
-                    points[[i, j]] = rng.random_range(-1.0..1.0);
+                    points[[i, j]] = rng.gen_range(-1.0..1.0);
                 }
                 // else remains 0.0 (sparse)
             }

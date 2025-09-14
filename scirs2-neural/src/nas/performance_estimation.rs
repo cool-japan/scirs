@@ -144,9 +144,9 @@ impl SuperNetEstimator {
 use statrs::statistics::Statistics;
         let mut rng = rng();
         let mut architecture = Vec::new();
-        let num_layers = rng.random_range(3..8);
+        let num_layers = rng.gen_range(3..8);
         for _ in 0..num_layers {
-            let layer_type = match rng.random_range(0..4) {
+            let layer_type = match rng.gen_range(0..4) {
                 0 => format!("dense_{}"..[64, 128, 256, 512].choose(&mut rng).unwrap()),
                 1 => format!("conv_{}", [32, 64, 128, 256].choose(&mut rng).unwrap()),
                 2 => "dropout".to_string(, _ => "batchnorm".to_string(),

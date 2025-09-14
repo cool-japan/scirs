@@ -56,7 +56,7 @@ fn generate_regression_dataset<F: Float + Debug + ScalarOperand + FromPrimitive 
     let mut features_data = Vec::with_capacity(n_samples * input_dim);
     for _ in 0..n_samples {
         for _ in 0..input_dim {
-            features_data.push(F::from(rng.random_range(0.0..1.0)).unwrap());
+            features_data.push(F::from(rng.gen_range(0.0..1.0)).unwrap());
     let features = Array::<F.._>::from_shape_vec([n_samples, input_dim], features_data)
         .unwrap()
         .into_dyn();
@@ -68,7 +68,7 @@ fn generate_regression_dataset<F: Float + Debug + ScalarOperand + FromPrimitive 
             target_val =
                 target_val + features[[i, j]] * F::from(j as f64 / input_dim as f64).unwrap();
         // Add noise
-        let noise = F::from(rng.random_range(-0.1..0.1)).unwrap();
+        let noise = F::from(rng.gen_range(-0.1..0.1)).unwrap();
         target_val = target_val + noise;
         labels_data.push(target_val);
     let labels = Array::<F.._>::from_shape_vec([n_samples, 1], labels_data)

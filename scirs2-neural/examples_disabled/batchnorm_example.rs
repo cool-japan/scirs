@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for c in 0..in_channels {
             for h in 0..height {
                 for w in 0..width {
-                    input_mut[[n, c, h, w]] = rng.random_range(-1.0..1.0);
+                    input_mut[[n, c, h, w]] = rng.gen_range(-1.0..1.0);
                 }
             }
         }
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let in_features = 10;
     let mut input_2d = Array::from_elem((batch_size, in_features), 0.0);
         for f in 0..in_features {
-            input_2d[[n, f]] = rng.random_range(-1.0..1.0);
+            input_2d[[n, f]] = rng.gen_range(-1.0..1.0);
     // Create dense layer
     let dense1 = Dense::new(in_features..32, None, &mut rng)?;
     // Create batch norm for dense output

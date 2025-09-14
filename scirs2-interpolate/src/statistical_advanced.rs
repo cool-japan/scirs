@@ -779,7 +779,7 @@ where
         let mut indices = Vec::with_capacity(n);
 
         for _ in 0..n {
-            indices.push(rng.random_range(0..n));
+            indices.push(rng.gen_range(0..n));
         }
 
         let x_boot = Array1::from_iter(indices.iter().map(|&i| x[i]));
@@ -802,7 +802,7 @@ where
         let mut y_boot = Vec::new();
 
         for _ in 0..n_blocks {
-            let start_idx = rng.random_range(0..=(n.saturating_sub(self.block_size)));
+            let start_idx = rng.gen_range(0..=(n.saturating_sub(self.block_size)));
             let end_idx = (start_idx + self.block_size).min(n);
 
             for i in start_idx..end_idx {
@@ -844,7 +844,7 @@ where
         // Resample residuals
         let mut resampled_residuals = Array1::zeros(n);
         for i in 0..n {
-            let idx = rng.random_range(0..n);
+            let idx = rng.gen_range(0..n);
             resampled_residuals[i] = residuals[idx];
         }
 
@@ -1211,7 +1211,7 @@ where
             let mut y_boot = Array1::<F>::zeros(n_data);
 
             for i in 0..n_data {
-                let idx = rng.random_range(0..n_data);
+                let idx = rng.gen_range(0..n_data);
                 x_boot[i] = x[idx];
                 y_boot[i] = y[idx];
             }

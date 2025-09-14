@@ -1,7 +1,8 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
+use std::hint::black_box;
 use ndarray::{Array1, Array2};
 use rand::distr::Uniform;
 use rand::{Rng, SeedableRng};

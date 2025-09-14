@@ -433,8 +433,8 @@ where
                 let sigma_f64 = noise_scale.to_f64().unwrap_or(1.0);
                 gradients.mapv_inplace(|g| {
                     // Use Box-Muller transformation for Gaussian noise
-                    let u1: f64 = self.rng.random_range(0.0, 1.0);
-                    let u2: f64 = self.rng.random_range(0.0, 1.0);
+                    let u1: f64 = self.rng.gen_range(0.0..1.0);
+                    let u2: f64 = self.rng.gen_range(0.0..1.0);
                     let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                     let noise = A::from(z0 * sigma_f64).unwrap();
                     g + noise
@@ -444,7 +444,7 @@ where
                 // Implement Laplace distribution using transformation method
                 let scale_f64 = noise_scale.to_f64().unwrap_or(1.0);
                 gradients.mapv_inplace(|g| {
-                    let u: f64 = self.rng.random_range(0.0, 1.0);
+                    let u: f64 = self.rng.gen_range(0.0..1.0);
                     let laplace_sample = if u < 0.5 {
                         scale_f64 * (2.0 * u).ln()
                     } else {
@@ -458,8 +458,8 @@ where
                 // Use Gaussian as fallback
                 let sigma_f64 = noise_scale.to_f64().unwrap_or(1.0);
                 gradients.mapv_inplace(|g| {
-                    let u1: f64 = self.rng.random_range(0.0, 1.0);
-                    let u2: f64 = self.rng.random_range(0.0, 1.0);
+                    let u1: f64 = self.rng.gen_range(0.0..1.0);
+                    let u2: f64 = self.rng.gen_range(0.0..1.0);
                     let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                     let noise = A::from(z0 * sigma_f64).unwrap();
                     g + noise

@@ -645,7 +645,7 @@ where
     // For SVD approach: X = U * S * V^T
     // Components are columns of V, explained variance is S^2 / (n-1)
 
-    let (_n_samples_n_features) = data.dim();
+    let _n_samples_n_features = data.dim();
 
     // Simplified SVD computation (in practice, would use LAPACK)
     // For now, we'll compute the covariance matrix approach as a fallback
@@ -660,7 +660,7 @@ fn compute_pca_eigendecomposition<F>(
 where
     F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
 {
-    let (_n_samples_n_features) = data.dim();
+    let _n_samples_n_features = data.dim();
 
     // Compute covariance matrix
     let covariance = compute_covariance_matrix(data)?;

@@ -732,6 +732,7 @@ pub fn init_scipy_compat() {
 
 /// Get global SciPy compatibility layer
 #[allow(dead_code)]
+#[allow(static_mut_refs)]
 fn get_scipy_compat() -> &'static mut SciPyCompatLayer {
     init_scipy_compat();
     unsafe { SCIPY_COMPAT.as_mut().unwrap() }

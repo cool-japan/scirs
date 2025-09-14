@@ -749,7 +749,7 @@ where
 
     // Create quantum-enhanced particles
     for _ in 0..numparticles {
-        let mut particle_optimizer = QuantumInspiredOptimizer::new(initial_params, max_nit, 8);
+        let particle_optimizer = QuantumInspiredOptimizer::new(initial_params, max_nit, 8);
         particles.push(particle_optimizer);
     }
 

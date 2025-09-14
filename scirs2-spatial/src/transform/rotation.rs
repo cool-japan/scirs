@@ -875,9 +875,9 @@ impl Rotation {
 
         // Generate random quaternion using method from:
         // http://planning.cs.uiuc.edu/node198.html
-        let u1 = rng.random_range(0.0..1.0);
-        let u2 = rng.random_range(0.0..1.0);
-        let u3 = rng.random_range(0.0..1.0);
+        let u1 = rng.gen_range(0.0..1.0);
+        let u2 = rng.gen_range(0.0..1.0);
+        let u3 = rng.gen_range(0.0..1.0);
 
         let sqrt_u1 = u1.sqrt();
         let sqrt_1_minus_u1 = (1.0 - u1).sqrt();

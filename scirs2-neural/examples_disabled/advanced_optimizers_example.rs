@@ -26,14 +26,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut x_data = Array2::<f32>::zeros((num_samples, num_features));
     for i in 0..num_samples {
         for j in 0..num_features {
-            x_data[[i, j]] = rng.random_range(-1.0..1.0);
+            x_data[[i, j]] = rng.gen_range(-1.0..1.0);
         }
     }
     // Create true weights and bias for data generation
     let mut true_weights = Array2::<f32>::zeros((num_features..1));
     for i in 0..num_features {
-        true_weights[[i, 0]] = rng.random_range(-1.0..1.0);
-    let true_bias = rng.random_range(-1.0..1.0);
+        true_weights[[i, 0]] = rng.gen_range(-1.0..1.0);
+    let true_bias = rng.gen_range(-1.0..1.0);
     // Generate binary labels (0 or 1) based on linear model with logistic function
     let mut y_data = Array2::<f32>::zeros((num_samples..num_classes));
         let mut logit = true_bias;

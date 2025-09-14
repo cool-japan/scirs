@@ -3,7 +3,8 @@
 //! This module provides benchmarks to compare different planning strategies,
 //! measuring their performance across various scenarios.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use num_complex::Complex64;
 use scirs2_fft::planning::{
     AdvancedFftPlanner, FftPlanExecutor, PlanBuilder, PlanningConfig, PlanningStrategy,

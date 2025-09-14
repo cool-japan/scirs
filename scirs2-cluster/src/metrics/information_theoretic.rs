@@ -1016,7 +1016,7 @@ pub mod advanced_validation {
             Self {
                 n_bootstrap,
                 sample_fraction,
-                seed: thread_rng.gen::<u64>(),
+                seed: thread_rng.random::<u64>(),
                 _phantom: std::marker::PhantomData,
             }
         }

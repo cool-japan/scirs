@@ -106,7 +106,7 @@ impl<T: Float + FromPrimitive + Debug + Display + std::iter::Sum> BootstrapInter
         // Perform bootstrap resampling
         for i in 0..self.config.n_samples {
             // Resample indices with replacement
-            let indices: Vec<usize> = (0..n).map(|_| rng.random_range(0..n)).collect();
+            let indices: Vec<usize> = (0..n).map(|_| rng.gen_range(0..n)).collect();
 
             // Create resampled data
             let x_resampled = indices.iter().map(|&idx| x[idx]).collect::<Array1<_>>();

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Fast Fourier Transform module
 //!
 //! This module provides implementations of various Fast Fourier Transform algorithms,

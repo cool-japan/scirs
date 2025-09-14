@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Enhanced scirs2-neural implementation with core activation functions
 
 pub mod activations_minimal;

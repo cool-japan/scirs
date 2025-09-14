@@ -64,12 +64,12 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Adaptive optimization configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct OptimizationConfig {
     /// Primary optimization goal
     pub goal: OptimizationGoal,
@@ -191,7 +191,7 @@ impl OptimizationConfig {
 
 /// Optimization goals
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum OptimizationGoal {
     /// Optimize for maximum performance (speed)
     Performance,
@@ -209,7 +209,7 @@ pub enum OptimizationGoal {
 
 /// Objective weights for multi-objective optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ObjectiveWeight {
     /// Objective name
     pub name: String,
@@ -231,7 +231,7 @@ impl Eq for ObjectiveWeight {}
 
 /// Priority levels for objectives
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum Priority {
     /// Low priority
     Low,
@@ -245,7 +245,7 @@ pub enum Priority {
 
 /// Resource constraints for optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ResourceConstraints {
     /// Maximum memory usage (bytes)
     pub max_memory_usage: Option<usize>,
@@ -285,7 +285,7 @@ impl Default for ResourceConstraints {
 
 /// Workload profile for optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct WorkloadProfile {
     /// Workload name
     pub name: String,
@@ -309,7 +309,7 @@ pub struct WorkloadProfile {
 
 /// Memory access patterns
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum MemoryPattern {
     /// Sequential access pattern
     Sequential,
@@ -325,7 +325,7 @@ pub enum MemoryPattern {
 
 /// Parallelism characteristics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ParallelismProfile {
     /// Can benefit from parallelization
     pub parallelizable: bool,
@@ -339,7 +339,7 @@ pub struct ParallelismProfile {
 
 /// Load balancing types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum LoadBalanceType {
     /// Even load distribution
     Even,
@@ -353,7 +353,7 @@ pub enum LoadBalanceType {
 
 /// I/O characteristics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct IOProfile {
     /// I/O intensity (0.0 to 1.0)
     pub intensity: f64,
@@ -367,7 +367,7 @@ pub struct IOProfile {
 
 /// I/O types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum IOType {
     /// Primarily disk I/O
     Disk,
@@ -383,7 +383,7 @@ pub enum IOType {
 
 /// Workload types
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum WorkloadType {
     /// CPU-intensive computations
     ComputeIntensive,
@@ -685,7 +685,7 @@ pub enum AlgorithmPreference {
 
 /// Performance metric for optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceMetric {
     /// Metric name
     pub name: String,
@@ -703,7 +703,7 @@ pub struct PerformanceMetric {
 
 /// Performance trend
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum Trend {
     /// Performance is improving
     Improving,
@@ -717,7 +717,7 @@ pub enum Trend {
 
 /// Optimization recommendation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct OptimizationRecommendation {
     /// Parameter to adjust
     pub parameter: String,
@@ -737,7 +737,7 @@ pub struct OptimizationRecommendation {
 
 /// Expected impact of optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Impact {
     /// Performance improvement (percentage)
     pub performance_improvement: f64,
@@ -751,7 +751,7 @@ pub struct Impact {
 
 /// Risk levels for optimization changes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum RiskLevel {
     /// Low risk change
     Low,

@@ -793,7 +793,7 @@ fn analyze_best_basis_stability(
         let noise_level = 0.01 * compute_energy(signal).sqrt() / signal.len() as f64;
         let noisy_signal: Vec<f64> = signal
             .iter()
-            .map(|&x| x + noise_level * rng.random_range(-1.0..1.0))
+            .map(|&x| x + noise_level * rng.gen_range(-1.0..1.0))
             .collect();
 
         // Decompose noisy signal

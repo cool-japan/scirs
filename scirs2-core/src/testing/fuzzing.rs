@@ -259,11 +259,12 @@ impl FloatFuzzingGenerator {
     }
 }
 
+#[allow(deprecated)]
 impl FuzzingGenerator<f64> for FloatFuzzingGenerator {
     fn generate(&mut self) -> f64 {
         #[cfg(feature = "random")]
         {
-            self.rng.random_range(self.min_value..=self.max_value)
+            self.rng.gen_range(self.min_value..=self.max_value)
         }
         #[cfg(not(feature = "random"))]
         {
@@ -298,7 +299,7 @@ impl FuzzingGenerator<f64> for FloatFuzzingGenerator {
             if valid_edges.is_empty() {
                 self.generate()
             } else {
-                let index = self.rng.random_range(0..valid_edges.len());
+                let index = self.rng.gen_range(0..valid_edges.len());
                 valid_edges[index]
             }
         }
@@ -316,7 +317,7 @@ impl FuzzingGenerator<f64> for FloatFuzzingGenerator {
     fn generate_boundary(&mut self) -> f64 {
         #[cfg(feature = "random")]
         {
-            match self.rng.random_range(0..4) {
+            match self.rng.gen_range(0..4) {
                 0 => self.min_value,
                 1 => self.max_value,
                 2 => self.min_value + f64::EPSILON,
@@ -352,10 +353,11 @@ impl VectorFuzzingGenerator {
     }
 }
 
+#[allow(deprecated)]
 impl FuzzingGenerator<Vec<f64>> for VectorFuzzingGenerator {
     fn generate(&mut self) -> Vec<f64> {
         #[cfg(feature = "random")]
-        let size = self.rng.random_range(self.minsize..=self.maxsize);
+        let size = self.rng.gen_range(self.minsize..=self.maxsize);
         #[cfg(not(feature = "random"))]
         let size = (self.minsize + self.maxsize) / 2;
 
@@ -367,18 +369,18 @@ impl FuzzingGenerator<Vec<f64>> for VectorFuzzingGenerator {
     fn generate_edge_case(&mut self) -> Vec<f64> {
         #[cfg(feature = "random")]
         {
-            match self.rng.random_range(0..4) {
+            match self.rng.gen_range(0..4) {
                 0 => vec![],                                            // Empty vector
                 1 => vec![self.element_generator.generate_edge_case()], // Single element
                 2 => {
                     // All same values
                     let value = self.element_generator.generate_edge_case();
-                    let size = self.rng.random_range(2..=10);
+                    let size = self.rng.gen_range(2..=10);
                     vec![value; size]
                 }
                 _ => {
                     // Mixed edge cases
-                    let size = self.rng.random_range(2..=10);
+                    let size = self.rng.gen_range(2..=10);
                     (0..size)
                         .map(|_| self.element_generator.generate_edge_case())
                         .collect()
@@ -394,7 +396,7 @@ impl FuzzingGenerator<Vec<f64>> for VectorFuzzingGenerator {
     fn generate_boundary(&mut self) -> Vec<f64> {
         #[cfg(feature = "random")]
         {
-            match self.rng.random_range(0..3) {
+            match self.rng.gen_range(0..3) {
                 0 => {
                     // Minimum size
                     let size = self.minsize;

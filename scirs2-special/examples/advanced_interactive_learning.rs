@@ -86,17 +86,22 @@ enum VisualizationType {
         radius: f64,
     },
     Contour {
+        #[allow(dead_code)]
         levels: Vec<f64>,
     },
     Animation {
+        #[allow(dead_code)]
         frames: usize,
+        #[allow(dead_code)]
         duration: Duration,
     },
     Interactive {
+        #[allow(dead_code)]
         parameters: Vec<String>,
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AssessmentQuestion {
     question_type: QuestionType,
@@ -108,6 +113,7 @@ struct AssessmentQuestion {
     common_mistakes: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum QuestionType {
     MultipleChoice {
@@ -135,6 +141,7 @@ enum QuestionType {
     },
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct AdaptiveLearningSession {
     profile: LearningProfile,

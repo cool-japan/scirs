@@ -388,7 +388,7 @@ impl<
         mode: BoundaryMode,
         cval: T,
     ) -> NdimageResult<T> {
-        let (_h_w) = data.dim();
+        let _h_w = data.dim();
 
         // Get integer and fractional parts
         let yi = y.floor();

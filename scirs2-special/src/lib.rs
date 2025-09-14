@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Special functions module
 //!
 //! This module provides implementations of various special mathematical functions,

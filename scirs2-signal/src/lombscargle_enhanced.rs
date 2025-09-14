@@ -415,7 +415,7 @@ fn bootstrap_confidence_intervals(
         let mut boot_values = Vec::with_capacity(n);
 
         for _ in 0..n {
-            let idx = rng.random_range(0..n);
+            let idx = rng.gen_range(0..n);
             boot_times.push(times[idx]);
             boot_values.push(values[idx]);
         }

@@ -611,12 +611,12 @@ impl LearnedHyperparameterTuner {
             let value = match param.scale {
                 ParameterScale::Linear => {
                     param.lower_bound
-                        + rand::rng().gen::<f64>() * (param.upper_bound - param.lower_bound)
+                        + rand::rng().random::<f64>() * (param.upper_bound - param.lower_bound)
                 }
                 ParameterScale::Logarithmic => {
                     let log_lower = param.lower_bound.ln();
                     let log_upper = param.upper_bound.ln();
-                    (log_lower + rand::rng().gen::<f64>() * (log_upper - log_lower)).exp()
+                    (log_lower + rand::rng().random::<f64>() * (log_upper - log_lower)).exp()
                 }
                 _ => param.default_value,
             };
@@ -1255,7 +1255,7 @@ impl CostModel {
     pub fn new() -> Self {
         Self {
             cost_network: Array2::from_shape_fn((1, 10), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             base_cost: 1.0,
             scaling_factors: Array1::ones(5),
@@ -1437,7 +1437,7 @@ mod tests {
     fn test_gaussian_process() {
         let mut gp = GaussianProcess::new();
 
-        let inputs = Array2::from_shape_fn((3, 2), |_| rand::rng().gen::<f64>());
+        let inputs = Array2::from_shape_fn((3, 2), |_| rand::rng().random::<f64>());
         let outputs = Array1::from(vec![1.0, 2.0, 3.0]);
 
         gp.update_training_data(inputs, outputs).unwrap();

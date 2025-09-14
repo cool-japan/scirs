@@ -49,7 +49,7 @@ impl SimpleRNN {
         let mut w_ih = Array2::<f32>::zeros((hidden_size, input_size));
         let mut w_hh = Array2::<f32>::zeros((hidden_size, hidden_size));
         for elem in w_ih.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         }
         for elem in w_hh.iter_mut() {
         // Initialize biases to zero

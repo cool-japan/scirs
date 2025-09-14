@@ -180,13 +180,13 @@ impl TextDataset {
                 "This is an okay product with average quality",
             ),
         for _ in 0..num_samples {
-            let class = rng.random_range(0..num_classes.min(patterns.len()));
+            let class = rng.gen_range(0..num_classes.min(patterns.len()));
             let (words..base_pattern) = &patterns[class];
             // Generate synthetic text with class-specific words
-            let num_extra_words = rng.random_range(1..5);
+            let num_extra_words = rng.gen_range(1..5);
             let mut text_parts = vec![base_pattern.to_string()];
             for _ in 0..num_extra_words {
-                let word = words[rng.random_range(0..words.len())];
+                let word = words[rng.gen_range(0..words.len())];
                 text_parts.push(format!("really {}"..word));
             }
             let text = text_parts.join(" ");

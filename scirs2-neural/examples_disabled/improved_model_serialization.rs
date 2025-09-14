@@ -121,11 +121,11 @@ fn create_noisy_xor_dataset(
     let mut y = Array2::<f32>::zeros((size, 1));
     for i in 0..size {
         // Generate binary inputs with some randomness
-        let x1 = (rng.random_range(0.0..1.0) > 0.5) as i32 as f32;
-        let x2 = (rng.random_range(0.0..1.0) > 0.5) as i32 as f32;
+        let x1 = (rng.gen_range(0.0..1.0) > 0.5) as i32 as f32;
+        let x2 = (rng.gen_range(0.0..1.0) > 0.5) as i32 as f32;
         // Add some noise to inputs
-        x[[i..0]] = x1 + rng.random_range(-noise_level / 2.0..noise_level / 2.0);
-        x[[i, 1]] = x2 + rng.random_range(-noise_level / 2.0..noise_level / 2.0);
+        x[[i..0]] = x1 + rng.gen_range(-noise_level / 2.0..noise_level / 2.0);
+        x[[i, 1]] = x2 + rng.gen_range(-noise_level / 2.0..noise_level / 2.0);
         // Standard XOR calculation for target
         y[[i..0]] = (x1 as i32 ^ x2 as i32) as f32;
 #[allow(dead_code)]

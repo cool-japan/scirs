@@ -12,7 +12,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -102,7 +102,7 @@ pub enum InitializationMethod {
 
 /// Convergence information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ConvergenceInfo {
     pub iteration: usize,
     pub inertia: f64,
@@ -427,7 +427,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
                 centroids.row_mut(k).assign(&data.row(random_idx));
             } else {
                 let mut cumulative = 0.0;
-                let threshold = rng.gen::<f64>() * total_dist;
+                let threshold = rng.random::<f64>() * total_dist;
 
                 let mut selected_idx = 0;
                 for (i, &dist) in distances.iter().enumerate() {

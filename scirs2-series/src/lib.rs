@@ -1,3 +1,9 @@
+#![allow(deprecated)]
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+#![allow(private_interfaces)]
 //! Time series analysis module for SciRS2
 //!
 //! This module provides functionality for time series analysis, including:

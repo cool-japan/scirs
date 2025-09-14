@@ -671,7 +671,7 @@ impl FewShotLearningOptimizer {
 
             // Simple gradient estimation based on improvement
             for i in 0..gradients.len() {
-                gradients[i] = improvement * (rand::rng().gen::<f64>() - 0.5) * 0.01;
+                gradients[i] = improvement * (rand::rng().random::<f64>() - 0.5) * 0.01;
             }
         }
 
@@ -887,7 +887,7 @@ impl DenseLayer {
     /// Create new dense layer
     pub fn new(input_size: usize, output_size: usize, activation: ActivationType) -> Self {
         let weights = Array2::from_shape_fn((output_size, input_size), |_| {
-            (rand::rng().gen::<f64>() - 0.5) * (2.0 / input_size as f64).sqrt()
+            (rand::rng().random::<f64>() - 0.5) * (2.0 / input_size as f64).sqrt()
         });
         let bias = Array1::zeros(output_size);
 
@@ -919,13 +919,13 @@ impl FeatureAttention {
     pub fn new(feature_dim: usize) -> Self {
         Self {
             query_weights: Array2::from_shape_fn((feature_dim, feature_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             key_weights: Array2::from_shape_fn((feature_dim, feature_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             value_weights: Array2::from_shape_fn((feature_dim, feature_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             attention_scores: Array1::zeros(feature_dim),
         }
@@ -957,10 +957,10 @@ impl ContextEncoder {
         Self {
             lstm: LSTMCell::new(context_dim),
             embedding_layer: Array2::from_shape_fn((context_dim, 100), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             aggregation_network: Array2::from_shape_fn((context_dim, context_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             context_dim,
         }
@@ -972,16 +972,16 @@ impl LSTMCell {
     pub fn new(hidden_size: usize) -> Self {
         Self {
             w_i: Array2::from_shape_fn((hidden_size, hidden_size * 2), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             w_f: Array2::from_shape_fn((hidden_size, hidden_size * 2), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             w_c: Array2::from_shape_fn((hidden_size, hidden_size * 2), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             w_o: Array2::from_shape_fn((hidden_size, hidden_size * 2), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             hidden_state: Array1::zeros(hidden_size),
             cell_state: Array1::zeros(hidden_size),
@@ -994,13 +994,13 @@ impl ParameterGenerator {
     pub fn new(param_dim: usize) -> Self {
         Self {
             generator_network: Array2::from_shape_fn((param_dim, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             conditioning_network: Array2::from_shape_fn((param_dim, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             output_projection: Array2::from_shape_fn((param_dim, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             param_dim,
         }
@@ -1027,13 +1027,13 @@ impl UpdateNetwork {
     pub fn new(param_dim: usize) -> Self {
         Self {
             update_network: Array2::from_shape_fn((param_dim, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             meta_gradient_network: Array2::from_shape_fn((param_dim, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             lr_network: Array2::from_shape_fn((1, param_dim), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             update_history: VecDeque::with_capacity(100),
         }
@@ -1134,7 +1134,7 @@ impl AdaptationStrategySelector {
         Self {
             strategy_scores,
             selection_network: Array2::from_shape_fn((4, 10), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             current_strategy: AdaptationStrategy::Gradient,
         }
@@ -1147,7 +1147,7 @@ impl ProblemSimilarityMatcher {
         Self {
             problem_embeddings: HashMap::new(),
             similarity_network: Array2::from_shape_fn((1, feature_dim * 2), |_| {
-                (rand::rng().gen::<f64>() - 0.5) * 0.1
+                (rand::rng().random::<f64>() - 0.5) * 0.1
             }),
             similarity_threshold: 0.7,
             similarity_cache: HashMap::new(),
@@ -1501,7 +1501,7 @@ mod tests {
         let config = LearnedOptimizationConfig::default();
         let optimizer = FewShotLearningOptimizer::new(config);
 
-        let support_features = Array2::from_shape_fn((2, 10), |_| rand::rng().gen::<f64>());
+        let support_features = Array2::from_shape_fn((2, 10), |_| rand::rng().random::<f64>());
         let similar_problems = vec!["problem1".to_string(), "problem2".to_string()];
 
         let strategy = optimizer

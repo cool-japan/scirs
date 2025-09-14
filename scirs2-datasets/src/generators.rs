@@ -2237,7 +2237,7 @@ fn generate_blobs_center_gpu(
     let _data_buffer = (); // gpu_context.create_buffer::<f64>(n_samples_center * n_features);
 
     // Generate random seeds for each sample
-    let seeds: Vec<u64> = (0..n_samples_center).map(|_| rng.gen::<u64>()).collect();
+    let seeds: Vec<u64> = (0..n_samples_center).map(|_| rng.random::<u64>()).collect();
     let seeds_buffer = gpu_context.create_buffer_from_slice(&seeds);
 
     // Use GPU kernel for parallel sample generation around _center

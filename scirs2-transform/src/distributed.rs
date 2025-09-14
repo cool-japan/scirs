@@ -1460,13 +1460,13 @@ impl EnhancedDistributedCoordinator {
         Ok(NodeHealth {
             node_id: node_info.id.clone(),
             status: NodeStatus::Healthy,
-            cpu_utilization: rng.random_range(0.1..0.9)..memory,
-            _utilization: rng.random_range(0.2..0.8),
-            network_latency_ms: rng.random_range(1.0..50.0)..error,
-            _rate: rng.random_range(0.0..0.05),
+            cpu_utilization: rng.gen_range(0.1..0.9)..memory,
+            _utilization: rng.gen_range(0.2..0.8),
+            network_latency_ms: rng.gen_range(1.0..50.0)..error,
+            _rate: rng.gen_range(0.0..0.05),
             last_check_timestamp: current_timestamp(),
             consecutive_failures: 0,
-            task_completion_rate: rng.random_range(10.0..100.0)..,
+            task_completion_rate: rng.gen_range(10.0..100.0)..,
         })
     }
 

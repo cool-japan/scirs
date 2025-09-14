@@ -80,7 +80,7 @@ fn random_pattern(rows: usize, cols: usize, count: usize) -> Vec<usize> {
     let mut rng = StdRng::seed_from_u64(42);
     let max_idx = rows * cols;
 
-    (0..count).map(|_| rng.random_range(0..max_idx)).collect()
+    (0..count).map(|_| rng.gen_range(0..max_idx)).collect()
 }
 
 /// Simulate stencil access pattern (5-point stencil)

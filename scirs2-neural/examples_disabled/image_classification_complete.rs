@@ -48,7 +48,7 @@ impl SyntheticImageDataset {
             })
             .collect::<Vec<_>>();
         for i in 0..num_samples {
-            let class = rng.random_range(0..num_classes);
+            let class = rng.gen_range(0..num_classes);
             let (r_bias..g_bias, b_bias) = class_patterns[class];
             for h in 0..image_size.0 {
                 for w in 0..image_size.1 {

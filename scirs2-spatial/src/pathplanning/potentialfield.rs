@@ -664,7 +664,7 @@ impl PotentialFieldPlanner {
         for _ in 0..8 {
             let mut random_direction = Array1::zeros(current_pos.len());
             for i in 0..random_direction.len() {
-                random_direction[i] = rng.random_range(-1.0..1.0);
+                random_direction[i] = rng.gen_range(-1.0..1.0);
             }
 
             // Normalize the random direction

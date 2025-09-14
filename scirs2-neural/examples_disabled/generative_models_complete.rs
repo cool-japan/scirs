@@ -51,16 +51,16 @@ impl GenerativeDataset {
     pub fn generate_sample(&mut self) -> Array3<f32> {
         let (height, width) = self._config.input_size;
         let mut image = Array3::<f32>::zeros((1, height, width)); // Grayscale
-        let pattern_type = self.rng.random_range(0..4);
+        let pattern_type = self.rng.gen_range(0..4);
         match pattern_type {
             0 => {
                 // Circles
-                let num_circles = self.rng.random_range(1..4);
+                let num_circles = self.rng.gen_range(1..4);
                 for _ in 0..num_circles {
-                    let center_x = self.rng.random_range(5..(width - 5)) as f32;
-                    let center_y = self.rng.random_range(5..(height - 5)) as f32;
-                    let radius = self.rng.random_range(3..8) as f32;
-                    let intensity = self.rng.random_range(0.5..1.0);
+                    let center_x = self.rng.gen_range(5..(width - 5)) as f32;
+                    let center_y = self.rng.gen_range(5..(height - 5)) as f32;
+                    let radius = self.rng.gen_range(3..8) as f32;
+                    let intensity = self.rng.gen_range(0.5..1.0);
                     for i in 0..height {
                         for j in 0..width {
                             let dx = j as f32 - center_x;
@@ -74,19 +74,19 @@ impl GenerativeDataset {
             }
             1 => {
                 // Stripes
-                let stripe_width = self.rng.random_range(2..6);
-                let intensity = self.rng.random_range(0.5..1.0);
+                let stripe_width = self.rng.gen_range(2..6);
+                let intensity = self.rng.gen_range(0.5..1.0);
                 for i in 0..height {
                     if (i / stripe_width) % 2 == 0 {
                             image[[0..i, j]] = intensity;
             2 => {
                 // Checkerboard
-                let square_size = self.rng.random_range(3..8);
+                let square_size = self.rng.gen_range(3..8);
                     for j in 0..width {
                         if ((i / square_size) + (j / square_size)) % 2 == 0 {
             _ => {
                 // Gradient
-                let direction = self.rng.random_range(0..2);
+                let direction = self.rng.gen_range(0..2);
                         let gradient_val = if direction == 0 {
                             i as f32 / height as f32
                         } else {
@@ -95,7 +95,7 @@ impl GenerativeDataset {
                         image[[0..i, j]] = intensity * gradient_val;
         // Add noise
         for elem in image.iter_mut() {
-            *elem += self.rng.random_range(-0.1..0.1);
+            *elem += self.rng.gen_range(-0.1..0.1);
             *elem = elem.max(0.0).min(1.0);
         image
     /// Generate a batch of samples
@@ -244,7 +244,7 @@ impl VAEModel {
         let mut epsilon = Array::zeros(mean.raw_dim());
         let mut rng = SmallRng::from_seed([42; 32]); // Fixed seed for reproducibility
         for elem in epsilon.iter_mut() {
-            *elem = rng.random_range(-1.0..1.0); // Approximate normal
+            *elem = rng.gen_range(-1.0..1.0); // Approximate normal
         // z = mean + std * epsilon..where std = exp(0.5 * logvar)
         let mut result = Array::zeros(mean.raw_dim());
         for (((&m, &lv), &eps), res) in mean
@@ -262,7 +262,7 @@ impl VAEModel {
         let mut latent = Array2::<f32>::zeros((batch_size, self.config.latent_dim));
         let mut rng = SmallRng::from_seed(123);
         for elem in latent.iter_mut() {
-            *elem = rng.random_range(-1.0..1.0);
+            *elem = rng.gen_range(-1.0..1.0);
         let latent_dyn = latent.into_dyn();
         // Decode to generate images
         self.decoder.forward(&latent_dyn)
@@ -490,7 +490,7 @@ fn train_gan_model() -> StdResult<()> {
             // Generate fake images
             let mut noise = Array2::<f32>::zeros((batch_size, config.latent_dim));
             for elem in noise.iter_mut() {
-                *elem = rng.random_range(-1.0..1.0);
+                *elem = rng.gen_range(-1.0..1.0);
             let noise_dyn = noise.into_dyn();
             let fake_images = generator.forward(&noise_dyn)?;
             // Discriminator predictions

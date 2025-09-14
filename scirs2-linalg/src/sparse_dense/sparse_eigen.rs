@@ -517,7 +517,7 @@ mod tests {
     }
     
     #[test] 
-    fn test_sparse_eirandom_range() {
+    fn test_sparse_eigen_range() {
         // Create a test matrix with known eigenvalues
         let dense = array![
             [3.0, 1.0, 0.0],
@@ -528,7 +528,7 @@ mod tests {
         let sparse = sparse_from_ndarray(&dense.view(), 1e-12).unwrap();
         
         // Find eigenvalues in range [2.0, 4.0]
-        let result = sparse_eirandom_range(&sparse, (2.0, 4.0), 50, 1e-8);
+        let result = sparse_eigen_range(&sparse, (2.0, 4.0), 50, 1e-8);
         assert!(result.is_ok());
         
         let (eigenvals, eigenvecs) = result.unwrap();

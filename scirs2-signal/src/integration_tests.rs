@@ -67,7 +67,7 @@ fn test_biomedical_signal_pipeline() -> SignalResult<()> {
             let ti = t[i];
             let powerline_noise = 0.1 * (2.0 * PI * 50.0 * ti).sin(); // 50 Hz interference
             let baseline_wander = 0.2 * (2.0 * PI * 0.5 * ti).sin(); // Slow drift
-            let random_noise = 0.05 * rng.random_range(-1.0..1.0);
+            let random_noise = 0.05 * rng.gen_range(-1.0..1.0);
             signal + powerline_noise + baseline_wander + random_noise
         })
         .collect();
@@ -253,7 +253,7 @@ fn test_audio_processing_pipeline() -> SignalResult<()> {
     let mut rng = rand::rng();
     let noisy_audio: Vec<f64> = audio_signal
         .iter()
-        .map(|&signal| signal + 0.01 * rng.random_range(-1.0..1.0))
+        .map(|&signal| signal + 0.01 * rng.gen_range(-1.0..1.0))
         .collect();
 
     println!(
@@ -367,7 +367,7 @@ fn test_geophysical_processing_pipeline() -> SignalResult<()> {
         }
 
         // Add some seismic noise (more complex than white noise)
-        let noise = 0.2 * rng.random_range(-1.0..1.0) + 0.1 * (2.0 * PI * 50.0 * t).sin(); // Cultural noise
+        let noise = 0.2 * rng.gen_range(-1.0..1.0) + 0.1 * (2.0 * PI * 50.0 * t).sin(); // Cultural noise
 
         seismic_signal.push(sample + noise);
     }
@@ -522,7 +522,7 @@ fn test_image_processing_pipeline() -> SignalResult<()> {
     let mut rng = rand::rng();
     let mut noisy_image = clean_image.clone();
     for element in noisy_image.iter_mut() {
-        *element += 0.2 * rng.random_range(-1.0..1.0);
+        *element += 0.2 * rng.gen_range(-1.0..1.0);
     }
 
     println!("📊 Generated {}x{} test image", height, width);

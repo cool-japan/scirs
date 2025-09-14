@@ -1143,7 +1143,7 @@ impl AdaptiveParameterTuner {
         self.current_state = state.to_string();
 
         // Apply epsilon-greedy policy for parameter exploration
-        if rand::rng().random_range(0.0..1.0) < self.exploration_rate {
+        if rand::rng().gen_range(0.0..1.0) < self.exploration_rate {
             // Explore: randomly adjust parameters
             config = self.explore_parameters(config)?;
         } else {
@@ -1159,16 +1159,16 @@ impl AdaptiveParameterTuner {
         let mut rng = rand::rng();
 
         // Randomly adjust memory limit (±20%)
-        let memory_factor = rng.random_range(0.8..1.2);
+        let memory_factor = rng.gen_range(0.8..1.2);
         config.memory_limit_mb = (config.memory_limit_mb as f64 * memory_factor) as usize;
 
         // Randomly toggle parallelism
-        if rng.random_range(0.0..1.0) < 0.3 {
+        if rng.gen_range(0.0..1.0) < 0.3 {
             config.use_parallel = !config.use_parallel;
         }
 
         // Randomly adjust chunk size (±50%)
-        let chunk_factor = rng.random_range(0.5..1.5);
+        let chunk_factor = rng.gen_range(0.5..1.5);
         config.chunk_size = (config.chunk_size as f64 * chunk_factor) as usize;
 
         Ok(config)

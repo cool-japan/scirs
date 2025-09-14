@@ -10,7 +10,7 @@ use crate::advanced_visualization::{AdvancedVisualizationOutput, QuantumCoherenc
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::collections::HashMap;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Native plotting engine for Advanced clustering
@@ -28,7 +28,7 @@ pub struct AdvancedNativePlotter {
 
 /// Configuration for native plotting
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NativePlotConfig {
     /// Canvas width in pixels
     pub width: usize,
@@ -48,7 +48,7 @@ pub struct NativePlotConfig {
 
 /// Color schemes for native plotting
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum PlotColorScheme {
     /// Quantum theme (blue-cyan-purple)
     Quantum,
@@ -64,7 +64,7 @@ pub enum PlotColorScheme {
 
 /// Export quality settings
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum ExportQuality {
     /// Draft quality (fast rendering)
     Draft,
@@ -190,7 +190,7 @@ pub struct InteractiveController {
 
 /// Native dendrogram plot
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NativeDendrogramPlot {
     /// Dendrogram tree structure
     pub tree: DendrogramTree,
@@ -206,7 +206,7 @@ pub struct NativeDendrogramPlot {
 
 /// Dendrogram tree structure
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DendrogramTree {
     /// Root node
     pub root: DendrogramNode,
@@ -218,7 +218,7 @@ pub struct DendrogramTree {
 
 /// Dendrogram node
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DendrogramNode {
     /// Node ID
     pub id: String,
@@ -236,7 +236,7 @@ pub struct DendrogramNode {
 
 /// Interactive features for plots
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum InteractiveFeature {
     /// Zoom and pan
     ZoomPan,
@@ -254,7 +254,7 @@ pub enum InteractiveFeature {
 
 /// 3D cluster plot for high-dimensional visualization
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Native3DClusterPlot {
     /// 3D data points
     pub points_3d: Array2<f64>,
@@ -272,7 +272,7 @@ pub struct Native3DClusterPlot {
 
 /// 3D camera configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Camera3D {
     /// Camera position
     pub position: [f64; 3],
@@ -289,7 +289,7 @@ pub struct Camera3D {
 
 /// 3D lighting configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Lighting3D {
     /// Ambient light intensity
     pub ambient: f64,
@@ -301,7 +301,7 @@ pub struct Lighting3D {
 
 /// Directional light
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DirectionalLight {
     /// Light direction
     pub direction: [f64; 3],
@@ -313,7 +313,7 @@ pub struct DirectionalLight {
 
 /// Point light
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PointLight {
     /// Light position
     pub position: [f64; 3],
@@ -327,7 +327,7 @@ pub struct PointLight {
 
 /// 3D quantum field visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QuantumField3D {
     /// Field strength at grid points
     pub field_strength: Array2<f64>,

@@ -23,6 +23,7 @@ use std::marker::PhantomData;
 
 /// A simplified mock distributed array for testing box_clone
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct MockDistributedArray {
     data: Vec<f64>, // Prefixed with underscore to indicate it's unused
     shape: Vec<usize>,
@@ -60,6 +61,7 @@ impl ArrayProtocol for MockDistributedArray {
 
 /// A simplified mock GPU array for testing box_clone
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct MockGPUArray {
     data: Vec<f64>, // Prefixed with underscore to indicate it's unused
     shape: Vec<usize>,

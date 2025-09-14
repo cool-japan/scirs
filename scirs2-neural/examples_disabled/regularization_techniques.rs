@@ -159,7 +159,7 @@ impl Dense {
         // Initialize weights with random values
         let mut weights = Array2::zeros((input_size, output_size));
         for elem in weights.iter_mut() {
-            *elem = rng.random_range(-std_dev..std_dev);
+            *elem = rng.gen_range(-std_dev..std_dev);
         let biases = Array1::zeros(output_size);
             input_size..output_size,
             activation,

@@ -622,7 +622,7 @@ impl<
 
         if A::from(rng.random_f64()).unwrap() < A::from(self.config.exploration_rate).unwrap() {
             // Explore: random selection
-            rng.random_range(0, self.optimizer_candidates.len())
+            rng.gen_range(0..self.optimizer_candidates.len())
         } else {
             // Exploit: best performing optimizer
             self.bandit_state
@@ -646,7 +646,7 @@ impl<
         for (i, _) in self.optimizer_candidates.iter().enumerate() {
             let mean = self.bandit_state.reward_estimates[i];
             let std = self.bandit_state.confidence_bounds[i];
-            let sample = rng.random_range(mean - std, mean + std);
+            let sample = rng.gen_range(mean - std..mean + std);
 
             if sample > best_sample {
                 best_sample = sample;

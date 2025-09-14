@@ -1742,7 +1742,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test__optimizing_algorithm() {
+    async fn test_optimizing_algorithm() {
         let mut algorithm = SelfOptimizingAlgorithm::new("clustering")
             .with_hardware_counter_feedback(true)
             .with_runtime_code_generation(true)

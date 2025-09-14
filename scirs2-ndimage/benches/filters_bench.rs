@@ -1,4 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::{Array1, Array2, Array3};
 use scirs2_ndimage::filters::{
     bilateral_filter,

@@ -27,7 +27,7 @@ impl EvolutionaryStrategy {
     pub fn new(population_size: usize, dimensions: usize, sigma: f64) -> Self {
         let mut population = Vec::with_capacity(population_size);
         for _ in 0..population_size {
-            let individual = Array1::from_shape_fn(dimensions, |_| rand::rng().gen::<f64>() - 0.5);
+            let individual = Array1::from_shape_fn(dimensions, |_| rand::rng().random::<f64>() - 0.5);
             population.push(individual);
         }
 

@@ -8,7 +8,7 @@ use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -683,7 +683,7 @@ where
 
 /// Configuration for time series clustering algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct TimeSeriesClusteringConfig {
     /// Algorithm to use for clustering
     pub algorithm: TimeSeriesAlgorithm,
@@ -701,7 +701,7 @@ pub struct TimeSeriesClusteringConfig {
 
 /// Available time series clustering algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum TimeSeriesAlgorithm {
     /// K-medoids with DTW distance
     DTWKMedoids,

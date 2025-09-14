@@ -1,4 +1,13 @@
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unused_mut)]
+#![allow(missing_docs)]
+#![allow(clippy::for_loops_over_fallibles)]
 // Spatial algorithms module
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+#![allow(private_interfaces)]
 //
 // This module provides implementations of various spatial algorithms,
 // similar to SciPy's `spatial` module.

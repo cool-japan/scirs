@@ -247,14 +247,14 @@ pub fn tree_graph<R: Rng>(n: usize, rng: &mut R) -> Result<Graph<usize, f64>> {
     let mut tree_nodes = Vec::new();
 
     // Start with a random node
-    let start = rng.random_range(0..n);
+    let start = rng.gen_range(0..n);
     in_tree[start] = true;
     tree_nodes.push(start);
 
     // Add n-1 edges to complete the tree
     for _ in 1..n {
         // Pick a random node already in the tree
-        let tree_node = tree_nodes[rng.random_range(0..tree_nodes.len())];
+        let tree_node = tree_nodes[rng.gen_range(0..tree_nodes.len())];
 
         // Pick a random node not yet in the tree
         let candidates: Vec<usize> = (0..n).filter(|&i| !in_tree[i]).collect();
@@ -262,7 +262,7 @@ pub fn tree_graph<R: Rng>(n: usize, rng: &mut R) -> Result<Graph<usize, f64>> {
             break;
         }
 
-        let new_node = candidates[rng.random_range(0..candidates.len())];
+        let new_node = candidates[rng.gen_range(0..candidates.len())];
 
         // Add edge and mark node as in tree
         graph.add_edge(tree_node, new_node, 1.0)?;
@@ -754,9 +754,9 @@ pub fn watts_strogatz_graph<R: Rng>(
             }
 
             // Add rewired edge to a random node
-            let mut new_target = rng.random_range(0..n);
+            let mut new_target = rng.gen_range(0..n);
             while new_target == edge.source || new_graph.has_node(&new_target) {
-                new_target = rng.random_range(0..n);
+                new_target = rng.gen_range(0..n);
             }
 
             new_graph.add_edge(edge.source, new_target, 1.0)?;
@@ -971,10 +971,10 @@ pub fn configuration_model<R: Rng>(
     // Randomly connect stubs to form edges
     while stubs.len() >= 2 {
         // Pick two random stubs
-        let idx1 = rng.random_range(0..stubs.len());
+        let idx1 = rng.gen_range(0..stubs.len());
         let stub1 = stubs.remove(idx1);
 
-        let idx2 = rng.random_range(0..stubs.len());
+        let idx2 = rng.gen_range(0..stubs.len());
         let stub2 = stubs.remove(idx2);
 
         // Connect the nodes (allow self-loops and multiple edges)
@@ -1049,10 +1049,10 @@ pub fn simple_configuration_model<R: Rng>(
         // Randomly connect stubs to form edges
         while stubs.len() >= 2 && success {
             // Pick two random stubs
-            let idx1 = rng.random_range(0..stubs.len());
+            let idx1 = rng.gen_range(0..stubs.len());
             let stub1 = stubs[idx1];
 
-            let idx2 = rng.random_range(0..stubs.len());
+            let idx2 = rng.gen_range(0..stubs.len());
             let stub2 = stubs[idx2];
 
             // Check for self-loop or existing edge
@@ -1062,7 +1062,7 @@ pub fn simple_configuration_model<R: Rng>(
                 let mut found_valid = false;
 
                 while retries < 50 && !found_valid {
-                    let new_idx2 = rng.random_range(0..stubs.len());
+                    let new_idx2 = rng.gen_range(0..stubs.len());
                     let new_stub2 = stubs[new_idx2];
 
                     if stub1 != new_stub2 && !graph.has_edge(&stub1, &new_stub2) {

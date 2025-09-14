@@ -926,7 +926,7 @@ mod tests {
 
         // Add noise
         let mut rng = rand::rng();
-        let noisy_image = clean_image.mapv(|x| x + 0.1 * rng.random_range(-1.0..1.0));
+        let noisy_image = clean_image.mapv(|x| x + 0.1 * rng.gen_range(-1.0..1.0));
 
         let config = AdvancedWaveletConfig::default();
         let result = advanced_wavelet_denoising(&noisy_image..Wavelet::DB(4), &config).unwrap();

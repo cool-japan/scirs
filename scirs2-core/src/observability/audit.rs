@@ -70,12 +70,12 @@ use uuid::Uuid;
 #[cfg(feature = "crypto")]
 use sha2::{Digest, Sha256};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Audit logging configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct AuditConfig {
     /// Directory for audit log storage
@@ -137,7 +137,7 @@ impl Default for AuditConfig {
 
 /// Retention policy configuration for audit logs
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct RetentionPolicy {
     /// Number of days to retain active logs
     pub active_retention_days: u32,
@@ -168,7 +168,7 @@ impl Default for RetentionPolicy {
 
 /// Storage backend configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum StorageBackend {
     /// Local filesystem storage
     FileSystem,
@@ -203,7 +203,7 @@ pub enum StorageBackend {
 
 #[cfg(feature = "s3")]
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct S3Credentials {
     /// AWS access key ID
     pub access_key: String,
@@ -215,7 +215,7 @@ pub struct S3Credentials {
 
 /// Compliance modes for different regulatory requirements
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum ComplianceMode {
     /// Standard compliance (basic requirements)
     Standard,
@@ -231,7 +231,7 @@ pub enum ComplianceMode {
 
 /// Real-time alerting configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AlertingConfig {
     /// Enable real-time alerts
     pub enabled: bool,
@@ -251,7 +251,7 @@ pub struct AlertingConfig {
 
 /// Event categories for classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum EventCategory {
     /// Authentication events (login, logout, authentication failures)
     Authentication,
@@ -293,7 +293,7 @@ impl EventCategory {
 
 /// Event severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum EventSeverity {
     /// Informational events
     Info,
@@ -320,7 +320,7 @@ impl EventSeverity {
 
 /// System context information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct SystemContext {
     /// Process ID
     pub process_id: u32,
@@ -370,7 +370,7 @@ impl SystemContext {
 
 /// Audit event structure
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AuditEvent {
     /// Unique event identifier
     pub event_id: Uuid,
@@ -414,7 +414,7 @@ pub struct AuditEvent {
 
 /// Event outcome enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum EventOutcome {
     /// Operation succeeded
     Success,
@@ -444,7 +444,7 @@ impl EventOutcome {
 
 /// Data classification levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum DataClassification {
     /// Public data
     Public,
@@ -757,7 +757,7 @@ impl LogFileManager {
     /// # Errors
     ///
     /// Returns an error if the event cannot be serialized to JSON.
-    #[cfg(feature = "serde")]
+    
     fn serialize_json(&self, event: &AuditEvent) -> Result<String, CoreError> {
         serde_json::to_string(event).map_err(|e| {
             CoreError::ComputationError(crate::error::ErrorContext::new(format!(
@@ -1767,7 +1767,7 @@ impl AuditLogger {
     /// # Errors
     ///
     /// Returns an error if the log line cannot be parsed.
-    #[cfg(feature = "serde")]
+    
     fn parselog_line(&self, line: &str) -> Result<AuditEvent, CoreError> {
         if self.config.enable_json_format {
             serde_json::from_str(line).map_err(|e| {
@@ -2134,7 +2134,7 @@ impl AuditLogger {
 
 /// Audit statistics structure
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AuditStatistics {
     /// Total number of events
     pub total_events: usize,
@@ -2154,7 +2154,7 @@ pub struct AuditStatistics {
 
 /// Compliance report structure for regulatory audits
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ComplianceReport {
     /// Report period start
     pub period_start: DateTime<Utc>,
@@ -2372,7 +2372,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "serde")]
+    
     fn test_auditlogger_creation() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config = AuditConfig {
@@ -2393,7 +2393,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "serde")]
+    
     fn test_data_accesslogging() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config = AuditConfig {

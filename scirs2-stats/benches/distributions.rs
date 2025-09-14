@@ -3,7 +3,8 @@
 //! This benchmark suite compares the performance of scirs2-stats distributions
 //! against reference implementations and theoretical expectations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::Array1;
 use scirs2_stats::distributions::{
     beta, binom, chi2, expon, f, gamma, norm, poisson, t, uniform, Beta, Binomial, ChiSquare,

@@ -13,7 +13,7 @@ use num_complex::Complex64;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Deep learning enhanced Advanced clusterer
@@ -106,7 +106,7 @@ pub struct DeepEnsembleCoordinator {
 
 /// Advanced clustering result with deep learning enhancements
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DeepAdvancedResult {
     /// Base Advanced results
     pub base_result: AdvancedClusteringResult,
@@ -709,7 +709,7 @@ impl GraphNeuralNetworkProcessor {
 
 /// Graph structure insights
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct GraphStructureInsights {
     pub graph_connectivity: f64,
     pub community_structure: Vec<usize>,
@@ -719,7 +719,7 @@ pub struct GraphStructureInsights {
 
 /// Spectral properties of the graph
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct SpectralProperties {
     pub eigenvalue_gaps: Vec<f64>,
     pub spectral_clustering_quality: f64,
@@ -762,14 +762,14 @@ pub struct ConsensusClusteringMechanism;
 
 /// Result structures
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct OptimalArchitecture {
     pub architecture_config: String,
     pub performance_score: f64,
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct EnsembleConsensus {
     pub consensus_clusters: Array1<usize>,
     pub agreement_scores: Array1<f64>,

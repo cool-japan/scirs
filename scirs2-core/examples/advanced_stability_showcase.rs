@@ -320,7 +320,7 @@ fn demonstrate_audit_trail(
     );
 
     // Export audit trail (if serde feature is enabled)
-    #[cfg(feature = "serde")]
+    
     {
         match manager.export_audit_trail() {
             Ok(exported) => {

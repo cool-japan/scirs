@@ -40,8 +40,8 @@ fn basic_random_example() {
     let mut rng = Random::default();
 
     // Generate random values
-    let value1 = rng.random_range(1, 100);
-    let value2 = rng.random_range(0.0, 1.0);
+    let value1 = rng.gen_range(1..100);
+    let value2 = rng.gen_range(0.0..1.0);
     let coin_flip = rng.random_bool();
 
     println!("Random integer (1-99): {}", value1);
@@ -117,19 +117,19 @@ fn seeded_random_example() {
     // They should produce the same sequence
     println!("Seeded RNG 1:");
     for _ in 0..3 {
-        println!("  {:.6}", rng1.random_range(0.0, 1.0));
+        println!("  {:.6}", rng1.gen_range(0.0..1.0));
     }
 
     println!("Seeded RNG 2 (same seed):");
     for _ in 0..3 {
-        println!("  {:.6}", rng2.random_range(0.0, 1.0));
+        println!("  {:.6}", rng2.gen_range(0.0..1.0));
     }
 
     // Different seed produces different sequence
     let mut rng3 = Random::seed(43);
     println!("Seeded RNG 3 (different seed):");
     for _ in 0..3 {
-        println!("  {:.6}", rng3.random_range(0.0, 1.0));
+        println!("  {:.6}", rng3.gen_range(0.0..1.0));
     }
 }
 
@@ -141,7 +141,7 @@ fn thread_local_random_example() {
         // Generate 5 random values
         let mut values = Vec::with_capacity(5);
         for _ in 0..5 {
-            values.push(rng.random_range(0, 100));
+            values.push(rng.gen_range(0..100));
         }
         values
     });

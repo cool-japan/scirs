@@ -567,7 +567,7 @@ fn compute_parallel_bootstrap_ci(
             let mut resampled_values = vec![0.0; n];
 
             for i in 0..n {
-                let idx = rng.random_range(0..n);
+                let idx = rng.gen_range(0..n);
                 resampled_times[i] = times_ref[idx];
                 resampled_values[i] = values_ref[idx];
             }

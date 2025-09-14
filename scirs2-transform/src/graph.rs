@@ -231,7 +231,7 @@ impl DeepWalk {
                     }
 
                     // Randomly select next node
-                    let next_idx = rng.random_range(0..node_neighbors.len());
+                    let next_idx = rng.gen_range(0..node_neighbors.len());
                     current = node_neighbors[next_idx];
                     walk.push(current);
                 }
@@ -253,7 +253,7 @@ impl DeepWalk {
         let mut embeddings = Array2::zeros((nnodes, self._embeddingdim));
         for i in 0..nnodes {
             for j in 0..self._embeddingdim {
-                embeddings[[i, j]] = rng.random_range(-0.5..0.5) / self._embeddingdim as f64;
+                embeddings[[i, j]] = rng.gen_range(-0.5..0.5) / self._embeddingdim as f64;
             }
         }
 
@@ -299,7 +299,7 @@ impl DeepWalk {
 
                         // Negative samples
                         for _ in 0..self.negative_samples {
-                            let negative = rng.random_range(0..nnodes);
+                            let negative = rng.gen_range(0..nnodes);
                             if negative == context {
                                 continue;
                             }
@@ -404,7 +404,7 @@ impl Node2Vec {
 
                 // First step: uniform random
                 let first_step =
-                    neighbors[start_node][rng.random_range(0..neighbors[start_node].len())];
+                    neighbors[start_node][rng.gen_range(0..neighbors[start_node].len())];
                 walk.push(first_step);
 
                 // Subsequent steps: biased by p and q
@@ -577,7 +577,7 @@ impl GraphAutoencoder {
 
             for j in 0..n_in {
                 for k in 0..n_out {
-                    w[[j, k]] = rng.random_range(-scale..scale);
+                    w[[j, k]] = rng.gen_range(-scale..scale);
                 }
             }
             encoder_weights.push(w);

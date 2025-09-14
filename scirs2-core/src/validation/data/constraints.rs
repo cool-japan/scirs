@@ -5,12 +5,12 @@
 
 use std::time::Duration;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Validation constraints for data fields
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum Constraint {
     /// Value must be within range (inclusive)
     Range { min: f64, max: f64 },
@@ -54,7 +54,7 @@ pub enum Constraint {
 
 /// Statistical constraints for numeric data
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct StatisticalConstraints {
     /// Minimum allowed mean value
     pub min_mean: Option<f64>,
@@ -70,7 +70,7 @@ pub struct StatisticalConstraints {
 
 /// Shape constraints for arrays and matrices
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ShapeConstraints {
     /// Exact dimensions required (None = any size for that dimension)
     pub dimensions: Vec<Option<usize>>,
@@ -86,7 +86,7 @@ pub struct ShapeConstraints {
 
 /// Time series constraints
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct TimeConstraints {
     /// Minimum time interval between samples
     pub min_interval: Option<Duration>,
@@ -100,7 +100,7 @@ pub struct TimeConstraints {
 
 /// Sparse matrix formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum SparseFormat {
     /// Compressed Sparse Row
     CSR,

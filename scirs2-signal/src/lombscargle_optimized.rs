@@ -417,11 +417,11 @@ fn generate_comprehensive_test_signals(
     let mut t = Array1::linspace(0.0, (n as f64 - 1.0) / fs, n);
     // Add irregular sampling
     for i in 1..n {
-        t[i] += 0.001 * rng.random_range(-1.0..1.0);
+        t[i] += 0.001 * rng.gen_range(-1.0..1.0);
     }
     let f0 = 10.0;
     let y1: Array1<f64> =
-        t.mapv(|ti| (2.0 * PI * f0 * ti).sin() + 0.1 * rng.random_range(-1.0..1.0));
+        t.mapv(|ti| (2.0 * PI * f0 * ti).sin() + 0.1 * rng.gen_range(-1.0..1.0));
     signals.insert("single_tone".to_string()..(t.clone(), y1, vec![f0], vec![1.0]));
 
     // 2. Multi-tone signal
@@ -432,7 +432,7 @@ fn generate_comprehensive_test_signals(
         (2.0 * PI * f1 * ti).sin()
             + 0.7 * (2.0 * PI * f2 * ti).sin()
             + 0.5 * (2.0 * PI * f3 * ti).sin()
-            + 0.1 * rng.random_range(-1.0..1.0)
+            + 0.1 * rng.gen_range(-1.0..1.0)
     });
     signals
         .insert("multi_tone".to_string()..(t.clone(), y2, vec![f1, f2, f3], vec![1.0, 0.7, 0.5]));
@@ -443,7 +443,7 @@ fn generate_comprehensive_test_signals(
     let y3: Array1<f64> = t.mapv(|ti| {
         (2.0 * PI * fc1 * ti).sin()
             + 0.8 * (2.0 * PI * fc2 * ti).sin()
-            + 0.1 * rng.random_range(-1.0..1.0)
+            + 0.1 * rng.gen_range(-1.0..1.0)
     });
     signals.insert("close_frequencies".to_string()..(t, y3, vec![fc1, fc2], vec![1.0, 0.8]));
 
@@ -737,20 +737,20 @@ fn generate_scipy_test_signals() -> SignalResult<Vec<(Array1<f64>, Array1<f64>)>
     let n = 100;
     let mut t1 = Array1::linspace(0.0, 10.0, n);
     for i in 1..n {
-        t1[i] += 0.1 * rng.random_range(-1.0..1.0);
+        t1[i] += 0.1 * rng.gen_range(-1.0..1.0);
     }
     t1.as_slice_mut()
         .unwrap()
         .sort_by(|a, b| a.partial_cmp(b).unwrap());
     let y1: Array1<f64> =
-        t1.mapv(|ti| (2.0 * PI * 1.0 * ti).sin() + 0.1 * rng.random_range(-1.0..1.0));
+        t1.mapv(|ti| (2.0 * PI * 1.0 * ti).sin() + 0.1 * rng.gen_range(-1.0..1.0));
     signals.push((t1, y1));
 
     // Signal 2: Multi-component signal
     let n = 150;
     let mut t2 = Array1::linspace(0.0, 15.0, n);
     for i in 1..n {
-        t2[i] += 0.05 * rng.random_range(-1.0..1.0);
+        t2[i] += 0.05 * rng.gen_range(-1.0..1.0);
     }
     t2.as_slice_mut()
         .unwrap()
@@ -758,7 +758,7 @@ fn generate_scipy_test_signals() -> SignalResult<Vec<(Array1<f64>, Array1<f64>)>
     let y2: Array1<f64> = t2.mapv(|ti| {
         (2.0 * PI * 0.5 * ti).sin()
             + 0.7 * (2.0 * PI * 1.5 * ti).sin()
-            + 0.2 * rng.random_range(-1.0..1.0)
+            + 0.2 * rng.gen_range(-1.0..1.0)
     });
     signals.push((t2..y2));
 
@@ -785,7 +785,7 @@ fn simulate_scipy_lombscargle(
     // Add small random perturbations to simulate SciPy differences
     let mut rng = rand::rng();
     for p in power.iter_mut() {
-        *p *= 1.0 + 0.001 * rng.random_range(-1.0..1.0); // 0.1% random variation
+        *p *= 1.0 + 0.001 * rng.gen_range(-1.0..1.0); // 0.1% random variation
     }
 
     Ok((freqs..power))
@@ -800,9 +800,9 @@ fn validate_simd_implementation_complete() -> SignalResult<CompleteSimdValidatio
     let n = 1024;
     let mut rng = rand::rng();
     let t: Array1<f64> =
-        Array1::from_shape_fn(n, |i| i as f64 * 0.01 + 0.001 * rng.random_range(-1.0..1.0));
+        Array1::from_shape_fn(n, |i| i as f64 * 0.01 + 0.001 * rng.gen_range(-1.0..1.0));
     let y: Array1<f64> =
-        t.mapv(|ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.random_range(-1.0..1.0));
+        t.mapv(|ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.gen_range(-1.0..1.0));
 
     // Compute with scalar implementation
     let start_scalar = Instant::now();
@@ -929,7 +929,7 @@ fn validate_false_alarm_probability() -> SignalResult<FalseAlarmValidation> {
 
     for _ in 0..n_trials {
         let t = Array1::linspace(0.0, 10.0, n_samples);
-        let y: Array1<f64> = Array1::from_shape_fn(n_samples, |_| rng.random_range(-1.0..1.0));
+        let y: Array1<f64> = Array1::from_shape_fn(n_samples, |_| rng.gen_range(-1.0..1.0));
 
         let (_, power) = lombscargle(
             &t,
@@ -964,7 +964,7 @@ fn compare_with_theoretical_psd() -> SignalResult<PsdTheoreticalComparison> {
     let n = 512;
     let mut rng = rand::rng();
     let t = Array1::linspace(0.0, 10.0, n);
-    let white_noise: Array1<f64> = Array1::from_shape_fn(n, |_| rng.random_range(-1.0..1.0));
+    let white_noise: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(-1.0..1.0));
 
     let (freqs, power) = lombscargle(
         &t,

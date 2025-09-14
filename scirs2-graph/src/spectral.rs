@@ -1011,7 +1011,7 @@ where
     let mut labels = Vec::with_capacity(graph.node_count());
     let mut rng = rand::rng();
     for _ in 0..graph.node_count() {
-        labels.push(rng.random_range(0..n_clusters));
+        labels.push(rng.gen_range(0..n_clusters));
     }
 
     Ok(labels)
@@ -1331,7 +1331,7 @@ fn parallel_random_clustering(n: usize, k: usize) -> Vec<usize> {
         .into_par_iter()
         .map(|_i| {
             let mut rng = rand::rng();
-            rng.random_range(0..k)
+            rng.gen_range(0..k)
         })
         .collect()
 }

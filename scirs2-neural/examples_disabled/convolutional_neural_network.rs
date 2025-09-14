@@ -642,7 +642,7 @@ fn create_synthetic_dataset(
     // Generate samples with noise
     for i in 0..num_samples {
         // Assign a random class
-        let class = rng.random_range(0..num_classes);
+        let class = rng.gen_range(0..num_classes);
         // Add the class pattern with noise
         for h in 0..image_size.0 {
             for w in 0..image_size.1 {
@@ -739,7 +739,7 @@ fn train_cnn_example() -> Result<()> {
     // Make some example predictions
     println!("\nExample predictions:");
     for i in 0..5 {
-        let idx = rng.random_range(0..test_size);
+        let idx = rng.gen_range(0..test_size);
         let true_class = argmax(test_labels.row(idx));
         let predicted_class = argmax(predictions.row(idx));
         println!(

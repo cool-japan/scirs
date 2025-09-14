@@ -1801,7 +1801,7 @@ fn score_strategies(
 
 #[allow(dead_code)]
 fn select_best_strategy(
-    mut scored_strategies: Vec<(ProcessingStrategy, f64)>,
+    scored_strategies: Vec<(ProcessingStrategy, f64)>,
     state: &AIProcessingState,
     config: &AIAdaptiveConfig,
 ) -> NdimageResult<ProcessingStrategy> {

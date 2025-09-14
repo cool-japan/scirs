@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 
 /// Intelligent I/O Manager that combines neural and quantum approaches
 pub struct IntelligentIoManager {
+    #[allow(dead_code)]
     neural_controller: NeuralAdaptiveIoController,
     quantum_processor: QuantumParallelProcessor,
     advanced_think_processor: AdvancedIoProcessor,
@@ -24,7 +25,7 @@ pub struct IntelligentIoManager {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ProcessingMode {
+pub enum ProcessingMode {
     Neural,
     Quantum,
     Advanced,
@@ -283,8 +284,9 @@ impl Default for PerformanceAnalytics {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
-enum TrendDirection {
+pub enum TrendDirection {
     Improving,
     Stable,
     Declining,

@@ -978,7 +978,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
             .collect(),
         "noise" => {
             let mut rng = rand::rng();
-            (0.._size).map(|_| rng.random_range(-1.0..1.0)).collect()
+            (0.._size).map(|_| rng.gen_range(-1.0..1.0)).collect()
         }
         "gaussian" => (0.._size)
             .map(|i| {

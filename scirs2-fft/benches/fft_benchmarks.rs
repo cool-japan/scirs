@@ -3,7 +3,8 @@
 //! This module contains benchmarks comparing various FFT implementations
 //! and measuring performance across different input sizes.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use ndarray::Array1;
 use num_complex::Complex64;
 use scirs2_fft::{fft, fft2, fftn, frft, ifft, irfft, rfft};

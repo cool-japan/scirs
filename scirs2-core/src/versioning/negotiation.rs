@@ -7,12 +7,12 @@ use super::Version;
 use crate::error::CoreError;
 use std::collections::BTreeSet;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Client capabilities for version negotiation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ClientCapabilities {
     /// Preferred version
     pub preferred_version: Option<Version>,
@@ -68,7 +68,7 @@ impl ClientCapabilities {
 
 /// Result of version negotiation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NegotiationResult {
     /// Negotiated version
     pub negotiated_version: Version,
@@ -84,7 +84,7 @@ pub struct NegotiationResult {
 
 /// Status of version negotiation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum NegotiationStatus {
     /// Negotiation successful
     Success,
@@ -100,7 +100,7 @@ pub enum NegotiationStatus {
 
 /// Metadata about the negotiation process
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NegotiationMetadata {
     /// Versions considered during negotiation
     pub consideredversions: Vec<Version>,

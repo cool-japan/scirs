@@ -187,7 +187,7 @@ impl TestProblem {
         for _ in 0..count {
             let mut point = Array1::zeros(self.dimensions);
             for (i, &(low, high)) in self.bounds.iter().enumerate() {
-                point[i] = rng.random_range(low..=high);
+                point[i] = rng.gen_range(low..=high);
             }
             points.push(point);
         }

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Data transformation module for SciRS2
 //!
 //! This module provides utilities for transforming data in ways that are useful

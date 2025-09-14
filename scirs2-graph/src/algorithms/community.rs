@@ -438,7 +438,7 @@ where
 
             // Choose randomly among ties
             use rand::Rng;
-            let new_label = best_labels[rng.random_range(0..best_labels.len())];
+            let new_label = best_labels[rng.gen_range(0..best_labels.len())];
 
             if labels[i] != new_label {
                 labels[i] = new_label;
@@ -674,7 +674,7 @@ where
     for _iteration in 0..max_iterations {
         // Choose a random node to move
         use rand::Rng;
-        let node_idx = rng.random_range(0..n);
+        let node_idx = rng.gen_range(0..n);
         let node = &nodes[node_idx];
         let current_community = current_communities[node];
 
@@ -696,7 +696,7 @@ where
             continue;
         }
 
-        let new_community = candidates[rng.random_range(0..candidates.len())];
+        let new_community = candidates[rng.gen_range(0..candidates.len())];
 
         if new_community == current_community {
             continue;
@@ -1310,7 +1310,7 @@ where
         let mut fluids = vec![0.0; num_communities];
         // Assign random initial fluid
         use rand::Rng;
-        let initial_fluid = rng.random_range(0..num_communities);
+        let initial_fluid = rng.gen_range(0..num_communities);
         fluids[initial_fluid] = 1.0;
         node_fluids.insert(node.clone(), fluids);
     }
@@ -1360,7 +1360,7 @@ where
             } else {
                 // If all fluids are zero, assign random fluid
                 use rand::Rng;
-                let random_fluid = rng.random_range(0..num_communities);
+                let random_fluid = rng.gen_range(0..num_communities);
                 fluid_sums[random_fluid] = 1.0;
             }
 

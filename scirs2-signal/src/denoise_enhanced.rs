@@ -2208,7 +2208,7 @@ mod tests {
         let mut rng = rand::rng();
         let noise_level = 0.1;
         let noisy_signal =
-            &clean_signal + &Array1::from_shape_fn(n, |_| noise_level * rng.random_range(-1.0..1.0));
+            &clean_signal + &Array1::from_shape_fn(n, |_| noise_level * rng.gen_range(-1.0..1.0));
 
         let config = DenoiseConfig::default();
         let result = denoise_wavelet_1d(&noisy_signal, &config).unwrap();

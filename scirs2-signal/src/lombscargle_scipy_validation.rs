@@ -306,14 +306,14 @@ fn validate_single_case(
     // Create irregularly sampled signal with known frequency content
     for i in 0..n {
         let base_time = i as f64 * duration / n as f64;
-        let jitter = rng.random_range(-0.1..0.1) * duration / n as f64;
+        let jitter = rng.gen_range(-0.1..0.1) * duration / n as f64;
         let time = (base_time + jitter).max(0.0).min(duration);
         t.push(time);
 
         // Add signal with multiple frequency components
         let signal_val = (2.0 * PI * test_freq * time).sin()
             + 0.3 * (2.0 * PI * test_freq * 2.0 * time).sin()
-            + 0.1 * rng.random_range(-1.0..1.0); // Add some noise
+            + 0.1 * rng.gen_range(-1.0..1.0); // Add some noise
         signal.push(signal_val);
     }
 
@@ -692,7 +692,7 @@ fn estimate_false_alarm_rate(config: &ScipyValidationConfig) -> SignalResult<f64
         let mut rng = rand::rng();
         let n = 100;
         let t: Vec<f64> = (0..n).map(|i| i as f64 / 10.0).collect();
-        let signal: Vec<f64> = (0..n).map(|_| rng.random_range(-1.0..1.0)).collect();
+        let signal: Vec<f64> = (0..n).map(|_| rng.gen_range(-1.0..1.0)).collect();
 
         let freqs: Vec<f64> = Array1::linspace(0.1, 5.0, 50).to_vec();
 
@@ -731,7 +731,7 @@ fn estimate_detection_power(config: &ScipyValidationConfig) -> SignalResult<f64>
         let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
         let signal: Vec<f64> = t
             .iter()
-            .map(|&time| (2.0 * PI * signal_freq * time).sin() + 0.1 * rng.random_range(-1.0..1.0))
+            .map(|&time| (2.0 * PI * signal_freq * time).sin() + 0.1 * rng.gen_range(-1.0..1.0))
             .collect();
 
         let freqs: Vec<f64> = Array1::linspace(0.1..fs / 2.0, 50).to_vec();

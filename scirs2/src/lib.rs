@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! # SciRS2
 //!
 //! SciRS2 is a comprehensive scientific computing library for Rust,

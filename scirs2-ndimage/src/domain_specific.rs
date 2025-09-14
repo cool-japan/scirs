@@ -767,7 +767,7 @@ pub mod microscopy {
         let cleaned = crate::morphology::remove_small_objects(&filled, min_size, None)?;
 
         // Label nuclei
-        let (mut labels_usize, num_features) = label(&cleaned, None, None, None)?;
+        let (labels_usize, num_features) = label(&cleaned, None, None, None)?;
 
         // Convert usize labels to i32 and filter by size
         let mut labels = Array2::<i32>::zeros(labels_usize.dim());

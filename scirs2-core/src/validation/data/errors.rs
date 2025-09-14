@@ -9,12 +9,12 @@ use std::time::Duration;
 use super::config::{ErrorSeverity, ValidationErrorType};
 use crate::error::{CoreError, ErrorContext, ErrorLocation};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Validation error information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ValidationError {
     /// Error type
     pub errortype: ValidationErrorType,
@@ -174,7 +174,7 @@ impl From<ValidationError> for CoreError {
 
 /// Validation statistics
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ValidationStats {
     /// Number of fields validated
     pub fields_validated: usize,
@@ -227,7 +227,7 @@ impl ValidationStats {
 
 /// Validation result
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ValidationResult {
     /// Whether validation passed
     pub valid: bool,

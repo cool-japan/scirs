@@ -66,7 +66,7 @@ impl CompetitiveNeuralClusterer {
 
         // Initialize neurons with random weights
         for _ in 0..num_clusters {
-            let weights = Array1::from_shape_fn(input_dims, |_| rng.random_range(0.0..1.0));
+            let weights = Array1::from_shape_fn(input_dims, |_| rng.gen_range(0.0..1.0));
             neurons.push(weights);
             learning_rates.push(0.1);
         }
@@ -266,7 +266,7 @@ impl CompetitiveNeuralClusterer {
         // Reinitialize neuron weights
         for neuron in &mut self.neurons {
             for weight in neuron.iter_mut() {
-                *weight = rng.random_range(0.0..1.0);
+                *weight = rng.gen_range(0.0..1.0);
             }
         }
 
@@ -535,7 +535,7 @@ impl HomeostaticNeuralClusterer {
 
         for mut row in self.weights.outer_iter_mut() {
             for weight in row.iter_mut() {
-                *weight = rng.random_range(0.0..1.0);
+                *weight = rng.gen_range(0.0..1.0);
             }
 
             // Normalize weights

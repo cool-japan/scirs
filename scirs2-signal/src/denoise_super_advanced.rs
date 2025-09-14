@@ -334,7 +334,7 @@ impl Default for AdvancedAdvancedDenoisingConfig {
 /// });
 ///
 /// let noisy_signal: Array1<f64> = clean_signal.mapv(|x| {
-///     x + 0.2 * rng.random_range(-1.0..1.0)
+///     x + 0.2 * rng.gen_range(-1.0..1.0)
 /// });
 ///
 /// let config = AdvancedAdvancedDenoisingConfig {
@@ -1160,7 +1160,7 @@ mod tests {
         // Add noise
         let mut rng = rand::rng();
         let noisy_signal: Array1<f64> =
-            clean_signal.mapv(|x| x + 0.1 * rng.random_range(-1.0..1.0));
+            clean_signal.mapv(|x| x + 0.1 * rng.gen_range(-1.0..1.0));
 
         let config = AdvancedAdvancedDenoisingConfig::default();
         let result = advanced_advanced_denoise(&noisy_signal, &config);

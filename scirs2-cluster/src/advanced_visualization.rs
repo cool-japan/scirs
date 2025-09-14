@@ -9,13 +9,13 @@ use crate::error::{ClusteringError, Result};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 
 /// Visualization configuration for Advanced clustering results
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AdvancedVisualizationConfig {
     /// Show quantum coherence visualization
     pub show_quantum_coherence: bool,
@@ -33,7 +33,7 @@ pub struct AdvancedVisualizationConfig {
 
 /// Color schemes for quantum state visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum QuantumColorScheme {
     /// Quantum rainbow (blue to red gradient)
     QuantumRainbow,
@@ -47,7 +47,7 @@ pub enum QuantumColorScheme {
 
 /// Export formats for Advanced visualizations
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum VisualizationExportFormat {
     /// Interactive HTML with JavaScript
     InteractiveHTML,
@@ -78,7 +78,7 @@ pub struct AdvancedVisualizer {
 
 /// Snapshot of quantum state for visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QuantumStateSnapshot {
     /// Timestamp
     pub timestamp: f64,
@@ -94,7 +94,7 @@ pub struct QuantumStateSnapshot {
 
 /// Snapshot of neuromorphic adaptation for visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NeuromorphicSnapshot {
     /// Timestamp
     pub timestamp: f64,
@@ -110,7 +110,7 @@ pub struct NeuromorphicSnapshot {
 
 /// AI algorithm selection insights for visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AISelectionInsights {
     /// Algorithm performance predictions
     pub algorithm_predictions: HashMap<String, f64>,
@@ -124,7 +124,7 @@ pub struct AISelectionInsights {
 
 /// Data characteristics for visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DataCharacteristicsVisualization {
     /// Dimensionality
     pub dimensionality: usize,
@@ -140,7 +140,7 @@ pub struct DataCharacteristicsVisualization {
 
 /// Quantum coherence visualization plot
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QuantumCoherencePlot {
     /// Time points
     pub time_points: Array1<f64>,
@@ -154,7 +154,7 @@ pub struct QuantumCoherencePlot {
 
 /// Neuromorphic adaptation visualization
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NeuromorphicAdaptationPlot {
     /// Neuron activity heatmap
     pub neuron_activity: Array2<f64>,
@@ -694,7 +694,7 @@ impl AdvancedVisualizer {
 
     /// Export to JSON format
     fn export_to_json(&self, output: &AdvancedVisualizationOutput, filename: &str) -> Result<()> {
-        #[cfg(feature = "serde")]
+        
         {
             use std::fs::File;
             use std::io::Write;
@@ -766,11 +766,11 @@ impl AdvancedVisualizer {
     }
 
     /// Create comprehensive JSON export data
-    #[cfg(feature = "serde")]
+    
     fn create_json_export_data(&self, output: &AdvancedVisualizationOutput) -> serde_json::Value {
-        use serde__json::_json;
+        use serde_json::json;
 
-        _json!({
+        json!({
             "advanced_visualization": {
                 "metadata": {
                     "export_timestamp": std::time::SystemTime::now()
@@ -787,19 +787,19 @@ impl AdvancedVisualizer {
                     "quantum_enhancement": output.cluster_plot.quantum_enhancement,
                     "confidence_levels": output.cluster_plot.confidence_levels
                 },
-                "quantum_coherence": output.quantum_plot.as_ref().map(|qp| _json!({
+                "quantum_coherence": output.quantum_plot.as_ref().map(|qp| json!({
                     "time_points": qp.time_points.len(),
                     "coherence_evolution": format!("{}x{} matrix", qp.coherence_values.nrows(), qp.coherence_values.ncols()),
                     "phase_evolution": format!("{}x{} matrix", qp.phase_evolution.nrows(), qp.phase_evolution.ncols()),
                     "entanglement_connections": qp.entanglement_network.len()
                 })),
-                "neuromorphic_adaptation": output.neuromorphic_plot.as_ref().map(|np| _json!({
+                "neuromorphic_adaptation": output.neuromorphic_plot.as_ref().map(|np| json!({
                     "neuron_activity": format!("{}x{} matrix", np.neuron_activity.nrows(), np.neuron_activity.ncols()),
                     "spike_patterns": format!("{}x{} matrix", np.spike_patterns.nrows(), np.spike_patterns.ncols()),
                     "weight_evolution_steps": np.weight_evolution.len(),
                     "learning_curve_length": np.learning_curve.len()
                 })),
-                "ai_selection": output.ai_selection_plot.as_ref().map(|ap| _json!({
+                "ai_selection": output.ai_selection_plot.as_ref().map(|ap| json!({
                     "algorithms_evaluated": ap.algorithm_scores.len(),
                     "selected_algorithm": ap.selected_algorithm,
                     "selection_timeline_steps": ap.selection_timeline.len(),

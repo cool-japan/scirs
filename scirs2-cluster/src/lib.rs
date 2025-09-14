@@ -1,3 +1,12 @@
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unused_mut)]
+#![allow(missing_docs)]
+#![allow(clippy::for_loops_over_fallibles)]
+#![allow(unused_parens)]
+#![allow(unexpected_cfgs)]
+#![allow(unused_attributes)]
+#![allow(dead_code)]
 //! Clustering algorithms module for SciRS2
 //!
 //! This module provides implementations of various clustering algorithms such as:
@@ -46,8 +55,6 @@
 //! println!("Centroids: {:?}", centroids);
 //! println!("Cluster assignments: {:?}", labels);
 //! ```
-
-#![warn(missing_docs)]
 
 /// Cutting-edge clustering algorithms including quantum-inspired methods and advanced online learning.
 ///

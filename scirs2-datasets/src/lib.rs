@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Datasets module for SciRS2
 //!
 //! This module provides dataset loading utilities similar to scikit-learn's datasets module.

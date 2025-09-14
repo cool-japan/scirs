@@ -504,6 +504,7 @@ impl OrdinaryKriging {
     }
 
     /// Compute Euclidean distance between two points
+    #[allow(dead_code)]
     fn distance(p1: &[f64], p2: &[f64]) -> f64 {
         p1.iter()
             .zip(p2.iter())
@@ -762,6 +763,7 @@ impl SimpleKriging {
     }
 
     /// Compute Euclidean distance between two points
+    #[allow(dead_code)]
     fn distance(p1: &[f64], p2: &[f64]) -> f64 {
         p1.iter()
             .zip(p2.iter())

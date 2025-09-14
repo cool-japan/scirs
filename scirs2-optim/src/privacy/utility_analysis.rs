@@ -1920,7 +1920,7 @@ impl<T: Float + Send + Sync> PrivacyUtilityAnalyzer<T> {
             SamplingStrategy::Random => {
                 let mut rng = scirs2_core::random::rng();
                 for _ in 0..range.num_samples {
-                    let value = rng.random_range(range.min, range.max);
+                    let value = rng.gen_range(range.min..range.max);
                     values.push(T::from(value).unwrap());
                 }
             }

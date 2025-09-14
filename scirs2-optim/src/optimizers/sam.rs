@@ -295,7 +295,7 @@ where
         // for both steps, which doesn't fully implement the SAM algorithm
 
         // First step: compute perturbed parameters
-        let (_) = self.first_step(params, gradients)?;
+        let _ = self.first_step(params, gradients)?;
 
         // Second step: update with the same gradients
         // Note: In a real implementation, you should compute new gradients at the perturbed point
@@ -415,7 +415,7 @@ mod tests {
         let gradients = Array1::from_vec(vec![0.1, 0.2, 0.3]);
 
         // First step to set up perturbed parameters
-        let (_) = optimizer.first_step(&params, &gradients).unwrap();
+        let _ = optimizer.first_step(&params, &gradients).unwrap();
 
         // Simulate computing new gradients at perturbed point
         let new_gradients = Array1::from_vec(vec![0.15, 0.25, 0.35]);

@@ -201,8 +201,8 @@ where
         data.mapv_inplace(|x| {
             // Use Box-Muller transformation to generate normal random numbers
             // since direct sampling with scirs2_core::Random has trait issues
-            let u1: f64 = self.rng.random_range(0.0, 1.0);
-            let u2: f64 = self.rng.random_range(0.0, 1.0);
+            let u1: f64 = self.rng.gen_range(0.0..1.0);
+            let u2: f64 = self.rng.gen_range(0.0..1.0);
             let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let noise = T::from(z0 * sigma_f64).unwrap();
             x + noise
@@ -310,7 +310,7 @@ where
         // If U is uniform on [0,1], then Laplace(μ, b) = μ - b*sgn(U-0.5)*ln(1-2|U-0.5|)
 
         data.mapv_inplace(|x| {
-            let u: f64 = self.rng.random_range(0.0, 1.0);
+            let u: f64 = self.rng.gen_range(0.0..1.0);
             let laplace_sample = if u < 0.5 {
                 scale_f64 * (2.0 * u).ln()
             } else {
@@ -420,7 +420,7 @@ where
         // Sample according to weights
         let total_weight: f64 = weights.iter().sum();
         let mut cumulative = 0.0;
-        let random_val: f64 = self.rng.random_range(0.0, total_weight);
+        let random_val: f64 = self.rng.gen_range(0.0..total_weight);
 
         for (i, &weight) in weights.iter().enumerate() {
             cumulative += weight;
@@ -827,8 +827,8 @@ where
     // Generate independent noise using Box-Muller transformation
     for i in 0..rows {
         for j in 0..cols {
-            let u1: f64 = rng.random_range(0.0, 1.0);
-            let u2: f64 = rng.random_range(0.0, 1.0);
+            let u1: f64 = rng.gen_range(0.0..1.0);
+            let u2: f64 = rng.gen_range(0.0..1.0);
             let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let gaussian_sample = z0 * scale_f64;
             noise[[i, j]] = T::from(gaussian_sample).unwrap();

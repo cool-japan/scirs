@@ -393,7 +393,6 @@ impl NumericalStabilityAnalyzer {
     }
 
     /// Test robustness with edge cases
-    #[ignore = "timeout"]
     fn test_edge_case_robustness<F>(&self, function: &F) -> StatsResult<EdgeCaseRobustness>
     where
         F: Fn(&ArrayView1<f64>) -> StatsResult<f64>,

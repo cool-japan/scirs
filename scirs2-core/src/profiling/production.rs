@@ -82,12 +82,12 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Production profiler configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ProfileConfig {
     /// Sampling rate (0.0 to 1.0) for production environments
     pub samplingrate: f64,
@@ -173,7 +173,7 @@ impl ProfileConfig {
 
 /// Type of workload being profiled
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum WorkloadType {
     /// CPU-intensive computations
     ComputeIntensive,
@@ -204,7 +204,7 @@ impl std::fmt::Display for WorkloadType {
 
 /// Performance bottleneck information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceBottleneck {
     /// Function or operation name
     pub function: String,
@@ -226,7 +226,7 @@ pub struct PerformanceBottleneck {
 
 /// Resource utilization metrics
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ResourceUsage {
     /// CPU utilization percentage
     pub cpu_percent: f64,
@@ -242,7 +242,7 @@ pub struct ResourceUsage {
 
 /// Performance regression information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceRegression {
     /// Function or workload that regressed
     pub operation: String,
@@ -260,7 +260,7 @@ pub struct PerformanceRegression {
 
 /// Comprehensive workload analysis report
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct WorkloadAnalysisReport {
     /// Workload identifier
     pub workload_id: String,
@@ -288,7 +288,7 @@ pub struct WorkloadAnalysisReport {
 
 /// Performance statistics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceStatistics {
     /// Mean execution time
     pub mean_time: Duration,
@@ -947,7 +947,7 @@ impl ProductionProfiler {
 
     /// Export profiling data for external analysis
     pub fn generate_sessionid(&self, workloadid: &str) -> CoreResult<String> {
-        #[cfg(feature = "serde")]
+        
         {
             // Create a summary of profiling data
             let summary = serde_json::json!({

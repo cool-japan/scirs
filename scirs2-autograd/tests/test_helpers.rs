@@ -24,6 +24,7 @@ use scirs2_autograd::Float;
 ///     });
 /// }
 /// ```
+#[allow(dead_code)]
 pub fn with_graph_context<F, R, TestFn>(test_fn: TestFn) -> R
 where
     F: Float,
@@ -36,6 +37,7 @@ where
 ///
 /// This function creates a tensor with test data within the provided graph context.
 /// The tensor values are initialized as 0.1 * index for easy verification.
+#[allow(dead_code)]
 pub fn create_test_tensor_in_context<'a, F>(
     ctx: &'a mut Context<F>,
     shape: Vec<usize>,
@@ -57,6 +59,7 @@ where
 }
 
 /// Create a tensor with uncertainty for stability testing
+#[allow(dead_code)]
 pub fn create_uncertainty_tensor_in_context<'a, F>(
     ctx: &'a mut Context<F>,
     shape: Vec<usize>,
@@ -67,15 +70,15 @@ where
 {
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
-    use rand::thread_rng;
+    use rand::rng;
     use scirs2_autograd::tensor_ops as T;
 
     let size: usize = shape.iter().product();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     let data: Vec<F> = (0..size)
         .map(|_| {
-            let noise = rng.gen_range(-magnitude..magnitude);
+            let noise = rng.random_range(-magnitude..magnitude);
             F::from(noise).unwrap()
         })
         .collect();

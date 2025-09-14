@@ -41,6 +41,7 @@ pub enum EigenvalueMode {
 
 /// Eigenvalue solver configuration
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct EigenSolverConfig {
     /// Maximum number of iterations
     pub max_iter: usize,

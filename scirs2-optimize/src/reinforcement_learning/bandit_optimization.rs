@@ -94,7 +94,7 @@ where
 
         // Simple gradient-like update
         for i in 0..params.len() {
-            params[i] += (rand::rng().gen::<f64>() - 0.5) * step_size;
+            params[i] += (rand::rng().random::<f64>() - 0.5) * step_size;
         }
 
         let new_obj = objective(&params.view());

@@ -652,7 +652,7 @@ fn parallel_interpolate_filter(
 
     // Apply interpolation filter
     let filtered_len = zero_stuffed.len() + filter.len() - 1;
-    let mut filtered = vec![0.0; filtered_len];
+    let filtered = vec![0.0; filtered_len];
 
     // Parallel convolution
     let chunk_size = config.chunk_size.unwrap_or(1024);

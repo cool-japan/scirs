@@ -12,12 +12,12 @@ use num_traits::{Float, FromPrimitive, ToPrimitive};
 use super::config::{ErrorSeverity, QualityIssueType};
 use crate::error::CoreError;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Data quality assessment result
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct DataQualityReport {
     /// Overall quality score (0.0 to 1.0)
     pub quality_score: f64,
@@ -31,7 +31,7 @@ pub struct DataQualityReport {
 
 /// Detailed quality metrics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QualityMetrics {
     /// Completeness (non-null/NaN ratio)
     pub completeness: f64,
@@ -47,7 +47,7 @@ pub struct QualityMetrics {
 
 /// Statistical summary of numeric data
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct StatisticalSummary {
     /// Number of data points
     pub count: usize,
@@ -67,7 +67,7 @@ pub struct StatisticalSummary {
 
 /// Quality issue found during validation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QualityIssue {
     /// Issue type
     pub issue_type: QualityIssueType,

@@ -315,8 +315,8 @@ impl LargeDatasetGenerator {
                 .map(|_| {
                     #[cfg(feature = "random")]
                     {
-                        if rng.random_range(0.0..=1.0) < density {
-                            rng.random_range(-1000.0..=1000.0)
+                        if rng.gen_range(0.0..=1.0) < density {
+                            rng.gen_range(-1000.0..=1000.0)
                         } else {
                             0.0
                         }

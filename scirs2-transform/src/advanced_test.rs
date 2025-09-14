@@ -186,7 +186,7 @@ mod tests {
 
         for i in 0.._n_samples {
             for j in 0..nfeatures {
-                data[[i, j]] = rng.random_range(-10.0..10.0);
+                data[[i, j]] = rng.gen_range(-10.0..10.0);
             }
         }
 

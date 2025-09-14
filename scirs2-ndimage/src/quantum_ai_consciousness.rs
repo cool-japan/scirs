@@ -1807,7 +1807,7 @@ fn calculate_phi_measures<T>(
 where
     T: Float + FromPrimitive + Copy,
 {
-    let (_height_width) = image.dim();
+    let _height_width = image.dim();
 
     // Initialize system elements from image regions
     initialize_system_elements(image, &mut iit_processor.phi_calculator)?;

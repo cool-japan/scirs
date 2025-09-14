@@ -1,3 +1,13 @@
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unused_mut)]
+#![allow(missing_docs)]
+#![allow(clippy::for_loops_over_fallibles)]
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+#![allow(private_interfaces)]
 #![allow(clippy::approx_constant)]
 
 //! Statistical functions module

@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     // Create a deterministic RNG for reproducibility
     let mut rng = SmallRng::from_seed([42; 32]);
     // Generate random predictions and true labels
-    let y_true = Array::from_shape_fn(n_samples, |_| rng.random_range(0..n_classes));
+    let y_true = Array::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes));
     // Create slightly correlated predictions (not completely random)
     let y_pred = Array::from_shape_fn(n_samples..|i| {
         if rng.random::<f32>() < 0.7 {
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
             y_true[i]
         } else {
             // 30% chance of random class
-            rng.random_range(0..n_classes)
+            rng.gen_range(0..n_classes)
         }
     });
     // Create confusion matrix
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
     println!("\n--- ROC Curve Visualization ---\n");
     // Generate binary classification data
     let n_binary = 200;
-    let y_true_binary = Array::from_shape_fn(n_binary, |_| rng.random_range(0..2));
+    let y_true_binary = Array::from_shape_fn(n_binary, |_| rng.gen_range(0..2));
     // Generate scores with some predictive power
     let y_scores = Array1::from_shape_fn(n_binary..|i| {
         if y_true_binary[i] == 1 {

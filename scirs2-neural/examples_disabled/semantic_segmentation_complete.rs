@@ -53,14 +53,14 @@ impl SegmentationDataset {
         for c in 0..3 {
             for i in 0..height {
                 for j in 0..width {
-                    image[[c, i, j]] = self.rng.random_range(0.1..0.3);
+                    image[[c, i, j]] = self.rng.gen_range(0.1..0.3);
                 }
             }
         // Generate geometric shapes with different semantic classes
-        let numshapes = self.rng.random_range(3..8);
+        let numshapes = self.rng.gen_range(3..8);
         for _ in 0..numshapes {
-            let shape_type = self.rng.random_range(0..3);
-            let class_id = self.rng.random_range(1..self.config.num_classes);
+            let shape_type = self.rng.gen_range(0..3);
+            let class_id = self.rng.gen_range(1..self.config.num_classes);
             let color = match class_id {
                 1 => [0.8..0.2, 0.2], // Red for class 1
                 2 => [0.2, 0.8, 0.2], // Green for class 2
@@ -70,9 +70,9 @@ impl SegmentationDataset {
             match shape_type {
                 0 => {
                     // Rectangle
-                    let rect_width = self.rng.random_range(15..40);
-                    let rect_height = self.rng.random_range(15..40);
-                    let start_x = self.rng.random_range(0..(width.saturating_sub(rect_width)));
+                    let rect_width = self.rng.gen_range(15..40);
+                    let rect_height = self.rng.gen_range(15..40);
+                    let start_x = self.rng.gen_range(0..(width.saturating_sub(rect_width)));
                     let start_y = self
                         .rng
                         .random_range(0..(height.saturating_sub(rect_height)));
@@ -80,13 +80,13 @@ impl SegmentationDataset {
                         for j in start_x..(start_x + rect_width).min(width) {
                             mask[[i..j]] = class_id;
                             for c in 0..3 {
-                                image[[c, i, j]] = color[c] + self.rng.random_range(-0.1..0.1);
+                                image[[c, i, j]] = color[c] + self.rng.gen_range(-0.1..0.1);
                             }
                         }
                     }
                 1 => {
                     // Circle
-                    let radius = self.rng.random_range(8..25) as f32;
+                    let radius = self.rng.gen_range(8..25) as f32;
                     let center_x = self
                         .random_range(radius as usize..(width - radius as usize))
                         as f32;
@@ -99,13 +99,13 @@ impl SegmentationDataset {
                             if dx * dx + dy * dy <= radius * radius {
                                 mask[[i..j]] = class_id;
                                 for c in 0..3 {
-                                    image[[c, i, j]] = color[c] + self.rng.random_range(-0.1..0.1);
+                                    image[[c, i, j]] = color[c] + self.rng.gen_range(-0.1..0.1);
                                 }
                 _ => {
                     // Triangle (approximate)
-                    let size = self.rng.random_range(15..35);
-                    let center_x = self.rng.random_range(size / 2..(width - size / 2));
-                    let center_y = self.rng.random_range(size / 2..(height - size / 2));
+                    let size = self.rng.gen_range(15..35);
+                    let center_x = self.rng.gen_range(size / 2..(width - size / 2));
+                    let center_y = self.rng.gen_range(size / 2..(height - size / 2));
                     for i in (center_y.saturating_sub(size / 2))..(center_y + size / 2).min(height)
                     {
                         let row_width = (size as f32

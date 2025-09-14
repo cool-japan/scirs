@@ -756,7 +756,7 @@ mod tests {
         assert_eq!(max_size, 128);
 
         processor.clear_cache();
-        let (count_) = processor.cache_stats();
+        let count_ = processor.cache_stats();
         assert_eq!(count, 0);
     }
 }

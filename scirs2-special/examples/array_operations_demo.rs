@@ -45,8 +45,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         demo_performance_comparison().await?;
 
         println!("=== Array operations demo completed successfully! ===");
+        
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(feature = "gpu")]

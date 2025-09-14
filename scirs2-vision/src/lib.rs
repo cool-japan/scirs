@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Computer vision module for SciRS2
 //!
 //! This module provides computer vision functionality that builds on top of the

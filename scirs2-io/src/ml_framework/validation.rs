@@ -293,7 +293,7 @@ impl ModelValidator {
     fn check_data_types(&self, model: &MLModel) -> ValidationCheckResult {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        let mut recommendations = Vec::new();
+        let recommendations = Vec::new();
 
         for (tensor_name, tensor) in &model.weights {
             // Check if data type is supported by target framework
@@ -358,7 +358,7 @@ impl ModelValidator {
     fn check_tensorshapes(&self, model: &MLModel) -> ValidationCheckResult {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
-        let mut recommendations = Vec::new();
+        let recommendations = Vec::new();
 
         for (tensor_name, tensor) in &model.weights {
             let shape = &tensor.metadata.shape;
@@ -420,7 +420,7 @@ impl ModelValidator {
 
     /// Check operations compatibility (simplified implementation)
     fn check_operations(&self, model: &MLModel) -> ValidationCheckResult {
-        let mut errors = Vec::new();
+        let errors = Vec::new();
         let mut warnings = Vec::new();
         let mut recommendations = Vec::new();
 
@@ -456,7 +456,7 @@ impl ModelValidator {
 
     /// Check metadata compatibility
     fn check_metadata(&self, model: &MLModel) -> ValidationCheckResult {
-        let mut errors = Vec::new();
+        let errors = Vec::new();
         let mut warnings = Vec::new();
         let mut recommendations = Vec::new();
 

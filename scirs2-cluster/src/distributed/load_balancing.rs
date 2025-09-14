@@ -505,7 +505,7 @@ impl LoadBalancingCoordinator {
         let mut rng = rand::rng();
 
         for (&worker_id, &current_assignment) in current_assignments {
-            if rng.gen::<f64>() < exploration_rate {
+            if rng.random::<f64>() < exploration_rate {
                 // Explore: random adjustment
                 let max_change = (current_assignment as f64 * 0.2) as usize; // Max 20% change
                 let change = rng.random_range(0..=max_change * 2) as i32 - max_change as i32;

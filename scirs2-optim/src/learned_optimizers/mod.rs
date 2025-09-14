@@ -1796,7 +1796,7 @@ impl<A: Float + Default + Clone> LSTMParameters<A> {
     fn random_array_2d(rows: usize, cols: usize, scale: f64) -> Array2<A> {
         // Simplified random initialization
         Array2::zeros((rows, cols)).mapv(|_: A| {
-            A::from(scale * (scirs2_core::random::rng().random_range(-0.5f64, 0.5f64))).unwrap()
+            A::from(scale * (scirs2_core::random::rng().gen_range(-0.5f64..0.5f64))).unwrap()
         })
     }
 }

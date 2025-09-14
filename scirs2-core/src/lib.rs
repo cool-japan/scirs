@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![recursion_limit = "512"]
 #![allow(dead_code)]
 #![allow(unused_variables)]

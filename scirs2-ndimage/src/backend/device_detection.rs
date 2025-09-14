@@ -78,7 +78,7 @@ pub struct DeviceManager {
 impl DeviceManager {
     /// Create a new device manager and detect all available devices
     pub fn new() -> NdimageResult<Self> {
-        let mut manager = Self {
+        let manager = Self {
             #[cfg(feature = "cuda")]
             cuda_devices: Vec::new(),
             #[cfg(feature = "opencl")]
@@ -108,8 +108,8 @@ impl DeviceManager {
 
     /// Get the best available device for a given workload size
     pub fn get_best_device(&self, requiredmemory: usize) -> Option<(super::Backend, usize)> {
-        let mut best_device = None;
-        let mut best_score = 0.0;
+        let best_device = None;
+        let best_score = 0.0;
 
         #[cfg(feature = "cuda")]
         {
@@ -234,7 +234,7 @@ impl DeviceManager {
             super::Backend::Metal => self.metal_devices.len(),
             super::Backend::Cpu => 1,
             super::Backend::Auto => {
-                let mut total = 1; // CPU
+                let total = 1; // CPU
                 #[cfg(feature = "cuda")]
                 {
                     total += self.cuda_devices.len();
@@ -290,8 +290,8 @@ impl DeviceManager {
         let gpu_available = cuda_available || opencl_available || metal_available;
 
         // Find the best GPU device for memory and compute unit estimates
-        let mut total_memory_mb = 0;
-        let mut max_compute_units = 0;
+        let total_memory_mb = 0;
+        let max_compute_units = 0;
 
         #[cfg(feature = "cuda")]
         {

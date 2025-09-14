@@ -167,7 +167,7 @@ where
     let mut rng = rand::rng();
     let mut b = Array1::zeros(n);
     for i in 0..n {
-        b[i] = F::from(rng.random_range(-1.0..=1.0)).unwrap_or(F::zero());
+        b[i] = F::from(rng.gen_range(-1.0..=1.0)).unwrap_or(F::zero());
     }
 
     // Normalize the vector
@@ -789,7 +789,7 @@ where
         // Random initialization
         let mut rng = rand::rng();
         for i in 0..n {
-            v[i] = F::from(rng.random_range(-1.0..=1.0)).unwrap_or(F::zero());
+            v[i] = F::from(rng.gen_range(-1.0..=1.0)).unwrap_or(F::zero());
         }
 
         // Normalize

@@ -244,7 +244,7 @@ impl UMAP {
         let mut embedding = Array2::zeros((nsamples, self.n_components));
         for i in 0..nsamples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.random_range(0.0..1.0) * 10.0 - 5.0;
+                embedding[[i, j]] = rng.gen_range(0.0..1.0) * 10.0 - 5.0;
             }
         }
 
@@ -283,7 +283,7 @@ impl UMAP {
             // Sample edges for this epoch
             for _ in 0..n_edges {
                 // Sample an edge
-                let edge_idx = rng.random_range(0..n_edges);
+                let edge_idx = rng.gen_range(0..n_edges);
                 let (i, j) = edges[edge_idx];
 
                 // Compute distance in embedding space
@@ -307,7 +307,7 @@ impl UMAP {
                 }
 
                 // Repulsive force - sample a negative edge
-                let k = rng.random_range(0..nsamples);
+                let k = rng.gen_range(0..nsamples);
                 if k != i && k != j {
                     let mut neg_dist_sq = 0.0;
                     for d in 0..self.n_components {

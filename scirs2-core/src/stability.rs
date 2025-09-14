@@ -28,7 +28,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 // Advanced implementations
@@ -352,7 +352,7 @@ pub enum GcBehavior {
 
 /// Formal verification status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum VerificationStatus {
     /// Not verified
     NotVerified,
@@ -702,7 +702,7 @@ pub struct ImmutableAuditTrail {
 
 /// Audit record
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AuditRecord {
     /// Record timestamp
     timestamp: SystemTime,
@@ -718,7 +718,7 @@ pub struct AuditRecord {
 
 /// Audit data types
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum AuditData {
     /// Contract registration
     ContractRegistration(String),
@@ -1232,7 +1232,7 @@ impl StabilityGuaranteeManager {
     }
 
     /// Export audit trail for external verification
-    #[cfg(feature = "serde")]
+    
     pub fn export_audit_trail(&self) -> CoreResult<String> {
         self.audit_trail.export_trail()
     }

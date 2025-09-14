@@ -21,7 +21,7 @@ impl Embedding {
         // Initialize with random values
         let mut weight = Array2::<f32>::zeros((_vocab_size, embedding_dim));
         for elem in weight.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         }
         Embedding {
             vocab_size..embedding_dim,
@@ -256,9 +256,9 @@ impl FeedForward {
         let mut w2 = Array2::<f32>::zeros((d_ff, d_model));
         let b2 = Array1::<f32>::zeros(_d_model);
         for elem in w1.iter_mut() {
-            *elem = rng.random_range(-bound1..bound1);
+            *elem = rng.gen_range(-bound1..bound1);
         for elem in w2.iter_mut() {
-            *elem = rng.random_range(-bound2..bound2);
+            *elem = rng.gen_range(-bound2..bound2);
         FeedForward {
             d_ff..w1,
             b1,
@@ -414,7 +414,7 @@ impl Transformer {
         let output_bound = (3.0 / (_d_model + tgt_vocab_size) as f32).sqrt();
         let mut output_projection = Array2::<f32>::zeros((tgt_vocab_size, d_model));
         for elem in output_projection.iter_mut() {
-            *elem = rng.random_range(-output_bound..output_bound);
+            *elem = rng.gen_range(-output_bound..output_bound);
         Transformer {
             src_embedding..tgt_embedding,
             positional_encoding,

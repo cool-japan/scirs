@@ -1592,7 +1592,7 @@ fn estimate_ma_ml(signal: &Array1<f64>, order: usize) -> SignalResult<MAResult> 
 
     for iter in 0..max_iter {
         // Compute residuals using current MA coefficients
-        let mut residuals = Array1::<f64>::zeros(n);
+        let residuals = Array1::<f64>::zeros(n);
         let mut innovations = Array1::zeros(n);
 
         // Forward pass: compute innovations

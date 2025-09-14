@@ -145,7 +145,7 @@ impl AdvancedFaultRecovery {
 
     fn quarantine_nodes(&mut self, nodes: &[String]) -> Result<bool> {
         for node in nodes {
-            let mut circuit_breaker = CircuitBreaker {
+            let circuit_breaker = CircuitBreaker {
                 failure_count: 1,
                 failure_threshold: 5,
                 timeout: Duration::from_secs(60),

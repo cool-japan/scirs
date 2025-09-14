@@ -1692,7 +1692,7 @@ mod tests {
     }
 
     #[test]
-    fn test_topic__similaritymetrics() {
+    fn test_topic_similaritymetrics() {
         // Test different similarity metrics
         let mut cosine_sim = TopicBasedSimilarity::new(TopicSimilarityMetric::Cosine);
         let mut js_sim = TopicBasedSimilarity::new(TopicSimilarityMetric::JensenShannon);

@@ -540,7 +540,7 @@ mod tests {
         let mut rng = rand::rng();
         let mut noisy_signal = clean_signal.clone();
         for val in noisy_signal.iter_mut() {
-            *val += 0.2 * rng.random_range(-1.0..1.0);
+            *val += 0.2 * rng.gen_range(-1.0..1.0);
         }
 
         // Denoise using wavelet thresholding with limited decomposition level

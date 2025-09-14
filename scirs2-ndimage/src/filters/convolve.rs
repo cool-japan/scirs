@@ -185,7 +185,7 @@ where
                     )
                 })
             }
-            (_n_) => {
+            _n_ => {
                 // Generic n-dimensional convolution
                 convolve_nd(input, weights, &border_mode)
             }

@@ -1007,7 +1007,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum> ArchitectureCont
         // Random selection of component type
         let mut rng = scirs2_core::random::rng();
         let component_type =
-            self.component_types[rng.random_range(0, self.component_types.len())].clone();
+            self.component_types[rng.gen_range(0..self.component_types.len())].clone();
 
         let mut hyperparameters = HashMap::new();
         match component_type {

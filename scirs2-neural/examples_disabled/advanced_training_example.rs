@@ -59,7 +59,7 @@ fn generate_regression_dataset<
         // Generate input features
         let mut input_features = Vec::with_capacity(input_dim);
         for _ in 0..input_dim {
-            input_features.push(F::from(rng.random_range(0.0..1.0)).unwrap());
+            input_features.push(F::from(rng.gen_range(0.0..1.0)).unwrap());
         }
         features_vec.extend(input_features.iter());
         // Generate target values (simple linear relationship plus noise)
@@ -71,7 +71,7 @@ fn generate_regression_dataset<
                 val = val + input_features[j] * weight;
             }
             // Add noise
-            let noise = F::from(rng.random_range(-0.1..0.1)).unwrap();
+            let noise = F::from(rng.gen_range(-0.1..0.1)).unwrap();
             val = val + noise;
             target_values.push(val);
         labels_vec.extend(target_values.iter());

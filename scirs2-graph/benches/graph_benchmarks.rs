@@ -5,7 +5,8 @@
 
 #![allow(unused_imports)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rand::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -248,8 +249,8 @@ fn bench_io(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("has_edge", size), &graph, |b, graph| {
             let mut rng = StdRng::seed_from_u64(44);
             b.iter(|| {
-                let u = rng.random_range(0..*size);
-                let v = rng.random_range(0..*size);
+                let u = rng.gen_range(0..*size);
+                let v = rng.gen_range(0..*size);
                 let result = graph.has_edge(&u, &v);
                 black_box(result)
             });

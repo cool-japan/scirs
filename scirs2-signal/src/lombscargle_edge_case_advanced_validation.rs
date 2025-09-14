@@ -183,7 +183,7 @@ fn validate_sparse_sampling() -> SignalResult<SparseSamplingResult> {
     for &n_samples in &sample_densities {
         // Generate sparse, randomly distributed time points
         let mut times: Vec<f64> = (0..n_samples)
-            .map(|_| rng.random_range(0.0..total_duration))
+            .map(|_| rng.gen_range(0.0..total_duration))
             .collect();
         times.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -191,7 +191,7 @@ fn validate_sparse_sampling() -> SignalResult<SparseSamplingResult> {
         let signal: Vec<f64> = times
             .iter()
             .map(|&t| {
-                amplitude * (2.0 * PI * true_freq * t).sin() + 0.1 * rng.random_range(-1.0..1.0)
+                amplitude * (2.0 * PI * true_freq * t).sin() + 0.1 * rng.gen_range(-1.0..1.0)
             })
             .collect();
 
@@ -263,7 +263,7 @@ fn validate_non_uniform_grids() -> SignalResult<NonUniformGridResult> {
     // Add clusters of points
     for cluster_center in [10.0, 30.0, 60.0, 90.0] {
         for _ in 0..25 {
-            times.push(cluster_center + rng.random_range(-2.0..2.0));
+            times.push(cluster_center + rng.gen_range(-2.0..2.0));
         }
     }
     times.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -345,7 +345,7 @@ fn validate_non_uniform_grids() -> SignalResult<NonUniformGridResult> {
             let regular_time = i as f64;
             // Add random jitter with increasing magnitude
             let jitter_magnitude = (i as f64 / 50.0).min(2.0);
-            regular_time + rng.random_range(-jitter_magnitude..jitter_magnitude)
+            regular_time + rng.gen_range(-jitter_magnitude..jitter_magnitude)
         })
         .collect();
     irregular_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -409,14 +409,14 @@ fn validate_noise_tolerance() -> SignalResult<NoiseToleranceResult> {
     for &noise_level in &noise_levels {
         // Test different noise types
         let noise_types: Vec<(&str, Box<dyn Fn() -> f64>)> = vec![
-            ("white", Box::new(|| rng.random_range(-1.0..1.0))),
+            ("white", Box::new(|| rng.gen_range(-1.0..1.0))),
             (
                 "impulsive",
                 Box::new(|| {
                     if rng.random::<f64>() < 0.1 {
-                        rng.random_range(-10.0..10.0)
+                        rng.gen_range(-10.0..10.0)
                     } else {
-                        rng.random_range(-0.1..0.1)
+                        rng.gen_range(-0.1..0.1)
                     }
                 }),
             ),
@@ -424,7 +424,7 @@ fn validate_noise_tolerance() -> SignalResult<NoiseToleranceResult> {
                 "colored",
                 Box::new(|| {
                     // Simple colored noise approximation
-                    rng.random_range(-1.0..1.0) / (1.0 + rng.random_range(0.0..1.0))
+                    rng.gen_range(-1.0..1.0) / (1.0 + rng.gen_range(0.0..1.0))
                 }),
             ),
         ];
@@ -487,7 +487,7 @@ fn validate_noise_tolerance() -> SignalResult<NoiseToleranceResult> {
 
     for _ in 0..n_false_positive_tests {
         let pure_noise: Vec<f64> = (0..n_samples)
-            .map(|_| rng.random_range(-1.0..1.0))
+            .map(|_| rng.gen_range(-1.0..1.0))
             .collect();
 
         let frequencies = Array1::linspace(0.05, 0.5, 100);

@@ -917,7 +917,7 @@ impl ImmersedBoundary {
         let (bx, by) = closest_boundary_point;
 
         // Get the normal vector at the boundary _point
-        let (_nx_ny) = (self.normal_function)(bx, by);
+        let _nx_ny = (self.normal_function)(bx, by);
 
         // Find neighboring grid points for interpolation
         let neighbor_radius = 2; // Search within 2 grid points
@@ -965,7 +965,7 @@ impl ImmersedBoundary {
         let mut weights = Vec::new();
         let mut total_weight = 0.0;
 
-        for &((ni, nj), distance, (_gx_gy)) in &interpolation_points {
+        for &((ni, nj), distance, _gx_gy) in &interpolation_points {
             // Use radial basis function weighting
             let weight = if distance < 1e-12 {
                 1.0 // Point coincides with grid _point

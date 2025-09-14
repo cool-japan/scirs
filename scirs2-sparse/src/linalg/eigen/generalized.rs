@@ -286,8 +286,8 @@ where
     let epsilon = T::from(1e-12).unwrap_or(T::epsilon());
 
     let mut new_data = a_matrix.data.clone();
-    let mut new_indices = a_matrix.indices.clone();
-    let mut new_indptr = a_matrix.indptr.clone();
+    let new_indices = a_matrix.indices.clone();
+    let new_indptr = a_matrix.indptr.clone();
 
     // Add small regularization to diagonal
     for i in 0..n {

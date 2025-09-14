@@ -305,7 +305,7 @@ impl NeuralRLAgent {
             ExplorationStrategy::EpsilonGreedy { epsilon } => {
                 let mut rng = rand::rng();
                 if rng.random::<f64>() < *epsilon {
-                    rng.random_range(0..q_values.len())
+                    rng.gen_range(0..q_values.len())
                 } else {
                     self.get_best_action(&q_values)
                 }
@@ -513,7 +513,7 @@ impl NeuralRLAgent {
 
         if rng.random::<f64>() < self.epsilon {
             // Exploration: random algorithm
-            rng.random_range(0..4) // 4 different algorithm strategies
+            rng.gen_range(0..4) // 4 different algorithm strategies
         } else {
             // Exploitation: best known algorithm
             let q_values = self.predict_q_values(&features);
@@ -550,7 +550,7 @@ impl NeuralRLAgent {
         let mut rng = rand::rng();
 
         for _ in 0..batch_size {
-            batch_indices.push(rng.random_range(0..self.experience_buffer.len()));
+            batch_indices.push(rng.gen_range(0..self.experience_buffer.len()));
         }
 
         // Simplified training update

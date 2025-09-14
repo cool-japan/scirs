@@ -428,8 +428,8 @@ where
     let mut rng = rand::rng();
     let mut learned_filter = Array2::from_shape_fn(filter_size, |_| (rng.gen_range(-0.1..0.1)));
 
-    let mut pre_synaptic_traces = Array2::<f64>::zeros(filter_size);
-    let mut post_synaptic_trace = 0.0;
+    let pre_synaptic_traces = Array2::<f64>::zeros(filter_size);
+    let post_synaptic_trace = 0.0;
 
     // STDP learning over multiple epochs
     for epoch in 0..epochs {

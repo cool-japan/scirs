@@ -62,7 +62,7 @@ impl Initializer {
             Initializer::Uniform { min, max } => {
                 let values: Vec<F> = (0..size)
                     .map(|_| {
-                        let val = rng.random_range(*min..*max);
+                        let val = rng.gen_range(*min..*max);
                         F::from(val).ok_or_else(|| {
                             NeuralError::InvalidArchitecture(
                                 "Failed to convert random value".to_string(),
@@ -78,8 +78,8 @@ impl Initializer {
                 let values: Vec<F> = (0..(size / 2 + 1))
                     .flat_map(|_| {
                         // Box-Muller transform to generate normal distribution
-                        let u1 = rng.random_range(0.0..1.0);
-                        let u2 = rng.random_range(0.0..1.0);
+                        let u1 = rng.gen_range(0.0..1.0);
+                        let u2 = rng.gen_range(0.0..1.0);
                         let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         let z1 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).sin();
                         let val0 = mean + std * z0;
@@ -99,7 +99,7 @@ impl Initializer {
                 let limit = (6.0 / (fan_in + fan_out) as f64).sqrt();
                 let values: Vec<F> = (0..size)
                     .map(|_| {
-                        let val = rng.random_range(-limit..limit);
+                        let val = rng.gen_range(-limit..limit);
                         F::from(val).unwrap_or(F::zero())
                     })
                     .collect();
@@ -112,8 +112,8 @@ impl Initializer {
                 let values: Vec<F> = (0..(size / 2 + 1))
                     .flat_map(|_| {
                         // Box-Muller transform for He initialization
-                        let u1 = rng.random_range(0.0..1.0);
-                        let u2 = rng.random_range(0.0..1.0);
+                        let u1 = rng.gen_range(0.0..1.0);
+                        let u2 = rng.gen_range(0.0..1.0);
                         let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         let z1 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).sin();
                         let val0 = std * z0;
@@ -134,8 +134,8 @@ impl Initializer {
                 let values: Vec<F> = (0..(size / 2 + 1))
                     .flat_map(|_| {
                         // Box-Muller transform for LeCun initialization
-                        let u1 = rng.random_range(0.0..1.0);
-                        let u2 = rng.random_range(0.0..1.0);
+                        let u1 = rng.gen_range(0.0..1.0);
+                        let u2 = rng.gen_range(0.0..1.0);
                         let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         let z1 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).sin();
                         let val0 = std * z0;

@@ -1273,7 +1273,7 @@ impl<T: Float + Send + Sync> NoisyOptimizer<T> for PrivateRandomSearch<T> {
                 ParameterType::Continuous => {
                     let min = param_def.bounds.min.unwrap_or(T::zero());
                     let max = param_def.bounds.max.unwrap_or(T::one());
-                    let random_val = T::from(self.rng.random_range(0.0, 1.0)).unwrap();
+                    let random_val = T::from(self.rng.gen_range(0.0..1.0)).unwrap();
                     ParameterValue::Continuous(min + random_val * (max - min))
                 }
                 ParameterType::Integer => {
@@ -1289,15 +1289,15 @@ impl<T: Float + Send + Sync> NoisyOptimizer<T> for PrivateRandomSearch<T> {
                         .unwrap_or(T::from(100).unwrap())
                         .to_i64()
                         .unwrap_or(100);
-                    ParameterValue::Integer(self.rng.random_range(min, max + 1))
+                    ParameterValue::Integer(self.rng.gen_range(min..max + 1))
                 }
-                ParameterType::Boolean => ParameterValue::Boolean(self.rng.random_range(0, 2) == 1),
+                ParameterType::Boolean => ParameterValue::Boolean(self.rng.gen_range(0..2) == 1),
                 ParameterType::Categorical(categories) => {
-                    let idx = self.rng.random_range(0, categories.len());
+                    let idx = self.rng.gen_range(0..categories.len());
                     ParameterValue::Categorical(categories[idx].clone())
                 }
                 ParameterType::Ordinal(values) => {
-                    let idx = self.rng.random_range(0, values.len());
+                    let idx = self.rng.gen_range(0..values.len());
                     ParameterValue::Ordinal(idx)
                 }
             };
@@ -1370,7 +1370,7 @@ impl<T: Float + Send + Sync> NoisyOptimizer<T> for PrivateBayesianOptimization<T
                     ParameterType::Continuous => {
                         let min = param_def.bounds.min.unwrap_or(T::zero());
                         let max = param_def.bounds.max.unwrap_or(T::one());
-                        let random_val = T::from(rng.random_range(0.0, 1.0)).unwrap();
+                        let random_val = T::from(rng.gen_range(0.0..1.0)).unwrap();
                         ParameterValue::Continuous(min + random_val * (max - min))
                     }
                     _ => {

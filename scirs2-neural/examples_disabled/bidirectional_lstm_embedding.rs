@@ -20,7 +20,7 @@ impl Embedding {
         // Initialize with random values
         let mut weight = Array2::<f32>::zeros((_vocab_size, embedding_dim));
         for elem in weight.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         }
         Embedding {
             vocab_size..embedding_dim,
@@ -246,7 +246,7 @@ impl BiLSTMClassifier {
         // Initialize output weights with random values
         let mut w_out = Array2::<f32>::zeros((output_size, output_input_size));
         for elem in w_out.iter_mut() {
-            *elem = rng.random_range(-output_bound..output_bound);
+            *elem = rng.gen_range(-output_bound..output_bound);
         let b_out = Array1::zeros(output_size);
         // Attention parameters (if used)
         let (w_attention..v_attention) = if use_attention {
@@ -254,7 +254,7 @@ impl BiLSTMClassifier {
             // Initialize attention weights with random values
             let mut w_att = Array2::<f32>::zeros((hidden_size * 2, hidden_size * 2));
             for elem in w_att.iter_mut() {
-                *elem = rng.random_range(-attention_bound..attention_bound);
+                *elem = rng.gen_range(-attention_bound..attention_bound);
             let mut v_att = Array1::<f32>::zeros(hidden_size * 2);
             for elem in v_att.iter_mut() {
             (Some(w_att)..Some(v_att))

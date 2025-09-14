@@ -10,14 +10,14 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
 
 /// Graph representation for clustering algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct Graph<F: Float> {
     /// Number of nodes in the graph
     pub n_nodes: usize,
@@ -48,7 +48,7 @@ impl<
     }
 
     /// Create a graph from an adjacency matrix
-    pub fn from__adjacencymatrix(_adjacencymatrix: ArrayView2<F>) -> Result<Self> {
+    pub fn from_adjacencymatrix(_adjacencymatrix: ArrayView2<F>) -> Result<Self> {
         let n_nodes = _adjacencymatrix.shape()[0];
         if _adjacencymatrix.shape()[1] != n_nodes {
             return Err(ClusteringError::InvalidInput(
@@ -222,7 +222,7 @@ impl<
 ///     0.0, 0.0, 1.0, 0.0,
 /// ]).unwrap();
 ///
-/// let graph = Graph::from__adjacencymatrix(adjacency.view()).unwrap();
+/// let graph = Graph::from_adjacencymatrix(adjacency.view()).unwrap();
 /// let communities = louvain(&graph, 1.0, 100).unwrap();
 /// ```
 #[allow(dead_code)]
@@ -407,12 +407,11 @@ where
 {
     let n_nodes = graph.n_nodes;
     let mut labels: Array1<usize> = Array1::from_iter(0..n_nodes);
-    let mut changed_nodes = n_nodes;
     let tolerance_f = F::from(tolerance).unwrap();
 
     for _iteration in 0..max_iterations {
         let mut new_labels = labels.clone();
-        changed_nodes = 0;
+        let mut changed_nodes = 0;
 
         // Process nodes in random order
         let mut node_order: Vec<usize> = (0..n_nodes).collect();
@@ -755,7 +754,7 @@ where
 
 /// Configuration for graph clustering algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct GraphClusteringConfig {
     /// Algorithm to use for clustering
     pub algorithm: GraphClusteringAlgorithm,
@@ -771,7 +770,7 @@ pub struct GraphClusteringConfig {
 
 /// Available graph clustering algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum GraphClusteringAlgorithm {
     /// Louvain community detection
     Louvain,
@@ -849,12 +848,12 @@ mod tests {
     }
 
     #[test]
-    fn testgraph_from__adjacencymatrix() {
+    fn testgraph_from_adjacencymatrix() {
         let adjacency =
             Array2::from_shape_vec((3, 3), vec![0, 1, 0, 1, 0, 1, 0, 1, 0])
                 .unwrap();
 
-        let graph = Graph::from__adjacencymatrix(adjacency.view()).unwrap();
+        let graph = Graph::from_adjacencymatrix(adjacency.view()).unwrap();
         assert_eq!(graph.n_nodes, 3);
         assert_eq!(graph.degree(0), 1);
         assert_eq!(graph.degree(1), 2);
@@ -874,7 +873,7 @@ mod tests {
         )
         .unwrap();
 
-        let graph = Graph::from__adjacencymatrix(adjacency.view()).unwrap();
+        let graph = Graph::from_adjacencymatrix(adjacency.view()).unwrap();
         let communities = louvain(&graph, 1.0, 100).unwrap();
 
         // Nodes 0,1 should be in one community and nodes 2,3 in another
@@ -896,7 +895,7 @@ mod tests {
         )
         .unwrap();
 
-        let graph = Graph::from__adjacencymatrix(adjacency.view()).unwrap();
+        let graph = Graph::from_adjacencymatrix(adjacency.view()).unwrap();
         let communities = label_propagation(&graph, 100, 1e-6).unwrap();
 
         assert_eq!(communities.len(), 4);

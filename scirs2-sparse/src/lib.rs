@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+#![allow(dead_code)]
 //! Sparse module
 //!
 //! This module provides implementations of various sparse matrix and array formats and operations,

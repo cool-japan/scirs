@@ -285,11 +285,12 @@ impl FloatGenerator {
     }
 }
 
+#[allow(deprecated)]
 impl PropertyGenerator<f64> for FloatGenerator {
     fn generate(&mut self) -> f64 {
         #[cfg(feature = "random")]
         {
-            self.rng.random_range(self.min_value..=self.max_value)
+            self.rng.gen_range(self.min_value..=self.max_value)
         }
         #[cfg(not(feature = "random"))]
         {
@@ -300,7 +301,7 @@ impl PropertyGenerator<f64> for FloatGenerator {
     fn generate_range(&mut self, min: f64, max: f64) -> f64 {
         #[cfg(feature = "random")]
         {
-            self.rng.random_range(min..=max)
+            self.rng.gen_range(min..=max)
         }
         #[cfg(not(feature = "random"))]
         {

@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Central coordinator for advanced cloud storage
@@ -54,7 +54,7 @@ pub struct advancedCloudStorageCoordinator {
 
 /// Configuration for advanced cloud storage
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct advancedCloudConfig {
     /// Enable multi-cloud optimization
     pub enable_multi_cloud: bool,
@@ -106,7 +106,7 @@ impl Default for advancedCloudConfig {
 
 /// Cloud provider identifier
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CloudProviderId(pub String);
 
 /// Trait for cloud storage providers
@@ -147,7 +147,7 @@ pub trait CloudStorageProvider: std::fmt::Debug {
 
 /// Cloud provider types
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum CloudProviderType {
     AmazonS3,
     GoogleCloudStorage,
@@ -161,7 +161,7 @@ pub enum CloudProviderType {
 
 /// Cloud provider configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CloudProviderConfig {
     /// Provider type
     pub provider_type: CloudProviderType,
@@ -177,7 +177,7 @@ pub struct CloudProviderConfig {
 
 /// Cloud credentials
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CloudCredentials {
     /// Access key or client ID
     pub access_key: String,
@@ -193,7 +193,7 @@ pub struct CloudCredentials {
 
 /// Credential types
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum CredentialType {
     AccessKey,
     ServiceAccount,
@@ -204,7 +204,7 @@ pub enum CredentialType {
 
 /// Region configuration
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct RegionConfig {
     /// Primary region
     pub primary_region: String,
@@ -218,7 +218,7 @@ pub struct RegionConfig {
 
 /// Provider performance settings
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ProviderPerformanceSettings {
     /// Connection timeout (seconds)
     pub connection_timeout_seconds: u64,
@@ -238,7 +238,7 @@ pub struct ProviderPerformanceSettings {
 
 /// Retry strategies
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum RetryStrategy {
     Exponential {
         basedelay_ms: u64,
@@ -255,7 +255,7 @@ pub enum RetryStrategy {
 
 /// Provider security settings
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ProviderSecuritySettings {
     /// Enable encryption in transit
     pub enable_encryption_in_transit: bool,
@@ -273,7 +273,7 @@ pub struct ProviderSecuritySettings {
 
 /// Encryption algorithms
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum EncryptionAlgorithm {
     AES256,
     AES128,
@@ -283,7 +283,7 @@ pub enum EncryptionAlgorithm {
 
 /// Key management
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct KeyManagement {
     /// Key management service
     pub kms_provider: Option<String>,
@@ -297,7 +297,7 @@ pub struct KeyManagement {
 
 /// Certificate validation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CertificateValidation {
     /// Validate certificate chain
     pub validate_chain: bool,
@@ -351,7 +351,7 @@ pub struct UploadOptions {
 
 /// Storage classes
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum StorageClass {
     Standard,
     ReducedRedundancy,
@@ -403,7 +403,7 @@ pub struct CorsSettings {
 
 /// Compression algorithms
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum CompressionAlgorithm {
     Gzip,
     Zstd,

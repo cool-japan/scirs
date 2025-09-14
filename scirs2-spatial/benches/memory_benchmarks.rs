@@ -128,7 +128,7 @@ impl MemoryBenchmark {
 
     fn generate_points(&self, npoints: usize, dimensions: usize) -> Array2<f64> {
         let mut rng = StdRng::seed_from_u64(self.seed);
-        Array2::from_shape_fn((npoints, dimensions), |_| rng.random_range(-10.0..10.0))
+        Array2::from_shape_fn((npoints, dimensions), |_| rng.gen_range(-10.0..10.0))
     }
 
     /// Analyze memory usage for different data sizes
@@ -254,7 +254,7 @@ impl MemoryBenchmark {
             // Random access pattern (simulate worst-case cache behavior)
             let mut rng = StdRng::seed_from_u64(self.seed);
             let indices: Vec<(usize, usize)> = (0..size * 10)
-                .map(|_| (rng.gen_range(0..size), rng.gen_range(0..10)))
+                .map(|_| (rng.gen_range(0..size)..rng.gen_range(0..10)))
                 .collect();
 
             let start = Instant::now();

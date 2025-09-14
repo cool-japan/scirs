@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// AI-driven optimization engine that learns optimal strategies
@@ -38,7 +38,7 @@ pub struct AIOptimizationEngine {
 
 /// Configuration for advanced optimization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AdvancedOptimizationConfig {
     /// Enable neural performance prediction
     pub enable_neural_prediction: bool,
@@ -122,7 +122,7 @@ pub struct TrainingExample {
 
 /// Performance target for prediction
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct PerformanceTarget {
     /// Expected execution time (nanoseconds)
     pub execution_time_ns: u64,
@@ -138,7 +138,7 @@ pub struct PerformanceTarget {
 
 /// Execution context for optimization decisions
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ExecutionContext {
     /// Data size
     pub data_size: usize,
@@ -160,7 +160,7 @@ pub struct ExecutionContext {
 
 /// System load information
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct SystemLoad {
     /// CPU utilization (0.0..1.0)
     pub cpu_utilization: f64,
@@ -176,7 +176,7 @@ pub struct SystemLoad {
 
 /// CPU characteristics
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct CpuCharacteristics {
     /// Number of physical cores
     pub physical_cores: usize,
@@ -196,7 +196,7 @@ pub struct CpuCharacteristics {
 
 /// Available accelerator types
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum AcceleratorType {
     GPU {
         memory_gb: f32,

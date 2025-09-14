@@ -4,7 +4,8 @@
 //! analysis functions with multiple scenarios, stress testing, and comparative analysis.
 //! Features include memory profiling, scalability analysis, and cross-platform testing.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use ndarray::{s, Array1, Array2, Array3};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;

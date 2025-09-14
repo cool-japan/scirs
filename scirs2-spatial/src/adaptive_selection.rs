@@ -787,6 +787,7 @@ impl AdaptiveAlgorithmSelector {
     }
 
     /// Default feature extractors for pattern analysis
+    #[allow(dead_code)]
     fn default_feature_extractors(&self) -> Vec<FeatureExtractor> {
         vec![
             FeatureExtractor {

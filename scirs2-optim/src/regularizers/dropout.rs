@@ -129,7 +129,7 @@ impl<A: Float + Debug> Dropout<A> {
         // and scaled by 1/(1-rate)
         let mut mask = Array::zeros(shape);
         for elem in mask.iter_mut() {
-            let rand_val = A::from(self.rng.random_range(0.0, 1.0)).unwrap();
+            let rand_val = A::from(self.rng.gen_range(0.0..1.0)).unwrap();
             if rand_val > self.rate {
                 *elem = scale;
             }

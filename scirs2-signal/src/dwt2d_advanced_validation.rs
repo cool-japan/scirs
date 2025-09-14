@@ -759,7 +759,7 @@ fn generate_test_image(
             // Sinusoidal patterns
             let value = (2.0 * PI * 3.0 * x).sin() * (2.0 * PI * 2.0 * y).cos()
                 + 0.5 * (2.0 * PI * 8.0 * x).cos() * (2.0 * PI * 5.0 * y).sin()
-                + 0.1 * rng.random_range(-1.0..1.0); // Add noise
+                + 0.1 * rng.gen_range(-1.0..1.0); // Add noise
 
             image[[i, j]] = value;
         }

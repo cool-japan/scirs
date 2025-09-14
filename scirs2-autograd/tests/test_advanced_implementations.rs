@@ -11,13 +11,13 @@ fn test_advanced_svd() {
     ag::run(|g| {
         // Test Jacobi SVD
         let a = convert_to_tensor(array![[1.0_f32, 2.0], [3.0, 4.0], [5.0, 6.0]], g);
-        let (_u_s_vt) = svd_jacobi(&a, false);
+        let _u_s_vt = svd_jacobi(&a, false);
 
         // For now, just test that we can create the operations without panic
         // The extraction operators need special handling in the framework
 
         // Test randomized SVD
-        let (_u_r_s_r_vt_r) = randomized_svd(&a, 2, 2, 3);
+        let _u_r_s_r_vt_r = randomized_svd(&a, 2, 2, 3);
 
         // Operations created successfully
         println!("SVD operations created successfully");
@@ -98,7 +98,7 @@ fn test_generalized_eigen() {
         let a = convert_to_tensor(array![[2.0_f32, 1.0], [1.0, 2.0]], g);
         let b = convert_to_tensor(array![[1.0_f32, 0.0], [0.0, 1.0]], g);
 
-        let (_eigenvalues_eigenvectors) = generalized_eigen(&a, &b);
+        let _eigenvalues_eigenvectors = generalized_eigen(&a, &b);
 
         // For now, just test that we can create the operations without panic
         println!("Generalized eigenvalue operation created successfully");
@@ -111,7 +111,7 @@ fn test_qr_with_pivoting() {
     ag::run(|g| {
         // Test QR decomposition with column pivoting
         let a = convert_to_tensor(array![[1.0_f32, 2.0, 3.0], [4.0, 5.0, 6.0]], g);
-        let (_q_r_p) = qr_pivot(&a);
+        let _q_r_p = qr_pivot(&a);
 
         // For now, just test that we can create the operations without panic
         println!("QR pivot operation created successfully");

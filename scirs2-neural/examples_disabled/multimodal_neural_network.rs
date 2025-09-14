@@ -36,7 +36,7 @@ impl Conv2D {
         let mut weight =
             Array4::<f32>::zeros((out_channels, in_channels, kernel_size, kernel_size));
         for elem in weight.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         }
         let bias = Array::zeros(out_channels);
         Conv2D {

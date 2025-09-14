@@ -736,7 +736,7 @@ impl AdvancedCoordinator {
                     .len()
                     .min(quantum_opt.quantum_state.basis_states.ncols())
                 {
-                    let noise = (rng().gen::<f64>() - 0.5) * 0.1;
+                    let noise = (rng().random::<f64>() - 0.5) * 0.1;
                     quantum_opt.quantum_state.basis_states[[i, j]] = best_solution[j] + noise;
                 }
             }

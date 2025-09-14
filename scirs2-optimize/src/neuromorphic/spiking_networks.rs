@@ -96,7 +96,7 @@ impl SpikingNeuron {
         // Add noise
         let noise = if self.noise_amplitude > 0.0 {
             let mut rng = rand::rng();
-            (rng.gen::<f64>() - 0.5) * 2.0 * self.noise_amplitude
+            (rng.random::<f64>() - 0.5) * 2.0 * self.noise_amplitude
         } else {
             0.0
         };
@@ -223,9 +223,9 @@ impl SpikingNeuralNetwork {
 
         for i in 0..config.num_neurons {
             for j in 0..config.num_neurons {
-                if i != j && rng.gen::<f64>() < connection_probability {
-                    let weight = (rng.gen::<f64>() - 0.5) * 0.2;
-                    let delay = rng.gen::<f64>() * 0.005; // 0-5ms delay
+                if i != j && rng.random::<f64>() < connection_probability {
+                    let weight = (rng.random::<f64>() - 0.5) * 0.2;
+                    let delay = rng.random::<f64>() * 0.005; // 0-5ms delay
                     synapses[i].push(Synapse::new(i, j, weight, delay));
                 }
             }

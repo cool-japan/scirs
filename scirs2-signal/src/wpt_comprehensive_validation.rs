@@ -737,7 +737,7 @@ fn generate_test_signal(
 
     let signal = match signal_type {
         TestSignalType::WhiteNoise => {
-            Array1::from_vec((0..length).map(|_| rng.random_range(-1.0..1.0)).collect())
+            Array1::from_vec((0..length).map(|_| rng.gen_range(-1.0..1.0)).collect())
         }
         TestSignalType::Sinusoidal => {
             let freq = 0.1;
@@ -760,7 +760,7 @@ fn generate_test_signal(
             let segments = 8;
             let segment_size = length / segments;
             for i in 0..segments {
-                let value = rng.random_range(-1.0..1.0);
+                let value = rng.gen_range(-1.0..1.0);
                 let start = i * segment_size;
                 let end = ((i + 1) * segment_size).min(length);
                 for j in start..end {
@@ -1615,7 +1615,7 @@ fn test_signal_type_consistency(config: &ComprehensiveWptValidationConfig) -> Si
     // 4. Test with noise signal (stochastic)
     let mut rng = rand::rng();
     let noise_signal: Vec<f64> = (0..signal_length)
-        .map(|_| rng.random_range(-1.0..1.0))
+        .map(|_| rng.gen_range(-1.0..1.0))
         .collect();
 
     let test_signals = vec![

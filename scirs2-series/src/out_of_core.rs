@@ -890,6 +890,7 @@ impl OutOfCoreQuantileEstimator {
         }
     }
 
+    /// Get debug state information (heights and positions)
     #[allow(dead_code)]
     pub fn debug_state(&self) -> (Vec<f64>, Vec<f64>) {
         (self.heights.to_vec(), self.positions.to_vec())

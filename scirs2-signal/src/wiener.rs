@@ -32,7 +32,7 @@ use ndarray::s;
 // let mut rng = rand::rng();
 // let mut noisy_signal = clean_signal.clone();
 // for i in 0..noisy_signal.len() {
-//     noisy_signal[i] += 0.5 * rng.random_range(-1.0..1.0);
+//     noisy_signal[i] += 0.5 * rng.gen_range(-1.0..1.0);
 // }
 //
 // // Apply Wiener filter

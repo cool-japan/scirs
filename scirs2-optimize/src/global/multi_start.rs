@@ -110,7 +110,7 @@ where
             let mut point = Array1::zeros(self.ndim);
             for j in 0..self.ndim {
                 let (lb, ub) = self.bounds[j];
-                point[j] = self.rng.random_range(lb..ub);
+                point[j] = self.rng.gen_range(lb..ub);
             }
             points.push(point);
         }
@@ -132,7 +132,7 @@ where
                 let segment_size = (ub - lb) / n as f64;
 
                 // Random offset within segment
-                let offset = self.rng.random_range(0.0..1.0);
+                let offset = self.rng.gen_range(0.0..1.0);
                 point[j] = lb + (i as f64 + offset) * segment_size;
             }
 

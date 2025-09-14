@@ -105,7 +105,7 @@ impl TopicCoherence {
     /// Calculate UCI coherence
     pub fn uci_coherence(&self, topics: &[Topic], documents: &[Vec<String>]) -> Result<f64> {
         // Build sliding window co-occurrence counts
-        let (word__freq, co_occurrence) = self.build_co_occurrence_matrix(documents)?;
+        let (word_freq, co_occurrence) = self.build_co_occurrence_matrix(documents)?;
 
         let mut coherence_scores = Vec::new();
 
@@ -113,7 +113,7 @@ impl TopicCoherence {
             let top_words: Vec<&String> = topic.top_words.iter().map(|(word_, _)| word_).collect();
 
             let topic_coherence =
-                self.calculate_topic_coherence_uci(&top_words, &word__freq, &co_occurrence)?;
+                self.calculate_topic_coherence_uci(&top_words, &word_freq, &co_occurrence)?;
             coherence_scores.push(topic_coherence);
         }
 
@@ -221,15 +221,15 @@ impl TopicCoherence {
 
         for i in 1..topic_word_s.len() {
             for j in 0..i {
-                let word__i = topic_word_s[i];
-                let word__j = topic_word_s[j];
+                let word_i = topic_word_s[i];
+                let word_j = topic_word_s[j];
 
                 let mut count_j = 0;
                 let mut count_both = 0;
 
                 for doc_set in doc_sets {
-                    let has_i = doc_set.contains(word__i);
-                    let has_j = doc_set.contains(word__j);
+                    let has_i = doc_set.contains(word_i);
+                    let has_j = doc_set.contains(word_j);
 
                     if has_j {
                         count_j += 1;
@@ -261,7 +261,7 @@ impl TopicCoherence {
     fn calculate_topic_coherence_uci(
         &self,
         topic_word_s: &[&String],
-        word__freq: &HashMap<String, usize>,
+        word_freq: &HashMap<String, usize>,
         co_occurrence: &HashMap<(String, String), usize>,
     ) -> Result<f64> {
         let mut scores = Vec::new();
@@ -271,8 +271,8 @@ impl TopicCoherence {
                 let word_1 = topic_word_s[i];
                 let word_2 = topic_word_s[j];
 
-                let freq1 = word__freq.get(word_1).copied().unwrap_or(0) as f64;
-                let freq2 = word__freq.get(word_2).copied().unwrap_or(0) as f64;
+                let freq1 = word_freq.get(word_1).copied().unwrap_or(0) as f64;
+                let freq2 = word_freq.get(word_2).copied().unwrap_or(0) as f64;
 
                 let co_freq = co_occurrence
                     .get(&if word_1 < word_2 {
@@ -285,7 +285,7 @@ impl TopicCoherence {
 
                 // Calculate PMI
                 if freq1 > 0.0 && freq2 > 0.0 && co_freq > 0.0 {
-                    let total = word__freq.values().sum::<usize>() as f64;
+                    let total = word_freq.values().sum::<usize>() as f64;
                     let pmi = (co_freq * total / (freq1 * freq2)).ln();
                     scores.push(pmi);
                 }
@@ -304,13 +304,13 @@ impl TopicCoherence {
         &self,
         documents: &[Vec<String>],
     ) -> Result<(DocFreqMap, CoDocFreqMap)> {
-        let mut word__freq: HashMap<String, usize> = HashMap::new();
+        let mut word_freq: HashMap<String, usize> = HashMap::new();
         let mut co_occurrence: HashMap<(String, String), usize> = HashMap::new();
 
         for doc in documents {
             // Count word_ frequencies
             for word_ in doc {
-                *word__freq.entry(word_.clone()).or_insert(0) += 1;
+                *word_freq.entry(word_.clone()).or_insert(0) += 1;
             }
 
             // Count co-occurrences within windows
@@ -333,7 +333,7 @@ impl TopicCoherence {
             }
         }
 
-        Ok((word__freq, co_occurrence))
+        Ok((word_freq, co_occurrence))
     }
 
     /// Calculate Normalized Pointwise Mutual Information

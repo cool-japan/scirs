@@ -297,7 +297,7 @@ impl SciPyBenchmarkSuite {
             + std::ops::DivAssign
             + 'static,
     {
-        let (_height_width) = array_size;
+        let _height_width = array_size;
 
         // Generate test data
         let input_data = self.generate_test_data::<T>(array_size, operation);

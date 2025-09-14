@@ -122,14 +122,14 @@ impl Space {
                 match param {
                     Parameter::Real(lower, upper) => {
                         // Use gen_range directly instead of Uniform distribution
-                        sample[i] = rng.random_range(*lower..*upper);
+                        sample[i] = rng.gen_range(*lower..*upper);
                     }
                     Parameter::Integer(lower, upper) => {
-                        let range = rng.random_range(*lower..=*upper);
+                        let range = rng.gen_range(*lower..=*upper);
                         sample[i] = range as f64;
                     }
                     Parameter::Categorical(values) => {
-                        let index = rng.random_range(0..values.len());
+                        let index = rng.gen_range(0..values.len());
                         sample[i] = index as f64;
                     }
                 }
@@ -536,7 +536,7 @@ impl BayesianOptimizer {
                     for (i, (low, high)) in self.space.bounds.iter().enumerate() {
                         // For single sample, pick random position in interval
                         let interval_size = (high - low) / n_samples as f64;
-                        let offset = self.rng.random_range(0.0..1.0) * interval_size;
+                        let offset = self.rng.gen_range(0.0..1.0) * interval_size;
                         sample[i] = low + offset;
                     }
 

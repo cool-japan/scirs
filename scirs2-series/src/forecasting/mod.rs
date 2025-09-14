@@ -1200,7 +1200,7 @@ where
     let mut best_d = 0;
 
     // Check if seasonal differencing improves stationarity
-    let (initial_stat_) = is_stationary(ts, None)?;
+    let initial_stat_ = is_stationary(ts, None)?;
 
     let mut ts_diff = ts.clone();
 
@@ -1213,7 +1213,7 @@ where
         let diff_ts = transform_to_stationary(&ts_diff, "seasonal_diff", Some(seasonal_period))?;
 
         // Check stationarity of differenced series
-        let (stat_value_) = is_stationary(&diff_ts, None)?;
+        let stat_value_ = is_stationary(&diff_ts, None)?;
 
         // If stationarity improves, increment the differencing order
         if stat_value_ < initial_stat_ {

@@ -10,7 +10,7 @@ use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use super::{EasingFunction, ScatterPlot2D, ScatterPlot3D, VisualizationConfig};
@@ -18,7 +18,7 @@ use crate::error::{ClusteringError, Result};
 
 /// Configuration for iterative algorithm animations (like K-means convergence)
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct IterativeAnimationConfig {
     /// Capture frame every N iterations
     pub capture_frequency: usize,
@@ -58,7 +58,7 @@ impl Default for IterativeAnimationConfig {
 
 /// Configuration for streaming data visualizations
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct StreamingConfig {
     /// Buffer size for streaming data
     pub buffer_size: usize,
@@ -95,7 +95,7 @@ impl Default for StreamingConfig {
 
 /// Animation frame for iterative algorithms
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AnimationFrame {
     /// Frame number
     pub frame_number: usize,
@@ -119,7 +119,7 @@ pub struct AnimationFrame {
 
 /// Convergence information for animation overlays
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ConvergenceInfo {
     /// Current inertia/distortion
     pub inertia: f64,
@@ -135,7 +135,7 @@ pub struct ConvergenceInfo {
 
 /// Animation annotation for custom overlays
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct AnimationAnnotation {
     /// Annotation type
     pub annotation_type: String,
@@ -298,9 +298,9 @@ impl IterativeAnimationRecorder {
                 self.frames.clone()
             };
 
-            serde_json::to_string_pretty(&frames).map_err(|e| {
+            return serde_json::to_string_pretty(&frames).map_err(|e| {
                 ClusteringError::ComputationError(format!("JSON export failed: {}", e))
-            })
+            });
         }
 
         #[cfg(not(feature = "serde"))]
@@ -323,7 +323,7 @@ pub struct StreamingVisualizer {
 
 /// Statistics for streaming visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct StreamingStats {
     pub total_points_processed: usize,
     pub points_per_second: f64,
@@ -524,7 +524,7 @@ impl StreamingVisualizer {
 
 /// Frame for streaming visualization
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct StreamingFrame {
     pub timestamp: f64,
     pub points: Array2<f64>,

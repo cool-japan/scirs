@@ -875,7 +875,7 @@ impl<F: IntegrateFloat> MorrisScreening<F> {
                 // Change one parameter
                 let (lower, upper) = self.param_bounds[param_idx];
                 let range = upper - lower;
-                let direction = if rng.gen::<bool>() {
+                let direction = if rng.random::<bool>() {
                     F::one()
                 } else {
                     -F::one()

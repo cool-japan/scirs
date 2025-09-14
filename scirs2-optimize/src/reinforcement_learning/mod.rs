@@ -372,7 +372,7 @@ pub mod utils {
 
                 // Random direction as proxy for gradient
                 for i in 0..new_params.len() {
-                    let step = (rand::rng().gen::<f64>() - 0.5) * learning_rate;
+                    let step = (rand::rng().random::<f64>() - 0.5) * learning_rate;
                     new_params[i] += step;
                 }
 
@@ -381,7 +381,7 @@ pub mod utils {
             OptimizationAction::RandomPerturbation { magnitude } => {
                 let mut new_params = state.parameters.clone();
                 for i in 0..new_params.len() {
-                    let perturbation = (rand::rng().gen::<f64>() - 0.5) * 2.0 * magnitude;
+                    let perturbation = (rand::rng().random::<f64>() - 0.5) * 2.0 * magnitude;
                     new_params[i] += perturbation;
                 }
                 new_params
@@ -389,9 +389,14 @@ pub mod utils {
             OptimizationAction::MomentumUpdate {
                 momentum: momentum_coeff,
             } => {
+                // Ensure momentum has the same shape as parameters
+                if momentum.len() != state.parameters.len() {
+                    *momentum = Array1::zeros(state.parameters.len());
+                }
+
                 // Update momentum (simplified)
                 for i in 0..momentum.len().min(state.parameters.len()) {
-                    let gradient_estimate = (rand::rng().gen::<f64>() - 0.5) * 0.1;
+                    let gradient_estimate = (rand::rng().random::<f64>() - 0.5) * 0.1;
                     momentum[i] =
                         momentum_coeff * momentum[i] + (1.0 - momentum_coeff) * gradient_estimate;
                 }

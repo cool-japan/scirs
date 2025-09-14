@@ -263,7 +263,7 @@ pub fn content_aware_adaptive_chunking<T>(
 where
     T: Float + FromPrimitive + Copy + Send + Sync,
 {
-    let (_height_width) = image.dim();
+    let _height_width = image.dim();
 
     // Analyze image content
     let content_analysis = analyzeimage_content(&image, config)?;

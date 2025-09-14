@@ -153,7 +153,7 @@ impl Voronoi {
 
                             for i in 0..npoints {
                                 for j in 0..ndim {
-                                    perturbedpoints[[i, j]] += rng.random_range(-0.001..0.001);
+                                    perturbedpoints[[i, j]] += rng.gen_range(-0.001..0.001);
                                 }
                             }
 

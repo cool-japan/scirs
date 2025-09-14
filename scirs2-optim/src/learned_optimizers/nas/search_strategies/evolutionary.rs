@@ -571,17 +571,17 @@ impl<T: Float + Default + Clone> EvolutionarySearcher<T> {
             let parent1 = &selected[i];
             let parent2 = if i + 1 < selected.len() { &selected[i + 1] } else { &selected[0] };
             
-            let (mut child1, mut child2) = if rng.gen::<f64>() < self.config.crossover_rate.to_f64().unwrap_or(0.7) {
+            let (mut child1, mut child2) = if rng.random::<f64>() < self.config.crossover_rate.to_f64().unwrap_or(0.7) {
                 self.crossover(parent1, parent2)?
             } else {
                 (parent1.clone(), parent2.clone())
             };
             
             // Mutation
-            if rng.gen::<f64>() < self.config.mutation_rate.to_f64().unwrap_or(0.1) {
+            if rng.random::<f64>() < self.config.mutation_rate.to_f64().unwrap_or(0.1) {
                 self.mutate(&mut child1)?;
             }
-            if rng.gen::<f64>() < self.config.mutation_rate.to_f64().unwrap_or(0.1) {
+            if rng.random::<f64>() < self.config.mutation_rate.to_f64().unwrap_or(0.1) {
                 self.mutate(&mut child2)?;
             }
             

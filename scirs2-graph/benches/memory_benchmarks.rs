@@ -1,6 +1,7 @@
 //! Memory usage and performance benchmarks for different graph representations
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use scirs2_graph::{
     generators,
     memory::{BitPackedGraph, CSRGraph, CompressedAdjacencyList, HybridGraph, MemoryProfiler},
@@ -186,7 +187,7 @@ fn bench_edge_queries(c: &mut Criterion) {
     use rand::prelude::*;
     let mut rng = rand::rng();
     let query_pairs: Vec<(usize, usize)> = (0..1000)
-        .map(|_| (rng.random_range(0..n), rng.random_range(0..n)))
+        .map(|_| (rng.gen_range(0..n), rng.gen_range(0..n)))
         .collect();
 
     // Benchmark standard graph

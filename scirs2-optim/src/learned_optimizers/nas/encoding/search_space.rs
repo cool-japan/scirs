@@ -1214,7 +1214,7 @@ impl<T: Float + Default + Clone> SearchSpace<T> {
                     let value = match continuous_param.distribution {
                         DistributionType::Uniform => {
                             let range = continuous_param.max_value - continuous_param.min_value;
-                            continuous_param.min_value + T::from(rng.gen::<f64>()).unwrap() * range
+                            continuous_param.min_value + T::from(rng.random::<f64>()).unwrap() * range
                         }
                         _ => continuous_param.default_value,
                     };

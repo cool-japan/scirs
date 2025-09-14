@@ -1996,7 +1996,7 @@ impl SynchronizationManager {
 
     pub async fn global_barrier(&mut self) -> Result<()> {
         // Simplified barrier implementation
-        let barrier_id = BarrierId(scirs2_core::random::rng().random_range(0, u64::MAX));
+        let barrier_id = BarrierId(scirs2_core::random::rng().gen_range(0..u64::MAX));
         let barrier_state = BarrierState {
             participants: HashSet::new(),
             arrived: HashSet::new(),
@@ -2093,7 +2093,7 @@ impl<T: Float + Default + Clone> BatchCoordinator<T> {
     }
 
     pub async fn create_batch(&mut self, batchdata: BatchData<T>) -> Result<BatchId> {
-        let batchid = BatchId(scirs2_core::random::rng().random_range(0, u64::MAX));
+        let batchid = BatchId(scirs2_core::random::rng().gen_range(0..u64::MAX));
         let batch_execution = BatchExecution {
             id: batchid,
             data: batchdata,

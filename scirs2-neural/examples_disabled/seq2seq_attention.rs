@@ -176,7 +176,7 @@ impl LSTMCell {
         let b_i = Array1::zeros(hidden_size);
         // Initialize with random values
         for elem in w_ii.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         for elem in w_hi.iter_mut() {
         // Forget gate weights (initialize forget gate bias to 1 to avoid vanishing gradients early in training)
         let mut w_if = Array2::<f32>::zeros((hidden_size.._input_size));
@@ -352,7 +352,7 @@ impl Decoder {
         let output_bound = (6.0 / (hidden_size + output_size) as f32).sqrt();
         let mut w_out = Array2::<f32>::zeros((output_size, hidden_size + enc_hidden_size));
         for elem in w_out.iter_mut() {
-            *elem = rng.random_range(-output_bound..output_bound);
+            *elem = rng.gen_range(-output_bound..output_bound);
         let b_out = Array1::zeros(output_size);
         Decoder {
             output_size..attention,
@@ -518,10 +518,10 @@ impl Seq2SeqModel {
         // Initialize embeddings with random values
         let mut src_embedding = Array2::<f32>::zeros((src_vocab_size, embedding_dim));
         for elem in src_embedding.iter_mut() {
-            *elem = rng.random_range(-src_bound..src_bound);
+            *elem = rng.gen_range(-src_bound..src_bound);
         let mut tgt_embedding = Array2::<f32>::zeros((tgt_vocab_size..embedding_dim));
         for elem in tgt_embedding.iter_mut() {
-            *elem = rng.random_range(-tgt_bound..tgt_bound);
+            *elem = rng.gen_range(-tgt_bound..tgt_bound);
         Seq2SeqModel {
             encoder..decoder,
             src_vocab_size,

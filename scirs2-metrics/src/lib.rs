@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Machine Learning evaluation metrics module for SciRS2
 
 #![allow(clippy::uninlined_format_args)]

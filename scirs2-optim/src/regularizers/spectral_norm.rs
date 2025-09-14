@@ -67,14 +67,14 @@ impl<A: Float + Debug + ScalarOperand + FromPrimitive> SpectralNorm<A> {
         // Initialize u and v if not already done
         if self.u.is_none() || self.u.as_ref().unwrap().len() != m {
             self.u = Some(Array::from_shape_fn((m,), |_| {
-                let val: f64 = self.rng.random_range(0.0, 1.0);
+                let val: f64 = self.rng.gen_range(0.0..1.0);
                 A::from_f64(val).unwrap()
             }));
         }
 
         if self.v.is_none() || self.v.as_ref().unwrap().len() != n {
             self.v = Some(Array::from_shape_fn((n,), |_| {
-                let val: f64 = self.rng.random_range(0.0, 1.0);
+                let val: f64 = self.rng.gen_range(0.0..1.0);
                 A::from_f64(val).unwrap()
             }));
         }

@@ -287,7 +287,7 @@ impl SpikingNeuralNetwork {
                     connections.push(j);
 
                     // Create synapse
-                    let weight = rng.random_range(0.1, 0.8);
+                    let weight = rng.gen_range(0.1..0.8);
                     synapses.push(PlasticSynapse::new(i, j, weight));
                 }
             }

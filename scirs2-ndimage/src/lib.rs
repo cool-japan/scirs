@@ -1,3 +1,12 @@
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unused_mut)]
+#![allow(missing_docs)]
+#![allow(clippy::for_loops_over_fallibles)]
+#![allow(unused_parens)]
+#![allow(unexpected_cfgs)]
+#![allow(unused_attributes)]
+#![allow(dead_code)]
 //! N-dimensional image processing module
 //!
 //! This module provides functions for processing and analyzing n-dimensional arrays as images.

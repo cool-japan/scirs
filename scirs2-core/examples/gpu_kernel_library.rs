@@ -182,7 +182,7 @@ fn demo_axpy_kernel(ctx: &GpuContext) -> Result<(), GpuError> {
     kernel.dispatch([(x.len() as u32).div_ceil(256), 1, 1]);
 
     // Get result (overwrite y)
-    y_buffer.copy_to_host(y.as_slice_mut().unwrap());
+    let _ = y_buffer.copy_to_host(y.as_slice_mut().unwrap());
 
     println!("Result: {:?}", y);
 

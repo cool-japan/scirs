@@ -1088,7 +1088,7 @@ mod tests {
 
     #[test]
     fn test_performance_monitor() {
-        let mut monitor = RealTimeGpuMonitor::new();
+        let monitor = RealTimeGpuMonitor::new();
         assert!(monitor.start_monitoring().is_ok());
         assert!(!monitor.needs_optimization()); // No metrics yet
     }

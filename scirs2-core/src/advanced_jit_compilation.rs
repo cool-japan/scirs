@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 /// Central JIT compilation coordinator for advanced mode
@@ -46,7 +46,7 @@ pub struct AdvancedJitCompiler {
 
 /// Configuration for JIT compilation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct JitCompilerConfig {
     /// Enable aggressive optimizations
     pub enable_aggressive_optimization: bool,
@@ -141,7 +141,7 @@ pub struct CompiledModule {
 
 /// Compilation metadata
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CompilationMetadata {
     /// Source language
@@ -312,7 +312,7 @@ pub struct CachedKernel {
 
 /// Kernel metadata
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct KernelMetadata {
     /// Kernel name
     pub name: String,
@@ -1742,7 +1742,7 @@ pub struct SpikingNeuralNetworkCompiler {
 
 /// Configuration for neuromorphic compilation
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct NeuromorphicConfig {
     /// Enable spike-based optimization
     pub enable_spike_optimization: bool,

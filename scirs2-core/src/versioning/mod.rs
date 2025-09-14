@@ -68,7 +68,7 @@ pub mod semantic;
 use crate::error::CoreError;
 use std::collections::{BTreeSet, HashMap};
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 // Re-export main types
@@ -80,7 +80,7 @@ pub use semantic::{Version, VersionBuilder, VersionConstraint, VersionRange};
 
 /// API version information with metadata
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct ApiVersion {
     /// The semantic version
     pub version: Version,
@@ -110,7 +110,7 @@ pub struct ApiVersion {
 
 /// API stability levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum StabilityLevel {
     /// Experimental - subject to breaking changes
     Experimental,
@@ -143,7 +143,7 @@ impl StabilityLevel {
 
 /// Support status for API versions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum SupportStatus {
     /// Active development and support
     Active,
@@ -486,7 +486,7 @@ impl Default for VersionManager {
 
 /// Version statistics for monitoring and reporting
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct VersionStatistics {
     /// Total number of registered versions
     pub totalversions: usize,
@@ -516,7 +516,7 @@ pub struct VersionStatistics {
 
 /// Maintenance report for version management operations
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct MaintenanceReport {
     /// Versions marked as end of life
     pub versions_marked_eol: Vec<Version>,

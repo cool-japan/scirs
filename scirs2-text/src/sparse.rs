@@ -704,10 +704,10 @@ pub struct HierarchicalSparseMatrix {
     /// Top-level blocks (coarse granularity)
     top_level_blocks: HashMap<(usize, usize), CompressedBlock>,
     /// Block size for top level
-    top__blocksize: usize,
+    top_blocksize: usize,
     /// Sub-block size within each top-level block
     #[allow(dead_code)]
-    sub__blocksize: usize,
+    sub_blocksize: usize,
     /// Matrix dimensions
     n_rows: usize,
     n_cols: usize,
@@ -730,13 +730,13 @@ impl HierarchicalSparseMatrix {
     pub fn new(
         _n_rows: usize,
         n_cols: usize,
-        top__blocksize: usize,
-        sub__blocksize: usize,
+        top_blocksize: usize,
+        sub_blocksize: usize,
     ) -> Self {
         Self {
             top_level_blocks: HashMap::new(),
-            top__blocksize,
-            sub__blocksize,
+            top_blocksize,
+            sub_blocksize,
             n_rows: _n_rows,
             n_cols,
         }
@@ -750,20 +750,20 @@ impl HierarchicalSparseMatrix {
             )));
         }
 
-        let top_row = row / self.top__blocksize;
-        let top_col = col / self.top__blocksize;
+        let top_row = row / self.top_blocksize;
+        let top_col = col / self.top_blocksize;
 
         // For simplicity, store as COO within each block for now
         // In a full implementation, this would use sub-blocks
         let block = self
             .top_level_blocks
             .entry((top_row, top_col))
-            .or_insert_with(|| CompressedBlock::new(self.top__blocksize, self.top__blocksize));
+            .or_insert_with(|| CompressedBlock::new(self.top_blocksize, self.top_blocksize));
 
         // Store the linearized position and value
-        let local_row = row % self.top__blocksize;
-        let local_col = col % self.top__blocksize;
-        let linear_pos = local_row * self.top__blocksize + local_col;
+        let local_row = row % self.top_blocksize;
+        let local_col = col % self.top_blocksize;
+        let linear_pos = local_row * self.top_blocksize + local_col;
 
         block.set_value(linear_pos, value);
         Ok(())
@@ -775,13 +775,13 @@ impl HierarchicalSparseMatrix {
             return 0.0;
         }
 
-        let top_row = row / self.top__blocksize;
-        let top_col = col / self.top__blocksize;
+        let top_row = row / self.top_blocksize;
+        let top_col = col / self.top_blocksize;
 
         if let Some(block) = self.top_level_blocks.get(&(top_row, top_col)) {
-            let local_row = row % self.top__blocksize;
-            let local_col = col % self.top__blocksize;
-            let linear_pos = local_row * self.top__blocksize + local_col;
+            let local_row = row % self.top_blocksize;
+            let local_col = col % self.top_blocksize;
+            let linear_pos = local_row * self.top_blocksize + local_col;
             block.get_value(linear_pos)
         } else {
             0.0

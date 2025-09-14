@@ -16,7 +16,7 @@ use std::f32::consts::PI;
 // Helper function to generate random noise
 #[allow(dead_code)]
 fn generate_noise(rng: &mut SmallRng) -> f32 {
-    rng.random_range(-0.05..0.05)
+    rng.gen_range(-0.05..0.05)
 }
 // Generate a simple nonlinear dataset (sine wave with noise)
 #[allow(dead_code)]

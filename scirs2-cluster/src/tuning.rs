@@ -4901,7 +4901,7 @@ pub mod neural_architecture_search {
         where
             ClusterFn: Fn(&HashMap<String, F>, ArrayView2<F>) -> Result<Array1<i32>> + Sync,
         {
-            let mut best_config = None;
+            let mut _best_config = None;
             let mut best_score = F::neg_infinity();
             let mut all_results = Vec::new();
 
@@ -4938,7 +4938,7 @@ pub mod neural_architecture_search {
                 // Track best result
                 if score > best_score {
                     best_score = score;
-                    best_config = Some(config.clone());
+                    _best_config = Some(config.clone());
                 }
 
                 all_results.push(EvaluationResult {
@@ -5174,7 +5174,7 @@ pub mod neural_architecture_search {
                 self.initialize_arms(20)?; // Default 20 arms
             }
 
-            let mut best_config = None;
+            let mut _best_config = None;
             let mut best_score = F::neg_infinity();
             let mut all_results = Vec::new();
 
@@ -5192,7 +5192,7 @@ pub mod neural_architecture_search {
                 // Track best result
                 if score > best_score {
                     best_score = score;
-                    best_config = Some(self.arms[arm_index].clone());
+                    _best_config = Some(self.arms[arm_index].clone());
                 }
 
                 all_results.push(EvaluationResult {
@@ -5277,7 +5277,7 @@ pub mod neural_architecture_search {
 
     /// Individual in the population
     #[derive(Debug, Clone)]
-    struct Individual<F: Float> {
+    pub struct Individual<F: Float> {
         /// Hyperparameter configuration
         config: HashMap<String, F>,
         /// Fitness score

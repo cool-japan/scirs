@@ -1,4 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use ndarray::Array1;
 use scirs2_interpolate::bspline::{
     generate_knots, make_interp_bspline, make_lsq_bspline, BSpline, ExtrapolateMode,

@@ -341,7 +341,7 @@ impl SparseFftAutoTuner {
         // Add some randomness to simulate real-world conditions
         let mut rng = rand::rng();
         use rand::Rng;
-        let randomness = rng.random_range(0.98..1.0);
+        let randomness = rng.gen_range(0.98..1.0);
         
         Ok(accuracy * randomness)
     }

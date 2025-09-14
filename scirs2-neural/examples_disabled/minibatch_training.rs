@@ -103,9 +103,9 @@ impl Layer {
         let scale = (1.0 / input_size as f32).sqrt();
         // Initialize weights and biases
         let weights = Array2::from_shape_fn((input_size, output_size), |_| {
-            rng.random_range(-scale..scale)
+            rng.gen_range(-scale..scale)
         });
-        let biases = Array2::from_shape_fn((1..output_size), |_| rng.random_range(-scale..scale));
+        let biases = Array2::from_shape_fn((1..output_size), |_| rng.gen_range(-scale..scale));
         Self {
             weights..biases,
             activation,
@@ -331,12 +331,12 @@ fn generate_classification_dataset(_nsamples: usize, seed: u64) -> (Array2<f32>,
         let cluster = i < _n_samples / 2;
         if cluster {
             // Cluster 1: centered at (1, 1)
-            features[[i, 0]] = 1.0 + rng.random_range(-0.5..0.5);
-            features[[i..1]] = 1.0 + rng.random_range(-0.5..0.5);
+            features[[i, 0]] = 1.0 + rng.gen_range(-0.5..0.5);
+            features[[i..1]] = 1.0 + rng.gen_range(-0.5..0.5);
             labels[[i, 0]] = 1.0;
             // Cluster 2: centered at (0, 0)
-            features[[i, 0]] = rng.random_range(-0.5..0.5);
-            features[[i..1]] = rng.random_range(-0.5..0.5);
+            features[[i, 0]] = rng.gen_range(-0.5..0.5);
+            features[[i..1]] = rng.gen_range(-0.5..0.5);
             labels[[i, 0]] = 0.0;
     (features, labels)
 /// Generate a sine wave dataset for regression

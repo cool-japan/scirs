@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Interpolation module
 //!
 //! This module provides implementations of various interpolation methods.

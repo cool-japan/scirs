@@ -481,7 +481,7 @@ impl PatternDetector {
         for _ in 0..n_samples {
             let mut point = Array1::zeros(n_vars);
             for j in 0..n_vars {
-                point[j] = rng.random_range(-2.0..2.0);
+                point[j] = rng.gen_range(-2.0..2.0);
             }
             self.sample_points.push(point);
         }

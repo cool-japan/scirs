@@ -258,7 +258,7 @@ impl<F: IntegrateFloat> AdvancedAMRManager<F> {
         self.evaluate_refinement_criteria()?;
 
         // Step 3: Flag cells for refinement/coarsening
-        let (_refine_count_coarsen_count) = self.flag_cells_for_adaptation()?;
+        let _refine_count_coarsen_count = self.flag_cells_for_adaptation()?;
 
         // Step 4: Perform refinement
         let cells_refined = self.refine_flagged_cells()?;

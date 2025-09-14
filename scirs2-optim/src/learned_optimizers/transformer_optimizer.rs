@@ -3134,7 +3134,7 @@ impl<T: Float + Default + Clone + std::iter::Sum> TransformerNetwork<T> {
     }
 
     fn forward(&mut self, input: &Array2<T>) -> Result<Array2<T>> {
-        let (_seq_len_) = input.dim();
+        let _seq_len_ = input.dim();
 
         // Input embedding
         let mut x = self.input_embedding.forward(input)?;
@@ -4019,7 +4019,7 @@ impl<T: Float + Default + Clone> StrategyPredictor<T> {
 
         if rng.random_f64() < epsilon {
             // Explore: choose randomly
-            Ok(rng.random_range(0, self.strategies.len()))
+            Ok(rng.gen_range(0..self.strategies.len()))
         } else {
             // Exploit: use performance-weighted selection
             let mut weighted_scores = strategy_scores.clone();

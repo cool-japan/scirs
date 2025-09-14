@@ -802,7 +802,7 @@ fn validate_sysid_implementations() -> SignalResult<SysIdValidationResult> {
 
     // Generate AR(2) process
     for i in 2..n {
-        let noise = 0.1 * rng.random_range(-1.0..1.0);
+        let noise = 0.1 * rng.gen_range(-1.0..1.0);
         signal[i] = -true_ar_coeffs[1] * signal[i - 1] - true_ar_coeffs[2] * signal[i - 2] + noise;
     }
 

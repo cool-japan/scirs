@@ -74,7 +74,7 @@ pub fn compute_qhull(points: &ArrayView2<'_, f64>) -> SpatialResult<ConvexHull> 
             for i in 0..npoints {
                 let mut pt = points.row(i).to_vec();
                 for val in pt.iter_mut().take(ndim) {
-                    *val += rng.random_range(-0.0001..0.0001);
+                    *val += rng.gen_range(-0.0001..0.0001);
                 }
                 perturbed_points.push(pt);
             }

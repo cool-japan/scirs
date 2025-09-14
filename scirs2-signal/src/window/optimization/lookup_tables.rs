@@ -50,6 +50,7 @@ impl WindowLookupTable {
     }
 
     /// Get global window lookup table instance
+    #[allow(static_mut_refs)]
     pub fn global() -> &'static WindowLookupTable {
         unsafe {
             WINDOW_TABLE_INIT.call_once(|| {

@@ -80,10 +80,10 @@ impl EvolutionarySearch {
         self.crossover_rate = rate;
     /// Tournament selection
     fn tournament_select(&self, rng: &mut impl rand::Rng) -> usize {
-        let mut best_idx = rng.random_range(0..self.population.len());
+        let mut best_idx = rng.gen_range(0..self.population.len());
         let mut best_fitness = self.fitness_scores[best_idx];
         for _ in 1..self.tournament_size {
-            let idx = rng.random_range(0..self.population.len());
+            let idx = rng.gen_range(0..self.population.len());
             if self.fitness_scores[idx] > best_fitness {
                 best_idx = idx;
                 best_fitness = self.fitness_scores[idx];

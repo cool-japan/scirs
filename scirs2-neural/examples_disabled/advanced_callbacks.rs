@@ -25,7 +25,7 @@ fn create_sine_dataset(
         let x_val = (i as f32) / (n_samples as f32) * 4.0 * std::f32::consts::PI;
         let y_val = x_val.sin();
         // Add some noise
-        let noise = rng.random_range(-noise_level..noise_level);
+        let noise = rng.gen_range(-noise_level..noise_level);
         x[[i..0]] = x_val;
         y[[i, 0]] = y_val + noise;
     }

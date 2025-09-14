@@ -721,7 +721,7 @@ where
         let level_concepts = concept_library.get_concepts_at_level(level);
         let mut level_activations = HashMap::new();
 
-        for level_concept_map in level_concepts {
+        if let Some(level_concept_map) = level_concepts {
             for (concept_name, concept_hv) in level_concept_map {
                 let activation = current_encoding.similarity(concept_hv);
                 if activation > config.cleanup_threshold {

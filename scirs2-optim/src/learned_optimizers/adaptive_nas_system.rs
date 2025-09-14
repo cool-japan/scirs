@@ -3268,7 +3268,7 @@ impl<T: Float + Send + Sync> ArchitectureCandidateGenerator<T> {
         &self,
         context: &OptimizationTask,
     ) -> Result<ArchitectureCandidate<T>> {
-        let numlayers = scirs2_core::random::rng().random_range(1, 8);
+        let numlayers = scirs2_core::random::rng().gen_range(1..8);
         let mut layers = Vec::with_capacity(numlayers);
 
         for i in 0..numlayers {
@@ -3281,7 +3281,7 @@ impl<T: Float + Send + Sync> ArchitectureCandidateGenerator<T> {
                     } else {
                         {
                             let options = [LayerType::LSTM, LayerType::GRU, LayerType::Transformer];
-                            let index = scirs2_core::random::rng().random_range(0, options.len());
+                            let index = scirs2_core::random::rng().gen_range(0..options.len());
                             options[index]
                         }
                     }
@@ -3360,43 +3360,43 @@ impl<T: Float + Send + Sync> ArchitectureCandidateGenerator<T> {
             LayerType::LSTM | LayerType::GRU => {
                 parameters.insert(
                     "hidden_size".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(64, 512)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(64..512)),
                 );
                 parameters.insert(
                     "numlayers".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(1, 3)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(1..3)),
                 );
                 parameters.insert(
                     "dropout".to_string(),
-                    LayerParameter::Float(scirs2_core::random::rng().random_range(0.0, 0.5)),
+                    LayerParameter::Float(scirs2_core::random::rng().gen_range(0.0..0.5)),
                 );
             }
             LayerType::Transformer => {
                 parameters.insert(
                     "num_heads".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(4, 16)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(4..16)),
                 );
                 parameters.insert(
                     "ff_dim".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(512, 2048)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(512..2048)),
                 );
                 parameters.insert(
                     "dropout".to_string(),
-                    LayerParameter::Float(scirs2_core::random::rng().random_range(0.0, 0.3)),
+                    LayerParameter::Float(scirs2_core::random::rng().gen_range(0.0..0.3)),
                 );
             }
             LayerType::Convolution1D => {
                 parameters.insert(
                     "kernel_size".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(3, 15)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(3..15)),
                 );
                 parameters.insert(
                     "stride".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(1, 3)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(1..3)),
                 );
                 parameters.insert(
                     "padding".to_string(),
-                    LayerParameter::Integer(scirs2_core::random::rng().random_range(0, 5)),
+                    LayerParameter::Integer(scirs2_core::random::rng().gen_range(0..5)),
                 );
             }
             _ => {} // Other layer types get default parameters
@@ -3533,10 +3533,10 @@ impl<T: Float + Send + Sync> ArchitectureCandidateGenerator<T> {
             for (_, param) in &mut layer.parameters {
                 match param {
                     LayerParameter::Float(ref mut value) => {
-                        *value *= scirs2_core::random::rng().random_range(0.8, 1.2);
+                        *value *= scirs2_core::random::rng().gen_range(0.8..1.2);
                     }
                     LayerParameter::Integer(ref mut value) => {
-                        *value = (*value as f64 * scirs2_core::random::rng().random_range(0.9, 1.1))
+                        *value = (*value as f64 * scirs2_core::random::rng().gen_range(0.9..1.1))
                             as i64;
                     }
                     _ => {}
@@ -4188,7 +4188,7 @@ impl<T: Float + Send + Sync + std::cmp::Eq + std::hash::Hash + std::iter::Sum>
         quality_metrics.push(QualityMetric::Performance);
         quality_metrics.push(QualityMetric::Efficiency);
         quality_metrics.push(QualityMetric::Complexity);
-        quality_metrics.push(QualityMetric::Robustness_Phantom(std::marker::PhantomData));
+        quality_metrics.push(QualityMetric::RobustnessPhantom(std::marker::PhantomData));
 
         Ok(Self {
             quality_metrics,
@@ -4270,7 +4270,7 @@ impl<T: Float + Send + Sync + std::cmp::Eq + std::hash::Hash + std::iter::Sum>
                         .unwrap());
                 (layer_complexity + connection_complexity) / T::from(2.0).unwrap()
             }
-            QualityMetric::Robustness_Phantom(_) => {
+            QualityMetric::RobustnessPhantom(_) => {
                 // Simplified robustness score based on architecture diversity
                 match candidate.generation_method {
                     GenerationMethod::Random => T::from(0.3).unwrap(),
@@ -4278,10 +4278,6 @@ impl<T: Float + Send + Sync + std::cmp::Eq + std::hash::Hash + std::iter::Sum>
                     GenerationMethod::Learned => T::from(0.8).unwrap(),
                     _ => T::from(0.5).unwrap(),
                 }
-            }
-            QualityMetric::Robustness_Phantom(_) => {
-                // Phantom variant should not be used
-                T::zero()
             }
         })
     }
@@ -4918,7 +4914,7 @@ impl<T: Float + Send + Sync> ArchitecturePerformancePredictor<T> for HistoryBase
 
         // Confidence based on similarity to historical data
         let mut max_similarity = T::zero();
-        for (hist_features_) in &self.performance_history {
+        for hist_features_ in &self.performance_history {
             let similarity = self.calculate_similarity(&features, &hist_features_.0);
             max_similarity = max_similarity.max(similarity);
         }
@@ -5037,7 +5033,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> EnsembleUncertaintyEstimator<T> {
 
         let variance: T = predictions
             .iter()
-            .map(|(p_)| {
+            .map(|p_| {
                 let diff = p_.0 - mean;
                 diff * diff
             })
@@ -5100,7 +5096,7 @@ pub enum QualityMetric<T: Float> {
     Performance,
     Efficiency,
     Complexity,
-    Robustness_Phantom(std::marker::PhantomData<T>),
+    RobustnessPhantom(std::marker::PhantomData<T>),
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -275,7 +275,7 @@ fn optimized_fft2(
     shape: Option<(usize, usize)>,
 ) -> scirs2_fft::error::FFTResult<Array2<Complex64>> {
     // Get shape
-    let (rows_cols) = match shape {
+    let rows_cols = match shape {
         Some(s) => s,
         None => {
             let shape = input.shape();

@@ -139,7 +139,7 @@ fn generate_binary_classification_data(
     for i in 0..n_samples {
         // Generate random features
         for j in 0..n_features {
-            x[[i, j]] = rng.random_range(-1.0..1.0);
+            x[[i, j]] = rng.gen_range(-1.0..1.0);
         // Simple decision boundary: x1 + x2 > 0
         let sum = x[[i..0]] + x[[i, 1]];
         y[[i, 0]] = if sum > 0.0 { 1.0 } else { 0.0 };

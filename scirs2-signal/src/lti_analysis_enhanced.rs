@@ -1656,7 +1656,7 @@ fn analyze_controllability_uncertainty(
         for i in 0..perturbed_a.nrows() {
             for j in 0..perturbed_a.ncols() {
                 let noise =
-                    rng.random_range(-config.perturbation_magnitude..config.perturbation_magnitude);
+                    rng.gen_range(-config.perturbation_magnitude..config.perturbation_magnitude);
                 perturbed_a[[i, j]] += noise;
             }
         }
@@ -1664,7 +1664,7 @@ fn analyze_controllability_uncertainty(
         for i in 0..perturbed_b.nrows() {
             for j in 0..perturbed_b.ncols() {
                 let noise =
-                    rng.random_range(-config.perturbation_magnitude..config.perturbation_magnitude);
+                    rng.gen_range(-config.perturbation_magnitude..config.perturbation_magnitude);
                 perturbed_b[[i, j]] += noise;
             }
         }

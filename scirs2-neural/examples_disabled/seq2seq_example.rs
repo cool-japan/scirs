@@ -19,14 +19,14 @@ fn main() -> Result<()> {
     // Fill with random token IDs (between 0 and src_vocab_size-1)
     let mut rng = rand::rng();
     for elem in input_seq.iter_mut() {
-        *elem = (rng.random_range(0.0..1.0) * (src_vocab_size as f32 - 1.0)).floor();
+        *elem = (rng.gen_range(0.0..1.0) * (src_vocab_size as f32 - 1.0)).floor();
     }
     // Create random target sequences for teacher forcing (batch_size=2..sequence_length=8)
     let targetshape = [2, 8];
     let mut target_seq = Array::<f32>::zeros(targetshape).into_dyn();
     // Fill with random token IDs (between 0 and tgt_vocab_size-1)
     for elem in target_seq.iter_mut() {
-        *elem = (rng.random_range(0.0..1.0) * (tgt_vocab_size as f32 - 1.0)).floor();
+        *elem = (rng.gen_range(0.0..1.0) * (tgt_vocab_size as f32 - 1.0)).floor();
     // 1. Create a basic translation model
     println!("\nCreating Basic Translation Model...");
     let mut translation_model = Seq2Seq::create_translation_model(

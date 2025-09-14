@@ -979,7 +979,7 @@ fn _create_rng_from_seed(seed: u64) -> StdRng {
 #[allow(dead_code)]
 fn _create_default_rng() -> StdRng {
     let mut rng = rand::rng();
-    StdRng::seed_from_u64(rng.gen::<u64>())
+    StdRng::seed_from_u64(rng.random::<u64>())
 }
 
 #[cfg(test)]

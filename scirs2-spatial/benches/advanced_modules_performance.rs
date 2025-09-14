@@ -56,7 +56,7 @@ impl BenchmarkDatasets {
 
         // Generate cluster centers
         let cluster_centers: Vec<Vec<f64>> = (0..n_clusters)
-            .map(|_| (0..dims).map(|_| rng.random_range(-50.0..50.0)).collect())
+            .map(|_| (0..dims).map(|_| rng.gen_range(-50.0..50.0)).collect())
             .collect();
 
         // Assign points to clusters with noise
@@ -65,7 +65,7 @@ impl BenchmarkDatasets {
             let center = &cluster_centers[cluster_idx];
 
             for j in 0..dims {
-                points[[i, j]] = center[j] + rng.random_range(-5.0..5.0);
+                points[[i, j]] = center[j] + rng.gen_range(-5.0..5.0);
             }
         }
 

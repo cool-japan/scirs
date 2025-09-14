@@ -132,7 +132,7 @@ impl QuantumState {
 
         // Cumulative probability distribution
         let mut cumulative = 0.0;
-        let random_value = rng.random_range(0.0..1.0);
+        let random_value = rng.gen_range(0.0..1.0);
 
         for (i, &prob) in probabilities.iter().enumerate() {
             cumulative += prob;

@@ -71,7 +71,7 @@ fn run_stress_test() -> Result<(), Box<dyn Error>> {
 
     // Copy back results
     let mut results = vec![0.0f32; 5];
-    gpu_buffer.copy_to_host(&mut results[0..5]);
+    let _ = gpu_buffer.copy_to_host(&mut results[0..5]);
     println!("Sample result: {:?}", &results);
 
     println!("\nStress test completed!");

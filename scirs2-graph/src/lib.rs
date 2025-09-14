@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Graph processing module for SciRS2
 //!
 //! This module provides graph algorithms and data structures

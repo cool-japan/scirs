@@ -1066,7 +1066,7 @@ mod tests {
             let mut points = Array2::zeros((n_points, 3));
             for i in 0..n_points {
                 for j in 0..3 {
-                    points[[i, j]] = rng.random_range(-100.0..100.0);
+                    points[[i, j]] = rng.gen_range(-100.0..100.0);
                 }
             }
 

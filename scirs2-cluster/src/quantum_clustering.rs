@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
-#[cfg(feature = "serde")]
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
@@ -21,7 +21,7 @@ use crate::vq::euclidean_distance;
 
 /// Configuration for QAOA clustering algorithm
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QAOAConfig {
     /// Number of QAOA layers (depth)
     pub p_layers: usize,
@@ -43,7 +43,7 @@ pub struct QAOAConfig {
 
 /// Cost function types for QAOA clustering
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum QAOACostFunction {
     /// K-means objective (minimize within-cluster distances)
     KMeans,
@@ -72,7 +72,7 @@ impl Default for QAOAConfig {
 
 /// Configuration for VQE clustering algorithm
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct VQEConfig {
     /// Variational ansatz type
     pub ansatz: VQEAnsatz,
@@ -94,7 +94,7 @@ pub struct VQEConfig {
 
 /// Variational ansatz types for VQE
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum VQEAnsatz {
     /// Hardware-efficient ansatz
     HardwareEfficient,
@@ -108,7 +108,7 @@ pub enum VQEAnsatz {
 
 /// VQE optimization methods
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum VQEOptimizer {
     /// Gradient descent
     GradientDescent,
@@ -343,16 +343,13 @@ impl<F: Float + FromPrimitive + Debug> QAOAClustering<F> {
         let w1 = 0.7; // K-means weight
         let w2 = 0.3; // Modularity weight
 
-        let mut kmeans_hamiltonian = self.cost_hamiltonian.clone();
-        let mut modularity_hamiltonian = self.cost_hamiltonian.clone();
-
         // Temporarily set up each Hamiltonian
         self.setup_kmeans_hamiltonian(data)?;
-        kmeans_hamiltonian = self.cost_hamiltonian.clone();
+        let kmeans_hamiltonian = self.cost_hamiltonian.clone();
 
         self.cost_hamiltonian.fill(0.0);
         self.setup_modularity_hamiltonian(data)?;
-        modularity_hamiltonian = self.cost_hamiltonian.clone();
+        let modularity_hamiltonian = self.cost_hamiltonian.clone();
 
         // Combine with weights
         self.cost_hamiltonian = &kmeans_hamiltonian * w1 + &modularity_hamiltonian * w2;
@@ -1113,7 +1110,7 @@ pub fn vqe_clustering<F: Float + FromPrimitive + Debug>(
 
 /// Configuration for quantum annealing clustering
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub struct QuantumAnnealingConfig {
     /// Initial temperature for annealing
     pub initial_temperature: f64,
@@ -1131,7 +1128,7 @@ pub struct QuantumAnnealingConfig {
 
 /// Cooling schedule types for quantum annealing
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Serialize, Deserialize)]
 pub enum CoolingSchedule {
     /// Linear cooling schedule
     Linear,
@@ -1260,7 +1257,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumAnnealingClustering<F> {
             rand::rngs::StdRng::seed_from_u64(seed)
         } else {
             use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(rand::rng().gen::<u64>())
+            rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>())
         };
 
         let mut spins = Array1::zeros(total_qubits);
@@ -1321,7 +1318,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumAnnealingClustering<F> {
             rand::rngs::StdRng::seed_from_u64(seed)
         } else {
             use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(rand::rng().gen::<u64>())
+            rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>())
         };
 
         let n_qubits = self.spin_configuration.as_ref().unwrap().len();

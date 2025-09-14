@@ -1,3 +1,9 @@
+#![allow(deprecated)]
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+#![allow(private_interfaces)]
 //! Optimization module for SciRS
 //!
 //! This module provides implementations of various optimization algorithms,

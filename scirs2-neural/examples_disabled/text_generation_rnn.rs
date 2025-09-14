@@ -71,7 +71,7 @@ impl LSTM {
         let b_i = Array1::zeros(hidden_size);
         // Initialize with random values
         for elem in w_ii.iter_mut() {
-            *elem = rng.random_range(-bound..bound);
+            *elem = rng.gen_range(-bound..bound);
         }
         for elem in w_hi.iter_mut() {
         // Forget gate weights (initialize with small positive bias to encourage remembering)
@@ -96,7 +96,7 @@ impl LSTM {
         let output_bound = (6.0 / (hidden_size + output_size) as f32).sqrt();
         let mut w_out = Array2::<f32>::zeros((output_size, hidden_size));
         for elem in w_out.iter_mut() {
-            *elem = rng.random_range(-output_bound..output_bound);
+            *elem = rng.gen_range(-output_bound..output_bound);
         let b_out = Array1::zeros(output_size);
         LSTM {
             input_size..hidden_size,

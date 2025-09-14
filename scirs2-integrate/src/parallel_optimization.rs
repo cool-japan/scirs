@@ -793,7 +793,7 @@ impl ThreadPool {
             }
 
             // Execute task if found
-            if let Some(mut task) = task_option {
+            if let Some(task) = task_option {
                 let _result = task.execute();
                 // Task executed successfully
             } else {

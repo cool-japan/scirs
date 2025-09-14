@@ -2078,7 +2078,7 @@ fn analyze_basis_selection_consistency(
             let mut noisy_signal = test_signal.clone();
             let mut rng = rand::rng();
             for i in 0..noisy_signal.len() {
-                noisy_signal[i] += rng.random_range(-0.01..0.01);
+                noisy_signal[i] += rng.gen_range(-0.01..0.01);
             }
 
             // Measure basis selection consistency (placeholder)
@@ -2284,7 +2284,7 @@ fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f64>> 
             let amplitude = config.parameters.get("amplitude").unwrap_or(&1.0);
             let mut rng = rand::rng();
             for i in 0..length {
-                signal[i] = amplitude * rng.random_range(-1.0..1.0);
+                signal[i] = amplitude * rng.gen_range(-1.0..1.0);
             }
         }
         TestSignalType::PinkNoise => {
@@ -2292,7 +2292,7 @@ fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f64>> 
             let mut rng = rand::rng();
             // Simplified pink noise generation
             for i in 0..length {
-                signal[i] = amplitude * rng.random_range(-1.0..1.0) * (1.0 / (i + 1) as f64).sqrt();
+                signal[i] = amplitude * rng.gen_range(-1.0..1.0) * (1.0 / (i + 1) as f64).sqrt();
             }
         }
         TestSignalType::Impulse => {
@@ -2332,7 +2332,7 @@ fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f64>> 
             // Simplified fractal noise
             let mut rng = rand::rng();
             for i in 0..length {
-                signal[i] = amplitude * rng.random_range(-1.0..1.0) * ((i + 1) as f64).powf(-hurst);
+                signal[i] = amplitude * rng.gen_range(-1.0..1.0) * ((i + 1) as f64).powf(-hurst);
             }
         }
         TestSignalType::Composite => {
@@ -2341,7 +2341,7 @@ fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f64>> 
             let mut rng = rand::rng();
             for (i, &ti) in t.iter().enumerate() {
                 let sinusoid = (2.0 * PI * 0.1 * ti / length as f64).sin();
-                let noise = 0.1 * rng.random_range(-1.0..1.0);
+                let noise = 0.1 * rng.gen_range(-1.0..1.0);
                 signal[i] = amplitude * (sinusoid + noise);
             }
         }

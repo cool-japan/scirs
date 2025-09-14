@@ -246,6 +246,7 @@ static mut GLOBAL_HANDLER_INSTANCE: Option<UnifiedErrorHandler> = None;
 
 /// Get the global unified error handler instance
 #[allow(dead_code)]
+#[allow(static_mut_refs)]
 pub fn global_error_handler() -> &'static UnifiedErrorHandler {
     unsafe {
         GLOBAL_HANDLER.call_once(|| {

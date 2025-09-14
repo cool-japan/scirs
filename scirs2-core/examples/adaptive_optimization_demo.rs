@@ -467,11 +467,11 @@ fn demo_multi_objective_optimization() -> CoreResult<()> {
 
         for (metric, base_value) in metrics.iter().zip(base_values.iter()) {
             let trend_factor = match *metric {
-                training_speed => 1.0 + (epoch as f64 * 0.05), // Improving speed
-                memory_efficiency => base_value - (epoch as f64 * 50.0), // Optimizing memory
-                energy_consumption => base_value - (epoch as f64 * 5.0), // Reducing energy
-                accuracy_convergence => 0.92 + (epoch as f64 * 0.01), // Improving accuracy
-                gpu_utilization => 0.75 + (epoch as f64 * 0.03), // Better utilization
+                "training_speed" => 1.0 + (epoch as f64 * 0.05), // Improving speed
+                "memory_efficiency" => base_value - (epoch as f64 * 50.0), // Optimizing memory
+                "energy_consumption" => base_value - (epoch as f64 * 5.0), // Reducing energy
+                "accuracy_convergence" => 0.92 + (epoch as f64 * 0.01), // Improving accuracy
+                "gpu_utilization" => 0.75 + (epoch as f64 * 0.03), // Better utilization
                 _ => *base_value,
             };
 

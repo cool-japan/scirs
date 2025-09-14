@@ -1218,11 +1218,6 @@ where
                 let result = self.hierarchical_consensus(results, data, linkage_method)?;
                 Ok(result.consensus_labels)
             }
-            _ => {
-                // Fallback to majority voting for any other consensus methods
-                let result = self.majority_voting_consensus(results, data)?;
-                Ok(result.consensus_labels)
-            }
         }
     }
 
@@ -1505,7 +1500,7 @@ pub mod convenience {
         }
 
         // Combine all chunk results into final consensus
-        combine__chunkresults(current_results)
+        combine_chunkresults(current_results)
     }
 
     /// Federated ensemble clustering for distributed data
@@ -2344,17 +2339,16 @@ pub mod advanced_ensemble {
             let error_rate = (1.0 - silhouette) / 2.0;
 
             // Apply sample weights to the error calculation
-            let mut weighted_error = 0.0;
             let total_weight: f64 = weights.sum();
 
-            if total_weight > 0.0 {
+            let weighted_error = if total_weight > 0.0 {
                 // Weight the error by the sample weights
                 // For simplicity, we'll use the basic error rate but could be enhanced
                 // to calculate per-sample errors and weight them individually
-                weighted_error = error_rate * (total_weight / n_samples as f64);
+                error_rate * (total_weight / n_samples as f64)
             } else {
-                weighted_error = error_rate;
-            }
+                error_rate
+            };
 
             // Clamp error rate to valid range [0, 1]
             Ok(weighted_error.max(0.0).min(1.0))
@@ -2815,7 +2809,7 @@ where
 }
 
 #[allow(dead_code)]
-fn combine__chunkresults(_chunkresults: Vec<EnsembleResult>) -> Result<EnsembleResult> {
+fn combine_chunkresults(_chunkresults: Vec<EnsembleResult>) -> Result<EnsembleResult> {
     if _chunkresults.is_empty() {
         return Err(ClusteringError::InvalidInput(
             "No chunk _results to combine".to_string(),

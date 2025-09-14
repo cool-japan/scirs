@@ -164,7 +164,7 @@ where
     };
 
     // Estimate condition number
-    let _conditionnumber = estimate__conditionnumber(matrix, &mut diagnostics)?;
+    let _conditionnumber = estimate_conditionnumber(matrix, &mut diagnostics)?;
 
     // Classify stability level
     let stability_level = classify_stability(_conditionnumber);
@@ -215,7 +215,7 @@ where
 
 /// Estimate condition number using different methods based on availability
 #[allow(dead_code)]
-fn estimate__conditionnumber<F>(
+fn estimate_conditionnumber<F>(
     matrix: &ArrayView2<F>,
     #[cfg_attr(not(feature = "linalg"), allow(unused_variables))]
     diagnostics: &mut StabilityDiagnostics<F>,

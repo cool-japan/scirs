@@ -188,7 +188,7 @@ fn initialize_kmeans_plus_plus(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
     let mut centers = Vec::new();
 
     // Choose first center randomly
-    centers.push(colors[rng.random_range(0..colors.len())]);
+    centers.push(colors[rng.gen_range(0..colors.len())]);
 
     // Choose remaining centers
     for _ in 1..k {
@@ -250,7 +250,7 @@ fn initialize_frequency(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
     // Fill remaining with random if needed
     let mut rng = rand::rng();
     while centers.len() < k {
-        centers.push(colors[rng.random_range(0..colors.len())]);
+        centers.push(colors[rng.gen_range(0..colors.len())]);
     }
 
     centers

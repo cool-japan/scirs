@@ -52,13 +52,13 @@ pub fn nmf(
 
     for i in 0..n_signals {
         for j in 0..n_components {
-            w[[i, j]] = rng.random_range(0.0..1.0);
+            w[[i, j]] = rng.gen_range(0.0..1.0);
         }
     }
 
     for i in 0..n_components {
         for j in 0..n_samples {
-            h[[i, j]] = rng.random_range(0.0..1.0);
+            h[[i, j]] = rng.gen_range(0.0..1.0);
         }
     }
 

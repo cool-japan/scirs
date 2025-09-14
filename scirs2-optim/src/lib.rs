@@ -1,3 +1,10 @@
+#![allow(deprecated)]
+#![allow(unreachable_code)]
+#![allow(unused_mut)]
+#![allow(unused_parens)]
+#![allow(clippy::for_loops_over_fallibles)]
+#![allow(unexpected_cfgs)]
+#![allow(unused_attributes)]
 //! Machine Learning optimization module for SciRS2
 //!
 //! This module provides optimization algorithms specifically designed for machine learning,

@@ -30,6 +30,7 @@ struct UserProfile {
     mastery_scores: HashMap<String, f64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Achievement {
     id: String,
@@ -47,6 +48,7 @@ enum AchievementDifficulty {
     Platinum,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LearningPreferences {
     visual_learner: bool,
@@ -64,6 +66,7 @@ enum DifficultyLevel {
     Expert,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct PerformanceRecord {
     topic: String,
@@ -1130,12 +1133,12 @@ fn solve_engineering_problems(profile: &mut UserProfile) -> Result<(), Box<dyn s
     println!("k = thermal conductivity, δ = fin thickness");
 
     // Example parameters
-    let h = 25.0; // W/(m²·K)
-    let k = 200.0; // W/(m·K) for aluminum
+    let h = 25.0; // W/(m²·k)
+    let k = 200.0; // W/(m·k) for aluminum
     let delta = 0.003; // 3 mm thickness
-    let R = 0.05; // 5 cm radius
-    let T_base = 100.0; // °C
-    let T_inf = 20.0; // °C
+    let r = 0.05; // 5 cm radius
+    let t_base = 100.0; // °C
+    let t_inf = 20.0; // °C
 
     let m: f64 = ((h / (k * delta)) as f64).sqrt();
     println!("\n🔢 Parameters:");
@@ -1143,21 +1146,21 @@ fn solve_engineering_problems(profile: &mut UserProfile) -> Result<(), Box<dyn s
 
     // Boundary conditions: T(0) = finite, T(R) = T_inf (simplified)
     // This gives C₂ = 0 and determines C₁
-    let mR = m * R;
-    let C1 = (T_base - T_inf) / i0(mR);
+    let m_r = m * r;
+    let c1 = (t_base - t_inf) / i0(m_r);
 
-    println!("C₁ = {:.2} °C", C1);
+    println!("C₁ = {:.2} °C", c1);
 
     // Temperature profile
     println!("\n🌡️  Temperature distribution:");
     let r_values = vec![0.0, 0.01, 0.02, 0.03, 0.04, 0.05];
     for &r in &r_values {
-        let T = T_inf + C1 * i0(m * r);
-        println!("T({:.3} m) = {:.1} °C", r, T);
+        let t = t_inf + c1 * i0(m * r);
+        println!("T({:.3} m) = {:.1} °C", r, t);
     }
 
     // Heat transfer rate
-    let q = -k * delta * 2.0 * PI * R * C1 * m * i1(mR);
+    let q = -k * delta * 2.0 * PI * r * c1 * m * i1(m_r);
     println!("\n🔥 Heat transfer rate: {:.1} W", q);
 
     profile.add_experience(50);
@@ -1175,48 +1178,48 @@ fn solve_financial_problems(profile: &mut UserProfile) -> Result<(), Box<dyn std
     println!("\n📖 Black-Scholes Formula:");
     println!("C = S₀N(d₁) - Ke⁻ʳᵀN(d₂)");
     println!("where:");
-    println!("d₁ = [ln(S₀/K) + (r + σ²/2)T] / (σ√T)");
+    println!("d₁ = [ln(S₀/k) + (r + σ²/2)T] / (σ√T)");
     println!("d₂ = d₁ - σ√T");
     println!("N(x) = standard normal CDF = (1/2)[1 + erf(x/√2)]");
 
     // Example parameters
-    let S0: f64 = 100.0; // Current stock price
-    let K: f64 = 105.0; // Strike price
+    let s0: f64 = 100.0; // Current stock price
+    let k: f64 = 105.0; // Strike price
     let r: f64 = 0.05; // Risk-free rate
-    let T: f64 = 0.25; // Time to expiration (3 months)
+    let t: f64 = 0.25; // Time to expiration (3 months)
     let sigma: f64 = 0.2; // Volatility
 
     println!("\n🔢 Parameters:");
-    println!("S₀ = ${:.2}", S0);
-    println!("K = ${:.2}", K);
+    println!("S₀ = ${:.2}", s0);
+    println!("K = ${:.2}", k);
     println!("r = {:.1}%", r * 100.0);
-    println!("T = {:.2} years", T);
+    println!("T = {:.2} years", t);
     println!("σ = {:.1}%", sigma * 100.0);
 
     // Calculate d1 and d2
-    let d1 = ((S0 / K).ln() + (r + 0.5 * sigma * sigma) * T) / (sigma * T.sqrt());
-    let d2 = d1 - sigma * T.sqrt();
+    let d1 = ((s0 / k).ln() + (r + 0.5 * sigma * sigma) * t) / (sigma * t.sqrt());
+    let d2 = d1 - sigma * t.sqrt();
 
     println!("\n🧮 Calculations:");
     println!("d₁ = {:.4}", d1);
     println!("d₂ = {:.4}", d2);
 
     // Calculate normal CDFs using error function
-    let N_d1 = 0.5 * (1.0 + erf(d1 / 2.0_f64.sqrt()));
-    let N_d2 = 0.5 * (1.0 + erf(d2 / 2.0_f64.sqrt()));
+    let n_d1 = 0.5 * (1.0 + erf(d1 / 2.0_f64.sqrt()));
+    let n_d2 = 0.5 * (1.0 + erf(d2 / 2.0_f64.sqrt()));
 
-    println!("N(d₁) = {:.4}", N_d1);
-    println!("N(d₂) = {:.4}", N_d2);
+    println!("N(d₁) = {:.4}", n_d1);
+    println!("N(d₂) = {:.4}", n_d2);
 
     // Calculate option price
-    let call_price = S0 * N_d1 - K * (-r * T).exp() * N_d2;
+    let call_price = s0 * n_d1 - k * (-r * t).exp() * n_d2;
 
     println!("\n💰 Call Option Price: ${:.2}", call_price);
 
     // Sensitivity analysis
     println!("\n📊 Greeks:");
-    let delta = N_d1;
-    let gamma = (-(d1 * d1) / 2.0).exp() / (S0 * sigma * T.sqrt() * (2.0 * PI).sqrt());
+    let delta = n_d1;
+    let gamma = (-(d1 * d1) / 2.0).exp() / (s0 * sigma * t.sqrt() * (2.0 * PI).sqrt());
 
     println!("Delta (∂C/∂S) = {:.4}", delta);
     println!("Gamma (∂²C/∂S²) = {:.6}", gamma);
@@ -1597,15 +1600,15 @@ fn bioinformatics_lab(profile: &mut UserProfile) -> Result<(), Box<dyn std::erro
 
     // Example: Two-state folding model
     println!("\n🧮 Two-state folding model:");
-    let k_B: f64 = 1.381e-23; // Boltzmann constant (J/K)
-    let T: f64 = 300.0; // Temperature (K)
-    let delta_G: f64 = -20.0 * 1000.0 * 4.184; // -20 kcal/mol to J/mol
-    let N_A: f64 = 6.022e23; // Avogadro's number
+    let k_b: f64 = 1.381e-23; // Boltzmann constant (J/k)
+    let t: f64 = 300.0; // Temperature (k)
+    let delta_g: f64 = -20.0 * 1000.0 * 4.184; // -20 kcal/mol to J/mol
+    let n_a: f64 = 6.022e23; // Avogadro's number
 
-    let delta_G_per_molecule: f64 = delta_G / N_A;
-    let equilibrium_constant: f64 = (-delta_G_per_molecule / (k_B * T)).exp();
+    let delta_g_per_molecule: f64 = delta_g / n_a;
+    let equilibrium_constant: f64 = (-delta_g_per_molecule / (k_b * t)).exp();
 
-    println!("ΔG = {:.1} kJ/mol", delta_G / 1000.0);
+    println!("ΔG = {:.1} kJ/mol", delta_g / 1000.0);
     println!("K_eq = exp(-ΔG/RT) = {:.2e}", equilibrium_constant);
 
     // Folding probability
@@ -1620,7 +1623,7 @@ fn bioinformatics_lab(profile: &mut UserProfile) -> Result<(), Box<dyn std::erro
     let temperatures = vec![250.0, 275.0, 300.0, 325.0, 350.0];
 
     for &temp in &temperatures {
-        let k_eq: f64 = (-delta_G_per_molecule / (k_B * temp)).exp();
+        let k_eq: f64 = (-delta_g_per_molecule / (k_b * temp)).exp();
         let p_fold = k_eq / (1.0 + k_eq);
         println!("T = {} K: P(folded) = {:.4}", temp, p_fold);
     }
@@ -1659,12 +1662,12 @@ fn climate_science_lab(profile: &mut UserProfile) -> Result<(), Box<dyn std::err
     println!("\n🌫️ Atmospheric absorption:");
     println!("Beer-Lambert law: I = I₀ exp(-τ)");
 
-    let I_0 = 1360.0; // Solar constant (W/m²)
+    let i_0 = 1360.0; // Solar constant (W/m²)
     let optical_depths = vec![0.0, 0.1, 0.5, 1.0, 2.0];
 
     for &tau in &optical_depths {
-        let intensity: f64 = I_0 * ((-tau) as f64).exp();
-        let attenuation = (1.0 - intensity / I_0) * 100.0;
+        let intensity: f64 = i_0 * ((-tau) as f64).exp();
+        let attenuation = (1.0 - intensity / i_0) * 100.0;
         println!(
             "τ = {}: I = {:.1} W/m² ({:.1}% attenuated)",
             tau, intensity, attenuation

@@ -26,8 +26,8 @@ impl Default for Random {
 }
 
 impl Random {
-    fn random_range(&mut self, range: std::ops::Range<f64>) -> f64 {
-        self.rng.random_range(range)
+    fn gen_range(&mut self, range: std::ops::Range<f64>) -> f64 {
+        self.rng.gen_range(range)
     }
 }
 
@@ -155,7 +155,7 @@ impl MemoryMetricsCollector {
         // Sample events if sampling rate < 1.0
         if self.config.samplingrate < 1.0 {
             let mut rng = self.rng.lock().unwrap();
-            if rng.random_range(0.0..1.0) > self.config.samplingrate {
+            if rng.gen_range(0.0..1.0) > self.config.samplingrate {
                 return;
             }
         }

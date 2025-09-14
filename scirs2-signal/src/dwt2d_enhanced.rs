@@ -3116,7 +3116,7 @@ mod tests {
 
         let mut noisy_data = clean_data.clone();
         for val in noisy_data.iter_mut() {
-            *val += 0.1 * rng.random_range(-1.0..1.0);
+            *val += 0.1 * rng.gen_range(-1.0..1.0);
         }
 
         // Test different denoising methods

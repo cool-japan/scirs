@@ -2310,7 +2310,7 @@ impl<
             ProgressiveStage::Large => (4, 8, 256),
         };
 
-        let num_layers = scirs2_core::random::rng().random_range(min_layers, max_layers + 1);
+        let num_layers = scirs2_core::random::rng().gen_range(min_layers..max_layers + 1);
         let mut layers = Vec::new();
 
         // Generate layers with progressive complexity
@@ -2385,7 +2385,7 @@ impl<
                 LayerType::Attention,
                 LayerType::LSTM,
             ];
-            layer_types[scirs2_core::random::rng().random_range(0, layer_types.len())]
+            layer_types[scirs2_core::random::rng().gen_range(0..layer_types.len())]
         };
 
         // Adjust dimensions based on complexity
@@ -2834,13 +2834,13 @@ impl<
             rlstate.controller.weights[layer_idx] =
                 rlstate.controller.weights[layer_idx].mapv(|w| {
                     w + gradient_scale
-                        * T::from(scirs2_core::random::rng().random_range(-0.1, 0.1)).unwrap()
+                        * T::from(scirs2_core::random::rng().gen_range(-0.1..0.1)).unwrap()
                 });
 
             // Update biases
             rlstate.controller.biases[layer_idx] = rlstate.controller.biases[layer_idx].mapv(|b| {
                 b + gradient_scale
-                    * T::from(scirs2_core::random::Random::seed(42).random_range(-0.1, 0.1))
+                    * T::from(scirs2_core::random::Random::seed(42).gen_range(-0.1..0.1))
                         .unwrap()
             });
         }
@@ -3026,7 +3026,7 @@ impl<
     }
 
     fn sample_random_action(&self) -> Result<ArchitectureAction> {
-        let action_type = scirs2_core::random::rng().random_range(0, 4);
+        let action_type = scirs2_core::random::rng().gen_range(0..4);
 
         match action_type {
             0 => Ok(ArchitectureAction::SelectLayerType(
@@ -3080,22 +3080,22 @@ impl<
 
     fn sample_random_layer_type(&self) -> LayerType {
         let layer_types = &self.searchspace.layer_types;
-        layer_types[scirs2_core::random::rng().random_range(0, layer_types.len())]
+        layer_types[scirs2_core::random::rng().gen_range(0..layer_types.len())]
     }
 
     fn sample_random_hidden_size(&self) -> usize {
         let hidden_sizes = &self.searchspace.hidden_sizes;
-        hidden_sizes[scirs2_core::random::rng().random_range(0, hidden_sizes.len())]
+        hidden_sizes[scirs2_core::random::rng().gen_range(0..hidden_sizes.len())]
     }
 
     fn sample_random_activation(&self) -> ActivationType {
         let activations = &self.searchspace.activation_functions;
-        activations[scirs2_core::random::rng().random_range(0, activations.len())]
+        activations[scirs2_core::random::rng().gen_range(0..activations.len())]
     }
 
     fn sample_random_connection(&self) -> ConnectionPattern {
         let connections = &self.searchspace.connection_patterns;
-        connections[scirs2_core::random::rng().random_range(0, connections.len())]
+        connections[scirs2_core::random::rng().gen_range(0..connections.len())]
     }
 
     fn action_to_layer_spec(
@@ -3279,7 +3279,7 @@ impl<
     ) -> Result<ArchitectureSpec> {
         // Use Gumbel softmax to sample discrete architectures from continuous space
         let mut layers: Vec<LayerSpec> = Vec::new();
-        let num_layers = 3 + scirs2_core::random::rng().random_range(0, 5); // 3-7 layers
+        let num_layers = 3 + scirs2_core::random::rng().gen_range(0..5); // 3-7 layers
 
         for i in 0..num_layers {
             // Sample layer type using continuous relaxation
@@ -3303,7 +3303,7 @@ impl<
             } else {
                 layers[i - 1].dimensions.output_dim
             };
-            let output_dim = 64 + scirs2_core::random::rng().random_range(0, 192); // 64-256
+            let output_dim = 64 + scirs2_core::random::rng().gen_range(0..192); // 64-256
 
             let layer_spec = LayerSpec {
                 layer_type: self.index_to_layer_type(layer_type),
@@ -3400,7 +3400,7 @@ impl<
 
         for _ in 0..2 {
             if !mostate.pareto_front.is_empty() {
-                let idx = rng.random_range(0, mostate.pareto_front.len());
+                let idx = rng.gen_range(0..mostate.pareto_front.len());
                 parents.push(mostate.pareto_front[idx].clone());
             }
         }
@@ -3773,7 +3773,7 @@ impl<T: Float + Default + Clone> PopulationManager<T> {
 
             // Select tournament participants
             for _ in 0..tournament_size.min(self.population.len()) {
-                let candidate_idx = rng.random_range(0, self.population.len());
+                let candidate_idx = rng.gen_range(0..self.population.len());
                 let candidate = &self.population[candidate_idx];
 
                 if candidate.performance.optimization_performance > best_performance {

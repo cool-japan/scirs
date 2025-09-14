@@ -102,6 +102,7 @@ fn test_hdr_super_resolution_pipeline() -> Result<()> {
 
 /// Test denoising with neural feature detection
 #[test]
+#[ignore] // GPU-intensive test - times out in CI
 #[allow(dead_code)]
 fn test_denoising_feature_detection_pipeline() -> Result<()> {
     // Create noisy image

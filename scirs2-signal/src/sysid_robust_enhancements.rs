@@ -764,7 +764,7 @@ fn bootstrap_resample(data: &[f64]) -> Vec<f64> {
     let mut rng = rand::rng();
 
     for _ in 0..n {
-        let idx = rng.random_range(0..n);
+        let idx = rng.gen_range(0..n);
         result.push(_data[idx]);
     }
     result

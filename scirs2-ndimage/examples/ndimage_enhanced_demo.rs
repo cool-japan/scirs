@@ -76,7 +76,7 @@ fn create_test_dataset() -> Vec<(String, Array2<f64>)> {
 fn create_randomimage(height: usize, width: usize) -> Array2<f64> {
     use rand::Rng;
     let mut rng = rand::rng();
-    Array2::from_shape_fn((height, width), |_| rng.gen_range(0.0..1.0))
+    Array2::from_shape_fn((height, width), |_| rng.random_range(0.0..1.0))
 }
 
 /// Create structured test image

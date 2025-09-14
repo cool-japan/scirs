@@ -53,6 +53,7 @@ where
     /// Number of block rows
     block_rows: usize,
     /// Number of block columns (needed for internal calculations)
+    #[allow(dead_code)]
     block_cols: usize,
     /// Data array (blocks stored row by row)
     data: Vec<Vec<Vec<T>>>,

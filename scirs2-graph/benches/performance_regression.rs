@@ -3,7 +3,8 @@
 //! This benchmark suite validates that performance doesn't regress between versions
 //! and establishes baseline performance metrics for various graph operations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_graph::*;
 use std::time::Duration;

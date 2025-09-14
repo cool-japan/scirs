@@ -868,7 +868,7 @@ impl<T: Float + Default + Clone> ArchitectureMutator<T> {
                 .fold(T::zero(), |acc, w| acc + w);
             
             let mut cumulative_weight = T::zero();
-            let random_weight = T::from(rng.gen::<f64>()).unwrap() * total_weight;
+            let random_weight = T::from(rng.random::<f64>()).unwrap() * total_weight;
             
             for &op_type in &applicable_ops {
                 let weight = self.config.operator_weights.get(&op_type).unwrap_or(&T::one());
@@ -1194,11 +1194,11 @@ impl<T: Float + Default + Clone> MutationOperator<T> for ParameterMutator<T> {
         if let Some(current_value) = operation.parameters.get(param_key) {
             let new_value = match &self.distribution {
                 ParameterDistribution::Gaussian { std } => {
-                    let noise = T::from(rng.gen::<f64>() - 0.5).unwrap() * *std * T::from(2.0).unwrap();
+                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *std * T::from(2.0).unwrap();
                     *current_value + noise
                 }
                 ParameterDistribution::Uniform { range } => {
-                    let noise = T::from(rng.gen::<f64>() - 0.5).unwrap() * *range * T::from(2.0).unwrap();
+                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *range * T::from(2.0).unwrap();
                     *current_value + noise
                 }
                 _ => *current_value, // Fallback

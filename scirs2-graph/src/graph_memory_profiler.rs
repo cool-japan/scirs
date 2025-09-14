@@ -1140,8 +1140,8 @@ pub fn generate_profiled_large_graph(
     let mut edges_added = 0;
     while edges_added < target_edges && edges_added < num_nodes * 10 {
         // Prevent infinite loop
-        let source = rng.random_range(0..num_nodes);
-        let target = rng.random_range(0..num_nodes);
+        let source = rng.gen_range(0..num_nodes);
+        let target = rng.gen_range(0..num_nodes);
 
         if source != target {
             let weight: f64 = rng.random();

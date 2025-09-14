@@ -1355,7 +1355,7 @@ impl<T: Float + Default + Clone + 'static> LSTMNetwork<T> {
     fn apply_dropout(&self, input: &Array1<T>) -> Result<Array1<T>> {
         // Simplified dropout implementation
         Ok(input.mapv(|x| {
-            if T::from(scirs2_core::random::rng().random_range(0.0, 1.0)).unwrap()
+            if T::from(scirs2_core::random::rng().gen_range(0.0..1.0)).unwrap()
                 < T::from(self.dropout_rate).unwrap()
             {
                 T::zero()
@@ -1420,7 +1420,7 @@ impl<T: Float + Default + Clone + 'static> LSTMLayer<T> {
     /// Xavier initialization
     fn xavier_init(rows: usize, cols: usize, scale: f64) -> Array2<T> {
         Array2::from_shape_fn((rows, cols), |_| {
-            let val = (scirs2_core::random::rng().random_range(0.0, 1.0) - 0.5) * 2.0 * scale;
+            let val = (scirs2_core::random::rng().gen_range(0.0..1.0) - 0.5) * 2.0 * scale;
             T::from(val).unwrap()
         })
     }

@@ -1,4 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use ndarray::Array1;
 use scirs2_interpolate::interp1d::monotonic::{MonotonicInterpolator, MonotonicMethod};
 use scirs2_interpolate::spline::CubicSpline;

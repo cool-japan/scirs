@@ -54,7 +54,7 @@ impl QuantumAnnealer {
         // Initialize random spin configuration
         let mut spins: Array1<i8> = Array1::zeros(self.n_qubits);
         for spin in spins.iter_mut() {
-            *spin = if rng.gen::<bool>() { 1 } else { -1 };
+            *spin = if rng.random::<bool>() { 1 } else { -1 };
         }
 
         let mut best_energy = self.compute_ising_energy(&spins, j_matrix, h_fields);
@@ -81,7 +81,7 @@ impl QuantumAnnealer {
 
                     let acceptance_prob = tunneling_probability.max(thermal_probability);
 
-                    if rng.gen::<f64>() > acceptance_prob {
+                    if rng.random::<f64>() > acceptance_prob {
                         // Reject: flip back
                         spins[i] *= -1;
                     }
@@ -173,7 +173,7 @@ impl VariationalQuantumEigensolver {
         let n_params = self.n_qubits * self.circuit_depth * 3; // 3 angles per layer per qubit
         let mut params: Array1<f64> = Array1::zeros(n_params);
         for param in params.iter_mut() {
-            *param = rng.gen::<f64>() * 2.0 * PI;
+            *param = rng.random::<f64>() * 2.0 * PI;
         }
 
         let mut best_energy = f64::INFINITY;
@@ -545,7 +545,7 @@ impl QuantumErrorCorrection {
         let mut rng = rand::rng();
 
         for syndrome in syndromes.iter_mut() {
-            *syndrome = if rng.gen::<f64>() < self.noise_parameters.measurement_error_rate {
+            *syndrome = if rng.random::<f64>() < self.noise_parameters.measurement_error_rate {
                 1
             } else {
                 0
