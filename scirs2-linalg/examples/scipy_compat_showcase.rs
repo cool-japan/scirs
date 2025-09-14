@@ -121,7 +121,7 @@ fn main() -> LinalgResult<()> {
     }
 
     // Eigenvalues only (SciPy: scipy.linalg.eigvalsh)
-    let (eigenvals_only) = compat::eigh(
+    let eigenvals_only = compat::eigh(
         &a.view(),
         None,
         false,

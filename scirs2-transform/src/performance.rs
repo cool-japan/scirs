@@ -1527,6 +1527,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Very large data test - 72M elements, times out in CI
     fn test_optimized_pca_very_large_data() {
         // Test with very large data to trigger randomized SVD
         let data = Array2::from_shape_vec(

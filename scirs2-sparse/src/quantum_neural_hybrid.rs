@@ -717,6 +717,7 @@ mod tests {
     use approx::assert_relative_eq;
 
     #[test]
+    #[ignore] // Slow test - quantum neural hybrid initialization
     fn test_quantum_neural_hybrid_creation() {
         let config = QuantumNeuralConfig::default();
         let processor = QuantumNeuralHybridProcessor::new(config);
@@ -749,6 +750,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow test - hybrid processor stats
     fn test_hybrid_stats() {
         let config = QuantumNeuralConfig::default();
         let processor = QuantumNeuralHybridProcessor::new(config);

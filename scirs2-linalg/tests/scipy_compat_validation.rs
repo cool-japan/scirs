@@ -612,6 +612,7 @@ mod performance_validation_tests {
     use std::time::Instant;
 
     #[test]
+    #[ignore] // Performance test - takes too long in CI
     fn test_operation_scaling() {
         // Test that operations scale reasonably with matrix size
         let sizes = [5, 10, 20];

@@ -389,6 +389,11 @@ pub mod utils {
             OptimizationAction::MomentumUpdate {
                 momentum: momentum_coeff,
             } => {
+                // Ensure momentum has the same shape as parameters
+                if momentum.len() != state.parameters.len() {
+                    *momentum = Array1::zeros(state.parameters.len());
+                }
+
                 // Update momentum (simplified)
                 for i in 0..momentum.len().min(state.parameters.len()) {
                     let gradient_estimate = (rand::rng().random::<f64>() - 0.5) * 0.1;
