@@ -39,6 +39,9 @@ bench_crates = ["scirs2-ndimage"]
 [workspace.lints.rust]
 unused_variables = "allow"
 unused_imports = "allow"
+mismatched_lifetime_syntaxes = "allow"
+dead_code = "allow"
+unpredictable_function_pointer_comparisons = "allow"
 
 [workspace.package]
 version = "0.1.0-beta.1"

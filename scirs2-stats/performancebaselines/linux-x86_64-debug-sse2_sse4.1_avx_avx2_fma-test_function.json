@@ -1,0 +1,54 @@
+{
+  "platform": {
+    "os": "linux",
+    "arch": "x86_64",
+    "cpu_model": "Intel AVX2 Compatible",
+    "cpu_cores": 6,
+    "memory_gb": 8,
+    "rustc_version": "unknown",
+    "optimization_level": "debug",
+    "simd_capabilities": [
+      "sse2",
+      "sse4.1",
+      "avx",
+      "avx2",
+      "fma"
+    ]
+  },
+  "function_name": "test_function",
+  "input_parameters": "inputsize_100",
+  "measurements": [
+    {
+      "timestamp": 1757882856,
+      "execution_time_ns": 1000.0,
+      "memory_usage_bytes": 1024,
+      "iterations": 100,
+      "hardware_context": {
+        "cpu_utilization": 50.0,
+        "available_memory_percent": 75.0,
+        "cpu_frequency_mhz": 3000.0,
+        "temperature_celsius": null
+      },
+      "compiler_context": {
+        "rustc_version": "unknown",
+        "target_triple": "unknown-target",
+        "optimization_flags": [],
+        "feature_flags": []
+      }
+    }
+  ],
+  "statistics": {
+    "mean_time_ns": 1000.0,
+    "std_dev_time_ns": 0.0,
+    "median_time_ns": 1000.0,
+    "p95_time_ns": 1000.0,
+    "p99_time_ns": 1000.0,
+    "coefficient_of_variation": 0.0,
+    "confidence_interval_95": [
+      1000.0,
+      1000.0
+    ],
+    "sample_count": 1
+  },
+  "last_updated": 1757882856
+}
