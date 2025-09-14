@@ -45,7 +45,7 @@ SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust,
 
 ## Project Scale
 
-This project now contains **over 2 million lines of code** and runs **over 6,500 tests** across all modules, demonstrating the comprehensive nature of the SciRS2 ecosystem.
+This project now contains **over 2 million lines of code** and runs **over 9,000 tests** across all modules, demonstrating the comprehensive nature of the SciRS2 ecosystem.
 
 ## Project Goals
 

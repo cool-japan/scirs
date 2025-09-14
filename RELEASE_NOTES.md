@@ -2,7 +2,7 @@
 
 ## 🎉 First Beta Release!
 
-We are excited to announce the first beta release of SciRS2, a comprehensive scientific computing and AI/ML infrastructure in Rust. After months of development, we've reached a significant milestone with over 2 million lines of code and 6,500+ tests.
+We are excited to announce the first beta release of SciRS2, a comprehensive scientific computing and AI/ML infrastructure in Rust. After months of development, we've reached a significant milestone with over 2 million lines of code and 9,000+ tests.
 
 ## ✨ Key Features
 
