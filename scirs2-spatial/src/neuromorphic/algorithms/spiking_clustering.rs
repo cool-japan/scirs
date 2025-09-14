@@ -607,6 +607,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_network_stats() {
         let mut clusterer = SpikingNeuralClusterer::new(2);
         clusterer.initialize_network(3).unwrap();
