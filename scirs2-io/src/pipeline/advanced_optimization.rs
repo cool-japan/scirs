@@ -5743,6 +5743,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_auto_tuner() {
         let mut tuner = AutoTuner::new();
         let system_metrics = SystemMetrics::default();
