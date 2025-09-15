@@ -95,7 +95,7 @@ chrono = "0.4.41"
 
 # Python bindings (optional)
 pyo3 = { version = "0.25.1", features = ["extension-module", "auto-initialize"] }
-numpy = { version = "0.25.0" }
+numpy = { version = "0.26.0" }
 
 # Linear algebra and math (heavy dependencies - minimize features)
 nalgebra = { version = "0.33.2", default-features = false }
