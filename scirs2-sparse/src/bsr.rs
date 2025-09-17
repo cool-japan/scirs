@@ -203,6 +203,33 @@ where
         self.block_size
     }
 
+    /// Get immutable access to the row pointers (indptr) array
+    ///
+    /// The indptr array indicates where each block row starts in the indices
+    /// and data arrays. Specifically, block row `i` contains blocks
+    /// `indptr[i]..indptr[i+1]`.
+    pub fn indptr(&self) -> &[usize] {
+        &self.indptr
+    }
+
+    /// Get immutable access to the column indices array
+    ///
+    /// The indices array contains the block column indices for each stored block.
+    /// The indices for block row `i` are stored in
+    /// `indices[indptr[i]..indptr[i+1]]`.
+    pub fn indices(&self) -> &[Vec<usize>] {
+        &self.indices
+    }
+
+    /// Get mutable access to the block data array
+    ///
+    /// The data array contains the non-zero blocks of the matrix, stored in
+    /// row-major order. Each block is a 2D array (Vec<Vec<T>>) with dimensions
+    /// matching the block size of the matrix.
+    pub fn data_mut(&mut self) -> &mut [Vec<Vec<T>>] {
+        &mut self.data
+    }
+
     /// Get the number of non-zero blocks in the matrix
     pub fn nnz_blocks(&self) -> usize {
         self.data.len()

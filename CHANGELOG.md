@@ -38,6 +38,10 @@ We are excited to announce the first beta release of SciRS2! This release marks 
 - **scirs2-stats**: Enhanced numerical stability in statistical computations
 - **scirs2-optimize**: Better convergence handling for optimization algorithms
 
+### Other enhancements
+- New functions to access BsrMatrix struct fields, to solve [Issue #48](https://github.com/cool-japan/scirs/issues/48).
+
+
 ## 🐛 Bug Fixes
 
 - Fixed race conditions in parallel chunk processing
