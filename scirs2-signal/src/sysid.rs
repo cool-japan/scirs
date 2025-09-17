@@ -75,6 +75,7 @@ use crate::window::get_window;
 use ndarray::{Array1, Array2, Axis};
 use num_complex::Complex64;
 use statrs::statistics::Statistics;
+use std::f64::consts::PI;
 
 #[allow(unused_imports)]
 /// Methods for transfer function estimation
@@ -353,7 +354,8 @@ fn estimate_tf_least_squares(
 
     // Calculate error variance
     let residuals = &y_vec - &y_pred;
-    let error_variance = residuals.mapv(|x| x * x).mean().unwrap_or(0.0);
+    let sq = residuals.mapv(|x| x * x);
+    let error_variance = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
 
     Ok(TfEstimationResult {
         numerator,
@@ -468,7 +470,8 @@ fn estimate_tf_instrumental_variable(
     let y_pred = phi.dot(&theta);
     let fit_percentage = calculate_fit_percentage(&y_vec, &y_pred);
     let residuals = &y_vec - &y_pred;
-    let error_variance = residuals.mapv(|x| x * x).mean().unwrap_or(0.0);
+    let sq = residuals.mapv(|x| x * x);
+    let error_variance = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
 
     Ok(TfEstimationResult {
         numerator,
@@ -908,9 +911,9 @@ pub fn identify_ar_model(
     method: ARMethod,
     selection_criterion: OrderSelection,
 ) -> SignalResult<ParametricResult> {
-    // Select optimal _order
+    // Select optimal order
     let (optimal_order, criteria) =
-        crate::parametric::select_ar_order(signal, max_order, selection_criterion, method)?;
+        crate::parametric::select_arorder(signal, max_order, selection_criterion, method)?;
 
     // Estimate AR parameters with optimal _order
     let (ar_coeffs, reflection_coeffs, noise_var) = estimate_ar(signal, optimal_order, method)?;
@@ -1017,7 +1020,8 @@ pub fn validate_model(
     let residuals = actual - predicted;
 
     // Mean squared error
-    let mse = residuals.mapv(|x| x * x).mean().unwrap_or(0.0);
+    let sq = residuals.mapv(|x| x * x);
+    let mse = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
 
     // R-squared
     let y_mean = actual.mean().unwrap_or(0.0);
@@ -1126,9 +1130,9 @@ impl RecursiveLeastSquares {
     ///
     /// # Returns
     /// * New RLS estimator
-    pub fn new(_dimension: usize, forgetting_factor: f64, initialcovariance: f64) -> Self {
-        let parameters = Array1::<f64>::zeros(_dimension);
-        let _covariance = Array2::<f64>::eye(_dimension) * initial_covariance;
+    pub fn new(dimension: usize, forgetting_factor: f64, initial_covariance: f64) -> Self {
+        let parameters = Array1::<f64>::zeros(dimension);
+        let covariance = Array2::<f64>::eye(dimension) * initial_covariance;
 
         Self {
             parameters,
@@ -1146,7 +1150,7 @@ impl RecursiveLeastSquares {
     ///
     /// # Returns
     /// * Prediction error
-    pub fn update(&mut self, regressionvector: &Array1<f64>, output: f64) -> SignalResult<f64> {
+    pub fn update(&mut self, regression_vector: &Array1<f64>, output: f64) -> SignalResult<f64> {
         if regression_vector.len() != self.dimension {
             return Err(SignalError::ValueError(
                 "Regression _vector dimension mismatch".to_string(),
@@ -1199,14 +1203,18 @@ impl RecursiveLeastSquares {
 /// Helper function to calculate model fit percentage
 #[allow(dead_code)]
 fn calculate_fit_percentage(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
-    let mean_actual = actual.mean().unwrap_or(0.0);
+    let mean_actual = if actual.len() > 0 {
+        actual.iter().copied().sum::<f64>() / actual.len() as f64
+    } else {
+        0.0
+    };
     let ss_tot = actual.mapv(|y| (y - mean_actual).powi(2)).sum();
 
     if ss_tot < 1e-12 {
         return 0.0;
     }
 
-    let ss_res = (_actual - predicted).mapv(|x| x * x).sum();
+    let ss_res = (actual - predicted).mapv(|x| x * x).sum();
     let fit = 1.0 - ss_res / ss_tot;
 
     (100.0 * fit).clamp(0.0, 100.0)
@@ -1214,25 +1222,22 @@ fn calculate_fit_percentage(actual: &Array1<f64>, predicted: &Array1<f64>) -> f6
 
 /// Simple Ljung-Box test for residual whiteness
 #[allow(dead_code)]
-fn ljung_box_test(_residuals: &Array1<f64>, maxlag: usize) -> f64 {
+fn ljung_box_test(residuals: &Array1<f64>, maxlag: usize) -> f64 {
     let n = residuals.len();
-    if n <= max_lag {
+    if n <= maxlag {
         return 1.0; // Cannot perform test
     }
 
     // Calculate autocorrelations
-    let mean_residual = residuals.mean().unwrap_or(0.0);
-    let var_residual = _residuals
-        .mapv(|x| (x - mean_residual).powi(2))
-        .mean()
-        .unwrap_or(1.0);
+    let mean_residual = residuals.iter().copied().sum::<f64>() / n as f64;
+    let var_residual = residuals.mapv(|x| (x - mean_residual).powi(2)).sum() / n as f64;
 
     let mut lb_stat = 0.0;
 
-    for _lag in 1..=max_lag {
+    for lag in 1..=maxlag {
         let mut autocorr = 0.0;
         for t in lag..n {
-            autocorr += (_residuals[t] - mean_residual) * (_residuals[t - _lag] - mean_residual);
+            autocorr += (residuals[t] - mean_residual) * (residuals[t - lag] - mean_residual);
         }
         autocorr /= (n - lag) as f64 * var_residual;
 
@@ -1607,18 +1612,15 @@ pub fn adaptive_robust_identification(
 // Helper functions for robust estimation
 
 #[allow(dead_code)]
-fn solve_least_squares(
-    _regressor: &Array2<f64>,
-    target: &Array1<f64>,
-) -> SignalResult<Array1<f64>> {
+fn solve_least_squares(regressor: &Array2<f64>, target: &Array1<f64>) -> SignalResult<Array1<f64>> {
     // Simple normal equations solution (A^T A)^-1 A^T b
     let at = regressor.t();
-    let ata = at.dot(_regressor);
+    let ata = at.dot(regressor);
     let atb = at.dot(target);
 
     // Solve using pseudo-inverse (simplified)
-    let mut result = Array1::zeros(_regressor.ncols());
-    for i in 0.._regressor.ncols() {
+    let mut result = Array1::zeros(regressor.ncols());
+    for i in 0..regressor.ncols() {
         if i < atb.len() {
             result[i] = atb[i] / (ata[[i, i]] + 1e-12);
         }
@@ -1691,7 +1693,7 @@ pub fn estimate_robust_scale(
 
 #[allow(dead_code)]
 pub fn detect_outliers(residuals: &Array1<f64>, scale: f64, threshold: f64) -> Vec<usize> {
-    _residuals
+    residuals
         .iter()
         .enumerate()
         .filter_map(|(i, &r)| {

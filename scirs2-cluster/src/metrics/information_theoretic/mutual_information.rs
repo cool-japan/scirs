@@ -33,7 +33,7 @@ use crate::error::{ClusteringError, Result};
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 /// let pred_labels = Array1::from_vec(vec![0, 0, 1, 1, 1, 2]);
 ///
-/// let mi: f64 = mutual_info_score::<F>(true_labels.view(), pred_labels.view()).unwrap();
+/// let mi: f64 = mutual_info_score(true_labels.view(), pred_labels.view()).unwrap();
 /// assert!(mi > 0.0);
 /// ```
 pub fn mutual_info_score<F>(labels_true: ArrayView1<i32>, labels_pred: ArrayView1<i32>) -> Result<F>

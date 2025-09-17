@@ -1,0 +1,52 @@
+{
+  "model": {
+    "centroids": {
+      "v": 1,
+      "dim": [
+        3,
+        2
+      ],
+      "data": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        2.0,
+        2.0
+      ]
+    },
+    "n_clusters": 3,
+    "n_iter": 10,
+    "inertia": 0.5,
+    "labels": null
+  },
+  "metadata": {
+    "format_version": "1.0.0",
+    "library_version": "0.1.0-beta.2",
+    "created_timestamp": 1758125130,
+    "algorithm_signature": "kmeans",
+    "training_metrics": {
+      "training_time_ms": 0,
+      "iterations": 0,
+      "final_convergence_metric": 0.0,
+      "peak_memory_bytes": 0,
+      "avg_cpu_utilization": 0.0
+    },
+    "data_characteristics": {
+      "n_samples": 0,
+      "n_features": 0,
+      "data_type_fingerprint": "unknown",
+      "feature_ranges": null,
+      "preprocessing_applied": []
+    },
+    "integrity_hash": "",
+    "platform_info": {
+      "os": "macos",
+      "arch": "aarch64",
+      "rust_version": "unknown",
+      "cpu_features": [
+        "neon"
+      ]
+    }
+  }
+}

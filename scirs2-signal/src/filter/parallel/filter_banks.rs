@@ -345,14 +345,8 @@ mod tests {
             .map(|i| (2.0 * PI * i as f64 / 10.0).sin())
             .collect();
 
-        let numerators = vec![
-            vec![0.5, 0.5],
-            vec![1.0, -1.0],
-        ];
-        let denominators = vec![
-            vec![1.0],
-            vec![1.0],
-        ];
+        let numerators = vec![vec![0.5, 0.5], vec![1.0, -1.0]];
+        let denominators = vec![vec![1.0], vec![1.0]];
 
         let results = parallel_iir_filter_bank(&signal, &numerators, &denominators, None).unwrap();
         assert_eq!(results.len(), 2);
@@ -394,10 +388,7 @@ mod tests {
             .collect();
 
         // Create simple polyphase filters
-        let polyphase_filters = vec![
-            vec![0.5, 0.3],
-            vec![0.3, 0.5],
-        ];
+        let polyphase_filters = vec![vec![0.5, 0.3], vec![0.3, 0.5]];
 
         let result = parallel_polyphase_filter(&signal, &polyphase_filters, 2, None).unwrap();
         assert_eq!(result.len(), signal.len() / 2);

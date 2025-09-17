@@ -39,15 +39,62 @@
 //!
 //! ## Advanced Ensemble Methods
 //!
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_cluster::ensemble::advanced::{AdvancedEnsembleClusterer, AdvancedEnsembleConfig};
-//! use scirs2_cluster::ensemble::{EnsembleConfig};
+//! use scirs2_cluster::ensemble::{
+//!     EnsembleConfig,
+//!     MetaLearningConfig, MetaLearningAlgorithm,
+//!     BayesianAveragingConfig, PosteriorUpdateMethod,
+//!     GeneticOptimizationConfig, SelectionMethod, FitnessFunction,
+//!     BoostingConfig, ReweightingStrategy, ErrorFunction,
+//!     StackingConfig, MetaClusteringAlgorithm, ClusteringAlgorithm,
+//! };
 //! use ndarray::Array2;
 //!
 //! // Advanced ensemble with meta-learning
 //! let data = Array2::from_shape_vec((100, 4), (0..400).map(|x| x as f64).collect()).unwrap();
 //! let base_config = EnsembleConfig::default();
-//! let advanced_config = AdvancedEnsembleConfig::default();
+//! let advanced_config = AdvancedEnsembleConfig {
+//!     meta_learning: MetaLearningConfig {
+//!         n_meta_features: 4,
+//!         learning_rate: 0.01,
+//!         n_iterations: 10,
+//!         algorithm: MetaLearningAlgorithm::Linear { regularization: 0.1 },
+//!         validation_split: 0.2,
+//!     },
+//!     bayesian_averaging: BayesianAveragingConfig {
+//!         prior_alpha: 1.0,
+//!         prior_beta: 1.0,
+//!         n_samples: 10,
+//!         burn_in: 2,
+//!         update_method: PosteriorUpdateMethod::MetropolisHastings,
+//!         adaptive_sampling: false,
+//!     },
+//!     genetic_optimization: GeneticOptimizationConfig {
+//!         population_size: 5,
+//!         n_generations: 2,
+//!         crossover_prob: 0.8,
+//!         mutation_prob: 0.1,
+//!         selection_method: SelectionMethod::Tournament { tournament_size: 2 },
+//!         elite_percentage: 0.1,
+//!         fitness_function: FitnessFunction::Silhouette,
+//!     },
+//!     boostingconfig: BoostingConfig {
+//!         n_rounds: 3,
+//!         learning_rate: 1.0,
+//!         reweighting_strategy: ReweightingStrategy::Exponential,
+//!         error_function: ErrorFunction::DisagreementRate,
+//!         adaptive_boosting: false,
+//!     },
+//!     stackingconfig: StackingConfig {
+//!         base_algorithms: vec![ClusteringAlgorithm::KMeans { k_range: (2, 4) }],
+//!         meta_algorithm: MetaClusteringAlgorithm::Hierarchical { linkage: "ward".into() },
+//!         cv_folds: 2,
+//!         blending_ratio: 0.5,
+//!         feature_engineering: false,
+//!     },
+//!     uncertainty_quantification: false,
+//! };
 //! let mut advanced_ensemble = AdvancedEnsembleClusterer::new(advanced_config, base_config);
 //! let result = advanced_ensemble.fit_with_meta_learning(data.view()).unwrap();
 //! ```

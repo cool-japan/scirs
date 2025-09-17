@@ -143,7 +143,7 @@ pub struct RobustParametricConfig {
 }
 
 /// Scale estimator types for robust estimation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScaleEstimator {
     MAD,
     Rousseeuw,
@@ -178,7 +178,7 @@ pub struct HighResolutionConfig {
 }
 
 /// High-resolution spectral estimation methods
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HighResolutionMethod {
     MUSIC,
     ESPRIT,

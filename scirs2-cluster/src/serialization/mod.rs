@@ -9,32 +9,33 @@
 //!
 //! ```rust
 //! use scirs2_cluster::serialization::{SerializableModel, EnhancedModel};
-//! use scirs2_cluster::algorithms::kmeans::KMeans;
 //! use ndarray::Array2;
 //!
-//! // Create and train a model
-//! let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
-//! let mut kmeans = KMeans::new(3);
-//! let model = kmeans.fit(&data).unwrap();
+//! // Pretend we trained a KMeans and have centroids
+//! let centroids = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
+//! let model = scirs2_cluster::KMeansModel::new(centroids, 3, 10, 0.5, None);
 //!
 //! // Save model with enhanced metadata
 //! let enhanced_model = EnhancedModel::with_auto_metadata(model, "kmeans");
 //! enhanced_model.save_to_file("model.json").unwrap();
 //!
 //! // Load model back
-//! let loaded_model = EnhancedModel::load_from_file("model.json").unwrap();
+//! let loaded_model: EnhancedModel<scirs2_cluster::KMeansModel> = EnhancedModel::load_from_file("model.json").unwrap();
 //! ```
 //!
 //! ## Advanced Export with Multiple Formats
 //!
 //! ```rust
 //! use scirs2_cluster::serialization::{AdvancedExport, ExportFormat, ModelMetadata};
+//! use ndarray::Array2;
 //! use scirs2_cluster::serialization::utils::create_default_metadata;
 //!
 //! // Export model in different formats
+//! let centroids = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
+//! let model = scirs2_cluster::KMeansModel::new(centroids, 2, 10, 0.1, None);
 //! let metadata = create_default_metadata("kmeans");
 //! let json_data = model.export_with_metadata(ExportFormat::Json, Some(metadata)).unwrap();
-//! let yaml_data = model.export_with_metadata(ExportFormat::Yaml, None).unwrap();
+//! // YAML export requires enabling the `yaml` feature
 //!
 //! // Export for compatibility with other libraries
 //! let sklearn_format = model.export_compatible("sklearn").unwrap();
@@ -44,20 +45,27 @@
 //! ## Workflow Management
 //!
 //! ```rust
-//! use scirs2_cluster::serialization::{ClusteringWorkflow, WorkflowConfig, WorkflowState};
+//! use scirs2_cluster::serialization::{ClusteringWorkflow, WorkflowConfig, TrainingStep};
 //!
 //! // Create and manage clustering workflows
 //! let config = WorkflowConfig::default();
 //! let mut workflow = ClusteringWorkflow::new("my_experiment".to_string(), config);
 //!
-//! // Execute workflow with automatic checkpointing
-//! workflow.start().unwrap();
-//! workflow.add_step("data_preprocessing", serde_json::json!({"normalize": true})).unwrap();
-//! workflow.execute_step().unwrap();
+//! // Add and execute a simple step
+//! workflow.add_step(TrainingStep {
+//!     name: "data_preprocessing".to_string(),
+//!     algorithm: "kmeans".to_string(),
+//!     parameters: Default::default(),
+//!     dependencies: vec![],
+//!     completed: false,
+//!     execution_time: None,
+//!     results: None,
+//! });
+//! workflow.execute().unwrap();
 //!
 //! // Save and resume workflow state
-//! workflow.save_checkpoint("checkpoint.json").unwrap();
-//! let resumed_workflow = ClusteringWorkflow::load_from_checkpoint("checkpoint.json").unwrap();
+//! // Save and load checkpoint using default path in config
+//! // Note: to actually create a checkpoint file, set `checkpoint_dir` in `WorkflowConfig`.
 //! ```
 
 pub mod compatibility;

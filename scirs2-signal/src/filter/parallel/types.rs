@@ -94,7 +94,10 @@ mod tests {
         };
 
         match iir_filter {
-            ParallelFilterType::IIR { numerator, denominator } => {
+            ParallelFilterType::IIR {
+                numerator,
+                denominator,
+            } => {
                 assert_eq!(numerator, vec![1.0, 2.0]);
                 assert_eq!(denominator, vec![1.0, -0.5]);
             }

@@ -199,12 +199,7 @@ pub fn parallel_morphological_reconstruction(
         previous = current.clone();
 
         // Apply morphological operation
-        current = parallel_morphological_filter(
-            &current,
-            structuring_element,
-            operation,
-            None,
-        )?;
+        current = parallel_morphological_filter(&current, structuring_element, operation, None)?;
 
         // Apply constraint (point-wise min/max with mask)
         match operation {
@@ -318,7 +313,10 @@ pub fn parallel_morphological_gradient(
     structuring_element: &[f64],
 ) -> SignalResult<Vec<f64>> {
     // Compute dilation and erosion in parallel
-    let operations = [MorphologicalOperation::Dilation, MorphologicalOperation::Erosion];
+    let operations = [
+        MorphologicalOperation::Dilation,
+        MorphologicalOperation::Erosion,
+    ];
 
     let results: Vec<Vec<f64>> = par_iter_with_setup(
         operations.iter().enumerate(),
@@ -424,27 +422,27 @@ mod tests {
         let se = vec![1.0, 1.0, 1.0];
 
         // Test erosion
-        let eroded = parallel_morphological_filter(
-            &signal, &se, MorphologicalOperation::Erosion, None
-        ).unwrap();
+        let eroded =
+            parallel_morphological_filter(&signal, &se, MorphologicalOperation::Erosion, None)
+                .unwrap();
         assert_eq!(eroded.len(), signal.len());
 
         // Test dilation
-        let dilated = parallel_morphological_filter(
-            &signal, &se, MorphologicalOperation::Dilation, None
-        ).unwrap();
+        let dilated =
+            parallel_morphological_filter(&signal, &se, MorphologicalOperation::Dilation, None)
+                .unwrap();
         assert_eq!(dilated.len(), signal.len());
 
         // Test opening
-        let opened = parallel_morphological_filter(
-            &signal, &se, MorphologicalOperation::Opening, None
-        ).unwrap();
+        let opened =
+            parallel_morphological_filter(&signal, &se, MorphologicalOperation::Opening, None)
+                .unwrap();
         assert_eq!(opened.len(), signal.len());
 
         // Test closing
-        let closed = parallel_morphological_filter(
-            &signal, &se, MorphologicalOperation::Closing, None
-        ).unwrap();
+        let closed =
+            parallel_morphological_filter(&signal, &se, MorphologicalOperation::Closing, None)
+                .unwrap();
         assert_eq!(closed.len(), signal.len());
     }
 
@@ -508,7 +506,8 @@ mod tests {
             &se,
             MorphologicalOperation::Dilation,
             10,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(reconstructed.len(), marker.len());
 
@@ -526,7 +525,7 @@ mod tests {
         let eroded = apply_erosion(&signal, 2, &se, 3);
         let dilated = apply_dilation(&signal, 2, &se, 3);
 
-        assert!(eroded <= signal[2]);  // Erosion should not increase values
+        assert!(eroded <= signal[2]); // Erosion should not increase values
         assert!(dilated >= signal[2]); // Dilation should not decrease values
     }
 }

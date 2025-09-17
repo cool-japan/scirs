@@ -179,6 +179,8 @@ pub struct AutoregressiveExtrapolationConfig<T: Float> {
     pub max_steps: usize,
     /// Whether to apply trend adjustment
     pub trend_adjustment: bool,
+    /// Regularization parameter for AR fitting
+    pub regularization: T,
 }
 
 impl<T: Float> Default for AutoregressiveExtrapolationConfig<T> {
@@ -188,6 +190,7 @@ impl<T: Float> Default for AutoregressiveExtrapolationConfig<T> {
             fitting_method: ARFittingMethod::YuleWalker,
             max_steps: 100,
             trend_adjustment: true,
+            regularization: T::from(1e-6).unwrap_or(T::zero()),
         }
     }
 }

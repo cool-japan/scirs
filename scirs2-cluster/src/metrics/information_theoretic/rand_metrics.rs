@@ -27,7 +27,7 @@ use crate::error::{ClusteringError, Result};
 /// # Example
 /// ```rust
 /// use ndarray::Array1;
-/// use scirs2_cluster::metrics::rand_score;
+/// use scirs2_cluster::metrics::information_theoretic::rand_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1]);
 /// let pred_labels = Array1::from_vec(vec![0, 1, 0, 1]);

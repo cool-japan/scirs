@@ -14,7 +14,7 @@ pub use types::{PosTagResult, PosTaggerConfig, PosTaggingResult};
 
 // Simplified implementations of the specialized components
 use crate::error::Result;
-use crate::stemming::PosTag;
+use crate::stemming::{PosTag, RuleLemmatizer};
 use crate::tokenize::Tokenizer;
 use scirs2_core::parallel_ops;
 
@@ -135,6 +135,8 @@ impl Default for ContextualDisambiguator {
 pub struct PosAwareLemmatizer {
     /// Base lemmatizer rules
     use_pos_rules: bool,
+    /// Underlying rule-based lemmatizer for exceptions and dictionary lookups
+    rule_lemmatizer: RuleLemmatizer,
 }
 
 impl PosAwareLemmatizer {
@@ -142,6 +144,7 @@ impl PosAwareLemmatizer {
     pub fn new() -> Self {
         Self {
             use_pos_rules: true,
+            rule_lemmatizer: RuleLemmatizer::new(),
         }
     }
 
@@ -152,6 +155,7 @@ impl PosAwareLemmatizer {
     ) -> Self {
         Self {
             use_pos_rules: true,
+            rule_lemmatizer: RuleLemmatizer::with_config(_lemma_config),
         }
     }
 
@@ -159,6 +163,13 @@ impl PosAwareLemmatizer {
     pub fn lemmatize(&self, word: &str, pos_tag: &PosTag) -> String {
         let lower_word = word.to_lowercase();
 
+        // First consult the rule-based lemmatizer (covers exceptions and dictionary)
+        let rl_result = self.rule_lemmatizer.lemmatize(word, Some(pos_tag.clone()));
+        if rl_result.to_lowercase() != lower_word {
+            return rl_result;
+        }
+
+        // Fallback to simple rule-based transformations when no exception/dict match
         match pos_tag {
             PosTag::Verb => self.lemmatize_verb(&lower_word),
             PosTag::Noun => self.lemmatize_noun(&lower_word),

@@ -81,7 +81,7 @@ pub struct StabilityResult<F: Float> {
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array2;
+/// use ndarray::{Array1, Array2};
 /// use scirs2_cluster::metrics::bootstrap_confidence_interval;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0]).unwrap();

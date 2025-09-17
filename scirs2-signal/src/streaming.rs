@@ -43,7 +43,7 @@
 // ```
 
 use crate::error::{SignalError, SignalResult};
-use crate::lombscargle_enhanced::WindowType;
+use crate::lombscargle::WindowType;
 use crate::streaming_stft::{StreamingStft, StreamingStftConfig};
 use crate::utilities::spectral::spectral_centroid;
 use crate::utilities::spectral::spectral_flux;
@@ -659,7 +659,9 @@ impl StreamingProcessor {
         let buffer_array = Array1::from_vec(buffer_vec);
 
         // Time-domain features
-        let rms = (buffer_array.mapv(|x| x * x).mean().unwrap_or(0.0)).sqrt();
+    let sq = buffer_array.mapv(|x| x * x);
+    let mean_sq = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
+    let rms = mean_sq.sqrt();
         let peak = buffer_array.iter().map(|x| x.abs()).fold(0.0, f64::max);
         let zero_crossing_rate = self.compute_zero_crossing_rate(&buffer_array);
 

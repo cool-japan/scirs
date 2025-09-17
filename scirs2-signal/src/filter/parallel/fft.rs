@@ -210,10 +210,8 @@ pub fn parallel_overlap_add_convolution(
     let ifft = planner.plan_fft_inverse(fft_size);
 
     // Zero-pad and FFT the kernel
-    let mut kernel_padded: Vec<Complex<f64>> = kernel
-        .iter()
-        .map(|&x| Complex::new(x, 0.0))
-        .collect();
+    let mut kernel_padded: Vec<Complex<f64>> =
+        kernel.iter().map(|&x| Complex::new(x, 0.0)).collect();
     kernel_padded.resize(fft_size, Complex::new(0.0, 0.0));
 
     let mut kernel_fft = kernel_padded;
@@ -308,10 +306,8 @@ pub fn parallel_overlap_save_convolution(
     let ifft = planner.plan_fft_inverse(fft_size);
 
     // Zero-pad and FFT the kernel
-    let mut kernel_padded: Vec<Complex<f64>> = kernel
-        .iter()
-        .map(|&x| Complex::new(x, 0.0))
-        .collect();
+    let mut kernel_padded: Vec<Complex<f64>> =
+        kernel.iter().map(|&x| Complex::new(x, 0.0)).collect();
     kernel_padded.resize(fft_size, Complex::new(0.0, 0.0));
 
     let mut kernel_fft = kernel_padded;
@@ -388,13 +384,15 @@ fn apply_window(coefficients: &mut [f64], window_type: &str) -> SignalResult<()>
         }
         "hamming" => {
             for (i, coeff) in coefficients.iter_mut().enumerate() {
-                let window_val = 0.54 - 0.46 * (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos();
+                let window_val =
+                    0.54 - 0.46 * (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos();
                 *coeff *= window_val;
             }
         }
         "hanning" => {
             for (i, coeff) in coefficients.iter_mut().enumerate() {
-                let window_val = 0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos());
+                let window_val =
+                    0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / (n - 1) as f64).cos());
                 *coeff *= window_val;
             }
         }
@@ -442,7 +440,7 @@ mod tests {
         // Create a simple lowpass frequency response
         let mut frequency_response = vec![Complex::new(0.0, 0.0); fft_size];
         // Set lowpass response (keep low frequencies, zero high frequencies)
-        for i in 0..fft_size/8 {
+        for i in 0..fft_size / 8 {
             frequency_response[i] = Complex::new(1.0, 0.0);
             frequency_response[fft_size - i - 1] = Complex::new(1.0, 0.0);
         }

@@ -370,16 +370,11 @@ mod tests {
 
     #[test]
     fn test_parallel_convolve2d() {
-        let image = Array2::from_shape_vec((3, 3), vec![
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 9.0
-        ]).unwrap();
+        let image =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .unwrap();
 
-        let kernel = Array2::from_shape_vec((2, 2), vec![
-            0.25, 0.25,
-            0.25, 0.25
-        ]).unwrap();
+        let kernel = Array2::from_shape_vec((2, 2), vec![0.25, 0.25, 0.25, 0.25]).unwrap();
 
         let result = parallel_convolve2d(&image, &kernel, "valid", "zero");
         assert!(result.is_ok());

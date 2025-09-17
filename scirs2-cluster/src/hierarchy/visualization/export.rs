@@ -62,7 +62,7 @@ impl<F: Float> DendrogramPlot<F> {
     /// * `Result<String>` - HTML document as a string
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,no_run
     /// # use scirs2_cluster::hierarchy::visualization::{DendrogramPlot, DendrogramConfig};
     /// # let plot: DendrogramPlot<f64> = todo!(); // Assume plot exists
     /// let html = plot.to_html().unwrap();

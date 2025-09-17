@@ -378,7 +378,8 @@ pub fn parallel_percentile_filter(
                 window.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
                 // Calculate percentile index
-                let percentile_index = ((percentile / 100.0) * (window.len() - 1) as f64).round() as usize;
+                let percentile_index =
+                    ((percentile / 100.0) * (window.len() - 1) as f64).round() as usize;
                 let percentile_val = window[percentile_index.min(window.len() - 1)];
                 chunk_result.push(percentile_val);
             }

@@ -54,6 +54,7 @@ pub mod dwt2d_enhanced;
 pub mod wavelets;
 
 // Additional signal processing modules
+pub mod denoise_enhanced;
 pub mod emd;
 pub mod hilbert;
 pub mod median;
@@ -70,6 +71,8 @@ pub mod waveforms;
 // TODO: Re-add these modules incrementally after fixing compilation errors
 // Lomb-Scargle periodogram module (refactored)
 pub mod lombscargle;
+pub mod lombscargle_scipy_validation;
+pub mod lombscargle_enhanced;
 // pub mod utilities;
 pub mod simd_advanced;
 // pub mod cqt;

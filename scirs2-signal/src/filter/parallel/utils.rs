@@ -4,6 +4,7 @@
 //! the parallel filtering modules.
 
 use crate::error::{SignalError, SignalResult};
+use rand::Rng;
 
 /// Generate a test signal for filter testing
 ///
@@ -76,10 +77,11 @@ fn generate_gaussian_noise(noise_level: f64) -> f64 {
 
         HAVE_SPARE = true;
 
-        let u = fastrand::f64();
-        let v = fastrand::f64();
+        let mut rng = rand::rng();
+        let u = rng.gen::<f64>();
+        let v = rng.gen::<f64>();
 
-        let magnitude = noise_level * (-2.0 * u.ln()).sqrt();
+        let magnitude = noise_level * (-2.0_f64 * u.ln()).sqrt();
         let angle = 2.0 * PI * v;
 
         SPARE = magnitude * angle.cos();
@@ -157,7 +159,8 @@ pub fn compute_mse(reference: &[f64], test: &[f64]) -> SignalResult<f64> {
         .iter()
         .zip(test.iter())
         .map(|(&r, &t)| (r - t).powi(2))
-        .sum::<f64>() / reference.len() as f64;
+        .sum::<f64>()
+        / reference.len() as f64;
 
     Ok(mse)
 }
@@ -368,14 +371,11 @@ pub fn find_peaks(signal: &[f64], min_distance: usize, threshold: f64) -> Vec<us
     let mut peaks = Vec::new();
 
     for i in 1..signal.len() - 1 {
-        if signal[i] > signal[i - 1]
-            && signal[i] > signal[i + 1]
-            && signal[i] > threshold
-        {
+        if signal[i] > signal[i - 1] && signal[i] > signal[i + 1] && signal[i] > threshold {
             // Check minimum distance constraint
-            let too_close = peaks.iter().any(|&peak_idx| {
-                (i as isize - peak_idx as isize).abs() < min_distance as isize
-            });
+            let too_close = peaks
+                .iter()
+                .any(|&peak_idx| (i as isize - peak_idx as isize).abs() < min_distance as isize);
 
             if !too_close {
                 peaks.push(i);
@@ -400,7 +400,7 @@ pub fn find_peaks(signal: &[f64], min_distance: usize, threshold: f64) -> Vec<us
 pub fn welch_psd_estimate(
     signal: &[f64],
     window_size: usize,
-    overlap_factor: f64
+    overlap_factor: f64,
 ) -> SignalResult<Vec<f64>> {
     if signal.is_empty() || window_size == 0 {
         return Err(SignalError::ValueError(
@@ -447,7 +447,9 @@ pub fn welch_psd_estimate(
             .iter()
             .enumerate()
             .map(|(i, &x)| {
-                let w = 0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / (window_size - 1) as f64).cos());
+                let w = 0.5
+                    * (1.0
+                        - (2.0 * std::f64::consts::PI * i as f64 / (window_size - 1) as f64).cos());
                 x * w
             })
             .collect();

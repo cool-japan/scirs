@@ -1,4 +1,5 @@
 use ndarray::s;
+use std::f64::consts::PI;
 // Advanced parametric spectral estimation methods
 //
 // This module provides state-of-the-art parametric spectral estimation including:
@@ -131,7 +132,7 @@ pub fn estimate_var_model(
         ));
     }
 
-    checkshape(data, (Some(n_vars), Some(n_obs)), "data")?;
+    checkshape(data, &[n_vars, n_obs], "data")?;
 
     // Check for finite values
     for i in 0..n_vars {
@@ -207,8 +208,8 @@ fn estimate_var_coefficients(
     reg_method: RegularizationMethod,
     lambda: f64,
 ) -> SignalResult<Array2<f64>> {
-    let (_n_vars_n_obs) = y.dim();
-    let (n_regressors_) = x.dim();
+    let (_n_vars, _n_obs) = y.dim();
+    let (n_regressors, _n_equations) = x.dim();
 
     match reg_method {
         RegularizationMethod::Ridge => {
@@ -216,7 +217,7 @@ fn estimate_var_coefficients(
             let mut xtx = x.dot(&x.t());
 
             // Add regularization
-            for i in 0..n_regressors_ {
+            for i in 0..n_regressors {
                 xtx[[i, i]] += lambda;
             }
 
@@ -246,17 +247,17 @@ fn estimate_lasso_coefficients(
     x: &Array2<f64>,
     lambda: f64,
 ) -> SignalResult<Array2<f64>> {
-    let (n_vars_) = y.dim();
+    let (n_vars, _) = y.dim();
     let (n_regressors, n_obs) = x.dim();
 
-    let mut coeffs = Array2::zeros((n_vars_, n_regressors));
+    let mut coeffs = Array2::zeros((n_vars, n_regressors));
     let max_iter = 1000;
     let tolerance = 1e-6;
 
     // Coordinate descent for each equation
-    for eq in 0..n_vars_ {
+    for eq in 0..n_vars {
         let y_eq = y.row(eq);
-        let mut beta = Array1::zeros(n_regressors);
+        let mut beta = Array1::<f64>::zeros(n_regressors);
 
         for _iter in 0..max_iter {
             let old_beta = beta.clone();
@@ -275,7 +276,7 @@ fn estimate_lasso_coefficients(
                 }
 
                 // Compute x_j^T x_j
-                let xtx_jj: f64 = x.row(j).iter().map(|&xi| xi * xi).sum();
+                let xtx_jj: f64 = x.row(j).iter().map(|&xi| xi * xi).sum::<f64>();
 
                 // Soft thresholding
                 beta[j] = soft_threshold(partial_residual, lambda) / xtx_jj;
@@ -325,17 +326,17 @@ fn estimate_elastic_net_coefficients(
     let l1_lambda = alpha * lambda;
     let l2_lambda = (1.0 - alpha) * lambda;
 
-    let (n_vars_) = y.dim();
+    let (n_vars, _) = y.dim();
     let (n_regressors, n_obs) = x.dim();
 
-    let mut coeffs = Array2::zeros((n_vars_, n_regressors));
+    let mut coeffs = Array2::zeros((n_vars, n_regressors));
     let max_iter = 1000;
     let tolerance = 1e-6;
 
     // Coordinate descent with elastic net penalty
-    for eq in 0..n_vars_ {
+    for eq in 0..n_vars {
         let y_eq = y.row(eq);
-        let mut beta = Array1::zeros(n_regressors);
+        let mut beta = Array1::<f64>::zeros(n_regressors);
 
         for _iter in 0..max_iter {
             let old_beta = beta.clone();
@@ -354,7 +355,7 @@ fn estimate_elastic_net_coefficients(
                 }
 
                 // Compute x_j^T x_j + L2 penalty
-                let xtx_jj: f64 = x.row(j).iter().map(|&xi| xi * xi).sum() + l2_lambda;
+                let xtx_jj: f64 = x.row(j).iter().map(|&xi| xi * xi).sum::<f64>() + l2_lambda;
 
                 // Soft thresholding with L1 penalty
                 beta[j] = soft_threshold(partial_residual, l1_lambda) / xtx_jj;
@@ -428,7 +429,7 @@ fn compute_var_residuals(
         let obs_time = t + order;
 
         // Predicted value
-        let mut prediction = Array1::zeros(n_vars);
+        let mut prediction = Array1::<f64>::zeros(n_vars);
 
         for lag in 1..=order {
             let lag_data = data.column(obs_time - lag);
@@ -571,13 +572,13 @@ fn music_spectrum(
         .collect();
 
     // Compute MUSIC spectrum
-    let _frequencies: Vec<f64> = (0..n_frequencies)
+    let frequencies: Vec<f64> = (0..n_frequencies)
         .map(|i| i as f64 / n_frequencies as f64)
         .collect();
 
     let mut powers = Vec::with_capacity(n_frequencies);
 
-    for &freq in &_frequencies {
+    for &freq in &frequencies {
         let omega = 2.0 * PI * freq;
 
         // Create steering vector
@@ -611,7 +612,7 @@ fn music_spectrum(
     }
 
     Ok(HighResolutionResult {
-        frequencies,
+        frequencies: frequencies.clone(),
         powers,
         method: HighResolutionMethod::MUSIC,
         model_order,
@@ -662,15 +663,12 @@ fn estimate_covariance_matrix_fb(
 
 /// ESPRIT (Estimation of Signal Parameters via Rotational Invariance Techniques)
 #[allow(dead_code)]
-fn esprit_estimation(
-    _signal: &Array1<f64>,
-    n_signals: usize,
-) -> SignalResult<HighResolutionResult> {
+fn esprit_estimation(signal: &Array1<f64>, n_signals: usize) -> SignalResult<HighResolutionResult> {
     let n = signal.len();
     let model_order = (n / 3).min(50);
 
     // Estimate covariance matrix
-    let cov_matrix = estimate_covariance_matrix_fb(_signal, model_order)?;
+    let cov_matrix = estimate_covariance_matrix_fb(signal, model_order)?;
 
     // Eigenvalue decomposition
     let (eigenvalues, eigenvectors) = compute_eigendecomposition(&cov_matrix)?;
@@ -700,14 +698,15 @@ fn esprit_estimation(
     let phi_matrix = solve_least_squares(&es1, &es2)?;
 
     // Compute eigenvalues of Phi to get frequencies
-    let (phi_eigenvalues_) = compute_eigendecomposition(&phi_matrix)?;
+    let (phi_eigenvalues, _phi_vecs) = compute_eigendecomposition(&phi_matrix)?;
 
     let mut frequencies = Vec::new();
     let mut powers = Vec::new();
 
-    for &eigenval in &phi_eigenvalues_ {
-        if eigenval > 0.0 && eigenval < 1.0 {
-            let freq = eigenval.acos() / (2.0 * PI);
+    for eigenval in phi_eigenvalues.iter() {
+        let val = *eigenval;
+        if val > 0.0 && val < 1.0 {
+            let freq = val.acos() / (2.0 * PI);
             frequencies.push(freq);
             powers.push(1.0); // ESPRIT doesn't provide power estimates directly
         }
@@ -797,9 +796,9 @@ fn compute_matrix_determinant(matrix: &Array2<f64>) -> SignalResult<f64> {
     let n = matrix.nrows();
 
     if n == 1 {
-        Ok(_matrix[[0, 0]])
+        Ok(matrix[[0, 0]])
     } else if n == 2 {
-        Ok(_matrix[[0, 0]] * matrix[[1, 1]] - matrix[[0, 1]] * matrix[[1, 0]])
+        Ok(matrix[[0, 0]] * matrix[[1, 1]] - matrix[[0, 1]] * matrix[[1, 0]])
     } else {
         // Placeholder for larger matrices
         Ok(1.0)
@@ -814,7 +813,7 @@ fn compute_matrix_inverse(matrix: &Array2<f64>) -> SignalResult<Array2<f64>> {
 
     // Placeholder: simplified for 2x2 case
     if n == 2 {
-        let det = compute_matrix_determinant(_matrix)?;
+        let det = compute_matrix_determinant(matrix)?;
         if det.abs() < 1e-10 {
             return Err(SignalError::ComputationError(
                 "Matrix is singular".to_string(),
@@ -822,8 +821,8 @@ fn compute_matrix_inverse(matrix: &Array2<f64>) -> SignalResult<Array2<f64>> {
         }
 
         result[[0, 0]] = matrix[[1, 1]] / det;
-        result[[0, 1]] = -_matrix[[0, 1]] / det;
-        result[[1, 0]] = -_matrix[[1, 0]] / det;
+        result[[0, 1]] = -matrix[[0, 1]] / det;
+        result[[1, 0]] = -matrix[[1, 0]] / det;
         result[[1, 1]] = matrix[[0, 0]] / det;
     } else {
         // Return identity for larger matrices (placeholder)

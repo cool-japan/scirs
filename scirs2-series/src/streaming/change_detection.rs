@@ -73,4 +73,24 @@ impl<F: Float + Debug> CusumDetector<F> {
         self.cusum_pos = F::zero();
         self.cusum_neg = F::zero();
     }
+
+    /// Check if a change has been detected based on current signals
+    pub fn is_change_detected(&self) -> bool {
+        self.cusum_pos > self.threshold || self.cusum_neg > self.threshold
+    }
+
+    /// Get current CUSUM signals (positive, negative)
+    pub fn get_signals(&self) -> (F, F) {
+        (self.cusum_pos, self.cusum_neg)
+    }
+
+    /// Get current mean estimate
+    pub fn get_mean_estimate(&self) -> F {
+        self.mean_estimate
+    }
+
+    /// Get threshold
+    pub fn get_threshold(&self) -> F {
+        self.threshold
+    }
 }

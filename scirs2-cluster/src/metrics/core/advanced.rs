@@ -25,7 +25,7 @@ use crate::error::{ClusteringError, Result};
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array2;
+/// use ndarray::{Array1, Array2};
 /// use scirs2_cluster::metrics::dunn_index;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0]).unwrap();
@@ -119,7 +119,7 @@ where
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array2;
+/// use ndarray::{Array1, Array2};
 /// use scirs2_cluster::metrics::bic_score;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0]).unwrap();

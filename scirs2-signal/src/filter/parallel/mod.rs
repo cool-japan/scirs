@@ -16,24 +16,24 @@
 //! - [`utils`] - Utility functions and signal processing helpers
 
 // Module declarations
-pub mod types;
-pub mod core;
-pub mod convolution;
-pub mod filter_banks;
 pub mod adaptive;
+pub mod convolution;
+pub mod core;
 pub mod fft;
+pub mod filter_banks;
 pub mod morphological;
-pub mod statistical;
 pub mod specialized;
+pub mod statistical;
+pub mod types;
 pub mod utils;
 
 // Re-export commonly used types for convenience
-pub use types::{ParallelFilterConfig, ParallelFilterType, MorphologicalOperation};
+pub use types::{MorphologicalOperation, ParallelFilterConfig, ParallelFilterType};
 
 // Re-export core filtering functions for backward compatibility
 pub use core::{
-    parallel_filtfilt, parallel_lfilter, parallel_batch_filter, parallel_decimate_filter,
-    parallel_filter_overlap_save, filter_direct,
+    filter_direct, parallel_batch_filter, parallel_decimate_filter, parallel_filter_overlap_save,
+    parallel_filtfilt, parallel_lfilter,
 };
 
 // Re-export convolution functions
@@ -41,8 +41,8 @@ pub use convolution::{parallel_convolve, parallel_convolve2d};
 
 // Re-export filter bank functions
 pub use filter_banks::{
-    parallel_fir_filter_bank, parallel_iir_filter_bank, parallel_wavelet_filter_bank,
-    parallel_polyphase_filter, parallel_savgol_filter,
+    parallel_fir_filter_bank, parallel_iir_filter_bank, parallel_polyphase_filter,
+    parallel_savgol_filter, parallel_wavelet_filter_bank,
 };
 
 // Re-export adaptive filtering functions
@@ -59,27 +59,26 @@ pub use fft::{
 
 // Re-export morphological filtering functions
 pub use morphological::{
-    parallel_morphological_filter, parallel_morphological_reconstruction,
-    parallel_top_hat_transform, parallel_morphological_gradient, create_structuring_element,
+    create_structuring_element, parallel_morphological_filter, parallel_morphological_gradient,
+    parallel_morphological_reconstruction, parallel_top_hat_transform,
 };
 
 // Re-export statistical filtering functions
 pub use statistical::{
-    parallel_median_filter, parallel_rank_order_filter, parallel_bilateral_filter,
-    parallel_percentile_filter, parallel_trimmed_mean_filter,
+    parallel_bilateral_filter, parallel_median_filter, parallel_percentile_filter,
+    parallel_rank_order_filter, parallel_trimmed_mean_filter,
 };
 
 // Re-export specialized filtering functions
 pub use specialized::{
-    parallel_cic_filter, parallel_minimum_phase, parallel_group_delay, parallel_matched_filter,
+    parallel_cic_filter, parallel_group_delay, parallel_matched_filter, parallel_minimum_phase,
     parallel_wiener_filter,
 };
 
 // Re-export utility functions
 pub use utils::{
-    generate_test_signal, compute_snr_db, compute_mse, normalize_signal_energy,
-    normalize_signal_amplitude, zero_pad_signal, cross_correlation, find_peaks,
-    welch_psd_estimate,
+    compute_mse, compute_snr_db, cross_correlation, find_peaks, generate_test_signal,
+    normalize_signal_amplitude, normalize_signal_energy, welch_psd_estimate, zero_pad_signal,
 };
 
 /// Advanced parallel filtering with configuration options
@@ -194,10 +193,7 @@ mod tests {
             .collect();
 
         // Test FIR filter bank
-        let filter_bank = vec![
-            vec![0.5, 0.5],
-            vec![1.0, -1.0],
-        ];
+        let filter_bank = vec![vec![0.5, 0.5], vec![1.0, -1.0]];
 
         let results = parallel_fir_filter_bank(&signal, &filter_bank, None).unwrap();
         assert_eq!(results.len(), 2);
@@ -232,7 +228,8 @@ mod tests {
             &structuring_element,
             MorphologicalOperation::Erosion,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(eroded.len(), signal.len());
 
@@ -241,7 +238,8 @@ mod tests {
             &structuring_element,
             MorphologicalOperation::Dilation,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(dilated.len(), signal.len());
     }
@@ -251,7 +249,8 @@ mod tests {
         // Test signal generation
         let frequencies = vec![10.0, 20.0];
         let amplitudes = vec![1.0, 0.5];
-        let test_signal = generate_test_signal(100, &frequencies, &amplitudes, 0.1, 1000.0).unwrap();
+        let test_signal =
+            generate_test_signal(100, &frequencies, &amplitudes, 0.1, 1000.0).unwrap();
         assert_eq!(test_signal.len(), 100);
 
         // Test normalization

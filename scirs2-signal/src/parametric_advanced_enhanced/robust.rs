@@ -9,7 +9,7 @@ use super::utils::{compute_arma_psd, compute_arma_residuals, generate_frequency_
 use crate::error::{SignalError, SignalResult};
 use crate::parametric::compute_parameter_change;
 use crate::sysid::{detect_outliers, estimate_robust_scale};
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 use scirs2_core::validation::check_positive;
 
 /// Robust parametric spectral estimation with outlier rejection
@@ -56,9 +56,11 @@ pub fn robust_parametric_spectral_estimation(
         // Compute residuals
         let residuals = compute_arma_residuals(signal, &current_ar, &current_ma)?;
 
-        // Update weights based on residual magnitude
-        let scale_estimate = estimate_robust_scale(&residuals, config.scale_estimator);
-        update_robust_weights(&residuals, &mut robust_weights, scale_estimate, config)?;
+    // Update weights based on residual magnitude
+    let dummy_regressor = Array2::<f64>::zeros((0, 0));
+    let dummy_parameters = Array1::<f64>::zeros(0);
+    let scale_estimate = estimate_robust_scale(&residuals, &dummy_regressor, &dummy_parameters)?;
+    update_robust_weights(&residuals, &mut robust_weights, scale_estimate, config)?;
 
         // Weighted ARMA estimation
         let weighted_result =
@@ -104,7 +106,11 @@ pub fn robust_parametric_spectral_estimation(
     Ok(RobustParametricResult {
         ar_coeffs: current_ar,
         ma_coeffs: current_ma,
-        robust_scale: estimate_robust_scale(&final_residuals, config.scale_estimator),
+        robust_scale: {
+            let dummy_regressor = Array2::<f64>::zeros((0, 0));
+            let dummy_parameters = Array1::<f64>::zeros(0);
+            estimate_robust_scale(&final_residuals, &dummy_regressor, &dummy_parameters)?
+        },
         outlier_weights: robust_weights,
         outliers,
         standard_result,

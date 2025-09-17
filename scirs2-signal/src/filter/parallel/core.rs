@@ -4,7 +4,7 @@
 //! filtfilt (zero-phase filtering), lfilter (direct filtering), and overlap-save methods.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, ArrayView1, s};
+use ndarray::{s, Array1, ArrayView1};
 use num_traits::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
