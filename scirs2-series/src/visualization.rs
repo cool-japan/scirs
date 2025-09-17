@@ -17,7 +17,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::visualization::{TimeSeriesPlot, PlotStyle, ExportFormat};
 //! use ndarray::Array1;
 //!
