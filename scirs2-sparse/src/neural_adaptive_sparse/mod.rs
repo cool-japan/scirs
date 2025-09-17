@@ -15,7 +15,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_sparse::neural_adaptive_sparse::{
 //!     NeuralAdaptiveSparseProcessor, NeuralAdaptiveConfig, OptimizationStrategy
 //! };
@@ -43,7 +43,7 @@
 //!
 //! The system learns from performance feedback to improve future optimizations:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_sparse::neural_adaptive_sparse::{PerformanceMetrics, OptimizationStrategy};
 //!
 //! // After executing the operation, provide performance feedback

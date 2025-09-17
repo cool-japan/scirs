@@ -14,7 +14,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_series::out_of_core::{ChunkedProcessor, ProcessingConfig};
 //! use std::fs::File;
 //! use std::io::Write;

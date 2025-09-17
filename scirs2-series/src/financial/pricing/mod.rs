@@ -101,7 +101,7 @@
 //!
 //! ## Portfolio Option Analysis
 //! ```rust
-//! use scirs2_series::financial::pricing::options::{black_scholes, Greeks, option_value_components};
+//! use scirs2_series::financial::pricing::options::{black_scholes, black_scholes_greeks, option_value_components};
 //!
 //! // Analyze a portfolio of options
 //! struct OptionPosition {
@@ -119,7 +119,7 @@
 //!
 //! for pos in &positions {
 //!     let price = black_scholes(pos.spot, pos.strike, pos.time, rate, pos.vol, pos.is_call).unwrap();
-//!     let greeks = Greeks::calculate(pos.spot, pos.strike, pos.time, rate, pos.vol, pos.is_call).unwrap();
+//!     let greeks = black_scholes_greeks(pos.spot, pos.strike, pos.time, rate, pos.vol, pos.is_call).unwrap();
 //!     
 //!     total_value += price * pos.quantity as f64;
 //!     total_delta += greeks.delta * pos.quantity as f64;
@@ -136,13 +136,13 @@
 //! The Black-Scholes formula for European options:
 //!
 //! **Call Option:**
-//! ```
-//! C = S₀ × N(d₁) - K × e^(-rT) × N(d₂)
+//! ```text
+//! C = S0 * N(d1) - K * exp(-r * T) * N(d2)
 //! ```
 //!
 //! **Put Option:**
-//! ```
-//! P = K × e^(-rT) × N(-d₂) - S₀ × N(-d₁)
+//! ```text
+//! P = K * exp(-r * T) * N(-d2) - S0 * N(-d1)
 //! ```
 //!
 //! Where:

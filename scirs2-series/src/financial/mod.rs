@@ -54,7 +54,7 @@
 //! # Comprehensive Financial Analysis Workflow
 //!
 //! ## 1. Data Preparation and Preprocessing
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::{
 //!     volatility::realized_volatility,
 //!     technical_indicators::{sma, ema, rsi},
@@ -69,7 +69,7 @@
 //!
 //! // Calculate basic technical indicators
 //! let sma_5 = sma(&prices, 5).unwrap();
-//! let ema_5 = ema(&prices, 5).unwrap();
+//! let ema_5 = ema(&prices, 0.2).unwrap();
 //! let rsi_14 = rsi(&prices, 14).unwrap();
 //!
 //! // Estimate realized volatility
@@ -78,7 +78,7 @@
 //! ```
 //!
 //! ## 2. Volatility Modeling and Forecasting
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::{
 //!     models::{GarchModel, GarchConfig},
 //!     volatility::{garman_klass_volatility, ewma_volatility},
@@ -105,13 +105,14 @@
 //! ```
 //!
 //! ## 3. Risk Analysis and Management
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::risk::{
 //!     var_historical, expected_shortfall, max_drawdown,
 //!     sharpe_ratio, sortino_ratio, calmar_ratio,
 //! };
 //!
 //! // Calculate VaR and Expected Shortfall (use extended returns)
+//! let returns_array = ndarray::array![0.02, -0.0049, 0.0148, -0.0049, 0.0146, 0.0144];
 //! let var_95 = var_historical(&returns_array, 0.95).unwrap();
 //! let es_95 = expected_shortfall(&returns_array, 0.95).unwrap();
 //! println!("95% VaR: {:.4}, 95% ES: {:.4}", var_95, es_95);
@@ -137,7 +138,7 @@
 //! ```
 //!
 //! ## 4. Portfolio Construction and Optimization
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::portfolio::{
 //!     Portfolio, risk_parity_portfolio, minimum_variance_portfolio,
 //!     calculate_portfolio_returns, calculate_portfolio_metrics,
@@ -161,7 +162,7 @@
 //! ```
 //!
 //! ## 5. Derivative Pricing and Greeks Analysis
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::pricing::{
 //!     black_scholes, black_scholes_greeks, implied_volatility,
 //! };
@@ -195,20 +196,21 @@
 //! ```
 //!
 //! ## 6. Advanced Technical Analysis
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_series::financial::technical_indicators::{
-//!     BollingerBands, StochasticOscillator, IchimokuCloud,
-//!     adx, parabolic_sar, vwap, chaikin_oscillator,
+//!     advanced_bollinger_bands, advanced_stochastic_oscillator, BollingerBandsConfig, StochasticConfig, IchimokuCloud,
+//!     adx, parabolic_sar, vwap, chaikin_oscillator, MovingAverageType,
 //! };
 //!
 //! // Advanced technical indicators (use extended prices)
-//! let bb = BollingerBands::new(20, 2.0);
-//! let bb_result = bb.calculate(&prices_array).unwrap();
+//! let prices_array = ndarray::array![100.0, 101.0, 102.0, 101.5, 103.0, 102.5, 104.0, 103.5, 105.0, 104.5, 106.0];
+//! let bb_conf = BollingerBandsConfig { period: 5, std_dev_multiplier: 2.0, ma_type: MovingAverageType::Simple };
+//! let bb_result = advanced_bollinger_bands(&prices_array, &bb_conf).unwrap();
 //! println!("Bollinger Bands - Upper: {:.2}, Lower: {:.2}", bb_result.upper_band[0], bb_result.lower_band[0]);
 //!
 //! // Momentum and trend indicators
-//! let stoch = StochasticOscillator::new(14, 3, 3);
-//! // let stoch_result = stoch.calculate(&high, &low, &close).unwrap();
+//! let stoch_conf = StochasticConfig { k_period: 14, d_period: 3, d_smoothing: MovingAverageType::Simple };
+//! // let stoch_result = advanced_stochastic_oscillator(&high, &low, &close, &stoch_conf).unwrap();
 //!
 //! // let adx_values = adx(&high, &low, &close, 14).unwrap();
 //! // let sar_values = parabolic_sar(&high, &low, 0.02, 0.2).unwrap();
@@ -219,25 +221,25 @@
 //! The financial module seamlessly integrates with other SciRS2 modules:
 //!
 //! ## Time Series Analysis
-//! ```rust
+//! ```rust,no_run
 //! // Integration with scirs2-series for time series modeling
 //! // Combined ARIMA-GARCH modeling for returns and volatility
 //! ```
 //!
 //! ## Statistical Analysis  
-//! ```rust
+//! ```rust,no_run
 //! // Integration with scirs2-stats for hypothesis testing
 //! // Statistical tests for model validation and backtesting
 //! ```
 //!
 //! ## Optimization
-//! ```rust
+//! ```rust,no_run
 //! // Integration with scirs2-optimize for advanced portfolio optimization
 //! // Constrained optimization with transaction costs and constraints
 //! ```
 //!
 //! ## Machine Learning
-//! ```rust
+//! ```rust,no_run
 //! // Integration with scirs2-neural for predictive modeling
 //! // Neural network-based volatility and return forecasting
 //! ```

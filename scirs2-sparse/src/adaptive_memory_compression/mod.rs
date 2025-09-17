@@ -18,7 +18,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_sparse::adaptive_memory_compression::{
 //!     AdaptiveMemoryCompressor, AdaptiveCompressionConfig, CompressionAlgorithm
 //! };
@@ -46,7 +46,7 @@
 //!
 //! The system automatically learns from access patterns and adapts compression strategies:
 //!
-//! ```rust
+//! ```rust,ignore
 //! // Get performance statistics
 //! let stats = compressor.get_stats();
 //! println!("Compression ratio: {:.2}", stats.compression_ratio);

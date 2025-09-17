@@ -45,14 +45,14 @@
 //! ## Ichimoku Cloud Analysis
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::advanced::{IchimokuConfig, ichimoku_cloud};
-//! use ndarray::array;
+//! use ndarray::Array1;
 //!
 //! let high = (0..60).map(|i| 15.0 + (i as f64 * 0.1).sin() * 2.0).collect::<Vec<f64>>();
 //! let low = (0..60).map(|i| 13.0 + (i as f64 * 0.1).sin() * 2.0).collect::<Vec<f64>>();
 //! let close = (0..60).map(|i| 14.0 + (i as f64 * 0.1).sin() * 2.0).collect::<Vec<f64>>();
-//! let high = array![high];
-//! let low = array![low];
-//! let close = array![close];
+//! let high = Array1::from_vec(high);
+//! let low = Array1::from_vec(low);
+//! let close = Array1::from_vec(close);
 //! let config = IchimokuConfig::default();
 //!
 //! let cloud = ichimoku_cloud(&high, &low, &close, &config).unwrap();

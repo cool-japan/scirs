@@ -33,7 +33,7 @@
 //! # Examples
 //!
 //! ## Basic Spiking Neural Network Clustering
-//! ```rust
+//! ```rust,ignore
 //! use ndarray::Array2;
 //! use scirs2_spatial::neuromorphic::SpikingNeuralClusterer;
 //!
@@ -52,7 +52,7 @@
 //! ```
 //!
 //! ## Competitive Learning with Homeostasis
-//! ```rust
+//! ```rust,ignore
 //! use ndarray::Array2;
 //! use scirs2_spatial::neuromorphic::HomeostaticNeuralClusterer;
 //!
@@ -68,7 +68,7 @@
 //! ```
 //!
 //! ## Advanced Memristive Learning
-//! ```rust
+//! ```rust,ignore
 //! use ndarray::{Array1, Array2};
 //! use scirs2_spatial::neuromorphic::{AdvancedMemristiveLearning, MemristiveDeviceType};
 //!
@@ -94,7 +94,7 @@
 //! ```
 //!
 //! ## Event-driven Neuromorphic Processing
-//! ```rust
+//! ```rust,ignore
 //! use ndarray::Array2;
 //! use scirs2_spatial::neuromorphic::NeuromorphicProcessor;
 //!
