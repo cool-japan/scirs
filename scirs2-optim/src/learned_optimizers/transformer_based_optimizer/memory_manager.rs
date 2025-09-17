@@ -123,6 +123,9 @@ impl<T: Float> TransformerMemoryManager<T> {
             MemoryManagementStrategy::Hierarchical => self.store_hierarchical(key.clone(), tensor.clone()),
         };
 
+        // Get tensor length before potential move
+        let tensor_len = tensor.len();
+
         // If primary cache is full, try secondary cache
         if storage_result.is_err() && self.secondary_cache.is_some() {
             if let Some(ref mut secondary) = self.secondary_cache {
@@ -132,7 +135,7 @@ impl<T: Float> TransformerMemoryManager<T> {
 
         // Update statistics
         let storage_time = start_time.elapsed();
-        self.statistics.record_storage(tensor.len(), storage_time);
+        self.statistics.record_storage(tensor_len, storage_time);
         self.access_tracker.record_write(key);
 
         storage_result
@@ -472,14 +475,20 @@ impl<T: Float> MemoryCache<T> {
     }
 
     pub fn retrieve(&mut self, key: &str) -> Result<Option<Array2<T>>> {
-        if let Some(entry) = self.storage.get_mut(key) {
+        let tensor_result = if let Some(entry) = self.storage.get_mut(key) {
             entry.access_time = Instant::now();
             entry.access_count += 1;
-            self.update_access_tracking(key);
-            Ok(Some(entry.tensor.clone()))
+            Some(entry.tensor.clone())
         } else {
-            Ok(None)
+            None
+        };
+
+        // Update access tracking after releasing the mutable borrow
+        if tensor_result.is_some() {
+            self.update_access_tracking(key);
         }
+
+        Ok(tensor_result)
     }
 
     pub fn remove(&mut self, key: &str) -> Result<bool> {
@@ -610,12 +619,13 @@ impl<T: Float> CompressionManager<T> {
         // Simplified compression - just store dimensions and flattened data
         let shape = tensor.shape().to_vec();
         let data: Vec<T> = tensor.iter().cloned().collect();
+        let data_len = data.len(); // Get length before move
 
         Ok(CompressedData::<T> {
             shape,
             data,
             original_size: tensor.len() * std::mem::size_of::<T>(),
-            compressed_size: data.len() * std::mem::size_of::<T>() / 2, // Simulated compression
+            compressed_size: data_len * std::mem::size_of::<T>() / 2, // Simulated compression
         })
     }
 

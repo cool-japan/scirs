@@ -77,10 +77,10 @@ use crate::sparray::{SparseArray, SparseSum};
 ///
 /// // Matrix-vector multiplication
 /// let x = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-/// let y = matrix.matvec(&x).unwrap();
-/// assert_eq!(y[[0]], 2.0);  // 2.0 * 1.0
-/// assert_eq!(y[[1]], 6.0);  // 3.0 * 2.0
-/// assert_eq!(y[[2]], 12.0); // 4.0 * 3.0
+/// let y = matrix.dot_vector(&x.view()).unwrap();
+/// assert_eq!(y[0], 2.0);  // 2.0 * 1.0
+/// assert_eq!(y[1], 6.0);  // 3.0 * 2.0
+/// assert_eq!(y[2], 12.0); // 4.0 * 3.0
 /// ```
 ///
 /// ## Format Conversion

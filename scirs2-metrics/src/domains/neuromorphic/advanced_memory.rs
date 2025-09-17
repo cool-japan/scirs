@@ -614,7 +614,7 @@ pub struct MemoryConsolidationProtocol<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand> AdvancedMemoryArchitecture<F> {
+impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> AdvancedMemoryArchitecture<F> {
     /// Create new advanced memory architecture
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -806,7 +806,7 @@ pub enum MemoryType {
     Working,
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand> HierarchicalMemorySystem<F> {
+impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> HierarchicalMemorySystem<F> {
     /// Create new hierarchical memory system
     pub fn new() -> Result<Self> {
         Ok(Self {

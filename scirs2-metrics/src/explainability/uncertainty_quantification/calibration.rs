@@ -65,7 +65,7 @@ impl<F: Float> Default for TemperatureScaling<F> {
     }
 }
 
-impl<F: Float> DeepEnsembleUncertainty<F> {
+impl<F: Float + ndarray::ScalarOperand> DeepEnsembleUncertainty<F> {
     /// Create new deep ensemble uncertainty
     pub fn new(ensemble_size: usize) -> Self {
         Self {

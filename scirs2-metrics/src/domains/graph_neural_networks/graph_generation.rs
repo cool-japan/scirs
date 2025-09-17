@@ -140,7 +140,7 @@ impl GraphGenerationMetrics {
         reference_graphs: &[Vec<Vec<f64>>],
     ) -> Result<()> {
         if generated_graphs.is_empty() || reference_graphs.is_empty() {
-            return Err(MetricsError::EmptyInput("Graph sets cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput("Graph sets cannot be empty".to_string()));
         }
 
         // Compute structural similarity

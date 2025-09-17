@@ -364,7 +364,7 @@ impl InteractiveDashboard {
         // Apply collaboration updates
         if self.config.collaboration_config.as_ref().map_or(false, |c| c.enabled) {
             let _resolved_operations = self.collaboration.lock().unwrap()
-                .conflict_resolver.resolve_conflicts()?;
+                .resolve_conflicts()?;
         }
 
         Ok(())
@@ -382,12 +382,12 @@ impl InteractiveDashboard {
 
     /// Export dashboard configuration
     pub fn export_config(&self) -> Result<Value> {
-        Ok(serde_json::to_value(&self.config)?)
+        Ok(serde_json::to_value(&self.config).map_err(|e| MetricsError::InvalidInput(e.to_string()))?)
     }
 
     /// Import dashboard configuration
     pub fn import_config(&mut self, config_data: Value) -> Result<()> {
-        self.config = serde_json::from_value(config_data)?;
+        self.config = serde_json::from_value(config_data).map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
         Ok(())
     }
 }

@@ -49,7 +49,7 @@ pub struct OptimizerEnsemble<T: Float> {
     weight_updater: WeightUpdateMechanism<T>,
 }
 
-impl<T: Float + std::fmt::Debug + Send + Sync + std::cmp::Ord + std::default::Default> OptimizerEnsemble<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static> OptimizerEnsemble<T> {
     /// Create new optimizer ensemble
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -764,7 +764,7 @@ impl<T: Float> AdamOptimizer<T> {
     }
 }
 
-impl<T: Float + std::fmt::Debug + Send + Sync> AdvancedOptimizer<T> for AdamOptimizer<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync + 'static> AdvancedOptimizer<T> for AdamOptimizer<T> {
     fn optimize_step_with_context(
         &mut self,
         parameters: &Array1<T>,
@@ -841,7 +841,7 @@ macro_rules! impl_placeholder_optimizer {
             }
         }
 
-        impl<T: Float + std::fmt::Debug + Send + Sync> AdvancedOptimizer<T> for $name<T> {
+        impl<T: Float + std::fmt::Debug + Send + Sync + 'static> AdvancedOptimizer<T> for $name<T> {
             fn optimize_step_with_context(
                 &mut self,
                 parameters: &Array1<T>,

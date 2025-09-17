@@ -223,8 +223,7 @@ impl<
             + Sync
             + Default
             + ndarray::ScalarOperand
-            + std::fmt::Debug
-            + std::cmp::Ord,
+            + std::fmt::Debug,
     > AdvancedCoordinator<T>
 {
     /// Create new Advanced coordinator

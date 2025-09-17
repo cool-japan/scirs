@@ -47,6 +47,9 @@ pub mod spectral;
 // Discrete Wavelet Transform module
 pub mod dwt;
 
+// Enhanced 2D Discrete Wavelet Transform module
+pub mod dwt2d_enhanced;
+
 // Comprehensive wavelets module (CWT, dual-tree complex, etc.)
 pub mod wavelets;
 
@@ -65,7 +68,7 @@ pub mod waveforms;
 // Lomb-Scargle periodogram module (refactored)
 pub mod lombscargle;
 // pub mod utilities;
-// pub mod simd_advanced;
+pub mod simd_advanced;
 // pub mod cqt;
 // pub mod wvd;
 // pub mod nlm;

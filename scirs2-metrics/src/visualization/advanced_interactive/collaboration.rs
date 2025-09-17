@@ -111,7 +111,7 @@ pub struct SharedState {
 }
 
 /// Collaborative operation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Operation {
     /// Operation ID
     pub id: String,
@@ -205,7 +205,7 @@ pub enum ConflictType {
 }
 
 /// Conflict status enumeration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ConflictStatus {
     /// Pending resolution
     Pending,
@@ -232,7 +232,7 @@ impl CollaborationManager {
     /// Add user session
     pub fn add_session(&mut self, session: UserSession) -> Result<()> {
         if self.sessions.len() >= self.config.max_collaborators as usize {
-            return Err(MetricsError::ConfigurationError(
+            return Err(MetricsError::ComputationError(
                 "Maximum number of collaborators reached".to_string()
             ));
         }
@@ -252,7 +252,7 @@ impl CollaborationManager {
         // Check permissions
         if let Some(session) = self.sessions.get(&operation.user_id) {
             if !self.has_permission(&session.permissions, &operation.operation_type) {
-                return Err(MetricsError::AuthenticationError(
+                return Err(MetricsError::InvalidInput(
                     "Insufficient permissions".to_string()
                 ));
             }
@@ -335,6 +335,11 @@ impl CollaborationManager {
     pub fn get_shared_state(&self) -> &SharedState {
         &self.shared_state
     }
+
+    /// Resolve conflicts using the conflict resolver
+    pub fn resolve_conflicts(&mut self) -> Result<Vec<Operation>> {
+        self.conflict_resolver.resolve_conflicts()
+    }
 }
 
 impl SharedState {
@@ -365,7 +370,7 @@ impl ConflictResolver {
             if existing_op.target == operation.target &&
                existing_op.timestamp > operation.timestamp.checked_sub(Duration::from_secs(5)).unwrap_or(operation.timestamp) {
                 return Some(Conflict {
-                    id: format!("conflict_{}", uuid::Uuid::new_v4()),
+                    id: format!("conflict_{}", rand::random::<u64>()),
                     operations: vec![existing_op.clone(), operation.clone()],
                     conflict_type: ConflictType::ConcurrentModification,
                     status: ConflictStatus::Pending,

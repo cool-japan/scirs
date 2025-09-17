@@ -229,6 +229,15 @@ pub struct ImportanceEstimator<F: Float> {
     pub importance_scores: Vec<F>,
 }
 
+impl<F: Float> ImportanceEstimator<F> {
+    pub fn new() -> Self {
+        Self {
+            method: "gradient_based".to_string(),
+            importance_scores: Vec::new(),
+        }
+    }
+}
+
 /// Dynamic architecture modifier
 #[derive(Debug)]
 pub struct DynamicArchitectureModifier<F: Float> {
@@ -452,25 +461,35 @@ impl<F: Float> ProgressiveNeuralNetworks<F> {
 }
 
 // Placeholder implementations for supporting types
-macro_rules! impl_placeholder_new {
-    ($($struct_name:ident),*) => {
-        $(
-            impl<F: Float> $struct_name<F> {
-                pub fn new() -> Result<Self> {
-                    Ok(Self {
-                        _phantom: std::marker::PhantomData,
-                    })
-                }
-            }
-        )*
-    };
+impl<F: Float> ForgettingPreventionSystem<F> {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            regularization_methods: Vec::new(),
+            consolidation_strategies: Vec::new(),
+            importance_estimator: ImportanceEstimator::new(),
+        })
+    }
 }
 
-impl_placeholder_new!(
-    ForgettingPreventionSystem,
-    DynamicArchitectureModifier,
-    RealtimePerformanceMonitor
-);
+impl<F: Float> DynamicArchitectureModifier<F> {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            growth_strategies: Vec::new(),
+            pruning_strategies: Vec::new(),
+            optimization_strategies: Vec::new(),
+        })
+    }
+}
+
+impl<F: Float> RealtimePerformanceMonitor<F> {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
+            metrics: HashMap::new(),
+            monitoring_frequency: 100,
+            alert_thresholds: HashMap::new(),
+        })
+    }
+}
 
 impl<F: Float> ForgettingPreventionSystem<F> {
     /// Assess and prevent forgetting

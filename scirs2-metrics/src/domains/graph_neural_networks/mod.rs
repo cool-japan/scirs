@@ -342,142 +342,71 @@ impl GraphNeuralNetworkMetricsComputer {
 }
 
 impl DomainMetrics for GraphNeuralNetworkMetrics {
+    type Result = DomainEvaluationResult;
+
     fn domain_name(&self) -> &'static str {
-        "graph_neural_networks"
+        "Graph Neural Networks"
     }
 
-    fn primary_metrics(&self) -> HashMap<String, f64> {
-        let mut metrics = HashMap::new();
-
-        // Node-level metrics
-        metrics.insert("node_classification_f1".to_string(), self.node_metrics.classification_metrics.macro_f1);
-        metrics.insert("node_embedding_quality".to_string(), self.node_metrics.embedding_metrics.silhouette_score);
-
-        // Edge-level metrics
-        metrics.insert("link_prediction_auc".to_string(), self.edge_metrics.link_prediction.auc_roc);
-        metrics.insert("edge_classification_f1".to_string(), self.edge_metrics.edge_classification.macro_f1);
-
-        // Graph-level metrics
-        metrics.insert("graph_classification_accuracy".to_string(), self.graph_metrics.classification.accuracy);
-        metrics.insert("graph_regression_r2".to_string(), self.graph_metrics.regression.r2_score);
-
-        // Community detection metrics
-        metrics.insert("community_modularity".to_string(), self.community_metrics.modularity);
-        metrics.insert("community_nmi".to_string(), self.community_metrics.nmi);
-
-        // Knowledge graph metrics
-        metrics.insert("kg_triple_classification_f1".to_string(), self.knowledge_graph_metrics.triple_classification.f1_score);
-        metrics.insert("kg_link_prediction_mrr".to_string(), self.knowledge_graph_metrics.kg_link_prediction.head_prediction.mrr);
-
-        // Molecular metrics
-        metrics.insert("molecular_property_r2".to_string(), self.molecular_metrics.property_prediction.overall_r2);
-        metrics.insert("drug_discovery_auc".to_string(), self.molecular_metrics.drug_discovery.bioactivity_auc);
-
-        metrics
+    fn available_metrics(&self) -> Vec<&'static str> {
+        vec![
+            "node_classification_accuracy",
+            "node_classification_f1",
+            "node_embedding_quality",
+            "link_prediction_auc",
+            "edge_classification_f1",
+            "graph_classification_accuracy",
+            "graph_regression_r2",
+            "community_modularity",
+            "community_nmi",
+            "kg_triple_classification_f1",
+            "kg_link_prediction_mrr",
+            "molecular_property_r2",
+            "drug_discovery_auc",
+            "node_homophily_ratio",
+            "node_fairness_demographic_parity",
+            "link_prediction_precision",
+            "temporal_edge_accuracy",
+            "graph_similarity_ged",
+            "community_ari",
+            "community_conductance",
+            "generation_structural_similarity",
+            "generation_diversity",
+            "social_influence_correlation",
+            "social_role_accuracy",
+            "molecular_toxicity_auc",
+            "dti_prediction_auc",
+        ]
     }
 
-    fn secondary_metrics(&self) -> HashMap<String, f64> {
-        let mut metrics = HashMap::new();
-
-        // Additional node-level metrics
-        metrics.insert("node_homophily_ratio".to_string(), self.node_metrics.homophily_metrics.homophily_ratio);
-        metrics.insert("node_fairness_demographic_parity".to_string(), self.node_metrics.fairness_metrics.demographic_parity);
-
-        // Additional edge-level metrics
-        metrics.insert("link_prediction_precision".to_string(),
-                      self.edge_metrics.link_prediction.precision_at_k.get(&10).unwrap_or(&0.0).clone());
-        metrics.insert("temporal_edge_accuracy".to_string(), self.edge_metrics.temporal_metrics.persistence_accuracy);
-
-        // Additional graph-level metrics
-        metrics.insert("graph_similarity_ged".to_string(), self.graph_metrics.similarity_metrics.ged_correlation);
-
-        // Additional community metrics
-        metrics.insert("community_ari".to_string(), self.community_metrics.ari);
-        metrics.insert("community_conductance".to_string(), self.community_metrics.conductance);
-
-        // Additional generation metrics
-        metrics.insert("generation_structural_similarity".to_string(),
-                      self.generation_metrics.structural_similarity.degree_distribution_kl);
-        metrics.insert("generation_diversity".to_string(), self.generation_metrics.diversity_metrics.structural_diversity);
-
-        // Additional social network metrics
-        metrics.insert("social_influence_correlation".to_string(), self.social_network_metrics.influence_prediction.ranking_correlation);
-        metrics.insert("social_role_accuracy".to_string(), self.social_network_metrics.social_role.role_accuracy);
-
-        // Additional molecular metrics
-        metrics.insert("molecular_toxicity_auc".to_string(), self.molecular_metrics.toxicity_metrics.acute_toxicity_accuracy);
-        metrics.insert("dti_prediction_auc".to_string(), self.molecular_metrics.dti_prediction.dti_auc);
-
-        metrics
-    }
-
-    fn evaluation_summary(&self) -> DomainEvaluationResult {
-        let primary = self.primary_metrics();
-        let secondary = self.secondary_metrics();
-
-        // Calculate overall performance score
-        let node_score = (primary.get("node_classification_f1").unwrap_or(&0.0) +
-                         primary.get("node_embedding_quality").unwrap_or(&0.0)) / 2.0;
-
-        let edge_score = (primary.get("link_prediction_auc").unwrap_or(&0.0) +
-                         primary.get("edge_classification_f1").unwrap_or(&0.0)) / 2.0;
-
-        let graph_score = (primary.get("graph_classification_accuracy").unwrap_or(&0.0) +
-                          primary.get("graph_regression_r2").unwrap_or(&0.0)) / 2.0;
-
-        let community_score = (primary.get("community_modularity").unwrap_or(&0.0) +
-                              primary.get("community_nmi").unwrap_or(&0.0)) / 2.0;
-
-        let kg_score = (primary.get("kg_triple_classification_f1").unwrap_or(&0.0) +
-                       primary.get("kg_link_prediction_mrr").unwrap_or(&0.0)) / 2.0;
-
-        let molecular_score = (primary.get("molecular_property_r2").unwrap_or(&0.0) +
-                              primary.get("drug_discovery_auc").unwrap_or(&0.0)) / 2.0;
-
-        let overall_score = (node_score + edge_score + graph_score + community_score + kg_score + molecular_score) / 6.0;
-
-        // Determine performance level
-        let performance_level = if overall_score >= 0.9 {
-            "Excellent"
-        } else if overall_score >= 0.8 {
-            "Good"
-        } else if overall_score >= 0.7 {
-            "Fair"
-        } else if overall_score >= 0.6 {
-            "Poor"
-        } else {
-            "Critical"
-        };
-
-        let mut recommendations = Vec::new();
-
-        if node_score < 0.8 {
-            recommendations.push("Improve node classification accuracy and embedding quality".to_string());
-        }
-        if edge_score < 0.8 {
-            recommendations.push("Enhance link prediction and edge classification performance".to_string());
-        }
-        if graph_score < 0.8 {
-            recommendations.push("Optimize graph-level task performance".to_string());
-        }
-        if community_score < 0.7 {
-            recommendations.push("Improve community detection algorithms".to_string());
-        }
-        if kg_score < 0.7 {
-            recommendations.push("Enhance knowledge graph reasoning capabilities".to_string());
-        }
-        if molecular_score < 0.7 {
-            recommendations.push("Optimize molecular property prediction models".to_string());
-        }
-
-        DomainEvaluationResult {
-            domain: "graph_neural_networks".to_string(),
-            overall_score,
-            performance_level: performance_level.to_string(),
-            primary_metrics: primary,
-            secondary_metrics: secondary,
-            recommendations,
-            confidence_interval: (overall_score - 0.05, overall_score + 0.05),
-        }
+    fn metric_descriptions(&self) -> HashMap<&'static str, &'static str> {
+        let mut descriptions = HashMap::new();
+        descriptions.insert("node_classification_accuracy", "Node classification accuracy");
+        descriptions.insert("node_classification_f1", "Node classification F1 score");
+        descriptions.insert("node_embedding_quality", "Node embedding quality (silhouette score)");
+        descriptions.insert("link_prediction_auc", "Link prediction area under ROC curve");
+        descriptions.insert("edge_classification_f1", "Edge classification F1 score");
+        descriptions.insert("graph_classification_accuracy", "Graph classification accuracy");
+        descriptions.insert("graph_regression_r2", "Graph regression R² score");
+        descriptions.insert("community_modularity", "Community detection modularity");
+        descriptions.insert("community_nmi", "Community detection normalized mutual information");
+        descriptions.insert("kg_triple_classification_f1", "Knowledge graph triple classification F1");
+        descriptions.insert("kg_link_prediction_mrr", "Knowledge graph link prediction mean reciprocal rank");
+        descriptions.insert("molecular_property_r2", "Molecular property prediction R²");
+        descriptions.insert("drug_discovery_auc", "Drug discovery bioactivity prediction AUC");
+        descriptions.insert("node_homophily_ratio", "Node homophily ratio");
+        descriptions.insert("node_fairness_demographic_parity", "Node fairness demographic parity");
+        descriptions.insert("link_prediction_precision", "Link prediction precision at K");
+        descriptions.insert("temporal_edge_accuracy", "Temporal edge persistence accuracy");
+        descriptions.insert("graph_similarity_ged", "Graph similarity (graph edit distance) correlation");
+        descriptions.insert("community_ari", "Community detection adjusted rand index");
+        descriptions.insert("community_conductance", "Community detection conductance");
+        descriptions.insert("generation_structural_similarity", "Graph generation structural similarity");
+        descriptions.insert("generation_diversity", "Graph generation diversity");
+        descriptions.insert("social_influence_correlation", "Social influence prediction correlation");
+        descriptions.insert("social_role_accuracy", "Social role prediction accuracy");
+        descriptions.insert("molecular_toxicity_auc", "Molecular toxicity prediction AUC");
+        descriptions.insert("dti_prediction_auc", "Drug-target interaction prediction AUC");
+        descriptions
     }
 }

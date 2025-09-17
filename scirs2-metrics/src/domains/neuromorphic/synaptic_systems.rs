@@ -41,7 +41,7 @@ pub struct Synapse<F: Float> {
 }
 
 /// Plasticity state of synapse
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlasticityState<F: Float> {
     /// Long-term potentiation level
     pub ltp_level: F,

@@ -176,7 +176,7 @@ impl EventSystem {
     /// Queue event for processing
     pub fn queue_event(&mut self, event: DashboardEvent) -> Result<()> {
         if self.event_queue.len() >= self.config.max_queue_size {
-            return Err(MetricsError::ConfigurationError("Event queue is full".to_string()));
+            return Err(MetricsError::ComputationError("Event queue is full".to_string()));
         }
 
         self.event_queue.push_back(event);

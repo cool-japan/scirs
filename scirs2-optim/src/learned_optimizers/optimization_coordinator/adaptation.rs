@@ -231,7 +231,7 @@ pub struct SelectionCriteria<T: Float> {
 }
 
 // Implementation of AdaptationController
-impl<T: Float + Send + Sync + Debug> AdaptationController<T> {
+impl<T: Float + Send + Sync + Debug + 'static> AdaptationController<T> {
     /// Create a new adaptation controller
     pub fn new(config: AdaptationConfig<T>) -> Self {
         Self {
@@ -271,31 +271,64 @@ impl<T: Float + Send + Sync + Debug> AdaptationController<T> {
             return Ok(adaptation_events);
         }
 
-        // Check all triggers
+        // Collect triggers that need to be executed to avoid borrow conflicts
+        let mut triggers_to_execute = Vec::new();
         for trigger in &self.triggers {
             if self.should_execute_adaptation(trigger.as_ref(), context)? {
                 let adaptation_type = trigger.trigger_type();
-
-                // Execute adaptation if strategy is available
-                if let Some(strategy) = self.adaptation_strategies.get_mut(&adaptation_type) {
+                // Check if we have a strategy for this adaptation type
+                if self.adaptation_strategies.contains_key(&adaptation_type) {
                     let metadata = trigger.metadata(context);
-                    let event = self.execute_adaptation_strategy(
-                        strategy.as_mut(),
+                    triggers_to_execute.push((adaptation_type, trigger.name().to_string(), metadata));
+                }
+            }
+        }
+
+        // Execute the collected adaptations
+        for (adaptation_type, trigger_name, metadata) in triggers_to_execute {
+            // Get performance before acquiring mutable borrow
+            let start_time = SystemTime::now();
+            let performance_before = self.get_current_performance(context);
+
+            if let Some(strategy) = self.adaptation_strategies.get_mut(&adaptation_type) {
+
+                // Execute the adaptation
+                let adaptation_result = strategy.execute_adaptation(context, &metadata)?;
+
+                let duration = start_time.elapsed().unwrap_or(Duration::from_secs(0));
+
+                // Create adaptation event
+                let event = AdaptationEvent {
+                    timestamp: start_time,
+                    adaptation_type,
+                    trigger_name: trigger_name.clone(),
+                    performance_before,
+                    performance_after: None, // Will be updated later
+                    success: adaptation_result.success,
+                    duration,
+                    metadata: adaptation_result.metadata.clone(),
+                };
+
+                adaptation_events.push(event);
+
+                // Update state
+                self.current_state.last_adaptation_time = start_time;
+                self.current_state.adaptation_count += 1;
+                self.current_state.current_adaptation = Some(adaptation_type);
+
+                // Update effectiveness if we have performance data
+                if adaptation_result.success {
+                    let effectiveness = adaptation_result.performance_improvement;
+                    self.current_state.adaptation_effectiveness
+                        .insert(adaptation_type, effectiveness);
+                }
+
+                // Update cooldown if conservative mode is enabled
+                if self.config.conservative_mode {
+                    self.current_state.cooldown_until.insert(
                         adaptation_type,
-                        trigger.name(),
-                        context,
-                        &metadata,
-                    )?;
-
-                    adaptation_events.push(event);
-
-                    // Update cooldown if conservative mode is enabled
-                    if self.config.conservative_mode {
-                        self.current_state.cooldown_until.insert(
-                            adaptation_type,
-                            SystemTime::now() + self.config.failed_adaptation_cooldown,
-                        );
-                    }
+                        SystemTime::now() + self.config.failed_adaptation_cooldown,
+                    );
                 }
             }
         }

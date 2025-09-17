@@ -10,6 +10,7 @@ use ndarray::{Array1, Array2};
 use num_traits::Float;
 
 /// Bayesian uncertainty estimation
+#[derive(Debug, Clone)]
 pub struct BayesianUncertainty<F: Float> {
     /// Posterior mean
     pub posterior_mean: Array1<F>,

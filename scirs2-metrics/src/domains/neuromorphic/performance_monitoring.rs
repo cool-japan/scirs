@@ -85,7 +85,7 @@ pub struct ResourceUsage<F: Float> {
     pub bandwidth_usage: F,
 }
 
-impl<F: Float> NeuromorphicPerformanceMonitor<F> {
+impl<F: Float + std::iter::Sum> NeuromorphicPerformanceMonitor<F> {
     /// Create new performance monitor
     pub fn new() -> Self {
         let mut alert_thresholds = HashMap::new();
@@ -205,7 +205,7 @@ impl<F: Float> NeuromorphicPerformanceMonitor<F> {
     }
 }
 
-impl<F: Float> PerformanceMetrics<F> {
+impl<F: Float + std::iter::Sum> PerformanceMetrics<F> {
     /// Create new performance metrics
     pub fn new() -> Self {
         Self {

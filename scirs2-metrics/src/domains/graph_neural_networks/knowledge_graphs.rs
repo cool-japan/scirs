@@ -165,7 +165,7 @@ impl KnowledgeGraphMetrics {
         negative_triples: &[Triple],
     ) -> Result<()> {
         if predicted_scores.is_empty() {
-            return Err(MetricsError::EmptyInput("Predicted scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput("Predicted scores cannot be empty".to_string()));
         }
 
         let positive_set: HashSet<_> = positive_triples.iter().collect();
@@ -230,7 +230,7 @@ impl KnowledgeGraphMetrics {
         true_alignments: &[(String, String)],
     ) -> Result<()> {
         if entity_similarities.is_empty() || true_alignments.is_empty() {
-            return Err(MetricsError::EmptyInput("Input cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput("Input cannot be empty".to_string()));
         }
 
         let alignment_map: HashMap<String, String> = true_alignments.iter()

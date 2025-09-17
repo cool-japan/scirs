@@ -318,7 +318,6 @@ pub enum ChangeType {
 }
 
 /// Data source manager
-#[derive(Debug)]
 pub struct DataSourceManager {
     /// Registered data sources
     sources: Arc<Mutex<HashMap<String, Box<dyn DataSource>>>>,
@@ -439,7 +438,7 @@ impl DataSourceManager {
     where
         F: Fn(DataUpdate) + Send + Sync + 'static,
     {
-        let subscription_id = format!("{}_{}", source_id, uuid::Uuid::new_v4());
+        let subscription_id = format!("{}_{}", source_id, rand::random::<u64>());
         self.subscriptions
             .lock()
             .unwrap()

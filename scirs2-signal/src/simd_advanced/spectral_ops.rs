@@ -27,10 +27,21 @@ use num_complex::Complex64;
 use rustfft::FftPlanner;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
-use scirs2_core::validation::check_finite;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 use std::f64::consts::PI;
+
+/// Helper function to check if all values in a slice are finite
+fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
+    for (i, &value) in slice.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(SignalError::ValueError(
+                format!("{} must contain only finite values, got {} at index {}", name, value, i)
+            ));
+        }
+    }
+    Ok(())
+}
 
 /// SIMD-optimized spectral centroid computation
 ///
@@ -61,8 +72,8 @@ pub fn simd_spectral_centroid(
         ));
     }
 
-    check_finite(magnitude_spectrum, "magnitude_spectrum value")?;
-    check_finite(frequencies, "frequencies value")?;
+    check_slice_finite(magnitude_spectrum, "magnitude_spectrum")?;
+    check_slice_finite(frequencies, "frequencies")?;
 
     let n = magnitude_spectrum.len();
     if n < config.simd_threshold || config.force_scalar {
@@ -138,8 +149,8 @@ pub fn simd_spectral_rolloff(
         ));
     }
 
-    check_finite(magnitude_spectrum, "magnitude_spectrum value")?;
-    check_finite(frequencies, "frequencies value")?;
+    check_slice_finite(magnitude_spectrum, "magnitude_spectrum")?;
+    check_slice_finite(frequencies, "frequencies")?;
 
     let n = magnitude_spectrum.len();
     if n < config.simd_threshold || config.force_scalar {
@@ -152,7 +163,8 @@ pub fn simd_spectral_rolloff(
     let energy_view = ArrayViewMut1::from(&mut energy_spectrum);
 
     // Use SIMD element-wise multiplication
-    f64::simd_mul(&mag_view, &mag_view, &energy_view);
+    let energy_result = f64::simd_mul(&mag_view, &mag_view);
+    energy_spectrum.copy_from_slice(energy_result.as_slice().unwrap());
 
     // Compute total energy using SIMD
     let total_energy = f64::simd_sum(&ArrayView1::from(&energy_spectrum));
@@ -451,10 +463,10 @@ pub fn simd_complex_multiply(
         ));
     }
 
-    check_finite(a_real, "a_real value")?;
-    check_finite(a_imag, "a_imag value")?;
-    check_finite(b_real, "b_real value")?;
-    check_finite(b_imag, "b_imag value")?;
+    check_slice_finite(a_real, "a_real")?;
+    check_slice_finite(a_imag, "a_imag")?;
+    check_slice_finite(b_real, "b_real")?;
+    check_slice_finite(b_imag, "b_imag")?;
 
     if n < config.simd_threshold || config.force_scalar {
         return scalar_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag);
@@ -488,8 +500,8 @@ pub fn simd_power_spectrum(
         ));
     }
 
-    check_finite(real, "real value")?;
-    check_finite(imag, "imag value")?;
+    check_slice_finite(real, "real")?;
+    check_slice_finite(imag, "imag")?;
 
     if n < config.simd_threshold || config.force_scalar {
         return scalar_power_spectrum(real, imag, power);
@@ -540,9 +552,9 @@ pub fn simd_weighted_average_spectra(
         }
     }
 
-    check_finite(weights, "weights value")?;
+    check_slice_finite(weights, "weights")?;
     for (i, spectrum) in spectra.iter().enumerate() {
-        check_finite(spectrum, &format!("spectrum_{}", i))?;
+        check_slice_finite(spectrum, &format!("spectrum_{}", i))?;
     }
 
     if n_freqs < config.simd_threshold || config.force_scalar {

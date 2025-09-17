@@ -75,7 +75,7 @@ impl LinkPredictionMetrics {
         F: std::iter::Sum + std::fmt::Debug,
     {
         if edge_scores.is_empty() {
-            return Err(MetricsError::EmptyInput("Edge scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput("Edge scores cannot be empty".to_string()));
         }
 
         // Create ground truth labels
@@ -91,7 +91,7 @@ impl LinkPredictionMetrics {
         }
 
         if labeled_scores.is_empty() {
-            return Err(MetricsError::EmptyInput("No labeled edges found".to_string()));
+            return Err(MetricsError::InvalidInput("No labeled edges found".to_string()));
         }
 
         // Sort by score descending
@@ -480,7 +480,7 @@ impl TemporalEdgeMetrics {
         F: std::iter::Sum + std::fmt::Debug,
     {
         if edge_scores.is_empty() {
-            return Err(MetricsError::EmptyInput("Edge scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput("Edge scores cannot be empty".to_string()));
         }
 
         // Sort by timestamp

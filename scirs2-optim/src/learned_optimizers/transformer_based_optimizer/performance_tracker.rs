@@ -550,7 +550,7 @@ pub struct MemorySample {
     pub usage: MemoryUsage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MemoryUsage {
     pub total_memory: usize,
     pub model_memory: usize,

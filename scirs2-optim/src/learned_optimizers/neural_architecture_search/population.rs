@@ -574,9 +574,9 @@ mod tests {
         let mut tracker = DiversityTracker::new();
 
         let individuals = vec![
-            Individual::new("arch1".to_string(), create_test_metrics(0.8)).unwrap(),
-            Individual::new("arch2".to_string(), create_test_metrics(0.9)).unwrap(),
-            Individual::new("arch1".to_string(), create_test_metrics(0.7)).unwrap(), // Duplicate
+            Individual::<f64>::new("arch1".to_string(), create_test_metrics(0.8)).unwrap(),
+            Individual::<f64>::new("arch2".to_string(), create_test_metrics(0.9)).unwrap(),
+            Individual::<f64>::new("arch1".to_string(), create_test_metrics(0.7)).unwrap(), // Duplicate
         ];
 
         tracker.update(&individuals);

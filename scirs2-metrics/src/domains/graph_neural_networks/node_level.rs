@@ -75,8 +75,8 @@ impl NodeClassificationMetrics {
             ));
         }
 
-        let mut correct_predictions = 0;
-        let mut total_predictions = 0;
+        let mut correct_predictions = 0.0;
+        let mut total_predictions = 0.0;
 
         for i in 0..n {
             // Weight prediction correctness by node degree
@@ -354,10 +354,12 @@ impl NodeEmbeddingMetrics {
             };
 
             // Compute minimum average distance to nodes in other clusters
-            let other_labels: std::collections::HashSet<_> = (0..n_nodes)
+            let mut other_labels: Vec<F> = (0..n_nodes)
                 .map(|j| labels[j])
                 .filter(|&label| (label - node_label).abs() >= F::from(0.1).unwrap())
                 .collect();
+            other_labels.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            other_labels.dedup_by(|a, b| (*a - *b).abs() < F::from(0.1).unwrap());
 
             let b = other_labels.iter()
                 .map(|&other_label| {

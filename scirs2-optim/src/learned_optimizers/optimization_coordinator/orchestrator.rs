@@ -38,7 +38,7 @@ pub struct MetaLearningOrchestrator<T: Float> {
     meta_history: VecDeque<MetaLearningEpisode<T>>,
 }
 
-impl<T: Float + std::fmt::Debug + Send + Sync> MetaLearningOrchestrator<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync + 'static> MetaLearningOrchestrator<T> {
     /// Create new meta-learning orchestrator
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -96,10 +96,12 @@ impl<T: Float + std::fmt::Debug + Send + Sync> MetaLearningOrchestrator<T> {
         )?;
 
         // Phase 3: Strategy Selection and Coordination
+        // Clone meta_state to avoid borrowing conflicts
+        let meta_state_copy = self.meta_state.clone();
         let selected_strategy = self.select_meta_learning_strategy(&meta_task)?;
         let strategy_guidance = selected_strategy.generate_guidance(
             &meta_task,
-            &self.meta_state,
+            &meta_state_copy,
             performance_predictions,
         )?;
 
@@ -195,11 +197,18 @@ impl<T: Float + std::fmt::Debug + Send + Sync> MetaLearningOrchestrator<T> {
         let mut strategy_weights = Vec::new();
 
         // Collect guidance from multiple strategies
+        let mut strategy_ids = Vec::new();
         for strategy in &mut self.strategies {
             let guidance = strategy.generate_guidance(meta_task, &self.meta_state, performance_predictions)?;
-            let weight = self.get_strategy_performance_score(strategy.get_id())?;
+            let strategy_id = strategy.get_id();
 
             strategy_outputs.push(guidance);
+            strategy_ids.push(strategy_id);
+        }
+
+        // Get weights after releasing mutable borrow
+        for strategy_id in strategy_ids {
+            let weight = self.get_strategy_performance_score(strategy_id)?;
             strategy_weights.push(weight);
         }
 
@@ -727,7 +736,7 @@ impl<T: Float> DistributionModel<T> {
 }
 
 /// Meta-learning state
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MetaLearningState<T: Float> {
     pub current_context: OptimizationContext<T>,
     pub enable_strategy_ensemble: bool,
@@ -1001,7 +1010,7 @@ pub struct AdaptationSignal<T: Float> {
     pub target_optimizers: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PerformanceTracking<T: Float> {
     pub episode_performances: VecDeque<T>,
     pub strategy_performances: HashMap<String, VecDeque<T>>,

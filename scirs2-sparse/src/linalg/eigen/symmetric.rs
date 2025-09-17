@@ -33,10 +33,11 @@ use std::ops::{Add, Div, Mul, Sub};
 /// use scirs2_sparse::linalg::eigsh;
 /// use scirs2_sparse::sym_csr::SymCsrMatrix;
 ///
-/// let data = vec![4.0, 2.0, 3.0, 5.0];
-/// let indices = vec![0, 1, 1, 2];
-/// let indptr = vec![0, 2, 4];
-/// let matrix = SymCsrMatrix::new(data, indices, indptr, (2, 2)).unwrap();
+/// // Symmetric 2x2 matrix stored as lower triangle: (0,0)=4, (1,0)=2, (1,1)=5
+/// let data = vec![4.0, 2.0, 5.0];
+/// let indptr = vec![0, 1, 3];
+/// let indices = vec![0, 0, 1];
+/// let matrix = SymCsrMatrix::new(data, indptr, indices, (2, 2)).unwrap();
 ///
 /// // Find the 2 largest eigenvalues
 /// let result = eigsh(&matrix, Some(2), Some("LA"), None).unwrap();
@@ -102,10 +103,11 @@ where
 /// use scirs2_sparse::linalg::eigsh_shift_invert;
 /// use scirs2_sparse::sym_csr::SymCsrMatrix;
 ///
-/// let data = vec![4.0, 2.0, 3.0, 5.0];
-/// let indices = vec![0, 1, 1, 2];
-/// let indptr = vec![0, 2, 4];
-/// let matrix = SymCsrMatrix::new(data, indices, indptr, (2, 2)).unwrap();
+/// // Symmetric 2x2 matrix stored as lower triangle
+/// let data = vec![4.0, 2.0, 5.0];
+/// let indptr = vec![0, 1, 3];
+/// let indices = vec![0, 0, 1];
+/// let matrix = SymCsrMatrix::new(data, indptr, indices, (2, 2)).unwrap();
 ///
 /// // Find eigenvalues near 2.5
 /// let result = eigsh_shift_invert(&matrix, 2.5, Some(2), None, None).unwrap();

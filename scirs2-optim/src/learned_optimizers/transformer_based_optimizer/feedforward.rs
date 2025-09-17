@@ -14,7 +14,7 @@ pub struct FeedForwardNetwork<T: Float> {
     linear2: LinearLayer<T>,
 
     /// Activation function
-    activation: super::config::ActivationFunction,
+    activation: ActivationFunction,
 
     /// Input dimension
     input_dimension: usize,
@@ -31,7 +31,7 @@ impl<T: Float> FeedForwardNetwork<T> {
     pub fn new(
         input_dimension: usize,
         hidden_dimension: usize,
-        activation: super::config::ActivationFunction,
+        activation: ActivationFunction,
     ) -> Result<Self> {
         let linear1 = LinearLayer::new(input_dimension, hidden_dimension)?;
         let linear2 = LinearLayer::new(hidden_dimension, input_dimension)?;
@@ -51,7 +51,7 @@ impl<T: Float> FeedForwardNetwork<T> {
     pub fn new_with_dropout(
         input_dimension: usize,
         hidden_dimension: usize,
-        activation: super::config::ActivationFunction,
+        activation: ActivationFunction,
         dropout_rate: f64,
     ) -> Result<Self> {
         let linear1 = LinearLayer::new(input_dimension, hidden_dimension)?;
@@ -103,12 +103,12 @@ impl<T: Float> FeedForwardNetwork<T> {
     }
 
     /// Get activation function
-    pub fn get_activation(&self) -> super::config::ActivationFunction {
+    pub fn get_activation(&self) -> ActivationFunction {
         self.activation
     }
 
     /// Set activation function
-    pub fn set_activation(&mut self, activation: super::config::ActivationFunction) {
+    pub fn set_activation(&mut self, activation: ActivationFunction) {
         self.activation = activation;
     }
 }
@@ -288,7 +288,7 @@ impl<T: Float> GatedLinearUnit<T> {
         let value = self.value_linear.forward(input)?;
 
         // Apply sigmoid to gate and element-wise multiply
-        let sigmoid_gate = ActivationLayer::apply(&gate, super::config::ActivationFunction::Sigmoid);
+        let sigmoid_gate = ActivationLayer::apply(&gate, ActivationFunction::Sigmoid);
         let output = &sigmoid_gate * &value;
 
         Ok(output)
@@ -342,7 +342,7 @@ impl<T: Float> SwiGLU<T> {
         let value = self.value_linear.forward(input)?;
 
         // Apply Swish to gate and element-wise multiply
-        let swish_gate = ActivationLayer::apply(&gate, super::config::ActivationFunction::Swish);
+        let swish_gate = ActivationLayer::apply(&gate, ActivationFunction::Swish);
         let output = &swish_gate * &value;
 
         Ok(output)
@@ -389,7 +389,7 @@ impl<T: Float> MixtureOfExperts<T> {
         hidden_dimension: usize,
         num_experts: usize,
         top_k: usize,
-        activation: super::config::ActivationFunction,
+        activation: ActivationFunction,
     ) -> Result<Self> {
         let mut experts = Vec::new();
         for _ in 0..num_experts {
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_feedforward_network() {
-        let mut ffn = FeedForwardNetwork::<f32>::new(128, 512, super::config::ActivationFunction::ReLU);
+        let mut ffn = FeedForwardNetwork::<f32>::new(128, 512, crate::learned_optimizers::transformer_based_optimizer::config::ActivationFunction::ReLU);
         assert!(ffn.is_ok());
 
         let mut network = ffn.unwrap();
@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn test_mixture_of_experts() {
         let mut moe = MixtureOfExperts::<f32>::new(
-            128, 256, 4, 2, super::config::ActivationFunction::ReLU
+            128, 256, 4, 2, ActivationFunction::ReLU
         );
         assert!(moe.is_ok());
 

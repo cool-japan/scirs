@@ -63,7 +63,7 @@ pub struct PatternRecognition<F: Float> {
     pub temporal_offset: Duration,
 }
 
-impl<F: Float> SpikePatternRecognizer<F> {
+impl<F: Float + std::iter::Sum> SpikePatternRecognizer<F> {
     /// Create new pattern recognizer
     pub fn new() -> Self {
         Self {

@@ -424,8 +424,8 @@ impl<F: Float> ConsciousnessSimulator<F> {
             global_workspace: GlobalWorkspaceTheory::new()?,
             integrated_information: IntegratedInformationTheory::new()?,
             attention_systems: AttentionSystems::new()?,
-            self_awareness: SelfAwarenessModule::new()?,
-            higher_order_thoughts: HigherOrderThoughtSystem::new()?,
+            self_awareness: SelfAwarenessModule::new(),
+            higher_order_thoughts: HigherOrderThoughtSystem::new(),
         })
     }
 
@@ -608,25 +608,75 @@ impl<F: Float> AttentionSystems<F> {
 }
 
 // Placeholder implementations for supporting types
-macro_rules! impl_placeholder_new {
-    ($($struct_name:ident),*) => {
-        $(
-            impl<F: Float> $struct_name<F> {
-                pub fn new() -> Self {
-                    Self {
-                        _phantom: std::marker::PhantomData,
-                    }
-                }
-            }
-        )*
-    };
+impl<F: Float> ConsciousnessTypes<F> {
+    pub fn new() -> Self {
+        Self {
+            access_consciousness: F::zero(),
+            phenomenal_consciousness: F::zero(),
+            self_consciousness: F::zero(),
+        }
+    }
 }
 
-impl_placeholder_new!(
-    ConsciousnessTypes,
-    SelfAwarenessModule,
-    HigherOrderThoughtSystem
-);
+impl<F: Float> SelfAwarenessModule<F> {
+    pub fn new() -> Self {
+        Self {
+            self_model: SelfModel {
+                representation: Vec::new(),
+                knowledge: HashMap::new(),
+                evaluation_metrics: HashMap::new(),
+            },
+            metacognition: MetacognitionSystem {
+                knowledge: MetacognitiveKnowledge {
+                    task_knowledge: HashMap::new(),
+                    strategy_knowledge: HashMap::new(),
+                    self_knowledge: HashMap::new(),
+                },
+                regulation: MetacognitiveRegulation {
+                    planning: HashMap::new(),
+                    monitoring: HashMap::new(),
+                    evaluation: HashMap::new(),
+                },
+                metamemory: Metamemory {
+                    confidence: HashMap::new(),
+                    accuracy_predictions: HashMap::new(),
+                    strategies: Vec::new(),
+                },
+            },
+            theory_of_mind: TheoryOfMind {
+                mental_state_models: HashMap::new(),
+                belief_tracker: BeliefTracker {
+                    beliefs: HashMap::new(),
+                    confidence: HashMap::new(),
+                    update_rules: Vec::new(),
+                },
+                intention_recognizer: IntentionRecognizer {
+                    algorithms: Vec::new(),
+                    current_intentions: HashMap::new(),
+                    confidence: HashMap::new(),
+                },
+            },
+        }
+    }
+}
+
+impl<F: Float> HigherOrderThoughtSystem<F> {
+    pub fn new() -> Self {
+        Self {
+            higher_order_thoughts: Vec::new(),
+            thought_monitor: ThoughtMonitor {
+                monitored_thoughts: Vec::new(),
+                monitoring_strength: F::from(0.5).unwrap(),
+                patterns: HashMap::new(),
+            },
+            recursive_thinker: RecursiveThinking {
+                current_depth: 0,
+                parameters: HashMap::new(),
+                max_depth: 5,
+            },
+        }
+    }
+}
 
 // Specific implementations for complex types
 impl<F: Float> BottomUpAttention<F> {

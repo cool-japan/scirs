@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_trajectory_creation() {
-        let trajectory = OptimizationTrajectory {
+        let trajectory = OptimizationTrajectory::<f32> {
             gradient_sequence: Array2::zeros((10, 5)),
             parameter_sequence: Array2::zeros((10, 5)),
             loss_sequence: Array1::zeros(10),

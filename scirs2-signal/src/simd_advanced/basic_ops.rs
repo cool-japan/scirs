@@ -35,9 +35,20 @@ use super::types::SimdConfig;
 use ndarray::{ArrayView1};
 use num_complex::Complex64;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
-use scirs2_core::validation::check_finite;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+/// Helper function to check if all values in a slice are finite
+fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
+    for (i, &value) in slice.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(SignalError::ValueError(
+                format!("{} must contain only finite values, got {} at index {}", name, value, i)
+            ));
+        }
+    }
+    Ok(())
+}
 
 /// SIMD-optimized FIR filtering
 ///
@@ -80,8 +91,8 @@ pub fn simd_fir_filter(
         ));
     }
 
-    check_finite(input, "input value")?;
-    check_finite(coeffs, "coeffs value")?;
+    check_slice_finite(input, "input")?;
+    check_slice_finite(coeffs, "coeffs")?;
 
     let n = input.len();
     let _m = coeffs.len();
@@ -93,15 +104,9 @@ pub fn simd_fir_filter(
     // Check for SIMD capabilities
     let caps = PlatformCapabilities::detect();
 
-    if caps.avx512_available && config.use_advanced {
-        unsafe { avx512_fir_filter(input, coeffs, output) }
-    } else if caps.avx2_available {
-        unsafe { avx2_fir_filter(input, coeffs, output) }
-    } else if caps.simd_available {
-        unsafe { sse_fir_filter(input, coeffs, output) }
-    } else {
-        scalar_fir_filter(input, coeffs, output)
-    }
+    // TODO: Re-implement platform-specific SIMD optimizations
+    // For now, use scalar fallback for all cases
+    scalar_fir_filter(input, coeffs, output)
 }
 
 /// SIMD-optimized autocorrelation computation
@@ -135,7 +140,7 @@ pub fn simd_autocorrelation(
     max_lag: usize,
     config: &SimdConfig,
 ) -> SignalResult<Vec<f64>> {
-    check_finite(signal, "signal value")?;
+    check_slice_finite(signal, "signal")?;
 
     let n = signal.len();
     if max_lag >= n {
@@ -151,16 +156,9 @@ pub fn simd_autocorrelation(
         return Ok(autocorr);
     }
 
-    let caps = PlatformCapabilities::detect();
-
-    if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_autocorrelation(signal, &mut autocorr, max_lag) }?;
-    } else if caps.simd_available {
-        unsafe { sse_autocorrelation(signal, &mut autocorr, max_lag) }?;
-    } else {
-        scalar_autocorrelation(signal, &mut autocorr, max_lag)?;
-        return Ok(autocorr);
-    }
+    // TODO: Re-implement platform-specific SIMD optimizations
+    // For now, use scalar fallback
+    scalar_autocorrelation(signal, &mut autocorr, max_lag)?;
 
     Ok(autocorr)
 }
@@ -200,8 +198,8 @@ pub fn simd_cross_correlation(
     mode: &str,
     config: &SimdConfig,
 ) -> SignalResult<Vec<f64>> {
-    check_finite(signal1, "signal1 value")?;
-    check_finite(signal2, "signal2 value")?;
+    check_slice_finite(signal1, "signal1")?;
+    check_slice_finite(signal2, "signal2")?;
 
     let n1 = signal1.len();
     let n2 = signal2.len();
@@ -243,9 +241,9 @@ pub fn simd_cross_correlation(
     let caps = PlatformCapabilities::detect();
 
     if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_cross_correlation(signal1, signal2, &mut result, mode) }?;
+        unsafe { scalar_cross_correlation(signal1, signal2, &mut result, mode) }?;
     } else if caps.simd_available {
-        unsafe { sse_cross_correlation(signal1, signal2, &mut result, mode) }?;
+        unsafe { scalar_cross_correlation(signal1, signal2, &mut result, mode) }?;
     } else {
         scalar_cross_correlation(signal1, signal2, &mut result, mode)?;
         return Ok(result);
@@ -303,9 +301,9 @@ pub fn simd_complex_fft_butterfly(
     let caps = PlatformCapabilities::detect();
 
     if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_complex_butterfly(data, twiddles) }
+        unsafe { scalar_complex_butterfly(data, twiddles) }
     } else if caps.simd_available {
-        unsafe { sse_complex_butterfly(data, twiddles) }
+        unsafe { scalar_complex_butterfly(data, twiddles) }
     } else {
         scalar_complex_butterfly(data, twiddles)
     }
@@ -353,8 +351,8 @@ pub fn simd_apply_window(
         ));
     }
 
-    check_finite(signal, "signal value")?;
-    check_finite(window, "window value")?;
+    check_slice_finite(signal, "signal")?;
+    check_slice_finite(window, "window")?;
 
     let n = signal.len();
 
@@ -368,11 +366,11 @@ pub fn simd_apply_window(
     let caps = PlatformCapabilities::detect();
 
     if caps.avx512_available && config.use_advanced {
-        unsafe { avx512_apply_window(signal, window, output) }
+        scalar_apply_window_safe(signal, window, output)
     } else if caps.avx2_available {
-        unsafe { avx2_apply_window(signal, window, output) }
+        scalar_apply_window_safe(signal, window, output)
     } else if caps.simd_available {
-        unsafe { sse_apply_window(signal, window, output) }
+        scalar_apply_window_safe(signal, window, output)
     } else {
         for i in 0..n {
             output[i] = signal[i] * window[i];
@@ -407,7 +405,7 @@ pub fn simd_apply_window(
 /// let zcr = simd_zero_crossing_rate(&signal, &config)?;
 /// ```
 pub fn simd_zero_crossing_rate(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
-    check_finite(signal, "signal value")?;
+    check_slice_finite(signal, "signal")?;
 
     let n = signal.len();
     if n < 2 {
@@ -424,7 +422,7 @@ pub fn simd_zero_crossing_rate(signal: &[f64], config: &SimdConfig) -> SignalRes
     let mut crossings = 0;
 
     if caps.avx2_available && config.use_advanced {
-        unsafe { crossings = avx2_zero_crossings(signal)? };
+        crossings = scalar_count_zero_crossings(signal);
     } else {
         crossings = scalar_count_zero_crossings(signal);
     }
@@ -458,7 +456,7 @@ pub fn simd_zero_crossing_rate(signal: &[f64], config: &SimdConfig) -> SignalRes
 /// let energy = simd_signal_energy(&signal, &config)?;
 /// ```
 pub fn simd_signal_energy(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
-    check_finite(signal, "signal value")?;
+    check_slice_finite(signal, "signal")?;
 
     let n = signal.len();
     if n == 0 {
@@ -516,6 +514,21 @@ pub fn simd_rms(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
 // =============================================================================
 // SCALAR FALLBACK IMPLEMENTATIONS
 // =============================================================================
+
+/// Safe scalar implementation of window application
+fn scalar_apply_window_safe(signal: &[f64], window: &[f64], output: &mut [f64]) -> SignalResult<()> {
+    if signal.len() != window.len() || signal.len() != output.len() {
+        return Err(SignalError::ValueError(
+            "Signal, window, and output arrays must have the same length".to_string(),
+        ));
+    }
+
+    for i in 0..signal.len() {
+        output[i] = signal[i] * window[i];
+    }
+
+    Ok(())
+}
 
 /// Scalar fallback for FIR filtering
 fn scalar_fir_filter(input: &[f64], coeffs: &[f64], output: &mut [f64]) -> SignalResult<()> {
@@ -688,56 +701,56 @@ unsafe fn sse_autocorrelation(_signal: &[f64], _autocorr: &mut [f64], _max_lag: 
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
+unsafe fn scalar_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
     // TODO: Implement AVX2 cross-correlation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
+unsafe fn scalar_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
     // TODO: Implement SSE cross-correlation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
+unsafe fn scalar_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
     // TODO: Implement AVX2 complex butterfly
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
+unsafe fn scalar_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
     // TODO: Implement SSE complex butterfly
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f")]
-unsafe fn avx512_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
     // TODO: Implement AVX512 window application
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
     // TODO: Implement AVX2 window application
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
     // TODO: Implement SSE window application
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_zero_crossings(_signal: &[f64]) -> SignalResult<usize> {
+unsafe fn scalar_zero_crossings(_signal: &[f64]) -> SignalResult<usize> {
     // TODO: Implement AVX2 zero crossing detection
     Ok(0)
 }

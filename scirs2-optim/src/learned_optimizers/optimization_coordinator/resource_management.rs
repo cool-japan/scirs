@@ -342,7 +342,7 @@ impl<T: Float> ResourceManager<T> {
 
     /// Dynamic load balancing allocation
     fn allocate_dynamic_load_balancing(
-        &self,
+        &mut self,
         optimizers: &[String],
         availability: &ResourceAvailability,
         context: &OptimizationContext<T>,

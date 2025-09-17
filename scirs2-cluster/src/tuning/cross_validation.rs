@@ -17,7 +17,7 @@ use crate::metrics::{calinski_harabasz_score, davies_bouldin_score, silhouette_s
 use crate::spectral::{spectral_clustering, AffinityMode, SpectralClusteringOptions};
 use crate::vq::{kmeans, kmeans2};
 
-use super::config::{CrossValidationConfig, CVStrategy, EvaluationMetric};
+use super::config::{CVStrategy, CrossValidationConfig, EvaluationMetric};
 use super::utilities::calculate_inertia;
 
 use statrs::statistics::Statistics;
@@ -237,7 +237,8 @@ impl CrossValidator {
                         .collect();
                     let labels_array = Array1::from_vec(labels);
 
-                    let score = calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
+                    let score =
+                        calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
                     scores.push(score);
                 }
                 Err(_) => {
@@ -349,7 +350,8 @@ impl CrossValidator {
                     let usize_labels: Vec<usize> = labels.iter().map(|&x| x as usize).collect();
                     let labels_array = Array1::from_vec(usize_labels);
 
-                    let score = calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
+                    let score =
+                        calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
                     scores.push(score);
                 }
                 Err(_) => {
@@ -400,7 +402,8 @@ impl CrossValidator {
                     let usize_labels: Vec<usize> = labels.iter().map(|&x| x as usize).collect();
                     let labels_array = Array1::from_vec(usize_labels);
 
-                    let score = calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
+                    let score =
+                        calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
                     scores.push(score);
                 }
                 Err(_) => {
@@ -459,7 +462,8 @@ impl CrossValidator {
                     let usize_labels: Vec<usize> = labels.iter().map(|&x| x as usize).collect();
                     let labels_array = Array1::from_vec(usize_labels);
 
-                    let score = calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
+                    let score =
+                        calculate_metric_score(train_data.view(), &labels_array, None, metric)?;
                     scores.push(score);
                 }
                 Err(_) => {
@@ -504,9 +508,7 @@ where
     let labels_i32 = labels.mapv(|x| x as i32);
 
     match metric {
-        EvaluationMetric::SilhouetteScore => {
-            silhouette_score(data_f64.view(), labels_i32.view())
-        }
+        EvaluationMetric::SilhouetteScore => silhouette_score(data_f64.view(), labels_i32.view()),
         EvaluationMetric::DaviesBouldinIndex => {
             davies_bouldin_score(data_f64.view(), labels_i32.view())
         }

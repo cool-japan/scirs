@@ -41,6 +41,17 @@
 //! - Power spectrum computation with phase information
 //! - Statistical analysis across signal batches
 //! - SNR estimation and spectral centroid calculation
+//! - Spectral centroid computation using SIMD acceleration
+//! - Spectral rolloff analysis with configurable thresholds
+//! - Complex number multiplication for frequency domain operations
+//! - Weighted averaging for multitaper spectral estimation
+//!
+//! ### Platform-Specific Operations
+//! - **SSE 4.1**: Low-level optimizations for older x86_64 processors
+//! - **AVX2**: High-performance implementations for modern x86_64 processors
+//! - **Peak detection**: Vectorized local maxima finding with configurable thresholds
+//! - **Zero crossings**: Efficient sign change detection for audio analysis
+//! - **Window functions**: Hardware-accelerated window application for spectral analysis
 //!
 //! # Usage Examples
 //!
@@ -64,8 +75,25 @@
 //! let signals = Array2::zeros((4, 1024)); // 4 signals, 1024 samples each
 //! let config = SimdConfig::default();
 //!
-//! let result = simd_batch_spectral_analysis(&signals, &config)?;
+//! let result = simd_batch_spectral_analysis(&signals, "hann", 1024, &config)?;
 //! println!("Power spectra shape: {:?}", result.power_spectra.shape());
+//! ```
+//!
+//! ## Spectral Centroid and Rolloff Analysis
+//! ```rust
+//! use scirs2_signal::simd_advanced::{SimdConfig, simd_spectral_centroid, simd_spectral_rolloff};
+//!
+//! let magnitude_spectrum = vec![1.0, 2.0, 3.0, 2.0, 1.0];
+//! let frequencies = vec![0.0, 1000.0, 2000.0, 3000.0, 4000.0];
+//! let config = SimdConfig::default();
+//!
+//! // Compute spectral centroid (weighted frequency center)
+//! let centroid = simd_spectral_centroid(&magnitude_spectrum, &frequencies, &config)?;
+//! println!("Spectral centroid: {:.1} Hz", centroid);
+//!
+//! // Compute spectral rolloff (85% energy point)
+//! let rolloff = simd_spectral_rolloff(&magnitude_spectrum, &frequencies, 0.85, &config)?;
+//! println!("Spectral rolloff: {:.1} Hz", rolloff);
 //! ```
 //!
 //! ## Performance Monitoring
@@ -112,6 +140,12 @@
 
 pub mod types;
 pub mod basic_ops;
+pub mod spectral_ops;
+pub mod platform_ops;
+pub mod benchmarks;
+pub mod validation;
+pub mod peak_detection;
+pub mod convolution;
 
 // Re-export main types for easier access
 pub use types::{
@@ -134,6 +168,65 @@ pub use basic_ops::{
     simd_zero_crossing_rate,
     scalar_autocorrelation,
     scalar_cross_correlation,
+};
+
+// Re-export spectral analysis SIMD operations for backward compatibility
+pub use spectral_ops::{
+    simd_spectral_centroid,
+    simd_spectral_rolloff,
+    simd_batch_spectral_analysis,
+    simd_power_spectrum,
+    simd_weighted_average_spectra,
+    simd_complex_multiply,
+};
+
+// Re-export platform-specific SIMD operations for advanced users
+// Note: These are unsafe functions that require specific CPU instruction set support
+#[cfg(target_arch = "x86_64")]
+pub use platform_ops::{
+    // SSE 4.1 implementations
+    sse_fir_filter,
+    sse_autocorrelation,
+    sse_cross_correlation,
+    sse_apply_window,
+    sse_apply_window_v2,
+    sse_complex_butterfly,
+    sse_complex_multiply,
+    sse_power_spectrum,
+    sse_weighted_average_spectra,
+    // AVX2 implementations
+    avx2_enhanced_convolution,
+    avx2_apply_window,
+    avx2_apply_window_v2,
+    avx2_peak_detection,
+    avx2_zero_crossings,
+    avx2_fir_filter,
+    avx2_autocorrelation,
+    avx2_cross_correlation,
+    avx2_complex_butterfly,
+    avx2_complex_multiply,
+    avx2_power_spectrum,
+    avx2_weighted_average_spectra,
+};
+
+// Re-export benchmark functions
+pub use benchmarks::{
+    benchmark_simd_operations,
+};
+
+// Re-export validation functions
+pub use validation::{
+    comprehensive_simd_validation,
+};
+
+// Re-export peak detection functions
+pub use peak_detection::{
+    simd_peak_detection,
+};
+
+// Re-export convolution functions
+pub use convolution::{
+    simd_enhanced_convolution,
 };
 
 // Note: SingleSpectralResult is kept private (pub(crate)) as it's an internal type

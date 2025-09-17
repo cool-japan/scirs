@@ -274,9 +274,9 @@ impl CommunityDetectionMetrics {
         let unique_communities: HashSet<CommunityId> = communities.values().cloned().collect();
         let mut total_conductance = 0.0;
 
-        for community in unique_communities {
+        for community in &unique_communities {
             let community_nodes: HashSet<NodeId> = communities.iter()
-                .filter(|(_, &comm)| comm == community)
+                .filter(|(_, &comm)| comm == *community)
                 .map(|(&node, _)| node)
                 .collect();
 

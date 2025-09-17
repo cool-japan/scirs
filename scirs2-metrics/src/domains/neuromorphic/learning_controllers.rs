@@ -39,7 +39,7 @@ pub struct LearningObjective<F: Float> {
 }
 
 /// Adaptation strategies
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AdaptationStrategy<F: Float> {
     /// Gradient-based adaptation
     GradientBased { learning_rate: F },
@@ -154,16 +154,16 @@ impl<F: Float + std::fmt::Debug> AdaptiveLearningController<F> {
         }
 
         let strategy_idx = self.adaptation_state.current_strategy;
-        let strategy = &self.strategies[strategy_idx];
+        let strategy = self.strategies[strategy_idx].clone();
 
         let performance_before = self.get_current_performance();
 
         match strategy {
             AdaptationStrategy::GradientBased { learning_rate } => {
-                self.apply_gradient_adaptation(*learning_rate)?;
+                self.apply_gradient_adaptation(learning_rate)?;
             }
             AdaptationStrategy::Evolutionary { population_size } => {
-                self.apply_evolutionary_adaptation(*population_size)?;
+                self.apply_evolutionary_adaptation(population_size)?;
             }
             _ => {
                 // Default adaptation

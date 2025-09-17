@@ -29,7 +29,7 @@ pub struct TransformerArchitecture<T: Float> {
     config: TransformerArchConfig,
 }
 
-impl<T: Float> TransformerArchitecture<T> {
+impl<T: Float + 'static> TransformerArchitecture<T> {
     /// Create new transformer architecture
     pub fn new(config: TransformerArchConfig) -> Result<Self> {
         let mut layers = Vec::new();
@@ -152,7 +152,7 @@ pub struct TransformerLayer<T: Float> {
     layer_index: usize,
 }
 
-impl<T: Float> TransformerLayer<T> {
+impl<T: Float + 'static> TransformerLayer<T> {
     /// Create new transformer layer
     pub fn new(
         model_dimension: usize,
@@ -313,7 +313,7 @@ pub struct ArchitectureStats {
     pub memory_usage_mb: f64,
 }
 
-impl<T: Float> TransformerArchitecture<T> {
+impl<T: Float + 'static> TransformerArchitecture<T> {
     /// Get architecture statistics
     pub fn get_stats(&self) -> ArchitectureStats {
         let total_parameters = self.parameter_count();

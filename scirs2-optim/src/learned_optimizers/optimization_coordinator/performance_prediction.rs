@@ -154,14 +154,18 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
             let performance_score = self.calculate_performance_score(result)?;
             let optimizer_features = self.augment_features_for_optimizer(&features, optimizer_id)?;
 
-            // Update all models
+            // Update all models and collect model IDs
+            let mut model_ids_to_check = Vec::new();
             for (model_id, model) in &mut self.models {
                 model.update_with_observation(&optimizer_features, performance_score)?;
+                model_ids_to_check.push(model_id.clone());
+            }
 
-                // Track model accuracy
-                if let Some(previous_prediction) = self.get_recent_prediction(model_id, optimizer_id) {
+            // Track model accuracy after releasing mutable borrow
+            for model_id in model_ids_to_check {
+                if let Some(previous_prediction) = self.get_recent_prediction(&model_id, optimizer_id) {
                     self.accuracy_tracker.record_prediction_accuracy(
-                        model_id.clone(),
+                        model_id,
                         previous_prediction,
                         performance_score,
                     );

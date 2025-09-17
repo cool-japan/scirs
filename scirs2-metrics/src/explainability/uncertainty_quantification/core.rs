@@ -237,7 +237,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let aleatoric_uncertainty = self.compute_aleatoric_uncertainty(predictions)?;
 
         // Compute prediction intervals
-        let prediction_intervals = self.compute_prediction_intervals(&mean_prediction, &prediction_variance)?;
+        let prediction_intervals = self.compute_prediction_intervals(&mean_prediction.view(), &prediction_variance.view())?;
 
         // Compute calibration metrics
         let calibration_metrics = if let Some(gt) = ground_truth {

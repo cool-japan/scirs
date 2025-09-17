@@ -38,7 +38,7 @@ pub struct MultiHeadAttention<T: Float> {
     scale_factor: T,
 }
 
-impl<T: Float> MultiHeadAttention<T> {
+impl<T: Float + 'static> MultiHeadAttention<T> {
     /// Create new multi-head attention
     pub fn new(
         num_heads: usize,
@@ -359,7 +359,7 @@ pub trait AttentionMechanism<T: Float> {
     fn reset(&mut self) -> Result<()>;
 }
 
-impl<T: Float> AttentionMechanism<T> for MultiHeadAttention<T> {
+impl<T: Float + 'static> AttentionMechanism<T> for MultiHeadAttention<T> {
     fn compute_attention(
         &mut self,
         query: &Array2<T>,
@@ -387,7 +387,7 @@ pub struct SelfAttention<T: Float> {
     multi_head_attention: MultiHeadAttention<T>,
 }
 
-impl<T: Float> SelfAttention<T> {
+impl<T: Float + 'static> SelfAttention<T> {
     pub fn new(
         num_heads: usize,
         model_dimension: usize,
@@ -411,7 +411,7 @@ pub struct CrossAttention<T: Float> {
     multi_head_attention: MultiHeadAttention<T>,
 }
 
-impl<T: Float> CrossAttention<T> {
+impl<T: Float + 'static> CrossAttention<T> {
     pub fn new(
         num_heads: usize,
         model_dimension: usize,
@@ -439,7 +439,7 @@ pub struct AttentionVisualizer<T: Float> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Float> AttentionVisualizer<T> {
+impl<T: Float + 'static> AttentionVisualizer<T> {
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,

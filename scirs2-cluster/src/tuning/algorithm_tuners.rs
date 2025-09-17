@@ -104,7 +104,14 @@ where
             let seed = rng.random_range(0..u64::MAX);
 
             let cv_validator = CrossValidator::new(&self.config.cv_config);
-            let cv_scores = cv_validator.cross_validate_kmeans(data, k, max_iter, tol, Some(seed), &self.config.metric)?;
+            let cv_scores = cv_validator.cross_validate_kmeans(
+                data,
+                k,
+                max_iter,
+                tol,
+                Some(seed),
+                &self.config.metric,
+            )?;
 
             let mean_score = cv_scores.iter().sum::<f64>() / cv_scores.len() as f64;
             let cv_std = calculate_std_dev(&cv_scores);
@@ -137,7 +144,8 @@ where
         }
 
         let total_time = start_time.elapsed().as_secs_f64();
-        let convergence_info = create_convergence_info(&evaluation_history, self.config.max_evaluations);
+        let convergence_info =
+            create_convergence_info(&evaluation_history, self.config.max_evaluations);
         let exploration_stats = calculate_exploration_stats(&evaluation_history);
 
         Ok(TuningResult {
@@ -177,7 +185,8 @@ where
             let min_samples = params.get("min_samples").map(|&x| x as usize).unwrap_or(5);
 
             let cv_validator = CrossValidator::new(&self.config.cv_config);
-            let cv_scores = cv_validator.cross_validate_dbscan(data, eps, min_samples, &self.config.metric)?;
+            let cv_scores =
+                cv_validator.cross_validate_dbscan(data, eps, min_samples, &self.config.metric)?;
 
             let mean_score = cv_scores.iter().sum::<f64>() / cv_scores.len() as f64;
             let cv_std = calculate_std_dev(&cv_scores);
@@ -210,7 +219,8 @@ where
         }
 
         let total_time = start_time.elapsed().as_secs_f64();
-        let convergence_info = create_convergence_info(&evaluation_history, self.config.max_evaluations);
+        let convergence_info =
+            create_convergence_info(&evaluation_history, self.config.max_evaluations);
         let exploration_stats = calculate_exploration_stats(&evaluation_history);
 
         Ok(TuningResult {
@@ -253,7 +263,7 @@ where
                 data,
                 min_samples,
                 Some(F::from(max_eps).unwrap()),
-                &self.config.metric
+                &self.config.metric,
             )?;
             let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
 
@@ -332,7 +342,7 @@ where
                 n_neighbors,
                 F::from(gamma).unwrap(),
                 max_iter,
-                &self.config.metric
+                &self.config.metric,
             )?;
             let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
 
@@ -404,7 +414,7 @@ where
                 F::from(damping).unwrap(),
                 max_iter,
                 convergence_iter,
-                &self.config.metric
+                &self.config.metric,
             )?;
             let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
 
@@ -470,7 +480,7 @@ where
                 data,
                 branching_factor,
                 F::from(threshold).unwrap(),
-                &self.config.metric
+                &self.config.metric,
             )?;
             let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
 
@@ -541,7 +551,7 @@ where
                 max_iter,
                 F::from(tol).unwrap(),
                 F::from(reg_covar).unwrap(),
-                &self.config.metric
+                &self.config.metric,
             )?;
             let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
 

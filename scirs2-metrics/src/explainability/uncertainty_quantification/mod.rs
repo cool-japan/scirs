@@ -192,7 +192,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
     }
 
     /// Get configuration summary
-    pub fn config_summary(&self) -> UncertaintyConfigSummary {
+    pub fn config_summary(&self) -> UncertaintyConfigSummary<F> {
         UncertaintyConfigSummary {
             bayesian_enabled: self.bayesian.is_some(),
             conformal_enabled: self.conformal.is_some(),
