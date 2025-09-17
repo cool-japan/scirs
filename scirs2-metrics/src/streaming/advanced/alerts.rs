@@ -59,7 +59,11 @@ impl AlertsManager {
                 sent_at: Instant::now(),
                 channels: self.get_enabled_channels(),
                 success,
-                error_message: if success { None } else { Some("Delivery failed".to_string()) },
+                error_message: if success {
+                    None
+                } else {
+                    Some("Delivery failed".to_string())
+                },
             };
 
             self.sent_alerts.push_back(sent_alert);
@@ -183,9 +187,8 @@ impl AlertsManager {
         let now = Instant::now();
         let retention_duration = std::time::Duration::from_secs(retention_period_secs);
 
-        self.rate_limiter.retain(|_, &mut last_sent| {
-            now.duration_since(last_sent) < retention_duration
-        });
+        self.rate_limiter
+            .retain(|_, &mut last_sent| now.duration_since(last_sent) < retention_duration);
     }
 }
 

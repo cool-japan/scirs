@@ -3,8 +3,8 @@
 //! This module contains structures for capturing and tracking performance metrics
 //! from various Advanced mode processors.
 
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// Type of Advanced processor
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -39,11 +39,17 @@ impl ProcessorType {
 
     /// Check if processor type supports specific metrics
     pub fn supports_quantum_metrics(&self) -> bool {
-        matches!(self, ProcessorType::QuantumInspired | ProcessorType::QuantumNeuralHybrid)
+        matches!(
+            self,
+            ProcessorType::QuantumInspired | ProcessorType::QuantumNeuralHybrid
+        )
     }
 
     pub fn supports_neural_metrics(&self) -> bool {
-        matches!(self, ProcessorType::NeuralAdaptive | ProcessorType::QuantumNeuralHybrid)
+        matches!(
+            self,
+            ProcessorType::NeuralAdaptive | ProcessorType::QuantumNeuralHybrid
+        )
     }
 
     pub fn supports_compression_metrics(&self) -> bool {
@@ -192,8 +198,16 @@ impl PerformanceSample {
         factors += 1;
 
         // Resource utilization factor (balanced is better)
-        let cpu_factor = if self.cpu_utilization > 0.9 { 0.5 } else { self.cpu_utilization };
-        let gpu_factor = if self.gpu_utilization > 0.9 { 0.5 } else { self.gpu_utilization };
+        let cpu_factor = if self.cpu_utilization > 0.9 {
+            0.5
+        } else {
+            self.cpu_utilization
+        };
+        let gpu_factor = if self.gpu_utilization > 0.9 {
+            0.5
+        } else {
+            self.gpu_utilization
+        };
         score += (cpu_factor + gpu_factor) / 2.0;
         factors += 1;
 
@@ -378,7 +392,8 @@ impl AggregatedMetrics {
         let variance = samples
             .iter()
             .map(|s| (s.execution_time_ms - mean).powi(2))
-            .sum::<f64>() / (samples.len() - 1) as f64;
+            .sum::<f64>()
+            / (samples.len() - 1) as f64;
 
         variance
     }
@@ -560,9 +575,12 @@ impl ExecutionTimer {
     }
 
     /// Create a performance sample from this timer
-    pub fn to_sample(&self, processor_type: ProcessorType, processor_id: String) -> PerformanceSample {
-        PerformanceSample::new(processor_type, processor_id)
-            .with_execution_time(self.elapsed_ms())
+    pub fn to_sample(
+        &self,
+        processor_type: ProcessorType,
+        processor_id: String,
+    ) -> PerformanceSample {
+        PerformanceSample::new(processor_type, processor_id).with_execution_time(self.elapsed_ms())
     }
 }
 
@@ -578,10 +596,19 @@ mod tests {
 
     #[test]
     fn test_processor_type_display() {
-        assert_eq!(ProcessorType::QuantumInspired.to_string(), "QuantumInspired");
+        assert_eq!(
+            ProcessorType::QuantumInspired.to_string(),
+            "QuantumInspired"
+        );
         assert_eq!(ProcessorType::NeuralAdaptive.to_string(), "NeuralAdaptive");
-        assert_eq!(ProcessorType::QuantumNeuralHybrid.to_string(), "QuantumNeuralHybrid");
-        assert_eq!(ProcessorType::MemoryCompression.to_string(), "MemoryCompression");
+        assert_eq!(
+            ProcessorType::QuantumNeuralHybrid.to_string(),
+            "QuantumNeuralHybrid"
+        );
+        assert_eq!(
+            ProcessorType::MemoryCompression.to_string(),
+            "MemoryCompression"
+        );
     }
 
     #[test]
@@ -605,10 +632,8 @@ mod tests {
 
     #[test]
     fn test_performance_sample_creation() {
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test-processor".to_string(),
-        );
+        let sample =
+            PerformanceSample::new(ProcessorType::QuantumInspired, "test-processor".to_string());
 
         assert_eq!(sample.processor_type, ProcessorType::QuantumInspired);
         assert_eq!(sample.processor_id, "test-processor");
@@ -618,14 +643,11 @@ mod tests {
 
     #[test]
     fn test_performance_sample_builder() {
-        let sample = PerformanceSample::new(
-            ProcessorType::NeuralAdaptive,
-            "test".to_string(),
-        )
-        .with_execution_time(100.0)
-        .with_throughput(500.0)
-        .with_cache_hit_ratio(0.8)
-        .with_neural_confidence(0.9);
+        let sample = PerformanceSample::new(ProcessorType::NeuralAdaptive, "test".to_string())
+            .with_execution_time(100.0)
+            .with_throughput(500.0)
+            .with_cache_hit_ratio(0.8)
+            .with_neural_confidence(0.9);
 
         assert_eq!(sample.execution_time_ms, 100.0);
         assert_eq!(sample.throughput_ops_per_sec, 500.0);
@@ -635,16 +657,13 @@ mod tests {
 
     #[test]
     fn test_efficiency_score_calculation() {
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        )
-        .with_execution_time(100.0)
-        .with_throughput(1000.0)
-        .with_cache_hit_ratio(0.9)
-        .with_error_rate(0.1)
-        .with_cpu_utilization(0.7)
-        .with_gpu_utilization(0.6);
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0)
+            .with_throughput(1000.0)
+            .with_cache_hit_ratio(0.9)
+            .with_error_rate(0.1)
+            .with_cpu_utilization(0.7)
+            .with_gpu_utilization(0.6);
 
         let score = sample.efficiency_score();
         assert!(score > 0.0 && score <= 1.0);
@@ -673,15 +692,13 @@ mod tests {
     fn test_aggregated_metrics_update() {
         let mut metrics = AggregatedMetrics::new();
 
-        let sample1 = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        ).with_execution_time(100.0).with_throughput(500.0);
+        let sample1 = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0)
+            .with_throughput(500.0);
 
-        let sample2 = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        ).with_execution_time(200.0).with_throughput(400.0);
+        let sample2 = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(200.0)
+            .with_throughput(400.0);
 
         metrics.update_with_sample(&sample1);
         metrics.update_with_sample(&sample2);
@@ -734,12 +751,9 @@ mod tests {
 
     #[test]
     fn test_metric_access() {
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        )
-        .with_execution_time(100.0)
-        .with_custom_metric("custom_value".to_string(), 42.0);
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0)
+            .with_custom_metric("custom_value".to_string(), 42.0);
 
         assert_eq!(sample.get_metric("execution_time_ms"), Some(100.0));
         assert_eq!(sample.get_metric("custom_value"), Some(42.0));

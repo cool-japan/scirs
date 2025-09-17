@@ -19,8 +19,8 @@
 //! benchmark_simd_operations(8192)?;
 //! ```
 
+use super::{simd_autocorrelation, simd_fir_filter, SimdConfig};
 use crate::error::SignalResult;
-use super::{simd_fir_filter, simd_autocorrelation, SimdConfig};
 use std::time::Instant;
 
 /// Performance benchmark for SIMD operations
@@ -51,9 +51,7 @@ use std::time::Instant;
 /// ```
 #[allow(dead_code)]
 pub fn benchmark_simd_operations(signal_length: usize) -> SignalResult<()> {
-    let signal: Vec<f64> = (0..signal_length)
-        .map(|i| (i as f64 * 0.1).sin())
-        .collect();
+    let signal: Vec<f64> = (0..signal_length).map(|i| (i as f64 * 0.1).sin()).collect();
 
     let coeffs: Vec<f64> = vec![0.1, 0.2, 0.3, 0.2, 0.1]; // Simple 5-tap filter
     let mut output = vec![0.0; signal_length];

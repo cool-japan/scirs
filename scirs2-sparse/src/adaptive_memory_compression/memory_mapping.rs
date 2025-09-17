@@ -5,7 +5,7 @@
 
 use crate::error::{SparseError, SparseResult};
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -410,7 +410,8 @@ impl MemoryMappingManager {
             return Ok(()); // Already mapped
         }
 
-        let mapped_file = MemoryMappedFile::new_with_config(filepath.clone(), size, self.config.clone())?;
+        let mapped_file =
+            MemoryMappedFile::new_with_config(filepath.clone(), size, self.config.clone())?;
 
         self.stats.total_files += 1;
         self.stats.total_mapped_size += size;
@@ -523,28 +524,32 @@ mod tests {
         let chunk_size = 10;
         let mut offset = 0;
 
-        mapped_file.write_chunked(chunk_size, |current_offset| {
-            if current_offset != offset {
-                return Ok(None);
-            }
+        mapped_file
+            .write_chunked(chunk_size, |current_offset| {
+                if current_offset != offset {
+                    return Ok(None);
+                }
 
-            let start = current_offset;
-            let end = (start + chunk_size).min(test_data.len());
+                let start = current_offset;
+                let end = (start + chunk_size).min(test_data.len());
 
-            if start >= test_data.len() {
-                Ok(None)
-            } else {
-                offset = end;
-                Ok(Some(test_data[start..end].to_vec()))
-            }
-        }).unwrap();
+                if start >= test_data.len() {
+                    Ok(None)
+                } else {
+                    offset = end;
+                    Ok(Some(test_data[start..end].to_vec()))
+                }
+            })
+            .unwrap();
 
         // Read back and verify
         let mut read_data = Vec::new();
-        mapped_file.read_chunked(chunk_size, |chunk, _offset| {
-            read_data.extend_from_slice(chunk);
-            Ok(())
-        }).unwrap();
+        mapped_file
+            .read_chunked(chunk_size, |chunk, _offset| {
+                read_data.extend_from_slice(chunk);
+                Ok(())
+            })
+            .unwrap();
 
         assert_eq!(&read_data[..test_data.len()], test_data);
     }

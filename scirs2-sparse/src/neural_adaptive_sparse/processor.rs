@@ -5,14 +5,14 @@
 
 use super::config::NeuralAdaptiveConfig;
 use super::neural_network::NeuralNetwork;
-use super::pattern_memory::{OptimizationStrategy, PatternMemory, MatrixFingerprint};
-use super::reinforcement_learning::{RLAgent, ExperienceBuffer, Experience, PerformanceMetrics};
+use super::pattern_memory::{MatrixFingerprint, OptimizationStrategy, PatternMemory};
+use super::reinforcement_learning::{Experience, ExperienceBuffer, PerformanceMetrics, RLAgent};
 use super::transformer::TransformerModel;
 use crate::error::SparseResult;
+use num_traits::{Float, NumAssign};
+use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use scirs2_core::simd_ops::SimdUnifiedOps;
-use num_traits::{Float, NumAssign};
 
 /// Neural-adaptive sparse matrix processor
 pub struct NeuralAdaptiveSparseProcessor {
@@ -146,7 +146,7 @@ impl NeuralAdaptiveSparseProcessor {
         let experience = Experience {
             state: state.clone(),
             action: strategy,
-            reward: 0.0, // Will be updated after operation execution
+            reward: 0.0,       // Will be updated after operation execution
             next_state: state, // Will be updated with next state
             done: false,
             timestamp: std::time::SystemTime::now()
@@ -244,7 +244,11 @@ impl NeuralAdaptiveSparseProcessor {
     }
 
     /// Encode state for neural network/RL agent
-    fn encode_state(&self, matrix_features: &[f64], context: &OperationContext) -> SparseResult<Vec<f64>> {
+    fn encode_state(
+        &self,
+        matrix_features: &[f64],
+        context: &OperationContext,
+    ) -> SparseResult<Vec<f64>> {
         let mut state = Vec::new();
 
         // Matrix properties
@@ -307,7 +311,8 @@ impl NeuralAdaptiveSparseProcessor {
     /// Get processor statistics
     pub fn get_statistics(&self) -> NeuralProcessorStats {
         let total_operations = self.adaptation_counter.load(Ordering::Relaxed);
-        let successful_adaptations = self.performance_history
+        let successful_adaptations = self
+            .performance_history
             .iter()
             .filter(|p| p.compute_reward(1.0) > 0.0)
             .count();
@@ -316,7 +321,8 @@ impl NeuralAdaptiveSparseProcessor {
             self.performance_history
                 .iter()
                 .map(|p| p.performance_score())
-                .sum::<f64>() / self.performance_history.len() as f64
+                .sum::<f64>()
+                / self.performance_history.len() as f64
         } else {
             0.0
         };
@@ -355,7 +361,9 @@ impl NeuralAdaptiveSparseProcessor {
 
         for performance in &self.performance_history {
             let score = performance.performance_score();
-            let entry = strategy_scores.entry(performance.strategy_used).or_insert((0.0, 0));
+            let entry = strategy_scores
+                .entry(performance.strategy_used)
+                .or_insert((0.0, 0));
             entry.0 += score;
             entry.1 += 1;
         }
@@ -393,8 +401,10 @@ impl NeuralAdaptiveSparseProcessor {
 
     /// Load processor state
     pub fn load_state(&mut self, state: ProcessorState) {
-        self.neural_network.set_parameters(&state.neural_network_params);
-        self.adaptation_counter.store(state.total_operations, Ordering::Relaxed);
+        self.neural_network
+            .set_parameters(&state.neural_network_params);
+        self.adaptation_counter
+            .store(state.total_operations, Ordering::Relaxed);
         self.current_exploration_rate = state.current_exploration_rate;
     }
 
@@ -434,9 +444,9 @@ impl NeuralAdaptiveSparseProcessor {
         // Learn from performance
         let performance = PerformanceMetrics::new(
             execution_time,
-            0.8, // cache_efficiency (placeholder)
-            0.9, // simd_utilization (placeholder)
-            0.7, // parallel_efficiency (placeholder)
+            0.8,  // cache_efficiency (placeholder)
+            0.9,  // simd_utilization (placeholder)
+            0.7,  // parallel_efficiency (placeholder)
             0.85, // memory_bandwidth (placeholder)
             strategy,
         );
@@ -486,12 +496,23 @@ impl NeuralAdaptiveSparseProcessor {
             let data_f64: Vec<f64> = data.iter().map(|&x| x.to_f64().unwrap_or(0.0)).collect();
             let sum: f64 = data_f64.iter().sum();
             let mean = sum / data_f64.len() as f64;
-            let variance = data_f64.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / data_f64.len() as f64;
+            let variance =
+                data_f64.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / data_f64.len() as f64;
 
             features.push(mean);
             features.push(variance.sqrt()); // standard deviation
-            features.push(*data_f64.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0));
-            features.push(*data_f64.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(&0.0));
+            features.push(
+                *data_f64
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(&0.0),
+            );
+            features.push(
+                *data_f64
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(&0.0),
+            );
         } else {
             features.extend(&[0.0, 0.0, 0.0, 0.0]);
         }

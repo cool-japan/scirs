@@ -136,7 +136,10 @@ impl RLAgent {
                     .unwrap_or(0);
                 self.idx_to_strategy(best_action_idx)
             }
-            RLAlgorithm::PolicyGradient | RLAlgorithm::ActorCritic | RLAlgorithm::PPO | RLAlgorithm::SAC => {
+            RLAlgorithm::PolicyGradient
+            | RLAlgorithm::ActorCritic
+            | RLAlgorithm::PPO
+            | RLAlgorithm::SAC => {
                 if let Some(ref policy_network) = self.policy_network {
                     let action_probs = policy_network.forward(state);
                     let best_action_idx = action_probs
@@ -231,7 +234,9 @@ impl RLAgent {
                 experience.reward
             } else if let Some(ref target_network) = self.target_network {
                 let next_q_values = target_network.forward(&experience.next_state);
-                let max_next_q = next_q_values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let max_next_q = next_q_values
+                    .iter()
+                    .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
                 experience.reward + 0.99 * max_next_q // gamma = 0.99
             } else {
                 experience.reward
@@ -246,7 +251,9 @@ impl RLAgent {
 
             // Update Q-network (simplified)
             let (_, cache) = self.q_network.forward_with_cache(&experience.state);
-            let gradients = self.q_network.compute_gradients(&experience.state, &target_q_values, &cache);
+            let gradients =
+                self.q_network
+                    .compute_gradients(&experience.state, &target_q_values, &cache);
             self.q_network.update_weights(&gradients, self.learningrate);
         }
 
@@ -270,7 +277,8 @@ impl RLAgent {
 
                 // Update policy network
                 let (_, cache) = policy_network.forward_with_cache(&experience.state);
-                let gradients = policy_network.compute_gradients(&experience.state, &target_probs, &cache);
+                let gradients =
+                    policy_network.compute_gradients(&experience.state, &target_probs, &cache);
                 policy_network.update_weights(&gradients, learning_rate);
             }
         }
@@ -294,7 +302,8 @@ impl RLAgent {
                 };
 
                 let (_, cache) = value_network.forward_with_cache(&experience.state);
-                let gradients = value_network.compute_gradients(&experience.state, &[target_value], &cache);
+                let gradients =
+                    value_network.compute_gradients(&experience.state, &[target_value], &cache);
                 value_network.update_weights(&gradients, learning_rate);
 
                 // Update actor (policy network)
@@ -309,7 +318,8 @@ impl RLAgent {
                     }
 
                     let (_, cache) = policy_network.forward_with_cache(&experience.state);
-                    let gradients = policy_network.compute_gradients(&experience.state, &target_probs, &cache);
+                    let gradients =
+                        policy_network.compute_gradients(&experience.state, &target_probs, &cache);
                     policy_network.update_weights(&gradients, learning_rate);
                 }
             }
@@ -476,8 +486,8 @@ impl PerformanceMetrics {
     pub fn compute_reward(&self, baseline_time: f64) -> f64 {
         // Reward based on performance improvement
         let time_improvement = (baseline_time - self.executiontime) / baseline_time;
-        let efficiency_score = (self.cache_efficiency + self.simd_utilization +
-                               self.parallel_efficiency) / 3.0;
+        let efficiency_score =
+            (self.cache_efficiency + self.simd_utilization + self.parallel_efficiency) / 3.0;
 
         // Combined reward considering both time improvement and efficiency
         time_improvement * 10.0 + efficiency_score * 5.0
@@ -486,8 +496,11 @@ impl PerformanceMetrics {
     /// Get overall performance score
     pub fn performance_score(&self) -> f64 {
         let time_score = 1.0 / (1.0 + self.executiontime); // Lower time is better
-        let efficiency_score = (self.cache_efficiency + self.simd_utilization +
-                               self.parallel_efficiency + self.memory_bandwidth) / 4.0;
+        let efficiency_score = (self.cache_efficiency
+            + self.simd_utilization
+            + self.parallel_efficiency
+            + self.memory_bandwidth)
+            / 4.0;
 
         (time_score + efficiency_score) / 2.0
     }

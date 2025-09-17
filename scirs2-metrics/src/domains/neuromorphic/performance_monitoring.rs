@@ -102,7 +102,10 @@ impl<F: Float + std::iter::Sum> NeuromorphicPerformanceMonitor<F> {
     }
 
     /// Update performance metrics
-    pub fn update(&mut self, network_state: &super::spiking_networks::NetworkState<F>) -> crate::error::Result<()> {
+    pub fn update(
+        &mut self,
+        network_state: &super::spiking_networks::NetworkState<F>,
+    ) -> crate::error::Result<()> {
         // Update current metrics
         self.metrics.update_from_network_state(network_state)?;
 
@@ -119,8 +122,8 @@ impl<F: Float + std::iter::Sum> NeuromorphicPerformanceMonitor<F> {
 
     /// Check if should take snapshot
     fn should_take_snapshot(&self) -> bool {
-        self.history.is_empty() ||
-        self.history.back().unwrap().timestamp.elapsed() >= self.config.interval
+        self.history.is_empty()
+            || self.history.back().unwrap().timestamp.elapsed() >= self.config.interval
     }
 
     /// Take performance snapshot
@@ -158,7 +161,12 @@ impl<F: Float + std::iter::Sum> NeuromorphicPerformanceMonitor<F> {
 
             if current_value < *threshold {
                 // In a real implementation, this would trigger alerts
-                println!("Alert: {} below threshold: {} < {}", metric_name, current_value.to_f64().unwrap_or(0.0), threshold.to_f64().unwrap_or(0.0));
+                println!(
+                    "Alert: {} below threshold: {} < {}",
+                    metric_name,
+                    current_value.to_f64().unwrap_or(0.0),
+                    threshold.to_f64().unwrap_or(0.0)
+                );
             }
         }
         Ok(())
@@ -185,9 +193,14 @@ impl<F: Float + std::iter::Sum> NeuromorphicPerformanceMonitor<F> {
             average_efficiency: self.calculate_average(&efficiency_values),
             average_speed: self.calculate_average(&speed_values),
             min_accuracy: accuracy_values.iter().cloned().fold(F::infinity(), F::min),
-            max_accuracy: accuracy_values.iter().cloned().fold(F::neg_infinity(), F::max),
+            max_accuracy: accuracy_values
+                .iter()
+                .cloned()
+                .fold(F::neg_infinity(), F::max),
             total_snapshots: self.history.len(),
-            monitoring_duration: if let (Some(first), Some(last)) = (self.history.front(), self.history.back()) {
+            monitoring_duration: if let (Some(first), Some(last)) =
+                (self.history.front(), self.history.back())
+            {
                 last.timestamp.duration_since(first.timestamp)
             } else {
                 Duration::from_secs(0)
@@ -221,7 +234,10 @@ impl<F: Float + std::iter::Sum> PerformanceMetrics<F> {
     }
 
     /// Update metrics from network state
-    pub fn update_from_network_state(&mut self, network_state: &super::spiking_networks::NetworkState<F>) -> crate::error::Result<()> {
+    pub fn update_from_network_state(
+        &mut self,
+        network_state: &super::spiking_networks::NetworkState<F>,
+    ) -> crate::error::Result<()> {
         // Calculate processing speed based on activity levels
         let total_activity = network_state.activity_levels.iter().cloned().sum::<F>();
         self.processing_speed = total_activity;
@@ -234,10 +250,13 @@ impl<F: Float + std::iter::Sum> PerformanceMetrics<F> {
         };
 
         // Update network utilization
-        let active_neurons = network_state.activity_levels.iter()
+        let active_neurons = network_state
+            .activity_levels
+            .iter()
             .filter(|&&x| x > F::from(0.1).unwrap())
             .count();
-        self.network_utilization = F::from(active_neurons).unwrap() / F::from(network_state.activity_levels.len()).unwrap();
+        self.network_utilization = F::from(active_neurons).unwrap()
+            / F::from(network_state.activity_levels.len()).unwrap();
 
         Ok(())
     }

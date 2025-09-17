@@ -3,15 +3,15 @@
 //! This module contains the main RealTimePerformanceMonitor implementation
 //! that coordinates all monitoring, alerting, and analysis components.
 
+use super::alerts::{Alert, AlertManager};
 use super::config::PerformanceMonitorConfig;
-use super::metrics::{PerformanceSample, SystemMetrics, ProcessorType};
 use super::history::PerformanceHistory;
-use super::alerts::{AlertManager, Alert};
+use super::metrics::{PerformanceSample, ProcessorType, SystemMetrics};
 use crate::adaptive_memory_compression::MemoryStats;
+use crate::error::SparseResult;
 use crate::neural_adaptive_sparse::NeuralProcessorStats;
 use crate::quantum_inspired_sparse::QuantumProcessorStats;
 use crate::quantum_neural_hybrid::QuantumNeuralHybridStats;
-use crate::error::SparseResult;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -242,7 +242,7 @@ impl RealTimePerformanceMonitor {
             total_samples,
             active_alerts,
             registered_processors,
-            uptime_seconds: 0, // Would track actual uptime
+            uptime_seconds: 0,          // Would track actual uptime
             average_sampling_rate: 0.0, // Would calculate from interval
             system_health_score,
         }
@@ -251,7 +251,8 @@ impl RealTimePerformanceMonitor {
     /// Get recent performance samples
     pub fn get_recent_samples(&self, count: usize) -> Vec<PerformanceSample> {
         if let Ok(history) = self.performance_history.lock() {
-            history.get_recent_samples(count)
+            history
+                .get_recent_samples(count)
                 .into_iter()
                 .cloned()
                 .collect()
@@ -263,10 +264,7 @@ impl RealTimePerformanceMonitor {
     /// Get active alerts
     pub fn get_active_alerts(&self) -> Vec<Alert> {
         if let Ok(alerts) = self.alert_manager.lock() {
-            alerts.get_active_alerts()
-                .into_iter()
-                .cloned()
-                .collect()
+            alerts.get_active_alerts().into_iter().cloned().collect()
         } else {
             Vec::new()
         }
@@ -274,7 +272,10 @@ impl RealTimePerformanceMonitor {
 
     /// Get system metrics
     pub fn get_system_metrics(&self) -> Option<SystemMetrics> {
-        self.system_metrics.lock().ok().map(|metrics| metrics.clone())
+        self.system_metrics
+            .lock()
+            .ok()
+            .map(|metrics| metrics.clone())
     }
 
     /// Record a custom performance sample
@@ -370,9 +371,15 @@ impl RealTimePerformanceMonitor {
             .with_throughput(stats.total_operations as f64)
             .with_cache_hit_ratio(stats.pattern_memory_hit_rate)
             .with_neural_confidence(stats.neural_network_accuracy)
-            .with_custom_metric("performance_improvement".to_string(), stats.average_performance_improvement)
+            .with_custom_metric(
+                "performance_improvement".to_string(),
+                stats.average_performance_improvement,
+            )
             .with_custom_metric("rl_reward".to_string(), stats.rl_agent_reward)
-            .with_custom_metric("attention_score".to_string(), stats.transformer_attention_score)
+            .with_custom_metric(
+                "attention_score".to_string(),
+                stats.transformer_attention_score,
+            )
     }
 
     fn hybrid_stats_to_sample(id: &str, stats: &QuantumNeuralHybridStats) -> PerformanceSample {
@@ -388,8 +395,8 @@ impl RealTimePerformanceMonitor {
 
     fn memory_stats_to_sample(id: &str, stats: &MemoryStats) -> PerformanceSample {
         let compression_ratio = if stats.compression_stats.total_uncompressed_size > 0 {
-            stats.compression_stats.total_compressed_size as f64 /
-            stats.compression_stats.total_uncompressed_size as f64
+            stats.compression_stats.total_compressed_size as f64
+                / stats.compression_stats.total_uncompressed_size as f64
         } else {
             1.0
         };
@@ -450,10 +457,10 @@ impl ProcessorRegistry {
     }
 
     fn total_processor_count(&self) -> usize {
-        self.quantum_processors.len() +
-        self.neural_processors.len() +
-        self.hybrid_processors.len() +
-        self.memory_compressors.len()
+        self.quantum_processors.len()
+            + self.neural_processors.len()
+            + self.hybrid_processors.len()
+            + self.memory_compressors.len()
     }
 }
 
@@ -526,10 +533,8 @@ mod tests {
         let config = PerformanceMonitorConfig::default();
         let monitor = RealTimePerformanceMonitor::new(config);
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        ).with_execution_time(100.0);
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0);
 
         let result = monitor.record_sample(sample);
         assert!(result.is_ok());
@@ -544,10 +549,7 @@ mod tests {
         let monitor = RealTimePerformanceMonitor::new(config);
 
         // Add some data
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        );
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string());
         let _ = monitor.record_sample(sample);
 
         // Clear data

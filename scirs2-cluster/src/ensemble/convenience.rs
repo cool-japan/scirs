@@ -3,8 +3,8 @@
 //! This module provides high-level, easy-to-use functions for common
 //! ensemble clustering scenarios, including adaptive and federated learning.
 
-use super::core::*;
 use super::algorithms::EnsembleClusterer;
+use super::core::*;
 use crate::error::{ClusteringError, Result};
 use ndarray::{s, Array1, Array2, ArrayView2};
 use num_traits::{Float, FromPrimitive};
@@ -69,14 +69,7 @@ pub enum AggregationMethod {
 /// Simple ensemble clustering with default parameters
 pub fn ensemble_clustering<F>(data: ArrayView2<F>) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let config = EnsembleConfig::default();
@@ -91,14 +84,7 @@ pub fn bootstrap_ensemble<F>(
     sample_ratio: f64,
 ) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let config = EnsembleConfig {
@@ -116,14 +102,7 @@ pub fn multi_algorithm_ensemble<F>(
     algorithms: Vec<ClusteringAlgorithm>,
 ) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let config = EnsembleConfig {
@@ -144,14 +123,7 @@ pub fn meta_clustering_ensemble<F>(
     metaconfig: EnsembleConfig,
 ) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let mut base_results = Vec::new();
@@ -192,14 +164,7 @@ pub fn adaptive_ensemble<F>(
     adaptationconfig: AdaptationConfig,
 ) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let mut ensemble = EnsembleClusterer::new(config.clone());
@@ -242,14 +207,7 @@ pub fn federated_ensemble<F>(
     federationconfig: FederationConfig,
 ) -> Result<EnsembleResult>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     let mut local_results = Vec::new();

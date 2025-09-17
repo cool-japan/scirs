@@ -18,12 +18,12 @@ pub mod performance;
 pub mod window_management;
 
 // Re-export main types and traits
-pub use alerts::{AlertsManager, AlertStatistics};
+pub use alerts::{AlertStatistics, AlertsManager};
 pub use anomaly::{Anomaly, AnomalyDetector, AnomalyStatistics, AnomalyType};
 pub use core::{
     Alert, AlertConfig, AlertSeverity, AnomalyDetectionAlgorithm, ConceptDriftDetector, DataPoint,
-    DriftDetectionMethod, DriftDetectionResult, DriftStatistics, DriftStatus,
-    EnsembleAggregation, SentAlert, StreamingConfig, StreamingMetric, WindowAdaptationStrategy,
+    DriftDetectionMethod, DriftDetectionResult, DriftStatistics, DriftStatus, EnsembleAggregation,
+    SentAlert, StreamingConfig, StreamingMetric, WindowAdaptationStrategy,
 };
 pub use drift_detection::{AdwinDetector, DdmDetector, PageHinkleyDetector};
 pub use ensemble::MetricEnsemble;
@@ -247,12 +247,12 @@ impl<F: Float + std::fmt::Debug + Send + Sync + std::iter::Sum + std::ops::AddAs
 
         // Performance monitoring
         if self.performance_monitor.should_monitor() {
-            self.performance_monitor.take_snapshot(&self.current_stats)?;
+            self.performance_monitor
+                .take_snapshot(&self.current_stats)?;
         }
 
         // Update ensemble metrics
-        self.metric_ensemble
-            .update(true_value, predicted_value)?;
+        self.metric_ensemble.update(true_value, predicted_value)?;
 
         self.current_stats.last_update = Instant::now();
 

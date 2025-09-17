@@ -377,13 +377,30 @@ pub enum RenderContent {
 #[derive(Debug, Clone)]
 pub enum CanvasCommand {
     /// Draw line
-    DrawLine { from: Position, to: Position, color: String, width: f64 },
+    DrawLine {
+        from: Position,
+        to: Position,
+        color: String,
+        width: f64,
+    },
     /// Draw rectangle
-    DrawRect { position: Position, size: Size, color: String },
+    DrawRect {
+        position: Position,
+        size: Size,
+        color: String,
+    },
     /// Draw circle
-    DrawCircle { center: Position, radius: f64, color: String },
+    DrawCircle {
+        center: Position,
+        radius: f64,
+        color: String,
+    },
     /// Draw text
-    DrawText { position: Position, text: String, font: FontConfig },
+    DrawText {
+        position: Position,
+        text: String,
+        font: FontConfig,
+    },
     /// Custom command
     Custom(String, HashMap<String, Value>),
 }
@@ -537,9 +554,15 @@ pub enum ResponseAction {
     /// Navigate to URL
     Navigate { url: String },
     /// Show notification
-    ShowNotification { message: String, level: NotificationLevel },
+    ShowNotification {
+        message: String,
+        level: NotificationLevel,
+    },
     /// Execute custom action
-    Custom { action: String, params: HashMap<String, Value> },
+    Custom {
+        action: String,
+        params: HashMap<String, Value>,
+    },
 }
 
 /// Notification level enumeration

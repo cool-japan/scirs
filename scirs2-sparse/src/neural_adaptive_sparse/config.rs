@@ -196,7 +196,9 @@ impl NeuralAdaptiveConfig {
         }
 
         if self.modeldim % self.attention_heads != 0 {
-            return Err("Model dimension must be divisible by number of attention heads".to_string());
+            return Err(
+                "Model dimension must be divisible by number of attention heads".to_string(),
+            );
         }
 
         Ok(())

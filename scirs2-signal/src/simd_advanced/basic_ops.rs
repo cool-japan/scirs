@@ -30,9 +30,9 @@
 //! - [`simd_rms`] - SIMD RMS computation
 //! - [`simd_zero_crossing_rate`] - SIMD zero crossing rate computation
 
-use crate::error::{SignalError, SignalResult};
 use super::types::SimdConfig;
-use ndarray::{ArrayView1};
+use crate::error::{SignalError, SignalResult};
+use ndarray::ArrayView1;
 use num_complex::Complex64;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 #[cfg(target_arch = "x86_64")]
@@ -42,9 +42,10 @@ use std::arch::x86_64::*;
 fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
     for (i, &value) in slice.iter().enumerate() {
         if !value.is_finite() {
-            return Err(SignalError::ValueError(
-                format!("{} must contain only finite values, got {} at index {}", name, value, i)
-            ));
+            return Err(SignalError::ValueError(format!(
+                "{} must contain only finite values, got {} at index {}",
+                name, value, i
+            )));
         }
     }
     Ok(())
@@ -516,7 +517,11 @@ pub fn simd_rms(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
 // =============================================================================
 
 /// Safe scalar implementation of window application
-fn scalar_apply_window_safe(signal: &[f64], window: &[f64], output: &mut [f64]) -> SignalResult<()> {
+fn scalar_apply_window_safe(
+    signal: &[f64],
+    window: &[f64],
+    output: &mut [f64],
+) -> SignalResult<()> {
     if signal.len() != window.len() || signal.len() != output.len() {
         return Err(SignalError::ValueError(
             "Signal, window, and output arrays must have the same length".to_string(),
@@ -550,7 +555,11 @@ fn scalar_fir_filter(input: &[f64], coeffs: &[f64], output: &mut [f64]) -> Signa
 
 /// Scalar fallback for autocorrelation
 #[allow(dead_code)]
-pub fn scalar_autocorrelation(signal: &[f64], autocorr: &mut [f64], max_lag: usize) -> SignalResult<()> {
+pub fn scalar_autocorrelation(
+    signal: &[f64],
+    autocorr: &mut [f64],
+    max_lag: usize,
+) -> SignalResult<()> {
     let n = signal.len();
 
     for lag in 0..=max_lag {
@@ -635,9 +644,7 @@ fn scalar_count_zero_crossings(signal: &[f64]) -> usize {
     let mut crossings = 0;
 
     for i in 0..(n - 1) {
-        if (signal[i] >= 0.0 && signal[i + 1] < 0.0)
-            || (signal[i] < 0.0 && signal[i + 1] >= 0.0)
-        {
+        if (signal[i] >= 0.0 && signal[i + 1] < 0.0) || (signal[i] < 0.0 && signal[i + 1] >= 0.0) {
             crossings += 1;
         }
     }
@@ -666,14 +673,22 @@ fn scalar_zero_crossing_rate(signal: &[f64]) -> SignalResult<f64> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f")]
-unsafe fn avx512_fir_filter(_input: &[f64], _coeffs: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn avx512_fir_filter(
+    _input: &[f64],
+    _coeffs: &[f64],
+    _output: &mut [f64],
+) -> SignalResult<()> {
     // TODO: Implement AVX512 FIR filter
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_fir_filter(_input: &[f64], _coeffs: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn avx2_fir_filter(
+    _input: &[f64],
+    _coeffs: &[f64],
+    _output: &mut [f64],
+) -> SignalResult<()> {
     // TODO: Implement AVX2 FIR filter
     Ok(())
 }
@@ -687,63 +702,99 @@ unsafe fn sse_fir_filter(_input: &[f64], _coeffs: &[f64], _output: &mut [f64]) -
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn avx2_autocorrelation(_signal: &[f64], _autocorr: &mut [f64], _max_lag: usize) -> SignalResult<()> {
+unsafe fn avx2_autocorrelation(
+    _signal: &[f64],
+    _autocorr: &mut [f64],
+    _max_lag: usize,
+) -> SignalResult<()> {
     // TODO: Implement AVX2 autocorrelation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn sse_autocorrelation(_signal: &[f64], _autocorr: &mut [f64], _max_lag: usize) -> SignalResult<()> {
+unsafe fn sse_autocorrelation(
+    _signal: &[f64],
+    _autocorr: &mut [f64],
+    _max_lag: usize,
+) -> SignalResult<()> {
     // TODO: Implement SSE autocorrelation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
+unsafe fn scalar_cross_correlation(
+    _signal1: &[f64],
+    _signal2: &[f64],
+    _result: &mut [f64],
+    _mode: &str,
+) -> SignalResult<()> {
     // TODO: Implement AVX2 cross-correlation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_cross_correlation(_signal1: &[f64], _signal2: &[f64], _result: &mut [f64], _mode: &str) -> SignalResult<()> {
+unsafe fn scalar_cross_correlation(
+    _signal1: &[f64],
+    _signal2: &[f64],
+    _result: &mut [f64],
+    _mode: &str,
+) -> SignalResult<()> {
     // TODO: Implement SSE cross-correlation
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
+unsafe fn scalar_complex_butterfly(
+    _data: &mut [Complex64],
+    _twiddles: &[Complex64],
+) -> SignalResult<()> {
     // TODO: Implement AVX2 complex butterfly
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_complex_butterfly(_data: &mut [Complex64], _twiddles: &[Complex64]) -> SignalResult<()> {
+unsafe fn scalar_complex_butterfly(
+    _data: &mut [Complex64],
+    _twiddles: &[Complex64],
+) -> SignalResult<()> {
     // TODO: Implement SSE complex butterfly
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f")]
-unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(
+    _signal: &[f64],
+    _window: &[f64],
+    _output: &mut [f64],
+) -> SignalResult<()> {
     // TODO: Implement AVX512 window application
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(
+    _signal: &[f64],
+    _window: &[f64],
+    _output: &mut [f64],
+) -> SignalResult<()> {
     // TODO: Implement AVX2 window application
     Ok(())
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_apply_window(_signal: &[f64], _window: &[f64], _output: &mut [f64]) -> SignalResult<()> {
+unsafe fn scalar_apply_window(
+    _signal: &[f64],
+    _window: &[f64],
+    _output: &mut [f64],
+) -> SignalResult<()> {
     // TODO: Implement SSE window application
     Ok(())
 }

@@ -18,8 +18,8 @@
 //! - Memory alignment requirements are met where applicable
 //! - Input data meets the specified constraints
 
-use crate::error::{SignalError, SignalResult};
 use super::types::SimdConfig;
+use crate::error::{SignalError, SignalResult};
 use num_complex::Complex64;
 
 #[cfg(target_arch = "x86_64")]
@@ -51,7 +51,11 @@ use std::arch::x86_64::*;
 /// Result indicating success or computation error
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_fir_filter(input: &[f64], coeffs: &[f64], output: &mut [f64]) -> SignalResult<()> {
+pub unsafe fn sse_fir_filter(
+    input: &[f64],
+    coeffs: &[f64],
+    output: &mut [f64],
+) -> SignalResult<()> {
     let n = input.len();
     let m = coeffs.len();
 
@@ -343,7 +347,11 @@ pub unsafe fn sse_complex_multiply(
 /// Result indicating success or computation error
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn sse_power_spectrum(real: &[f64], imag: &[f64], power: &mut [f64]) -> SignalResult<()> {
+pub unsafe fn sse_power_spectrum(
+    real: &[f64],
+    imag: &[f64],
+    power: &mut [f64],
+) -> SignalResult<()> {
     for i in 0..real.len().min(imag.len()).min(power.len()) {
         power[i] = real[i] * real[i] + imag[i] * imag[i];
     }
@@ -687,7 +695,11 @@ pub unsafe fn avx2_apply_window(
 /// Result indicating success or computation error
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_fir_filter(input: &[f64], coeffs: &[f64], output: &mut [f64]) -> SignalResult<()> {
+pub unsafe fn avx2_fir_filter(
+    input: &[f64],
+    coeffs: &[f64],
+    output: &mut [f64],
+) -> SignalResult<()> {
     // Simplified implementation - can be optimized with AVX2
     let n = input.len();
     let m = coeffs.len();
@@ -763,7 +775,11 @@ pub unsafe fn avx2_autocorrelation(signal: &[f64], max_lag: usize) -> SignalResu
 /// Result indicating success or computation error
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_cross_correlation(signal1: &[f64], signal2: &[f64], output: &mut [f64]) -> SignalResult<()> {
+pub unsafe fn avx2_cross_correlation(
+    signal1: &[f64],
+    signal2: &[f64],
+    output: &mut [f64],
+) -> SignalResult<()> {
     let n1 = signal1.len();
     let n2 = signal2.len();
     let output_len = output.len();
@@ -909,7 +925,11 @@ pub unsafe fn avx2_complex_multiply(
 /// Result indicating success or computation error
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn avx2_power_spectrum(real: &[f64], imag: &[f64], power: &mut [f64]) -> SignalResult<()> {
+pub unsafe fn avx2_power_spectrum(
+    real: &[f64],
+    imag: &[f64],
+    power: &mut [f64],
+) -> SignalResult<()> {
     let n = real.len();
     let simd_width = 4;
     let simd_chunks = n / simd_width;
@@ -1013,19 +1033,40 @@ mod fallback {
     use super::*;
 
     pub fn sse_fir_filter(input: &[f64], coeffs: &[f64], output: &mut [f64]) -> SignalResult<()> {
-        Err(SignalError::ComputationError("SSE not available on this platform".to_string()))
+        Err(SignalError::ComputationError(
+            "SSE not available on this platform".to_string(),
+        ))
     }
 
-    pub fn sse_autocorrelation(signal: &[f64], autocorr: &mut [f64], max_lag: usize) -> SignalResult<()> {
-        Err(SignalError::ComputationError("SSE not available on this platform".to_string()))
+    pub fn sse_autocorrelation(
+        signal: &[f64],
+        autocorr: &mut [f64],
+        max_lag: usize,
+    ) -> SignalResult<()> {
+        Err(SignalError::ComputationError(
+            "SSE not available on this platform".to_string(),
+        ))
     }
 
-    pub fn sse_cross_correlation(signal1: &[f64], signal2: &[f64], result: &mut [f64], _mode: &str) -> SignalResult<()> {
-        Err(SignalError::ComputationError("SSE not available on this platform".to_string()))
+    pub fn sse_cross_correlation(
+        signal1: &[f64],
+        signal2: &[f64],
+        result: &mut [f64],
+        _mode: &str,
+    ) -> SignalResult<()> {
+        Err(SignalError::ComputationError(
+            "SSE not available on this platform".to_string(),
+        ))
     }
 
-    pub fn avx2_enhanced_convolution(signal: &[f64], kernel: &[f64], output: &mut [f64]) -> SignalResult<()> {
-        Err(SignalError::ComputationError("AVX2 not available on this platform".to_string()))
+    pub fn avx2_enhanced_convolution(
+        signal: &[f64],
+        kernel: &[f64],
+        output: &mut [f64],
+    ) -> SignalResult<()> {
+        Err(SignalError::ComputationError(
+            "AVX2 not available on this platform".to_string(),
+        ))
     }
 
     // Add other fallback implementations as needed...

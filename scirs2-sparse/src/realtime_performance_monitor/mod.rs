@@ -66,26 +66,24 @@
 //! }
 //! ```
 
-pub mod config;
-pub mod metrics;
-pub mod history;
 pub mod alerts;
+pub mod config;
+pub mod history;
+pub mod metrics;
 pub mod monitor;
 
 // Re-export main types for convenience
-pub use config::{PerformanceMonitorConfig, UseCase};
-pub use metrics::{
-    PerformanceSample, AggregatedMetrics, SystemMetrics, ExecutionTimer, ProcessorType
-};
-pub use history::{PerformanceHistory, PerformanceTrend, ProcessorSummary};
 pub use alerts::{
-    Alert, AlertSeverity, AlertRule, AlertCondition, AlertManager, AlertStats,
-    NotificationChannel,
+    Alert, AlertCondition, AlertManager, AlertRule, AlertSeverity, AlertStats, NotificationChannel,
+};
+pub use config::{PerformanceMonitorConfig, UseCase};
+pub use history::{PerformanceHistory, PerformanceTrend, ProcessorSummary};
+pub use metrics::{
+    AggregatedMetrics, ExecutionTimer, PerformanceSample, ProcessorType, SystemMetrics,
 };
 pub use monitor::{
-    RealTimePerformanceMonitor, MonitoringSummary,
-    QuantumProcessorMonitor, NeuralProcessorMonitor, HybridProcessorMonitor,
-    MemoryCompressorMonitor,
+    HybridProcessorMonitor, MemoryCompressorMonitor, MonitoringSummary, NeuralProcessorMonitor,
+    QuantumProcessorMonitor, RealTimePerformanceMonitor,
 };
 
 #[cfg(test)]
@@ -144,7 +142,8 @@ mod tests {
         let testing = PerformanceMonitorConfig::recommended_for_use_case(UseCase::Testing);
         assert!(testing.validate().is_ok());
 
-        let benchmarking = PerformanceMonitorConfig::recommended_for_use_case(UseCase::Benchmarking);
+        let benchmarking =
+            PerformanceMonitorConfig::recommended_for_use_case(UseCase::Benchmarking);
         assert!(benchmarking.validate().is_ok());
 
         let low_resource = PerformanceMonitorConfig::recommended_for_use_case(UseCase::LowResource);
@@ -182,13 +181,11 @@ mod tests {
 
     #[test]
     fn test_performance_sample_creation() {
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test-processor".to_string(),
-        )
-        .with_execution_time(100.0)
-        .with_throughput(500.0)
-        .with_cache_hit_ratio(0.8);
+        let sample =
+            PerformanceSample::new(ProcessorType::QuantumInspired, "test-processor".to_string())
+                .with_execution_time(100.0)
+                .with_throughput(500.0)
+                .with_cache_hit_ratio(0.8);
 
         assert_eq!(sample.processor_type, ProcessorType::QuantumInspired);
         assert_eq!(sample.processor_id, "test-processor");
@@ -213,10 +210,8 @@ mod tests {
     fn test_performance_history() {
         let mut history = PerformanceHistory::new(100);
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        ).with_execution_time(100.0);
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0);
 
         history.add_sample(sample);
         assert_eq!(history.samples.len(), 1);
@@ -272,10 +267,9 @@ mod tests {
     fn test_aggregated_metrics() {
         let mut metrics = AggregatedMetrics::new();
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        ).with_execution_time(100.0).with_throughput(500.0);
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+            .with_execution_time(100.0)
+            .with_throughput(500.0);
 
         metrics.update_with_sample(&sample);
         assert_eq!(metrics.sample_count, 1);
@@ -288,7 +282,10 @@ mod tests {
         assert_eq!(PerformanceTrend::Improving.to_string(), "Improving");
         assert_eq!(PerformanceTrend::Stable.to_string(), "Stable");
         assert_eq!(PerformanceTrend::Degrading.to_string(), "Degrading");
-        assert_eq!(PerformanceTrend::Insufficient.to_string(), "Insufficient Data");
+        assert_eq!(
+            PerformanceTrend::Insufficient.to_string(),
+            "Insufficient Data"
+        );
     }
 
     #[test]

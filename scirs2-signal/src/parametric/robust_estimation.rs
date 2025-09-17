@@ -29,7 +29,7 @@ use statrs::statistics::Statistics;
 
 // Import types from the parent module
 use super::types::{
-    ARMethod, RobustEstimationOptions, RobustARResult, RobustWeightFunction, RobustScaleMethod,
+    ARMethod, RobustARResult, RobustEstimationOptions, RobustScaleMethod, RobustWeightFunction,
 };
 
 // Import AR estimation function from the ar_estimation module

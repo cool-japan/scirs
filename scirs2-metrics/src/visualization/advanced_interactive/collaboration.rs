@@ -233,7 +233,7 @@ impl CollaborationManager {
     pub fn add_session(&mut self, session: UserSession) -> Result<()> {
         if self.sessions.len() >= self.config.max_collaborators as usize {
             return Err(MetricsError::ComputationError(
-                "Maximum number of collaborators reached".to_string()
+                "Maximum number of collaborators reached".to_string(),
             ));
         }
 
@@ -253,13 +253,16 @@ impl CollaborationManager {
         if let Some(session) = self.sessions.get(&operation.user_id) {
             if !self.has_permission(&session.permissions, &operation.operation_type) {
                 return Err(MetricsError::InvalidInput(
-                    "Insufficient permissions".to_string()
+                    "Insufficient permissions".to_string(),
                 ));
             }
         }
 
         // Check for conflicts
-        if let Some(conflict) = self.conflict_resolver.detect_conflict(&operation, &self.operation_history) {
+        if let Some(conflict) = self
+            .conflict_resolver
+            .detect_conflict(&operation, &self.operation_history)
+        {
             self.conflict_resolver.pending_conflicts.push(conflict);
             return Ok(()); // Don't apply yet, needs resolution
         }
@@ -277,12 +280,18 @@ impl CollaborationManager {
     fn apply_operation_to_state(&mut self, operation: &Operation) -> Result<()> {
         match operation.operation_type {
             OperationType::Create => {
-                self.shared_state.widget_states.insert(operation.target.clone(), operation.data.clone());
+                self.shared_state
+                    .widget_states
+                    .insert(operation.target.clone(), operation.data.clone());
             }
             OperationType::Update => {
-                if let Some(widget_state) = self.shared_state.widget_states.get_mut(&operation.target) {
+                if let Some(widget_state) =
+                    self.shared_state.widget_states.get_mut(&operation.target)
+                {
                     // Merge update data
-                    if let (Value::Object(current), Value::Object(update)) = (widget_state, &operation.data) {
+                    if let (Value::Object(current), Value::Object(update)) =
+                        (widget_state, &operation.data)
+                    {
                         for (key, value) in update {
                             current.insert(key.clone(), value.clone());
                         }
@@ -298,7 +307,8 @@ impl CollaborationManager {
         }
 
         // Update version vector
-        self.shared_state.version_vector
+        self.shared_state
+            .version_vector
             .entry(operation.user_id.clone())
             .and_modify(|v| *v += 1)
             .or_insert(1);
@@ -310,7 +320,10 @@ impl CollaborationManager {
     fn has_permission(&self, permission: &PermissionLevel, operation: &OperationType) -> bool {
         match (permission, operation) {
             (PermissionLevel::Admin, _) => true,
-            (PermissionLevel::Edit, OperationType::Create | OperationType::Update | OperationType::Delete) => true,
+            (
+                PermissionLevel::Edit,
+                OperationType::Create | OperationType::Update | OperationType::Delete,
+            ) => true,
             (PermissionLevel::Comment, _) => false, // Comments not implemented in this example
             (PermissionLevel::ReadOnly, _) => false,
             _ => false,
@@ -364,11 +377,20 @@ impl ConflictResolver {
     }
 
     /// Detect conflict between operation and history
-    pub fn detect_conflict(&self, operation: &Operation, history: &[Operation]) -> Option<Conflict> {
+    pub fn detect_conflict(
+        &self,
+        operation: &Operation,
+        history: &[Operation],
+    ) -> Option<Conflict> {
         // Simplified conflict detection
         for existing_op in history.iter().rev().take(10) {
-            if existing_op.target == operation.target &&
-               existing_op.timestamp > operation.timestamp.checked_sub(Duration::from_secs(5)).unwrap_or(operation.timestamp) {
+            if existing_op.target == operation.target
+                && existing_op.timestamp
+                    > operation
+                        .timestamp
+                        .checked_sub(Duration::from_secs(5))
+                        .unwrap_or(operation.timestamp)
+            {
                 return Some(Conflict {
                     id: format!("conflict_{}", rand::random::<u64>()),
                     operations: vec![existing_op.clone(), operation.clone()],
@@ -388,13 +410,17 @@ impl ConflictResolver {
         for conflict in &mut self.pending_conflicts {
             match self.strategy {
                 ConflictResolutionStrategy::LastWriterWins => {
-                    if let Some(latest_op) = conflict.operations.iter().max_by_key(|op| op.timestamp) {
+                    if let Some(latest_op) =
+                        conflict.operations.iter().max_by_key(|op| op.timestamp)
+                    {
                         resolved_operations.push(latest_op.clone());
                         conflict.status = ConflictStatus::AutoResolved;
                     }
                 }
                 ConflictResolutionStrategy::FirstWriterWins => {
-                    if let Some(earliest_op) = conflict.operations.iter().min_by_key(|op| op.timestamp) {
+                    if let Some(earliest_op) =
+                        conflict.operations.iter().min_by_key(|op| op.timestamp)
+                    {
                         resolved_operations.push(earliest_op.clone());
                         conflict.status = ConflictStatus::AutoResolved;
                     }
@@ -406,7 +432,8 @@ impl ConflictResolver {
         }
 
         // Remove resolved conflicts
-        self.pending_conflicts.retain(|conflict| conflict.status == ConflictStatus::Pending);
+        self.pending_conflicts
+            .retain(|conflict| conflict.status == ConflictStatus::Pending);
 
         Ok(resolved_operations)
     }

@@ -7,9 +7,11 @@ fn main() {
     let mut signal_vec = Vec::with_capacity(n);
     for i in 0..n {
         let t = i as f64 / 10.0;
-        signal_vec.push((2.0 * std::f64::consts::PI * 0.1 * t).sin() +
-                        0.5 * (2.0 * std::f64::consts::PI * 0.3 * t).cos() +
-                        0.1 * (i as f64 / n as f64 - 0.5)); // small linear trend
+        signal_vec.push(
+            (2.0 * std::f64::consts::PI * 0.1 * t).sin()
+                + 0.5 * (2.0 * std::f64::consts::PI * 0.3 * t).cos()
+                + 0.1 * (i as f64 / n as f64 - 0.5),
+        ); // small linear trend
     }
     let signal = Array1::from_vec(signal_vec);
     let order = 4;
@@ -17,9 +19,17 @@ fn main() {
     // Test that burg_method is accessible
     println!("Testing burg_method...");
     if let Ok((ar_coeffs, _reflection_coeffs, variance)) =
-        scirs2_signal::parametric::burg_method(&signal, order) {
-        println!("✓ burg_method works: {} coefficients, variance: {}", ar_coeffs.len(), variance);
-        println!("  AR coefficients: {:?}", ar_coeffs.slice(ndarray::s![0..3])); // Print first 3 coefficients
+        scirs2_signal::parametric::burg_method(&signal, order)
+    {
+        println!(
+            "✓ burg_method works: {} coefficients, variance: {}",
+            ar_coeffs.len(),
+            variance
+        );
+        println!(
+            "  AR coefficients: {:?}",
+            ar_coeffs.slice(ndarray::s![0..3])
+        ); // Print first 3 coefficients
 
         // Test that ar_spectrum is accessible
         println!("Testing ar_spectrum...");

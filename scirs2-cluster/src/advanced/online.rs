@@ -433,11 +433,8 @@ mod tests {
 
     #[test]
     fn test_adaptive_online_clustering_simple() {
-        let data = Array2::from_shape_vec(
-            (4, 2),
-            vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0],
-        )
-        .unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0])
+            .unwrap();
 
         let config = AdaptiveOnlineConfig {
             cluster_creation_threshold: 2.0,

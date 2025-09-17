@@ -13,11 +13,11 @@
 //! All functions maintain perfect reconstruction guarantees while providing
 //! significant performance improvements through various acceleration techniques.
 
-use crate::dwt::{Wavelet, WaveletFilters};
-use crate::error::{SignalError, SignalResult};
 use super::types::{
     BoundaryMode, Dwt2dConfig, Dwt2dQualityMetrics, EnhancedDwt2dResult, MultilevelDwt2d,
 };
+use crate::dwt::{Wavelet, WaveletFilters};
+use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array2, ArrayView1, ArrayView2};
 use rand::Rng;
 use scirs2_core::parallel_ops::*;
@@ -546,7 +546,8 @@ pub fn enhanced_dwt2d_adaptive(
         level_energies.push(energy_ratio);
 
         // Entropy-based analysis for adaptive stopping
-        let entropy = compute_subband_entropy(&decomp.detail_h, &decomp.detail_v, &decomp.detail_d)?;
+        let entropy =
+            compute_subband_entropy(&decomp.detail_h, &decomp.detail_v, &decomp.detail_d)?;
         level_entropies.push(entropy);
 
         // Store detail coefficients
@@ -591,9 +592,21 @@ pub fn enhanced_dwt2d_adaptive(
 
         // 5. Coefficient magnitude analysis
         let max_detail_coeff = [
-            decomp.detail_h.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-            decomp.detail_v.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-            decomp.detail_d.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
+            decomp
+                .detail_h
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max),
+            decomp
+                .detail_v
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max),
+            decomp
+                .detail_d
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max),
         ]
         .iter()
         .cloned()
@@ -680,7 +693,7 @@ fn apply_boundary_padding(signal: &[f64], filterlen: usize, mode: BoundaryMode) 
             if n >= 2 {
                 let slope_left = signal[1] - signal[0];
                 let slope_right = signal[n - 1] - signal[n - 2];
-                
+
                 for i in 0..pad_len {
                     padded.push(signal[0] - slope_left * (pad_len - i) as f64);
                 }
@@ -714,7 +727,7 @@ fn apply_boundary_padding(signal: &[f64], filterlen: usize, mode: BoundaryMode) 
             if n >= 2 {
                 let slope_left = signal[1] - signal[0];
                 let slope_right = signal[n - 1] - signal[n - 2];
-                
+
                 for i in 0..pad_len {
                     padded.push(signal[0] - slope_left * (pad_len - i) as f64);
                 }
@@ -872,7 +885,7 @@ fn apply_filters_scalar_optimized(
 ) {
     let n = signal.len();
     let filter_len = lo_filter.len();
-    
+
     // Convolution with filters
     for i in 0..n {
         for j in 0..filter_len {
@@ -951,7 +964,7 @@ fn analyze_and_select_boundary_mode(
 ) -> SignalResult<BoundaryMode> {
     let (_rows, _cols) = data.dim();
 
-    // Simple heuristic analysis - in a full implementation, this would 
+    // Simple heuristic analysis - in a full implementation, this would
     // analyze edge characteristics, periodicity, etc.
     // For now, return Symmetric as a safe default
     Ok(BoundaryMode::Symmetric)

@@ -67,7 +67,12 @@ impl AccessTracker {
     }
 
     /// Record an access event
-    pub fn record_access(&mut self, block_id: BlockId, access_type: AccessType, bytes_accessed: usize) {
+    pub fn record_access(
+        &mut self,
+        block_id: BlockId,
+        access_type: AccessType,
+        bytes_accessed: usize,
+    ) {
         let timestamp = Self::current_timestamp();
 
         // Record temporal event
@@ -100,13 +105,18 @@ impl AccessTracker {
         }
 
         // Update or create access pattern
-        let pattern = self.access_patterns.entry(block_id.clone()).or_insert_with(|| {
-            AccessPattern::new(timestamp)
-        });
+        let pattern = self
+            .access_patterns
+            .entry(block_id.clone())
+            .or_insert_with(|| AccessPattern::new(timestamp));
 
         pattern.update_access(timestamp, bytes_accessed);
         pattern.update_locality_metrics(&self.temporal_patterns, &self.spatial_patterns, &block_id);
-        pattern.classify_access_type(&self.temporal_patterns, &block_id, self.sequential_threshold);
+        pattern.classify_access_type(
+            &self.temporal_patterns,
+            &block_id,
+            self.sequential_threshold,
+        );
     }
 
     /// Get access pattern for a block
@@ -120,7 +130,8 @@ impl AccessTracker {
 
         // Spatial prediction based on recent access patterns
         if let Some(recent_columns) = self.spatial_patterns.get(&current_block.block_row) {
-            let recent_cols: Vec<usize> = recent_columns.iter()
+            let recent_cols: Vec<usize> = recent_columns
+                .iter()
                 .rev()
                 .take(lookahead)
                 .copied()
@@ -157,7 +168,9 @@ impl AccessTracker {
 
     /// Get blocks with high access frequency
     pub fn get_hot_blocks(&self, limit: usize) -> Vec<(BlockId, f64)> {
-        let mut blocks: Vec<_> = self.access_patterns.iter()
+        let mut blocks: Vec<_> = self
+            .access_patterns
+            .iter()
             .map(|(id, pattern)| (id.clone(), pattern.access_frequency))
             .collect();
 
@@ -168,7 +181,9 @@ impl AccessTracker {
 
     /// Get blocks with low access frequency (candidates for eviction)
     pub fn get_cold_blocks(&self, limit: usize) -> Vec<(BlockId, f64)> {
-        let mut blocks: Vec<_> = self.access_patterns.iter()
+        let mut blocks: Vec<_> = self
+            .access_patterns
+            .iter()
             .map(|(id, pattern)| (id.clone(), pattern.access_frequency))
             .collect();
 
@@ -180,28 +195,32 @@ impl AccessTracker {
     /// Analyze overall access patterns
     pub fn analyze_patterns(&self) -> AccessAnalysis {
         let total_blocks = self.access_patterns.len();
-        let total_accesses: usize = self.access_patterns.values()
-            .map(|p| p.access_count)
-            .sum();
+        let total_accesses: usize = self.access_patterns.values().map(|p| p.access_count).sum();
 
-        let sequential_blocks = self.access_patterns.values()
+        let sequential_blocks = self
+            .access_patterns
+            .values()
             .filter(|p| p.is_sequential())
             .count();
 
         let random_blocks = total_blocks - sequential_blocks;
 
         let avg_temporal_locality = if total_blocks > 0 {
-            self.access_patterns.values()
+            self.access_patterns
+                .values()
                 .map(|p| p.temporal_locality)
-                .sum::<f64>() / total_blocks as f64
+                .sum::<f64>()
+                / total_blocks as f64
         } else {
             0.0
         };
 
         let avg_spatial_locality = if total_blocks > 0 {
-            self.access_patterns.values()
+            self.access_patterns
+                .values()
                 .map(|p| p.spatial_locality)
-                .sum::<f64>() / total_blocks as f64
+                .sum::<f64>()
+                / total_blocks as f64
         } else {
             0.0
         };
@@ -224,7 +243,9 @@ impl AccessTracker {
             return 0.0;
         }
 
-        let frequencies: Vec<f64> = self.access_patterns.values()
+        let frequencies: Vec<f64> = self
+            .access_patterns
+            .values()
             .map(|p| p.access_frequency)
             .collect();
 
@@ -241,7 +262,9 @@ impl AccessTracker {
             return 0.0;
         }
 
-        let frequencies: Vec<f64> = self.access_patterns.values()
+        let frequencies: Vec<f64> = self
+            .access_patterns
+            .values()
             .map(|p| p.access_frequency)
             .collect();
 
@@ -266,23 +289,25 @@ impl AccessTracker {
         let cutoff_time = current_time.saturating_sub(max_age_seconds);
 
         // Remove old access patterns
-        self.access_patterns.retain(|_, pattern| {
-            pattern.last_access >= cutoff_time
-        });
+        self.access_patterns
+            .retain(|_, pattern| pattern.last_access >= cutoff_time);
 
         // Remove old temporal events
-        self.temporal_patterns.retain(|event| {
-            event.timestamp >= cutoff_time
-        });
+        self.temporal_patterns
+            .retain(|event| event.timestamp >= cutoff_time);
     }
 
     /// Get access statistics
     pub fn get_statistics(&self) -> AccessStatistics {
         let total_events = self.temporal_patterns.len();
-        let read_events = self.temporal_patterns.iter()
+        let read_events = self
+            .temporal_patterns
+            .iter()
             .filter(|e| matches!(e.access_type, AccessType::Read | AccessType::ReadWrite))
             .count();
-        let write_events = self.temporal_patterns.iter()
+        let write_events = self
+            .temporal_patterns
+            .iter()
             .filter(|e| matches!(e.access_type, AccessType::Write | AccessType::ReadWrite))
             .count();
 
@@ -295,9 +320,11 @@ impl AccessTracker {
             avg_accesses_per_block: if self.access_patterns.is_empty() {
                 0.0
             } else {
-                self.access_patterns.values()
+                self.access_patterns
+                    .values()
                     .map(|p| p.access_count as f64)
-                    .sum::<f64>() / self.access_patterns.len() as f64
+                    .sum::<f64>()
+                    / self.access_patterns.len() as f64
             },
         }
     }
@@ -352,14 +379,16 @@ impl AccessPattern {
         block_id: &BlockId,
     ) {
         // Calculate temporal locality based on recent accesses
-        let recent_accesses: Vec<_> = temporal_patterns.iter()
+        let recent_accesses: Vec<_> = temporal_patterns
+            .iter()
             .rev()
             .take(10)
             .filter(|e| e.blockid == *block_id)
             .collect();
 
         if recent_accesses.len() > 1 {
-            let intervals: Vec<u64> = recent_accesses.windows(2)
+            let intervals: Vec<u64> = recent_accesses
+                .windows(2)
                 .map(|window| window[0].timestamp.saturating_sub(window[1].timestamp))
                 .collect();
 
@@ -369,7 +398,8 @@ impl AccessPattern {
 
         // Calculate spatial locality based on nearby block accesses
         if let Some(row_accesses) = spatial_patterns.get(&block_id.block_row) {
-            let nearby_accesses = row_accesses.iter()
+            let nearby_accesses = row_accesses
+                .iter()
                 .filter(|&&col| {
                     let distance = (col as i32 - block_id.block_col as i32).abs();
                     distance <= 5 // Within 5 blocks is considered spatial locality
@@ -388,18 +418,21 @@ impl AccessPattern {
         sequential_threshold: usize,
     ) {
         // Look for sequential access patterns
-        let recent_same_row: Vec<_> = temporal_patterns.iter()
+        let recent_same_row: Vec<_> = temporal_patterns
+            .iter()
             .rev()
             .take(sequential_threshold * 2)
             .filter(|e| e.blockid.block_row == block_id.block_row)
             .collect();
 
         if recent_same_row.len() >= sequential_threshold {
-            let columns: Vec<usize> = recent_same_row.iter()
+            let columns: Vec<usize> = recent_same_row
+                .iter()
                 .map(|e| e.blockid.block_col)
                 .collect();
 
-            let is_sequential = columns.windows(2)
+            let is_sequential = columns
+                .windows(2)
                 .all(|window| window[1] == window[0] + 1 || window[1] == window[0]);
 
             if is_sequential {
@@ -415,8 +448,8 @@ impl AccessPattern {
         if self.sequential_accesses + self.random_accesses == 0 {
             return false;
         }
-        let sequential_ratio = self.sequential_accesses as f64 /
-            (self.sequential_accesses + self.random_accesses) as f64;
+        let sequential_ratio = self.sequential_accesses as f64
+            / (self.sequential_accesses + self.random_accesses) as f64;
         sequential_ratio > 0.7
     }
 

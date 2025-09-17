@@ -108,7 +108,6 @@ pub use models::{
     HierarchicalModel,
     KMeansModel,
     LeaderModel,
-    LeaderNodeModel,
     LeaderTreeModel,
     MeanShiftModel,
     SpectralClusteringModel,

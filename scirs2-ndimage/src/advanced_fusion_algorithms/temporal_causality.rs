@@ -24,11 +24,11 @@
 
 use ndarray::{Array2, Array3, ArrayView2};
 use num_traits::{Float, FromPrimitive};
-use std::collections::{BTreeMap, VecDeque};
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, VecDeque};
 
-use crate::error::NdimageResult;
 use super::config::*;
+use crate::error::NdimageResult;
 
 /// Temporal-Causal Analysis
 ///
@@ -136,8 +136,8 @@ where
 
             // Horizontal gradient
             let h_grad = if x > 0 && x < width - 1 {
-                let left = image[(y, x-1)].to_f64().unwrap_or(0.0);
-                let right = image[(y, x+1)].to_f64().unwrap_or(0.0);
+                let left = image[(y, x - 1)].to_f64().unwrap_or(0.0);
+                let right = image[(y, x + 1)].to_f64().unwrap_or(0.0);
                 (right - left) / 2.0
             } else {
                 0.0
@@ -146,8 +146,8 @@ where
 
             // Vertical gradient
             let v_grad = if y > 0 && y < height - 1 {
-                let up = image[(y-1, x)].to_f64().unwrap_or(0.0);
-                let down = image[(y+1, x)].to_f64().unwrap_or(0.0);
+                let up = image[(y - 1, x)].to_f64().unwrap_or(0.0);
+                let down = image[(y + 1, x)].to_f64().unwrap_or(0.0);
                 (down - up) / 2.0
             } else {
                 0.0
@@ -169,7 +169,8 @@ where
 
             let local_variance = if local_vals.len() > 1 {
                 let mean = local_vals.iter().sum::<f64>() / local_vals.len() as f64;
-                local_vals.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / local_vals.len() as f64
+                local_vals.iter().map(|&v| (v - mean).powi(2)).sum::<f64>()
+                    / local_vals.len() as f64
             } else {
                 0.0
             };
@@ -208,7 +209,9 @@ fn extract_pixel_temporal_sequence(
             }
 
             // Combine features into a single temporal value (weighted average)
-            let combined_value = pixel_features.iter().enumerate()
+            let combined_value = pixel_features
+                .iter()
+                .enumerate()
                 .map(|(i, &val)| val * (i as f64 + 1.0) / pixel_features.len() as f64)
                 .sum::<f64>();
 
@@ -405,7 +408,8 @@ fn calculate_causal_influence(
     }
 
     // Calculate direct influence
-    let direct_influence: f64 = relationships.iter()
+    let direct_influence: f64 = relationships
+        .iter()
         .map(|rel| rel.strength * rel.confidence)
         .sum();
 
@@ -416,7 +420,8 @@ fn calculate_causal_influence(
             for target_rel in target_relations {
                 // Weight indirect influence by distance and confidence
                 let distance_weight = 1.0 / (relation.delay as f64 + 1.0);
-                indirect_influence += target_rel.strength * target_rel.confidence * distance_weight * 0.5;
+                indirect_influence +=
+                    target_rel.strength * target_rel.confidence * distance_weight * 0.5;
             }
         }
     }
@@ -493,12 +498,17 @@ pub fn analyze_multiscale_temporal_causality(
             for y in 0..height {
                 for x in 0..width {
                     // Extract temporal sequence at this scale
-                    if let Ok(temporal_sequence) = extract_pixel_temporal_sequence(&scaled_memory, (y, x)) {
+                    if let Ok(temporal_sequence) =
+                        extract_pixel_temporal_sequence(&scaled_memory, (y, x))
+                    {
                         let pixel_id = y * width + x;
 
                         // Detect causal relationships at this scale
-                        if let Ok(relationships) = detect_causal_relationships(&temporal_sequence, pixel_id, config) {
-                            let causal_strength: f64 = relationships.iter()
+                        if let Ok(relationships) =
+                            detect_causal_relationships(&temporal_sequence, pixel_id, config)
+                        {
+                            let causal_strength: f64 = relationships
+                                .iter()
                                 .map(|rel| rel.strength * rel.confidence)
                                 .sum();
 

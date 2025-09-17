@@ -74,7 +74,10 @@ pub enum DriftDetectionMethod {
     /// ADWIN (Adaptive Windowing)
     Adwin { confidence: f64 },
     /// DDM (Drift Detection Method)
-    Ddm { warning_level: f64, drift_level: f64 },
+    Ddm {
+        warning_level: f64,
+        drift_level: f64,
+    },
     /// EDDM (Early Drift Detection Method)
     Eddm { alpha: f64, beta: f64 },
     /// Page-Hinkley Test

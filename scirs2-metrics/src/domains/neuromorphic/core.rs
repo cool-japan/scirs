@@ -54,7 +54,7 @@ impl Default for NeuromorphicConfig {
             hidden_layers: 3,
             neurons_per_layer: 500,
             output_neurons: 10,
-            spike_threshold: 1.0,
+            spike_threshold: -55.0, // Typical neuronal threshold potential in mV
             refractory_period: Duration::from_millis(2),
             synaptic_delay_range: (Duration::from_micros(100), Duration::from_millis(10)),
             learning_rate: 0.01,
@@ -311,9 +311,9 @@ impl<F: Float> HomeostaticController<F> {
         let mut intrinsic_excitability = HashMap::new();
 
         // Initialize with default values for all neurons
-        let total_neurons = config.input_neurons +
-                          (config.hidden_layers * config.neurons_per_layer) +
-                          config.output_neurons;
+        let total_neurons = config.input_neurons
+            + (config.hidden_layers * config.neurons_per_layer)
+            + config.output_neurons;
 
         for i in 0..total_neurons {
             target_rates.insert(i, F::from(5.0).unwrap()); // 5 Hz target

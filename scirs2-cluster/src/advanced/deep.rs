@@ -111,6 +111,7 @@ impl<F: Float + FromPrimitive + Debug> DeepEmbeddedClustering<F> {
 pub struct VariationalDeepEmbedding<F: Float + FromPrimitive> {
     config: DeepClusteringConfig,
     initialized: bool,
+    _phantom: std::marker::PhantomData<F>,
 }
 
 impl<F: Float + FromPrimitive + Debug> VariationalDeepEmbedding<F> {
@@ -119,6 +120,7 @@ impl<F: Float + FromPrimitive + Debug> VariationalDeepEmbedding<F> {
         Self {
             config,
             initialized: false,
+            _phantom: std::marker::PhantomData,
         }
     }
 

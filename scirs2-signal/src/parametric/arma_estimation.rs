@@ -17,12 +17,11 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use super::types::{
-    AdaptationOptions, AdaptiveARMAEstimator, ARMADiagnostics, ARMAOptions, ARMAParameters,
-    ARMAStandardErrors, ARMAConfidenceIntervals, ARMAValidation, ConvergenceInfo,
+    ARMAConfidenceIntervals, ARMADiagnostics, ARMAOptions, ARMAParameters, ARMAStandardErrors,
+    ARMAValidation, AdaptationOptions, AdaptiveARMAEstimator, CircularBuffer, ConvergenceInfo,
     EnhancedARMAResult, EnhancedOrderSelectionResult, EnhancedSpectrumResult,
-    OrderSelectionCandidate, OrderSelectionCriterion, OrderSelectionOptions,
-    PoleZeroAnalysis, SpectrumMetrics, SpectrumOptions, SpectralPeak, StabilityAnalysis,
-    CircularBuffer,
+    OrderSelectionCandidate, OrderSelectionCriterion, OrderSelectionOptions, PoleZeroAnalysis,
+    SpectralPeak, SpectrumMetrics, SpectrumOptions, StabilityAnalysis,
 };
 
 // Re-import AR method for basic ARMA that uses AR initialization

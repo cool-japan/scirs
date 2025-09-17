@@ -141,7 +141,10 @@ impl<F: Float> SpikingNeuralNetwork<F> {
     }
 
     /// Create network layers based on topology
-    fn create_layers(topology: &NetworkTopology, config: &super::core::NeuromorphicConfig) -> Vec<NeuronLayer<F>> {
+    fn create_layers(
+        topology: &NetworkTopology,
+        config: &super::core::NeuromorphicConfig,
+    ) -> Vec<NeuronLayer<F>> {
         let mut layers = Vec::new();
 
         for (layer_idx, &layer_size) in topology.layer_sizes.iter().enumerate() {
@@ -154,11 +157,13 @@ impl<F: Float> SpikingNeuralNetwork<F> {
                 let neuron_type = match layer_idx {
                     0 => NeuronType::Input,
                     idx if idx == topology.layer_sizes.len() - 1 => NeuronType::Output,
-                    _ => if neuron_idx < (layer_size as f64 * 0.8) as usize {
-                        NeuronType::Excitatory
-                    } else {
-                        NeuronType::Inhibitory
-                    },
+                    _ => {
+                        if neuron_idx < (layer_size as f64 * 0.8) as usize {
+                            NeuronType::Excitatory
+                        } else {
+                            NeuronType::Inhibitory
+                        }
+                    }
                 };
 
                 neurons.push(SpikingNeuron::new(neuron_id, neuron_type, config));
@@ -213,7 +218,12 @@ impl<F: Float> SpikingNeuralNetwork<F> {
     }
 
     /// Update a single layer
-    fn update_layer(&mut self, layer: &mut NeuronLayer<F>, layer_idx: usize, dt: Duration) -> crate::error::Result<Vec<F>> {
+    fn update_layer(
+        &mut self,
+        layer: &mut NeuronLayer<F>,
+        layer_idx: usize,
+        dt: Duration,
+    ) -> crate::error::Result<Vec<F>> {
         let mut outputs = Vec::new();
 
         for neuron in &mut layer.neurons {
@@ -248,7 +258,11 @@ impl<F: Float> SpikingNeuralNetwork<F> {
 
 impl<F: Float> SpikingNeuron<F> {
     /// Create a new spiking neuron
-    pub fn new(id: usize, neuron_type: NeuronType, config: &super::core::NeuromorphicConfig) -> Self {
+    pub fn new(
+        id: usize,
+        neuron_type: NeuronType,
+        config: &super::core::NeuromorphicConfig,
+    ) -> Self {
         Self {
             id,
             membrane_potential: F::zero(),
@@ -276,8 +290,12 @@ impl<F: Float> SpikingNeuron<F> {
         self.adaptive_threshold.update(dt);
 
         // Leaky integrate-and-fire dynamics
-        let decay_factor = F::from((-dt.as_secs_f64() / (self.resistance * self.capacitance).to_f64().unwrap()).exp()).unwrap();
-        self.membrane_potential = self.membrane_potential * decay_factor + self.resting_potential * (F::one() - decay_factor);
+        let decay_factor = F::from(
+            (-dt.as_secs_f64() / (self.resistance * self.capacitance).to_f64().unwrap()).exp(),
+        )
+        .unwrap();
+        self.membrane_potential = self.membrane_potential * decay_factor
+            + self.resting_potential * (F::one() - decay_factor);
 
         // Check for spike
         if self.membrane_potential > self.adaptive_threshold.get_current_threshold() {
@@ -321,7 +339,8 @@ impl<F: Float> AdaptiveThreshold<F> {
 
     /// Update threshold adaptation
     pub fn update(&mut self, dt: Duration) {
-        let decay_factor = F::from((-dt.as_secs_f64() / self.decay_time_constant.as_secs_f64()).exp()).unwrap();
+        let decay_factor =
+            F::from((-dt.as_secs_f64() / self.decay_time_constant.as_secs_f64()).exp()).unwrap();
         self.adaptation = self.adaptation * decay_factor;
         self.last_update = Instant::now();
     }
@@ -356,10 +375,15 @@ impl<F: Float> NeuronLayer<F> {
     }
 
     fn apply_winner_take_all(&mut self, outputs: &[F]) {
-        if let Some((winner_idx, _)) = outputs.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()) {
+        if let Some((winner_idx, _)) = outputs
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+        {
             for (idx, neuron) in self.neurons.iter_mut().enumerate() {
                 if idx != winner_idx {
-                    neuron.membrane_potential = neuron.membrane_potential - self.lateral_inhibition.strength;
+                    neuron.membrane_potential =
+                        neuron.membrane_potential - self.lateral_inhibition.strength;
                 }
             }
         }
@@ -372,8 +396,10 @@ impl<F: Float> NeuronLayer<F> {
                 if i != j {
                     let distance = (i as i32 - j as i32).abs() as usize;
                     if distance <= self.lateral_inhibition.radius {
-                        let inhibition = self.lateral_inhibition.strength / F::from(distance + 1).unwrap();
-                        self.neurons[j].membrane_potential = self.neurons[j].membrane_potential - inhibition;
+                        let inhibition =
+                            self.lateral_inhibition.strength / F::from(distance + 1).unwrap();
+                        self.neurons[j].membrane_potential =
+                            self.neurons[j].membrane_potential - inhibition;
                     }
                 }
             }
@@ -382,7 +408,8 @@ impl<F: Float> NeuronLayer<F> {
 
     fn apply_uniform_inhibition(&mut self, _outputs: &[F]) {
         for neuron in &mut self.neurons {
-            neuron.membrane_potential = neuron.membrane_potential - self.lateral_inhibition.strength;
+            neuron.membrane_potential =
+                neuron.membrane_potential - self.lateral_inhibition.strength;
         }
     }
 }
@@ -405,7 +432,9 @@ impl SpikeHistory {
         for layer in layers {
             for neuron in &layer.neurons {
                 // Count recent spikes
-                let recent_spikes = neuron.spike_train.iter()
+                let recent_spikes = neuron
+                    .spike_train
+                    .iter()
                     .filter(|&&spike_time| spike_time.elapsed() < self.history_window)
                     .count();
                 total_spikes += recent_spikes;

@@ -65,17 +65,18 @@ impl BlockId {
             return Err("Invalid BlockId string format".to_string());
         }
 
-        let matrix_id = parts[0].parse::<u64>()
-            .map_err(|_| "Invalid matrix ID")?;
+        let matrix_id = parts[0].parse::<u64>().map_err(|_| "Invalid matrix ID")?;
 
         let coords: Vec<&str> = parts[1].split('-').collect();
         if coords.len() != 2 {
             return Err("Invalid coordinate format".to_string());
         }
 
-        let block_row = coords[0].parse::<usize>()
+        let block_row = coords[0]
+            .parse::<usize>()
             .map_err(|_| "Invalid block row")?;
-        let block_col = coords[1].parse::<usize>()
+        let block_col = coords[1]
+            .parse::<usize>()
             .map_err(|_| "Invalid block column")?;
 
         Ok(Self {
@@ -197,7 +198,8 @@ impl BlockCache {
         }
 
         // Evict blocks if necessary
-        while self.current_size + block_size > self.max_cache_size && !self.access_order.is_empty() {
+        while self.current_size + block_size > self.max_cache_size && !self.access_order.is_empty()
+        {
             self.evict_lru();
         }
 
@@ -300,7 +302,9 @@ impl BlockCache {
 
     /// Get blocks sorted by access frequency
     pub fn get_most_accessed_blocks(&self, limit: usize) -> Vec<(BlockId, usize)> {
-        let mut blocks: Vec<_> = self.cache.iter()
+        let mut blocks: Vec<_> = self
+            .cache
+            .iter()
             .map(|(id, block)| (id.clone(), block.access_count))
             .collect();
 
@@ -331,10 +335,10 @@ impl BlockCache {
             .unwrap_or_default()
             .as_secs();
 
-        let old_blocks: Vec<BlockId> = self.cache.iter()
-            .filter(|(_, block)| {
-                current_time.saturating_sub(block.last_access) > max_age_seconds
-            })
+        let old_blocks: Vec<BlockId> = self
+            .cache
+            .iter()
+            .filter(|(_, block)| current_time.saturating_sub(block.last_access) > max_age_seconds)
             .map(|(id, _)| id.clone())
             .collect();
 
@@ -344,7 +348,11 @@ impl BlockCache {
     }
 
     /// Prefetch blocks based on spatial locality
-    pub fn suggest_prefetch_candidates(&self, current_block: &BlockId, lookahead: usize) -> Vec<BlockId> {
+    pub fn suggest_prefetch_candidates(
+        &self,
+        current_block: &BlockId,
+        lookahead: usize,
+    ) -> Vec<BlockId> {
         let mut candidates = Vec::new();
 
         // Suggest adjacent blocks

@@ -29,10 +29,10 @@
 //! simd_enhanced_convolution(&signal, &kernel, &mut output, &config)?;
 //! ```
 
-use crate::error::{SignalError, SignalResult};
-use super::SimdConfig;
 #[cfg(target_arch = "x86_64")]
 use super::platform_ops::avx2_enhanced_convolution;
+use super::SimdConfig;
+use crate::error::{SignalError, SignalResult};
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_finite;
 

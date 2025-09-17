@@ -195,7 +195,16 @@ impl QuantumNeuralHybridProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + Send + Sync + Copy + SimdUnifiedOps + Into<f64> + From<f64> + std::fmt::Debug + 'static,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + SimdUnifiedOps
+            + Into<f64>
+            + From<f64>
+            + std::fmt::Debug
+            + 'static,
     {
         let start_time = std::time::Instant::now();
 
@@ -210,9 +219,10 @@ impl QuantumNeuralHybridProcessor {
             HybridProcessingMode::PureQuantum => self
                 .quantum_processor
                 .quantum_spmv(rows, indptr, indices, data, x, y),
-            HybridProcessingMode::PureNeural => self
-                .neural_processor
-                .adaptive_spmv(&[rows], &[cols], indptr, indices, data, x, y),
+            HybridProcessingMode::PureNeural => {
+                self.neural_processor
+                    .adaptive_spmv(&[rows], &[cols], indptr, indices, data, x, y)
+            }
             HybridProcessingMode::QuantumDominant => {
                 self.quantum_dominant_hybrid(rows, cols, indptr, indices, data, x, y)
             }
@@ -326,7 +336,16 @@ impl QuantumNeuralHybridProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + Send + Sync + Copy + SimdUnifiedOps + Into<f64> + From<f64> + std::fmt::Debug + 'static,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + SimdUnifiedOps
+            + Into<f64>
+            + From<f64>
+            + std::fmt::Debug
+            + 'static,
     {
         // Primary computation with quantum processor
         let mut quantum_result = vec![T::zero(); rows];
@@ -376,7 +395,16 @@ impl QuantumNeuralHybridProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + Send + Sync + Copy + SimdUnifiedOps + Into<f64> + From<f64> + std::fmt::Debug + 'static,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + SimdUnifiedOps
+            + Into<f64>
+            + From<f64>
+            + std::fmt::Debug
+            + 'static,
     {
         // Primary computation with neural processor
         self.neural_processor
@@ -420,7 +448,16 @@ impl QuantumNeuralHybridProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + Send + Sync + Copy + SimdUnifiedOps + Into<f64> + From<f64> + std::fmt::Debug + 'static,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + SimdUnifiedOps
+            + Into<f64>
+            + From<f64>
+            + std::fmt::Debug
+            + 'static,
     {
         // Parallel execution of both approaches
         let mut quantum_result = vec![T::zero(); rows];
@@ -465,7 +502,16 @@ impl QuantumNeuralHybridProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + Send + Sync + Copy + SimdUnifiedOps + Into<f64> + From<f64> + std::fmt::Debug + 'static,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + SimdUnifiedOps
+            + Into<f64>
+            + From<f64>
+            + std::fmt::Debug
+            + 'static,
     {
         // Dynamically adjust blending per row based on characteristics
         for row in 0..rows {

@@ -116,17 +116,29 @@ pub struct EventResponse {
 #[derive(Debug, Clone)]
 pub enum EventAction {
     /// Update widget
-    UpdateWidget { widget_id: String, updates: HashMap<String, Value> },
+    UpdateWidget {
+        widget_id: String,
+        updates: HashMap<String, Value>,
+    },
     /// Trigger new event
     TriggerEvent(DashboardEvent),
     /// Execute script
-    ExecuteScript { script: String, context: HashMap<String, Value> },
+    ExecuteScript {
+        script: String,
+        context: HashMap<String, Value>,
+    },
     /// Send notification
-    SendNotification { message: String, level: NotificationLevel },
+    SendNotification {
+        message: String,
+        level: NotificationLevel,
+    },
     /// Update data source
     UpdateDataSource { source_id: String, data: Value },
     /// Custom action
-    Custom { action_type: String, parameters: HashMap<String, Value> },
+    Custom {
+        action_type: String,
+        parameters: HashMap<String, Value>,
+    },
 }
 
 /// Notification level
@@ -169,14 +181,23 @@ impl EventSystem {
     }
 
     /// Register event handler
-    pub fn register_handler(&mut self, event_type: String, handler: Box<dyn EventHandler + Send + Sync>) {
-        self.handlers.entry(event_type).or_insert_with(Vec::new).push(handler);
+    pub fn register_handler(
+        &mut self,
+        event_type: String,
+        handler: Box<dyn EventHandler + Send + Sync>,
+    ) {
+        self.handlers
+            .entry(event_type)
+            .or_insert_with(Vec::new)
+            .push(handler);
     }
 
     /// Queue event for processing
     pub fn queue_event(&mut self, event: DashboardEvent) -> Result<()> {
         if self.event_queue.len() >= self.config.max_queue_size {
-            return Err(MetricsError::ComputationError("Event queue is full".to_string()));
+            return Err(MetricsError::ComputationError(
+                "Event queue is full".to_string(),
+            ));
         }
 
         self.event_queue.push_back(event);
@@ -237,7 +258,12 @@ impl EventSystem {
     /// Get event history
     pub fn get_history(&self, limit: Option<usize>) -> Vec<DashboardEvent> {
         let limit = limit.unwrap_or(self.event_history.len());
-        self.event_history.iter().rev().take(limit).cloned().collect()
+        self.event_history
+            .iter()
+            .rev()
+            .take(limit)
+            .cloned()
+            .collect()
     }
 
     /// Clear event queue

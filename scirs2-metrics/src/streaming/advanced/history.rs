@@ -64,12 +64,7 @@ impl<F: Float + std::fmt::Debug + Send + Sync + std::iter::Sum> HistoryBuffer<F>
     }
 
     pub fn get_error_history(&self, n: usize) -> Vec<F> {
-        self.data
-            .iter()
-            .rev()
-            .take(n)
-            .map(|dp| dp.error)
-            .collect()
+        self.data.iter().rev().take(n).map(|dp| dp.error).collect()
     }
 
     pub fn get_prediction_accuracy_history(&self, n: usize) -> Vec<bool> {
@@ -137,10 +132,7 @@ impl<F: Float + std::fmt::Debug + Send + Sync + std::iter::Sum> HistoryBuffer<F>
 
         let errors: Vec<F> = self.data.iter().map(|dp| dp.error).collect();
         let mean = errors.iter().cloned().sum::<F>() / F::from(errors.len()).unwrap();
-        let variance = errors
-            .iter()
-            .map(|&x| (x - mean) * (x - mean))
-            .sum::<F>()
+        let variance = errors.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>()
             / F::from(errors.len() - 1).unwrap();
         let std_dev = variance.sqrt();
 

@@ -50,6 +50,16 @@ pub struct ClassificationMetrics {
     pub support: usize,
 }
 
+/// Classification results returned by compute method
+#[derive(Debug, Clone)]
+pub struct ClassificationResults {
+    pub accuracy: f64,
+    pub precision_weighted: f64,
+    pub recall_weighted: f64,
+    pub f1_weighted: f64,
+    pub auc_roc: f64,
+}
+
 impl ClassificationMetrics {
     pub fn new() -> Self {
         Self {
@@ -58,6 +68,87 @@ impl ClassificationMetrics {
             f1_score: 0.0,
             support: 0,
         }
+    }
+
+    /// Compute classification metrics
+    pub fn compute(
+        &mut self,
+        y_true: ndarray::ArrayView1<i32>,
+        y_pred: ndarray::ArrayView1<i32>,
+        y_scores: Option<ndarray::Array2<f64>>,
+    ) -> Result<ClassificationResults> {
+        if y_true.len() != y_pred.len() {
+            return Err(MetricsError::InvalidInput(
+                "y_true and y_pred must have the same length".to_string(),
+            ));
+        }
+
+        // Calculate basic metrics
+        let accuracy = crate::classification::accuracy_score(&y_true, &y_pred)?;
+
+        // Calculate precision, recall, F1 for binary classification
+        let (precision, recall, f1) = self.calculate_binary_metrics(&y_true, &y_pred)?;
+
+        // Calculate AUC if scores provided
+        let auc_roc = if let Some(_scores) = y_scores {
+            // Convert to appropriate types for roc_auc_score
+            let y_true_u32: Vec<u32> = y_true.iter().map(|&x| x as u32).collect();
+            let y_true_u32_array = ndarray::Array1::from(y_true_u32);
+            let scores_f64 = _scores.column(1).to_owned();
+            crate::classification::roc_auc_score(&y_true_u32_array, &scores_f64)?
+        } else {
+            0.0
+        };
+
+        Ok(ClassificationResults {
+            accuracy,
+            precision_weighted: precision,
+            recall_weighted: recall,
+            f1_weighted: f1,
+            auc_roc,
+        })
+    }
+
+    /// Calculate binary classification metrics
+    fn calculate_binary_metrics(
+        &self,
+        y_true: &ndarray::ArrayView1<i32>,
+        y_pred: &ndarray::ArrayView1<i32>,
+    ) -> Result<(f64, f64, f64)> {
+        let mut tp = 0;
+        let mut fp = 0;
+        let mut tn = 0;
+        let mut fn_count = 0;
+
+        for (&true_label, &pred_label) in y_true.iter().zip(y_pred.iter()) {
+            match (true_label, pred_label) {
+                (1, 1) => tp += 1,
+                (0, 1) => fp += 1,
+                (0, 0) => tn += 1,
+                (1, 0) => fn_count += 1,
+                _ => {} // Handle multi-class case
+            }
+        }
+
+        let precision = if tp + fp > 0 {
+            tp as f64 / (tp + fp) as f64
+        } else {
+            0.0
+        };
+
+        let recall = if tp + fn_count > 0 {
+            tp as f64 / (tp + fn_count) as f64
+        } else {
+            0.0
+        };
+
+        let f1 = if precision + recall > 0.0 {
+            2.0 * precision * recall / (precision + recall)
+        } else {
+            0.0
+        };
+
+        Ok((precision, recall, f1))
     }
 }
 

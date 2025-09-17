@@ -22,17 +22,17 @@
 //! 7. Multi-Scale Integration
 //! 8. Final Consciousness-Guided Output Generation
 
-use ndarray::{Array1, Array2, Array3, Array4, Array5, ArrayView2};
 use ndarray::s;
+use ndarray::{Array1, Array2, Array3, Array4, Array5, ArrayView2};
 use num_complex::Complex;
 use num_traits::{Float, FromPrimitive, Zero};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
 
-use crate::error::NdimageResult;
 use super::config::*;
 use super::feature_extraction::*;
+use crate::error::NdimageResult;
 
 /// Advanced Quantum-Conscious Image Processing
 ///
@@ -110,7 +110,7 @@ where
 /// Creates a new AdvancedState instance or updates an existing one based on the
 /// current processing requirements and configuration.
 #[allow(dead_code)]
-fn initialize_or_updatestate(
+pub fn initialize_or_updatestate(
     _previousstate: Option<AdvancedState>,
     shape: (usize, usize),
     config: &AdvancedConfig,
@@ -163,7 +163,7 @@ fn initialize_or_updatestate(
 /// - Applies scale-specific processing algorithms
 /// - Reconstructs the final image through consciousness-guided integration
 #[allow(dead_code)]
-fn multi_scale_integration(
+pub fn multi_scale_integration(
     input: &Array2<f64>,
     advancedstate: &mut AdvancedState,
     config: &AdvancedConfig,
@@ -340,7 +340,7 @@ fn multi_scale_integration(
 /// Creates the final processed output by integrating the original image with
 /// the processed response using consciousness-guided weighting.
 #[allow(dead_code)]
-fn generate_consciousness_guided_output<T>(
+pub fn generate_consciousness_guided_output<T>(
     _originalimage: &ArrayView2<T>,
     _processed_response: &Array2<f64>,
     _advancedstate: &AdvancedState,
@@ -370,7 +370,7 @@ where
 /// - Predictive load forecasting
 /// - Adaptive scaling strategies
 #[allow(dead_code)]
-fn optimize_resource_allocation(
+pub fn optimize_resource_allocation(
     advancedstate: &mut AdvancedState,
     config: &AdvancedConfig,
 ) -> NdimageResult<()> {
@@ -563,7 +563,7 @@ fn optimize_resource_allocation(
 /// - Temporal efficiency
 /// - Network topology properties
 #[allow(dead_code)]
-fn update_efficiencymetrics(
+pub fn update_efficiencymetrics(
     advancedstate: &mut AdvancedState,
     config: &AdvancedConfig,
 ) -> NdimageResult<()> {
@@ -672,7 +672,7 @@ fn update_efficiencymetrics(
 ///
 /// Simple linear trend prediction for resource allocation optimization.
 #[allow(dead_code)]
-fn predict_future_load(history: &VecDeque<AllocationSnapshot>) -> f64 {
+pub fn predict_future_load(history: &VecDeque<AllocationSnapshot>) -> f64 {
     if history.len() < 2 {
         return 0.5; // Default moderate load
     }
@@ -683,8 +683,8 @@ fn predict_future_load(history: &VecDeque<AllocationSnapshot>) -> f64 {
         .rev()
         .take(5)
         .map(|snapshot| {
-            snapshot.utilization.get("cpu").unwrap_or(&0.5) +
-            snapshot.utilization.get("memory").unwrap_or(&0.5)
+            snapshot.utilization.get("cpu").unwrap_or(&0.5)
+                + snapshot.utilization.get("memory").unwrap_or(&0.5)
         })
         .collect();
 
@@ -780,7 +780,6 @@ fn meta_learning_adaptation(
     Ok(Array2::zeros((height, width)))
 }
 
-
 /// Enhanced Meta-Learning with Temporal Fusion
 ///
 /// This function implements sophisticated meta-learning algorithms that adapt
@@ -816,7 +815,8 @@ pub fn enhanced_meta_learning_with_temporal_fusion(
             context: MemoryContext {
                 operation_type: "meta_learning".to_string(),
                 data_characteristics: vec![0.5, 0.5, 0.5],
-                performance_outcome: current_performance.values().sum::<f64>() / current_performance.len() as f64,
+                performance_outcome: current_performance.values().sum::<f64>()
+                    / current_performance.len() as f64,
                 environment: HashMap::new(),
             },
             importance: 0.8,
@@ -827,11 +827,22 @@ pub fn enhanced_meta_learning_with_temporal_fusion(
             access_count: 1,
         };
 
-        meta_learning_system.temporal_memory_fusion.short_term_memory.push_back(memory_trace);
+        meta_learning_system
+            .temporal_memory_fusion
+            .short_term_memory
+            .push_back(memory_trace);
 
         // Keep memory within limits
-        if meta_learning_system.temporal_memory_fusion.short_term_memory.len() > config.temporal_window {
-            meta_learning_system.temporal_memory_fusion.short_term_memory.pop_front();
+        if meta_learning_system
+            .temporal_memory_fusion
+            .short_term_memory
+            .len()
+            > config.temporal_window
+        {
+            meta_learning_system
+                .temporal_memory_fusion
+                .short_term_memory
+                .pop_front();
         }
     }
 
@@ -869,7 +880,9 @@ pub fn quantum_aware_resource_scheduling_optimization(
 
     // Create basic load balancing decision
     let load_balancing = QuantumLoadBalancingDecision {
-        load_distribution: workload.task_types.keys()
+        load_distribution: workload
+            .task_types
+            .keys()
             .map(|k| (k.clone(), 1.0 / workload.task_types.len() as f64))
             .collect(),
         balancing_strategy: "uniform".to_string(),
@@ -877,7 +890,9 @@ pub fn quantum_aware_resource_scheduling_optimization(
 
     // Create basic task schedule
     let task_schedule = QuantumTaskSchedule {
-        scheduled_tasks: workload.task_types.keys()
+        scheduled_tasks: workload
+            .task_types
+            .keys()
             .enumerate()
             .map(|(i, k)| (k.clone(), i as f64))
             .collect(),
@@ -886,6 +901,12 @@ pub fn quantum_aware_resource_scheduling_optimization(
 
     // Create performance metrics
     let performancemetrics = QuantumPerformanceMetrics {
+        quantum_speedup: config.advanced_processing_intensity * 2.0,
+        quantum_advantage_ratio: config.quantum_coherence_threshold,
+        coherence_efficiency: config.quantum_coherence_threshold * 0.9,
+        entanglement_utilization: config.quantum_coherence_threshold * 0.8,
+        quantum_error_rate: (1.0 - config.quantum_coherence_threshold) * 0.1,
+        resource_efficiency: 0.8,
         throughput: config.advanced_processing_intensity * 100.0,
         latency: 1.0 / config.advanced_processing_intensity,
         error_rate: (1.0 - config.quantum_coherence_threshold) * 0.1,

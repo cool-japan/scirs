@@ -139,8 +139,14 @@ impl GraphStructure {
 
     /// Add an edge to the graph
     pub fn add_edge(&mut self, from: NodeId, to: NodeId, weight: Option<f64>) {
-        self.adjacency_list.entry(from).or_insert_with(HashSet::new).insert(to);
-        self.adjacency_list.entry(to).or_insert_with(HashSet::new).insert(from);
+        self.adjacency_list
+            .entry(from)
+            .or_insert_with(HashSet::new)
+            .insert(to);
+        self.adjacency_list
+            .entry(to)
+            .or_insert_with(HashSet::new)
+            .insert(from);
 
         if let Some(w) = weight {
             if self.edge_weights.is_none() {
@@ -153,18 +159,22 @@ impl GraphStructure {
 
     /// Get degree of a node
     pub fn degree(&self, node: NodeId) -> usize {
-        self.adjacency_list.get(&node).map_or(0, |neighbors| neighbors.len())
+        self.adjacency_list
+            .get(&node)
+            .map_or(0, |neighbors| neighbors.len())
     }
 
     /// Get neighbors of a node
     pub fn neighbors(&self, node: NodeId) -> Vec<NodeId> {
-        self.adjacency_list.get(&node)
+        self.adjacency_list
+            .get(&node)
             .map_or(Vec::new(), |neighbors| neighbors.iter().cloned().collect())
     }
 
     /// Check if two nodes are connected
     pub fn are_connected(&self, node1: NodeId, node2: NodeId) -> bool {
-        self.adjacency_list.get(&node1)
+        self.adjacency_list
+            .get(&node1)
             .map_or(false, |neighbors| neighbors.contains(&node2))
     }
 }
@@ -182,7 +192,11 @@ pub struct Triple {
 
 impl Triple {
     pub fn new(head: String, relation: String, tail: String) -> Self {
-        Self { head, relation, tail }
+        Self {
+            head,
+            relation,
+            tail,
+        }
     }
 }
 

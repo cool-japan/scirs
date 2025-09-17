@@ -16,12 +16,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use super::config::{
-    ComputeStrategy, GpuComputeConfig, GpuComputeResults, GpuPerformanceStats,
-    KernelConfig, KernelMetrics, TransferMetrics,
+    ComputeStrategy, GpuComputeConfig, GpuComputeResults, GpuPerformanceStats, KernelConfig,
+    KernelMetrics, TransferMetrics,
 };
-use super::contexts::{CudaContext, CudaDeviceProperties, CudaMemoryPool, OpenClContext, OpenClDeviceInfo};
+use super::contexts::{
+    CudaContext, CudaDeviceProperties, CudaMemoryPool, OpenClContext, OpenClDeviceInfo,
+};
 use super::kernels::{cuda_kernels, opencl_kernels};
-use super::runtime::{CudaRuntime, OpenClRuntime, MetalRuntime, VulkanRuntime};
+use super::runtime::{CudaRuntime, MetalRuntime, OpenClRuntime, VulkanRuntime};
 
 /// Advanced GPU metrics computer with real hardware integration
 pub struct AdvancedGpuComputer {
@@ -195,7 +197,7 @@ impl AdvancedGpuComputer {
     }
 
     /// Check if CUDA is available
-    fn is_cuda_available() -> bool {
+    pub fn is_cuda_available() -> bool {
         // Check for CUDA environment variables
         if std::env::var("CUDA_VISIBLE_DEVICES").is_ok()
             || std::env::var("CUDA_DEVICE_ORDER").is_ok()
@@ -317,7 +319,7 @@ impl AdvancedGpuComputer {
     }
 
     /// Check if OpenCL is available
-    fn is_opencl_available() -> bool {
+    pub fn is_opencl_available() -> bool {
         // Check for OpenCL libraries
         let opencl_libs = [
             "/usr/lib/x86_64-linux-gnu/libOpenCL.so",

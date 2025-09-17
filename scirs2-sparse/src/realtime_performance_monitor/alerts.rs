@@ -3,7 +3,7 @@
 //! This module provides a comprehensive alerting system for performance
 //! monitoring, including rule-based alerts and notifications.
 
-use super::metrics::{ProcessorType, PerformanceSample};
+use super::metrics::{PerformanceSample, ProcessorType};
 use std::collections::{HashMap, VecDeque};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -139,7 +139,9 @@ impl AlertManager {
             }
 
             // Check if rule applies to this processor type
-            if !rule.processor_types.is_empty() && !rule.processor_types.contains(&sample.processor_type) {
+            if !rule.processor_types.is_empty()
+                && !rule.processor_types.contains(&sample.processor_type)
+            {
                 continue;
             }
 
@@ -170,7 +172,12 @@ impl AlertManager {
     }
 
     /// Evaluate alert condition
-    fn evaluate_condition(&self, condition: &AlertCondition, value: f64, baseline: Option<f64>) -> bool {
+    fn evaluate_condition(
+        &self,
+        condition: &AlertCondition,
+        value: f64,
+        baseline: Option<f64>,
+    ) -> bool {
         match condition {
             AlertCondition::GreaterThan => value > 0.0,
             AlertCondition::LessThan => value < 0.0,
@@ -209,14 +216,21 @@ impl AlertManager {
     }
 
     /// Create an alert from a rule and sample
-    fn create_alert(&self, rule: &AlertRule, sample: &PerformanceSample, metric_value: f64) -> Alert {
+    fn create_alert(
+        &self,
+        rule: &AlertRule,
+        sample: &PerformanceSample,
+        metric_value: f64,
+    ) -> Alert {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
 
-        let alert_id = format!("{}:{}:{}:{}",
-            rule.id, sample.processor_type, sample.processor_id, timestamp);
+        let alert_id = format!(
+            "{}:{}:{}:{}",
+            rule.id, sample.processor_type, sample.processor_id, timestamp
+        );
 
         let message = format!(
             "{}: {} = {:.2} (threshold: {:.2}) for {}:{}",
@@ -264,10 +278,18 @@ impl AlertManager {
         for channel in &self.notification_channels {
             match channel {
                 NotificationChannel::Console => {
-                    println!("[{}] {}: {}", alert.severity, alert.timestamp, alert.message);
+                    println!(
+                        "[{}] {}: {}",
+                        alert.severity, alert.timestamp, alert.message
+                    );
                 }
                 NotificationChannel::Log => {
-                    log::warn!("[{}] {}: {}", alert.severity, alert.timestamp, alert.message);
+                    log::warn!(
+                        "[{}] {}: {}",
+                        alert.severity,
+                        alert.timestamp,
+                        alert.message
+                    );
                 }
                 NotificationChannel::Email { address: _address } => {
                     // Email notification would be implemented here
@@ -287,13 +309,18 @@ impl AlertManager {
         let mut resolved_alerts = Vec::new();
 
         for alert in self.active_alerts.values_mut() {
-            if alert.processor_type != sample.processor_type ||
-               alert.processor_id != sample.processor_id {
+            if alert.processor_type != sample.processor_type
+                || alert.processor_id != sample.processor_id
+            {
                 continue;
             }
 
             // Find corresponding rule
-            if let Some(rule) = self.alert_rules.iter().find(|r| r.id.starts_with(&alert.metric_name)) {
+            if let Some(rule) = self
+                .alert_rules
+                .iter()
+                .find(|r| r.id.starts_with(&alert.metric_name))
+            {
                 if rule.auto_resolve {
                     if let Some(metric_value) = sample.get_metric(&alert.metric_name) {
                         let should_resolve = match rule.resolution_threshold {
@@ -371,12 +398,16 @@ impl AlertManager {
             *severity_counts.entry(alert.severity).or_insert(0) += 1;
         }
 
-        let resolved_alerts = self.alert_history.iter()
+        let resolved_alerts = self
+            .alert_history
+            .iter()
             .filter(|alert| alert.resolved)
             .count();
 
         let avg_resolution_time = if resolved_alerts > 0 {
-            let total_duration: u64 = self.alert_history.iter()
+            let total_duration: u64 = self
+                .alert_history
+                .iter()
                 .filter_map(|alert| alert.duration_ms)
                 .sum();
             Some(total_duration as f64 / resolved_alerts as f64)

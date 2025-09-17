@@ -53,7 +53,9 @@ pub struct XorshiftRng {
 
 impl XorshiftRng {
     pub fn new(seed: u64) -> Self {
-        Self { state: if seed == 0 { 1 } else { seed } }
+        Self {
+            state: if seed == 0 { 1 } else { seed },
+        }
     }
 }
 
@@ -96,7 +98,9 @@ impl PcgRng {
 impl RandomNumberGeneratorTrait for PcgRng {
     fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
         let oldstate = self.state;
-        self.state = oldstate.wrapping_mul(6364136223846793005).wrapping_add(self.inc | 1);
+        self.state = oldstate
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(self.inc | 1);
         let xorshifted = ((oldstate >> 18) ^ oldstate) >> 27;
         let rot = oldstate >> 59;
         let output = (xorshifted >> rot) | (xorshifted << ((!rot + 1) & 31));

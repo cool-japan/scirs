@@ -222,32 +222,46 @@ impl<F: Float> SynapticConnections<F> {
 
     /// Get synaptic weight between neurons
     pub fn get_weight(&self, pre_neuron: usize, post_neuron: usize) -> Option<F> {
-        self.connections.get(&(pre_neuron, post_neuron)).map(|s| s.weight)
+        self.connections
+            .get(&(pre_neuron, post_neuron))
+            .map(|s| s.weight)
     }
 
     /// Update synaptic weight
-    pub fn update_weight(&mut self, pre_neuron: usize, post_neuron: usize, new_weight: F) -> crate::error::Result<()> {
+    pub fn update_weight(
+        &mut self,
+        pre_neuron: usize,
+        post_neuron: usize,
+        new_weight: F,
+    ) -> crate::error::Result<()> {
         if let Some(synapse) = self.connections.get_mut(&(pre_neuron, post_neuron)) {
             synapse.weight = new_weight;
             Ok(())
         } else {
             Err(crate::error::MetricsError::InvalidInput(
-                "Synapse not found".to_string()
+                "Synapse not found".to_string(),
             ))
         }
     }
 
     /// Apply STDP to all connections
-    pub fn apply_stdp(&mut self, spike_times: &HashMap<usize, Instant>, stdp_window: &STDPWindow<F>) -> crate::error::Result<()> {
+    pub fn apply_stdp(
+        &mut self,
+        spike_times: &HashMap<usize, Instant>,
+        stdp_window: &STDPWindow<F>,
+    ) -> crate::error::Result<()> {
         for ((pre_id, post_id), synapse) in self.connections.iter_mut() {
-            if let (Some(&pre_time), Some(&post_time)) = (spike_times.get(pre_id), spike_times.get(post_id)) {
+            if let (Some(&pre_time), Some(&post_time)) =
+                (spike_times.get(pre_id), spike_times.get(post_id))
+            {
                 let time_diff = if post_time > pre_time {
                     post_time.duration_since(pre_time)
                 } else {
                     pre_time.duration_since(post_time)
                 };
 
-                let weight_change = stdp_window.calculate_weight_change(time_diff, post_time > pre_time);
+                let weight_change =
+                    stdp_window.calculate_weight_change(time_diff, post_time > pre_time);
                 synapse.weight = synapse.weight + weight_change;
             }
         }
@@ -257,7 +271,12 @@ impl<F: Float> SynapticConnections<F> {
 
 impl<F: Float> Synapse<F> {
     /// Create a new synapse
-    pub fn new(pre_neuron: usize, post_neuron: usize, weight: F, synapse_type: SynapseType) -> Self {
+    pub fn new(
+        pre_neuron: usize,
+        post_neuron: usize,
+        weight: F,
+        synapse_type: SynapseType,
+    ) -> Self {
         Self {
             weight,
             pre_neuron,
@@ -330,11 +349,13 @@ impl<F: Float> ShortTermDynamics<F> {
     /// Update short-term dynamics
     pub fn update(&mut self, dt: Duration) {
         // Facilitation decay
-        let f_decay = F::from((-dt.as_secs_f64() / self.tau_facilitation.as_secs_f64()).exp()).unwrap();
+        let f_decay =
+            F::from((-dt.as_secs_f64() / self.tau_facilitation.as_secs_f64()).exp()).unwrap();
         self.facilitation = self.facilitation * f_decay + (F::one() - f_decay);
 
         // Depression recovery
-        let d_decay = F::from((-dt.as_secs_f64() / self.tau_depression.as_secs_f64()).exp()).unwrap();
+        let d_decay =
+            F::from((-dt.as_secs_f64() / self.tau_depression.as_secs_f64()).exp()).unwrap();
         self.depression = self.depression * d_decay + (F::one() - d_decay);
     }
 
@@ -352,7 +373,11 @@ impl<F: Float> ShortTermDynamics<F> {
 
 impl<F: Float> STDPWindow<F> {
     /// Create new STDP window
-    pub fn new(ltp_window: Duration, ltd_window: Duration, curve_params: STDPCurveParameters<F>) -> Self {
+    pub fn new(
+        ltp_window: Duration,
+        ltd_window: Duration,
+        curve_params: STDPCurveParameters<F>,
+    ) -> Self {
         Self {
             ltp_window,
             ltd_window,
@@ -464,7 +489,8 @@ impl<F: Float + std::iter::Sum> HomeostaticController<F> {
             }
             HomeostaticMode::IntrinsicExcitability => {
                 // Adjust intrinsic excitability
-                self.scaling_factor = self.scaling_factor + adaptation_rate * error * F::from(0.1).unwrap();
+                self.scaling_factor =
+                    self.scaling_factor + adaptation_rate * error * F::from(0.1).unwrap();
             }
             _ => {
                 // Default scaling
@@ -494,7 +520,8 @@ impl<F: Float + std::iter::Sum> MetaplasticityState<F> {
 
     /// Update metaplasticity state
     pub fn update(&mut self, network_activity: &[F]) {
-        let avg_activity = network_activity.iter().cloned().sum::<F>() / F::from(network_activity.len()).unwrap();
+        let avg_activity =
+            network_activity.iter().cloned().sum::<F>() / F::from(network_activity.len()).unwrap();
         self.activity_history.push_back(avg_activity);
 
         // Keep bounded
@@ -504,9 +531,18 @@ impl<F: Float + std::iter::Sum> MetaplasticityState<F> {
 
         // Update modulation factors based on activity history
         if self.activity_history.len() > 10 {
-            let recent_avg = self.activity_history.iter().rev().take(10).cloned().sum::<F>() / F::from(10).unwrap();
-            self.threshold_modulation = F::one() + (recent_avg - F::from(0.5).unwrap()) * F::from(0.1).unwrap();
-            self.learning_rate_modulation = F::one() + (recent_avg - F::from(0.5).unwrap()) * F::from(0.05).unwrap();
+            let recent_avg = self
+                .activity_history
+                .iter()
+                .rev()
+                .take(10)
+                .cloned()
+                .sum::<F>()
+                / F::from(10).unwrap();
+            self.threshold_modulation =
+                F::one() + (recent_avg - F::from(0.5).unwrap()) * F::from(0.1).unwrap();
+            self.learning_rate_modulation =
+                F::one() + (recent_avg - F::from(0.5).unwrap()) * F::from(0.05).unwrap();
         }
     }
 }
@@ -529,13 +565,22 @@ impl<F: Float> LearningRateScheduler<F> {
                 // No change
             }
             SchedulingPolicy::ExponentialDecay { decay_rate } => {
-                let decay_factor = F::from((-decay_rate.to_f64().unwrap() * dt.as_secs_f64()).exp()).unwrap();
+                let decay_factor =
+                    F::from((-decay_rate.to_f64().unwrap() * dt.as_secs_f64()).exp()).unwrap();
                 self.current_rate = self.current_rate * decay_factor;
             }
             SchedulingPolicy::PerformanceBased { patience, factor } => {
                 if self.performance_metrics.len() > *patience {
-                    let recent = self.performance_metrics.iter().rev().take(*patience).cloned().collect::<Vec<_>>();
-                    let is_plateau = recent.windows(2).all(|w| (w[1] - w[0]).abs() < F::from(0.001).unwrap());
+                    let recent = self
+                        .performance_metrics
+                        .iter()
+                        .rev()
+                        .take(*patience)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let is_plateau = recent
+                        .windows(2)
+                        .all(|w| (w[1] - w[0]).abs() < F::from(0.001).unwrap());
                     if is_plateau {
                         self.current_rate = self.current_rate * *factor;
                     }

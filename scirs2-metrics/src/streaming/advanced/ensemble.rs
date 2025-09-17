@@ -143,10 +143,7 @@ impl<F: Float + std::fmt::Debug + Send + Sync + std::iter::Sum> MetricEnsemble<F
         }
 
         let mean = values.iter().cloned().sum::<F>() / F::from(values.len()).unwrap();
-        let variance = values
-            .iter()
-            .map(|&x| (x - mean) * (x - mean))
-            .sum::<F>()
+        let variance = values.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>()
             / F::from(values.len()).unwrap();
 
         // Higher consensus when variance is low

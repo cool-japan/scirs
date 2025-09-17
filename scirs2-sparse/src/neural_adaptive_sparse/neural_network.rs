@@ -75,7 +75,13 @@ pub(crate) struct NetworkGradients {
 
 impl NeuralNetwork {
     /// Create a new neural network with specified architecture
-    pub fn new(input_size: usize, hidden_layers: usize, neurons_per_layer: usize, output_size: usize, attention_heads: usize) -> Self {
+    pub fn new(
+        input_size: usize,
+        hidden_layers: usize,
+        neurons_per_layer: usize,
+        output_size: usize,
+        attention_heads: usize,
+    ) -> Self {
         let mut layers = Vec::new();
         let mut layer_norms = Vec::new();
 
@@ -254,9 +260,7 @@ impl NeuralNetwork {
             ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
             ActivationFunction::Tanh => x.tanh(),
             ActivationFunction::Swish => x * (1.0 / (1.0 + (-x).exp())),
-            ActivationFunction::Gelu => {
-                0.5 * x * (1.0 + (x * 0.7978845608028654).tanh())
-            }
+            ActivationFunction::Gelu => 0.5 * x * (1.0 + (x * 0.7978845608028654).tanh()),
         }
     }
 
@@ -289,7 +293,12 @@ impl NeuralNetwork {
     }
 
     /// Compute network gradients
-    pub fn compute_gradients(&self, input: &[f64], target: &[f64], cache: &ForwardCache) -> NetworkGradients {
+    pub fn compute_gradients(
+        &self,
+        input: &[f64],
+        target: &[f64],
+        cache: &ForwardCache,
+    ) -> NetworkGradients {
         let mut weight_gradients = Vec::new();
         let mut bias_gradients = Vec::new();
 
@@ -432,12 +441,11 @@ impl LayerNorm {
     /// Normalize input
     pub fn normalize(&self, input: &[f64]) -> Vec<f64> {
         let mean = input.iter().sum::<f64>() / input.len() as f64;
-        let variance = input.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / input.len() as f64;
+        let variance = input.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / input.len() as f64;
         let std_dev = (variance + self.eps).sqrt();
 
-        input.iter()
+        input
+            .iter()
             .zip(&self.gamma)
             .zip(&self.beta)
             .map(|((x, gamma), beta)| gamma * ((x - mean) / std_dev) + beta)

@@ -15,16 +15,16 @@
 //! The module supports processing in multiple advanced dimensions beyond traditional
 //! spatial coordinates, enabling sophisticated analysis of complex image data.
 
-use ndarray::{Array2, Array3, Array4, Array5, ArrayView2};
 use ndarray::s;
+use ndarray::{Array2, Array3, Array4, Array5, ArrayView2};
 use num_complex::Complex;
 use num_traits::{Float, FromPrimitive};
 use statrs::statistics::Statistics;
 use std::collections::{BTreeMap, VecDeque};
 use std::f64::consts::PI;
 
-use crate::error::NdimageResult;
 use super::config::*;
+use crate::error::NdimageResult;
 
 /// Advanced-Dimensional Feature Extraction
 ///

@@ -435,7 +435,9 @@ impl<F: Float> ConsciousnessSimulator<F> {
         let workspace_output = self.global_workspace.process(input)?;
 
         // Calculate integrated information
-        let phi = self.integrated_information.calculate_phi(&workspace_output)?;
+        let phi = self
+            .integrated_information
+            .calculate_phi(&workspace_output)?;
 
         // Apply attention mechanisms
         let attended_output = self.attention_systems.apply_attention(&workspace_output)?;
@@ -475,7 +477,8 @@ impl<F: Float> GlobalWorkspaceTheory<F> {
     /// Process input through global workspace
     pub fn process(&mut self, input: &[F]) -> Result<Vec<F>> {
         // Add input to workspace as content
-        self.global_workspace.add_content(input, "input".to_string())?;
+        self.global_workspace
+            .add_content(input, "input".to_string())?;
 
         // Run competition mechanisms
         self.run_competition()?;
@@ -490,11 +493,15 @@ impl<F: Float> GlobalWorkspaceTheory<F> {
     fn run_competition(&mut self) -> Result<()> {
         // Simplified competition: keep strongest activations
         self.global_workspace.contents.sort_by(|a, b| {
-            b.activation.partial_cmp(&a.activation).unwrap_or(std::cmp::Ordering::Equal)
+            b.activation
+                .partial_cmp(&a.activation)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Keep only top contents within capacity
-        self.global_workspace.contents.truncate(self.global_workspace.capacity);
+        self.global_workspace
+            .contents
+            .truncate(self.global_workspace.capacity);
 
         Ok(())
     }
@@ -514,10 +521,12 @@ impl<F: Float> GlobalWorkspaceTheory<F> {
         if self.global_workspace.contents.is_empty() {
             F::zero()
         } else {
-            self.global_workspace.contents.iter()
+            self.global_workspace
+                .contents
+                .iter()
                 .map(|c| c.activation)
-                .fold(F::zero(), |acc, x| acc + x) /
-                F::from(self.global_workspace.contents.len()).unwrap()
+                .fold(F::zero(), |acc, x| acc + x)
+                / F::from(self.global_workspace.contents.len()).unwrap()
         }
     }
 }

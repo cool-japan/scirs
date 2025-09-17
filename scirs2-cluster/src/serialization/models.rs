@@ -860,21 +860,11 @@ pub fn birch_to_model(
 
 /// Convert Leader clustering results to serializable model
 pub fn leader_to_model(
-    leaders: Vec<LeaderNode>,
+    leaders: Vec<LeaderNode<f64>>,
     threshold: f64,
     distance_metric: String,
 ) -> LeaderModel {
-    let leaders = leaders
-        .into_iter()
-        .map(|leader| LeaderNodeModel {
-            centroid: leader.centroid,
-            members: leader.members,
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        })
-        .collect();
+    // Convert LeaderNode to LeaderNode<f64> if needed, or use directly
 
     LeaderModel {
         leaders,
@@ -885,28 +875,14 @@ pub fn leader_to_model(
 
 /// Convert Leader Tree results to serializable model
 pub fn leadertree_to_model(
-    tree: Option<LeaderTree>,
+    tree: Option<LeaderTree<f64>>,
     threshold: f64,
     max_depth: usize,
-) -> LeaderTreeModel {
-    let root = tree.map(|t| Box::new(convert_leader_tree_node(t)));
+) -> LeaderTreeModel<f64> {
     LeaderTreeModel {
-        root,
+        tree,
         threshold,
         max_depth,
-    }
-}
-
-fn convert_leader_tree_node(node: LeaderTree) -> LeaderTreeNodeModel {
-    LeaderTreeNodeModel {
-        centroid: node.centroid,
-        children: node
-            .children
-            .into_iter()
-            .map(|child| Box::new(convert_leader_tree_node(child)))
-            .collect(),
-        data_points: node.data_points,
-        depth: node.depth,
     }
 }
 
@@ -978,7 +954,10 @@ pub fn save_leader<P: AsRef<std::path::Path>>(model: &LeaderModel, path: P) -> R
 }
 
 /// Save Leader Tree model to file
-pub fn save_leadertree<P: AsRef<std::path::Path>>(model: &LeaderTreeModel, path: P) -> Result<()> {
+pub fn save_leadertree<F: Float + Serialize, P: AsRef<std::path::Path>>(
+    model: &LeaderTreeModel<F>,
+    path: P,
+) -> Result<()> {
     model.save_to_file(path)
 }
 

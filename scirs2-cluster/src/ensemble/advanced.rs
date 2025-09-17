@@ -3,8 +3,8 @@
 //! This module provides advanced ensemble techniques including meta-learning,
 //! Bayesian model averaging, genetic optimization, boosting, and stacking.
 
-use super::core::*;
 use super::algorithms::EnsembleClusterer;
+use super::core::*;
 use crate::error::{ClusteringError, Result};
 use crate::metrics::silhouette_score;
 use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
@@ -240,7 +240,14 @@ impl GeneticOptimizer {
         data: ArrayView2<F>,
     ) -> Result<EnsembleClusterer<F>>
     where
-        F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
+        F: Float
+            + FromPrimitive
+            + Debug
+            + 'static
+            + std::iter::Sum
+            + std::fmt::Display
+            + Send
+            + Sync,
         f64: From<F>,
     {
         // Initialize population
@@ -267,7 +274,14 @@ impl GeneticOptimizer {
 
     fn evaluate_population<F>(&mut self, data: ArrayView2<F>) -> Result<()>
     where
-        F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
+        F: Float
+            + FromPrimitive
+            + Debug
+            + 'static
+            + std::iter::Sum
+            + std::fmt::Display
+            + Send
+            + Sync,
         f64: From<F>,
     {
         self.fitness_scores.clear();
@@ -322,14 +336,7 @@ pub struct AdvancedEnsembleClusterer<F: Float> {
 
 impl<F> AdvancedEnsembleClusterer<F>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + 'static
-        + std::iter::Sum
-        + std::fmt::Display
-        + Send
-        + Sync,
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     f64: From<F>,
 {
     /// Create new advanced ensemble clusterer
@@ -353,15 +360,11 @@ where
         let meta_features = self.extract_meta_features(data, &base_results)?;
 
         // 3. Train meta-learner to predict best combination weights
-        let weights =
-            self.train_meta_learner(&meta_features, &base_results.individual_results)?;
+        let weights = self.train_meta_learner(&meta_features, &base_results.individual_results)?;
 
         // 4. Combine results using learned weights
-        let enhanced_consensus = self.weighted_meta_consensus(
-            &base_results.individual_results,
-            &weights,
-            data.nrows(),
-        )?;
+        let enhanced_consensus =
+            self.weighted_meta_consensus(&base_results.individual_results, &weights, data.nrows())?;
 
         // 5. Calculate enhanced statistics
         let mut enhanced_result = base_results;
@@ -433,8 +436,8 @@ where
             }
 
             // Calculate learner weight
-            let learner_weight = self.config.boostingconfig.learning_rate
-                * ((1.0 - error_rate) / error_rate).ln();
+            let learner_weight =
+                self.config.boostingconfig.learning_rate * ((1.0 - error_rate) / error_rate).ln();
 
             // Update sample weights
             self.update_sample_weights(&mut sample_weights, &weak_result, learner_weight, data)?;
@@ -577,7 +580,8 @@ where
         if quality_sum > 0.0 {
             for (i, result) in base_results.iter().enumerate() {
                 let normalized_quality = result.quality_score.max(0.0) / quality_sum;
-                weights[i] = 1.0 / (1.0 + (-5.0 * (normalized_quality - 0.5)).exp()); // Sigmoid
+                weights[i] = 1.0 / (1.0 + (-5.0 * (normalized_quality - 0.5)).exp());
+                // Sigmoid
             }
         } else {
             weights.fill(1.0 / base_results.len() as f64);
@@ -866,7 +870,7 @@ where
         data: &Array2<F>,
         algorithm: &ClusteringAlgorithm,
     ) -> Result<Array1<i32>> {
-        Ok(Array1::zeros(data.nrows()).mapv(|_| 0i32))
+        Ok(Array1::<i32>::zeros(data.nrows()).mapv(|_| 0i32))
     }
 
     fn predict_base_algorithm(
@@ -875,11 +879,11 @@ where
         algorithm: &ClusteringAlgorithm,
         trained_labels: &Array1<i32>,
     ) -> Result<Array1<i32>> {
-        Ok(Array1::zeros(data.nrows()).mapv(|_| 0i32))
+        Ok(Array1::<i32>::zeros(data.nrows()).mapv(|_| 0i32))
     }
 
     fn train_meta_clustering_algorithm(&self, predictions: &Array2<f64>) -> Result<Array1<i32>> {
-        Ok(Array1::zeros(predictions.nrows()).mapv(|_| 0i32))
+        Ok(Array1::<i32>::zeros(predictions.nrows()).mapv(|_| 0i32))
     }
 
     fn calculate_stacking_consensus_stats(
@@ -956,7 +960,9 @@ mod tests {
                 n_meta_features: 10,
                 learning_rate: 0.01,
                 n_iterations: 100,
-                algorithm: MetaLearningAlgorithm::Linear { regularization: 0.1 },
+                algorithm: MetaLearningAlgorithm::Linear {
+                    regularization: 0.1,
+                },
                 validation_split: 0.2,
             },
             bayesian_averaging: BayesianAveragingConfig {

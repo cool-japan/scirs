@@ -430,7 +430,11 @@ impl DataSourceManager {
     /// Get data source
     pub fn get_source(&self, source_id: &str) -> Option<String> {
         // Simplified - would return actual source reference
-        self.sources.lock().unwrap().get(source_id).map(|_| source_id.to_string())
+        self.sources
+            .lock()
+            .unwrap()
+            .get(source_id)
+            .map(|_| source_id.to_string())
     }
 
     /// Subscribe to data updates
@@ -484,7 +488,8 @@ impl ChangeDetector {
             });
         }
 
-        self.previous_states.insert(source_id.to_string(), data.clone());
+        self.previous_states
+            .insert(source_id.to_string(), data.clone());
         updates
     }
 }

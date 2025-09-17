@@ -138,96 +138,74 @@
 //! implementations to ensure numerical accuracy. Use [`SimdValidationResult`] to
 //! verify SIMD correctness and performance characteristics.
 
-pub mod types;
 pub mod basic_ops;
-pub mod spectral_ops;
-pub mod platform_ops;
 pub mod benchmarks;
-pub mod validation;
-pub mod peak_detection;
 pub mod convolution;
+pub mod peak_detection;
+pub mod platform_ops;
+pub mod spectral_ops;
+pub mod types;
+pub mod validation;
 
 // Re-export main types for easier access
 pub use types::{
-    BatchSpectralResult,
-    BatchSpectralStats,
-    SimdConfig,
-    SimdPerformanceMetrics,
+    BatchSpectralResult, BatchSpectralStats, SimdConfig, SimdPerformanceMetrics,
     SimdValidationResult,
 };
 
 // Re-export basic SIMD operations for backward compatibility
 pub use basic_ops::{
-    simd_fir_filter,
-    simd_autocorrelation,
-    simd_cross_correlation,
-    simd_complex_fft_butterfly,
-    simd_apply_window,
-    simd_signal_energy,
-    simd_rms,
-    simd_zero_crossing_rate,
-    scalar_autocorrelation,
-    scalar_cross_correlation,
+    scalar_autocorrelation, scalar_cross_correlation, simd_apply_window, simd_autocorrelation,
+    simd_complex_fft_butterfly, simd_cross_correlation, simd_fir_filter, simd_rms,
+    simd_signal_energy, simd_zero_crossing_rate,
 };
 
 // Re-export spectral analysis SIMD operations for backward compatibility
 pub use spectral_ops::{
-    simd_spectral_centroid,
-    simd_spectral_rolloff,
-    simd_batch_spectral_analysis,
-    simd_power_spectrum,
-    simd_weighted_average_spectra,
-    simd_complex_multiply,
+    simd_batch_spectral_analysis, simd_complex_multiply, simd_power_spectrum,
+    simd_spectral_centroid, simd_spectral_rolloff, simd_weighted_average_spectra,
 };
 
 // Re-export platform-specific SIMD operations for advanced users
 // Note: These are unsafe functions that require specific CPU instruction set support
 #[cfg(target_arch = "x86_64")]
 pub use platform_ops::{
-    // SSE 4.1 implementations
-    sse_fir_filter,
-    sse_autocorrelation,
-    sse_cross_correlation,
-    sse_apply_window,
-    sse_apply_window_v2,
-    sse_complex_butterfly,
-    sse_complex_multiply,
-    sse_power_spectrum,
-    sse_weighted_average_spectra,
-    // AVX2 implementations
-    avx2_enhanced_convolution,
     avx2_apply_window,
     avx2_apply_window_v2,
-    avx2_peak_detection,
-    avx2_zero_crossings,
-    avx2_fir_filter,
     avx2_autocorrelation,
-    avx2_cross_correlation,
     avx2_complex_butterfly,
     avx2_complex_multiply,
+    avx2_cross_correlation,
+    // AVX2 implementations
+    avx2_enhanced_convolution,
+    avx2_fir_filter,
+    avx2_peak_detection,
     avx2_power_spectrum,
     avx2_weighted_average_spectra,
+    avx2_zero_crossings,
+    sse_apply_window,
+    sse_apply_window_v2,
+    sse_autocorrelation,
+    sse_complex_butterfly,
+    sse_complex_multiply,
+    sse_cross_correlation,
+    // SSE 4.1 implementations
+    sse_fir_filter,
+    sse_power_spectrum,
+    sse_weighted_average_spectra,
 };
 
 // Re-export benchmark functions
-pub use benchmarks::{
-    benchmark_simd_operations,
-};
+pub use benchmarks::benchmark_simd_operations;
 
 // Re-export validation functions
-pub use validation::{
-    comprehensive_simd_validation,
-};
+pub use validation::comprehensive_simd_validation;
 
 // Re-export peak detection functions
-pub use peak_detection::{
-    simd_peak_detection,
-};
+pub use peak_detection::simd_peak_detection;
 
 // Re-export convolution functions
-pub use convolution::{
-    simd_enhanced_convolution,
-};
+pub use convolution::simd_enhanced_convolution;
 
 // Note: SingleSpectralResult is kept private (pub(crate)) as it's an internal type
 // and will be re-exported through the parent implementation modules when they are created

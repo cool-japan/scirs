@@ -15,36 +15,36 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 // Module declarations
+pub mod advanced_memory;
+pub mod consciousness;
 pub mod core;
-pub mod spiking_networks;
-pub mod synaptic_systems;
+pub mod distributed_coordination;
 pub mod learning_controllers;
-pub mod pattern_recognition;
 pub mod memory_systems;
+pub mod meta_learning;
+pub mod pattern_recognition;
 pub mod performance_monitoring;
 pub mod quantum_processing;
-pub mod meta_learning;
 pub mod realtime_adaptation;
-pub mod consciousness;
-pub mod distributed_coordination;
-pub mod advanced_memory;
+pub mod spiking_networks;
+pub mod synaptic_systems;
 
 // Re-export main types for backward compatibility
 pub use advanced_memory::{AdvancedMemoryArchitecture, MemoryType};
 pub use consciousness::{
     AttentionSystems, ConsciousnessSimulator, GlobalWorkspaceTheory, IntegratedInformationTheory,
 };
-pub use core::{HomeostaticController, NeuromorphicConfig, SynapseType, NetworkTopology};
+pub use core::{HomeostaticController, NetworkTopology, NeuromorphicConfig, SynapseType};
 pub use distributed_coordination::DistributedNeuromorphicCoordinator;
 pub use learning_controllers::{AdaptiveLearningController, LearningObjective};
-pub use memory_systems::{NeuromorphicMemory, MemoryTrace};
+pub use memory_systems::{MemoryTrace, NeuromorphicMemory};
 pub use meta_learning::MetaLearningSystem;
-pub use pattern_recognition::{SpikePatternRecognizer, SpikePattern};
+pub use pattern_recognition::{SpikePattern, SpikePatternRecognizer};
 pub use performance_monitoring::{NeuromorphicPerformanceMonitor, PerformanceMetrics};
-pub use quantum_processing::{QuantumNeuromorphicProcessor, QuantumCoherenceManager};
+pub use quantum_processing::{QuantumCoherenceManager, QuantumNeuromorphicProcessor};
 pub use realtime_adaptation::RealtimeAdaptationEngine;
-pub use spiking_networks::{SpikingNeuralNetwork, NeuronLayer};
-pub use synaptic_systems::{SynapticPlasticityManager, SynapticConnections};
+pub use spiking_networks::{NeuronLayer, SpikingNeuralNetwork};
+pub use synaptic_systems::{SynapticConnections, SynapticPlasticityManager};
 
 /// Neuromorphic metrics computer using brain-inspired architectures
 #[derive(Debug)]
@@ -79,7 +79,10 @@ pub struct NeuromorphicMetricsComputer<F: Float> {
     config: NeuromorphicConfig,
 }
 
-impl<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug> NeuromorphicMetricsComputer<F> {
+impl<
+        F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+    > NeuromorphicMetricsComputer<F>
+{
     /// Create new neuromorphic metrics computer
     pub fn new(config: NeuromorphicConfig) -> Result<Self> {
         let topology = core::NetworkTopology {
@@ -187,7 +190,9 @@ impl<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand 
             let mut spike_train = Vec::new();
 
             // Generate spikes based on rate (simplified)
-            let num_spikes = (spike_rate * F::from(10.0).unwrap()).to_usize().unwrap_or(0);
+            let num_spikes = (spike_rate * F::from(10.0).unwrap())
+                .to_usize()
+                .unwrap_or(0);
             for _ in 0..num_spikes {
                 spike_train.push(F::one());
             }
@@ -218,7 +223,8 @@ impl<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand 
         for (i, &neural_val) in neural_output.iter().enumerate() {
             if let Some(&quantum_val) = quantum_enhanced.get(i) {
                 // Simple combination: weighted average
-                let combined = neural_val * F::from(0.7).unwrap() + quantum_val * F::from(0.3).unwrap();
+                let combined =
+                    neural_val * F::from(0.7).unwrap() + quantum_val * F::from(0.3).unwrap();
                 combined_output.push(combined);
             } else {
                 combined_output.push(neural_val);
@@ -290,7 +296,10 @@ impl<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand 
     }
 
     /// Add distributed node
-    pub fn add_distributed_node(&mut self, node_info: distributed_coordination::NodeInfo) -> Result<()> {
+    pub fn add_distributed_node(
+        &mut self,
+        node_info: distributed_coordination::NodeInfo,
+    ) -> Result<()> {
         if let Some(ref mut coordinator) = self.distributed_coordinator {
             coordinator.add_node(node_info)?;
         } else {
@@ -307,12 +316,20 @@ impl<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand 
     }
 
     /// Store memory across all memory systems
-    pub fn store_memory(&mut self, content: &[F], memory_type: advanced_memory::MemoryType) -> Result<String> {
+    pub fn store_memory(
+        &mut self,
+        content: &[F],
+        memory_type: advanced_memory::MemoryType,
+    ) -> Result<String> {
         self.advanced_memory.store_memory(content, memory_type)
     }
 
     /// Recall memory from any memory system
-    pub fn recall_memory(&mut self, query: &[F], memory_type: advanced_memory::MemoryType) -> Result<Option<Vec<F>>> {
+    pub fn recall_memory(
+        &mut self,
+        query: &[F],
+        memory_type: advanced_memory::MemoryType,
+    ) -> Result<Option<Vec<F>>> {
         self.advanced_memory.recall_memory(query, memory_type)
     }
 
@@ -444,12 +461,16 @@ pub struct MemoryStatistics<F: Float> {
 // Default implementation is already provided in core module
 
 /// Create a neuromorphic metrics computer with default configuration
-pub fn create_default_neuromorphic_computer<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug>() -> Result<NeuromorphicMetricsComputer<F>> {
+pub fn create_default_neuromorphic_computer<
+    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+>() -> Result<NeuromorphicMetricsComputer<F>> {
     NeuromorphicMetricsComputer::new(NeuromorphicConfig::default())
 }
 
 /// Create a neuromorphic metrics computer optimized for real-time processing
-pub fn create_realtime_neuromorphic_computer<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug>() -> Result<NeuromorphicMetricsComputer<F>> {
+pub fn create_realtime_neuromorphic_computer<
+    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+>() -> Result<NeuromorphicMetricsComputer<F>> {
     let mut config = NeuromorphicConfig::default();
     config.timestep = Duration::from_micros(50); // Faster timestep
     config.enable_quantum_processing = false; // Disable for speed
@@ -460,7 +481,9 @@ pub fn create_realtime_neuromorphic_computer<F: Float + Send + Sync + std::iter:
 }
 
 /// Create a neuromorphic metrics computer optimized for accuracy
-pub fn create_accuracy_optimized_neuromorphic_computer<F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug>() -> Result<NeuromorphicMetricsComputer<F>> {
+pub fn create_accuracy_optimized_neuromorphic_computer<
+    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+>() -> Result<NeuromorphicMetricsComputer<F>> {
     let mut config = NeuromorphicConfig::default();
     config.enable_quantum_processing = true; // Enable quantum enhancement
     config.neurons_per_layer = 100; // Larger network
@@ -476,7 +499,8 @@ mod tests {
 
     #[test]
     fn test_neuromorphic_computer_creation() {
-        let computer: Result<NeuromorphicMetricsComputer<f64>> = create_default_neuromorphic_computer();
+        let computer: Result<NeuromorphicMetricsComputer<f64>> =
+            create_default_neuromorphic_computer();
         assert!(computer.is_ok());
     }
 

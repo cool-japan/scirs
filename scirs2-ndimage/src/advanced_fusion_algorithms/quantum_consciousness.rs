@@ -47,15 +47,15 @@
 //! )?;
 //! ```
 
-use ndarray::{Array1, Array2, Array3, Array4, Array5, ArrayView1, ArrayView2, s};
+use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayView1, ArrayView2};
 use num_complex::Complex;
 use num_traits::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
 
-use crate::error::NdimageResult;
 use super::config::*;
+use crate::error::NdimageResult;
 
 /// Represents the state of consciousness in quantum simulation
 #[derive(Debug, Clone)]
@@ -178,8 +178,7 @@ pub fn simulate_quantum_consciousness(
     advancedfeatures: &Array5<f64>,
     advancedstate: &mut AdvancedState,
     config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>>
-{
+) -> NdimageResult<Array2<f64>> {
     let (height, width, dimensions, temporal, consciousness) = advancedfeatures.dim();
     let mut consciousness_output = Array2::zeros((height, width));
 
@@ -467,10 +466,12 @@ fn calculate_simplified_phi_measure(
     // Simplified Phi calculation based on causal relationships
     // TODO: Implement full integrated information theory calculation
     // This is a placeholder implementation
-    let base_phi = advancedstate.consciousness_amplitudes
+    let base_phi = advancedstate
+        .consciousness_amplitudes
         .iter()
         .map(|&amp| amp.norm())
-        .sum::<f64>() / advancedstate.consciousness_amplitudes.len() as f64;
+        .sum::<f64>()
+        / advancedstate.consciousness_amplitudes.len() as f64;
 
     // Apply configuration-based scaling
     let scaled_phi = base_phi * config.consciousness_depth as f64 * 0.1;
@@ -545,24 +546,30 @@ fn apply_evolved_quantum_consciousness_operators(
     evolution_system: &QuantumConsciousnessEvolution,
 ) -> NdimageResult<Complex<f64>> {
     // Start with basic quantum consciousness operators
-    let mut quantumstate = apply_quantum_consciousness_operators(
-        feature_vector,
-        consciousnessstate,
-        config,
-    )?;
+    let mut quantumstate =
+        apply_quantum_consciousness_operators(feature_vector, consciousnessstate, config)?;
 
     // Apply evolutionary enhancements
     let evolution_enhancement = Complex::new(
-        1.0 + evolution_system.evolution_rate * evolution_system.complexitymetrics.emergence_strength,
+        1.0 + evolution_system.evolution_rate
+            * evolution_system.complexitymetrics.emergence_strength,
         evolution_system.selection_pressure * 0.1,
     );
 
     quantumstate *= evolution_enhancement;
 
     // Apply coherence optimization
-    let coherence_boost = 1.0 + evolution_system.coherence_optimizer.performancehistory
-        .iter()
-        .sum::<f64>() / evolution_system.coherence_optimizer.performancehistory.len().max(1) as f64;
+    let coherence_boost = 1.0
+        + evolution_system
+            .coherence_optimizer
+            .performancehistory
+            .iter()
+            .sum::<f64>()
+            / evolution_system
+                .coherence_optimizer
+                .performancehistory
+                .len()
+                .max(1) as f64;
 
     quantumstate *= coherence_boost;
 
@@ -587,8 +594,9 @@ fn apply_consciousness_evolution_selection(
     let base_probability = consciousness_amplitude.norm_sqr();
 
     // Apply evolutionary selection pressure
-    let selection_factor = 1.0 + evolution_system.selection_pressure *
-        (evolution_system.complexitymetrics.emergence_strength - 0.5);
+    let selection_factor = 1.0
+        + evolution_system.selection_pressure
+            * (evolution_system.complexitymetrics.emergence_strength - 0.5);
 
     // Apply spatial coherence effects (simplified)
     let spatial_coherence = 1.0 + 0.1 * ((position.0 + position.1) as f64 * 0.01).sin();
@@ -624,7 +632,9 @@ fn update_consciousness_evolutionhistory(
     currentstate: &ConsciousnessState,
 ) -> NdimageResult<()> {
     // Add current state to evolution history
-    evolution_system.evolutionhistory.push_back(currentstate.clone());
+    evolution_system
+        .evolutionhistory
+        .push_back(currentstate.clone());
 
     // Maintain history size limit
     if evolution_system.evolutionhistory.len() > 100 {

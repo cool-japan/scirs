@@ -133,6 +133,65 @@ impl SpeechRecognitionMetrics {
         }
     }
 
+    /// Evaluate speech recognition performance
+    pub fn evaluate_recognition(
+        &mut self,
+        reference_text: &[String],
+        hypothesis_text: &[String],
+        reference_phones: Option<&[Vec<String>]>,
+        hypothesis_phones: Option<&[Vec<String>]>,
+        confidence_scores: Option<&[f64]>,
+    ) -> Result<SpeechRecognitionResults> {
+        // Calculate WER
+        let wer = self
+            .wer_calculator
+            .calculate(reference_text, hypothesis_text)?;
+
+        // Calculate CER
+        let cer = self
+            .cer_calculator
+            .calculate(reference_text, hypothesis_text)?;
+
+        // Calculate PER if phone sequences provided
+        let per =
+            if let (Some(ref_phones), Some(hyp_phones)) = (reference_phones, hypothesis_phones) {
+                Some(self.per_calculator.calculate(ref_phones, hyp_phones)?)
+            } else {
+                None
+            };
+
+        // Calculate BLEU score
+        let bleu = Some(
+            self.bleu_calculator
+                .calculate(reference_text, hypothesis_text)?,
+        );
+
+        // Calculate confidence metrics
+        let (avg_confidence, confidence_wer_correlation) =
+            if let Some(conf_scores) = confidence_scores {
+                let avg_conf = conf_scores.iter().sum::<f64>() / conf_scores.len() as f64;
+                let correlation = self
+                    .confidence_metrics
+                    .calculate_confidence_wer_correlation(
+                        reference_text,
+                        hypothesis_text,
+                        conf_scores,
+                    )?;
+                (avg_conf, Some(correlation))
+            } else {
+                (0.0, None)
+            };
+
+        Ok(SpeechRecognitionResults {
+            wer,
+            cer,
+            per,
+            bleu,
+            avg_confidence,
+            confidence_wer_correlation,
+        })
+    }
+
     /// Compute word error rate between reference and hypothesis
     pub fn compute_wer(&mut self, reference: &[String], hypothesis: &[String]) -> Result<f64> {
         self.wer_calculator.compute_wer(reference, hypothesis)
@@ -155,7 +214,8 @@ impl SpeechRecognitionMetrics {
 
     /// Add confidence scores for analysis
     pub fn add_confidence_scores(&mut self, word_confidences: Vec<f64>, utterance_confidence: f64) {
-        self.confidence_metrics.add_scores(word_confidences, utterance_confidence);
+        self.confidence_metrics
+            .add_scores(word_confidences, utterance_confidence);
     }
 
     /// Get comprehensive speech recognition results
@@ -193,7 +253,11 @@ impl WerCalculator {
         self.total_words += reference.len();
 
         let utterance_wer = if reference.is_empty() {
-            if hypothesis.is_empty() { 0.0 } else { 1.0 }
+            if hypothesis.is_empty() {
+                0.0
+            } else {
+                1.0
+            }
         } else {
             (subs + dels + ins) as f64 / reference.len() as f64
         };
@@ -232,29 +296,38 @@ impl WerCalculator {
         // Fill DP table
         for i in 1..=ref_len {
             for j in 1..=hyp_len {
-                if reference[i-1] == hypothesis[j-1] {
-                    dp[i][j] = dp[i-1][j-1];
-                    ops[i][j] = ops[i-1][j-1];
+                if reference[i - 1] == hypothesis[j - 1] {
+                    dp[i][j] = dp[i - 1][j - 1];
+                    ops[i][j] = ops[i - 1][j - 1];
                 } else {
-                    let sub_cost = dp[i-1][j-1] + 1;
-                    let del_cost = dp[i-1][j] + 1;
-                    let ins_cost = dp[i][j-1] + 1;
+                    let sub_cost = dp[i - 1][j - 1] + 1;
+                    let del_cost = dp[i - 1][j] + 1;
+                    let ins_cost = dp[i][j - 1] + 1;
 
                     if sub_cost <= del_cost && sub_cost <= ins_cost {
                         dp[i][j] = sub_cost;
-                        ops[i][j] = (ops[i-1][j-1].0 + 1, ops[i-1][j-1].1, ops[i-1][j-1].2);
+                        ops[i][j] = (
+                            ops[i - 1][j - 1].0 + 1,
+                            ops[i - 1][j - 1].1,
+                            ops[i - 1][j - 1].2,
+                        );
                     } else if del_cost <= ins_cost {
                         dp[i][j] = del_cost;
-                        ops[i][j] = (ops[i-1][j].0, ops[i-1][j].1 + 1, ops[i-1][j].2);
+                        ops[i][j] = (ops[i - 1][j].0, ops[i - 1][j].1 + 1, ops[i - 1][j].2);
                     } else {
                         dp[i][j] = ins_cost;
-                        ops[i][j] = (ops[i][j-1].0, ops[i][j-1].1, ops[i][j-1].2 + 1);
+                        ops[i][j] = (ops[i][j - 1].0, ops[i][j - 1].1, ops[i][j - 1].2 + 1);
                     }
                 }
             }
         }
 
         ops[ref_len][hyp_len]
+    }
+
+    /// Calculate WER (alias for compute_wer for backward compatibility)
+    pub fn calculate(&mut self, reference: &[String], hypothesis: &[String]) -> Result<f64> {
+        self.compute_wer(reference, hypothesis)
     }
 }
 
@@ -283,7 +356,11 @@ impl CerCalculator {
         self.total_chars += ref_chars.len();
 
         let utterance_cer = if ref_chars.is_empty() {
-            if hyp_chars.is_empty() { 0.0 } else { 1.0 }
+            if hyp_chars.is_empty() {
+                0.0
+            } else {
+                1.0
+            }
         } else {
             (subs + dels + ins) as f64 / ref_chars.len() as f64
         };
@@ -297,7 +374,8 @@ impl CerCalculator {
         if self.total_chars == 0 {
             0.0
         } else {
-            (self.char_substitutions + self.char_deletions + self.char_insertions) as f64 / self.total_chars as f64
+            (self.char_substitutions + self.char_deletions + self.char_insertions) as f64
+                / self.total_chars as f64
         }
     }
 
@@ -317,16 +395,41 @@ impl CerCalculator {
 
         for i in 1..=ref_len {
             for j in 1..=hyp_len {
-                if reference[i-1] == hypothesis[j-1] {
-                    dp[i][j] = dp[i-1][j-1];
+                if reference[i - 1] == hypothesis[j - 1] {
+                    dp[i][j] = dp[i - 1][j - 1];
                 } else {
-                    dp[i][j] = 1 + dp[i-1][j-1].min(dp[i-1][j]).min(dp[i][j-1]);
+                    dp[i][j] = 1 + dp[i - 1][j - 1].min(dp[i - 1][j]).min(dp[i][j - 1]);
                 }
             }
         }
 
         // Simplified: return total edit distance as substitutions for now
         (dp[ref_len][hyp_len], 0, 0)
+    }
+
+    /// Calculate CER (alias for compute_cer for backward compatibility)
+    pub fn calculate(&mut self, reference: &[String], hypothesis: &[String]) -> Result<f64> {
+        if reference.len() != hypothesis.len() {
+            return Err(MetricsError::InvalidInput(
+                "Reference and hypothesis must have the same length".to_string(),
+            ));
+        }
+
+        let mut total_errors = 0;
+        let mut total_chars = 0;
+
+        for (ref_sent, hyp_sent) in reference.iter().zip(hypothesis.iter()) {
+            let cer = self.compute_cer(ref_sent, hyp_sent)?;
+            let ref_chars = ref_sent.chars().count();
+            total_errors += (cer * ref_chars as f64) as usize;
+            total_chars += ref_chars;
+        }
+
+        if total_chars == 0 {
+            Ok(0.0)
+        } else {
+            Ok(total_errors as f64 / total_chars as f64)
+        }
     }
 }
 
@@ -352,7 +455,11 @@ impl PerCalculator {
         self.total_phones += reference.len();
 
         let per = if reference.is_empty() {
-            if hypothesis.is_empty() { 0.0 } else { 1.0 }
+            if hypothesis.is_empty() {
+                0.0
+            } else {
+                1.0
+            }
         } else {
             (subs + dels + ins) as f64 / reference.len() as f64
         };
@@ -365,16 +472,26 @@ impl PerCalculator {
         if self.total_phones == 0 {
             None
         } else {
-            Some((self.phone_substitutions + self.phone_deletions + self.phone_insertions) as f64 / self.total_phones as f64)
+            Some(
+                (self.phone_substitutions + self.phone_deletions + self.phone_insertions) as f64
+                    / self.total_phones as f64,
+            )
         }
     }
 
     /// Compute phoneme-level edit distance
-    fn phone_edit_distance(&mut self, reference: &[String], hypothesis: &[String]) -> (usize, usize, usize) {
+    fn phone_edit_distance(
+        &mut self,
+        reference: &[String],
+        hypothesis: &[String],
+    ) -> (usize, usize, usize) {
         // Track phone confusions
         for (i, ref_phone) in reference.iter().enumerate() {
             if i < hypothesis.len() && ref_phone != &hypothesis[i] {
-                *self.confusion_matrix.entry((ref_phone.clone(), hypothesis[i].clone())).or_insert(0) += 1;
+                *self
+                    .confusion_matrix
+                    .entry((ref_phone.clone(), hypothesis[i].clone()))
+                    .or_insert(0) += 1;
             }
         }
 
@@ -394,6 +511,34 @@ impl PerCalculator {
         }
 
         (subs, dels, ins)
+    }
+
+    /// Calculate PER (alias for compute_per for backward compatibility)
+    pub fn calculate(
+        &mut self,
+        reference: &[Vec<String>],
+        hypothesis: &[Vec<String>],
+    ) -> Result<f64> {
+        if reference.len() != hypothesis.len() {
+            return Err(MetricsError::InvalidInput(
+                "Reference and hypothesis must have the same length".to_string(),
+            ));
+        }
+
+        let mut total_errors = 0;
+        let mut total_phones = 0;
+
+        for (ref_seq, hyp_seq) in reference.iter().zip(hypothesis.iter()) {
+            let per = self.compute_per(ref_seq, hyp_seq)?;
+            total_errors += (per * ref_seq.len() as f64) as usize;
+            total_phones += ref_seq.len();
+        }
+
+        if total_phones == 0 {
+            Ok(0.0)
+        } else {
+            Ok(total_errors as f64 / total_phones as f64)
+        }
     }
 }
 
@@ -422,7 +567,8 @@ impl BleuCalculator {
         }
 
         // Compute geometric mean of precisions
-        let log_sum: f64 = precisions.iter()
+        let log_sum: f64 = precisions
+            .iter()
             .zip(&self.ngram_weights)
             .map(|(p, w)| w * p.ln())
             .sum();
@@ -444,7 +590,12 @@ impl BleuCalculator {
     }
 
     /// Compute n-gram precision
-    fn compute_ngram_precision(&self, reference: &[String], hypothesis: &[String], n: usize) -> f64 {
+    fn compute_ngram_precision(
+        &self,
+        reference: &[String],
+        hypothesis: &[String],
+        n: usize,
+    ) -> f64 {
         if hypothesis.len() < n {
             return 0.0;
         }
@@ -485,6 +636,11 @@ impl BleuCalculator {
             (1.0 - ref_len as f64 / hyp_len as f64).exp()
         }
     }
+
+    /// Calculate BLEU score (alias for compute_bleu for backward compatibility)
+    pub fn calculate(&self, reference: &[String], hypothesis: &[String]) -> Result<f64> {
+        self.compute_bleu(reference, hypothesis)
+    }
 }
 
 impl ConfidenceMetrics {
@@ -516,6 +672,44 @@ impl ConfidenceMetrics {
     /// Set confidence threshold
     pub fn set_threshold(&mut self, threshold: f64) {
         self.confidence_threshold = threshold;
+    }
+
+    /// Calculate confidence-WER correlation
+    pub fn calculate_confidence_wer_correlation(
+        &mut self,
+        reference: &[String],
+        hypothesis: &[String],
+        confidence: &[f64],
+    ) -> Result<f64> {
+        if reference.len() != hypothesis.len() || hypothesis.len() != confidence.len() {
+            return Err(MetricsError::InvalidInput(
+                "Mismatched array lengths".to_string(),
+            ));
+        }
+
+        let mut correct_scores = Vec::new();
+        let mut incorrect_scores = Vec::new();
+
+        for ((r, h), &c) in reference
+            .iter()
+            .zip(hypothesis.iter())
+            .zip(confidence.iter())
+        {
+            if r == h {
+                correct_scores.push(c);
+            } else {
+                incorrect_scores.push(c);
+            }
+        }
+
+        if correct_scores.is_empty() || incorrect_scores.is_empty() {
+            return Ok(0.0);
+        }
+
+        let correct_mean = correct_scores.iter().sum::<f64>() / correct_scores.len() as f64;
+        let incorrect_mean = incorrect_scores.iter().sum::<f64>() / incorrect_scores.len() as f64;
+
+        Ok((correct_mean - incorrect_mean).abs())
     }
 }
 

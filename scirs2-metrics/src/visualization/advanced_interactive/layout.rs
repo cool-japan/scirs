@@ -6,7 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::core::{Position, Size, LayoutConfig};
+use super::core::{LayoutConfig, Position, Size};
 use super::widgets::WidgetConfig;
 use crate::error::{MetricsError, Result};
 use serde::{Deserialize, Serialize};
@@ -145,10 +145,12 @@ impl LayoutManager {
     /// Update grid layout
     fn update_grid_layout(&mut self) -> Result<()> {
         if let Some(grid_config) = &self.config.grid_config {
-            let cell_width = (self.container_constraints.width -
-                (grid_config.column_gap * (grid_config.columns - 1)) as f64) / grid_config.columns as f64;
-            let cell_height = (self.container_constraints.height -
-                (grid_config.row_gap * (grid_config.rows - 1)) as f64) / grid_config.rows as f64;
+            let cell_width = (self.container_constraints.width
+                - (grid_config.column_gap * (grid_config.columns - 1)) as f64)
+                / grid_config.columns as f64;
+            let cell_height = (self.container_constraints.height
+                - (grid_config.row_gap * (grid_config.rows - 1)) as f64)
+                / grid_config.rows as f64;
 
             // Auto-arrange widgets in grid
             let mut col = 0;
@@ -214,7 +216,8 @@ impl LayoutManager {
 
         for layout in self.widget_layouts.values_mut() {
             // Find shortest column
-            let shortest_col = column_heights.iter()
+            let shortest_col = column_heights
+                .iter()
                 .enumerate()
                 .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
                 .map(|(i, _)| i)
@@ -242,7 +245,10 @@ impl LayoutManager {
     }
 
     /// Update container constraints
-    pub fn update_container_constraints(&mut self, constraints: ContainerConstraints) -> Result<()> {
+    pub fn update_container_constraints(
+        &mut self,
+        constraints: ContainerConstraints,
+    ) -> Result<()> {
         self.container_constraints = constraints;
         self.update_layout()
     }
@@ -252,8 +258,14 @@ impl LayoutConstraints {
     /// Create layout constraints from widget config
     pub fn from_widget_config(config: &WidgetConfig) -> Self {
         Self {
-            min_size: Size { width: 50.0, height: 50.0 },
-            max_size: Size { width: f64::INFINITY, height: f64::INFINITY },
+            min_size: Size {
+                width: 50.0,
+                height: 50.0,
+            },
+            max_size: Size {
+                width: f64::INFINITY,
+                height: f64::INFINITY,
+            },
             aspect_ratio: None,
             fixed_width: None,
             fixed_height: None,
@@ -265,8 +277,14 @@ impl LayoutConstraints {
 impl Default for LayoutConstraints {
     fn default() -> Self {
         Self {
-            min_size: Size { width: 50.0, height: 50.0 },
-            max_size: Size { width: f64::INFINITY, height: f64::INFINITY },
+            min_size: Size {
+                width: 50.0,
+                height: 50.0,
+            },
+            max_size: Size {
+                width: f64::INFINITY,
+                height: f64::INFINITY,
+            },
             aspect_ratio: None,
             fixed_width: None,
             fixed_height: None,
@@ -292,8 +310,14 @@ impl Default for ContainerConstraints {
             width: 1200.0,
             height: 800.0,
             padding: Margin::default(),
-            min_widget_size: Size { width: 50.0, height: 50.0 },
-            max_widget_size: Size { width: 500.0, height: 500.0 },
+            min_widget_size: Size {
+                width: 50.0,
+                height: 50.0,
+            },
+            max_widget_size: Size {
+                width: 500.0,
+                height: 500.0,
+            },
         }
     }
 }

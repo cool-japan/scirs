@@ -211,7 +211,10 @@ impl AdaptiveCompressionConfig {
 impl CompressionAlgorithm {
     /// Check if the algorithm supports adaptive compression
     pub fn supports_adaptive(&self) -> bool {
-        matches!(self, CompressionAlgorithm::Adaptive | CompressionAlgorithm::SparseOptimized)
+        matches!(
+            self,
+            CompressionAlgorithm::Adaptive | CompressionAlgorithm::SparseOptimized
+        )
     }
 
     /// Get expected compression ratio for the algorithm

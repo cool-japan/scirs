@@ -208,7 +208,7 @@ impl PlatformInfo {
 }
 
 /// Enhanced model wrapper with metadata
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct EnhancedModel<T: SerializableModel> {
     /// The actual model data
     pub model: T,

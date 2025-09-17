@@ -183,11 +183,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
     }
 
     /// Create uncertainty quantifier with custom configuration
-    pub fn with_config(
-        n_mc_samples: usize,
-        confidence_level: F,
-        n_bootstrap: usize,
-    ) -> Self {
+    pub fn with_config(n_mc_samples: usize, confidence_level: F, n_bootstrap: usize) -> Self {
         Self {
             n_mc_samples,
             confidence_level,
@@ -231,13 +227,15 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let prediction_variance = self.compute_prediction_variance(predictions)?;
 
         // Compute epistemic uncertainty
-        let epistemic_uncertainty = self.compute_epistemic_uncertainty(predictions, model_outputs)?;
+        let epistemic_uncertainty =
+            self.compute_epistemic_uncertainty(predictions, model_outputs)?;
 
         // Compute aleatoric uncertainty
         let aleatoric_uncertainty = self.compute_aleatoric_uncertainty(predictions)?;
 
         // Compute prediction intervals
-        let prediction_intervals = self.compute_prediction_intervals(&mean_prediction.view(), &prediction_variance.view())?;
+        let prediction_intervals = self
+            .compute_prediction_intervals(&mean_prediction.view(), &prediction_variance.view())?;
 
         // Compute calibration metrics
         let calibration_metrics = if let Some(gt) = ground_truth {
@@ -366,7 +364,10 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
     }
 
     /// Compute confidence scores
-    fn compute_confidence_scores(&self, predictions: &ArrayView2<F>) -> Result<ConfidenceScores<F>> {
+    fn compute_confidence_scores(
+        &self,
+        predictions: &ArrayView2<F>,
+    ) -> Result<ConfidenceScores<F>> {
         let n_samples = predictions.nrows();
 
         // Maximum probability

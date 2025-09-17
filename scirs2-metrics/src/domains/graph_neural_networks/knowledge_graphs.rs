@@ -6,7 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::core::{Triple, RankingMetrics};
+use super::core::{RankingMetrics, Triple};
 use crate::error::{MetricsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -165,7 +165,9 @@ impl KnowledgeGraphMetrics {
         negative_triples: &[Triple],
     ) -> Result<()> {
         if predicted_scores.is_empty() {
-            return Err(MetricsError::InvalidInput("Predicted scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "Predicted scores cannot be empty".to_string(),
+            ));
         }
 
         let positive_set: HashSet<_> = positive_triples.iter().collect();
@@ -213,12 +215,13 @@ impl KnowledgeGraphMetrics {
             0.0
         };
 
-        self.triple_classification.f1_score = if self.triple_classification.precision + self.triple_classification.recall > 0.0 {
-            2.0 * self.triple_classification.precision * self.triple_classification.recall /
-                (self.triple_classification.precision + self.triple_classification.recall)
-        } else {
-            0.0
-        };
+        self.triple_classification.f1_score =
+            if self.triple_classification.precision + self.triple_classification.recall > 0.0 {
+                2.0 * self.triple_classification.precision * self.triple_classification.recall
+                    / (self.triple_classification.precision + self.triple_classification.recall)
+            } else {
+                0.0
+            };
 
         Ok(())
     }
@@ -230,10 +233,13 @@ impl KnowledgeGraphMetrics {
         true_alignments: &[(String, String)],
     ) -> Result<()> {
         if entity_similarities.is_empty() || true_alignments.is_empty() {
-            return Err(MetricsError::InvalidInput("Input cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "Input cannot be empty".to_string(),
+            ));
         }
 
-        let alignment_map: HashMap<String, String> = true_alignments.iter()
+        let alignment_map: HashMap<String, String> = true_alignments
+            .iter()
             .map(|(e1, e2)| (e1.clone(), e2.clone()))
             .collect();
 
@@ -241,7 +247,8 @@ impl KnowledgeGraphMetrics {
         let mut entity_rankings: HashMap<String, Vec<(String, f64)>> = HashMap::new();
 
         for (e1, e2, sim) in entity_similarities {
-            entity_rankings.entry(e1.clone())
+            entity_rankings
+                .entry(e1.clone())
                 .or_insert_with(Vec::new)
                 .push((e2.clone(), *sim));
         }
@@ -260,7 +267,10 @@ impl KnowledgeGraphMetrics {
 
         for (source_entity, true_target) in &alignment_map {
             if let Some(rankings) = entity_rankings.get(source_entity) {
-                if let Some(rank) = rankings.iter().position(|(target, _)| target == true_target) {
+                if let Some(rank) = rankings
+                    .iter()
+                    .position(|(target, _)| target == true_target)
+                {
                     let rank_1_based = rank + 1;
 
                     if rank_1_based <= 1 {
@@ -321,24 +331,28 @@ impl KnowledgeGraphMetrics {
             0.0
         };
 
-        self.relation_extraction.f1_score = if self.relation_extraction.precision + self.relation_extraction.recall > 0.0 {
-            2.0 * self.relation_extraction.precision * self.relation_extraction.recall /
-                (self.relation_extraction.precision + self.relation_extraction.recall)
-        } else {
-            0.0
-        };
+        self.relation_extraction.f1_score =
+            if self.relation_extraction.precision + self.relation_extraction.recall > 0.0 {
+                2.0 * self.relation_extraction.precision * self.relation_extraction.recall
+                    / (self.relation_extraction.precision + self.relation_extraction.recall)
+            } else {
+                0.0
+            };
 
         // Per-relation metrics
-        let all_relations: HashSet<String> = predicted_relations.iter()
+        let all_relations: HashSet<String> = predicted_relations
+            .iter()
             .chain(true_relations.iter())
             .map(|(_, rel, _)| rel.clone())
             .collect();
 
         for relation in all_relations {
-            let pred_for_rel: HashSet<_> = predicted_relations.iter()
+            let pred_for_rel: HashSet<_> = predicted_relations
+                .iter()
                 .filter(|(_, r, _)| r == &relation)
                 .collect();
-            let true_for_rel: HashSet<_> = true_relations.iter()
+            let true_for_rel: HashSet<_> = true_relations
+                .iter()
                 .filter(|(_, r, _)| r == &relation)
                 .collect();
 
@@ -364,9 +378,9 @@ impl KnowledgeGraphMetrics {
                 0.0
             };
 
-            self.relation_extraction.per_relation_metrics.insert(
-                relation, (precision_rel, recall_rel, f1_rel)
-            );
+            self.relation_extraction
+                .per_relation_metrics
+                .insert(relation, (precision_rel, recall_rel, f1_rel));
         }
 
         Ok(())

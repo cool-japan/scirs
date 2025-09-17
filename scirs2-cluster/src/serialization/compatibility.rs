@@ -123,7 +123,7 @@ pub fn generate_sklearn_model_summary(model_type: &str, model_data: &Value) -> R
 }
 
 /// Convert to Arrow schema format
-pub fn to_arrow_schema(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_arrow_schema<T: ClusteringModel>(model: &T) -> Result<Value> {
     let schema = serde_json::json!({
         "type": "struct",
         "fields": [
@@ -152,7 +152,7 @@ pub fn to_arrow_schema(model: &dyn ClusteringModel) -> Result<Value> {
 }
 
 /// Convert to HuggingFace model card format
-pub fn to_huggingface_card(model: &dyn ClusteringModel) -> Result<String> {
+pub fn to_huggingface_card<T: ClusteringModel>(model: &T) -> Result<String> {
     let summary = model.summary()?;
     let card = format!(
         r#"
@@ -193,14 +193,14 @@ let predictions = model.predict(data.view())?;
 }
 
 /// Convert to joblib format (simplified)
-pub fn to_joblib_format(model: &dyn ClusteringModel) -> Result<Vec<u8>> {
+pub fn to_joblib_format<T: ClusteringModel>(model: &T) -> Result<Vec<u8>> {
     // This is a simplified implementation
     let summary = model.summary()?;
     Ok(serde_json::to_vec(&summary)?)
 }
 
 /// Convert to MLflow format
-pub fn to_mlflow_format(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_mlflow_format<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "artifact_path": "model",
@@ -230,7 +230,7 @@ pub fn to_numpy_format(data: &ndarray::Array2<f64>) -> Result<Vec<u8>> {
 }
 
 /// Convert to ONNX metadata format
-pub fn to_onnx_metadata(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_onnx_metadata<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "ir_version": 7,
@@ -245,7 +245,7 @@ pub fn to_onnx_metadata(model: &dyn ClusteringModel) -> Result<Value> {
 }
 
 /// Convert to pandas clustering report
-pub fn to_pandas_clustering_report(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_pandas_clustering_report<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "model_type": "clustering",
@@ -257,19 +257,19 @@ pub fn to_pandas_clustering_report(model: &dyn ClusteringModel) -> Result<Value>
 }
 
 /// Convert to pandas format
-pub fn to_pandas_format(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_pandas_format<T: ClusteringModel>(model: &T) -> Result<Value> {
     to_pandas_clustering_report(model)
 }
 
 /// Convert to pickle-like format (simplified)
-pub fn to_pickle_like_format(model: &dyn ClusteringModel) -> Result<Vec<u8>> {
+pub fn to_pickle_like_format<T: ClusteringModel>(model: &T) -> Result<Vec<u8>> {
     // This is a simplified implementation
     let summary = model.summary()?;
     Ok(serde_json::to_vec(&summary)?)
 }
 
 /// Convert to PyTorch checkpoint format
-pub fn to_pytorch_checkpoint(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_pytorch_checkpoint<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "model_state_dict": summary,
@@ -282,7 +282,7 @@ pub fn to_pytorch_checkpoint(model: &dyn ClusteringModel) -> Result<Value> {
 }
 
 /// Convert to R format
-pub fn to_r_format(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_r_format<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "class": "clustering_model",
@@ -312,7 +312,7 @@ pub fn to_scipy_linkage_format(linkage_matrix: &ndarray::Array2<f64>) -> Result<
 }
 
 /// Convert to sklearn clustering result format
-pub fn to_sklearn_clustering_result(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_sklearn_clustering_result<T: ClusteringModel>(model: &T) -> Result<Value> {
     let summary = model.summary()?;
     Ok(serde_json::json!({
         "labels_": [],
@@ -323,7 +323,7 @@ pub fn to_sklearn_clustering_result(model: &dyn ClusteringModel) -> Result<Value
 }
 
 /// Convert to sklearn format
-pub fn to_sklearn_format(model: &dyn ClusteringModel) -> Result<Value> {
+pub fn to_sklearn_format<T: ClusteringModel>(model: &T) -> Result<Value> {
     to_sklearn_clustering_result(model)
 }
 

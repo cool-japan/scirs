@@ -31,8 +31,8 @@
 //! assert!(reflection_coeffs.is_some());
 //! ```
 
-use crate::error::{SignalError, SignalResult};
 use super::types::{ARMethod, OrderSelection};
+use crate::error::{SignalError, SignalResult};
 use ndarray::{Array1, Array2};
 use num_complex::Complex64;
 use scirs2_core::validation::{check_finite, check_positive};
@@ -520,9 +520,7 @@ pub fn least_squares_method(
 fn solve_linear_system(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(SignalError::ValueError(
-            "Matrix must be square".to_string(),
-        ));
+        return Err(SignalError::ValueError("Matrix must be square".to_string()));
     }
     if b.len() != n {
         return Err(SignalError::ValueError(

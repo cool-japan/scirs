@@ -29,13 +29,13 @@
 //! println!("Found peaks at indices: {:?}", peaks);
 //! ```
 
-use crate::error::{SignalError, SignalResult};
-use super::SimdConfig;
 #[cfg(target_arch = "x86_64")]
 use super::platform_ops::avx2_peak_detection;
+use super::SimdConfig;
+use crate::error::{SignalError, SignalResult};
+use ndarray::ArrayView1;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_finite;
-use ndarray::ArrayView1;
 
 /// SIMD-optimized peak detection
 ///

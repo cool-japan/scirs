@@ -62,6 +62,7 @@ pub struct QAOAClustering<F: Float + FromPrimitive> {
     optimal_parameters: Option<(Vec<f64>, Vec<f64>)>, // (gamma, beta)
     cluster_assignments: Option<Array1<usize>>,
     initialized: bool,
+    _phantom: std::marker::PhantomData<F>,
 }
 
 impl<F: Float + FromPrimitive + Debug> QAOAClustering<F> {
@@ -72,6 +73,7 @@ impl<F: Float + FromPrimitive + Debug> QAOAClustering<F> {
             optimal_parameters: None,
             cluster_assignments: None,
             initialized: false,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -154,6 +156,7 @@ pub struct VQEClustering<F: Float + FromPrimitive> {
     optimal_parameters: Option<Vec<f64>>,
     cluster_assignments: Option<Array1<usize>>,
     initialized: bool,
+    _phantom: std::marker::PhantomData<F>,
 }
 
 impl<F: Float + FromPrimitive + Debug> VQEClustering<F> {
@@ -165,6 +168,7 @@ impl<F: Float + FromPrimitive + Debug> VQEClustering<F> {
             optimal_parameters: None,
             cluster_assignments: None,
             initialized: false,
+            _phantom: std::marker::PhantomData,
         }
     }
 

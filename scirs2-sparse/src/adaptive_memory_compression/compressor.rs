@@ -3,15 +3,15 @@
 //! This module contains the main compressor implementation that coordinates
 //! all compression, caching, and out-of-core operations.
 
+use super::access_tracking::{AccessEvent, AccessPattern, AccessTracker, AccessType};
 use super::cache::{BlockCache, BlockId};
-use super::access_tracking::{AccessTracker, AccessPattern, AccessEvent, AccessType};
-use super::stats::AccessPatternType;
-use super::config::{AdaptiveCompressionConfig, CompressionAlgorithm};
-use super::stats::{CompressionStats, MemoryStats, CompressionMetadata};
-use super::compressed_data::{CompressedMatrix, CompressedBlock, BlockType};
+use super::compressed_data::{BlockType, CompressedBlock, CompressedMatrix};
 use super::compression::{CompressionEngine, CompressionResult};
+use super::config::{AdaptiveCompressionConfig, CompressionAlgorithm};
+use super::memory_mapping::{MemoryMappingConfig, MemoryMappingManager};
 use super::out_of_core::OutOfCoreManager;
-use super::memory_mapping::{MemoryMappingManager, MemoryMappingConfig};
+use super::stats::AccessPatternType;
+use super::stats::{CompressionMetadata, CompressionStats, MemoryStats};
 use crate::error::{SparseError, SparseResult};
 use num_traits::{Float, NumAssign};
 use std::marker::PhantomData;
@@ -238,14 +238,16 @@ impl AdaptiveMemoryCompressor {
         // Decompress each block
         for block in compressed_matrix.get_blocks_row_major() {
             // Check cache first
-            let decompressed_data = if let Some(cached_data) = self.get_cached_block(&block.blockid)? {
-                cached_data
-            } else {
-                // Decompress and cache
-                let decompressed = self.decompress_block(block, compressed_matrix.compression_algorithm)?;
-                self.cache_block(&block.blockid, &decompressed)?;
-                decompressed
-            };
+            let decompressed_data =
+                if let Some(cached_data) = self.get_cached_block(&block.blockid)? {
+                    cached_data
+                } else {
+                    // Decompress and cache
+                    let decompressed =
+                        self.decompress_block(block, compressed_matrix.compression_algorithm)?;
+                    self.cache_block(&block.blockid, &decompressed)?;
+                    decompressed
+                };
 
             // Parse decompressed data based on block type
             match block.block_type {
@@ -292,10 +294,7 @@ impl AdaptiveMemoryCompressor {
         let compression_stats = self.compression_stats.lock().unwrap().clone();
         let cache_stats = self.get_cache_stats();
 
-        let mut memory_stats = MemoryStats::new(
-            self.config.memory_budget,
-            self.config.out_of_core,
-        );
+        let mut memory_stats = MemoryStats::new(self.config.memory_budget, self.config.out_of_core);
         memory_stats.update_memory_usage(current_usage);
         memory_stats.compression_stats = compression_stats;
         memory_stats.cache_hits = cache_stats.hits;
@@ -667,7 +666,9 @@ impl AdaptiveMemoryCompressor {
 
     fn get_cached_block(&self, block_id: &BlockId) -> SparseResult<Option<Vec<u8>>> {
         if let Ok(mut cache) = self.block_cache.lock() {
-            Ok(cache.get(block_id).map(|cached_block| cached_block.data.clone()))
+            Ok(cache
+                .get(block_id)
+                .map(|cached_block| cached_block.data.clone()))
         } else {
             Ok(None)
         }
@@ -694,11 +695,8 @@ impl AdaptiveMemoryCompressor {
         block: &CompressedBlock,
         algorithm: CompressionAlgorithm,
     ) -> SparseResult<Vec<u8>> {
-        self.compression_engine.decompress(
-            &block.compressed_data,
-            algorithm,
-            block.original_size,
-        )
+        self.compression_engine
+            .decompress(&block.compressed_data, algorithm, block.original_size)
     }
 
     fn create_uncompressed_matrix<T>(

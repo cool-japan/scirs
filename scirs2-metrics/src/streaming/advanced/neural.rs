@@ -222,9 +222,7 @@ impl<F: Float + std::fmt::Debug + std::ops::AddAssign + std::iter::Sum> MultiArm
                     self.get_best_action()
                 }
             }
-            BanditAlgorithm::UCB { confidence_level } => {
-                self.get_ucb_action(*confidence_level)
-            }
+            BanditAlgorithm::UCB { confidence_level } => self.get_ucb_action(*confidence_level),
             _ => {
                 // Default to epsilon-greedy
                 self.get_best_action()
@@ -259,11 +257,10 @@ impl<F: Float + std::fmt::Debug + std::ops::AddAssign + std::iter::Sum> MultiArm
                 F::infinity() // Unplayed actions have infinite UCB
             } else {
                 let average = rewards.iter().cloned().sum::<F>() / F::from(rewards.len()).unwrap();
-                let confidence_bonus = F::from(
-                    confidence_level * (total_counts as f64 / self.counts[i] as f64).ln(),
-                )
-                .unwrap()
-                .sqrt();
+                let confidence_bonus =
+                    F::from(confidence_level * (total_counts as f64 / self.counts[i] as f64).ln())
+                        .unwrap()
+                        .sqrt();
                 average + confidence_bonus
             };
 
@@ -314,10 +311,7 @@ impl<F: Float + std::fmt::Debug + std::ops::AddAssign + std::iter::Sum> MultiArm
                 } else {
                     let count = rewards.len();
                     let mean = rewards.iter().cloned().sum::<F>() / F::from(count).unwrap();
-                    let variance = rewards
-                        .iter()
-                        .map(|&x| (x - mean) * (x - mean))
-                        .sum::<F>()
+                    let variance = rewards.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>()
                         / F::from(count.max(1)).unwrap();
                     (count, mean, variance)
                 }
@@ -426,12 +420,15 @@ impl<F: Float + std::fmt::Debug> AdaptiveLearningScheduler<F> {
                     self.current_lr = self.current_lr * *gamma;
                 }
             }
-            SchedulerType::ReduceLROnPlateau { factor, patience, .. } => {
+            SchedulerType::ReduceLROnPlateau {
+                factor, patience, ..
+            } => {
                 if self.performance_history.len() > *patience {
-                    let recent_performance = &self.performance_history[self.performance_history.len() - patience..];
-                    let is_plateau = recent_performance.windows(2).all(|w|
-                        (w[1] - w[0]).abs() < F::from(0.001).unwrap()
-                    );
+                    let recent_performance =
+                        &self.performance_history[self.performance_history.len() - patience..];
+                    let is_plateau = recent_performance
+                        .windows(2)
+                        .all(|w| (w[1] - w[0]).abs() < F::from(0.001).unwrap());
                     if is_plateau {
                         self.current_lr = self.current_lr * *factor;
                     }
@@ -466,7 +463,7 @@ pub enum SchedulerType<F: Float> {
     ReduceLROnPlateau {
         factor: F,
         patience: usize,
-        threshold: F
+        threshold: F,
     },
     /// Cosine annealing
     CosineAnnealingLR { t_max: usize },

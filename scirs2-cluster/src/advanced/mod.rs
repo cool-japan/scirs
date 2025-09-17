@@ -34,20 +34,20 @@ pub mod quantum;
 
 // For now, we'll include placeholder modules for the remaining sections
 // These would be fully implemented in a complete refactoring
-pub mod reinforcement;
-pub mod transfer;
 pub mod deep;
 pub mod quantum_algorithms;
+pub mod reinforcement;
+pub mod transfer;
 
 // Re-export main types for convenience
-pub use online::{adaptive_online_clustering, AdaptiveOnlineConfig, AdaptiveOnlineClustering};
+pub use online::{adaptive_online_clustering, AdaptiveOnlineClustering, AdaptiveOnlineConfig};
 pub use quantum::{quantum_kmeans, QuantumConfig, QuantumKMeans, QuantumState};
 
 // Re-export types from placeholder modules
-pub use reinforcement::*;
-pub use transfer::*;
 pub use deep::*;
 pub use quantum_algorithms::*;
+pub use reinforcement::*;
+pub use transfer::*;
 
 /// Convenience function to create a default quantum configuration
 pub fn default_quantum_config() -> QuantumConfig {

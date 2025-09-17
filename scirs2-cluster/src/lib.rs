@@ -292,6 +292,12 @@ pub mod time_series;
 /// for all clustering algorithms in the scirs2-cluster crate. It supports
 /// grid search, random search, Bayesian optimization, and adaptive strategies.
 pub mod tuning;
+/// Utility modules for clustering algorithms
+///
+/// This module contains various utility functions and helpers used throughout
+/// the clustering library, including contingency matrix calculations and
+/// other shared functionality.
+pub mod utils;
 /// Enhanced visualization capabilities for clustering results.
 ///
 /// This module provides comprehensive visualization tools for clustering algorithms,
@@ -400,19 +406,12 @@ pub use metrics::{
     silhouette_score,
 };
 
-// Re-export ensemble validation methods
-pub use metrics::ensemble::{
-    bootstrap_confidence_interval, consensus_clustering_score, cross_validation_score,
-    multi_criterion_validation, robust_validation,
-};
+// Re-export ensemble validation methods (from core stability module)
+pub use metrics::bootstrap_confidence_interval;
 
 // Re-export information-theoretic methods
-pub use metrics::information_theoretic::{
-    jensen_shannon_divergence, normalized_variation_of_information,
-};
-
-// Re-export stability-based methods
-pub use metrics::stability::{cluster_stability_bootstrap, optimal_clusters_stability};
+pub use metrics::information_theoretic::normalized_variation_of_information;
+pub use metrics::jensen_shannon_divergence;
 
 // Re-export advanced metrics
 pub use metrics::advanced::{bic_score, dunn_index};
@@ -459,7 +458,6 @@ pub use serialization::{
     HierarchicalModel,
     KMeansModel,
     LeaderModel,
-    LeaderNodeModel,
     LeaderTreeModel,
     MeanShiftModel,
     ModelMetadata,
@@ -523,34 +521,11 @@ pub use time_series::{
     TimeSeriesClusteringConfig,
 };
 pub use tuning::{
-    auto_select_clustering_algorithm,
-    quick_algorithm_selection,
-    AcquisitionFunction,
-    AlgorithmSelectionResult,
-    // Auto-selection functionality
-    AutoClusteringSelector,
-    AutoTuner,
-    BayesianState,
-    CVStrategy,
-    ConvergenceInfo,
-    CrossValidationConfig,
-    EarlyStoppingConfig,
-    EnsembleResults,
-    EvaluationMetric,
-    EvaluationResult,
-    ExplorationStats,
-    HyperParameter,
-    KernelType,
-    LoadBalancingStrategy,
-    ParallelConfig,
-    ResourceConstraints,
-    SearchSpace,
-    SearchStrategy,
-    StandardSearchSpaces,
-    StoppingReason,
-    SurrogateModel,
-    TuningConfig,
-    TuningResult,
+    AcquisitionFunction, AutoTuner, BayesianState, CVStrategy, ConvergenceInfo,
+    CrossValidationConfig, EarlyStoppingConfig, EnsembleResults, EvaluationMetric,
+    EvaluationResult, ExplorationStats, HyperParameter, KernelType, LoadBalancingStrategy,
+    ParallelConfig, ResourceConstraints, SearchSpace, SearchStrategy, StandardSearchSpaces,
+    StoppingReason, SurrogateModel, TuningConfig, TuningResult,
 };
 
 // Re-export visualization and animation capabilities

@@ -214,11 +214,16 @@ impl PerformanceMonitorConfig {
         }
 
         if self.optimization_interval_s == 0 && self.auto_optimization {
-            return Err("Optimization interval must be greater than 0 when auto-optimization is enabled".to_string());
+            return Err(
+                "Optimization interval must be greater than 0 when auto-optimization is enabled"
+                    .to_string(),
+            );
         }
 
         if self.prediction_horizon == 0 && self.enable_prediction {
-            return Err("Prediction horizon must be greater than 0 when prediction is enabled".to_string());
+            return Err(
+                "Prediction horizon must be greater than 0 when prediction is enabled".to_string(),
+            );
         }
 
         if !(0.0..=1.0).contains(&self.anomaly_sensitivity) {
@@ -226,11 +231,16 @@ impl PerformanceMonitorConfig {
         }
 
         if self.max_alert_history == 0 && self.enable_alerts {
-            return Err("Max alert history must be greater than 0 when alerts are enabled".to_string());
+            return Err(
+                "Max alert history must be greater than 0 when alerts are enabled".to_string(),
+            );
         }
 
         if self.max_adaptation_history == 0 && self.adaptive_tuning {
-            return Err("Max adaptation history must be greater than 0 when adaptive tuning is enabled".to_string());
+            return Err(
+                "Max adaptation history must be greater than 0 when adaptive tuning is enabled"
+                    .to_string(),
+            );
         }
 
         Ok(())
@@ -242,10 +252,10 @@ impl PerformanceMonitorConfig {
         let alert_size = std::mem::size_of::<super::alerts::Alert>();
         let adaptation_size = 256; // Estimated size for adaptation events
 
-        self.max_samples * sample_size +
-        self.max_alert_history * alert_size +
-        self.max_adaptation_history * adaptation_size +
-        8192 // Base overhead
+        self.max_samples * sample_size
+            + self.max_alert_history * alert_size
+            + self.max_adaptation_history * adaptation_size
+            + 8192 // Base overhead
     }
 
     /// Check if configuration is suitable for real-time operation
@@ -387,7 +397,8 @@ mod tests {
         let testing = PerformanceMonitorConfig::recommended_for_use_case(UseCase::Testing);
         assert!(testing.validate().is_ok());
 
-        let benchmarking = PerformanceMonitorConfig::recommended_for_use_case(UseCase::Benchmarking);
+        let benchmarking =
+            PerformanceMonitorConfig::recommended_for_use_case(UseCase::Benchmarking);
         assert!(benchmarking.validate().is_ok());
 
         let low_resource = PerformanceMonitorConfig::recommended_for_use_case(UseCase::LowResource);
@@ -397,12 +408,10 @@ mod tests {
 
     #[test]
     fn test_anomaly_sensitivity_clamping() {
-        let config = PerformanceMonitorConfig::new()
-            .with_anomaly_sensitivity(1.5); // Should be clamped to 1.0
+        let config = PerformanceMonitorConfig::new().with_anomaly_sensitivity(1.5); // Should be clamped to 1.0
         assert_eq!(config.anomaly_sensitivity, 1.0);
 
-        let config = PerformanceMonitorConfig::new()
-            .with_anomaly_sensitivity(-0.1); // Should be clamped to 0.0
+        let config = PerformanceMonitorConfig::new().with_anomaly_sensitivity(-0.1); // Should be clamped to 0.0
         assert_eq!(config.anomaly_sensitivity, 0.0);
     }
 }

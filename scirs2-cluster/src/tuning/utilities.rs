@@ -148,7 +148,7 @@ fn calculate_coverage(parameter_distributions: &HashMap<String, Vec<f64>>) -> f6
             // Simple coverage metric based on unique values
             let mut sorted_values = values.clone();
             sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            sorted_values.dedup_by(|a, b| (a - b).abs() < 1e-10);
+            sorted_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
             let coverage = sorted_values.len() as f64 / values.len() as f64;
             total_coverage += coverage;

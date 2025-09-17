@@ -161,8 +161,10 @@ mod tests {
 
     #[test]
     fn test_transfer_learning_clustering_placeholder() {
-        let source_data = Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f64).collect()).unwrap();
-        let target_data = Array2::from_shape_vec((4, 2), (8..16).map(|x| x as f64).collect()).unwrap();
+        let source_data =
+            Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f64).collect()).unwrap();
+        let target_data =
+            Array2::from_shape_vec((4, 2), (8..16).map(|x| x as f64).collect()).unwrap();
         let result = transfer_learning_clustering(source_data.view(), target_data.view(), None);
         assert!(result.is_ok());
     }

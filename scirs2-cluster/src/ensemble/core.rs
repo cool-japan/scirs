@@ -26,20 +26,6 @@ pub struct EnsembleConfig {
     pub max_clusters: Option<usize>,
 }
 
-impl Default for EnsembleConfig {
-    fn default() -> Self {
-        Self {
-            n_estimators: 10,
-            sampling_strategy: SamplingStrategy::Bootstrap { sample_ratio: 0.8 },
-            consensus_method: ConsensusMethod::MajorityVoting,
-            random_seed: None,
-            diversity_strategy: None,
-            quality_threshold: None,
-            max_clusters: None,
-        }
-    }
-}
-
 /// Sampling strategies for creating diverse datasets
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SamplingStrategy {
@@ -172,7 +158,13 @@ impl ClusteringResult {
         quality_score: f64,
         runtime: f64,
     ) -> Self {
-        let n_clusters = labels.iter().map(|&x| x).filter(|&x| x >= 0).max().map(|x| x as usize + 1).unwrap_or(0);
+        let n_clusters = labels
+            .iter()
+            .map(|&x| x)
+            .filter(|&x| x >= 0)
+            .max()
+            .map(|x| x as usize + 1)
+            .unwrap_or(0);
 
         Self {
             labels,
@@ -255,7 +247,13 @@ impl EnsembleResult {
 
     /// Get number of consensus clusters
     pub fn n_consensus_clusters(&self) -> usize {
-        self.consensus_labels.iter().map(|&x| x).filter(|&x| x >= 0).max().map(|x| x as usize + 1).unwrap_or(0)
+        self.consensus_labels
+            .iter()
+            .map(|&x| x)
+            .filter(|&x| x >= 0)
+            .max()
+            .map(|x| x as usize + 1)
+            .unwrap_or(0)
     }
 
     /// Get consensus cluster sizes
@@ -278,13 +276,21 @@ impl EnsembleResult {
         if self.individual_results.is_empty() {
             0.0
         } else {
-            self.individual_results.iter().map(|r| r.quality_score).sum::<f64>() / self.individual_results.len() as f64
+            self.individual_results
+                .iter()
+                .map(|r| r.quality_score)
+                .sum::<f64>()
+                / self.individual_results.len() as f64
         }
     }
 
     /// Get best individual result
     pub fn best_individual_result(&self) -> Option<&ClusteringResult> {
-        self.individual_results.iter().max_by(|a, b| a.quality_score.partial_cmp(&b.quality_score).unwrap_or(std::cmp::Ordering::Equal))
+        self.individual_results.iter().max_by(|a, b| {
+            a.quality_score
+                .partial_cmp(&b.quality_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Get algorithm distribution
@@ -333,12 +339,18 @@ impl ConsensusStatistics {
 
     /// Get minimum consensus strength
     pub fn min_consensus_strength(&self) -> f64 {
-        self.consensus_strength.iter().cloned().fold(f64::INFINITY, f64::min)
+        self.consensus_strength
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min)
     }
 
     /// Get maximum consensus strength
     pub fn max_consensus_strength(&self) -> f64 {
-        self.consensus_strength.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+        self.consensus_strength
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max)
     }
 
     /// Get average cluster stability
@@ -382,20 +394,29 @@ impl DiversityMetrics {
 
     /// Get maximum pairwise diversity
     pub fn max_diversity(&self) -> f64 {
-        self.diversity_matrix.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+        self.diversity_matrix
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max)
     }
 
     /// Get minimum pairwise diversity
     pub fn min_diversity(&self) -> f64 {
-        self.diversity_matrix.iter().cloned().fold(f64::INFINITY, f64::min)
+        self.diversity_matrix
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min)
     }
 
     /// Get diversity variance
     pub fn diversity_variance(&self) -> f64 {
         let mean = self.average_diversity;
-        let variance = self.diversity_matrix.iter()
+        let variance = self
+            .diversity_matrix
+            .iter()
             .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / (self.diversity_matrix.len() as f64);
+            .sum::<f64>()
+            / (self.diversity_matrix.len() as f64);
         variance
     }
 
@@ -414,8 +435,14 @@ mod tests {
     fn test_ensemble_config_default() {
         let config = EnsembleConfig::default();
         assert_eq!(config.n_estimators, 10);
-        assert!(matches!(config.sampling_strategy, SamplingStrategy::Bootstrap { .. }));
-        assert!(matches!(config.consensus_method, ConsensusMethod::MajorityVoting));
+        assert!(matches!(
+            config.sampling_strategy,
+            SamplingStrategy::Bootstrap { .. }
+        ));
+        assert!(matches!(
+            config.consensus_method,
+            ConsensusMethod::MajorityVoting
+        ));
     }
 
     #[test]
@@ -424,13 +451,7 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("k".to_string(), "2".to_string());
 
-        let result = ClusteringResult::new(
-            labels,
-            "kmeans".to_string(),
-            params,
-            0.8,
-            1.5,
-        );
+        let result = ClusteringResult::new(labels, "kmeans".to_string(), params, 0.8, 1.5);
 
         assert_eq!(result.n_clusters, 2);
         assert!(result.has_noise());
@@ -465,12 +486,8 @@ mod tests {
             arr1(&[2, 2, 2, 2]),
         );
 
-        let diversity_metrics = DiversityMetrics::new(
-            0.5,
-            Array2::zeros((2, 2)),
-            HashMap::new(),
-            HashMap::new(),
-        );
+        let diversity_metrics =
+            DiversityMetrics::new(0.5, Array2::zeros((2, 2)), HashMap::new(), HashMap::new());
 
         let result = EnsembleResult::new(
             consensus_labels,

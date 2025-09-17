@@ -37,8 +37,8 @@
 
 // Module declarations - these will contain the actual implementations
 pub mod ar_estimation;
-pub mod ma_estimation;
 pub mod arma_estimation;
+pub mod ma_estimation;
 pub mod robust_estimation;
 // pub mod order_selection;
 // pub mod spectrum_computation;
@@ -53,24 +53,22 @@ pub use types::*;
 
 // Re-export functions from submodules for backward compatibility
 pub use ar_estimation::{
-    estimate_ar, yule_walker, burg_method, covariance_method,
-    modified_covariance_method, least_squares_method, ar_spectrum, select_arorder
+    ar_spectrum, burg_method, covariance_method, estimate_ar, least_squares_method,
+    modified_covariance_method, select_arorder, yule_walker,
 };
 
 // Re-export MA estimation functions for backward compatibility
-pub use ma_estimation::{
-    estimate_ma
-};
+pub use ma_estimation::estimate_ma;
 
 // Re-export ARMA estimation functions for backward compatibility
 pub use arma_estimation::{
-    estimate_arma, arma_spectrum, estimate_arma_enhanced, arma_spectrum_enhanced,
-    select_armaorder_enhanced, adaptive_arma_estimator, detect_spectral_peaks
+    adaptive_arma_estimator, arma_spectrum, arma_spectrum_enhanced, detect_spectral_peaks,
+    estimate_arma, estimate_arma_enhanced, select_armaorder_enhanced,
 };
 
 // Re-export robust estimation functions for backward compatibility
 pub use robust_estimation::{
-    robust_ar_estimation, update_robust_weights, compute_parameter_change
+    compute_parameter_change, robust_ar_estimation, update_robust_weights,
 };
 
 use crate::error::{SignalError, SignalResult};
@@ -83,15 +81,6 @@ use std::f64::consts::PI;
 
 // AR estimation functions have been moved to ar_estimation.rs
 // Functions are re-exported above for backward compatibility
-
-
-
-
-
-
-
-
-
 
 // NOTE: Additional functions will be moved to their respective submodules as needed
 // All AR estimation functions have been moved to ar_estimation.rs

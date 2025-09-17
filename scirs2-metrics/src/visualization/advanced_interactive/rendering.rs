@@ -6,7 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::widgets::{RenderContext, WidgetRender, ShaderProgram, UniformValue};
+use super::widgets::{RenderContext, ShaderProgram, UniformValue, WidgetRender};
 use crate::error::{MetricsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -32,7 +32,11 @@ pub trait RenderingEngine: std::fmt::Debug + Send + Sync {
     fn create_shader(&self, program: &ShaderProgram) -> Result<String>;
 
     /// Update uniform values
-    fn update_uniforms(&self, shader_id: &str, uniforms: &HashMap<String, UniformValue>) -> Result<()>;
+    fn update_uniforms(
+        &self,
+        shader_id: &str,
+        uniforms: &HashMap<String, UniformValue>,
+    ) -> Result<()>;
 
     /// Set viewport
     fn set_viewport(&self, x: u32, y: u32, width: u32, height: u32) -> Result<()>;

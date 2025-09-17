@@ -462,7 +462,9 @@ impl<F: Float> DistributedNeuromorphicCoordinator<F> {
 
     /// Add node to the distributed system
     pub fn add_node(&mut self, node_info: NodeInfo) -> Result<()> {
-        self.network_topology.nodes.insert(node_info.id.clone(), node_info);
+        self.network_topology
+            .nodes
+            .insert(node_info.id.clone(), node_info);
         Ok(())
     }
 
@@ -482,7 +484,10 @@ impl<F: Float> DistributedNeuromorphicCoordinator<F> {
         let mut distributions = HashMap::new();
 
         // Simple distribution: split computation evenly across active nodes
-        let active_nodes: Vec<_> = self.network_topology.nodes.iter()
+        let active_nodes: Vec<_> = self
+            .network_topology
+            .nodes
+            .iter()
             .filter(|(_, node)| matches!(node.status, NodeStatus::Active))
             .map(|(id, _)| id.clone())
             .collect();
@@ -570,10 +575,12 @@ impl DistributedTopology {
 
     /// Add connection between nodes
     pub fn add_connection(&mut self, node1: &str, node2: &str) {
-        self.connections.entry(node1.to_string())
+        self.connections
+            .entry(node1.to_string())
             .or_insert_with(Vec::new)
             .push(node2.to_string());
-        self.connections.entry(node2.to_string())
+        self.connections
+            .entry(node2.to_string())
             .or_insert_with(Vec::new)
             .push(node1.to_string());
     }
@@ -640,7 +647,9 @@ impl<F: Float> NeuromorphicLoadBalancer<F> {
 
     /// Round robin load balancing
     fn round_robin_balance(&mut self, topology: &DistributedTopology) -> Result<()> {
-        let active_nodes: Vec<_> = topology.nodes.iter()
+        let active_nodes: Vec<_> = topology
+            .nodes
+            .iter()
             .filter(|(_, node)| matches!(node.status, NodeStatus::Active))
             .map(|(id, _)| id.clone())
             .collect();

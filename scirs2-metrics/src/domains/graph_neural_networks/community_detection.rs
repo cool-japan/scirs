@@ -76,16 +76,15 @@ impl CommunityDetectionMetrics {
         }
 
         // Calculate total edge weight
-        let total_weight: f64 = adjacency_matrix.iter()
-            .flatten()
-            .sum::<f64>() / 2.0; // Divide by 2 for undirected graphs
+        let total_weight: f64 = adjacency_matrix.iter().flatten().sum::<f64>() / 2.0; // Divide by 2 for undirected graphs
 
         if total_weight == 0.0 {
             return Ok(0.0);
         }
 
         // Calculate node degrees
-        let degrees: Vec<f64> = adjacency_matrix.iter()
+        let degrees: Vec<f64> = adjacency_matrix
+            .iter()
             .map(|row| row.iter().sum())
             .collect();
 
@@ -117,7 +116,8 @@ impl CommunityDetectionMetrics {
         }
 
         // Get all nodes
-        let all_nodes: HashSet<NodeId> = predicted_communities.keys()
+        let all_nodes: HashSet<NodeId> = predicted_communities
+            .keys()
             .chain(true_communities.keys())
             .cloned()
             .collect();
@@ -134,7 +134,8 @@ impl CommunityDetectionMetrics {
 
         for node in &all_nodes {
             if let (Some(&pred_comm), Some(&true_comm)) =
-                (predicted_communities.get(node), true_communities.get(node)) {
+                (predicted_communities.get(node), true_communities.get(node))
+            {
                 *confusion_matrix.entry((pred_comm, true_comm)).or_insert(0) += 1;
                 *pred_counts.entry(pred_comm).or_insert(0) += 1;
                 *true_counts.entry(true_comm).or_insert(0) += 1;
@@ -142,22 +143,33 @@ impl CommunityDetectionMetrics {
         }
 
         // Calculate entropies
-        let h_pred = pred_counts.values()
+        let h_pred = pred_counts
+            .values()
             .map(|&count| {
                 let p = count as f64 / n;
-                if p > 0.0 { -p * p.ln() } else { 0.0 }
+                if p > 0.0 {
+                    -p * p.ln()
+                } else {
+                    0.0
+                }
             })
             .sum::<f64>();
 
-        let h_true = true_counts.values()
+        let h_true = true_counts
+            .values()
             .map(|&count| {
                 let p = count as f64 / n;
-                if p > 0.0 { -p * p.ln() } else { 0.0 }
+                if p > 0.0 {
+                    -p * p.ln()
+                } else {
+                    0.0
+                }
             })
             .sum::<f64>();
 
         // Calculate mutual information
-        let mutual_info = confusion_matrix.values()
+        let mutual_info = confusion_matrix
+            .values()
             .zip(confusion_matrix.keys())
             .map(|(&n_ij, &(pred_comm, true_comm))| {
                 let p_ij = n_ij as f64 / n;
@@ -192,7 +204,8 @@ impl CommunityDetectionMetrics {
             return Ok(0.0);
         }
 
-        let all_nodes: HashSet<NodeId> = predicted_communities.keys()
+        let all_nodes: HashSet<NodeId> = predicted_communities
+            .keys()
             .chain(true_communities.keys())
             .cloned()
             .collect();
@@ -209,7 +222,8 @@ impl CommunityDetectionMetrics {
 
         for node in &all_nodes {
             if let (Some(&pred_comm), Some(&true_comm)) =
-                (predicted_communities.get(node), true_communities.get(node)) {
+                (predicted_communities.get(node), true_communities.get(node))
+            {
                 *confusion_matrix.entry((pred_comm, true_comm)).or_insert(0) += 1;
                 *pred_counts.entry(pred_comm).or_insert(0) += 1;
                 *true_counts.entry(true_comm).or_insert(0) += 1;
@@ -217,17 +231,38 @@ impl CommunityDetectionMetrics {
         }
 
         // Calculate ARI components
-        let index = confusion_matrix.values()
-            .map(|&count| if count >= 2 { count * (count - 1) / 2 } else { 0 })
+        let index = confusion_matrix
+            .values()
+            .map(|&count| {
+                if count >= 2 {
+                    count * (count - 1) / 2
+                } else {
+                    0
+                }
+            })
             .sum::<usize>() as f64;
 
         let expected_index = {
-            let sum_pred = pred_counts.values()
-                .map(|&count| if count >= 2 { count * (count - 1) / 2 } else { 0 })
+            let sum_pred = pred_counts
+                .values()
+                .map(|&count| {
+                    if count >= 2 {
+                        count * (count - 1) / 2
+                    } else {
+                        0
+                    }
+                })
                 .sum::<usize>() as f64;
 
-            let sum_true = true_counts.values()
-                .map(|&count| if count >= 2 { count * (count - 1) / 2 } else { 0 })
+            let sum_true = true_counts
+                .values()
+                .map(|&count| {
+                    if count >= 2 {
+                        count * (count - 1) / 2
+                    } else {
+                        0
+                    }
+                })
                 .sum::<usize>() as f64;
 
             let total_pairs = if n >= 2 { n * (n - 1) / 2 } else { 0 } as f64;
@@ -240,12 +275,26 @@ impl CommunityDetectionMetrics {
         };
 
         let max_index = {
-            let sum_pred = pred_counts.values()
-                .map(|&count| if count >= 2 { count * (count - 1) / 2 } else { 0 })
+            let sum_pred = pred_counts
+                .values()
+                .map(|&count| {
+                    if count >= 2 {
+                        count * (count - 1) / 2
+                    } else {
+                        0
+                    }
+                })
                 .sum::<usize>() as f64;
 
-            let sum_true = true_counts.values()
-                .map(|&count| if count >= 2 { count * (count - 1) / 2 } else { 0 })
+            let sum_true = true_counts
+                .values()
+                .map(|&count| {
+                    if count >= 2 {
+                        count * (count - 1) / 2
+                    } else {
+                        0
+                    }
+                })
                 .sum::<usize>() as f64;
 
             (sum_pred + sum_true) / 2.0
@@ -275,7 +324,8 @@ impl CommunityDetectionMetrics {
         let mut total_conductance = 0.0;
 
         for community in &unique_communities {
-            let community_nodes: HashSet<NodeId> = communities.iter()
+            let community_nodes: HashSet<NodeId> = communities
+                .iter()
                 .filter(|(_, &comm)| comm == *community)
                 .map(|(&node, _)| node)
                 .collect();
@@ -342,7 +392,8 @@ impl OverlappingCommunityMetrics {
         }
 
         // Compute coverage
-        let all_nodes: HashSet<NodeId> = predicted_memberships.keys()
+        let all_nodes: HashSet<NodeId> = predicted_memberships
+            .keys()
             .chain(true_memberships.keys())
             .cloned()
             .collect();
@@ -368,8 +419,8 @@ impl OverlappingCommunityMetrics {
 
         for node in &all_nodes {
             if let (Some(pred_comms), Some(true_comms)) =
-                (predicted_memberships.get(node), true_memberships.get(node)) {
-
+                (predicted_memberships.get(node), true_memberships.get(node))
+            {
                 let pred_set: HashSet<CommunityId> = pred_comms.iter().cloned().collect();
                 let true_set: HashSet<CommunityId> = true_comms.iter().cloned().collect();
 

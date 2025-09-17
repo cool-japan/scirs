@@ -744,7 +744,6 @@ impl LogFileManager {
     /// # Errors
     ///
     /// Returns an error if the event cannot be serialized to JSON.
-
     fn serialize_json(&self, event: &AuditEvent) -> Result<String, CoreError> {
         serde_json::to_string(event).map_err(|e| {
             CoreError::ComputationError(crate::error::ErrorContext::new(format!(
@@ -1754,7 +1753,6 @@ impl AuditLogger {
     /// # Errors
     ///
     /// Returns an error if the log line cannot be parsed.
-
     fn parselog_line(&self, line: &str) -> Result<AuditEvent, CoreError> {
         if self.config.enable_json_format {
             serde_json::from_str(line).map_err(|e| {

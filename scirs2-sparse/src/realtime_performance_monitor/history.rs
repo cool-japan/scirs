@@ -3,7 +3,7 @@
 //! This module manages the storage, retrieval, and analysis of performance
 //! history data for real-time monitoring.
 
-use super::metrics::{PerformanceSample, AggregatedMetrics, ProcessorType};
+use super::metrics::{AggregatedMetrics, PerformanceSample, ProcessorType};
 use std::collections::{HashMap, VecDeque};
 
 /// Performance history tracking
@@ -51,7 +51,8 @@ impl PerformanceHistory {
         // Update processor-specific metrics
         let processor_key = format!("{}:{}", sample.processor_type, sample.processor_id);
         let should_establish_baseline = {
-            let processor_metrics = self.processor_metrics
+            let processor_metrics = self
+                .processor_metrics
                 .entry(processor_key.clone())
                 .or_insert_with(|| ProcessorMetrics {
                     samples: VecDeque::with_capacity(self.max_samples / 4),
@@ -81,7 +82,11 @@ impl PerformanceHistory {
     }
 
     /// Get recent samples for a processor
-    pub fn get_processor_samples(&self, processor_type: ProcessorType, processor_id: &str) -> Vec<&PerformanceSample> {
+    pub fn get_processor_samples(
+        &self,
+        processor_type: ProcessorType,
+        processor_id: &str,
+    ) -> Vec<&PerformanceSample> {
         let key = format!("{}:{}", processor_type, processor_id);
         self.processor_metrics
             .get(&key)
@@ -90,7 +95,11 @@ impl PerformanceHistory {
     }
 
     /// Get aggregated metrics for a processor
-    pub fn get_processor_metrics(&self, processor_type: ProcessorType, processor_id: &str) -> Option<&AggregatedMetrics> {
+    pub fn get_processor_metrics(
+        &self,
+        processor_type: ProcessorType,
+        processor_id: &str,
+    ) -> Option<&AggregatedMetrics> {
         let key = format!("{}:{}", processor_type, processor_id);
         self.processor_metrics
             .get(&key)
@@ -136,19 +145,20 @@ impl PerformanceHistory {
                 format!("{}_execution_time", processor_key),
                 baseline_execution_time,
             );
-            self.performance_baselines.insert(
-                format!("{}_throughput", processor_key),
-                baseline_throughput,
-            );
-            self.performance_baselines.insert(
-                format!("{}_efficiency", processor_key),
-                baseline_efficiency,
-            );
+            self.performance_baselines
+                .insert(format!("{}_throughput", processor_key), baseline_throughput);
+            self.performance_baselines
+                .insert(format!("{}_efficiency", processor_key), baseline_efficiency);
         }
     }
 
     /// Get baseline value for a metric
-    pub fn get_baseline(&self, processor_type: ProcessorType, processor_id: &str, metric: &str) -> Option<f64> {
+    pub fn get_baseline(
+        &self,
+        processor_type: ProcessorType,
+        processor_id: &str,
+        metric: &str,
+    ) -> Option<f64> {
         let key = format!("{}:{}_{}", processor_type, processor_id, metric);
         self.performance_baselines.get(&key).copied()
     }
@@ -165,7 +175,9 @@ impl PerformanceHistory {
 
         if let Some(metrics) = self.processor_metrics.get(&processor_key) {
             // Check execution time degradation
-            if let Some(baseline) = self.get_baseline(processor_type, processor_id, "execution_time") {
+            if let Some(baseline) =
+                self.get_baseline(processor_type, processor_id, "execution_time")
+            {
                 let current = metrics.aggregated.avg_execution_time;
                 if current > baseline * (1.0 + threshold) {
                     degradations.push(format!(
@@ -202,7 +214,12 @@ impl PerformanceHistory {
     }
 
     /// Get performance trend for a metric
-    pub fn get_performance_trend(&self, processor_type: ProcessorType, processor_id: &str, metric: &str) -> PerformanceTrend {
+    pub fn get_performance_trend(
+        &self,
+        processor_type: ProcessorType,
+        processor_id: &str,
+        metric: &str,
+    ) -> PerformanceTrend {
         let samples = self.get_processor_samples(processor_type, processor_id);
 
         if samples.len() < 3 {
@@ -300,10 +317,12 @@ impl PerformanceHistory {
     /// Get memory usage of history data
     pub fn memory_usage(&self) -> usize {
         let sample_size = std::mem::size_of::<PerformanceSample>();
-        self.samples.len() * sample_size +
-        self.processor_metrics.values()
-            .map(|metrics| metrics.samples.len() * sample_size)
-            .sum::<usize>()
+        self.samples.len() * sample_size
+            + self
+                .processor_metrics
+                .values()
+                .map(|metrics| metrics.samples.len() * sample_size)
+                .sum::<usize>()
     }
 
     /// Reset all history data
@@ -363,10 +382,9 @@ mod tests {
     fn test_add_sample() {
         let mut history = PerformanceHistory::new(10);
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test-processor".to_string(),
-        ).with_execution_time(100.0);
+        let sample =
+            PerformanceSample::new(ProcessorType::QuantumInspired, "test-processor".to_string())
+                .with_execution_time(100.0);
 
         history.add_sample(sample);
         assert_eq!(history.samples.len(), 1);
@@ -378,10 +396,8 @@ mod tests {
         let mut history = PerformanceHistory::new(3);
 
         for i in 0..5 {
-            let sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "test".to_string(),
-            ).with_execution_time(i as f64 * 10.0);
+            let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+                .with_execution_time(i as f64 * 10.0);
             history.add_sample(sample);
         }
 
@@ -396,30 +412,24 @@ mod tests {
     fn test_processor_specific_samples() {
         let mut history = PerformanceHistory::new(100);
 
-        let sample1 = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "processor1".to_string(),
-        ).with_execution_time(100.0);
+        let sample1 =
+            PerformanceSample::new(ProcessorType::QuantumInspired, "processor1".to_string())
+                .with_execution_time(100.0);
 
-        let sample2 = PerformanceSample::new(
-            ProcessorType::NeuralAdaptive,
-            "processor2".to_string(),
-        ).with_execution_time(200.0);
+        let sample2 =
+            PerformanceSample::new(ProcessorType::NeuralAdaptive, "processor2".to_string())
+                .with_execution_time(200.0);
 
         history.add_sample(sample1);
         history.add_sample(sample2);
 
-        let quantum_samples = history.get_processor_samples(
-            ProcessorType::QuantumInspired,
-            "processor1",
-        );
+        let quantum_samples =
+            history.get_processor_samples(ProcessorType::QuantumInspired, "processor1");
         assert_eq!(quantum_samples.len(), 1);
         assert_eq!(quantum_samples[0].execution_time_ms, 100.0);
 
-        let neural_samples = history.get_processor_samples(
-            ProcessorType::NeuralAdaptive,
-            "processor2",
-        );
+        let neural_samples =
+            history.get_processor_samples(ProcessorType::NeuralAdaptive, "processor2");
         assert_eq!(neural_samples.len(), 1);
         assert_eq!(neural_samples[0].execution_time_ms, 200.0);
     }
@@ -429,10 +439,8 @@ mod tests {
         let mut history = PerformanceHistory::new(100);
 
         for i in 0..10 {
-            let sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "test".to_string(),
-            ).with_execution_time(i as f64);
+            let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+                .with_execution_time(i as f64);
             history.add_sample(sample);
         }
 
@@ -448,15 +456,13 @@ mod tests {
         let mut history = PerformanceHistory::new(100);
 
         for i in 0..5 {
-            let quantum_sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "quantum".to_string(),
-            ).with_execution_time(i as f64);
+            let quantum_sample =
+                PerformanceSample::new(ProcessorType::QuantumInspired, "quantum".to_string())
+                    .with_execution_time(i as f64);
 
-            let neural_sample = PerformanceSample::new(
-                ProcessorType::NeuralAdaptive,
-                "neural".to_string(),
-            ).with_execution_time(i as f64 + 100.0);
+            let neural_sample =
+                PerformanceSample::new(ProcessorType::NeuralAdaptive, "neural".to_string())
+                    .with_execution_time(i as f64 + 100.0);
 
             history.add_sample(quantum_sample);
             history.add_sample(neural_sample);
@@ -475,18 +481,13 @@ mod tests {
 
         // Add enough samples to establish baseline
         for i in 0..15 {
-            let sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "test".to_string(),
-            ).with_execution_time(100.0 + i as f64);
+            let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+                .with_execution_time(100.0 + i as f64);
             history.add_sample(sample);
         }
 
-        let baseline = history.get_baseline(
-            ProcessorType::QuantumInspired,
-            "test",
-            "execution_time",
-        );
+        let baseline =
+            history.get_baseline(ProcessorType::QuantumInspired, "test", "execution_time");
         assert!(baseline.is_some());
         assert!(baseline.unwrap() > 100.0);
     }
@@ -497,12 +498,9 @@ mod tests {
 
         // Establish baseline with good performance
         for i in 0..15 {
-            let sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "test".to_string(),
-            )
-            .with_execution_time(100.0)
-            .with_throughput(1000.0);
+            let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string())
+                .with_execution_time(100.0)
+                .with_throughput(1000.0);
             history.add_sample(sample);
         }
 
@@ -530,10 +528,10 @@ mod tests {
     fn test_processor_summary() {
         let mut history = PerformanceHistory::new(100);
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test-processor".to_string(),
-        ).with_execution_time(100.0).with_throughput(500.0);
+        let sample =
+            PerformanceSample::new(ProcessorType::QuantumInspired, "test-processor".to_string())
+                .with_execution_time(100.0)
+                .with_throughput(500.0);
 
         history.add_sample(sample);
 
@@ -549,10 +547,7 @@ mod tests {
         let mut history = PerformanceHistory::new(100);
 
         for i in 0..10 {
-            let sample = PerformanceSample::new(
-                ProcessorType::QuantumInspired,
-                "test".to_string(),
-            );
+            let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string());
             history.add_sample(sample);
         }
 
@@ -564,10 +559,7 @@ mod tests {
     fn test_clear_history() {
         let mut history = PerformanceHistory::new(100);
 
-        let sample = PerformanceSample::new(
-            ProcessorType::QuantumInspired,
-            "test".to_string(),
-        );
+        let sample = PerformanceSample::new(ProcessorType::QuantumInspired, "test".to_string());
         history.add_sample(sample);
 
         assert_eq!(history.samples.len(), 1);

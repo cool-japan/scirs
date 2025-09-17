@@ -3,9 +3,9 @@
 //! This module implements various compression algorithms optimized for sparse matrix data,
 //! including run-length encoding, delta compression, Huffman coding, and adaptive strategies.
 
-use super::config::CompressionAlgorithm;
-use super::compressed_data::{CompressedBlock, BlockType};
 use super::cache::BlockId;
+use super::compressed_data::{BlockType, CompressedBlock};
+use super::config::CompressionAlgorithm;
 use super::stats::SparsityPatternAnalysis;
 use crate::error::{SparseError, SparseResult};
 use num_traits::{Float, NumAssign};
@@ -65,8 +65,13 @@ struct HuffmanTable {
 /// Huffman tree node
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum HuffmanNode {
-    Leaf { value: u8 },
-    Internal { left: Box<HuffmanNode>, right: Box<HuffmanNode> },
+    Leaf {
+        value: u8,
+    },
+    Internal {
+        left: Box<HuffmanNode>,
+        right: Box<HuffmanNode>,
+    },
 }
 
 /// Frequency counter for Huffman coding
@@ -115,7 +120,9 @@ impl CompressionEngine {
             CompressionAlgorithm::Delta => self.compress_delta(data)?,
             CompressionAlgorithm::Huffman => self.compress_huffman(data)?,
             CompressionAlgorithm::LZ77 => self.compress_lz77(data)?,
-            CompressionAlgorithm::SparseOptimized => self.compress_sparse_optimized(data, block_type)?,
+            CompressionAlgorithm::SparseOptimized => {
+                self.compress_sparse_optimized(data, block_type)?
+            }
             CompressionAlgorithm::Adaptive => self.compress_adaptive(data, block_type)?,
         };
 
@@ -127,7 +134,13 @@ impl CompressionEngine {
         };
 
         // Update algorithm metrics
-        self.update_algorithm_metrics(algorithm, compression_time, original_size, compressed_data.len(), true);
+        self.update_algorithm_metrics(
+            algorithm,
+            compression_time,
+            original_size,
+            compressed_data.len(),
+            true,
+        );
 
         Ok(CompressionResult {
             compressed_data,
@@ -153,19 +166,29 @@ impl CompressionEngine {
             CompressionAlgorithm::Delta => self.decompress_delta(compressed_data)?,
             CompressionAlgorithm::Huffman => self.decompress_huffman(compressed_data)?,
             CompressionAlgorithm::LZ77 => self.decompress_lz77(compressed_data)?,
-            CompressionAlgorithm::SparseOptimized => self.decompress_sparse_optimized(compressed_data)?,
+            CompressionAlgorithm::SparseOptimized => {
+                self.decompress_sparse_optimized(compressed_data)?
+            }
             CompressionAlgorithm::Adaptive => self.decompress_adaptive(compressed_data)?,
         };
 
         let decompression_time = start_time.elapsed().as_secs_f64();
 
         // Update algorithm metrics
-        self.update_algorithm_metrics(algorithm, decompression_time, original_size, compressed_data.len(), true);
+        self.update_algorithm_metrics(
+            algorithm,
+            decompression_time,
+            original_size,
+            compressed_data.len(),
+            true,
+        );
 
         if decompressed_data.len() != original_size {
-            return Err(SparseError::ComputationError(
-                format!("Decompression size mismatch: expected {}, got {}", original_size, decompressed_data.len())
-            ));
+            return Err(SparseError::ComputationError(format!(
+                "Decompression size mismatch: expected {}, got {}",
+                original_size,
+                decompressed_data.len()
+            )));
         }
 
         Ok(decompressed_data)
@@ -202,7 +225,9 @@ impl CompressionEngine {
     /// Run-Length Encoding decompression
     fn decompress_rle(&self, compressed_data: &[u8]) -> SparseResult<Vec<u8>> {
         if compressed_data.len() % 2 != 0 {
-            return Err(SparseError::ComputationError("Invalid RLE data".to_string()));
+            return Err(SparseError::ComputationError(
+                "Invalid RLE data".to_string(),
+            ));
         }
 
         let mut decompressed = Vec::new();
@@ -273,7 +298,9 @@ impl CompressionEngine {
 
         // Read first value
         if compressed_data.len() < 4 {
-            return Err(SparseError::ComputationError("Invalid delta data".to_string()));
+            return Err(SparseError::ComputationError(
+                "Invalid delta data".to_string(),
+            ));
         }
 
         let first_value = u32::from_le_bytes([
@@ -297,7 +324,8 @@ impl CompressionEngine {
                 if pos + 1 >= compressed_data.len() {
                     break;
                 }
-                let d = ((compressed_data[pos] & 0x7F) as u32) | ((compressed_data[pos + 1] as u32) << 7);
+                let d = ((compressed_data[pos] & 0x7F) as u32)
+                    | ((compressed_data[pos + 1] as u32) << 7);
                 pos += 2;
                 d
             } else {
@@ -379,7 +407,9 @@ impl CompressionEngine {
         ]) as usize;
 
         if compressed_data.len() < 4 + table_size + 1 {
-            return Err(SparseError::ComputationError("Invalid Huffman data".to_string()));
+            return Err(SparseError::ComputationError(
+                "Invalid Huffman data".to_string(),
+            ));
         }
 
         let table_data = &compressed_data[4..4 + table_size];
@@ -403,7 +433,11 @@ impl CompressionEngine {
 
                 current_node = match current_node {
                     HuffmanNode::Internal { left, right } => {
-                        if bit { right } else { left }
+                        if bit {
+                            right
+                        } else {
+                            left
+                        }
                     }
                     HuffmanNode::Leaf { value } => {
                         decompressed.push(*value);
@@ -480,14 +514,15 @@ impl CompressionEngine {
         while pos < compressed_data.len() {
             if compressed_data[pos] == 0xFF && pos + 3 < compressed_data.len() {
                 // Decode encoded sequence
-                let distance = u16::from_le_bytes([
-                    compressed_data[pos + 1],
-                    compressed_data[pos + 2],
-                ]) as usize;
+                let distance =
+                    u16::from_le_bytes([compressed_data[pos + 1], compressed_data[pos + 2]])
+                        as usize;
                 let length = compressed_data[pos + 3] as usize;
 
                 if distance == 0 || distance > decompressed.len() {
-                    return Err(SparseError::ComputationError("Invalid LZ77 distance".to_string()));
+                    return Err(SparseError::ComputationError(
+                        "Invalid LZ77 distance".to_string(),
+                    ));
                 }
 
                 let start_pos = decompressed.len() - distance;
@@ -508,7 +543,11 @@ impl CompressionEngine {
     }
 
     /// Sparse-optimized compression
-    fn compress_sparse_optimized(&mut self, data: &[u8], block_type: BlockType) -> SparseResult<Vec<u8>> {
+    fn compress_sparse_optimized(
+        &mut self,
+        data: &[u8],
+        block_type: BlockType,
+    ) -> SparseResult<Vec<u8>> {
         match block_type {
             BlockType::Indices => {
                 // Use delta encoding for indices (usually sorted)
@@ -584,12 +623,14 @@ impl CompressionEngine {
         let data = &compressed_data[1..];
 
         match algorithm_id {
-            0 => Ok(data.to_vec()), // None
-            1 => self.decompress_rle(data), // RLE
-            2 => self.decompress_delta(data), // Delta
+            0 => Ok(data.to_vec()),             // None
+            1 => self.decompress_rle(data),     // RLE
+            2 => self.decompress_delta(data),   // Delta
             3 => self.decompress_huffman(data), // Huffman
-            4 => self.decompress_lz77(data), // LZ77
-            _ => Err(SparseError::ComputationError("Unknown compression algorithm".to_string())),
+            4 => self.decompress_lz77(data),    // LZ77
+            _ => Err(SparseError::ComputationError(
+                "Unknown compression algorithm".to_string(),
+            )),
         }
     }
 
@@ -678,7 +719,9 @@ impl CompressionEngine {
     /// Deserialize Huffman table (simplified)
     fn deserialize_huffman_table(&self, _data: &[u8]) -> SparseResult<HuffmanTable> {
         // Simplified deserialization - in practice you'd implement proper deserialization
-        Err(SparseError::ComputationError("Huffman table deserialization not implemented".to_string()))
+        Err(SparseError::ComputationError(
+            "Huffman table deserialization not implemented".to_string(),
+        ))
     }
 
     /// Update algorithm performance metrics
@@ -690,16 +733,17 @@ impl CompressionEngine {
         compressed_size: usize,
         success: bool,
     ) {
-        let metrics = self.algorithm_metrics.entry(algorithm).or_insert_with(|| {
-            AlgorithmMetrics {
+        let metrics = self
+            .algorithm_metrics
+            .entry(algorithm)
+            .or_insert_with(|| AlgorithmMetrics {
                 total_operations: 0,
                 total_compression_time: 0.0,
                 total_decompression_time: 0.0,
                 total_original_size: 0,
                 total_compressed_size: 0,
                 success_count: 0,
-            }
-        });
+            });
 
         metrics.total_operations += 1;
         metrics.total_compression_time += time;
@@ -712,14 +756,23 @@ impl CompressionEngine {
     }
 
     /// Get algorithm performance metrics
-    pub fn get_algorithm_metrics(&self, algorithm: CompressionAlgorithm) -> Option<&AlgorithmMetrics> {
+    pub fn get_algorithm_metrics(
+        &self,
+        algorithm: CompressionAlgorithm,
+    ) -> Option<&AlgorithmMetrics> {
         self.algorithm_metrics.get(&algorithm)
     }
 
     /// Get best algorithm for given data characteristics
-    pub fn select_best_algorithm(&self, data_size: usize, block_type: BlockType) -> CompressionAlgorithm {
+    pub fn select_best_algorithm(
+        &self,
+        data_size: usize,
+        block_type: BlockType,
+    ) -> CompressionAlgorithm {
         match block_type {
-            BlockType::Indices | BlockType::IndPtr if data_size > 1024 => CompressionAlgorithm::Delta,
+            BlockType::Indices | BlockType::IndPtr if data_size > 1024 => {
+                CompressionAlgorithm::Delta
+            }
             BlockType::Data if data_size > 4096 => CompressionAlgorithm::LZ77,
             _ if data_size > 512 => CompressionAlgorithm::RLE,
             _ => CompressionAlgorithm::None,
@@ -742,7 +795,12 @@ impl CompressionStrategy {
     }
 
     /// Update actual performance metrics
-    pub fn update_performance(&mut self, actual_ratio: f64, compression_speed: f64, decompression_speed: f64) {
+    pub fn update_performance(
+        &mut self,
+        actual_ratio: f64,
+        compression_speed: f64,
+        decompression_speed: f64,
+    ) {
         self.actual_ratio = actual_ratio;
         self.compression_speed = compression_speed;
         self.decompression_speed = decompression_speed;

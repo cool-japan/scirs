@@ -12,34 +12,35 @@
 #![allow(dead_code)]
 
 // Module declarations
-pub mod core;
-pub mod gan_evaluation;
 pub mod contrastive_learning;
-pub mod self_supervised;
+pub mod core;
 pub mod foundation_models;
+pub mod gan_evaluation;
 pub mod multimodal;
 pub mod results;
+pub mod self_supervised;
 
 // Re-export core types for backward compatibility
 pub use core::GenerativeAISuite;
 
 // Re-export all metric types
-pub use gan_evaluation::GANEvaluationMetrics;
 pub use contrastive_learning::ContrastiveLearningMetrics;
-pub use self_supervised::SelfSupervisedMetrics;
 pub use foundation_models::FoundationModelMetrics;
+pub use gan_evaluation::GANEvaluationMetrics;
 pub use multimodal::MultimodalMetrics;
+pub use self_supervised::SelfSupervisedMetrics;
 
 // Re-export all result types
 pub use results::{
-    InceptionScoreResult, KIDResult, InfoNCEResult, LinearProbingResult,
-    RepresentationRankResult, ClusteringResult, FewShotResult,
-    CrossModalRetrievalResult, MultimodalAlignmentResult,
+    ClusteringResult, CrossModalRetrievalResult, FewShotResult, InceptionScoreResult,
+    InfoNCEResult, KIDResult, LinearProbingResult, MultimodalAlignmentResult,
+    RepresentationRankResult,
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domains::DomainMetrics;
     use ndarray::array;
 
     fn mock_inception_features() -> ndarray::Array2<f64> {

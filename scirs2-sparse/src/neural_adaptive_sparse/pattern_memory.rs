@@ -88,7 +88,11 @@ impl PatternMemory {
     }
 
     /// Store a learned pattern-strategy mapping
-    pub fn store_pattern(&mut self, fingerprint: MatrixFingerprint, strategy: OptimizationStrategy) {
+    pub fn store_pattern(
+        &mut self,
+        fingerprint: MatrixFingerprint,
+        strategy: OptimizationStrategy,
+    ) {
         self.matrix_patterns.insert(fingerprint, strategy);
     }
 
@@ -98,7 +102,11 @@ impl PatternMemory {
     }
 
     /// Find similar patterns using fingerprint matching
-    pub fn find_similar_patterns(&self, fingerprint: &MatrixFingerprint, similarity_threshold: f64) -> Vec<(MatrixFingerprint, OptimizationStrategy)> {
+    pub fn find_similar_patterns(
+        &self,
+        fingerprint: &MatrixFingerprint,
+        similarity_threshold: f64,
+    ) -> Vec<(MatrixFingerprint, OptimizationStrategy)> {
         let mut similar_patterns = Vec::new();
 
         for (stored_fingerprint, strategy) in &self.matrix_patterns {
@@ -126,7 +134,10 @@ impl PatternMemory {
         let distribution_similarity = self.distribution_similarity(fp1, fp2);
 
         // Weighted combination of different similarity measures
-        0.3 * size_similarity + 0.3 * sparsity_similarity + 0.2 * pattern_similarity + 0.2 * distribution_similarity
+        0.3 * size_similarity
+            + 0.3 * sparsity_similarity
+            + 0.2 * pattern_similarity
+            + 0.2 * distribution_similarity
     }
 
     /// Compute size similarity between matrices
@@ -152,8 +163,16 @@ impl PatternMemory {
 
     /// Compute distribution similarity
     fn distribution_similarity(&self, fp1: &MatrixFingerprint, fp2: &MatrixFingerprint) -> f64 {
-        let row_match = if fp1.row_distribution_type == fp2.row_distribution_type { 1.0 } else { 0.0 };
-        let col_match = if fp1.column_distribution_type == fp2.column_distribution_type { 1.0 } else { 0.0 };
+        let row_match = if fp1.row_distribution_type == fp2.row_distribution_type {
+            1.0
+        } else {
+            0.0
+        };
+        let col_match = if fp1.column_distribution_type == fp2.column_distribution_type {
+            1.0
+        } else {
+            0.0
+        };
         (row_match + col_match) / 2.0
     }
 
@@ -174,10 +193,8 @@ impl PatternMemory {
         // Limit cache size
         if self.performance_cache.len() > 10000 {
             // Remove oldest entries (simplified approach)
-            let keys_to_remove: Vec<String> = self.performance_cache.keys()
-                .take(1000)
-                .cloned()
-                .collect();
+            let keys_to_remove: Vec<String> =
+                self.performance_cache.keys().take(1000).cloned().collect();
             for key in keys_to_remove {
                 self.performance_cache.remove(&key);
             }
@@ -227,8 +244,9 @@ impl PatternMemory {
         // Check for sequential access
         let mut sequential = true;
         for i in 1..pattern.row_sequence.len() {
-            if pattern.row_sequence[i] != pattern.row_sequence[i-1] + 1 &&
-               pattern.row_sequence[i] != pattern.row_sequence[i-1] {
+            if pattern.row_sequence[i] != pattern.row_sequence[i - 1] + 1
+                && pattern.row_sequence[i] != pattern.row_sequence[i - 1]
+            {
                 sequential = false;
                 break;
             }
@@ -253,10 +271,10 @@ impl PatternMemory {
             return 0.0;
         }
 
-        let total_hits: usize = self.access_patterns.iter()
-            .map(|p| p.cache_hits)
-            .sum();
-        let total_accesses: usize = self.access_patterns.iter()
+        let total_hits: usize = self.access_patterns.iter().map(|p| p.cache_hits).sum();
+        let total_accesses: usize = self
+            .access_patterns
+            .iter()
             .map(|p| p.cache_hits + p.cache_misses)
             .sum();
 
@@ -285,11 +303,17 @@ impl PatternMemory {
     }
 
     /// Heuristic-based strategy suggestion
-    fn heuristic_strategy_suggestion(&self, fingerprint: &MatrixFingerprint) -> OptimizationStrategy {
+    fn heuristic_strategy_suggestion(
+        &self,
+        fingerprint: &MatrixFingerprint,
+    ) -> OptimizationStrategy {
         let sparsity = fingerprint.nnz as f64 / (fingerprint.rows * fingerprint.cols) as f64;
         let size = fingerprint.rows * fingerprint.cols;
 
-        match (fingerprint.row_distribution_type, fingerprint.column_distribution_type) {
+        match (
+            fingerprint.row_distribution_type,
+            fingerprint.column_distribution_type,
+        ) {
             (DistributionType::BandDiagonal, _) | (_, DistributionType::BandDiagonal) => {
                 OptimizationStrategy::DiagonalOptimized
             }
@@ -328,7 +352,8 @@ impl PatternMemory {
             *strategy_counts.entry(*strategy).or_insert(0) += 1;
         }
 
-        strategy_counts.into_iter()
+        strategy_counts
+            .into_iter()
             .max_by(|(_, count1), (_, count2)| count1.cmp(count2))
             .map(|(strategy, _)| strategy)
     }
@@ -459,9 +484,11 @@ impl MatrixFingerprint {
 
         // Check variance of histogram
         let mean = indices.len() as f64 / bucket_count as f64;
-        let variance: f64 = histogram.iter()
+        let variance: f64 = histogram
+            .iter()
             .map(|&count| (count as f64 - mean).powi(2))
-            .sum::<f64>() / bucket_count as f64;
+            .sum::<f64>()
+            / bucket_count as f64;
         let std_dev = variance.sqrt();
 
         std_dev / mean < 0.5 // Low relative variance indicates uniformity

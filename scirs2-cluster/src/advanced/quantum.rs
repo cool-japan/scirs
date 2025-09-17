@@ -455,7 +455,11 @@ mod tests {
 
     #[test]
     fn test_quantum_kmeans_simple() {
-        let data = Array2::from_shape_vec((6, 2), vec![0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 5.0, 5.0, 6.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec(
+            (6, 2),
+            vec![0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 5.0, 5.0, 6.0, 6.0],
+        )
+        .unwrap();
         let config = QuantumConfig {
             quantum_iterations: 10,
             ..Default::default()

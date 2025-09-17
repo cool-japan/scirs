@@ -8,28 +8,28 @@
 #![allow(dead_code)]
 
 // Module declarations
+pub mod computer;
+pub mod config;
+pub mod contexts;
 pub mod kernels;
 pub mod runtime;
-pub mod contexts;
-pub mod config;
-pub mod computer;
 
 // Re-export core types and functions for backward compatibility
 pub use computer::AdvancedGpuComputer;
 pub use config::{
-    BatchSettings, ComputeStrategy, ErrorHandling, GpuApi, GpuComputeConfig,
-    GpuComputeResults, GpuPerformanceStats, KernelConfig, KernelMetrics,
-    KernelOptimization, MemoryStrategy, TransferMetrics, VectorizationLevel,
+    BatchSettings, ComputeStrategy, ErrorHandling, GpuApi, GpuComputeConfig, GpuComputeResults,
+    GpuPerformanceStats, KernelConfig, KernelMetrics, KernelOptimization, MemoryStrategy,
+    TransferMetrics, VectorizationLevel,
 };
 pub use contexts::{
-    CudaContext, CudaDeviceProperties, CudaMemoryBlock, CudaMemoryPool,
-    CudaMemoryStats, OpenClContext, OpenClDeviceInfo,
+    CudaContext, CudaDeviceProperties, CudaMemoryBlock, CudaMemoryPool, CudaMemoryStats,
+    OpenClContext, OpenClDeviceInfo,
 };
 pub use kernels::{cuda_kernels, metal_kernels, opencl_kernels, vulkan_kernels};
 pub use runtime::{
-    CudaRuntime, GpuBuffer, GpuBufferHandle, GpuBufferType, GpuKernelArg,
-    GpuMemoryStats, GpuPerformanceStats as RuntimeGpuPerformanceStats,
-    GpuRuntime, GpuScalar, MetalRuntime, OpenClRuntime, VulkanRuntime,
+    CudaRuntime, GpuBuffer, GpuBufferHandle, GpuBufferType, GpuKernelArg, GpuMemoryStats,
+    GpuPerformanceStats as RuntimeGpuPerformanceStats, GpuRuntime, GpuScalar, MetalRuntime,
+    OpenClRuntime, VulkanRuntime,
 };
 
 // Legacy type aliases for backward compatibility

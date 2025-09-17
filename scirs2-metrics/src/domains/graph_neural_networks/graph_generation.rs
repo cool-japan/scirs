@@ -6,10 +6,10 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::core::{SpectralProperties, DistributionStatistics};
+use super::core::{DistributionStatistics, SpectralProperties};
 use crate::error::{MetricsError, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 /// Graph generation evaluation metrics
 #[derive(Debug, Clone)]
@@ -140,7 +140,9 @@ impl GraphGenerationMetrics {
         reference_graphs: &[Vec<Vec<f64>>],
     ) -> Result<()> {
         if generated_graphs.is_empty() || reference_graphs.is_empty() {
-            return Err(MetricsError::InvalidInput("Graph sets cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "Graph sets cannot be empty".to_string(),
+            ));
         }
 
         // Compute structural similarity
@@ -169,10 +171,12 @@ impl GraphGenerationMetrics {
             self.compute_kl_divergence(&gen_degree_dist, &ref_degree_dist);
 
         // Clustering coefficient difference
-        let gen_clustering = generated_graphs.iter()
+        let gen_clustering = generated_graphs
+            .iter()
             .map(|g| self.compute_clustering_coefficient(g))
             .collect::<Vec<_>>();
-        let ref_clustering = reference_graphs.iter()
+        let ref_clustering = reference_graphs
+            .iter()
             .map(|g| self.compute_clustering_coefficient(g))
             .collect::<Vec<_>>();
 
@@ -191,21 +195,19 @@ impl GraphGenerationMetrics {
         reference_graphs: &[Vec<Vec<f64>>],
     ) -> Result<()> {
         // Node count statistics
-        let gen_node_counts: Vec<f64> = generated_graphs.iter()
-            .map(|g| g.len() as f64)
-            .collect();
-        let ref_node_counts: Vec<f64> = reference_graphs.iter()
-            .map(|g| g.len() as f64)
-            .collect();
+        let gen_node_counts: Vec<f64> = generated_graphs.iter().map(|g| g.len() as f64).collect();
+        let ref_node_counts: Vec<f64> = reference_graphs.iter().map(|g| g.len() as f64).collect();
 
         self.statistical_similarity.node_count_stats =
             self.compute_distribution_stats(&gen_node_counts, &ref_node_counts);
 
         // Edge count statistics
-        let gen_edge_counts: Vec<f64> = generated_graphs.iter()
+        let gen_edge_counts: Vec<f64> = generated_graphs
+            .iter()
             .map(|g| self.count_edges(g) as f64)
             .collect();
-        let ref_edge_counts: Vec<f64> = reference_graphs.iter()
+        let ref_edge_counts: Vec<f64> = reference_graphs
+            .iter()
             .map(|g| self.count_edges(g) as f64)
             .collect();
 
@@ -213,10 +215,12 @@ impl GraphGenerationMetrics {
             self.compute_distribution_stats(&gen_edge_counts, &ref_edge_counts);
 
         // Density statistics
-        let gen_densities: Vec<f64> = generated_graphs.iter()
+        let gen_densities: Vec<f64> = generated_graphs
+            .iter()
             .map(|g| self.compute_density(g))
             .collect();
-        let ref_densities: Vec<f64> = reference_graphs.iter()
+        let ref_densities: Vec<f64> = reference_graphs
+            .iter()
             .map(|g| self.compute_density(g))
             .collect();
 
@@ -226,10 +230,7 @@ impl GraphGenerationMetrics {
         Ok(())
     }
 
-    fn compute_diversity_metrics(
-        &mut self,
-        generated_graphs: &[Vec<Vec<f64>>],
-    ) -> Result<()> {
+    fn compute_diversity_metrics(&mut self, generated_graphs: &[Vec<Vec<f64>>]) -> Result<()> {
         if generated_graphs.len() < 2 {
             return Ok(());
         }
@@ -240,7 +241,8 @@ impl GraphGenerationMetrics {
 
         for i in 0..generated_graphs.len() {
             for j in (i + 1)..generated_graphs.len() {
-                let distance = self.compute_graph_edit_distance(&generated_graphs[i], &generated_graphs[j]);
+                let distance =
+                    self.compute_graph_edit_distance(&generated_graphs[i], &generated_graphs[j]);
                 total_distance += distance;
                 pair_count += 1;
             }
@@ -253,7 +255,8 @@ impl GraphGenerationMetrics {
         };
 
         // Structural diversity (simplified)
-        let degree_variances: Vec<f64> = generated_graphs.iter()
+        let degree_variances: Vec<f64> = generated_graphs
+            .iter()
             .map(|g| self.compute_degree_variance(g))
             .collect();
 
@@ -275,7 +278,8 @@ impl GraphGenerationMetrics {
             }
         }
 
-        degree_counts.into_iter()
+        degree_counts
+            .into_iter()
             .map(|(degree, count)| (degree, count as f64 / total_nodes as f64))
             .collect()
     }
@@ -283,15 +287,13 @@ impl GraphGenerationMetrics {
     fn compute_kl_divergence(
         &self,
         dist1: &HashMap<usize, f64>,
-        dist2: &HashMap<usize, f64>
+        dist2: &HashMap<usize, f64>,
     ) -> f64 {
         let mut kl_div = 0.0;
         let epsilon = 1e-10;
 
-        let all_keys: std::collections::HashSet<usize> = dist1.keys()
-            .chain(dist2.keys())
-            .cloned()
-            .collect();
+        let all_keys: std::collections::HashSet<usize> =
+            dist1.keys().chain(dist2.keys()).cloned().collect();
 
         for key in all_keys {
             let p = dist1.get(&key).unwrap_or(&epsilon);
@@ -315,9 +317,7 @@ impl GraphGenerationMetrics {
         let mut node_count = 0;
 
         for i in 0..n {
-            let neighbors: Vec<usize> = (0..n)
-                .filter(|&j| i != j && graph[i][j] > 0.0)
-                .collect();
+            let neighbors: Vec<usize> = (0..n).filter(|&j| i != j && graph[i][j] > 0.0).collect();
 
             if neighbors.len() < 2 {
                 continue;
@@ -400,7 +400,8 @@ impl GraphGenerationMetrics {
         let n2 = graph2.len();
 
         let node_diff = (n1 as i32 - n2 as i32).abs() as f64;
-        let edge_diff = (self.count_edges(graph1) as i32 - self.count_edges(graph2) as i32).abs() as f64;
+        let edge_diff =
+            (self.count_edges(graph1) as i32 - self.count_edges(graph2) as i32).abs() as f64;
 
         node_diff + edge_diff
     }

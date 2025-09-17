@@ -6,12 +6,12 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::core::{ClassMetrics, RankingMetrics, EdgeId};
+use super::core::{ClassMetrics, EdgeId, RankingMetrics};
 use crate::error::{MetricsError, Result};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 /// Edge-level task evaluation metrics
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ impl LinkPredictionMetrics {
     /// Compute link prediction metrics from edge scores and ground truth
     pub fn compute_link_prediction_metrics<F: Float>(
         &mut self,
-        edge_scores: &[(EdgeId, F)],  // (edge, score) pairs
+        edge_scores: &[(EdgeId, F)], // (edge, score) pairs
         positive_edges: &[EdgeId],
         negative_edges: &[EdgeId],
     ) -> Result<()>
@@ -75,7 +75,9 @@ impl LinkPredictionMetrics {
         F: std::iter::Sum + std::fmt::Debug,
     {
         if edge_scores.is_empty() {
-            return Err(MetricsError::InvalidInput("Edge scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "Edge scores cannot be empty".to_string(),
+            ));
         }
 
         // Create ground truth labels
@@ -91,7 +93,9 @@ impl LinkPredictionMetrics {
         }
 
         if labeled_scores.is_empty() {
-            return Err(MetricsError::InvalidInput("No labeled edges found".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "No labeled edges found".to_string(),
+            ));
         }
 
         // Sort by score descending
@@ -156,7 +160,11 @@ impl LinkPredictionMetrics {
                 fp += 1;
             }
 
-            let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
+            let precision = if tp + fp > 0 {
+                tp as f64 / (tp + fp) as f64
+            } else {
+                0.0
+            };
             let recall = tp as f64 / total_positives;
 
             auc += precision * (recall - prev_recall);
@@ -178,15 +186,18 @@ impl LinkPredictionMetrics {
         }
 
         // Compute MRR
-        self.mrr = positive_indices.iter()
+        self.mrr = positive_indices
+            .iter()
             .map(|&rank| 1.0 / rank as f64)
-            .sum::<f64>() / positive_indices.len() as f64;
+            .sum::<f64>()
+            / positive_indices.len() as f64;
 
         // Compute Hits@K and Precision@K for various K values
         for k in [1, 3, 5, 10, 20, 50, 100] {
             let hits = positive_indices.iter().filter(|&&rank| rank <= k).count() as f64;
 
-            self.hits_at_k.insert(k, hits / positive_indices.len() as f64);
+            self.hits_at_k
+                .insert(k, hits / positive_indices.len() as f64);
 
             let precision = if k > 0 { hits / k as f64 } else { 0.0 };
             self.precision_at_k.insert(k, precision);
@@ -241,7 +252,7 @@ impl EdgeClassificationMetrics {
         let n = predictions.len();
         if n != ground_truth.len() {
             return Err(MetricsError::DimensionMismatch(
-                "Predictions and ground truth must have same length".to_string()
+                "Predictions and ground truth must have same length".to_string(),
             ));
         }
 
@@ -271,26 +282,47 @@ impl EdgeClassificationMetrics {
                 }
             }
 
-            let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
-            let recall = if tp + fn_count > 0 { tp as f64 / (tp + fn_count) as f64 } else { 0.0 };
-            let f1 = if precision + recall > 0.0 { 2.0 * precision * recall / (precision + recall) } else { 0.0 };
+            let precision = if tp + fp > 0 {
+                tp as f64 / (tp + fp) as f64
+            } else {
+                0.0
+            };
+            let recall = if tp + fn_count > 0 {
+                tp as f64 / (tp + fn_count) as f64
+            } else {
+                0.0
+            };
+            let f1 = if precision + recall > 0.0 {
+                2.0 * precision * recall / (precision + recall)
+            } else {
+                0.0
+            };
 
-            type_metrics.insert(edge_type.clone(), ClassMetrics {
-                precision,
-                recall,
-                f1_score: f1,
-                support: tp + fn_count,
-            });
+            type_metrics.insert(
+                edge_type.clone(),
+                ClassMetrics {
+                    precision,
+                    recall,
+                    f1_score: f1,
+                    support: tp + fn_count,
+                },
+            );
         }
 
         // Compute macro and micro F1
-        self.macro_f1 = type_metrics.values()
-            .map(|m| m.f1_score)
-            .sum::<f64>() / type_metrics.len() as f64;
+        self.macro_f1 =
+            type_metrics.values().map(|m| m.f1_score).sum::<f64>() / type_metrics.len() as f64;
 
-        let total_tp: usize = type_metrics.values().map(|m| (m.recall * m.support as f64) as usize).sum();
+        let total_tp: usize = type_metrics
+            .values()
+            .map(|m| (m.recall * m.support as f64) as usize)
+            .sum();
         let total_support: usize = type_metrics.values().map(|m| m.support).sum();
-        self.micro_f1 = if total_support > 0 { total_tp as f64 / total_support as f64 } else { 0.0 };
+        self.micro_f1 = if total_support > 0 {
+            total_tp as f64 / total_support as f64
+        } else {
+            0.0
+        };
 
         self.per_type_metrics = type_metrics;
         Ok(())
@@ -341,7 +373,7 @@ impl EdgeRegressionMetrics {
         let n = predictions.len();
         if n != ground_truth.len() {
             return Err(MetricsError::DimensionMismatch(
-                "Predictions and ground truth must have same length".to_string()
+                "Predictions and ground truth must have same length".to_string(),
             ));
         }
 
@@ -350,40 +382,63 @@ impl EdgeRegressionMetrics {
         }
 
         // Convert to f64 for calculations
-        let pred_vec: Vec<f64> = (0..n).map(|i| predictions[i].to_f64().unwrap_or(0.0)).collect();
-        let true_vec: Vec<f64> = (0..n).map(|i| ground_truth[i].to_f64().unwrap_or(0.0)).collect();
+        let pred_vec: Vec<f64> = (0..n)
+            .map(|i| predictions[i].to_f64().unwrap_or(0.0))
+            .collect();
+        let true_vec: Vec<f64> = (0..n)
+            .map(|i| ground_truth[i].to_f64().unwrap_or(0.0))
+            .collect();
 
         // MSE
-        self.mse = pred_vec.iter()
+        self.mse = pred_vec
+            .iter()
             .zip(true_vec.iter())
             .map(|(p, t)| (p - t).powi(2))
-            .sum::<f64>() / n as f64;
+            .sum::<f64>()
+            / n as f64;
 
         // MAE
-        self.mae = pred_vec.iter()
+        self.mae = pred_vec
+            .iter()
             .zip(true_vec.iter())
             .map(|(p, t)| (p - t).abs())
-            .sum::<f64>() / n as f64;
+            .sum::<f64>()
+            / n as f64;
 
         // R²
         let true_mean = true_vec.iter().sum::<f64>() / n as f64;
-        let ss_tot = true_vec.iter().map(|t| (t - true_mean).powi(2)).sum::<f64>();
-        let ss_res = pred_vec.iter()
+        let ss_tot = true_vec
+            .iter()
+            .map(|t| (t - true_mean).powi(2))
+            .sum::<f64>();
+        let ss_res = pred_vec
+            .iter()
             .zip(true_vec.iter())
             .map(|(p, t)| (t - p).powi(2))
             .sum::<f64>();
 
-        self.r2_score = if ss_tot > 0.0 { 1.0 - ss_res / ss_tot } else { 0.0 };
+        self.r2_score = if ss_tot > 0.0 {
+            1.0 - ss_res / ss_tot
+        } else {
+            0.0
+        };
 
         // Pearson correlation
         let pred_mean = pred_vec.iter().sum::<f64>() / n as f64;
-        let numerator = pred_vec.iter()
+        let numerator = pred_vec
+            .iter()
             .zip(true_vec.iter())
             .map(|(p, t)| (p - pred_mean) * (t - true_mean))
             .sum::<f64>();
 
-        let pred_var = pred_vec.iter().map(|p| (p - pred_mean).powi(2)).sum::<f64>();
-        let true_var = true_vec.iter().map(|t| (t - true_mean).powi(2)).sum::<f64>();
+        let pred_var = pred_vec
+            .iter()
+            .map(|p| (p - pred_mean).powi(2))
+            .sum::<f64>();
+        let true_var = true_vec
+            .iter()
+            .map(|t| (t - true_mean).powi(2))
+            .sum::<f64>();
 
         self.pearson_correlation = if pred_var > 0.0 && true_var > 0.0 {
             numerator / (pred_var.sqrt() * true_var.sqrt())
@@ -411,13 +466,20 @@ impl EdgeRegressionMetrics {
         let pred_rank_mean = pred_ranks.iter().sum::<f64>() / n as f64;
         let true_rank_mean = true_ranks.iter().sum::<f64>() / n as f64;
 
-        let numerator = pred_ranks.iter()
+        let numerator = pred_ranks
+            .iter()
             .zip(true_ranks.iter())
             .map(|(p, t)| (p - pred_rank_mean) * (t - true_rank_mean))
             .sum::<f64>();
 
-        let pred_var = pred_ranks.iter().map(|p| (p - pred_rank_mean).powi(2)).sum::<f64>();
-        let true_var = true_ranks.iter().map(|t| (t - true_rank_mean).powi(2)).sum::<f64>();
+        let pred_var = pred_ranks
+            .iter()
+            .map(|p| (p - pred_rank_mean).powi(2))
+            .sum::<f64>();
+        let true_var = true_ranks
+            .iter()
+            .map(|t| (t - true_rank_mean).powi(2))
+            .sum::<f64>();
 
         if pred_var > 0.0 && true_var > 0.0 {
             numerator / (pred_var.sqrt() * true_var.sqrt())
@@ -427,7 +489,8 @@ impl EdgeRegressionMetrics {
     }
 
     fn compute_ranks(&self, values: &[f64]) -> Vec<f64> {
-        let mut indexed_values: Vec<(usize, f64)> = values.iter().enumerate().map(|(i, &v)| (i, v)).collect();
+        let mut indexed_values: Vec<(usize, f64)> =
+            values.iter().enumerate().map(|(i, &v)| (i, v)).collect();
         indexed_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut ranks = vec![0.0; values.len()];
@@ -480,7 +543,9 @@ impl TemporalEdgeMetrics {
         F: std::iter::Sum + std::fmt::Debug,
     {
         if edge_scores.is_empty() {
-            return Err(MetricsError::InvalidInput("Edge scores cannot be empty".to_string()));
+            return Err(MetricsError::InvalidInput(
+                "Edge scores cannot be empty".to_string(),
+            ));
         }
 
         // Sort by timestamp
@@ -488,10 +553,12 @@ impl TemporalEdgeMetrics {
         sorted_scores.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
         // Compute time-weighted AUC
-        self.temporal_auc = self.compute_temporal_auc(&sorted_scores, persistent_edges, new_edges)?;
+        self.temporal_auc =
+            self.compute_temporal_auc(&sorted_scores, persistent_edges, new_edges)?;
 
         // Compute persistence accuracy
-        self.persistence_accuracy = self.compute_persistence_accuracy(&sorted_scores, persistent_edges, disappeared_edges)?;
+        self.persistence_accuracy =
+            self.compute_persistence_accuracy(&sorted_scores, persistent_edges, disappeared_edges)?;
 
         // Compute new link prediction accuracy
         self.new_link_accuracy = self.compute_new_link_accuracy(&sorted_scores, new_edges)?;
@@ -531,8 +598,14 @@ impl TemporalEdgeMetrics {
         labeled_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Compute time-weighted AUC (giving more weight to recent predictions)
-        let max_time = labeled_scores.iter().map(|(_, _, t)| *t).fold(0.0, f64::max);
-        let min_time = labeled_scores.iter().map(|(_, _, t)| *t).fold(f64::INFINITY, f64::min);
+        let max_time = labeled_scores
+            .iter()
+            .map(|(_, _, t)| *t)
+            .fold(0.0, f64::max);
+        let min_time = labeled_scores
+            .iter()
+            .map(|(_, _, t)| *t)
+            .fold(f64::INFINITY, f64::min);
         let time_range = max_time - min_time;
 
         if time_range <= 0.0 {
@@ -544,12 +617,14 @@ impl TemporalEdgeMetrics {
         let mut auc = 0.0;
         let mut prev_weighted_fpr = 0.0;
 
-        let total_weighted_positives: f64 = labeled_scores.iter()
+        let total_weighted_positives: f64 = labeled_scores
+            .iter()
             .filter(|(_, label, _)| *label)
             .map(|(_, _, t)| 1.0 + (t - min_time) / time_range)
             .sum();
 
-        let total_weighted_negatives: f64 = labeled_scores.iter()
+        let total_weighted_negatives: f64 = labeled_scores
+            .iter()
             .filter(|(_, label, _)| !*label)
             .map(|(_, _, t)| 1.0 + (t - min_time) / time_range)
             .sum();
@@ -604,7 +679,11 @@ impl TemporalEdgeMetrics {
             }
         }
 
-        Ok(if total > 0 { correct as f64 / total as f64 } else { 0.0 })
+        Ok(if total > 0 {
+            correct as f64 / total as f64
+        } else {
+            0.0
+        })
     }
 
     fn compute_new_link_accuracy<F: Float>(
@@ -630,7 +709,11 @@ impl TemporalEdgeMetrics {
             }
         }
 
-        Ok(if total > 0 { correct as f64 / total as f64 } else { 0.0 })
+        Ok(if total > 0 {
+            correct as f64 / total as f64
+        } else {
+            0.0
+        })
     }
 
     fn compute_temporal_precision_at_k<F: Float>(
@@ -643,12 +726,28 @@ impl TemporalEdgeMetrics {
     {
         // Sort by score descending
         let mut score_sorted: Vec<_> = sorted_scores.iter().collect();
-        score_sorted.sort_by(|a, b| b.1.to_f64().unwrap_or(0.0).partial_cmp(&a.1.to_f64().unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal));
+        score_sorted.sort_by(|a, b| {
+            b.1.to_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&a.1.to_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for k in [1, 3, 5, 10, 20, 50] {
-            let top_k_edges: Vec<EdgeId> = score_sorted.iter().take(k).map(|(edge, _, _)| *edge).collect();
-            let correct = top_k_edges.iter().filter(|edge| new_edges.contains(edge)).count();
-            let precision = if k > 0 { correct as f64 / k.min(top_k_edges.len()) as f64 } else { 0.0 };
+            let top_k_edges: Vec<EdgeId> = score_sorted
+                .iter()
+                .take(k)
+                .map(|(edge, _, _)| *edge)
+                .collect();
+            let correct = top_k_edges
+                .iter()
+                .filter(|edge| new_edges.contains(edge))
+                .count();
+            let precision = if k > 0 {
+                correct as f64 / k.min(top_k_edges.len()) as f64
+            } else {
+                0.0
+            };
             self.temporal_precision_at_k.insert(k, precision);
         }
 

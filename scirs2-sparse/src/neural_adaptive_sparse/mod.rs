@@ -66,23 +66,23 @@
 
 pub mod config;
 pub mod neural_network;
-pub mod transformer;
-pub mod reinforcement_learning;
 pub mod pattern_memory;
 pub mod processor;
+pub mod reinforcement_learning;
+pub mod transformer;
 
 // Re-export main types for convenience
 pub use config::NeuralAdaptiveConfig;
-pub use processor::{
-    NeuralAdaptiveSparseProcessor, NeuralProcessorStats, OperationContext,
-    OperationType, PerformanceTarget, ProcessorState,
-};
 pub use pattern_memory::OptimizationStrategy;
-pub use reinforcement_learning::{RLAlgorithm, PerformanceMetrics};
+pub use processor::{
+    NeuralAdaptiveSparseProcessor, NeuralProcessorStats, OperationContext, OperationType,
+    PerformanceTarget, ProcessorState,
+};
+pub use reinforcement_learning::{PerformanceMetrics, RLAlgorithm};
 
 // Re-export key internal types that might be useful
-pub use neural_network::{ActivationFunction};
-pub use transformer::{TransformerGradients, LayerGradients};
+pub use neural_network::ActivationFunction;
+pub use transformer::{LayerGradients, TransformerGradients};
 
 #[cfg(test)]
 mod tests {

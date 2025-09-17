@@ -12,6 +12,10 @@ use std::time::Duration;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scirs2_metrics::domains::neuromorphic::core::{
+        ConnectionPattern, InhibitionPattern, LearningRule, NeuronType, RecurrentConnection,
+    };
+    use std::time::Instant;
 
     #[test]
     fn test_neuromorphic_config_creation() {
@@ -28,6 +32,7 @@ mod tests {
             enable_stdp: true,
             enable_homeostasis: true,
             enable_memory_consolidation: true,
+            enable_quantum_processing: false,
             timestep: Duration::from_micros(100),
             max_simulation_time: Duration::from_secs(60),
         };
@@ -157,37 +162,27 @@ mod tests {
         let winner_take_all = InhibitionPattern::WinnerTakeAll;
         assert!(matches!(winner_take_all, InhibitionPattern::WinnerTakeAll));
 
-        let gaussian = InhibitionPattern::Gaussian { sigma: 1.5 };
-        match gaussian {
-            InhibitionPattern::Gaussian { sigma } => {
-                assert_eq!(sigma, 1.5);
-            }
-            _ => panic!("Expected Gaussian inhibition pattern"),
-        }
+        let uniform = InhibitionPattern::Uniform;
+        assert!(matches!(uniform, InhibitionPattern::Uniform));
 
-        let dog = InhibitionPattern::DoG {
-            sigma_center: 0.5,
-            sigma_surround: 2.0,
-        };
-        match dog {
-            InhibitionPattern::DoG {
-                sigma_center,
-                sigma_surround,
-            } => {
-                assert_eq!(sigma_center, 0.5);
-                assert_eq!(sigma_surround, 2.0);
-            }
-            _ => panic!("Expected DoG inhibition pattern"),
-        }
+        let distance_based = InhibitionPattern::DistanceBased;
+        assert!(matches!(distance_based, InhibitionPattern::DistanceBased));
+
+        let mexican_hat = InhibitionPattern::MexicanHat;
+        assert!(matches!(mexican_hat, InhibitionPattern::MexicanHat));
     }
 
     #[test]
     fn test_synapse_types() {
-        let excitatory = SynapseType::Excitatory;
-        let inhibitory = SynapseType::Inhibitory;
+        let chemical = SynapseType::Chemical;
+        let electrical = SynapseType::Electrical;
+        let modulatory = SynapseType::Modulatory;
+        let plastic = SynapseType::Plastic;
 
-        assert!(matches!(excitatory, SynapseType::Excitatory));
-        assert!(matches!(inhibitory, SynapseType::Inhibitory));
+        assert!(matches!(chemical, SynapseType::Chemical));
+        assert!(matches!(electrical, SynapseType::Electrical));
+        assert!(matches!(modulatory, SynapseType::Modulatory));
+        assert!(matches!(plastic, SynapseType::Plastic));
     }
 
     #[test]
@@ -270,11 +265,9 @@ mod tests {
         // handles different inhibition patterns correctly
 
         let winner_take_all = InhibitionPattern::WinnerTakeAll;
-        let gaussian = InhibitionPattern::Gaussian { sigma: 1.0 };
-        let dog = InhibitionPattern::DoG {
-            sigma_center: 0.5,
-            sigma_surround: 1.5,
-        };
+        let uniform = InhibitionPattern::Uniform;
+        let distance_based = InhibitionPattern::DistanceBased;
+        let mexican_hat = InhibitionPattern::MexicanHat;
 
         // Test that patterns can be matched correctly
         match winner_take_all {
@@ -282,22 +275,19 @@ mod tests {
             _ => panic!("Failed to match WinnerTakeAll pattern"),
         }
 
-        match gaussian {
-            InhibitionPattern::Gaussian { sigma } => {
-                assert_eq!(sigma, 1.0);
-            }
-            _ => panic!("Failed to match Gaussian pattern"),
+        match uniform {
+            InhibitionPattern::Uniform => {}
+            _ => panic!("Failed to match Uniform pattern"),
         }
 
-        match dog {
-            InhibitionPattern::DoG {
-                sigma_center,
-                sigma_surround,
-            } => {
-                assert_eq!(sigma_center, 0.5);
-                assert_eq!(sigma_surround, 1.5);
-            }
-            _ => panic!("Failed to match DoG pattern"),
+        match distance_based {
+            InhibitionPattern::DistanceBased => {}
+            _ => panic!("Failed to match DistanceBased pattern"),
+        }
+
+        match mexican_hat {
+            InhibitionPattern::MexicanHat => {}
+            _ => panic!("Failed to match MexicanHat pattern"),
         }
     }
 
@@ -345,6 +335,9 @@ mod tests {
 mod performance_tests {
     #[allow(unused_imports)]
     use super::*;
+    use scirs2_metrics::domains::neuromorphic::core::{
+        ConnectionPattern, InhibitionPattern, LearningRule, NeuronType, RecurrentConnection,
+    };
     use std::time::Instant;
 
     #[test]
@@ -363,11 +356,9 @@ mod performance_tests {
     fn test_pattern_matching_performance() {
         let patterns = vec![
             InhibitionPattern::WinnerTakeAll,
-            InhibitionPattern::Gaussian { sigma: 1.0 },
-            InhibitionPattern::DoG {
-                sigma_center: 0.5,
-                sigma_surround: 1.5,
-            },
+            InhibitionPattern::Uniform,
+            InhibitionPattern::DistanceBased,
+            InhibitionPattern::MexicanHat,
         ];
 
         let start = Instant::now();
@@ -376,12 +367,9 @@ mod performance_tests {
             for pattern in &patterns {
                 match pattern {
                     InhibitionPattern::WinnerTakeAll => {}
-                    InhibitionPattern::Gaussian { sigma: _ } => {}
-                    InhibitionPattern::DoG {
-                        sigma_center: _,
-                        sigma_surround: _,
-                    } => {}
-                    InhibitionPattern::Custom { weights: _ } => {}
+                    InhibitionPattern::Uniform => {}
+                    InhibitionPattern::DistanceBased => {}
+                    InhibitionPattern::MexicanHat => {}
                 }
             }
         }
@@ -398,6 +386,10 @@ mod performance_tests {
 #[cfg(test)]
 mod edge_case_tests {
     use super::*;
+    use scirs2_metrics::domains::neuromorphic::core::{
+        ConnectionPattern, InhibitionPattern, LearningRule, NeuronType, RecurrentConnection,
+    };
+    use std::time::Instant;
 
     #[test]
     fn test_zero_values_handling() {
@@ -414,6 +406,7 @@ mod edge_case_tests {
             enable_stdp: false,
             enable_homeostasis: false,
             enable_memory_consolidation: false,
+            enable_quantum_processing: false,
             timestep: Duration::from_micros(1),
             max_simulation_time: Duration::from_secs(1),
         };
@@ -439,6 +432,7 @@ mod edge_case_tests {
             enable_stdp: true,
             enable_homeostasis: true,
             enable_memory_consolidation: true,
+            enable_quantum_processing: true,
             timestep: Duration::from_millis(1),
             max_simulation_time: Duration::from_secs(3600),
         };

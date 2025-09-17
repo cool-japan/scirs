@@ -6,7 +6,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::core::{ClassMetrics, CalibrationMetrics, GroupFairnessMetrics, NodeId};
+use super::core::{CalibrationMetrics, ClassMetrics, GroupFairnessMetrics, NodeId};
 use crate::error::{MetricsError, Result};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::Float;
@@ -69,9 +69,10 @@ impl NodeClassificationMetrics {
         F: std::iter::Sum + std::fmt::Debug,
     {
         let n = predictions.len();
-        if n != ground_truth.len() || adjacency_matrix.nrows() != n || adjacency_matrix.ncols() != n {
+        if n != ground_truth.len() || adjacency_matrix.nrows() != n || adjacency_matrix.ncols() != n
+        {
             return Err(MetricsError::DimensionMismatch(
-                "Predictions, ground truth, and adjacency matrix dimensions must match".to_string()
+                "Predictions, ground truth, and adjacency matrix dimensions must match".to_string(),
             ));
         }
 
@@ -112,7 +113,7 @@ impl NodeClassificationMetrics {
         let n = predictions.len();
         if n != ground_truth.len() {
             return Err(MetricsError::DimensionMismatch(
-                "Predictions and ground truth dimensions must match".to_string()
+                "Predictions and ground truth dimensions must match".to_string(),
             ));
         }
 
@@ -127,9 +128,15 @@ impl NodeClassificationMetrics {
             for i in 0..n {
                 let pred_class = predictions[i].to_usize().unwrap_or(0);
                 let true_class = ground_truth[i].to_usize().unwrap_or(0);
-                let current_class_idx = class_labels.iter().position(|x| x == class_label).unwrap_or(0);
+                let current_class_idx = class_labels
+                    .iter()
+                    .position(|x| x == class_label)
+                    .unwrap_or(0);
 
-                match (pred_class == current_class_idx, true_class == current_class_idx) {
+                match (
+                    pred_class == current_class_idx,
+                    true_class == current_class_idx,
+                ) {
                     (true, true) => tp += 1,
                     (true, false) => fp += 1,
                     (false, true) => fn_count += 1,
@@ -137,27 +144,51 @@ impl NodeClassificationMetrics {
                 }
             }
 
-            let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
-            let recall = if tp + fn_count > 0 { tp as f64 / (tp + fn_count) as f64 } else { 0.0 };
-            let f1 = if precision + recall > 0.0 { 2.0 * precision * recall / (precision + recall) } else { 0.0 };
+            let precision = if tp + fp > 0 {
+                tp as f64 / (tp + fp) as f64
+            } else {
+                0.0
+            };
+            let recall = if tp + fn_count > 0 {
+                tp as f64 / (tp + fn_count) as f64
+            } else {
+                0.0
+            };
+            let f1 = if precision + recall > 0.0 {
+                2.0 * precision * recall / (precision + recall)
+            } else {
+                0.0
+            };
 
-            class_metrics.insert(class_label.clone(), ClassMetrics {
-                precision,
-                recall,
-                f1_score: f1,
-                support: (tp + fn_count),
-            });
+            class_metrics.insert(
+                class_label.clone(),
+                ClassMetrics {
+                    precision,
+                    recall,
+                    f1_score: f1,
+                    support: (tp + fn_count),
+                },
+            );
         }
 
         // Compute macro F1
-        let macro_f1 = class_metrics.values()
+        let macro_f1 = class_metrics
+            .values()
             .map(|metrics| metrics.f1_score)
-            .sum::<f64>() / class_metrics.len() as f64;
+            .sum::<f64>()
+            / class_metrics.len() as f64;
 
         // Compute micro F1
-        let total_tp: usize = class_metrics.values().map(|m| (m.recall * m.support as f64) as usize).sum();
+        let total_tp: usize = class_metrics
+            .values()
+            .map(|m| (m.recall * m.support as f64) as usize)
+            .sum();
         let total_support: usize = class_metrics.values().map(|m| m.support).sum();
-        let micro_f1 = if total_support > 0 { total_tp as f64 / total_support as f64 } else { 0.0 };
+        let micro_f1 = if total_support > 0 {
+            total_tp as f64 / total_support as f64
+        } else {
+            0.0
+        };
 
         self.macro_f1 = macro_f1;
         self.micro_f1 = micro_f1;
@@ -212,15 +243,17 @@ impl NodeEmbeddingMetrics {
         let n_nodes = embeddings.nrows();
         if adjacency_matrix.nrows() != n_nodes || adjacency_matrix.ncols() != n_nodes {
             return Err(MetricsError::DimensionMismatch(
-                "Embeddings and adjacency matrix dimensions must match".to_string()
+                "Embeddings and adjacency matrix dimensions must match".to_string(),
             ));
         }
 
         // Compute neighborhood preservation
-        self.neighborhood_preservation = self.compute_neighborhood_preservation(embeddings, adjacency_matrix)?;
+        self.neighborhood_preservation =
+            self.compute_neighborhood_preservation(embeddings, adjacency_matrix)?;
 
         // Compute structure alignment
-        self.structure_alignment = self.compute_structure_alignment(embeddings, adjacency_matrix)?;
+        self.structure_alignment =
+            self.compute_structure_alignment(embeddings, adjacency_matrix)?;
 
         // If labels are provided, compute cluster-based metrics
         if let Some(labels) = node_labels {
@@ -268,8 +301,12 @@ impl NodeEmbeddingMetrics {
 
             // Count how many graph neighbors are among k-nearest neighbors in embedding space
             let k = neighbors.len().min(10); // Use top-k neighbors
-            let top_k_nodes: HashSet<usize> = distances.iter().take(k).map(|(idx, _)| *idx).collect();
-            let preserved = neighbors.iter().filter(|&&n| top_k_nodes.contains(&n)).count();
+            let top_k_nodes: HashSet<usize> =
+                distances.iter().take(k).map(|(idx, _)| *idx).collect();
+            let preserved = neighbors
+                .iter()
+                .filter(|&&n| top_k_nodes.contains(&n))
+                .count();
 
             preservation_sum += preserved as f64 / neighbors.len() as f64;
         }
@@ -325,7 +362,7 @@ impl NodeEmbeddingMetrics {
         let n_nodes = embeddings.nrows();
         if n_nodes != labels.len() {
             return Err(MetricsError::DimensionMismatch(
-                "Embeddings and labels dimensions must match".to_string()
+                "Embeddings and labels dimensions must match".to_string(),
             ));
         }
 
@@ -361,7 +398,8 @@ impl NodeEmbeddingMetrics {
             other_labels.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             other_labels.dedup_by(|a, b| (*a - *b).abs() < F::from(0.1).unwrap());
 
-            let b = other_labels.iter()
+            let b = other_labels
+                .iter()
                 .map(|&other_label| {
                     let distances: Vec<f64> = (0..n_nodes)
                         .filter(|&j| (labels[j] - other_label).abs() < F::from(0.1).unwrap())
@@ -441,7 +479,7 @@ impl HomophilyAwareMetrics {
         let n_nodes = predictions.len();
         if n_nodes != ground_truth.len() || adjacency_matrix.nrows() != n_nodes {
             return Err(MetricsError::DimensionMismatch(
-                "All inputs must have matching dimensions".to_string()
+                "All inputs must have matching dimensions".to_string(),
             ));
         }
 
@@ -508,7 +546,8 @@ impl HomophilyAwareMetrics {
                 continue;
             }
 
-            let same_label_neighbors = neighbors.iter()
+            let same_label_neighbors = neighbors
+                .iter()
                 .filter(|&&j| (labels[i] - labels[j]).abs() < F::from(0.1).unwrap())
                 .count();
 
@@ -537,9 +576,12 @@ impl HomophilyAwareMetrics {
         for i in 0..n_nodes {
             for j in (i + 1)..n_nodes {
                 if adjacency_matrix[(i, j)] > F::zero() {
-                    let same_true_label = (ground_truth[i] - ground_truth[j]).abs() < F::from(0.1).unwrap();
-                    let correct_i = (predictions[i] - ground_truth[i]).abs() < F::from(0.5).unwrap();
-                    let correct_j = (predictions[j] - ground_truth[j]).abs() < F::from(0.5).unwrap();
+                    let same_true_label =
+                        (ground_truth[i] - ground_truth[j]).abs() < F::from(0.1).unwrap();
+                    let correct_i =
+                        (predictions[i] - ground_truth[i]).abs() < F::from(0.5).unwrap();
+                    let correct_j =
+                        (predictions[j] - ground_truth[j]).abs() < F::from(0.5).unwrap();
                     let edge_correct = correct_i && correct_j;
 
                     if same_true_label {
@@ -619,7 +661,8 @@ impl NodeFairnessMetrics {
         let groups: std::collections::HashSet<_> = sensitive_attributes.values().cloned().collect();
 
         for group in groups {
-            let group_indices: Vec<usize> = sensitive_attributes.iter()
+            let group_indices: Vec<usize> = sensitive_attributes
+                .iter()
                 .filter(|(_, g)| *g == &group)
                 .map(|(idx, _)| *idx)
                 .collect();
@@ -645,23 +688,46 @@ impl NodeFairnessMetrics {
                 }
             }
 
-            let tpr = if tp + fn_count > 0 { tp as f64 / (tp + fn_count) as f64 } else { 0.0 };
-            let fpr = if fp + tn > 0 { fp as f64 / (fp + tn) as f64 } else { 0.0 };
-            let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
+            let tpr = if tp + fn_count > 0 {
+                tp as f64 / (tp + fn_count) as f64
+            } else {
+                0.0
+            };
+            let fpr = if fp + tn > 0 {
+                fp as f64 / (fp + tn) as f64
+            } else {
+                0.0
+            };
+            let precision = if tp + fp > 0 {
+                tp as f64 / (tp + fp) as f64
+            } else {
+                0.0
+            };
             let selection_rate = if group_indices.len() > 0 {
-                group_indices.iter()
-                    .map(|&idx| if predictions[idx].to_f64().unwrap_or(0.0) > 0.5 { 1.0 } else { 0.0 })
-                    .sum::<f64>() / group_indices.len() as f64
+                group_indices
+                    .iter()
+                    .map(|&idx| {
+                        if predictions[idx].to_f64().unwrap_or(0.0) > 0.5 {
+                            1.0
+                        } else {
+                            0.0
+                        }
+                    })
+                    .sum::<f64>()
+                    / group_indices.len() as f64
             } else {
                 0.0
             };
 
-            group_metrics.insert(group.clone(), GroupFairnessMetrics {
-                tpr,
-                fpr,
-                precision,
-                selection_rate,
-            });
+            group_metrics.insert(
+                group.clone(),
+                GroupFairnessMetrics {
+                    tpr,
+                    fpr,
+                    precision,
+                    selection_rate,
+                },
+            );
         }
 
         // Compute overall fairness metrics
@@ -671,7 +737,8 @@ impl NodeFairnessMetrics {
             let group2 = group_metrics.get(group_names[1]).unwrap();
 
             self.demographic_parity = (group1.selection_rate - group2.selection_rate).abs();
-            self.equalized_odds = ((group1.tpr - group2.tpr).abs() + (group1.fpr - group2.fpr).abs()) / 2.0;
+            self.equalized_odds =
+                ((group1.tpr - group2.tpr).abs() + (group1.fpr - group2.fpr).abs()) / 2.0;
         }
 
         self.group_fairness = group_metrics;

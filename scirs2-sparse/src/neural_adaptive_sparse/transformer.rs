@@ -48,14 +48,25 @@ pub(crate) struct FeedForwardNetwork {
 
 impl TransformerModel {
     /// Create a new transformer model
-    pub fn new(embedding_dim: usize, num_layers: usize, num_heads: usize, ff_dim: usize, max_sequence_length: usize) -> Self {
+    pub fn new(
+        embedding_dim: usize,
+        num_layers: usize,
+        num_heads: usize,
+        ff_dim: usize,
+        max_sequence_length: usize,
+    ) -> Self {
         let mut encoder_layers = Vec::new();
 
         for _ in 0..num_layers {
-            encoder_layers.push(TransformerEncoderLayer::new(embedding_dim, num_heads, ff_dim));
+            encoder_layers.push(TransformerEncoderLayer::new(
+                embedding_dim,
+                num_heads,
+                ff_dim,
+            ));
         }
 
-        let positional_encoding = Self::create_positional_encoding(max_sequence_length, embedding_dim);
+        let positional_encoding =
+            Self::create_positional_encoding(max_sequence_length, embedding_dim);
 
         Self {
             encoder_layers,
@@ -176,7 +187,8 @@ impl TransformerEncoderLayer {
         }
 
         // First layer normalization
-        let norm1_output: Vec<Vec<f64>> = norm1_input.iter()
+        let norm1_output: Vec<Vec<f64>> = norm1_input
+            .iter()
             .map(|seq| self.layer_norm1.normalize(seq))
             .collect();
 
@@ -197,15 +209,18 @@ impl TransformerEncoderLayer {
         }
 
         // Second layer normalization
-        norm2_input.iter()
+        norm2_input
+            .iter()
             .map(|seq| self.layer_norm2.normalize(seq))
             .collect()
     }
 
     /// Update layer parameters
     pub fn update_parameters(&mut self, gradients: &LayerGradients, learning_rate: f64) {
-        self.self_attention.update_parameters(&gradients.attention_gradients, learning_rate);
-        self.feed_forward.update_parameters(&gradients.ff_gradients, learning_rate);
+        self.self_attention
+            .update_parameters(&gradients.attention_gradients, learning_rate);
+        self.feed_forward
+            .update_parameters(&gradients.ff_gradients, learning_rate);
     }
 }
 
@@ -370,9 +385,7 @@ impl FeedForwardNetwork {
             ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
             ActivationFunction::Tanh => x.tanh(),
             ActivationFunction::Swish => x * (1.0 / (1.0 + (-x).exp())),
-            ActivationFunction::Gelu => {
-                0.5 * x * (1.0 + (x * 0.7978845608028654).tanh())
-            }
+            ActivationFunction::Gelu => 0.5 * x * (1.0 + (x * 0.7978845608028654).tanh()),
         }
     }
 

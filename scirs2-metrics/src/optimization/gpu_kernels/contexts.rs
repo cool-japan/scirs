@@ -6,11 +6,11 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
+use super::runtime::{CudaRuntime, OpenClRuntime};
 use crate::error::Result;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use super::runtime::{CudaRuntime, OpenClRuntime};
 
 /// CUDA context management
 #[derive(Debug)]

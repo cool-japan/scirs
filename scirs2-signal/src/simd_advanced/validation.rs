@@ -25,11 +25,10 @@
 //! }
 //! ```
 
-use crate::error::SignalResult;
 use super::{
-    simd_fir_filter, simd_autocorrelation, simd_cross_correlation,
-    SimdConfig, SimdValidationResult
+    simd_autocorrelation, simd_cross_correlation, simd_fir_filter, SimdConfig, SimdValidationResult,
 };
+use crate::error::SignalResult;
 use ndarray::Array2;
 
 /// Comprehensive SIMD validation and performance testing

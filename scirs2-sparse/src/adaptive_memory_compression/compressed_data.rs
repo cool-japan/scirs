@@ -99,20 +99,25 @@ impl<T> CompressedMatrix<T> {
 
     /// Get block by ID
     pub fn get_block(&self, block_id: &BlockId) -> Option<&CompressedBlock> {
-        self.compressed_blocks.iter()
+        self.compressed_blocks
+            .iter()
             .find(|block| &block.blockid == block_id)
     }
 
     /// Get mutable block by ID
     pub fn get_block_mut(&mut self, block_id: &BlockId) -> Option<&mut CompressedBlock> {
-        self.compressed_blocks.iter_mut()
+        self.compressed_blocks
+            .iter_mut()
             .find(|block| &block.blockid == block_id)
     }
 
     /// Remove a block
     pub fn remove_block(&mut self, block_id: &BlockId) -> Option<CompressedBlock> {
-        if let Some(pos) = self.compressed_blocks.iter()
-            .position(|block| &block.blockid == block_id) {
+        if let Some(pos) = self
+            .compressed_blocks
+            .iter()
+            .position(|block| &block.blockid == block_id)
+        {
             let removed = self.compressed_blocks.remove(pos);
             self.update_metadata();
             Some(removed)
@@ -123,18 +128,23 @@ impl<T> CompressedMatrix<T> {
 
     /// Get blocks of specific type
     pub fn get_blocks_by_type(&self, block_type: BlockType) -> Vec<&CompressedBlock> {
-        self.compressed_blocks.iter()
+        self.compressed_blocks
+            .iter()
             .filter(|block| block.block_type == block_type)
             .collect()
     }
 
     /// Update metadata based on current blocks
     fn update_metadata(&mut self) {
-        let total_original_size: usize = self.compressed_blocks.iter()
+        let total_original_size: usize = self
+            .compressed_blocks
+            .iter()
             .map(|block| block.original_size)
             .sum();
 
-        let total_compressed_size: usize = self.compressed_blocks.iter()
+        let total_compressed_size: usize = self
+            .compressed_blocks
+            .iter()
             .map(|block| block.compressed_data.len())
             .sum();
 
@@ -152,14 +162,16 @@ impl<T> CompressedMatrix<T> {
 
     /// Get total compressed size
     pub fn compressed_size(&self) -> usize {
-        self.compressed_blocks.iter()
+        self.compressed_blocks
+            .iter()
             .map(|block| block.compressed_data.len())
             .sum()
     }
 
     /// Get total original size
     pub fn original_size(&self) -> usize {
-        self.compressed_blocks.iter()
+        self.compressed_blocks
+            .iter()
             .map(|block| block.original_size)
             .sum()
     }
@@ -194,17 +206,21 @@ impl<T> CompressedMatrix<T> {
 
     /// Get memory footprint
     pub fn memory_footprint(&self) -> usize {
-        std::mem::size_of::<Self>() +
-        self.compressed_blocks.iter()
-            .map(|block| block.memory_footprint())
-            .sum::<usize>()
+        std::mem::size_of::<Self>()
+            + self
+                .compressed_blocks
+                .iter()
+                .map(|block| block.memory_footprint())
+                .sum::<usize>()
     }
 
     /// Optimize block organization
     pub fn optimize_blocks(&mut self) {
         // Sort blocks by access frequency (if available) or by block ID
         self.compressed_blocks.sort_by(|a, b| {
-            a.blockid.block_row.cmp(&b.blockid.block_row)
+            a.blockid
+                .block_row
+                .cmp(&b.blockid.block_row)
                 .then_with(|| a.blockid.block_col.cmp(&b.blockid.block_col))
         });
     }
@@ -213,7 +229,9 @@ impl<T> CompressedMatrix<T> {
     pub fn get_blocks_row_major(&self) -> Vec<&CompressedBlock> {
         let mut blocks = self.compressed_blocks.iter().collect::<Vec<_>>();
         blocks.sort_by(|a, b| {
-            a.blockid.block_row.cmp(&b.blockid.block_row)
+            a.blockid
+                .block_row
+                .cmp(&b.blockid.block_row)
                 .then_with(|| a.blockid.block_col.cmp(&b.blockid.block_col))
         });
         blocks
@@ -231,7 +249,9 @@ impl<T> CompressedMatrix<T> {
             total_original_size: self.original_size(),
             total_compressed_size: self.compressed_size(),
             compression_ratio: self.compression_ratio(),
-            block_map: self.compressed_blocks.iter()
+            block_map: self
+                .compressed_blocks
+                .iter()
                 .map(|block| (block.blockid.clone(), block.block_type))
                 .collect(),
         }
@@ -290,7 +310,8 @@ impl CompressedBlock {
 
     /// Get space savings in bytes
     pub fn space_savings(&self) -> usize {
-        self.original_size.saturating_sub(self.compressed_data.len())
+        self.original_size
+            .saturating_sub(self.compressed_data.len())
     }
 
     /// Verify block integrity
@@ -384,21 +405,21 @@ impl BlockType {
     /// Get priority for compression (higher = more important)
     pub fn compression_priority(&self) -> u8 {
         match self {
-            BlockType::Data => 10,       // Highest priority - usually largest
-            BlockType::Indices => 8,     // High priority - often compressible
-            BlockType::Combined => 7,    // High priority - mixed content
-            BlockType::IndPtr => 5,      // Medium priority - usually small
-            BlockType::Metadata => 3,    // Lower priority - typically small
+            BlockType::Data => 10,    // Highest priority - usually largest
+            BlockType::Indices => 8,  // High priority - often compressible
+            BlockType::Combined => 7, // High priority - mixed content
+            BlockType::IndPtr => 5,   // Medium priority - usually small
+            BlockType::Metadata => 3, // Lower priority - typically small
         }
     }
 
     /// Check if this block type typically benefits from compression
     pub fn benefits_from_compression(&self) -> bool {
         match self {
-            BlockType::Data => true,     // Numerical data often compresses well
-            BlockType::Indices => true, // Sorted indices compress well
-            BlockType::Combined => true, // Mixed content varies
-            BlockType::IndPtr => false,  // Usually small and regular
+            BlockType::Data => true,      // Numerical data often compresses well
+            BlockType::Indices => true,   // Sorted indices compress well
+            BlockType::Combined => true,  // Mixed content varies
+            BlockType::IndPtr => false,   // Usually small and regular
             BlockType::Metadata => false, // Usually small
         }
     }

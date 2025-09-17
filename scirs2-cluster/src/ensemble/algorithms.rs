@@ -194,8 +194,7 @@ where
                         for i in 0..n_samples {
                             for j in 0..n_features {
                                 let noise =
-                                    F::from((rng.gen::<f64>() * 2.0 - 1.0) * noise_level)
-                                        .unwrap();
+                                    F::from((rng.gen::<f64>() * 2.0 - 1.0) * noise_level).unwrap();
                                 noisy_data[[i, j]] = noisy_data[[i, j]] + noise;
                             }
                         }
@@ -205,8 +204,7 @@ where
                         for _ in 0..n_outliers {
                             let outlier_idx = rng.gen_range(0..n_samples);
                             for j in 0..n_features {
-                                let outlier_value =
-                                    F::from(rng.gen::<f64>() * 10.0 - 5.0).unwrap();
+                                let outlier_value = F::from(rng.gen::<f64>() * 10.0 - 5.0).unwrap();
                                 noisy_data[[outlier_idx, j]] = outlier_value;
                             }
                         }
@@ -853,7 +851,7 @@ where
                     .unwrap_or(3);
 
                 // Use kmeans from crate
-                use crate::kmeans::kmeans2;
+                use crate::vq::kmeans2;
                 match kmeans2(
                     data.view(),
                     k,
@@ -913,7 +911,7 @@ where
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(3);
 
-                use crate::kmeans::kmeans2;
+                use crate::vq::kmeans2;
                 match kmeans2(
                     data.view(),
                     k,

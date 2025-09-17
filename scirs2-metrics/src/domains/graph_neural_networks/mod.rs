@@ -22,65 +22,62 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 // Module declarations
-pub mod core;
-pub mod node_level;
-pub mod edge_level;
-pub mod graph_level;
 pub mod community_detection;
+pub mod core;
+pub mod edge_level;
 pub mod graph_generation;
+pub mod graph_level;
 pub mod knowledge_graphs;
-pub mod social_networks;
 pub mod molecular_graphs;
+pub mod node_level;
+pub mod social_networks;
 
 // Re-export core types
 pub use core::*;
 
 // Re-export from node level module
 pub use node_level::{
-    NodeLevelMetrics, NodeClassificationMetrics, NodeEmbeddingMetrics,
-    HomophilyAwareMetrics, NodeFairnessMetrics,
+    HomophilyAwareMetrics, NodeClassificationMetrics, NodeEmbeddingMetrics, NodeFairnessMetrics,
+    NodeLevelMetrics,
 };
 
 // Re-export from edge level module
 pub use edge_level::{
-    EdgeLevelMetrics, LinkPredictionMetrics, EdgeClassificationMetrics,
-    EdgeRegressionMetrics, TemporalEdgeMetrics,
+    EdgeClassificationMetrics, EdgeLevelMetrics, EdgeRegressionMetrics, LinkPredictionMetrics,
+    TemporalEdgeMetrics,
 };
 
 // Re-export from graph level module
 pub use graph_level::{
-    GraphLevelMetrics, GraphClassificationMetrics, GraphRegressionMetrics,
-    GraphPropertyMetrics, GraphSimilarityMetrics,
+    GraphClassificationMetrics, GraphLevelMetrics, GraphPropertyMetrics, GraphRegressionMetrics,
+    GraphSimilarityMetrics,
 };
 
 // Re-export from community detection module
-pub use community_detection::{
-    CommunityDetectionMetrics, OverlappingCommunityMetrics,
-};
+pub use community_detection::{CommunityDetectionMetrics, OverlappingCommunityMetrics};
 
 // Re-export from graph generation module
 pub use graph_generation::{
-    GraphGenerationMetrics, StructuralSimilarityMetrics, StatisticalSimilarityMetrics,
-    SpectralSimilarityMetrics, GenerationDiversityMetrics,
+    GenerationDiversityMetrics, GraphGenerationMetrics, SpectralSimilarityMetrics,
+    StatisticalSimilarityMetrics, StructuralSimilarityMetrics,
 };
 
 // Re-export from knowledge graphs module
 pub use knowledge_graphs::{
-    KnowledgeGraphMetrics, TripleClassificationMetrics, KgLinkPredictionMetrics,
-    EntityAlignmentMetrics, RelationExtractionMetrics,
+    EntityAlignmentMetrics, KgLinkPredictionMetrics, KnowledgeGraphMetrics,
+    RelationExtractionMetrics, TripleClassificationMetrics,
 };
 
 // Re-export from social networks module
 pub use social_networks::{
-    SocialNetworkMetrics, InfluencePredictionMetrics, SocialRoleMetrics,
-    SocialRecommendationMetrics, InformationDiffusionMetrics,
+    InfluencePredictionMetrics, InformationDiffusionMetrics, SocialNetworkMetrics,
+    SocialRecommendationMetrics, SocialRoleMetrics,
 };
 
 // Re-export from molecular graphs module
 pub use molecular_graphs::{
-    MolecularGraphMetrics, MolecularPropertyMetrics, PropertyMetrics,
-    DrugDiscoveryMetrics, ToxicityMetrics, DtiPredictionMetrics,
-    ChemicalSimilarityMetrics, ReactionPredictionMetrics,
+    ChemicalSimilarityMetrics, DrugDiscoveryMetrics, DtiPredictionMetrics, MolecularGraphMetrics,
+    MolecularPropertyMetrics, PropertyMetrics, ReactionPredictionMetrics, ToxicityMetrics,
 };
 
 /// Comprehensive Graph Neural Network metrics suite
@@ -210,27 +207,32 @@ impl GraphNeuralNetworkMetricsComputer {
 
         // Community detection evaluation
         if self.config.enable_community_detection {
-            metrics.community_metrics = self.evaluate_community_detection(predicted, actual, metadata)?;
+            metrics.community_metrics =
+                self.evaluate_community_detection(predicted, actual, metadata)?;
         }
 
         // Graph generation evaluation
         if self.config.enable_graph_generation {
-            metrics.generation_metrics = self.evaluate_graph_generation(predicted, actual, metadata)?;
+            metrics.generation_metrics =
+                self.evaluate_graph_generation(predicted, actual, metadata)?;
         }
 
         // Knowledge graph evaluation
         if self.config.enable_knowledge_graphs {
-            metrics.knowledge_graph_metrics = self.evaluate_knowledge_graphs(predicted, actual, metadata)?;
+            metrics.knowledge_graph_metrics =
+                self.evaluate_knowledge_graphs(predicted, actual, metadata)?;
         }
 
         // Social network evaluation
         if self.config.enable_social_networks {
-            metrics.social_network_metrics = self.evaluate_social_networks(predicted, actual, metadata)?;
+            metrics.social_network_metrics =
+                self.evaluate_social_networks(predicted, actual, metadata)?;
         }
 
         // Molecular graph evaluation
         if self.config.enable_molecular_graphs {
-            metrics.molecular_metrics = self.evaluate_molecular_graphs(predicted, actual, metadata)?;
+            metrics.molecular_metrics =
+                self.evaluate_molecular_graphs(predicted, actual, metadata)?;
         }
 
         Ok(metrics)
@@ -381,32 +383,80 @@ impl DomainMetrics for GraphNeuralNetworkMetrics {
 
     fn metric_descriptions(&self) -> HashMap<&'static str, &'static str> {
         let mut descriptions = HashMap::new();
-        descriptions.insert("node_classification_accuracy", "Node classification accuracy");
+        descriptions.insert(
+            "node_classification_accuracy",
+            "Node classification accuracy",
+        );
         descriptions.insert("node_classification_f1", "Node classification F1 score");
-        descriptions.insert("node_embedding_quality", "Node embedding quality (silhouette score)");
-        descriptions.insert("link_prediction_auc", "Link prediction area under ROC curve");
+        descriptions.insert(
+            "node_embedding_quality",
+            "Node embedding quality (silhouette score)",
+        );
+        descriptions.insert(
+            "link_prediction_auc",
+            "Link prediction area under ROC curve",
+        );
         descriptions.insert("edge_classification_f1", "Edge classification F1 score");
-        descriptions.insert("graph_classification_accuracy", "Graph classification accuracy");
+        descriptions.insert(
+            "graph_classification_accuracy",
+            "Graph classification accuracy",
+        );
         descriptions.insert("graph_regression_r2", "Graph regression R² score");
         descriptions.insert("community_modularity", "Community detection modularity");
-        descriptions.insert("community_nmi", "Community detection normalized mutual information");
-        descriptions.insert("kg_triple_classification_f1", "Knowledge graph triple classification F1");
-        descriptions.insert("kg_link_prediction_mrr", "Knowledge graph link prediction mean reciprocal rank");
+        descriptions.insert(
+            "community_nmi",
+            "Community detection normalized mutual information",
+        );
+        descriptions.insert(
+            "kg_triple_classification_f1",
+            "Knowledge graph triple classification F1",
+        );
+        descriptions.insert(
+            "kg_link_prediction_mrr",
+            "Knowledge graph link prediction mean reciprocal rank",
+        );
         descriptions.insert("molecular_property_r2", "Molecular property prediction R²");
-        descriptions.insert("drug_discovery_auc", "Drug discovery bioactivity prediction AUC");
+        descriptions.insert(
+            "drug_discovery_auc",
+            "Drug discovery bioactivity prediction AUC",
+        );
         descriptions.insert("node_homophily_ratio", "Node homophily ratio");
-        descriptions.insert("node_fairness_demographic_parity", "Node fairness demographic parity");
-        descriptions.insert("link_prediction_precision", "Link prediction precision at K");
-        descriptions.insert("temporal_edge_accuracy", "Temporal edge persistence accuracy");
-        descriptions.insert("graph_similarity_ged", "Graph similarity (graph edit distance) correlation");
+        descriptions.insert(
+            "node_fairness_demographic_parity",
+            "Node fairness demographic parity",
+        );
+        descriptions.insert(
+            "link_prediction_precision",
+            "Link prediction precision at K",
+        );
+        descriptions.insert(
+            "temporal_edge_accuracy",
+            "Temporal edge persistence accuracy",
+        );
+        descriptions.insert(
+            "graph_similarity_ged",
+            "Graph similarity (graph edit distance) correlation",
+        );
         descriptions.insert("community_ari", "Community detection adjusted rand index");
         descriptions.insert("community_conductance", "Community detection conductance");
-        descriptions.insert("generation_structural_similarity", "Graph generation structural similarity");
+        descriptions.insert(
+            "generation_structural_similarity",
+            "Graph generation structural similarity",
+        );
         descriptions.insert("generation_diversity", "Graph generation diversity");
-        descriptions.insert("social_influence_correlation", "Social influence prediction correlation");
+        descriptions.insert(
+            "social_influence_correlation",
+            "Social influence prediction correlation",
+        );
         descriptions.insert("social_role_accuracy", "Social role prediction accuracy");
-        descriptions.insert("molecular_toxicity_auc", "Molecular toxicity prediction AUC");
-        descriptions.insert("dti_prediction_auc", "Drug-target interaction prediction AUC");
+        descriptions.insert(
+            "molecular_toxicity_auc",
+            "Molecular toxicity prediction AUC",
+        );
+        descriptions.insert(
+            "dti_prediction_auc",
+            "Drug-target interaction prediction AUC",
+        );
         descriptions
     }
 }

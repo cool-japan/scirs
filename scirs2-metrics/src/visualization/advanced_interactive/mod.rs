@@ -19,52 +19,51 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
 
 // Module declarations
+pub mod collaboration;
 pub mod core;
-pub mod widgets;
 pub mod data_sources;
 pub mod events;
 pub mod layout;
 pub mod rendering;
-pub mod collaboration;
+pub mod widgets;
 
 // Re-export core types
 pub use core::*;
 
 // Re-export widget system
 pub use widgets::{
-    InteractiveWidget, WidgetType, WidgetConfig, WidgetEvent, WidgetEventResponse,
-    ChartType, InputType, StyleConfig, DataBindingConfig, RenderContext,
-    RenderContent, ShaderProgram, FontConfig, BorderConfig, EventType,
+    BorderConfig, ChartType, DataBindingConfig, EventType, FontConfig, InputType,
+    InteractiveWidget, RenderContent, RenderContext, ShaderProgram, StyleConfig, WidgetConfig,
+    WidgetEvent, WidgetEventResponse, WidgetType,
 };
 
 // Re-export data sources
 pub use data_sources::{
-    DataSource, DataSourceConfig, DataSourceManager, DataUpdate, ChangeType,
-    DataSourceType, ConnectionConfig, DataFormat, ValidationConfig,
+    ChangeType, ConnectionConfig, DataFormat, DataSource, DataSourceConfig, DataSourceManager,
+    DataSourceType, DataUpdate, ValidationConfig,
 };
 
 // Re-export event system
 pub use events::{
-    EventSystem, EventHandler, DashboardEvent, EventResponse, EventAction,
-    EventMetadata, EventPriority, NotificationLevel,
+    DashboardEvent, EventAction, EventHandler, EventMetadata, EventPriority, EventResponse,
+    EventSystem, NotificationLevel,
 };
 
 // Re-export layout management
 pub use layout::{
-    LayoutManager, WidgetLayout, LayoutConstraints, GridPosition,
-    Margin, ContainerConstraints,
+    ContainerConstraints, GridPosition, LayoutConstraints, LayoutManager, Margin, WidgetLayout,
 };
 
 // Re-export rendering
 pub use rendering::{
-    RenderingEngine, RenderingConfig, RenderingBackend, UpdateManager,
-    PerformanceMonitor, RenderStatistics, UpdateRequest, UpdateType,
+    PerformanceMonitor, RenderStatistics, RenderingBackend, RenderingConfig, RenderingEngine,
+    UpdateManager, UpdateRequest, UpdateType,
 };
 
 // Re-export collaboration
 pub use collaboration::{
-    CollaborationManager, UserSession, SharedState, Operation, OperationType,
-    ConflictResolver, Conflict, ConflictType, CursorPosition, Selection,
+    CollaborationManager, Conflict, ConflictResolver, ConflictType, CursorPosition, Operation,
+    OperationType, Selection, SharedState, UserSession,
 };
 
 /// Advanced interactive dashboard for real-time metrics visualization
@@ -256,10 +255,16 @@ impl InteractiveDashboard {
         let widget_config = widget.config().clone();
 
         // Add to widgets collection
-        self.widgets.write().unwrap().insert(widget_id.clone(), widget);
+        self.widgets
+            .write()
+            .unwrap()
+            .insert(widget_id.clone(), widget);
 
         // Update layout
-        self.layout_manager.lock().unwrap().add_widget(&widget_config)?;
+        self.layout_manager
+            .lock()
+            .unwrap()
+            .add_widget(&widget_config)?;
 
         // Update view state
         let mut state = self.state.write().unwrap();
@@ -275,11 +280,17 @@ impl InteractiveDashboard {
         self.widgets.write().unwrap().remove(widget_id);
 
         // Update layout
-        self.layout_manager.lock().unwrap().remove_widget(widget_id)?;
+        self.layout_manager
+            .lock()
+            .unwrap()
+            .remove_widget(widget_id)?;
 
         // Update view state
         let mut state = self.state.write().unwrap();
-        state.view_state.visible_widgets.retain(|id| id != widget_id);
+        state
+            .view_state
+            .visible_widgets
+            .retain(|id| id != widget_id);
         state.view_state.z_order.retain(|id| id != widget_id);
 
         Ok(())
@@ -306,7 +317,10 @@ impl InteractiveDashboard {
         };
 
         // Queue event for processing
-        self.event_system.lock().unwrap().queue_event(dashboard_event)?;
+        self.event_system
+            .lock()
+            .unwrap()
+            .queue_event(dashboard_event)?;
 
         Ok(())
     }
@@ -332,7 +346,10 @@ impl InteractiveDashboard {
 
         // Get visible widgets in z-order
         let state = self.state.read().unwrap();
-        let mut visible_widgets: Vec<_> = state.view_state.z_order.iter()
+        let mut visible_widgets: Vec<_> = state
+            .view_state
+            .z_order
+            .iter()
             .filter(|id| state.view_state.visible_widgets.contains(id))
             .filter_map(|id| widgets.get(id))
             .collect();
@@ -362,9 +379,13 @@ impl InteractiveDashboard {
         let _update_requests = self.update_manager.lock().unwrap().process_updates()?;
 
         // Apply collaboration updates
-        if self.config.collaboration_config.as_ref().map_or(false, |c| c.enabled) {
-            let _resolved_operations = self.collaboration.lock().unwrap()
-                .resolve_conflicts()?;
+        if self
+            .config
+            .collaboration_config
+            .as_ref()
+            .map_or(false, |c| c.enabled)
+        {
+            let _resolved_operations = self.collaboration.lock().unwrap().resolve_conflicts()?;
         }
 
         Ok(())
@@ -382,12 +403,14 @@ impl InteractiveDashboard {
 
     /// Export dashboard configuration
     pub fn export_config(&self) -> Result<Value> {
-        Ok(serde_json::to_value(&self.config).map_err(|e| MetricsError::InvalidInput(e.to_string()))?)
+        Ok(serde_json::to_value(&self.config)
+            .map_err(|e| MetricsError::InvalidInput(e.to_string()))?)
     }
 
     /// Import dashboard configuration
     pub fn import_config(&mut self, config_data: Value) -> Result<()> {
-        self.config = serde_json::from_value(config_data).map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
+        self.config = serde_json::from_value(config_data)
+            .map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
         Ok(())
     }
 }

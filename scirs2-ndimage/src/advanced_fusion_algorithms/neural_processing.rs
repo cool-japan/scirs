@@ -30,8 +30,8 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
 
-use crate::error::NdimageResult;
 use super::config::*;
+use crate::error::NdimageResult;
 
 /// Self-Organizing Neural Processing
 ///
@@ -78,8 +78,7 @@ pub fn self_organizing_neural_processing(
     advancedfeatures: &Array5<f64>,
     advancedstate: &mut AdvancedState,
     config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>>
-{
+) -> NdimageResult<Array2<f64>> {
     let shape = advancedfeatures.dim();
     let (height, width) = (shape.0, shape.1);
     let mut neural_output = Array2::zeros((height, width));
@@ -290,26 +289,26 @@ fn apply_activation_function(
         ActivationType::Sigmoid => {
             // Standard logistic sigmoid function
             1.0 / (1.0 + (-input).exp())
-        },
+        }
         ActivationType::Tanh => {
             // Hyperbolic tangent function
             input.tanh()
-        },
+        }
         ActivationType::ReLU => {
             // Rectified Linear Unit
             input.max(0.0)
-        },
+        }
         ActivationType::Swish => {
             // Self-gated activation function
             let sigmoid = 1.0 / (1.0 + (-input).exp());
             input * sigmoid
-        },
+        }
         ActivationType::QuantumSigmoid => {
             // Quantum-inspired sigmoid with interference effects
             let quantum_factor = (input * PI * config.quantum.coherence_factor).cos();
             let classical_sigmoid = 1.0 / (1.0 + (-input).exp());
             classical_sigmoid * (1.0 + 0.1 * quantum_factor)
-        },
+        }
         ActivationType::BiologicalSpike => {
             // Leaky integrate-and-fire neuron model
             let threshold = 1.0;
@@ -319,7 +318,7 @@ fn apply_activation_function(
             } else {
                 input * leak_factor // Leak current
             }
-        },
+        }
         ActivationType::ConsciousnessGate => {
             // Consciousness-inspired gating function with attention mechanisms
             let attention_factor = (input.abs() / config.consciousness_depth as f64).tanh();
@@ -331,7 +330,7 @@ fn apply_activation_function(
                 // Subconscious processing: reduced activation
                 input * 0.1
             }
-        },
+        }
         ActivationType::AdvancedActivation => {
             // Advanced-advanced activation combining multiple paradigms
             let sigmoid_component = 1.0 / (1.0 + (-input).exp());
@@ -340,7 +339,7 @@ fn apply_activation_function(
             let temporal_component = (input * config.temporal_window as f64).cos() * 0.05;
 
             sigmoid_component + quantum_component + meta_component + temporal_component
-        },
+        }
     };
 
     // Ensure output is finite and within reasonable bounds for numerical stability
@@ -576,16 +575,14 @@ mod tests {
         // Create minimal network topology for testing
         let topology = NetworkTopology {
             connections: HashMap::new(),
-            nodes: vec![
-                NetworkNode {
-                    id: 0,
-                    quantumstate: Array1::zeros(4),
-                    classicalstate: Array1::zeros(4),
-                    learning_params: Array1::zeros(4),
-                    activation_type: ActivationType::Sigmoid,
-                    self_org_strength: 0.5,
-                }
-            ],
+            nodes: vec![NetworkNode {
+                id: 0,
+                quantumstate: Array1::zeros(4),
+                classicalstate: Array1::zeros(4),
+                learning_params: Array1::zeros(4),
+                activation_type: ActivationType::Sigmoid,
+                self_org_strength: 0.5,
+            }],
             global_properties: NetworkProperties {
                 coherence: 0.5,
                 self_organization_index: 0.3,

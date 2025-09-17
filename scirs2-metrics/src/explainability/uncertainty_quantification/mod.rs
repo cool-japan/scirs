@@ -13,45 +13,38 @@ use num_traits::Float;
 use std::collections::HashMap;
 
 // Module declarations
+pub mod advanced;
+pub mod bayesian;
+pub mod calibration;
+pub mod conformal;
 pub mod core;
 pub mod rng;
-pub mod bayesian;
-pub mod conformal;
-pub mod calibration;
-pub mod advanced;
 
 // Re-export core types
 pub use core::{
-    UncertaintyQuantifier, RandomNumberGenerator, UncertaintyAnalysis,
-    EpistemicUncertainty, AleatoricUncertainty, PredictionIntervals,
-    CalibrationMetrics, BrierDecomposition, ConfidenceScores, OODScores,
+    AleatoricUncertainty, BrierDecomposition, CalibrationMetrics, ConfidenceScores,
+    EpistemicUncertainty, OODScores, PredictionIntervals, RandomNumberGenerator,
+    UncertaintyAnalysis, UncertaintyQuantifier,
 };
 
 // Re-export RNG types
-pub use rng::{
-    RandomNumberGeneratorTrait, LcgRng, XorshiftRng, PcgRng, ChaChaRng,
-};
+pub use rng::{ChaChaRng, LcgRng, PcgRng, RandomNumberGeneratorTrait, XorshiftRng};
 
 // Re-export Bayesian methods
 pub use bayesian::{
-    BayesianUncertainty, PriorParameters, MCMCDiagnostics,
-    VariationalParams, VariationalUncertainty,
+    BayesianUncertainty, MCMCDiagnostics, PriorParameters, VariationalParams,
+    VariationalUncertainty,
 };
 
 // Re-export conformal prediction
-pub use conformal::{
-    ConformalPrediction, PredictionSet,
-};
+pub use conformal::{ConformalPrediction, PredictionSet};
 
 // Re-export calibration methods
-pub use calibration::{
-    TemperatureScaling, DeepEnsembleUncertainty,
-};
+pub use calibration::{DeepEnsembleUncertainty, TemperatureScaling};
 
 // Re-export advanced methods
 pub use advanced::{
-    AdvancedUncertaintyAnalysis, MultiscaleUncertainty,
-    UncertaintyDecomposition, CoverageAnalysis,
+    AdvancedUncertaintyAnalysis, CoverageAnalysis, MultiscaleUncertainty, UncertaintyDecomposition,
 };
 
 /// Comprehensive uncertainty quantification suite
@@ -135,11 +128,9 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         model_outputs: Option<&[ArrayView2<F>]>,
     ) -> Result<ComprehensiveUncertaintyResults<F>> {
         // Core uncertainty analysis
-        let core_analysis = self.quantifier.analyze_uncertainty(
-            predictions,
-            ground_truth,
-            model_outputs,
-        )?;
+        let core_analysis =
+            self.quantifier
+                .analyze_uncertainty(predictions, ground_truth, model_outputs)?;
 
         // Bayesian analysis
         let bayesian_results = if let Some(_bayesian) = &self.bayesian {
@@ -273,9 +264,21 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let core = &results.core_analysis;
 
         UncertaintySummaryStats {
-            mean_epistemic_uncertainty: core.epistemic_uncertainty.model_variance.mean().unwrap_or(F::zero()),
-            mean_aleatoric_uncertainty: core.aleatoric_uncertainty.data_variance.mean().unwrap_or(F::zero()),
-            mean_confidence: core.confidence_scores.max_probability.mean().unwrap_or(F::zero()),
+            mean_epistemic_uncertainty: core
+                .epistemic_uncertainty
+                .model_variance
+                .mean()
+                .unwrap_or(F::zero()),
+            mean_aleatoric_uncertainty: core
+                .aleatoric_uncertainty
+                .data_variance
+                .mean()
+                .unwrap_or(F::zero()),
+            mean_confidence: core
+                .confidence_scores
+                .max_probability
+                .mean()
+                .unwrap_or(F::zero()),
             calibration_error: core.calibration_metrics.expected_calibration_error,
             coverage: F::from(0.95).unwrap(), // Would compute actual coverage
         }

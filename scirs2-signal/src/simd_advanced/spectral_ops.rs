@@ -19,9 +19,9 @@
 //! - **AArch64**: NEON instruction sets (where applicable)
 //! - **Scalar fallback**: Available for all platforms
 
-use crate::error::{SignalError, SignalResult};
-use super::types::{SimdConfig, BatchSpectralResult, BatchSpectralStats, SingleSpectralResult};
 use super::basic_ops::simd_apply_window;
+use super::types::{BatchSpectralResult, BatchSpectralStats, SimdConfig, SingleSpectralResult};
+use crate::error::{SignalError, SignalResult};
 use ndarray::{Array2, ArrayView1, ArrayViewMut1};
 use num_complex::Complex64;
 use rustfft::FftPlanner;
@@ -35,9 +35,10 @@ use std::f64::consts::PI;
 fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
     for (i, &value) in slice.iter().enumerate() {
         if !value.is_finite() {
-            return Err(SignalError::ValueError(
-                format!("{} must contain only finite values, got {} at index {}", name, value, i)
-            ));
+            return Err(SignalError::ValueError(format!(
+                "{} must contain only finite values, got {} at index {}",
+                name, value, i
+            )));
         }
     }
     Ok(())
@@ -644,16 +645,12 @@ unsafe fn avx2_complex_multiply(
         let bi_vec = _mm256_loadu_pd(b_imag.as_ptr().add(idx));
 
         // result_real = a_real * b_real - a_imag * b_imag
-        let result_real_vec = _mm256_sub_pd(
-            _mm256_mul_pd(ar_vec, br_vec),
-            _mm256_mul_pd(ai_vec, bi_vec),
-        );
+        let result_real_vec =
+            _mm256_sub_pd(_mm256_mul_pd(ar_vec, br_vec), _mm256_mul_pd(ai_vec, bi_vec));
 
         // result_imag = a_real * b_imag + a_imag * b_real
-        let result_imag_vec = _mm256_add_pd(
-            _mm256_mul_pd(ar_vec, bi_vec),
-            _mm256_mul_pd(ai_vec, br_vec),
-        );
+        let result_imag_vec =
+            _mm256_add_pd(_mm256_mul_pd(ar_vec, bi_vec), _mm256_mul_pd(ai_vec, br_vec));
 
         _mm256_storeu_pd(result_real.as_mut_ptr().add(idx), result_real_vec);
         _mm256_storeu_pd(result_imag.as_mut_ptr().add(idx), result_imag_vec);

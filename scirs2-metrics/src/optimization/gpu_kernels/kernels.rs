@@ -327,14 +327,16 @@ pub mod vulkan_kernels {
     pub const MSE_SPIRV: &[u8] = &[
         // SPIR-V bytecode for MSE kernel would go here
         // This is a placeholder for the actual compiled SPIR-V
-        0x03, 0x02, 0x23, 0x07, // SPIR-V magic number
-        // ... actual SPIR-V bytecode would follow
+        0x03, 0x02, 0x23,
+        0x07, // SPIR-V magic number
+             // ... actual SPIR-V bytecode would follow
     ];
 
     pub const MAE_SPIRV: &[u8] = &[
         // SPIR-V bytecode for MAE kernel would go here
-        0x03, 0x02, 0x23, 0x07, // SPIR-V magic number
-        // ... actual SPIR-V bytecode would follow
+        0x03, 0x02, 0x23,
+        0x07, // SPIR-V magic number
+             // ... actual SPIR-V bytecode would follow
     ];
 
     pub const MSE_GLSL_SOURCE: &str = r#"

@@ -10,9 +10,9 @@
 //!
 //! where ε(t) are independent white noise terms with variance σ².
 
-use crate::error::{SignalError, SignalResult};
 use super::types::{MAMethod, MAResult};
-use ndarray::{Array1, Array2, s};
+use crate::error::{SignalError, SignalResult};
+use ndarray::{s, Array1, Array2};
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -41,11 +41,7 @@ use std::f64::consts::PI;
 /// assert_eq!(result.ma_coeffs.len(), 3); // order + 1 coefficients
 /// ```
 #[allow(dead_code)]
-pub fn estimate_ma(
-    signal: &Array1<f64>,
-    order: usize,
-    method: MAMethod,
-) -> SignalResult<MAResult> {
+pub fn estimate_ma(signal: &Array1<f64>, order: usize, method: MAMethod) -> SignalResult<MAResult> {
     validate_ma_parameters(signal, order)?;
 
     match method {

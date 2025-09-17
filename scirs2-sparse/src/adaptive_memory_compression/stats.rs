@@ -249,7 +249,8 @@ impl CompressionStats {
 
     /// Get space savings in bytes
     pub fn space_savings(&self) -> usize {
-        self.total_uncompressed_size.saturating_sub(self.total_compressed_size)
+        self.total_uncompressed_size
+            .saturating_sub(self.total_compressed_size)
     }
 
     /// Get space savings ratio
@@ -290,11 +291,7 @@ impl CompressionStats {
 
 impl CompressionMetadata {
     /// Create new compression metadata
-    pub fn new(
-        original_size: usize,
-        compressed_size: usize,
-        compression_time: f64,
-    ) -> Self {
+    pub fn new(original_size: usize, compressed_size: usize, compression_time: f64) -> Self {
         let compression_ratio = if original_size > 0 {
             compressed_size as f64 / original_size as f64
         } else {
@@ -382,7 +379,8 @@ impl MemoryStats {
 
     /// Get available memory
     pub fn available_memory(&self) -> usize {
-        self.total_memory_budget.saturating_sub(self.current_memory_usage)
+        self.total_memory_budget
+            .saturating_sub(self.current_memory_usage)
     }
 
     /// Get memory efficiency score
@@ -422,7 +420,8 @@ impl SparsityPatternAnalysis {
         }
 
         if !nnz_per_row.is_empty() {
-            self.avg_nnz_per_row = nnz_per_row.iter().sum::<usize>() as f64 / nnz_per_row.len() as f64;
+            self.avg_nnz_per_row =
+                nnz_per_row.iter().sum::<usize>() as f64 / nnz_per_row.len() as f64;
             self.max_nnz_per_row = *nnz_per_row.iter().max().unwrap();
             self.min_nnz_per_row = *nnz_per_row.iter().min().unwrap();
         }
@@ -506,7 +505,12 @@ impl SparsityPatternAnalysis {
     }
 
     /// Calculate diagonal dominance
-    fn calculate_diagonal_dominance(&self, rows: usize, indptr: &[usize], indices: &[usize]) -> f64 {
+    fn calculate_diagonal_dominance(
+        &self,
+        rows: usize,
+        indptr: &[usize],
+        indices: &[usize],
+    ) -> f64 {
         let mut diagonal_elements = 0;
 
         for i in 0..rows.min(indptr.len().saturating_sub(1)) {
@@ -545,15 +549,13 @@ impl AccessPatternInfo {
     }
 
     /// Update with new access information
-    pub fn update(&mut self,
-                  temporal_locality: f64,
-                  spatial_locality: f64,
-                  is_sequential: bool) {
+    pub fn update(&mut self, temporal_locality: f64, spatial_locality: f64, is_sequential: bool) {
         self.total_accesses += 1;
 
         // Update running averages
         let n = self.total_accesses as f64;
-        self.avg_temporal_locality = ((n - 1.0) * self.avg_temporal_locality + temporal_locality) / n;
+        self.avg_temporal_locality =
+            ((n - 1.0) * self.avg_temporal_locality + temporal_locality) / n;
         self.avg_spatial_locality = ((n - 1.0) * self.avg_spatial_locality + spatial_locality) / n;
 
         if is_sequential {

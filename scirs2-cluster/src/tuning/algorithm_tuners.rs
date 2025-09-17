@@ -289,7 +289,7 @@ where
         Ok(TuningResult {
             best_parameters,
             best_score,
-            evaluation_history,
+            evaluation_history: evaluation_history.clone(),
             convergence_info: ConvergenceInfo {
                 converged: false,
                 convergence_iteration: None,
@@ -368,7 +368,7 @@ where
         Ok(TuningResult {
             best_parameters,
             best_score,
-            evaluation_history,
+            evaluation_history: evaluation_history.clone(),
             convergence_info: ConvergenceInfo {
                 converged: false,
                 convergence_iteration: None,
@@ -440,7 +440,7 @@ where
         Ok(TuningResult {
             best_parameters,
             best_score,
-            evaluation_history,
+            evaluation_history: evaluation_history.clone(),
             convergence_info: ConvergenceInfo {
                 converged: false,
                 convergence_iteration: None,
@@ -506,7 +506,7 @@ where
         Ok(TuningResult {
             best_parameters,
             best_score,
-            evaluation_history,
+            evaluation_history: evaluation_history.clone(),
             convergence_info: ConvergenceInfo {
                 converged: false,
                 convergence_iteration: None,
@@ -577,7 +577,7 @@ where
         Ok(TuningResult {
             best_parameters,
             best_score,
-            evaluation_history,
+            evaluation_history: evaluation_history.clone(),
             convergence_info: ConvergenceInfo {
                 converged: false,
                 convergence_iteration: None,

@@ -11,7 +11,7 @@ use ndarray::{Array1, Array2, Axis};
 use num_traits::Float;
 use std::iter::Sum;
 
-use super::results::{LinearProbingResult, RepresentationRankResult, ClusteringResult};
+use super::results::{ClusteringResult, LinearProbingResult, RepresentationRankResult};
 
 /// Self-supervised learning metrics
 pub struct SelfSupervisedMetrics<F: Float> {

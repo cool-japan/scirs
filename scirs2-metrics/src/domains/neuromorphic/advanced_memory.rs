@@ -614,7 +614,9 @@ pub struct MemoryConsolidationProtocol<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> AdvancedMemoryArchitecture<F> {
+impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum>
+    AdvancedMemoryArchitecture<F>
+{
     /// Create new advanced memory architecture
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -688,8 +690,9 @@ impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> AdvancedM
             binding_strength: F::from(0.8).unwrap(),
         };
 
-        if self.working_memory.episodic_buffer.episodes.len() >=
-           self.working_memory.episodic_buffer.capacity {
+        if self.working_memory.episodic_buffer.episodes.len()
+            >= self.working_memory.episodic_buffer.capacity
+        {
             self.working_memory.episodic_buffer.episodes.remove(0);
         }
         self.working_memory.episodic_buffer.episodes.push(episode);
@@ -698,7 +701,11 @@ impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> AdvancedM
     }
 
     /// Recall memory from any system
-    pub fn recall_memory(&mut self, query: &[F], memory_type: MemoryType) -> Result<Option<Vec<F>>> {
+    pub fn recall_memory(
+        &mut self,
+        query: &[F],
+        memory_type: MemoryType,
+    ) -> Result<Option<Vec<F>>> {
         match memory_type {
             MemoryType::Sensory => {
                 let current_state = self.hierarchical_memory.sensory_memory.get_current_state();
@@ -712,12 +719,8 @@ impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> AdvancedM
                 // Find best matching chunk
                 self.recall_from_short_term(query)
             }
-            MemoryType::LongTerm => {
-                self.recall_from_long_term(query)
-            }
-            MemoryType::Working => {
-                self.recall_from_working_memory(query)
-            }
+            MemoryType::LongTerm => self.recall_from_long_term(query),
+            MemoryType::Working => self.recall_from_working_memory(query),
         }
     }
 

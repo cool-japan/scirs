@@ -57,29 +57,29 @@
 //! compressor.optimize_for_random_access();
 //! ```
 
-pub mod config;
-pub mod cache;
 pub mod access_tracking;
-pub mod stats;
+pub mod cache;
 pub mod compressed_data;
 pub mod compression;
-pub mod out_of_core;
-pub mod memory_mapping;
 pub mod compressor;
+pub mod config;
+pub mod memory_mapping;
+pub mod out_of_core;
+pub mod stats;
 
 // Re-export main types for convenience
-pub use config::{AdaptiveCompressionConfig, CompressionAlgorithm};
-pub use compressor::AdaptiveMemoryCompressor;
-pub use compressed_data::{CompressedMatrix, CompressedBlock, BlockType};
-pub use stats::{CompressionStats, MemoryStats, CompressionMetadata};
 pub use cache::BlockId;
+pub use compressed_data::{BlockType, CompressedBlock, CompressedMatrix};
+pub use compressor::AdaptiveMemoryCompressor;
+pub use config::{AdaptiveCompressionConfig, CompressionAlgorithm};
+pub use stats::{CompressionMetadata, CompressionStats, MemoryStats};
 
 // Re-export key internal types that might be useful
 pub use access_tracking::AccessType;
-pub use stats::AccessPatternType;
 pub use compression::{CompressionEngine, CompressionResult};
-pub use out_of_core::OutOfCoreManager;
 pub use memory_mapping::MemoryMappedFile;
+pub use out_of_core::OutOfCoreManager;
+pub use stats::AccessPatternType;
 
 #[cfg(test)]
 mod tests {
@@ -89,7 +89,10 @@ mod tests {
     fn test_config_creation() {
         let config = AdaptiveCompressionConfig::new();
         assert_eq!(config.memory_budget, 8 * 1024 * 1024 * 1024);
-        assert!(matches!(config.compression_algorithm, CompressionAlgorithm::Adaptive));
+        assert!(matches!(
+            config.compression_algorithm,
+            CompressionAlgorithm::Adaptive
+        ));
     }
 
     #[test]
@@ -100,7 +103,10 @@ mod tests {
             .with_out_of_core(false);
 
         assert_eq!(config.memory_budget, 4 * 1024 * 1024 * 1024);
-        assert!(matches!(config.compression_algorithm, CompressionAlgorithm::LZ77));
+        assert!(matches!(
+            config.compression_algorithm,
+            CompressionAlgorithm::LZ77
+        ));
         assert!(!config.out_of_core);
     }
 
@@ -133,7 +139,10 @@ mod tests {
 
         let mem_efficient = AdaptiveCompressionConfig::memory_efficient();
         assert_eq!(mem_efficient.memory_budget, 1024 * 1024 * 1024);
-        assert!(matches!(mem_efficient.compression_algorithm, CompressionAlgorithm::LZ77));
+        assert!(matches!(
+            mem_efficient.compression_algorithm,
+            CompressionAlgorithm::LZ77
+        ));
     }
 
     #[test]
@@ -145,7 +154,10 @@ mod tests {
         assert_eq!(CompressionAlgorithm::None.expected_compression_ratio(), 1.0);
         assert!(CompressionAlgorithm::Adaptive.expected_compression_ratio() < 0.5);
 
-        assert!(CompressionAlgorithm::None.compression_speed() > CompressionAlgorithm::Adaptive.compression_speed());
+        assert!(
+            CompressionAlgorithm::None.compression_speed()
+                > CompressionAlgorithm::Adaptive.compression_speed()
+        );
     }
 
     #[test]
@@ -188,22 +200,12 @@ mod tests {
 
     #[test]
     fn test_compressed_matrix_operations() {
-        let mut matrix = CompressedMatrix::<f64>::new(
-            1,
-            1000,
-            1000,
-            CompressionAlgorithm::RLE,
-            1024,
-        );
+        let mut matrix =
+            CompressedMatrix::<f64>::new(1, 1000, 1000, CompressionAlgorithm::RLE, 1024);
 
         let block_id = BlockId::new(1, 0, 0);
-        let block = CompressedBlock::new(
-            block_id.clone(),
-            BlockType::Data,
-            vec![1, 2, 3, 4],
-            100,
-            1,
-        );
+        let block =
+            CompressedBlock::new(block_id.clone(), BlockType::Data, vec![1, 2, 3, 4], 100, 1);
 
         matrix.add_block(block);
         assert_eq!(matrix.block_count(), 1);
@@ -219,7 +221,9 @@ mod tests {
         assert_eq!(BlockType::Data.as_str(), "data");
         assert_eq!(BlockType::from_str("indices").unwrap(), BlockType::Indices);
 
-        assert!(BlockType::Data.compression_priority() > BlockType::Metadata.compression_priority());
+        assert!(
+            BlockType::Data.compression_priority() > BlockType::Metadata.compression_priority()
+        );
         assert!(BlockType::Data.benefits_from_compression());
         assert!(!BlockType::IndPtr.benefits_from_compression());
     }

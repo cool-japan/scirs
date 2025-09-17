@@ -2,7 +2,7 @@
 #![allow(unreachable_code)]
 #![allow(unused_mut)]
 #![allow(missing_docs)]
-#![allow(clippy::for_loops_over_fallibles)]
+#![allow(for_loops_over_fallibles)]
 #![allow(unused_parens)]
 #![allow(unexpected_cfgs)]
 #![allow(unused_attributes)]

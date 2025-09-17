@@ -126,9 +126,9 @@ pub fn rl_clustering<F: Float + FromPrimitive + Debug>(
     let mut clusterer = RLClustering::new(config);
 
     let labels = clusterer.fit(data)?;
-    let centers = clusterer
-        .cluster_centers()
-        .ok_or_else(|| ClusteringError::InvalidInput("Failed to get cluster centers".to_string()))?;
+    let centers = clusterer.cluster_centers().ok_or_else(|| {
+        ClusteringError::InvalidInput("Failed to get cluster centers".to_string())
+    })?;
 
     Ok((centers, labels))
 }

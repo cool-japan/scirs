@@ -1331,22 +1331,22 @@ impl AdvancedEcosystemCoordinator {
             if capabilities.contains(&"distributed_computing".to_string()) {
                 4.0
             } else if capabilities.contains(&"cloud_storage".to_string()) {
-                return 3.0;
+                3.0
             } else {
-                return 0.5;
+                0.5
             }
         } else if data_size_mb > 10.0 {
             // Medium data - prefer GPU or optimized modules
             if capabilities.contains(&"gpu_acceleration".to_string()) {
-                return 3.0;
+                3.0
             } else if capabilities.contains(&"simd_optimization".to_string()) {
-                return 2.0;
+                2.0
             } else {
-                return 1.0;
+                1.0
             }
         } else {
             // Small data - any module is suitable
-            return 2.0;
+            2.0
         }
     }
 

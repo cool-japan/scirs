@@ -307,7 +307,8 @@ impl<F: Float> RealtimeAdaptationEngine<F> {
         }
 
         // Check for forgetting and apply prevention
-        self.forgetting_prevention.assess_and_prevent(input, target)?;
+        self.forgetting_prevention
+            .assess_and_prevent(input, target)?;
 
         // Consider architectural changes if needed
         if self.should_modify_architecture()? {
@@ -361,13 +362,16 @@ impl<F: Float> OnlineLearningAlgorithm<F> {
 
     /// SGD update
     fn sgd_update(&mut self, input: &[F], target: &[F]) -> Result<()> {
-        let learning_rate = self.parameters.get("learning_rate").copied()
+        let learning_rate = self
+            .parameters
+            .get("learning_rate")
+            .copied()
             .unwrap_or_else(|| F::from(0.01).unwrap());
 
         // Simplified SGD update
         for i in 0..self.state.parameters.len().min(input.len()) {
-            let gradient = input[i] * (target.get(0).copied().unwrap_or(F::zero()) -
-                                      self.state.parameters[i]);
+            let gradient =
+                input[i] * (target.get(0).copied().unwrap_or(F::zero()) - self.state.parameters[i]);
             self.state.parameters[i] = self.state.parameters[i] + learning_rate * gradient;
         }
         Ok(())
@@ -375,7 +379,10 @@ impl<F: Float> OnlineLearningAlgorithm<F> {
 
     /// Perceptron update
     fn perceptron_update(&mut self, input: &[F], target: &[F]) -> Result<()> {
-        let learning_rate = self.parameters.get("learning_rate").copied()
+        let learning_rate = self
+            .parameters
+            .get("learning_rate")
+            .copied()
             .unwrap_or_else(|| F::from(0.01).unwrap());
 
         // Simplified perceptron update
@@ -384,8 +391,8 @@ impl<F: Float> OnlineLearningAlgorithm<F> {
 
         if error.abs() > F::from(0.001).unwrap() {
             for i in 0..self.state.parameters.len().min(input.len()) {
-                self.state.parameters[i] = self.state.parameters[i] +
-                    learning_rate * error * input[i];
+                self.state.parameters[i] =
+                    self.state.parameters[i] + learning_rate * error * input[i];
             }
         }
         Ok(())
@@ -511,7 +518,8 @@ impl<F: Float> RealtimePerformanceMonitor<F> {
     /// Update metrics
     pub fn update_metrics(&mut self, _input: &[F], _target: &[F]) -> Result<()> {
         // Placeholder implementation
-        self.metrics.insert("accuracy".to_string(), F::from(0.9).unwrap());
+        self.metrics
+            .insert("accuracy".to_string(), F::from(0.9).unwrap());
         Ok(())
     }
 }

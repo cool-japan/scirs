@@ -1228,7 +1228,6 @@ impl StabilityGuaranteeManager {
     }
 
     /// Export audit trail for external verification
-
     pub fn export_audit_trail(&self) -> CoreResult<String> {
         self.audit_trail.export_trail()
     }

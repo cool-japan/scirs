@@ -174,29 +174,34 @@ impl ClusteringWorkflow {
 
         let start_time = std::time::Instant::now();
 
-        for (i, step) in self.steps.iter_mut().enumerate() {
+        let steps_len = self.steps.len();
+        for i in 0..steps_len {
             self.current_step = i;
 
-            // Check dependencies
-            if !self.check_dependencies(&step.dependencies)? {
+            // Check dependencies (clone to avoid borrow issues)
+            let dependencies = self.steps[i].dependencies.clone();
+            if !self.check_dependencies(&dependencies)? {
                 return Err(ClusteringError::InvalidInput(format!(
                     "Dependencies not satisfied for step: {}",
-                    step.name
+                    self.steps[i].name
                 )));
             }
 
             // Execute step
             let step_start = std::time::Instant::now();
-            let result = self.execute_step(step)?;
+            let step_clone = self.steps[i].clone();
+            let result = self.execute_step(&step_clone)?;
             let step_duration = step_start.elapsed().as_secs_f64();
 
-            step.completed = true;
-            step.execution_time = Some(step_duration);
-            step.results = Some(result.clone());
+            // Update step results
+            self.steps[i].completed = true;
+            self.steps[i].execution_time = Some(step_duration);
+            self.steps[i].results = Some(result.clone());
 
             // Record execution
+            let step_name = self.steps[i].name.clone();
             self.record_execution(
-                &step.name,
+                &step_name,
                 "execute",
                 ExecutionResult::Success {
                     duration: step_duration,
@@ -205,7 +210,7 @@ impl ClusteringWorkflow {
             );
 
             // Update progress
-            let progress = ((i + 1) as f32 / self.steps.len() as f32) * 100.0;
+            let progress = ((i + 1) as f32 / steps_len as f32) * 100.0;
             self.update_progress(progress);
 
             // Auto-save if configured
@@ -386,20 +391,22 @@ impl ClusteringWorkflow {
     fn execute_remaining_steps(&mut self) -> Result<()> {
         let start_index = self.current_step;
 
-        for i in start_index..self.steps.len() {
-            let step = &mut self.steps[i];
-            if !step.completed {
+        let steps_len = self.steps.len();
+        for i in start_index..steps_len {
+            if !self.steps[i].completed {
                 self.current_step = i;
                 let step_start = std::time::Instant::now();
-                let result = self.execute_step(step)?;
+                let step_clone = self.steps[i].clone();
+                let result = self.execute_step(&step_clone)?;
                 let step_duration = step_start.elapsed().as_secs_f64();
 
-                step.completed = true;
-                step.execution_time = Some(step_duration);
-                step.results = Some(result.clone());
+                self.steps[i].completed = true;
+                self.steps[i].execution_time = Some(step_duration);
+                self.steps[i].results = Some(result.clone());
 
+                let step_name = self.steps[i].name.clone();
                 self.record_execution(
-                    &step.name,
+                    &step_name,
                     "resume_execute",
                     ExecutionResult::Success {
                         duration: step_duration,

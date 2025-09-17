@@ -4,7 +4,7 @@
 //! when they exceed available memory capacity.
 
 use super::cache::BlockId;
-use super::compressed_data::{CompressedBlock, BlockType, BlockHeader, BlockHeaderSerialized};
+use super::compressed_data::{BlockHeader, BlockHeaderSerialized, BlockType, CompressedBlock};
 use crate::error::{SparseError, SparseResult};
 use std::collections::HashMap;
 use std::fs::File;
@@ -391,7 +391,10 @@ mod tests {
         assert_eq!(read_block.block_type, original_block.block_type);
         assert_eq!(read_block.compressed_data, original_block.compressed_data);
         assert_eq!(read_block.original_size, original_block.original_size);
-        assert_eq!(read_block.compression_level, original_block.compression_level);
+        assert_eq!(
+            read_block.compression_level,
+            original_block.compression_level
+        );
     }
 
     #[test]

@@ -76,7 +76,8 @@ impl<F: Float + std::iter::Sum> SpikePatternRecognizer<F> {
 
     /// Add pattern template
     pub fn add_pattern(&mut self, pattern: SpikePattern<F>) {
-        self.thresholds.insert(pattern.name.clone(), F::from(0.8).unwrap());
+        self.thresholds
+            .insert(pattern.name.clone(), F::from(0.8).unwrap());
         self.pattern_templates.push(pattern);
     }
 
@@ -108,7 +109,11 @@ impl<F: Float + std::iter::Sum> SpikePatternRecognizer<F> {
         pattern: &SpikePattern<F>,
         spike_data: &HashMap<usize, Vec<Instant>>,
     ) -> crate::error::Result<Option<PatternRecognition<F>>> {
-        let threshold = self.thresholds.get(&pattern.name).copied().unwrap_or(F::from(0.8).unwrap());
+        let threshold = self
+            .thresholds
+            .get(&pattern.name)
+            .copied()
+            .unwrap_or(F::from(0.8).unwrap());
 
         for algorithm in &self.matching_algorithms {
             let confidence = match algorithm {
@@ -190,7 +195,10 @@ impl<F: Float + std::iter::Sum> SpikePatternRecognizer<F> {
         let recent_recognitions = self.recognition_history.iter().rev().take(10).count();
 
         let avg_confidence = if !self.recognition_history.is_empty() {
-            self.recognition_history.iter().map(|r| r.confidence).sum::<F>()
+            self.recognition_history
+                .iter()
+                .map(|r| r.confidence)
+                .sum::<F>()
                 / F::from(self.recognition_history.len()).unwrap()
         } else {
             F::zero()

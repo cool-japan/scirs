@@ -204,7 +204,10 @@ impl<F: Float + std::fmt::Debug> AdaptiveLearningController<F> {
     }
 
     /// Apply evolutionary adaptation
-    fn apply_evolutionary_adaptation(&mut self, _population_size: usize) -> crate::error::Result<()> {
+    fn apply_evolutionary_adaptation(
+        &mut self,
+        _population_size: usize,
+    ) -> crate::error::Result<()> {
         // Simplified evolutionary adaptation
         // In practice, this would involve population-based optimization
         for objective in &mut self.objectives {
@@ -246,7 +249,11 @@ impl<F: Float + std::fmt::Debug> AdaptiveLearningController<F> {
     pub fn get_adaptation_stats(&self) -> AdaptationStats<F> {
         let total_adaptations = self.adaptation_state.adaptation_history.len();
         let recent_performance = if !self.adaptation_state.adaptation_history.is_empty() {
-            self.adaptation_state.adaptation_history.back().unwrap().performance_after
+            self.adaptation_state
+                .adaptation_history
+                .back()
+                .unwrap()
+                .performance_after
         } else {
             F::zero()
         };
@@ -297,7 +304,8 @@ impl<F: Float> AdaptationState<F> {
     /// Update strategy effectiveness
     pub fn update_strategy_effectiveness(&mut self, strategy_idx: usize, effectiveness: F) {
         if strategy_idx >= self.strategy_effectiveness.len() {
-            self.strategy_effectiveness.resize(strategy_idx + 1, F::zero());
+            self.strategy_effectiveness
+                .resize(strategy_idx + 1, F::zero());
         }
         self.strategy_effectiveness[strategy_idx] = effectiveness;
     }

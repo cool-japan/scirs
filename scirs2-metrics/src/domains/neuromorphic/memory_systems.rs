@@ -212,7 +212,8 @@ impl<F: Float> NeuromorphicMemory<F> {
         self.long_term_memory.update(dt)?;
 
         // Process consolidation
-        self.consolidation_controller.update(&mut self.short_term_memory, &mut self.long_term_memory)?;
+        self.consolidation_controller
+            .update(&mut self.short_term_memory, &mut self.long_term_memory)?;
 
         Ok(())
     }
@@ -257,7 +258,8 @@ impl<F: Float> ShortTermMemory<F> {
         }
 
         // Remove weak traces
-        self.working_memory.retain(|trace| trace.strength > F::from(0.01).unwrap());
+        self.working_memory
+            .retain(|trace| trace.strength > F::from(0.01).unwrap());
 
         // Update refresh controller
         self.refresh_controller.update(dt)?;
@@ -300,7 +302,8 @@ impl<F: Float> LongTermMemory<F> {
         }
 
         // Remove very weak traces
-        self.memory_traces.retain(|_, trace| trace.strength > F::from(0.001).unwrap());
+        self.memory_traces
+            .retain(|_, trace| trace.strength > F::from(0.001).unwrap());
 
         Ok(())
     }

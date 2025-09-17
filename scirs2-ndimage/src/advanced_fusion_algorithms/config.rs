@@ -754,7 +754,10 @@ pub enum QuantumOperation {
     /// Measurement
     Measurement { measurement_type: String },
     /// Custom operation
-    Custom { operation: String, parameters: HashMap<String, f64> },
+    Custom {
+        operation: String,
+        parameters: HashMap<String, f64>,
+    },
 }
 
 /// Workload Characteristics
@@ -813,17 +816,16 @@ pub struct ResourceSchedulingDecision {
     pub estimated_performance_improvement: f64,
 }
 
-// Placeholder types for now - can be expanded later
-/// Quantum Scheduling Algorithm
-#[derive(Debug, Clone)]
-pub struct QuantumSchedulingAlgorithm {
-    pub name: String,
-    pub parameters: HashMap<String, f64>,
-}
+// Note: QuantumSchedulingAlgorithm is defined as an enum later in this file
 
 /// Quantum Load Balancer
 #[derive(Debug, Clone)]
 pub struct QuantumLoadBalancer {
+    pub strategies: Vec<QuantumLoadBalancingStrategy>,
+    pub load_distribution: Array1<f64>,
+    pub entanglement_connections: HashMap<String, Vec<String>>,
+    pub load_predictor: QuantumLoadPredictor,
+    // Legacy fields for compatibility
     pub strategy: String,
     pub load_metrics: HashMap<String, f64>,
 }
@@ -831,14 +833,22 @@ pub struct QuantumLoadBalancer {
 /// Resource Entanglement Graph
 #[derive(Debug, Clone)]
 pub struct ResourceEntanglementGraph {
-    pub connections: HashMap<String, Vec<String>>,
+    pub adjacency_matrix: Array2<f64>,
+    pub nodes: HashMap<String, usize>,
     pub entanglement_strengths: HashMap<(String, String), f64>,
+    pub decoherence_tracking: HashMap<(String, String), f64>,
+    // Legacy field for compatibility
+    pub connections: HashMap<String, Vec<String>>,
 }
 
 /// Quantum Optimization Engine
 #[derive(Debug, Clone)]
 pub struct QuantumOptimizationEngine {
     pub algorithms: Vec<String>,
+    pub optimizationstate: QuantumOptimizationState,
+    pub optimizationhistory: VecDeque<f64>,
+    pub convergence_criteria: ConvergenceCriteria,
+    // Legacy field for compatibility
     pub optimization_history: VecDeque<f64>,
 }
 
@@ -873,8 +883,277 @@ pub struct QuantumTaskSchedule {
 /// Quantum Performance Metrics
 #[derive(Debug, Clone)]
 pub struct QuantumPerformanceMetrics {
+    /// Quantum speedup factor
+    pub quantum_speedup: f64,
+    /// Quantum advantage ratio
+    pub quantum_advantage_ratio: f64,
+    /// Coherence efficiency
+    pub coherence_efficiency: f64,
+    /// Entanglement utilization
+    pub entanglement_utilization: f64,
+    /// Quantum error rate
+    pub quantum_error_rate: f64,
+    /// Resource efficiency
+    pub resource_efficiency: f64,
+    /// Legacy fields for compatibility
     pub throughput: f64,
     pub latency: f64,
     pub error_rate: f64,
     pub resource_utilization: f64,
+}
+
+/// Annealing Schedule
+#[derive(Debug, Clone)]
+pub struct AnnealingSchedule {
+    pub initial_temperature: f64,
+    pub final_temperature: f64,
+    pub steps: usize,
+    pub cooling_rate: f64,
+}
+
+/// Optimization Target
+#[derive(Debug, Clone)]
+pub enum OptimizationTarget {
+    MinimizeTime,
+    MinimizeEnergy,
+    MaximizeAccuracy,
+}
+
+/// Quantum Load Predictor
+#[derive(Debug, Clone)]
+pub struct QuantumLoadPredictor {
+    pub quantum_nn: QuantumNeuralNetwork,
+    pub prediction_horizon: usize,
+    pub historical_data: VecDeque<f64>,
+    pub accuracy_metrics: PredictionAccuracyMetrics,
+}
+
+/// Quantum Neural Network
+#[derive(Debug, Clone)]
+pub struct QuantumNeuralNetwork {
+    pub layers: Vec<Array2<Complex<f64>>>,
+    pub classical_layers: Vec<Array2<f64>>,
+    pub training_params: QuantumTrainingParameters,
+}
+
+/// Quantum Training Parameters
+#[derive(Debug, Clone)]
+pub struct QuantumTrainingParameters {
+    pub learning_rate: f64,
+    pub batch_size: usize,
+    pub epochs: usize,
+    pub optimizer: QuantumOptimizer,
+}
+
+/// Quantum Optimizer
+#[derive(Debug, Clone)]
+pub enum QuantumOptimizer {
+    QuantumAdam { beta1: f64, beta2: f64 },
+    QuantumSGD { momentum: f64 },
+}
+
+/// Prediction Accuracy Metrics
+#[derive(Debug, Clone)]
+pub struct PredictionAccuracyMetrics {
+    pub mae: f64,
+    pub rmse: f64,
+    pub r_squared: f64,
+    pub quantum_fidelity: f64,
+}
+
+/// Quantum Optimization State
+#[derive(Debug, Clone)]
+pub struct QuantumOptimizationState {
+    pub parameters: Array1<f64>,
+    pub objective_value: f64,
+    pub quantumstate: Array1<Complex<f64>>,
+    pub gradient: Array1<f64>,
+    pub iteration: usize,
+}
+
+/// Convergence Criteria
+#[derive(Debug, Clone)]
+pub struct ConvergenceCriteria {
+    pub max_iterations: usize,
+    pub objective_tolerance: f64,
+    pub parameter_tolerance: f64,
+    pub gradient_tolerance: f64,
+}
+
+/// Real Time Quantum Monitor
+#[derive(Debug, Clone)]
+pub struct RealTimeQuantumMonitor {
+    pub monitoring_frequency: f64,
+    pub currentstates: HashMap<String, f64>,
+    pub alerts: Vec<String>,
+    pub monitoringhistory: VecDeque<HashMap<String, f64>>,
+}
+
+/// Quantum Performance Predictor
+#[derive(Debug, Clone)]
+pub struct QuantumPerformancePredictor {
+    pub prediction_model: QuantumPredictionModel,
+    pub prediction_horizon: usize,
+    pub prediction_accuracy: f64,
+}
+
+/// Quantum Prediction Model
+#[derive(Debug, Clone)]
+pub struct QuantumPredictionModel {
+    pub model_type: String,
+    pub parameters: Array2<f64>,
+    pub training_data: Vec<f64>,
+    pub performancemetrics: PredictionAccuracyMetrics,
+}
+
+/// Quantum Anomaly Detector
+#[derive(Debug, Clone)]
+pub struct QuantumAnomalyDetector {
+    pub detection_algorithms: Vec<QuantumAnomalyAlgorithm>,
+    pub anomaly_threshold: f64,
+    pub baselines: HashMap<String, f64>,
+    pub detected_anomalies: VecDeque<String>,
+}
+
+/// Quantum Anomaly Algorithm
+#[derive(Debug, Clone)]
+pub enum QuantumAnomalyAlgorithm {
+    QuantumIsolationForest {
+        tree_count: usize,
+        sample_size: usize,
+    },
+    QuantumSVM {
+        kernel: String,
+        gamma: f64,
+    },
+}
+
+/// Quantum Load Balancing Strategy
+#[derive(Debug, Clone)]
+pub enum QuantumLoadBalancingStrategy {
+    QuantumSuperposition {
+        superposition_weights: Array1<Complex<f64>>,
+        measurement_basis: String,
+    },
+    QuantumEntanglement {
+        entanglement_pairs: Vec<(String, String)>,
+        coupling_strength: f64,
+    },
+}
+
+/// Quantum Scheduling Algorithm
+#[derive(Debug, Clone)]
+pub enum QuantumSchedulingAlgorithm {
+    QuantumAnnealing {
+        annealing_schedule: AnnealingSchedule,
+        optimization_target: OptimizationTarget,
+    },
+    QAOA {
+        layers: usize,
+        mixing_angles: Vec<f64>,
+        cost_angles: Vec<f64>,
+    },
+}
+
+impl Default for QuantumAwareResourceScheduler {
+    fn default() -> Self {
+        Self {
+            quantum_resource_pool: QuantumResourcePool {
+                quantum_units: Vec::new(),
+                classical_units: Vec::new(),
+                hybrid_units: Vec::new(),
+                allocation_matrix: Array2::eye(4),
+                coherence_times: HashMap::new(),
+            },
+            scheduling_algorithms: vec![
+                QuantumSchedulingAlgorithm::QuantumAnnealing {
+                    annealing_schedule: AnnealingSchedule {
+                        initial_temperature: 1.0,
+                        final_temperature: 0.01,
+                        steps: 1000,
+                        cooling_rate: 0.95,
+                    },
+                    optimization_target: OptimizationTarget::MinimizeTime,
+                },
+                QuantumSchedulingAlgorithm::QAOA {
+                    layers: 3,
+                    mixing_angles: vec![0.5, 0.7, 0.3],
+                    cost_angles: vec![0.2, 0.8, 0.6],
+                },
+            ],
+            quantum_load_balancer: QuantumLoadBalancer {
+                strategies: vec![QuantumLoadBalancingStrategy::QuantumSuperposition {
+                    superposition_weights: Array1::from_elem(4, Complex::new(0.5, 0.0)),
+                    measurement_basis: "computational".to_string(),
+                }],
+                load_distribution: Array1::from_elem(4, 0.25),
+                entanglement_connections: HashMap::new(),
+                load_predictor: QuantumLoadPredictor {
+                    quantum_nn: QuantumNeuralNetwork {
+                        layers: Vec::new(),
+                        classical_layers: Vec::new(),
+                        training_params: QuantumTrainingParameters {
+                            learning_rate: 0.01,
+                            batch_size: 32,
+                            epochs: 100,
+                            optimizer: QuantumOptimizer::QuantumAdam {
+                                beta1: 0.9,
+                                beta2: 0.999,
+                            },
+                        },
+                    },
+                    prediction_horizon: 10,
+                    historical_data: VecDeque::new(),
+                    accuracy_metrics: PredictionAccuracyMetrics {
+                        mae: 0.0,
+                        rmse: 0.0,
+                        r_squared: 0.0,
+                        quantum_fidelity: 1.0,
+                    },
+                },
+                strategy: "quantum_superposition".to_string(),
+                load_metrics: HashMap::new(),
+            },
+            entanglement_graph: ResourceEntanglementGraph {
+                adjacency_matrix: Array2::eye(4),
+                nodes: HashMap::new(),
+                entanglement_strengths: HashMap::new(),
+                decoherence_tracking: HashMap::new(),
+                connections: HashMap::new(),
+            },
+            optimization_engine: QuantumOptimizationEngine {
+                algorithms: Vec::new(),
+                optimizationstate: QuantumOptimizationState {
+                    parameters: Array1::zeros(10),
+                    objective_value: 0.0,
+                    quantumstate: Array1::from_elem(4, Complex::new(0.5, 0.0)),
+                    gradient: Array1::zeros(10),
+                    iteration: 0,
+                },
+                optimizationhistory: VecDeque::new(),
+                convergence_criteria: ConvergenceCriteria {
+                    max_iterations: 1000,
+                    objective_tolerance: 1e-6,
+                    parameter_tolerance: 1e-8,
+                    gradient_tolerance: 1e-6,
+                },
+                optimization_history: VecDeque::new(),
+            },
+            performance_monitor: QuantumPerformanceMonitor {
+                metrics: QuantumPerformanceMetrics {
+                    quantum_speedup: 1.0,
+                    quantum_advantage_ratio: 1.0,
+                    coherence_efficiency: 0.8,
+                    entanglement_utilization: 0.5,
+                    quantum_error_rate: 0.01,
+                    resource_efficiency: 0.7,
+                    throughput: 1000.0,
+                    latency: 0.1,
+                    error_rate: 0.01,
+                    resource_utilization: 0.7,
+                },
+                monitoring_interval: 1.0,
+            },
+        }
+    }
 }

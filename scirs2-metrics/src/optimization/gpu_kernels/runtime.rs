@@ -239,7 +239,10 @@ impl GpuRuntime for CudaRuntime {
     }
 
     fn deallocate(&mut self, buffer: &GpuBuffer) -> Result<()> {
-        self.memory_stats.used_memory = self.memory_stats.used_memory.saturating_sub(buffer.size as u64);
+        self.memory_stats.used_memory = self
+            .memory_stats
+            .used_memory
+            .saturating_sub(buffer.size as u64);
         self.memory_stats.allocation_count = self.memory_stats.allocation_count.saturating_sub(1);
         Ok(())
     }

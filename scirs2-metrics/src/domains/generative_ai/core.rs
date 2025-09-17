@@ -11,11 +11,11 @@ use num_traits::Float;
 use std::collections::HashMap;
 use std::iter::Sum;
 
-use super::gan_evaluation::GANEvaluationMetrics;
 use super::contrastive_learning::ContrastiveLearningMetrics;
-use super::self_supervised::SelfSupervisedMetrics;
 use super::foundation_models::FoundationModelMetrics;
+use super::gan_evaluation::GANEvaluationMetrics;
 use super::multimodal::MultimodalMetrics;
+use super::self_supervised::SelfSupervisedMetrics;
 
 /// Comprehensive generative AI metrics suite
 pub struct GenerativeAISuite<F: Float> {

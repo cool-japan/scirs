@@ -720,11 +720,8 @@ mod tests {
 
     #[test]
     fn test_davies_bouldin_score() {
-        let data = Array2::from_shape_vec(
-            (4, 2),
-            vec![0.0, 0.0, 0.1, 0.1, 5.0, 5.0, 5.1, 5.1],
-        )
-        .unwrap();
+        let data =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.1, 0.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let score = davies_bouldin_score(data.view(), labels.view()).unwrap();
@@ -733,11 +730,8 @@ mod tests {
 
     #[test]
     fn test_calinski_harabasz_score() {
-        let data = Array2::from_shape_vec(
-            (4, 2),
-            vec![0.0, 0.0, 0.1, 0.1, 5.0, 5.0, 5.1, 5.1],
-        )
-        .unwrap();
+        let data =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.1, 0.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let score = calinski_harabasz_score(data.view(), labels.view()).unwrap();

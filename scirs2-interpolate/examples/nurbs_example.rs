@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nExample 3: NURBS circle");
     let center = array![0.0, 0.0];
     let radius = 1.0;
-    let circle = make_nurbs_circle(&center.view(), radius, None, None)?;
+    let circle = make_nurbs_circle([center[0], center[1]], radius, None, None)?;
 
     println!(
         "  Circle point at t=0.0   (0°):   {:?}",
@@ -90,7 +90,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nExample 4: NURBS arc (quarter circle)");
     let start_angle = 0.0;
     let end_angle = std::f64::consts::PI / 2.0; // 90 degrees
-    let arc = make_nurbs_circle(&center.view(), radius, Some(start_angle), Some(end_angle))?;
+    let arc = make_nurbs_circle(
+        [center[0], center[1]],
+        radius,
+        Some(start_angle),
+        Some(end_angle),
+    )?;
 
     println!("  Arc point at t=0.0  (0°):  {:?}", arc.evaluate(0.0)?);
     println!("  Arc point at t=0.5 (45°):  {:?}", arc.evaluate(0.5)?);
@@ -176,7 +181,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nExample 7: NURBS sphere");
     let center = array![0.0, 0.0, 0.0];
     let radius = 1.0;
-    let sphere = make_nurbs_sphere(&center.view(), radius)?;
+    let sphere = make_nurbs_sphere([center[0], center[1], center[2]], radius)?;
 
     // Evaluate at various points on the sphere
     println!(
