@@ -3,7 +3,9 @@
 //! This module provides utility functions for GPU operations including
 //! system capability checking, memory optimization, and configuration.
 
-use super::{GpuConfig, GpuDeviceManager, MemoryStrategy, TensorCoresConfig, GraphOptimizationLevel};
+use super::{
+    GpuConfig, GpuDeviceManager, GraphOptimizationLevel, MemoryStrategy, TensorCoresConfig,
+};
 
 /// Check if GPU acceleration is supported on this system
 pub fn is_gpu_supported() -> bool {

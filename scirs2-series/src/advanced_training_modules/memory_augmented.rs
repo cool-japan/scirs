@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
 use super::few_shot::FewShotEpisode;
+use crate::error::Result;
 
 /// Memory-Augmented Neural Network (MANN)
 #[derive(Debug)]
@@ -265,7 +265,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MANN<F> 
     pub fn set_memory(&mut self, memory: Array2<F>) -> Result<()> {
         if memory.dim() != (self.memory_size, self.memory_width) {
             return Err(crate::error::TimeSeriesError::InvalidOperation(
-                "Memory dimensions do not match".to_string()
+                "Memory dimensions do not match".to_string(),
             ));
         }
         self.memory = memory;
@@ -281,7 +281,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MANN<F> 
     pub fn set_controller_params(&mut self, params: Array2<F>) -> Result<()> {
         if params.dim() != self.controller_params.dim() {
             return Err(crate::error::TimeSeriesError::InvalidOperation(
-                "Controller parameter dimensions do not match".to_string()
+                "Controller parameter dimensions do not match".to_string(),
             ));
         }
         self.controller_params = params;
@@ -295,7 +295,11 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MANN<F> 
 
     /// Get controller dimensions
     pub fn controller_dimensions(&self) -> (usize, usize, usize) {
-        (self.controller_input_dim, self.controller_hidden_dim, self.controller_output_dim)
+        (
+            self.controller_input_dim,
+            self.controller_hidden_dim,
+            self.controller_output_dim,
+        )
     }
 
     /// Process a sequence of inputs
@@ -443,11 +447,11 @@ mod tests {
         let mut mann = MANN::<f64>::new(3, 4, 6, 8, 2);
 
         // Set some values in memory
-        let memory_data = Array2::from_shape_vec((3, 4), vec![
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-        ]).unwrap();
+        let memory_data = Array2::from_shape_vec(
+            (3, 4),
+            vec![1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        )
+        .unwrap();
         mann.set_memory(memory_data).unwrap();
 
         // Compute attention with a key

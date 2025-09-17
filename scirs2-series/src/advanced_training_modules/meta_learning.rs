@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
 use super::config::TaskData;
+use crate::error::Result;
 
 /// Model-Agnostic Meta-Learning (MAML) for few-shot time series forecasting
 #[derive(Debug)]
@@ -211,7 +211,8 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MAML<F> 
             let mut perturbed_params = params.clone();
             perturbed_params[[0, i]] = perturbed_params[[0, i]] + epsilon;
 
-            let perturbed_loss = self.forward(&perturbed_params, &task.support_x, &task.support_y)?;
+            let perturbed_loss =
+                self.forward(&perturbed_params, &task.support_x, &task.support_y)?;
             gradients[[0, i]] = (perturbed_loss - base_loss) / epsilon;
         }
 

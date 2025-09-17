@@ -293,7 +293,7 @@ pub fn format_timestamp(timestamp: u64) -> String {
             let years_since_1970 = timestamp / (365 * 24 * 3600); // Approximate
             let year = 1970 + years_since_1970;
             format!("Timestamp: {} (approx year {})", timestamp, year)
-        },
+        }
         None => "Invalid timestamp".to_string(),
     }
 }

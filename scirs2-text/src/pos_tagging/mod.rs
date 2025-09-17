@@ -268,7 +268,10 @@ impl crate::stemming::Stemmer for PosAwareLemmatizer {
     fn stem(&self, word: &str) -> Result<String> {
         // Try to detect if it's a verb based on simple heuristics
         let lower_word = word.to_lowercase();
-        let pos_tag = if lower_word.ends_with("ing") || lower_word.ends_with("ed") || lower_word.ends_with("es") {
+        let pos_tag = if lower_word.ends_with("ing")
+            || lower_word.ends_with("ed")
+            || lower_word.ends_with("es")
+        {
             PosTag::Verb
         } else {
             PosTag::Noun

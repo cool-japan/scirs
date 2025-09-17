@@ -10,11 +10,11 @@ use statrs::statistics::Statistics;
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
-use crate::error::{InterpolateError, InterpolateResult};
 use super::types::{
-    EdgeCaseAnalysis, DataPointsAnalysis, FunctionValuesAnalysis, BoundaryAnalysis,
-    BoundaryTreatment, ExtrapolationRisk,
+    BoundaryAnalysis, BoundaryTreatment, DataPointsAnalysis, EdgeCaseAnalysis, ExtrapolationRisk,
+    FunctionValuesAnalysis,
 };
+use crate::error::{InterpolateError, InterpolateResult};
 
 /// Comprehensive analysis of interpolation edge cases
 pub fn analyze_interpolation_edge_cases<F>(
@@ -44,7 +44,8 @@ where
     let boundary = analyze_boundary_conditions(points, values)?;
 
     // Generate overall recommendation
-    let overall_recommendation = generate_overall_recommendation(&data_points, &function_values, &boundary);
+    let overall_recommendation =
+        generate_overall_recommendation(&data_points, &function_values, &boundary);
 
     // Determine if problem is solvable
     let is_solvable = assess_solvability(&data_points, &function_values, &boundary);
@@ -113,7 +114,9 @@ where
 }
 
 /// Analyze function values for smoothness and outliers
-pub fn analyze_function_values<F>(values: &ArrayView1<F>) -> InterpolateResult<FunctionValuesAnalysis<F>>
+pub fn analyze_function_values<F>(
+    values: &ArrayView1<F>,
+) -> InterpolateResult<FunctionValuesAnalysis<F>>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
@@ -184,7 +187,7 @@ where
 }
 
 /// Analyze distances between all pairs of points
-fn analyze_point_distances<F>(points: &ArrayView2<F>) -> InterpolateResult<(F, F, usize)>
+pub fn analyze_point_distances<F>(points: &ArrayView2<F>) -> InterpolateResult<(F, F, usize)>
 where
     F: Float + FromPrimitive + AddAssign,
 {
@@ -325,7 +328,8 @@ where
         return false;
     }
 
-    let tolerance = super::types::machine_epsilon::<F>() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
+    let tolerance = super::types::machine_epsilon::<F>()
+        * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
     // Check if all points lie on the same line
     let x1 = points[(0, 0)];
@@ -422,10 +426,12 @@ where
     }
 
     // Calculate smoothness as inverse of mean second difference
-    let mean_second_diff: F = second_diffs.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(second_diffs.len()).unwrap();
+    let mean_second_diff: F = second_diffs.iter().fold(F::zero(), |acc, &x| acc + x)
+        / F::from(second_diffs.len()).unwrap();
 
     // Normalize to [0, 1] range
-    let max_possible_diff = values.iter().fold(F::zero(), |acc, &x| acc.max(x.abs())) * F::from(2.0).unwrap();
+    let max_possible_diff =
+        values.iter().fold(F::zero(), |acc, &x| acc.max(x.abs())) * F::from(2.0).unwrap();
 
     if max_possible_diff > F::zero() {
         F::one() - (mean_second_diff / max_possible_diff).min(F::one())
@@ -471,12 +477,14 @@ where
 
     // Calculate mean and standard deviation
     let mean = values.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(n).unwrap();
-    let variance = values.iter()
+    let variance = values
+        .iter()
         .map(|&x| {
             let diff = x - mean;
             diff * diff
         })
-        .fold(F::zero(), |acc, x| acc + x) / F::from(n - 1).unwrap();
+        .fold(F::zero(), |acc, x| acc + x)
+        / F::from(n - 1).unwrap();
 
     let std_dev = variance.sqrt();
 
@@ -497,14 +505,15 @@ where
     F: Float + FromPrimitive + AddAssign,
 {
     // Base smoothing on function range and smoothness
-    let range = values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x)) -
-                values.iter().fold(F::infinity(), |acc, &x| acc.min(x));
+    let range = values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x))
+        - values.iter().fold(F::infinity(), |acc, &x| acc.min(x));
 
     let base_smoothing = range * F::from(0.01).unwrap_or_else(|| F::from(0.01).unwrap());
 
     // Adjust based on smoothness score
     let smoothness_factor = F::one() - smoothness_score;
-    base_smoothing * (F::one() + smoothness_factor * F::from(10.0).unwrap_or_else(|| F::from(10.0).unwrap()))
+    base_smoothing
+        * (F::one() + smoothness_factor * F::from(10.0).unwrap_or_else(|| F::from(10.0).unwrap()))
 }
 
 /// Assess if boundary effects are significant
@@ -524,8 +533,8 @@ where
     let boundary_threshold = F::from(0.1).unwrap_or_else(|| F::from(0.1).unwrap());
 
     // Compare first/last values with interior trend
-    let interior_range = values[n/4] - values[3*n/4];
-    let boundary_deviation = (values[0] - values[1]).abs() + (values[n-1] - values[n-2]).abs();
+    let interior_range = values[n / 4] - values[3 * n / 4];
+    let boundary_deviation = (values[0] - values[1]).abs() + (values[n - 1] - values[n - 2]).abs();
 
     Ok(boundary_deviation > boundary_threshold * interior_range.abs())
 }
@@ -547,9 +556,9 @@ where
     if n > 4 {
         let first_val = values[0];
         let last_val = values[n - 1];
-        let tolerance = (values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x)) -
-                        values.iter().fold(F::infinity(), |acc, &x| acc.min(x))) *
-                       F::from(0.1).unwrap_or_else(|| F::from(0.1).unwrap());
+        let tolerance = (values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x))
+            - values.iter().fold(F::infinity(), |acc, &x| acc.min(x)))
+            * F::from(0.1).unwrap_or_else(|| F::from(0.1).unwrap());
 
         if (first_val - last_val).abs() < tolerance {
             return Ok(BoundaryTreatment::Periodic);
@@ -624,24 +633,30 @@ where
 
     // Data point recommendations
     if data_points.is_collinear {
-        recommendations.push("Points are collinear - consider adding non-collinear points".to_string());
+        recommendations
+            .push("Points are collinear - consider adding non-collinear points".to_string());
     }
 
     if data_points.clustering_score > F::from(0.7).unwrap_or_else(|| F::from(0.7).unwrap()) {
-        recommendations.push("Points are highly clustered - consider more uniform distribution".to_string());
+        recommendations
+            .push("Points are highly clustered - consider more uniform distribution".to_string());
     }
 
     if data_points.distance_ratio > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap()) {
-        recommendations.push("Large variation in point spacing - consider regularization".to_string());
+        recommendations
+            .push("Large variation in point spacing - consider regularization".to_string());
     }
 
     // Function value recommendations
     if !function_values.is_smooth {
-        recommendations.push("Function appears non-smooth - consider smoothing or regularization".to_string());
+        recommendations
+            .push("Function appears non-smooth - consider smoothing or regularization".to_string());
     }
 
     if function_values.has_outliers {
-        recommendations.push("Outliers detected in function values - consider robust interpolation".to_string());
+        recommendations.push(
+            "Outliers detected in function values - consider robust interpolation".to_string(),
+        );
     }
 
     // Boundary recommendations
@@ -658,10 +673,16 @@ where
     }
 
     match boundary.extrapolation_risk {
-        ExtrapolationRisk::Medium => recommendations.push("Moderate extrapolation risk - use with caution".to_string()),
-        ExtrapolationRisk::High => recommendations.push("High extrapolation risk - avoid extrapolation".to_string()),
-        ExtrapolationRisk::Critical => recommendations.push("Critical extrapolation risk - do not extrapolate".to_string()),
-        ExtrapolationRisk::Low => {},
+        ExtrapolationRisk::Medium => {
+            recommendations.push("Moderate extrapolation risk - use with caution".to_string())
+        }
+        ExtrapolationRisk::High => {
+            recommendations.push("High extrapolation risk - avoid extrapolation".to_string())
+        }
+        ExtrapolationRisk::Critical => {
+            recommendations.push("Critical extrapolation risk - do not extrapolate".to_string())
+        }
+        ExtrapolationRisk::Low => {}
     }
 
     if recommendations.is_empty() {
@@ -717,12 +738,8 @@ mod tests {
 
     #[test]
     fn test_analyze_well_distributed_points() {
-        let points = Array2::from_shape_vec((4, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0,
-        ]).unwrap();
+        let points =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
 
         let analysis = analyze_data_points(&points.view()).unwrap();
         assert_eq!(analysis.num_points, 4);
@@ -732,11 +749,8 @@ mod tests {
 
     #[test]
     fn test_collinearity_detection() {
-        let collinear_points = Array2::from_shape_vec((3, 2), vec![
-            0.0, 0.0,
-            1.0, 1.0,
-            2.0, 2.0,
-        ]).unwrap();
+        let collinear_points =
+            Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
 
         let analysis = analyze_data_points(&collinear_points.view()).unwrap();
         assert!(analysis.is_collinear);
@@ -776,13 +790,11 @@ mod tests {
 
     #[test]
     fn test_complete_edge_case_analysis() {
-        let points = Array2::from_shape_vec((5, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            2.0, 0.0,
-            3.0, 0.0,
-            4.0, 0.0,
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (5, 2),
+            vec![0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 1.0, 4.0, 9.0, 16.0]);
 
         let analysis = analyze_interpolation_edge_cases(&points.view(), &values.view()).unwrap();

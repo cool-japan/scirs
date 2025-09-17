@@ -15,7 +15,11 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         let critical_issues = self.extract_critical_issues();
         let performance_analysis = self.analyze_performance();
         let production_readiness = self.assess_production_readiness(&summary, &critical_issues);
-        let production_recommendations = self.generate_production_recommendations(&summary, &critical_issues, &performance_analysis);
+        let production_recommendations = self.generate_production_recommendations(
+            &summary,
+            &critical_issues,
+            &performance_analysis,
+        );
 
         StressTestReport {
             results: self.results.clone(),
@@ -31,9 +35,21 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
     /// Calculate summary statistics from test results
     fn calculate_summary_statistics(&self) -> StressTestSummary {
         let total_tests = self.results.len();
-        let tests_passed = self.results.iter().filter(|r| r.status == TestStatus::Passed).count();
-        let tests_failed = self.results.iter().filter(|r| matches!(r.status, TestStatus::Failed | TestStatus::Error)).count();
-        let tests_with_warnings = self.results.iter().filter(|r| r.status == TestStatus::PassedWithWarnings).count();
+        let tests_passed = self
+            .results
+            .iter()
+            .filter(|r| r.status == TestStatus::Passed)
+            .count();
+        let tests_failed = self
+            .results
+            .iter()
+            .filter(|r| matches!(r.status, TestStatus::Failed | TestStatus::Error))
+            .count();
+        let tests_with_warnings = self
+            .results
+            .iter()
+            .filter(|r| r.status == TestStatus::PassedWithWarnings)
+            .count();
 
         let total_execution_time: Duration = self.results.iter().map(|r| r.execution_time).sum();
         let average_execution_time = if total_tests > 0 {
@@ -62,7 +78,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
     /// Calculate memory efficiency score
     fn calculate_memory_efficiency_score(&self) -> f64 {
-        let memory_usages: Vec<f64> = self.results.iter()
+        let memory_usages: Vec<f64> = self
+            .results
+            .iter()
             .map(|r| r.memory_usage.peak_usage as f64)
             .filter(|&usage| usage > 0.0)
             .collect();
@@ -92,7 +110,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
     /// Calculate overall performance degradation factor
     fn calculate_overall_degradation_factor(&self) -> f64 {
-        let degradation_factors: Vec<f64> = self.results.iter()
+        let degradation_factors: Vec<f64> = self
+            .results
+            .iter()
             .filter_map(|r| r.performance.degradation_factor)
             .collect();
 
@@ -105,9 +125,15 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
     /// Extract critical issues from test results
     fn extract_critical_issues(&self) -> Vec<StressTestIssue> {
-        self.results.iter()
+        self.results
+            .iter()
             .flat_map(|r| &r.issues)
-            .filter(|issue| matches!(issue.severity, IssueSeverity::Critical | IssueSeverity::High))
+            .filter(|issue| {
+                matches!(
+                    issue.severity,
+                    IssueSeverity::Critical | IssueSeverity::High
+                )
+            })
             .cloned()
             .collect()
     }
@@ -162,7 +188,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
     /// Estimate production performance
     fn estimate_production_performance(&self) -> Option<Duration> {
-        let typical_results: Vec<&StressTestResult> = self.results.iter()
+        let typical_results: Vec<&StressTestResult> = self
+            .results
+            .iter()
             .filter(|r| r.status == TestStatus::Passed && !r.test_name.contains("extreme"))
             .collect();
 
@@ -170,24 +198,35 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             return None;
         }
 
-        let average_time: Duration = typical_results.iter()
+        let average_time: Duration = typical_results
+            .iter()
             .map(|r| r.execution_time)
-            .sum::<Duration>() / (typical_results.len() as u32);
+            .sum::<Duration>()
+            / (typical_results.len() as u32);
 
         // Add 20% buffer for production overhead
-        Some(Duration::from_nanos((average_time.as_nanos() as f64 * 1.2) as u64))
+        Some(Duration::from_nanos(
+            (average_time.as_nanos() as f64 * 1.2) as u64,
+        ))
     }
 
     /// Assess scalability
     fn assess_scalability(&self) -> ScalabilityAssessment {
-        let large_data_results: Vec<&StressTestResult> = self.results.iter()
+        let large_data_results: Vec<&StressTestResult> = self
+            .results
+            .iter()
             .filter(|r| r.test_name.contains("extreme") || r.test_name.contains("stress"))
             .collect();
 
-        let can_handle_10x_load = large_data_results.iter()
-            .all(|r| matches!(r.status, TestStatus::Passed | TestStatus::PassedWithWarnings));
+        let can_handle_10x_load = large_data_results.iter().all(|r| {
+            matches!(
+                r.status,
+                TestStatus::Passed | TestStatus::PassedWithWarnings
+            )
+        });
 
-        let can_handle_100x_load = large_data_results.iter()
+        let can_handle_100x_load = large_data_results
+            .iter()
             .filter(|r| r.test_name.contains("extreme"))
             .all(|r| r.status == TestStatus::Passed);
 
@@ -203,7 +242,10 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         if !can_handle_10x_load {
             limiting_factors.push("Memory constraints with large datasets".to_string());
         }
-        if large_data_results.iter().any(|r| r.performance.degradation_factor.unwrap_or(1.0) > 10.0) {
+        if large_data_results
+            .iter()
+            .any(|r| r.performance.degradation_factor.unwrap_or(1.0) > 10.0)
+        {
             limiting_factors.push("Performance degradation with scale".to_string());
         }
 
@@ -222,12 +264,18 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         critical_issues: &[StressTestIssue],
     ) -> ProductionReadiness {
         // Check for blocking issues
-        if critical_issues.iter().any(|i| i.production_impact == ProductionImpact::Blocking) {
+        if critical_issues
+            .iter()
+            .any(|i| i.production_impact == ProductionImpact::Blocking)
+        {
             return ProductionReadiness::NotReady;
         }
 
         // Check for critical severity issues
-        if critical_issues.iter().any(|i| i.severity == IssueSeverity::Critical) {
+        if critical_issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Critical)
+        {
             return ProductionReadiness::NeedsBugFixes;
         }
 
@@ -243,7 +291,10 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         }
 
         // Check for high severity issues
-        if critical_issues.iter().any(|i| i.severity == IssueSeverity::High) {
+        if critical_issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::High)
+        {
             return ProductionReadiness::ReadyWithMonitoring;
         }
 
@@ -261,7 +312,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
         // General recommendations based on test results
         if summary.tests_failed > 0 {
-            recommendations.push("Address all test failures before production deployment".to_string());
+            recommendations
+                .push("Address all test failures before production deployment".to_string());
         }
 
         if summary.tests_with_warnings > 0 {
@@ -285,7 +337,10 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         }
 
         // Scalability recommendations
-        if !performance_analysis.scalability_assessment.can_handle_10x_load {
+        if !performance_analysis
+            .scalability_assessment
+            .can_handle_10x_load
+        {
             recommendations.push("Test and optimize for expected production scale".to_string());
         }
 
@@ -317,16 +372,35 @@ impl fmt::Display for StressTestReport {
         writeln!(f, "  Passed: {}", self.summary.tests_passed)?;
         writeln!(f, "  Failed: {}", self.summary.tests_failed)?;
         writeln!(f, "  Warnings: {}", self.summary.tests_with_warnings)?;
-        writeln!(f, "  Success Rate: {:.1}%",
-            (self.summary.tests_passed as f64 / self.summary.total_tests as f64) * 100.0)?;
+        writeln!(
+            f,
+            "  Success Rate: {:.1}%",
+            (self.summary.tests_passed as f64 / self.summary.total_tests as f64) * 100.0
+        )?;
         writeln!(f)?;
 
         // Performance metrics
         writeln!(f, "Performance Metrics:")?;
-        writeln!(f, "  Average Execution Time: {:.3}s", self.summary.average_execution_time.as_secs_f64())?;
-        writeln!(f, "  Total Execution Time: {:.3}s", self.summary.total_execution_time.as_secs_f64())?;
-        writeln!(f, "  Memory Efficiency Score: {:.1}/100", self.summary.memory_efficiency_score)?;
-        writeln!(f, "  Overall Degradation Factor: {:.1}x", self.summary.overall_degradation_factor)?;
+        writeln!(
+            f,
+            "  Average Execution Time: {:.3}s",
+            self.summary.average_execution_time.as_secs_f64()
+        )?;
+        writeln!(
+            f,
+            "  Total Execution Time: {:.3}s",
+            self.summary.total_execution_time.as_secs_f64()
+        )?;
+        writeln!(
+            f,
+            "  Memory Efficiency Score: {:.1}/100",
+            self.summary.memory_efficiency_score
+        )?;
+        writeln!(
+            f,
+            "  Overall Degradation Factor: {:.1}x",
+            self.summary.overall_degradation_factor
+        )?;
         writeln!(f)?;
 
         // Critical issues
@@ -353,16 +427,32 @@ impl fmt::Display for StressTestReport {
         }
 
         if let Some(est_time) = self.performance_analysis.production_performance_estimate {
-            writeln!(f, "  Estimated Production Performance: {:.3}s", est_time.as_secs_f64())?;
+            writeln!(
+                f,
+                "  Estimated Production Performance: {:.3}s",
+                est_time.as_secs_f64()
+            )?;
         }
         writeln!(f)?;
 
         // Scalability assessment
         let scalability = &self.performance_analysis.scalability_assessment;
         writeln!(f, "Scalability Assessment:")?;
-        writeln!(f, "  Can handle 10x load: {}", scalability.can_handle_10x_load)?;
-        writeln!(f, "  Can handle 100x load: {}", scalability.can_handle_100x_load)?;
-        writeln!(f, "  Max scale factor: {:.1}x", scalability.max_scale_factor)?;
+        writeln!(
+            f,
+            "  Can handle 10x load: {}",
+            scalability.can_handle_10x_load
+        )?;
+        writeln!(
+            f,
+            "  Can handle 100x load: {}",
+            scalability.can_handle_100x_load
+        )?;
+        writeln!(
+            f,
+            "  Max scale factor: {:.1}x",
+            scalability.max_scale_factor
+        )?;
         if !scalability.limiting_factors.is_empty() {
             writeln!(f, "  Limiting factors:")?;
             for factor in &scalability.limiting_factors {
@@ -383,9 +473,17 @@ impl fmt::Display for StressTestReport {
         writeln!(f, "  Max Data Size: {}", self.config.max_data_size)?;
         writeln!(f, "  Stress Iterations: {}", self.config.stress_iterations)?;
         writeln!(f, "  Test Timeout: {}s", self.config.test_timeout)?;
-        writeln!(f, "  Memory Limit: {:?}", self.config.memory_limit.map(|l| format!("{} bytes", l)))?;
+        writeln!(
+            f,
+            "  Memory Limit: {:?}",
+            self.config.memory_limit.map(|l| format!("{} bytes", l))
+        )?;
         writeln!(f, "  Extreme Cases: {}", self.config.test_extreme_cases)?;
-        writeln!(f, "  Max Performance Degradation: {:.1}x", self.config.max_performance_degradation)?;
+        writeln!(
+            f,
+            "  Max Performance Degradation: {:.1}x",
+            self.config.max_performance_degradation
+        )?;
 
         Ok(())
     }

@@ -8,22 +8,23 @@ use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
+use super::types::{machine_epsilon, StabilityDiagnostics};
 use crate::error::{InterpolateError, InterpolateResult};
-use super::types::{StabilityDiagnostics, machine_epsilon};
 
 /// Check if a division operation is numerically safe
 pub fn check_safe_division<F>(numerator: F, denominator: F) -> InterpolateResult<F>
 where
-    F: Float + FromPrimitive,
+    F: Float + FromPrimitive + std::fmt::LowerExp,
 {
     let eps = machine_epsilon::<F>();
     let min_denominator = eps * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
     if denominator.abs() < min_denominator {
         Err(InterpolateError::NumericalInstability {
-            source: format!(
+            message: format!(
                 "Division by very small number: {:.2e} < {:.2e}",
-                denominator.abs(), min_denominator
+                denominator.abs(),
+                min_denominator
             ),
         })
     } else {
@@ -34,14 +35,17 @@ where
 /// Compute safe reciprocal with underflow protection
 pub fn safe_reciprocal<F>(value: F) -> InterpolateResult<F>
 where
-    F: Float + FromPrimitive,
+    F: Float + FromPrimitive + std::fmt::LowerExp,
 {
     let eps = machine_epsilon::<F>();
     let min_value = eps * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
     if value.abs() < min_value {
         Err(InterpolateError::NumericalInstability {
-            source: format!("Cannot compute reciprocal of very small value: {:.2e}", value.abs()),
+            message: format!(
+                "Cannot compute reciprocal of very small value: {:.2e}",
+                value.abs()
+            ),
         })
     } else {
         Ok(F::one() / value)
@@ -105,7 +109,9 @@ where
 }
 
 /// Detect various numerical edge cases in a matrix
-pub fn detect_edge_cases<F>(matrix: &ArrayView2<F>) -> InterpolateResult<super::types::EdgeCaseReport<F>>
+pub fn detect_edge_cases<F>(
+    matrix: &ArrayView2<F>,
+) -> InterpolateResult<super::types::EdgeCaseReport<F>>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
@@ -142,11 +148,12 @@ where
 /// Check if matrix is nearly singular
 fn is_nearly_singular<F>(matrix: &ArrayView2<F>) -> bool
 where
-    F: Float + FromPrimitive,
+    F: Float + FromPrimitive + std::ops::MulAssign,
 {
     let n = matrix.nrows();
     let eps = machine_epsilon::<F>();
-    let threshold = eps * F::from(n).unwrap() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
+    let threshold =
+        eps * F::from(n).unwrap() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
     // Check determinant approximation using diagonal product
     let mut diag_product = F::one();
@@ -170,7 +177,8 @@ where
 
     // Simple rank estimation based on diagonal elements
     // In practice, this would use SVD or QR decomposition
-    let threshold = eps * F::from(n).unwrap() * F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
+    let threshold =
+        eps * F::from(n).unwrap() * F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
 
     let mut rank = 0;
     for i in 0..n {
@@ -183,7 +191,9 @@ where
 }
 
 /// Determine appropriate treatment based on edge case analysis
-fn determine_treatment<F>(report: &super::types::EdgeCaseReport<F>) -> super::types::EdgeCaseTreatment
+fn determine_treatment<F>(
+    report: &super::types::EdgeCaseReport<F>,
+) -> super::types::EdgeCaseTreatment
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
@@ -220,12 +230,18 @@ where
     }
 
     if report.zero_diagonal_count > 0 {
-        issues.push(format!("{} zero diagonal elements detected", report.zero_diagonal_count));
+        issues.push(format!(
+            "{} zero diagonal elements detected",
+            report.zero_diagonal_count
+        ));
     }
 
     if let Some(rank) = report.numerical_rank {
         if rank < report.zero_diagonal_count + report.zero_diagonal_count {
-            issues.push(format!("Matrix appears rank-deficient (estimated rank: {})", rank));
+            issues.push(format!(
+                "Matrix appears rank-deficient (estimated rank: {})",
+                rank
+            ));
         }
     }
 
@@ -248,7 +264,9 @@ where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
 {
     let n = original_matrix.nrows();
-    let tolerance = machine_epsilon::<F>() * F::from(n).unwrap() * F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
+    let tolerance = machine_epsilon::<F>()
+        * F::from(n).unwrap()
+        * F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
 
     let mut solution = initial_solution.to_owned();
     let mut residual = Array1::zeros(n);
@@ -264,7 +282,10 @@ where
         }
 
         // Check convergence
-        let residual_norm = residual.iter().map(|x| x.abs()).fold(F::zero(), |acc, x| acc.max(x));
+        let residual_norm = residual
+            .iter()
+            .map(|x| x.abs())
+            .fold(F::zero(), |acc, x| acc.max(x));
         if residual_norm < tolerance {
             break;
         }
@@ -320,7 +341,7 @@ where
         let diagonal = lu_factors[(i, i)];
         if diagonal.abs() < machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Zero diagonal element at position {}", i),
+                message: format!("Zero diagonal element at position {}", i),
             });
         }
 
@@ -357,9 +378,7 @@ pub enum PreconditionerType {
 }
 
 /// Apply diagonal preconditioning
-fn diagonal_preconditioning<F>(
-    matrix: &ArrayView2<F>,
-) -> InterpolateResult<(Array2<F>, Array2<F>)>
+fn diagonal_preconditioning<F>(matrix: &ArrayView2<F>) -> InterpolateResult<(Array2<F>, Array2<F>)>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
 {
@@ -373,7 +392,7 @@ where
         let diag_val = matrix[(i, i)];
         if diag_val.abs() < eps {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Zero diagonal element at position {}", i),
+                message: format!("Zero diagonal element at position {}", i),
             });
         }
 
@@ -407,7 +426,7 @@ where
         let diag_candidate = matrix[(i, i)] - sum;
         if diag_candidate <= F::zero() {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Non-positive definite matrix at position {}", i),
+                message: format!("Non-positive definite matrix at position {}", i),
             });
         }
 
@@ -415,7 +434,8 @@ where
 
         // Compute lower triangular elements
         for j in (i + 1)..n {
-            if matrix[(j, i)] != F::zero() {  // Only fill existing non-zeros
+            if matrix[(j, i)] != F::zero() {
+                // Only fill existing non-zeros
                 let mut sum = F::zero();
                 for k in 0..i {
                     sum += l[(i, k)] * l[(j, k)];
@@ -430,9 +450,7 @@ where
 }
 
 /// Apply Jacobi preconditioning
-fn jacobi_preconditioning<F>(
-    matrix: &ArrayView2<F>,
-) -> InterpolateResult<(Array2<F>, Array2<F>)>
+fn jacobi_preconditioning<F>(matrix: &ArrayView2<F>) -> InterpolateResult<(Array2<F>, Array2<F>)>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
 {
@@ -501,7 +519,7 @@ mod tests {
         assert!((precond[(0, 0)] - 2.0).abs() < 1e-10);
         assert!((precond[(1, 1)] - 3.0).abs() < 1e-10);
         assert!((inv_precond[(0, 0)] - 0.5).abs() < 1e-10);
-        assert!((inv_precond[(1, 1)] - 1.0/3.0).abs() < 1e-10);
+        assert!((inv_precond[(1, 1)] - 1.0 / 3.0).abs() < 1e-10);
     }
 
     #[test]

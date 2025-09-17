@@ -8,13 +8,13 @@ use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
-use crate::error::{InterpolateError, InterpolateResult};
-use super::types::{
-    EnhancedStabilityReport, SolveStrategy, ConvergenceInfo, ConditionReport,
-    EdgeCaseReport, StabilityLevel,
-};
 use super::condition::assess_matrix_condition;
 use super::regularization::{detect_edge_cases, iterative_refinement};
+use super::types::{
+    ConditionReport, ConvergenceInfo, EdgeCaseReport, EnhancedStabilityReport, SolveStrategy,
+    StabilityLevel,
+};
+use crate::error::{InterpolateError, InterpolateResult};
 
 /// Solve linear system with comprehensive stability monitoring
 pub fn solve_with_enhanced_monitoring<F>(
@@ -51,8 +51,8 @@ where
     let convergence_info = create_convergence_info(&condition_report, recommended_strategy);
 
     // Determine if iterative refinement is needed
-    let needs_iterative_refinement = condition_report.stability_level == StabilityLevel::Marginal ||
-                                   condition_report.stability_level == StabilityLevel::Poor;
+    let needs_iterative_refinement = condition_report.stability_level == StabilityLevel::Marginal
+        || condition_report.stability_level == StabilityLevel::Poor;
 
     let enhanced_report = EnhancedStabilityReport {
         condition_report,
@@ -248,10 +248,16 @@ where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
 {
     // Apply Tikhonov regularization
-    let regularization_param = report.condition_report.recommended_regularization
-        .unwrap_or_else(|| super::types::machine_epsilon::<F>() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap()));
+    let regularization_param = report
+        .condition_report
+        .recommended_regularization
+        .unwrap_or_else(|| {
+            super::types::machine_epsilon::<F>()
+                * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
+        });
 
-    let regularized_matrix = super::regularization::apply_tikhonov_regularization(matrix, regularization_param)?;
+    let regularized_matrix =
+        super::regularization::apply_tikhonov_regularization(matrix, regularization_param)?;
 
     // Solve regularized system
     solve_direct_lu(&regularized_matrix.view(), rhs, report)
@@ -276,14 +282,18 @@ where
     }
 
     // For well-conditioned symmetric positive definite matrices, use CG
-    if condition_report.stability_level == StabilityLevel::Excellent &&
-       condition_report.diagnostics.is_symmetric &&
-       condition_report.diagnostics.is_positive_definite == Some(true) {
+    if condition_report.stability_level == StabilityLevel::Excellent
+        && condition_report.diagnostics.is_symmetric
+        && condition_report.diagnostics.is_positive_definite == Some(true)
+    {
         return SolveStrategy::IterativeCG;
     }
 
     // For good stability, use direct LU
-    if matches!(condition_report.stability_level, StabilityLevel::Excellent | StabilityLevel::Good) {
+    if matches!(
+        condition_report.stability_level,
+        StabilityLevel::Excellent | StabilityLevel::Good
+    ) {
         return SolveStrategy::DirectLU;
     }
 
@@ -311,25 +321,34 @@ where
         SolveStrategy::IterativeCG => {
             // CG convergence depends on sqrt(condition number)
             let sqrt_cond = condition_number.sqrt();
-            (sqrt_cond.ln() * F::from(10.0).unwrap_or_else(|| F::from(10.0).unwrap())).ceil().to_usize().unwrap_or(50)
-        },
+            (sqrt_cond.ln() * F::from(10.0).unwrap_or_else(|| F::from(10.0).unwrap()))
+                .ceil()
+                .to_usize()
+                .unwrap_or(50)
+        }
         SolveStrategy::IterativeGMRES => {
             // GMRES may need more iterations
-            (condition_number.ln() * F::from(5.0).unwrap_or_else(|| F::from(5.0).unwrap())).ceil().to_usize().unwrap_or(100)
-        },
+            (condition_number.ln() * F::from(5.0).unwrap_or_else(|| F::from(5.0).unwrap()))
+                .ceil()
+                .to_usize()
+                .unwrap_or(100)
+        }
         _ => 1, // Direct methods
     };
 
     let expected_iterations = base_iterations.min(1000).max(1);
 
     // Set tolerance based on condition number
-    let recommended_tolerance = condition_report.diagnostics.machine_epsilon *
-                               condition_number.sqrt() *
-                               F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
+    let recommended_tolerance = condition_report.diagnostics.machine_epsilon
+        * condition_number.sqrt()
+        * F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap());
 
     // Recommend preconditioning for iterative methods with poor conditioning
-    let needs_preconditioning = matches!(strategy, SolveStrategy::IterativeCG | SolveStrategy::IterativeGMRES) &&
-                               condition_number > F::from(1e10).unwrap_or_else(|| F::from(1e10).unwrap());
+    let needs_preconditioning = matches!(
+        strategy,
+        SolveStrategy::IterativeCG | SolveStrategy::IterativeGMRES
+    ) && condition_number
+        > F::from(1e10).unwrap_or_else(|| F::from(1e10).unwrap());
 
     ConvergenceInfo {
         expected_iterations,
@@ -364,7 +383,7 @@ where
         // Check for singular matrix
         if max_val < super::types::machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: "Matrix is singular or nearly singular".to_string(),
+                message: "Matrix is singular or nearly singular".to_string(),
             });
         }
 
@@ -431,7 +450,7 @@ where
         let diagonal = lu_factors[(i, i)];
         if diagonal.abs() < super::types::machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Zero diagonal element at position {}", i),
+                message: format!("Zero diagonal element at position {}", i),
             });
         }
 
@@ -442,9 +461,7 @@ where
 }
 
 /// Simplified QR decomposition
-fn qr_decomposition<F>(
-    matrix: &ArrayView2<F>,
-) -> InterpolateResult<(Array2<F>, Array2<F>)>
+fn qr_decomposition<F>(matrix: &ArrayView2<F>) -> InterpolateResult<(Array2<F>, Array2<F>)>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
 {
@@ -483,7 +500,7 @@ where
 
         if norm < super::types::machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Zero norm in QR decomposition at column {}", j),
+                message: format!("Zero norm in QR decomposition at column {}", j),
             });
         }
 
@@ -497,10 +514,7 @@ where
 }
 
 /// Multiply Q^T with a vector
-fn multiply_qt_vector<F>(
-    q: &ArrayView2<F>,
-    vector: &ArrayView1<F>,
-) -> InterpolateResult<Array1<F>>
+fn multiply_qt_vector<F>(q: &ArrayView2<F>, vector: &ArrayView1<F>) -> InterpolateResult<Array1<F>>
 where
     F: Float + FromPrimitive + AddAssign,
 {
@@ -543,7 +557,7 @@ where
         let diagonal = upper[(i, i)];
         if diagonal.abs() < super::types::machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: format!("Zero diagonal element at position {}", i),
+                message: format!("Zero diagonal element at position {}", i),
             });
         }
 
@@ -603,6 +617,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::numerical_stability_modules::{EdgeCaseReport, StabilityDiagnostics};
     use ndarray::Array2;
 
     #[test]
@@ -610,7 +625,8 @@ mod tests {
         let matrix = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0]).unwrap();
         let rhs = Array1::from_vec(vec![1.0, 2.0]);
 
-        let (solution, report) = solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
+        let (solution, report) =
+            solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
 
         // Verify solution: Ax should equal b
         let verification = matrix_vector_multiply(&matrix.view(), &solution.view()).unwrap();
@@ -624,11 +640,9 @@ mod tests {
 
     #[test]
     fn test_lu_decomposition() {
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            2.0, 1.0, 1.0,
-            1.0, 3.0, 2.0,
-            1.0, 0.0, 0.0,
-        ]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![2.0, 1.0, 1.0, 1.0, 3.0, 2.0, 1.0, 0.0, 0.0])
+                .unwrap();
 
         let (lu, perm) = lu_decomposition_with_pivoting(&matrix.view()).unwrap();
 
@@ -640,11 +654,9 @@ mod tests {
 
     #[test]
     fn test_qr_decomposition() {
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            1.0, 0.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 0.0, 1.0,
-        ]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+                .unwrap();
 
         let (q, r) = qr_decomposition(&matrix.view()).unwrap();
 
@@ -674,9 +686,9 @@ mod tests {
                 is_well_conditioned: true,
                 recommended_regularization: None,
                 stability_level: StabilityLevel::Excellent,
-                diagnostics: super::types::StabilityDiagnostics::default(),
+                diagnostics: StabilityDiagnostics::default(),
             },
-            edge_case_report: super::types::EdgeCaseReport::default(),
+            edge_case_report: EdgeCaseReport::default(),
             recommended_strategy: SolveStrategy::IterativeCG,
             convergence_info: ConvergenceInfo {
                 expected_iterations: 10,

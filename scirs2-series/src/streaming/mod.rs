@@ -23,23 +23,23 @@ use crate::error::{Result, TimeSeriesError};
 use statrs::statistics::Statistics;
 
 // Declare sub-modules
-pub mod config;
-pub mod statistics;
 pub mod change_detection;
-pub mod online_learning;
+pub mod config;
 pub mod forecasting;
 pub mod memory_management;
+pub mod online_learning;
+pub mod statistics;
 
 // Re-export all public types for backward compatibility
-pub use config::{StreamConfig, ChangePoint, ChangeType};
-pub use statistics::{OnlineStats, EWMA};
 pub use change_detection::CusumDetector;
-pub use online_learning::{AdaptiveLinearRegression, AdaptiveARIMA};
-pub use forecasting::{StreamingForecaster, ModelState};
+pub use config::{ChangePoint, ChangeType, StreamConfig};
+pub use forecasting::{ModelState, StreamingForecaster};
 pub use memory_management::{
-    MultiSeriesAnalyzer, StreamingAnomalyDetector, StreamingPatternMatcher,
-    PatternMatch, CircularBuffer,
+    CircularBuffer, MultiSeriesAnalyzer, PatternMatch, StreamingAnomalyDetector,
+    StreamingPatternMatcher,
 };
+pub use online_learning::{AdaptiveARIMA, AdaptiveLinearRegression};
+pub use statistics::{OnlineStats, EWMA};
 
 /// Core streaming time series analyzer
 ///
@@ -169,7 +169,13 @@ impl<F: Float + Debug + Clone + FromPrimitive> StreamingAnalyzer<F> {
             vec![ChangePoint {
                 index: self.stats.count(),
                 timestamp: Some(Instant::now()),
-                confidence: self.cusum.get_signals().0.max(self.cusum.get_signals().1).to_f64().unwrap_or(0.0),
+                confidence: self
+                    .cusum
+                    .get_signals()
+                    .0
+                    .max(self.cusum.get_signals().1)
+                    .to_f64()
+                    .unwrap_or(0.0),
                 change_type: ChangeType::MeanShift,
             }]
         } else {
@@ -219,14 +225,14 @@ impl<F: Float + Debug + Clone + FromPrimitive> StreamingAnalyzer<F> {
 
 // Re-export the adaptive module types (maintaining backward compatibility)
 pub mod adaptive {
-    pub use super::online_learning::{AdaptiveLinearRegression, AdaptiveARIMA};
+    pub use super::online_learning::{AdaptiveARIMA, AdaptiveLinearRegression};
 }
 
 // Re-export the advanced module types (maintaining backward compatibility)
 pub mod advanced {
-    pub use super::forecasting::{StreamingForecaster, ModelState};
+    pub use super::forecasting::{ModelState, StreamingForecaster};
     pub use super::memory_management::{
-        StreamingAnomalyDetector, StreamingPatternMatcher, PatternMatch, CircularBuffer,
+        CircularBuffer, PatternMatch, StreamingAnomalyDetector, StreamingPatternMatcher,
     };
 }
 

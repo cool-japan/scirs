@@ -17,9 +17,7 @@
 //! See the submodules for specific functionality.
 
 // Re-export all module components for backward compatibility
-pub use self::{
-    config::*, consciousness_simulation::*, processing::*, quantum_core::*,
-};
+pub use self::{config::*, consciousness_simulation::*, processing::*, quantum_core::*};
 
 // Module declarations
 pub mod config;

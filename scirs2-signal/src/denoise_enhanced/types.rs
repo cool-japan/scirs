@@ -346,7 +346,10 @@ mod tests {
         assert_eq!(bilateral_config.spatial_sigma, 2.0);
 
         let wiener_config = WienerConfig::default();
-        assert_eq!(wiener_config.noise_estimation, WienerNoiseEstimation::HighFrequency);
+        assert_eq!(
+            wiener_config.noise_estimation,
+            WienerNoiseEstimation::HighFrequency
+        );
 
         let lms_config = AdaptiveLMSConfig::default();
         assert_eq!(lms_config.filter_length, 32);

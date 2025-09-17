@@ -20,29 +20,28 @@
 //! - **Performance under stress**: Measure performance degradation
 //! - **Resource exhaustion scenarios**: Test system limits
 
-pub mod types;
-pub mod generators;
 pub mod execution;
+pub mod generators;
 pub mod helpers;
 pub mod reporting;
+pub mod types;
 
 // Re-export core types and functions
 pub use types::{
-    ProductionStressTester, StressTestConfig, StressTestResult, StressTestCategory,
-    TestStatus, StressPerformanceMetrics, ErrorInfo, MemoryUsageStats, StressTestIssue,
-    IssueSeverity, ProductionImpact, BaselinePerformance, StressTestReport,
-    ProductionReadiness, StressTestSummary, PerformanceAnalysis, ScalabilityAssessment,
+    BaselinePerformance, ErrorInfo, IssueSeverity, MemoryUsageStats, PerformanceAnalysis,
+    ProductionImpact, ProductionReadiness, ProductionStressTester, ScalabilityAssessment,
+    StressPerformanceMetrics, StressTestCategory, StressTestConfig, StressTestIssue,
+    StressTestReport, StressTestResult, StressTestSummary, TestStatus,
 };
 
 pub use generators::{
-    create_large_test_data, create_constant_data, create_duplicate_x_data,
-    create_extreme_y_data, create_nan_inf_data, create_sparse_data,
-    create_oscillatory_data, create_monotonic_extreme_data, create_edge_case_data,
-    create_linear_data, create_quadratic_data, create_exponential_data,
-    create_step_data, create_pseudo_random_data, create_rapid_change_data,
-    create_empty_data, create_single_point_data, create_mismatched_data,
-    create_unsorted_x_data, generate_test_data, get_pathological_data_types,
-    get_error_test_data_types, get_general_test_data_types,
+    create_constant_data, create_duplicate_x_data, create_edge_case_data, create_empty_data,
+    create_exponential_data, create_extreme_y_data, create_large_test_data, create_linear_data,
+    create_mismatched_data, create_monotonic_extreme_data, create_nan_inf_data,
+    create_oscillatory_data, create_pseudo_random_data, create_quadratic_data,
+    create_rapid_change_data, create_single_point_data, create_sparse_data, create_step_data,
+    create_unsorted_x_data, generate_test_data, get_error_test_data_types,
+    get_general_test_data_types, get_pathological_data_types,
 };
 
 use crate::error::InterpolateResult;
@@ -130,13 +129,9 @@ pub mod info {
 /// Convenience re-exports for common usage patterns
 pub mod prelude {
     pub use super::types::{
-        ProductionStressTester, StressTestConfig, StressTestReport,
-        ProductionReadiness, TestStatus,
+        ProductionReadiness, ProductionStressTester, StressTestConfig, StressTestReport, TestStatus,
     };
-    pub use super::{
-        run_production_stress_tests, run_quick_stress_tests,
-        create_stress_tester,
-    };
+    pub use super::{create_stress_tester, run_production_stress_tests, run_quick_stress_tests};
 }
 
 #[cfg(test)]
@@ -354,11 +349,11 @@ mod integration_tests {
     fn test_comprehensive_workflow() {
         // This test verifies the complete workflow integration
         let config = StressTestConfig {
-            max_data_size: 1_000,    // Small for testing
-            stress_iterations: 2,     // Minimal iterations
-            test_timeout: 10,         // Short timeout
+            max_data_size: 1_000,                  // Small for testing
+            stress_iterations: 2,                  // Minimal iterations
+            test_timeout: 10,                      // Short timeout
             memory_limit: Some(128 * 1024 * 1024), // 128MB
-            test_extreme_cases: false, // Skip extreme cases for speed
+            test_extreme_cases: false,             // Skip extreme cases for speed
             max_performance_degradation: 5.0,
         };
 
@@ -370,16 +365,22 @@ mod integration_tests {
 
         // Test that various data generation functions work together
         let data_types = get_pathological_data_types();
-        for data_type in data_types.iter().take(3) { // Test first 3 to keep test fast
+        for data_type in data_types.iter().take(3) {
+            // Test first 3 to keep test fast
             let result = generate_test_data::<f64>(data_type, 100);
             assert!(result.is_ok(), "Failed to generate {} data", data_type);
         }
 
         // Test error data types
         let error_types = get_error_test_data_types();
-        for error_type in error_types.iter().take(2) { // Test first 2
+        for error_type in error_types.iter().take(2) {
+            // Test first 2
             let result = generate_test_data::<f64>(error_type, 0);
-            assert!(result.is_ok(), "Failed to generate {} error data", error_type);
+            assert!(
+                result.is_ok(),
+                "Failed to generate {} error data",
+                error_type
+            );
         }
     }
 }

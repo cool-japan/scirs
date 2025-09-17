@@ -12,7 +12,9 @@ use std::f64::consts::PI;
 
 /// Validate edge cases
 #[allow(dead_code)]
-pub fn validate_edge_cases(config: &ScipyValidationConfig) -> SignalResult<EdgeCaseValidationResult> {
+pub fn validate_edge_cases(
+    config: &ScipyValidationConfig,
+) -> SignalResult<EdgeCaseValidationResult> {
     let sparse_sampling = test_sparse_sampling(config)?;
     let extreme_dynamic_range = test_extreme_dynamic_range(config)?;
     let short_time_series = test_short_time_series(config)?;

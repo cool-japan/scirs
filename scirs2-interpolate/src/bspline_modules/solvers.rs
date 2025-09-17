@@ -14,10 +14,7 @@ use crate::error::{InterpolateError, InterpolateResult};
 ///
 /// This function automatically detects matrix structure and uses the most
 /// appropriate solver (band, sparse, or dense).
-pub fn solve_linear_system<T>(
-    a: &ArrayView2<T>,
-    b: &ArrayView1<T>,
-) -> InterpolateResult<Array1<T>>
+pub fn solve_linear_system<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> InterpolateResult<Array1<T>>
 where
     T: Float
         + FromPrimitive
@@ -64,10 +61,7 @@ where
 ///
 /// This function uses structured matrix least squares solver which automatically
 /// detects matrix structure for optimal performance.
-pub fn solve_least_squares<T>(
-    a: &ArrayView2<T>,
-    b: &ArrayView1<T>,
-) -> InterpolateResult<Array1<T>>
+pub fn solve_least_squares<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> InterpolateResult<Array1<T>>
 where
     T: Float
         + FromPrimitive
@@ -288,7 +282,10 @@ where
 }
 
 /// Multiply matrix A with vector b
-pub fn matrix_vector_multiply<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> InterpolateResult<Array1<T>>
+pub fn matrix_vector_multiply<T>(
+    a: &ArrayView2<T>,
+    b: &ArrayView1<T>,
+) -> InterpolateResult<Array1<T>>
 where
     T: Float + Zero + AddAssign + Copy,
 {

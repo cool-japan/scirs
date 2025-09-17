@@ -7,9 +7,9 @@ use ndarray::Array1;
 use num_traits::Float;
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::config::GpuConfig;
 use super::traits::GpuAccelerated;
+use crate::error::{Result, TimeSeriesError};
 
 /// GPU-accelerated array wrapper
 #[derive(Debug)]

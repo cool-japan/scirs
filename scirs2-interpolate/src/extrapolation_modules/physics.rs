@@ -7,10 +7,10 @@ use num_traits::{Float, FromPrimitive};
 use std::default::Default;
 use std::ops::AddAssign;
 
-use super::types::{PhysicsLaw, BoundaryType, DataCharacteristics, ExtrapolationMethod};
-use super::core::Extrapolator;
 use super::advanced::AdvancedExtrapolator;
+use super::core::Extrapolator;
 use super::factory::make_linear_extrapolator;
+use super::types::{BoundaryType, DataCharacteristics, ExtrapolationMethod, PhysicsLaw};
 
 /// Physics-informed extrapolation that respects physical laws
 #[allow(clippy::too_many_arguments)]
@@ -399,27 +399,26 @@ pub fn analyze_physics_characteristics<T: Float + FromPrimitive>(
         let mut decreasing_count = 0;
 
         for i in 1..values.len() {
-            if values[i] > values[i-1] {
+            if values[i] > values[i - 1] {
                 increasing_count += 1;
-            } else if values[i] < values[i-1] {
+            } else if values[i] < values[i - 1] {
                 decreasing_count += 1;
             }
         }
 
         let total_transitions = increasing_count + decreasing_count;
-        characteristics.is_monotonic = total_transitions > 0 && (
-            increasing_count as f64 / total_transitions as f64 > 0.9 ||
-            decreasing_count as f64 / total_transitions as f64 > 0.9
-        );
+        characteristics.is_monotonic = total_transitions > 0
+            && (increasing_count as f64 / total_transitions as f64 > 0.9
+                || decreasing_count as f64 / total_transitions as f64 > 0.9);
     }
 
     // Analyze for exponential-like behavior
     if values.len() > 2 {
         let mut ratios = Vec::new();
         for i in 2..values.len() {
-            if values[i-1] != T::zero() && values[i-2] != T::zero() {
-                let ratio1 = values[i] / values[i-1];
-                let ratio2 = values[i-1] / values[i-2];
+            if values[i - 1] != T::zero() && values[i - 2] != T::zero() {
+                let ratio1 = values[i] / values[i - 1];
+                let ratio2 = values[i - 1] / values[i - 2];
                 if ratio1 != T::zero() && ratio2 != T::zero() {
                     ratios.push((ratio1 / ratio2 - T::one()).abs());
                 }
@@ -427,8 +426,8 @@ pub fn analyze_physics_characteristics<T: Float + FromPrimitive>(
         }
 
         if !ratios.is_empty() {
-            let avg_ratio_variation: T = ratios.iter().fold(T::zero(), |acc, &x| acc + x)
-                / T::from(ratios.len()).unwrap();
+            let avg_ratio_variation: T =
+                ratios.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(ratios.len()).unwrap();
             characteristics.is_exponential_like = avg_ratio_variation < T::from(0.1).unwrap();
         }
     }
@@ -438,7 +437,7 @@ pub fn analyze_physics_characteristics<T: Float + FromPrimitive>(
         let mut sign_changes = 0;
         if let Some(grads) = gradients {
             for i in 1..grads.len() {
-                if (grads[i] > T::zero()) != (grads[i-1] > T::zero()) {
+                if (grads[i] > T::zero()) != (grads[i - 1] > T::zero()) {
                     sign_changes += 1;
                 }
             }
@@ -447,8 +446,12 @@ pub fn analyze_physics_characteristics<T: Float + FromPrimitive>(
     }
 
     // Estimate characteristic scale
-    let max_val = values.iter().fold(values[0], |acc, &x| if x > acc { x } else { acc });
-    let min_val = values.iter().fold(values[0], |acc, &x| if x < acc { x } else { acc });
+    let max_val = values
+        .iter()
+        .fold(values[0], |acc, &x| if x > acc { x } else { acc });
+    let min_val = values
+        .iter()
+        .fold(values[0], |acc, &x| if x < acc { x } else { acc });
     characteristics.characteristic_scale = max_val - min_val;
 
     characteristics

@@ -7,8 +7,8 @@ use ndarray::{s, Array1, Array2};
 use num_traits::Float;
 use std::fmt::Debug;
 
+use super::{utils, GpuConfig, GpuDeviceManager};
 use crate::error::{Result, TimeSeriesError};
-use super::{GpuConfig, GpuDeviceManager, utils};
 
 /// GPU-accelerated parallel time series processing
 #[derive(Debug)]
@@ -111,12 +111,11 @@ impl<
     ) -> Result<Vec<Array1<F>>> {
         // Advanced parallel processing using GPU-optimized algorithms
         match method {
-            ForecastMethod::ExponentialSmoothing { alpha } => self
-                .gpu_batch_exponential_smoothing(
-                    batch,
-                    F::from(*alpha).unwrap_or_else(|| F::from(0.3).unwrap()),
-                    forecast_steps,
-                ),
+            ForecastMethod::ExponentialSmoothing { alpha } => self.gpu_batch_exponential_smoothing(
+                batch,
+                F::from(*alpha).unwrap_or_else(|| F::from(0.3).unwrap()),
+                forecast_steps,
+            ),
             ForecastMethod::LinearTrend => self.gpu_batch_linear_trend(batch, forecast_steps),
             ForecastMethod::MovingAverage { window } => {
                 self.gpu_batch_moving_average(batch, *window, forecast_steps)
@@ -181,11 +180,7 @@ impl<
     }
 
     /// GPU-optimized batch linear trend forecasting
-    fn gpu_batch_linear_trend(
-        &self,
-        batch: &[Array1<F>],
-        steps: usize,
-    ) -> Result<Vec<Array1<F>>> {
+    fn gpu_batch_linear_trend(&self, batch: &[Array1<F>], steps: usize) -> Result<Vec<Array1<F>>> {
         let mut results = Vec::with_capacity(batch.len());
 
         // Parallel trend computation across batch
@@ -452,9 +447,7 @@ impl<
                     F::from(*alpha).unwrap_or_else(|| F::from(0.3).unwrap()),
                     forecast_steps,
                 ),
-            ForecastMethod::LinearTrend => {
-                self.gpu_linear_trend_forecast(series, forecast_steps)
-            }
+            ForecastMethod::LinearTrend => self.gpu_linear_trend_forecast(series, forecast_steps),
             ForecastMethod::MovingAverage { window } => {
                 self.gpu_moving_average_forecast(series, *window, forecast_steps)
             }
@@ -553,12 +546,7 @@ impl<
     }
 
     /// GPU-optimized autoregressive forecast
-    fn gpu_ar_forecast(
-        &self,
-        series: &Array1<F>,
-        order: usize,
-        steps: usize,
-    ) -> Result<Array1<F>> {
+    fn gpu_ar_forecast(&self, series: &Array1<F>, order: usize, steps: usize) -> Result<Array1<F>> {
         if series.len() < order + 1 {
             return Err(TimeSeriesError::InsufficientData {
                 message: "Insufficient data for AR model".to_string(),
@@ -728,16 +716,13 @@ impl<
                             .fold(F::zero(), |acc, x| acc + x)
                             / F::from(window_size).unwrap()
                     }
-                    WindowStatistic::Min => {
-                        window.iter().fold(F::infinity(), |acc, &x| acc.min(x))
-                    }
+                    WindowStatistic::Min => window.iter().fold(F::infinity(), |acc, &x| acc.min(x)),
                     WindowStatistic::Max => {
                         window.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x))
                     }
                     WindowStatistic::Range => {
                         let min_val = window.iter().fold(F::infinity(), |acc, &x| acc.min(x));
-                        let max_val =
-                            window.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x));
+                        let max_val = window.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x));
                         max_val - min_val
                     }
                 };

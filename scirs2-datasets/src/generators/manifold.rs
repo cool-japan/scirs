@@ -1,8 +1,8 @@
 //! Advanced manifold generators for dimensionality reduction datasets
 
+use super::config::{ManifoldConfig, ManifoldType};
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use super::config::{ManifoldConfig, ManifoldType};
 use ndarray::{Array1, Array2};
 use rand::prelude::*;
 use rand::rngs::StdRng;

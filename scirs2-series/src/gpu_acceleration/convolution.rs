@@ -7,8 +7,8 @@ use ndarray::{s, Array1};
 use num_traits::Float;
 use std::fmt::Debug;
 
+use super::{fft, GpuConfig};
 use crate::error::{Result, TimeSeriesError};
-use super::{GpuConfig, fft};
 
 /// GPU-accelerated convolution processor
 #[derive(Debug)]

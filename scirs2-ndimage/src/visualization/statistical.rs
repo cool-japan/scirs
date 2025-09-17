@@ -366,9 +366,7 @@ where
 /// # Returns
 ///
 /// Tuple containing (mean, std_dev, min, max, count)
-pub fn calculate_dataset_statistics<T>(
-    data: &ArrayView1<T>,
-) -> (T, T, T, T, usize)
+pub fn calculate_dataset_statistics<T>(data: &ArrayView1<T>) -> (T, T, T, T, usize)
 where
     T: Float + FromPrimitive + ToPrimitive + Debug + Clone,
 {
@@ -450,7 +448,11 @@ where
                 write!(&mut plot, "<tr><th>{}</th>", datasets[i].0)?;
                 for j in 0..n {
                     let corr = correlations[i][j];
-                    let color_class = if corr.abs() > 0.7 { "strong-corr" } else { "weak-corr" };
+                    let color_class = if corr.abs() > 0.7 {
+                        "strong-corr"
+                    } else {
+                        "weak-corr"
+                    };
                     write!(&mut plot, "<td class='{}'>{:.3}</td>", color_class, corr)?;
                 }
                 writeln!(&mut plot, "</tr>")?;
@@ -501,7 +503,11 @@ where
 
             // Data rows
             for i in 0..n {
-                write!(&mut plot, "{:>12}", &datasets[i].0[..datasets[i].0.len().min(12)])?;
+                write!(
+                    &mut plot,
+                    "{:>12}",
+                    &datasets[i].0[..datasets[i].0.len().min(12)]
+                )?;
                 for j in 0..n {
                     write!(&mut plot, " {:>8.3}", correlations[i][j])?;
                 }
@@ -579,10 +585,7 @@ mod tests {
         let data1 = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let data2 = Array1::from_vec(vec![2.0, 4.0, 6.0, 8.0, 10.0]);
 
-        let datasets = vec![
-            ("Dataset A", data1.view()),
-            ("Dataset B", data2.view()),
-        ];
+        let datasets = vec![("Dataset A", data1.view()), ("Dataset B", data2.view())];
 
         let config = PlotConfig::new()
             .with_format(ReportFormat::Markdown)
@@ -601,8 +604,7 @@ mod tests {
     #[test]
     fn test_calculate_dataset_statistics() {
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-        let (mean, std_dev, min_val, max_val, count) =
-            calculate_dataset_statistics(&data.view());
+        let (mean, std_dev, min_val, max_val, count) = calculate_dataset_statistics(&data.view());
 
         assert!((mean - 3.0).abs() < 1e-6);
         assert_eq!(min_val, 1.0);
@@ -653,7 +655,10 @@ mod tests {
 
         let result = create_image_montage(&images, 2, &config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No images provided"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No images provided"));
     }
 
     #[test]
@@ -664,6 +669,9 @@ mod tests {
 
         let result = create_image_montage(&images, 0, &config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Grid columns must be positive"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Grid columns must be positive"));
     }
 }

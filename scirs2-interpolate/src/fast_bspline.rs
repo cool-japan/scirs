@@ -631,7 +631,7 @@ where
         // Note: Using sequential evaluation instead of parallel due to thread safety
 
         let chunk_size = self.chunk_size;
-        let chunks: Vec<_> = x_vals.as_slice().unwrap().chunks(chunk_size).collect();
+        let chunks: Vec<_> = xvals.as_slice().unwrap().chunks(chunk_size).collect();
 
         let results: Result<Vec<_>> = chunks
             .into_iter()

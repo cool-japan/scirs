@@ -3,10 +3,12 @@
 //! This module contains utility functions for creating test results, calculating metrics,
 //! and other common operations used throughout the stress testing system.
 
+use super::generators::*;
 use super::types::*;
-use crate::error::InterpolateError;
+use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use std::time::Duration;
+use ndarray::Array1;
+use std::time::{Duration, Instant};
 
 impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T> {
     /// Estimate memory usage for a given data size
@@ -27,8 +29,14 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
         let total_time: Duration = execution_times.iter().sum();
         let mean_time = total_time / (execution_times.len() as u32);
-        let min_time = *execution_times.iter().min().unwrap_or(&Duration::from_millis(0));
-        let max_time = *execution_times.iter().max().unwrap_or(&Duration::from_millis(0));
+        let min_time = *execution_times
+            .iter()
+            .min()
+            .unwrap_or(&Duration::from_millis(0));
+        let max_time = *execution_times
+            .iter()
+            .max()
+            .unwrap_or(&Duration::from_millis(0));
 
         let degradation_factor = baseline.map(|b| {
             if b.execution_time.as_nanos() > 0 {
@@ -68,7 +76,10 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             input_characteristics: format!("{} data points", data_size),
             status: TestStatus::Passed,
             execution_time,
-            performance: self.calculate_performance_metrics(&[execution_time], self.baseline_performance.as_ref()),
+            performance: self.calculate_performance_metrics(
+                &[execution_time],
+                self.baseline_performance.as_ref(),
+            ),
             error_info: None,
             memory_usage: MemoryUsageStats {
                 peak_usage: self.estimate_memory_usage(data_size),
@@ -189,9 +200,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                 "Verify numerical stability with extreme monotonic data".to_string(),
                 "Consider logarithmic scaling for extreme ranges".to_string(),
             ],
-            _ => vec![
-                "Review numerical stability for this data pattern".to_string(),
-            ],
+            _ => vec!["Review numerical stability for this data pattern".to_string()],
         }
     }
 
@@ -254,7 +263,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                     description: "Matrix conditioning caused interpolation failure".to_string(),
                     severity: IssueSeverity::Medium,
                     production_impact: ProductionImpact::Minor,
-                    suggested_fix: Some("Add graceful handling for ill-conditioned matrices".to_string()),
+                    suggested_fix: Some(
+                        "Add graceful handling for ill-conditioned matrices".to_string(),
+                    ),
                     iteration: None,
                 });
                 TestStatus::PassedWithWarnings
@@ -288,7 +299,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         let x_query = Array1::linspace(
             T::from_f64(f64::EPSILON).unwrap(),
             T::from_f64(f64::EPSILON * 50.0).unwrap(),
-            10
+            10,
         );
 
         let result = crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
@@ -324,9 +335,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration,
             issues,
-            recommendations: vec![
-                "Document precision requirements for production data".to_string(),
-            ],
+            recommendations: vec!["Document precision requirements for production data".to_string()],
         })
     }
 
@@ -376,7 +385,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             duration,
             issues,
             recommendations: vec![
-                "Monitor for interpolation overshoots with steep data".to_string(),
+                "Monitor for interpolation overshoots with steep data".to_string()
             ],
         })
     }
@@ -407,9 +416,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration,
             issues: Vec::new(),
-            recommendations: vec![
-                "Consider adaptive sampling for oscillatory data".to_string(),
-            ],
+            recommendations: vec!["Consider adaptive sampling for oscillatory data".to_string()],
         })
     }
 
@@ -439,9 +446,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration,
             issues: Vec::new(),
-            recommendations: vec![
-                "Consider data normalization for extreme ranges".to_string(),
-            ],
+            recommendations: vec!["Consider data normalization for extreme ranges".to_string()],
         })
     }
 
@@ -498,9 +503,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration: Duration::from_millis(1),
             issues: Vec::new(),
-            recommendations: vec![
-                "Ensure error messages are clear and actionable".to_string(),
-            ],
+            recommendations: vec!["Ensure error messages are clear and actionable".to_string()],
         })
     }
 
@@ -535,7 +538,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             duration: Duration::from_millis(1),
             issues: Vec::new(),
             recommendations: vec![
-                "Provide specific dimension information in error messages".to_string(),
+                "Provide specific dimension information in error messages".to_string()
             ],
         })
     }
@@ -556,9 +559,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration: Duration::from_millis(1),
             issues: Vec::new(),
-            recommendations: vec![
-                "Add parameter validation as API expands".to_string(),
-            ],
+            recommendations: vec!["Add parameter validation as API expands".to_string()],
         })
     }
 
@@ -572,7 +573,10 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         let status = match result {
             Err(e) => {
                 let error_msg = e.to_string();
-                if error_msg.contains("NaN") || error_msg.contains("infinite") || error_msg.contains("numerical") {
+                if error_msg.contains("NaN")
+                    || error_msg.contains("infinite")
+                    || error_msg.contains("numerical")
+                {
                     TestStatus::Passed
                 } else {
                     TestStatus::PassedWithWarnings
@@ -592,9 +596,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             memory_usage: MemoryUsageStats::default(),
             duration: Duration::from_millis(1),
             issues: Vec::new(),
-            recommendations: vec![
-                "Improve detection and reporting of numerical issues".to_string(),
-            ],
+            recommendations: vec!["Improve detection and reporting of numerical issues".to_string()],
         })
     }
 
@@ -606,9 +608,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         let large_sizes = vec![500_000, 1_000_000];
 
         for (i, &size) in large_sizes.iter().enumerate() {
-            let test_result = match std::panic::catch_unwind(|| {
-                create_large_test_data(size)
-            }) {
+            let test_result = match std::panic::catch_unwind(|| create_large_test_data(size)) {
                 Ok(Ok((x, y))) => {
                     let start = Instant::now();
 
@@ -619,7 +619,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         1000,
                     );
 
-                    match crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view()) {
+                    match crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view())
+                    {
                         Ok(_) => self.create_success_result(
                             &format!("resource_exhaustion_{}", i),
                             size,

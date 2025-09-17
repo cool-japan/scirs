@@ -455,7 +455,8 @@ mod tests {
     #[test]
     fn test_transformer_forward() {
         let transformer = TimeSeriesTransformer::<f64>::new(6, 3, 32, 4, 2, 128);
-        let input = Array2::from_shape_vec((2, 6), (0..12).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((2, 6), (0..12).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let output = transformer.forward(&input).unwrap();
         assert_eq!(output.dim(), (2, 3)); // batch_size x pred_len
@@ -469,7 +470,9 @@ mod tests {
     #[test]
     fn test_softmax_properties() {
         let transformer = TimeSeriesTransformer::<f64>::new(4, 2, 8, 2, 1, 32);
-        let input = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 0.5, 1.5, 2.5, 2.0, 1.0, 0.5]).unwrap();
+        let input =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 0.5, 1.5, 2.5, 2.0, 1.0, 0.5])
+                .unwrap();
 
         let output = transformer.softmax_2d(&input).unwrap();
 
@@ -488,7 +491,8 @@ mod tests {
     #[test]
     fn test_input_embedding() {
         let transformer = TimeSeriesTransformer::<f64>::new(5, 3, 16, 4, 2, 64);
-        let input = Array2::from_shape_vec((2, 5), (0..10).map(|i| i as f64 * 0.2).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((2, 5), (0..10).map(|i| i as f64 * 0.2).collect()).unwrap();
 
         let embedded = transformer.input_embedding(&input).unwrap();
         assert_eq!(embedded.dim(), (10, 16)); // (batch_size * seq_len, d_model)

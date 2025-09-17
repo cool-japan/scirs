@@ -3,8 +3,8 @@
 //! This module provides various color map implementations for data visualization,
 //! including scientific color maps like Viridis, Plasma, and traditional maps like Jet.
 
-use ndarray::{Array3, ArrayView2};
 use crate::visualization::types::{ColorMap, RgbColor};
+use ndarray::{Array3, ArrayView2};
 use num_traits::{Float, FromPrimitive, ToPrimitive};
 use std::fmt::Debug;
 
@@ -191,7 +191,12 @@ pub fn categorical_colormap(category: usize, num_categories: usize) -> RgbColor 
 }
 
 /// Create a diverging color map (useful for data centered around zero)
-pub fn diverging_colormap(t: f64, negative_color: RgbColor, positive_color: RgbColor, neutral_color: RgbColor) -> RgbColor {
+pub fn diverging_colormap(
+    t: f64,
+    negative_color: RgbColor,
+    positive_color: RgbColor,
+    neutral_color: RgbColor,
+) -> RgbColor {
     let t = t.clamp(-1.0, 1.0);
 
     if t < 0.0 {
@@ -381,9 +386,9 @@ mod tests {
     #[test]
     fn test_multi_gradient_colormap() {
         let colors = vec![
-            RgbColor::new(255, 0, 0),   // Red
-            RgbColor::new(0, 255, 0),   // Green
-            RgbColor::new(0, 0, 255),   // Blue
+            RgbColor::new(255, 0, 0), // Red
+            RgbColor::new(0, 255, 0), // Green
+            RgbColor::new(0, 0, 255), // Blue
         ];
 
         let start = multi_gradient_colormap(&colors, 0.0);

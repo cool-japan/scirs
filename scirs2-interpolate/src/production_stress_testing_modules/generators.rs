@@ -8,23 +8,28 @@ use crate::traits::InterpolationFloat;
 use ndarray::Array1;
 
 /// Generate large test data with sine wave pattern
-pub fn create_large_test_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_large_test_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
-    let y = x.mapv(|xi| {
-        xi.sin() + T::from_f64(0.1).unwrap() * (xi * T::from_f64(10.0).unwrap()).cos()
-    });
+    let y =
+        x.mapv(|xi| xi.sin() + T::from_f64(0.1).unwrap() * (xi * T::from_f64(10.0).unwrap()).cos());
     Ok((x, y))
 }
 
 /// Create constant data (pathological case)
-pub fn create_constant_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_constant_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = Array1::from_elem(size, T::from_f64(5.0).unwrap());
     Ok((x, y))
 }
 
 /// Create data with duplicate x values (pathological case)
-pub fn create_duplicate_x_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_duplicate_x_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let mut x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = Array1::ones(size);
 
@@ -38,7 +43,9 @@ pub fn create_duplicate_x_data<T: InterpolationFloat>(size: usize) -> Interpolat
 }
 
 /// Create data with extreme y values
-pub fn create_extreme_y_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_extreme_y_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let mut y = Array1::zeros(size);
 
@@ -54,7 +61,9 @@ pub fn create_extreme_y_data<T: InterpolationFloat>(size: usize) -> InterpolateR
 }
 
 /// Create data with NaN and infinity values
-pub fn create_nan_inf_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_nan_inf_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let mut y = x.mapv(|xi| xi.sin());
 
@@ -68,7 +77,9 @@ pub fn create_nan_inf_data<T: InterpolationFloat>(size: usize) -> InterpolateRes
 }
 
 /// Create sparse data
-pub fn create_sparse_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_sparse_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let sparse_size = (size / 100).max(3);
     let x = Array1::linspace(T::zero(), T::from_f64(1000.0).unwrap(), sparse_size);
     let y = x.mapv(|xi| xi.sin());
@@ -76,14 +87,18 @@ pub fn create_sparse_data<T: InterpolationFloat>(size: usize) -> InterpolateResu
 }
 
 /// Create highly oscillatory data
-pub fn create_oscillatory_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_oscillatory_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| (xi * T::from_f64(100.0).unwrap()).sin());
     Ok((x, y))
 }
 
 /// Create monotonic extreme data
-pub fn create_monotonic_extreme_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_monotonic_extreme_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| xi.powi(10));
     Ok((x, y))
@@ -105,21 +120,28 @@ pub fn create_edge_case_data<T: InterpolationFloat>(
 }
 
 /// Create linear data for baseline testing
-pub fn create_linear_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_linear_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| xi * T::from_f64(2.0).unwrap() + T::from_f64(3.0).unwrap());
     Ok((x, y))
 }
 
 /// Create quadratic data for testing
-pub fn create_quadratic_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_quadratic_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::from_f64(-5.0).unwrap(), T::from_f64(5.0).unwrap(), size);
     let y = x.mapv(|xi| xi * xi + T::from_f64(2.0).unwrap() * xi + T::from_f64(1.0).unwrap());
     Ok((x, y))
 }
 
 /// Create noisy data for testing
-pub fn create_noisy_data<T: InterpolationFloat>(size: usize, noise_level: f64) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_noisy_data<T: InterpolationFloat>(
+    size: usize,
+    noise_level: f64,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let mut y = x.mapv(|xi| xi.sin());
 
@@ -133,14 +155,18 @@ pub fn create_noisy_data<T: InterpolationFloat>(size: usize, noise_level: f64) -
 }
 
 /// Create exponential data for testing
-pub fn create_exponential_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_exponential_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(5.0).unwrap(), size);
     let y = x.mapv(|xi| (xi * T::from_f64(0.5).unwrap()).exp());
     Ok((x, y))
 }
 
 /// Create step function data
-pub fn create_step_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_step_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| {
         if xi < T::from_f64(5.0).unwrap() {
@@ -153,7 +179,9 @@ pub fn create_step_data<T: InterpolationFloat>(size: usize) -> InterpolateResult
 }
 
 /// Create random-like data (deterministic for testing)
-pub fn create_pseudo_random_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_pseudo_random_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| {
         // Deterministic pseudo-random using sine functions
@@ -164,7 +192,9 @@ pub fn create_pseudo_random_data<T: InterpolationFloat>(size: usize) -> Interpol
 }
 
 /// Create data with rapid changes
-pub fn create_rapid_change_data<T: InterpolationFloat>(size: usize) -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_rapid_change_data<T: InterpolationFloat>(
+    size: usize,
+) -> InterpolateResult<(Array1<T>, Array1<T>)> {
     let x = Array1::linspace(T::zero(), T::from_f64(10.0).unwrap(), size);
     let y = x.mapv(|xi| {
         let val = xi.to_f64().unwrap();
@@ -183,7 +213,8 @@ pub fn create_empty_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T
 }
 
 /// Create single point data for error testing
-pub fn create_single_point_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_single_point_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)>
+{
     Ok((
         Array1::from_vec(vec![T::zero()]),
         Array1::from_vec(vec![T::one()]),
@@ -191,12 +222,14 @@ pub fn create_single_point_data<T: InterpolationFloat>() -> InterpolateResult<(A
 }
 
 /// Create mismatched length data for error testing
-pub fn create_mismatched_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_mismatched_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)>
+{
     Ok((Array1::<T>::zeros(10), Array1::<T>::zeros(5)))
 }
 
 /// Create unsorted x data for error testing
-pub fn create_unsorted_x_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)> {
+pub fn create_unsorted_x_data<T: InterpolationFloat>() -> InterpolateResult<(Array1<T>, Array1<T>)>
+{
     let x = Array1::from_vec(vec![
         T::from_f64(1.0).unwrap(),
         T::from_f64(3.0).unwrap(),
@@ -253,12 +286,7 @@ pub fn get_pathological_data_types() -> Vec<&'static str> {
 
 /// Get all available error test data types
 pub fn get_error_test_data_types() -> Vec<&'static str> {
-    vec![
-        "empty",
-        "single_point",
-        "mismatched",
-        "unsorted_x",
-    ]
+    vec!["empty", "single_point", "mismatched", "unsorted_x"]
 }
 
 /// Get all available general test data types

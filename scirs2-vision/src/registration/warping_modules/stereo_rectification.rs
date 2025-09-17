@@ -3,11 +3,11 @@
 //! This module provides functionality for rectifying stereo image pairs to align
 //! epipolar lines horizontally, which simplifies stereo matching and depth computation.
 
+use super::core_warping::{warp_image, BoundaryMethod, InterpolationMethod};
 use crate::error::{Result, VisionError};
 use crate::registration::{identity_transform, transform_point, Point2D, TransformMatrix};
 use image::{DynamicImage, GenericImageView};
 use ndarray::Array2;
-use super::core_warping::{warp_image, InterpolationMethod, BoundaryMethod};
 
 /// Rectify a stereo pair to align epipolar lines horizontally
 ///

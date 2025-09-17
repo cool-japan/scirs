@@ -204,7 +204,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MetaOpti
     pub fn set_hidden_state(&mut self, state: Array1<F>) -> Result<()> {
         if state.len() != self.hidden_size {
             return Err(crate::error::TimeSeriesError::InvalidOperation(
-                "Hidden state size mismatch".to_string()
+                "Hidden state size mismatch".to_string(),
             ));
         }
         self.hidden_state = state;
@@ -215,7 +215,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MetaOpti
     pub fn set_cell_state(&mut self, state: Array1<F>) -> Result<()> {
         if state.len() != self.hidden_size {
             return Err(crate::error::TimeSeriesError::InvalidOperation(
-                "Cell state size mismatch".to_string()
+                "Cell state size mismatch".to_string(),
             ));
         }
         self.cell_state = state;
@@ -308,7 +308,9 @@ impl<F: Float + Debug> OptimizationProblem<F> {
         F: FromPrimitive,
     {
         let initial_params = Array1::from_vec(
-            (0..dim).map(|i| F::from((i * 13) % 100).unwrap() / F::from(100.0).unwrap()).collect()
+            (0..dim)
+                .map(|i| F::from((i * 13) % 100).unwrap() / F::from(100.0).unwrap())
+                .collect(),
         );
         let target = Array1::zeros(dim);
 
@@ -325,10 +327,14 @@ impl<F: Float + Debug> OptimizationProblem<F> {
         F: FromPrimitive,
     {
         let initial_params = Array1::from_vec(
-            (0..dim).map(|i| F::from((i * 17 + 23) % 200).unwrap() / F::from(100.0).unwrap() - F::one()).collect()
+            (0..dim)
+                .map(|i| F::from((i * 17 + 23) % 200).unwrap() / F::from(100.0).unwrap() - F::one())
+                .collect(),
         );
         let target = Array1::from_vec(
-            (0..dim).map(|i| F::from((i * 19 + 37) % 100).unwrap() / F::from(200.0).unwrap()).collect()
+            (0..dim)
+                .map(|i| F::from((i * 19 + 37) % 100).unwrap() / F::from(200.0).unwrap())
+                .collect(),
         );
 
         Self {
@@ -392,7 +398,9 @@ mod tests {
         let loss_history = vec![1.0, 0.8, 0.6];
         let step_count = 5;
 
-        let update = meta_opt.generate_update(gradient, &loss_history, step_count).unwrap();
+        let update = meta_opt
+            .generate_update(gradient, &loss_history, step_count)
+            .unwrap();
         assert!(update.is_finite());
     }
 
@@ -525,7 +533,8 @@ mod tests {
         let initial = Array1::from_vec(vec![2.0, 3.0]);
         let target = Array1::from_vec(vec![0.0, 0.0]);
 
-        let (final_params, loss_history) = meta_opt.optimize_parameters(&initial, &target, 10).unwrap();
+        let (final_params, loss_history) =
+            meta_opt.optimize_parameters(&initial, &target, 10).unwrap();
 
         assert_eq!(final_params.len(), 2);
         assert_eq!(loss_history.len(), 10);
@@ -541,7 +550,9 @@ mod tests {
         let gradients = Array1::from_vec(vec![0.1, 0.2, 0.3]);
         let loss_history = vec![1.0, 0.8];
 
-        let updates = meta_opt.generate_vectorized_update(&gradients, &loss_history, 5).unwrap();
+        let updates = meta_opt
+            .generate_vectorized_update(&gradients, &loss_history, 5)
+            .unwrap();
 
         assert_eq!(updates.len(), 3);
         for &update in updates.iter() {

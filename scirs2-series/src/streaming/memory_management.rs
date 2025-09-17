@@ -8,9 +8,9 @@ use num_traits::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
-use super::statistics::OnlineStats;
 use super::config::StreamConfig;
+use super::statistics::OnlineStats;
+use crate::error::{Result, TimeSeriesError};
 use crate::streaming::StreamingAnalyzer;
 
 /// Multi-series streaming analyzer for handling multiple time series simultaneously

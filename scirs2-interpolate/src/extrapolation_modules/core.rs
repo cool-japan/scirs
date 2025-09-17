@@ -8,8 +8,8 @@ use num_traits::{Float, FromPrimitive};
 
 use crate::error::{InterpolateError, InterpolateResult};
 
-use super::types::{ExtrapolationMethod, ExtrapolationDirection};
 use super::config::ExtrapolationParameters;
+use super::types::{ExtrapolationDirection, ExtrapolationMethod};
 
 /// Extrapolator for extending interpolation methods beyond their domain.
 ///
@@ -363,7 +363,8 @@ impl<T: Float + std::fmt::Display> Extrapolator<T> {
         // For periodic extrapolation, we need to map the value
         // This is a simplified version - in practice you'd interpolate at the mapped position
         let mapped_pos = (x_equiv - self.lower_bound) / domain_width;
-        let linear_interp = self.lower_value * (T::one() - mapped_pos) + self.upper_value * mapped_pos;
+        let linear_interp =
+            self.lower_value * (T::one() - mapped_pos) + self.upper_value * mapped_pos;
 
         Ok(linear_interp)
     }
@@ -469,54 +470,94 @@ impl<T: Float + std::fmt::Display> Extrapolator<T> {
     // Placeholder implementations for advanced methods
     // These would be implemented in the methods.rs module in a real scenario
 
-    fn spline_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn spline_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would use spline continuation
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn akima_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn akima_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would use Akima spline extrapolation
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn sinusoidal_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn sinusoidal_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would use sinusoidal fitting
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn rational_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn rational_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would use rational function extrapolation
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn confidence_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn confidence_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would include uncertainty estimation
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn ensemble_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn ensemble_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would combine multiple methods
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn adaptive_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn adaptive_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would adaptively select method
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn autoregressive_extrapolation(&self, _x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn autoregressive_extrapolation(
+        &self,
+        _x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Placeholder - would use AR models
         self.linear_extrapolation(_x, _direction)
     }
 
-    fn nearest_extrapolation(&self, _x: T, direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn nearest_extrapolation(
+        &self,
+        _x: T,
+        direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         match direction {
             ExtrapolationDirection::Lower => Ok(self.lower_value),
             ExtrapolationDirection::Upper => Ok(self.upper_value),
         }
     }
 
-    fn mirror_extrapolation(&self, x: T, _direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn mirror_extrapolation(
+        &self,
+        x: T,
+        _direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         self.reflection_extrapolation(x)
     }
 
@@ -524,7 +565,11 @@ impl<T: Float + std::fmt::Display> Extrapolator<T> {
         self.periodic_extrapolation(x)
     }
 
-    fn clamped_extrapolation(&self, _x: T, direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn clamped_extrapolation(
+        &self,
+        _x: T,
+        direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Clamped means zero derivative at boundaries
         match direction {
             ExtrapolationDirection::Lower => Ok(self.lower_value),
@@ -532,12 +577,20 @@ impl<T: Float + std::fmt::Display> Extrapolator<T> {
         }
     }
 
-    fn grid_mirror_extrapolation(&self, x: T, direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn grid_mirror_extrapolation(
+        &self,
+        x: T,
+        direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Grid-specific mirror mode - similar to regular mirror
         self.mirror_extrapolation(x, direction)
     }
 
-    fn grid_constant_extrapolation(&self, _x: T, direction: ExtrapolationDirection) -> InterpolateResult<T> {
+    fn grid_constant_extrapolation(
+        &self,
+        _x: T,
+        direction: ExtrapolationDirection,
+    ) -> InterpolateResult<T> {
         // Grid-specific constant mode
         self.nearest_extrapolation(_x, direction)
     }

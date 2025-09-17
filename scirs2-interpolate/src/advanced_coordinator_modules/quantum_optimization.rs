@@ -219,7 +219,9 @@ pub struct MeasurementStatistics<F: Float> {
     pub confidence_interval: (F, F),
 }
 
-impl<F: Float + Debug> QuantumParameterOptimizer<F> {
+impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::SubAssign>
+    QuantumParameterOptimizer<F>
+{
     /// Create a new quantum parameter optimizer
     pub fn new() -> InterpolateResult<Self> {
         Ok(Self {
@@ -798,7 +800,7 @@ impl<F: Float + Debug> QuantumParameterOptimizer<F> {
     }
 }
 
-impl<F: Float> QuantumState<F> {
+impl<F: Float + std::ops::SubAssign> QuantumState<F> {
     /// Create a new quantum state
     pub fn new() -> InterpolateResult<Self> {
         Ok(Self {

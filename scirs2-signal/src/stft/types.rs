@@ -82,10 +82,14 @@ impl std::str::FromStr for ScalingMode {
 /// Configuration for memory-efficient STFT processing
 #[derive(Debug, Clone)]
 pub struct MemoryEfficientStftConfig {
-    /// Maximum memory limit in bytes for STFT processing
+    /// Maximum memory limit in MB for STFT processing
     pub memory_limit: usize,
     /// Chunk size for processing large signals
     pub chunk_size: Option<usize>,
     /// Overlap between chunks for seamless processing
     pub chunk_overlap: usize,
+    /// Store only magnitude (not complex values)
+    pub magnitude_only: bool,
+    /// Use parallel processing
+    pub parallel: bool,
 }

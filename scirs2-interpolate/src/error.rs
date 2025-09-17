@@ -112,6 +112,10 @@ pub enum InterpolateError {
     /// Missing values data
     #[error("Missing values data: interpolator requires training values")]
     MissingValues,
+
+    /// Numerical instability detected
+    #[error("Numerical instability: {message}")]
+    NumericalInstability { message: String },
 }
 
 impl From<ndarray::ShapeError> for InterpolateError {

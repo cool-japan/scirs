@@ -23,47 +23,44 @@ pub mod data_analysis;
 
 // Re-export public API
 pub use types::{
-    ConditionReport, StabilityLevel, StabilityDiagnostics, EdgeCaseReport, EdgeCaseTreatment,
-    EnhancedStabilityReport, SolveStrategy, ConvergenceInfo, DataPointsAnalysis,
-    FunctionValuesAnalysis, BoundaryAnalysis, BoundaryTreatment, ExtrapolationRisk,
-    EdgeCaseAnalysis, machine_epsilon, classify_stability,
+    classify_stability, machine_epsilon, BoundaryAnalysis, BoundaryTreatment, ConditionReport,
+    ConvergenceInfo, DataPointsAnalysis, EdgeCaseAnalysis, EdgeCaseReport, EdgeCaseTreatment,
+    EnhancedStabilityReport, ExtrapolationRisk, FunctionValuesAnalysis, SolveStrategy,
+    StabilityDiagnostics, StabilityLevel,
 };
 
 pub use condition::{
-    assess_matrix_condition, check_symmetry, estimate_condition_number,
-    check_diagonal_dominance, count_zero_diagonal_elements,
+    assess_matrix_condition, check_diagonal_dominance, check_symmetry,
+    count_zero_diagonal_elements, estimate_condition_number,
 };
 
 pub use regularization::{
-    check_safe_division, safe_reciprocal, apply_tikhonov_regularization,
-    apply_adaptive_regularization, detect_edge_cases, iterative_refinement,
-    apply_preconditioning, PreconditionerType,
+    apply_adaptive_regularization, apply_preconditioning, apply_tikhonov_regularization,
+    check_safe_division, detect_edge_cases, iterative_refinement, safe_reciprocal,
+    PreconditionerType,
 };
 
 pub use edge_cases::{
-    analyze_interpolation_edge_cases, analyze_data_points, analyze_function_values,
-    analyze_boundary_conditions,
+    analyze_boundary_conditions, analyze_data_points, analyze_function_values,
+    analyze_interpolation_edge_cases,
 };
 
-pub use solvers::{
-    solve_with_enhanced_monitoring, solve_with_stability_monitoring,
-};
+pub use solvers::{solve_with_enhanced_monitoring, solve_with_stability_monitoring};
 
 pub use data_analysis::{
-    suggest_data_based_regularization, analyze_interpolation_data,
-    analyze_sampling_density, InterpolationDataReport, DataScalingAnalysis,
-    NoiseAnalysis, DenoisingStrategy, InterpolationMethodRecommendation,
-    InterpolationMethod, SamplingDensityAnalysis, SamplingStrategy,
+    analyze_interpolation_data, analyze_sampling_density, suggest_data_based_regularization,
+    DataScalingAnalysis, DenoisingStrategy, InterpolationDataReport, InterpolationMethod,
+    InterpolationMethodRecommendation, NoiseAnalysis, SamplingDensityAnalysis, SamplingStrategy,
 };
 
 /// Convenience re-exports for common usage patterns
 pub mod prelude {
-    pub use super::types::{ConditionReport, StabilityLevel, machine_epsilon};
     pub use super::condition::assess_matrix_condition;
-    pub use super::regularization::{check_safe_division, apply_tikhonov_regularization};
-    pub use super::edge_cases::analyze_interpolation_edge_cases;
-    pub use super::solvers::solve_with_stability_monitoring;
     pub use super::data_analysis::analyze_interpolation_data;
+    pub use super::edge_cases::analyze_interpolation_edge_cases;
+    pub use super::regularization::{apply_tikhonov_regularization, check_safe_division};
+    pub use super::solvers::solve_with_stability_monitoring;
+    pub use super::types::{machine_epsilon, ConditionReport, StabilityLevel};
 }
 
 /// Module version and feature information
@@ -108,15 +105,14 @@ pub mod info {
 mod integration_tests {
     use super::*;
     use ndarray::{Array1, Array2};
+    use simba::scalar::ComplexField;
 
     #[test]
     fn test_complete_stability_workflow() {
         // Test a complete numerical stability workflow using the modular API
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            2.0, 1.0, 0.0,
-            1.0, 3.0, 1.0,
-            0.0, 1.0, 2.0,
-        ]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![2.0, 1.0, 0.0, 1.0, 3.0, 1.0, 0.0, 1.0, 2.0])
+                .unwrap();
         let rhs = Array1::from_vec(vec![1.0, 2.0, 1.0]);
 
         // Assess matrix condition
@@ -136,13 +132,13 @@ mod integration_tests {
     #[test]
     fn test_edge_case_detection_workflow() {
         // Test edge case detection and analysis
-        let points = Array2::from_shape_vec((5, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            2.0, 0.0,
-            3.0, 0.0,
-            4.0, 0.0, // Collinear points
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (5, 2),
+            vec![
+                0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0, // Collinear points
+            ],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 1.0, 4.0, 9.0, 16.0]); // y = x^2
 
         let analysis = analyze_interpolation_edge_cases(&points.view(), &values.view()).unwrap();
@@ -150,17 +146,24 @@ mod integration_tests {
         assert!(analysis.data_points.is_collinear);
         assert!(analysis.function_values.is_smooth);
         assert!(analysis.is_solvable);
-        assert!(analysis.overall_recommendation.contains("collinear") ||
-                analysis.overall_recommendation.contains("No significant issues"));
+        assert!(
+            analysis.overall_recommendation.contains("collinear")
+                || analysis
+                    .overall_recommendation
+                    .contains("No significant issues")
+        );
     }
 
     #[test]
     fn test_regularization_workflow() {
         // Test regularization on a poorly conditioned matrix
-        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![
-            1.0, 1.0,
-            1.0, 1.0001, // Nearly singular
-        ]).unwrap();
+        let ill_conditioned = Array2::from_shape_vec(
+            (2, 2),
+            vec![
+                1.0, 1.0, 1.0, 1.0001, // Nearly singular
+            ],
+        )
+        .unwrap();
 
         let condition_report = assess_matrix_condition(&ill_conditioned.view()).unwrap();
         assert!(!condition_report.is_well_conditioned);
@@ -168,7 +171,8 @@ mod integration_tests {
 
         // Apply regularization
         let reg_param = condition_report.recommended_regularization.unwrap();
-        let regularized = apply_tikhonov_regularization(&ill_conditioned.view(), reg_param).unwrap();
+        let regularized =
+            apply_tikhonov_regularization(&ill_conditioned.view(), reg_param).unwrap();
 
         // Check that regularization improved the matrix
         let regularized_condition = assess_matrix_condition(&regularized.view()).unwrap();
@@ -178,14 +182,13 @@ mod integration_tests {
     #[test]
     fn test_data_analysis_workflow() {
         // Test comprehensive data analysis
-        let points = Array2::from_shape_vec((6, 2), vec![
-            0.0, 0.0,
-            1.0, 1.0,
-            2.0, 4.0,
-            3.0, 9.0,
-            4.0, 16.0,
-            5.0, 25.0, // y = x^2
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                0.0, 0.0, 1.0, 1.0, 2.0, 4.0, 3.0, 9.0, 4.0, 16.0, 5.0, 25.0, // y = x^2
+            ],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 1.0, 4.0, 9.0, 16.0, 25.0]);
 
         let report = analyze_interpolation_data(&points.view(), &values.view()).unwrap();
@@ -198,23 +201,26 @@ mod integration_tests {
         // Check that a reasonable interpolation method is recommended
         assert!(matches!(
             report.interpolation_method_recommendation.primary_method,
-            InterpolationMethod::CubicSpline |
-            InterpolationMethod::BSpline |
-            InterpolationMethod::Linear
+            InterpolationMethod::CubicSpline
+                | InterpolationMethod::BSpline
+                | InterpolationMethod::Linear
         ));
     }
 
     #[test]
     fn test_enhanced_solver_workflow() {
         // Test enhanced solver with comprehensive monitoring
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            4.0, 1.0, 0.0,
-            1.0, 4.0, 1.0,
-            0.0, 1.0, 4.0, // Well-conditioned tridiagonal
-        ]).unwrap();
+        let matrix = Array2::from_shape_vec(
+            (3, 3),
+            vec![
+                4.0, 1.0, 0.0, 1.0, 4.0, 1.0, 0.0, 1.0, 4.0, // Well-conditioned tridiagonal
+            ],
+        )
+        .unwrap();
         let rhs = Array1::from_vec(vec![5.0, 6.0, 5.0]);
 
-        let (solution, report) = solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
+        let (solution, report) =
+            solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
 
         // Check solution quality
         assert_eq!(solution.len(), 3);
@@ -235,11 +241,8 @@ mod integration_tests {
     #[test]
     fn test_sampling_density_analysis() {
         // Test sampling density analysis
-        let sparse_points = Array2::from_shape_vec((3, 2), vec![
-            0.0, 0.0,
-            5.0, 0.0,
-            10.0, 0.0,
-        ]).unwrap();
+        let sparse_points =
+            Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 5.0, 0.0, 10.0, 0.0]).unwrap();
 
         let analysis = analyze_sampling_density(&sparse_points.view(), 0.1).unwrap();
 
@@ -253,13 +256,15 @@ mod integration_tests {
     fn test_noise_analysis() {
         // Test with clean data
         let clean_values = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
-        let clean_analysis = data_analysis::analyze_noise_characteristics(&clean_values.view()).unwrap();
+        let clean_analysis =
+            data_analysis::analyze_noise_characteristics(&clean_values.view()).unwrap();
         assert!(!clean_analysis.is_noisy);
         assert_eq!(clean_analysis.denoising_strategy, DenoisingStrategy::None);
 
         // Test with noisy data
         let noisy_values = Array1::from_vec(vec![0.1, 0.9, 2.1, 2.95, 4.05]);
-        let noisy_analysis = data_analysis::analyze_noise_characteristics(&noisy_values.view()).unwrap();
+        let noisy_analysis =
+            data_analysis::analyze_noise_characteristics(&noisy_values.view()).unwrap();
         assert!(noisy_analysis.estimated_noise_level > 0.0);
         assert!(noisy_analysis.signal_noise_ratio < f64::INFINITY);
     }

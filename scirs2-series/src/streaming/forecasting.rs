@@ -129,8 +129,8 @@ impl<F: Float + Debug + Clone> StreamingForecaster<F> {
             if self.seasonal.len() >= period {
                 let seasonal_idx = (self.observation_count - 1) % period;
                 let current_seasonal = self.seasonal[seasonal_idx];
-                let new_seasonal = gamma * (value - self.level.unwrap())
-                    + (F::one() - gamma) * current_seasonal;
+                let new_seasonal =
+                    gamma * (value - self.level.unwrap()) + (F::one() - gamma) * current_seasonal;
                 self.seasonal[seasonal_idx] = new_seasonal;
             }
         }

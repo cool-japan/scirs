@@ -164,6 +164,19 @@ pub struct OnlineLearningResult {
     pub adaptation_rate: f64,
 }
 
+/// Result of compositional reasoning
+#[derive(Debug, Clone)]
+pub struct CompositionResult {
+    /// Similarity between query and image
+    pub query_similarity: f64,
+    /// Presence strength of individual concepts
+    pub concept_presence: HashMap<String, f64>,
+    /// Composed query representation
+    pub composed_representation: Hypervector,
+    /// Image representation
+    pub image_representation: Hypervector,
+}
+
 /// Abstraction level for hierarchical reasoning
 #[derive(Debug, Clone)]
 pub struct AbstractionLevel {
@@ -271,15 +284,20 @@ impl Default for AdaptationParameters {
 
 impl AdaptationParameters {
     /// Adjust learning rate based on performance
-    pub fn adjust_based_on_performance(&mut self, tracker: &crate::hyperdimensional_computing::memory::PerformanceTracker) {
+    pub fn adjust_based_on_performance(
+        &mut self,
+        tracker: &crate::hyperdimensional_computing::memory::PerformanceTracker,
+    ) {
         let recent_change = tracker.get_recent_performance_change();
 
         if recent_change > 0.05 {
             // Performance improving - increase rate
-            self.current_rate = (self.current_rate * (1.0 + self.adaptation_speed)).min(self.max_rate);
+            self.current_rate =
+                (self.current_rate * (1.0 + self.adaptation_speed)).min(self.max_rate);
         } else if recent_change < -0.05 {
             // Performance degrading - decrease rate
-            self.current_rate = (self.current_rate * (1.0 - self.adaptation_speed)).max(self.min_rate);
+            self.current_rate =
+                (self.current_rate * (1.0 - self.adaptation_speed)).max(self.min_rate);
         }
         // Otherwise maintain current rate
     }
@@ -370,10 +388,7 @@ mod tests {
         let prediction = PredictionResult {
             predicted_label: "cat".to_string(),
             confidence: 0.9,
-            alternatives: vec![
-                ("dog".to_string(), 0.1),
-                ("bird".to_string(), 0.05),
-            ],
+            alternatives: vec![("dog".to_string(), 0.1), ("bird".to_string(), 0.05)],
         };
 
         assert_eq!(prediction.predicted_label, "cat");

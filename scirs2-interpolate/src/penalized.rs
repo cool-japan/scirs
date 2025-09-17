@@ -468,7 +468,7 @@ where
                     };
 
                     // u and vt are already extracted from the SVD tuple above
-                    let mut s_inv = Array2::zeros((_a.ncols(), a.nrows()));
+                    let mut s_inv = Array2::zeros((a.ncols(), a.nrows()));
 
                     // Threshold for singular values (to handle near-zero values)
                     let threshold = T::from_f64(1e-10).unwrap();

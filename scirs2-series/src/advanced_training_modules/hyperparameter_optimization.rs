@@ -443,7 +443,10 @@ mod tests {
         let mut search_space = SearchSpace::<f64>::new();
         search_space.add_continuous("learning_rate".to_string(), 0.001, 0.1);
         search_space.add_integer("hidden_size".to_string(), 32, 256);
-        search_space.add_categorical("optimizer".to_string(), vec!["adam".to_string(), "sgd".to_string()]);
+        search_space.add_categorical(
+            "optimizer".to_string(),
+            vec!["adam".to_string(), "sgd".to_string()],
+        );
 
         assert_eq!(search_space.continuous.len(), 1);
         assert_eq!(search_space.integer.len(), 1);
@@ -455,7 +458,9 @@ mod tests {
         let mut params = HyperparameterSet::<f64>::new();
         params.continuous.push(("learning_rate".to_string(), 0.01));
         params.integer.push(("hidden_size".to_string(), 128));
-        params.categorical.push(("optimizer".to_string(), "adam".to_string()));
+        params
+            .categorical
+            .push(("optimizer".to_string(), "adam".to_string()));
 
         assert_eq!(params.get_continuous("learning_rate"), Some(0.01));
         assert_eq!(params.get_integer("hidden_size"), Some(128));
@@ -480,11 +485,8 @@ mod tests {
             )],
         };
 
-        let optimizer = HyperparameterOptimizer::new(
-            OptimizationMethod::RandomSearch,
-            search_space,
-            10
-        );
+        let optimizer =
+            HyperparameterOptimizer::new(OptimizationMethod::RandomSearch, search_space, 10);
 
         let params = optimizer.random_search().unwrap();
         assert_eq!(params.continuous.len(), 2);
@@ -560,11 +562,8 @@ mod tests {
             categorical: vec![],
         };
 
-        let mut optimizer = HyperparameterOptimizer::new(
-            OptimizationMethod::EvolutionarySearch,
-            search_space,
-            10
-        );
+        let mut optimizer =
+            HyperparameterOptimizer::new(OptimizationMethod::EvolutionarySearch, search_space, 10);
 
         // Simple quadratic objective (minimize x^2)
         let objective = |params: &HyperparameterSet<f64>| -> Result<f64> {
@@ -587,11 +586,8 @@ mod tests {
             categorical: vec![],
         };
 
-        let mut optimizer = HyperparameterOptimizer::new(
-            OptimizationMethod::RandomSearch,
-            search_space,
-            3
-        );
+        let mut optimizer =
+            HyperparameterOptimizer::new(OptimizationMethod::RandomSearch, search_space, 3);
 
         // Simple objective function
         let objective = |params: &HyperparameterSet<f64>| -> Result<f64> {
@@ -606,7 +602,7 @@ mod tests {
 
         // Convergence curve should be non-decreasing
         for i in 1..convergence.len() {
-            assert!(convergence[i] >= convergence[i-1]);
+            assert!(convergence[i] >= convergence[i - 1]);
         }
     }
 }

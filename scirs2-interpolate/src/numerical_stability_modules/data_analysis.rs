@@ -8,18 +8,16 @@ use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
+use super::types::{BoundaryAnalysis, DataPointsAnalysis, FunctionValuesAnalysis};
 use crate::error::{InterpolateError, InterpolateResult};
-use super::types::{DataPointsAnalysis, FunctionValuesAnalysis, BoundaryAnalysis};
 
 /// Suggest data-based regularization parameter
-pub fn suggest_data_based_regularization<F>(
-    min_distance: F,
-    distance_ratio: F,
-) -> F
+pub fn suggest_data_based_regularization<F>(min_distance: F, distance_ratio: F) -> F
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
-    let base_reg = super::types::machine_epsilon::<F>() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
+    let base_reg = super::types::machine_epsilon::<F>()
+        * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
     // Adjust based on point spacing
     let spacing_factor = if min_distance > F::zero() {
@@ -61,7 +59,8 @@ where
     // Additional specialized analyses
     let scaling_analysis = analyze_data_scaling(points, values)?;
     let noise_analysis = analyze_noise_characteristics(values)?;
-    let interpolation_method_recommendation = recommend_interpolation_method(&data_points, &function_values)?;
+    let interpolation_method_recommendation =
+        recommend_interpolation_method(&data_points, &function_values)?;
 
     Ok(InterpolationDataReport {
         data_points,
@@ -219,10 +218,11 @@ where
     // Determine if scaling is recommended
     let coord_scale_factor = max_coord_range;
     let value_scale_factor = value_range;
-    let scaling_recommended = coord_scale_factor > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap()) ||
-                             coord_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap()) ||
-                             value_scale_factor > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap()) ||
-                             value_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap());
+    let scaling_recommended = coord_scale_factor
+        > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
+        || coord_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap())
+        || value_scale_factor > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
+        || value_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap());
 
     // Estimate condition number improvement
     let condition_improvement_factor = if scaling_recommended {
@@ -242,7 +242,9 @@ where
 }
 
 /// Analyze noise characteristics in function values
-fn analyze_noise_characteristics<F>(values: &ArrayView1<F>) -> InterpolateResult<NoiseAnalysis<F>>
+pub fn analyze_noise_characteristics<F>(
+    values: &ArrayView1<F>,
+) -> InterpolateResult<NoiseAnalysis<F>>
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
@@ -275,14 +277,15 @@ where
 
     let estimated_noise_level = if !sorted_second_diffs.is_empty() {
         let median_idx = sorted_second_diffs.len() / 2;
-        sorted_second_diffs[median_idx] / F::from(1.4826).unwrap_or_else(|| F::from(1.4826).unwrap()) // MAD to std conversion
+        sorted_second_diffs[median_idx]
+            / F::from(1.4826).unwrap_or_else(|| F::from(1.4826).unwrap()) // MAD to std conversion
     } else {
         F::zero()
     };
 
     // Estimate signal level
-    let signal_range = values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x)) -
-                      values.iter().fold(F::infinity(), |acc, &x| acc.min(x));
+    let signal_range = values.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x))
+        - values.iter().fold(F::infinity(), |acc, &x| acc.min(x));
 
     let signal_noise_ratio = if estimated_noise_level > F::zero() {
         signal_range / estimated_noise_level
@@ -370,15 +373,15 @@ where
             InterpolationMethod::Linear => {
                 alternative_methods.push(InterpolationMethod::CubicSpline);
                 alternative_methods.push(InterpolationMethod::BSpline);
-            },
+            }
             InterpolationMethod::CubicSpline => {
                 alternative_methods.push(InterpolationMethod::BSpline);
                 alternative_methods.push(InterpolationMethod::ThinPlateSpline);
-            },
+            }
             InterpolationMethod::BSpline => {
                 alternative_methods.push(InterpolationMethod::CubicSpline);
                 alternative_methods.push(InterpolationMethod::NURBS);
-            },
+            }
             _ => {
                 alternative_methods.push(InterpolationMethod::CubicSpline);
                 alternative_methods.push(InterpolationMethod::BSpline);
@@ -429,7 +432,8 @@ where
     let recommended_density = current_density * accuracy_factor.sqrt();
 
     // Check if current density is adequate
-    let density_adequate = current_density >= recommended_density * F::from(0.5).unwrap_or_else(|| F::from(0.5).unwrap());
+    let density_adequate = current_density
+        >= recommended_density * F::from(0.5).unwrap_or_else(|| F::from(0.5).unwrap());
 
     // Suggest additional points if needed
     let suggested_additional_points = if density_adequate {
@@ -446,13 +450,14 @@ where
         F::infinity()
     };
 
-    let sampling_strategy = if distance_ratio > F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap()) {
-        SamplingStrategy::Adaptive
-    } else if dimension > 2 {
-        SamplingStrategy::QuasiRandom
-    } else {
-        SamplingStrategy::Uniform
-    };
+    let sampling_strategy =
+        if distance_ratio > F::from(100.0).unwrap_or_else(|| F::from(100.0).unwrap()) {
+            SamplingStrategy::Adaptive
+        } else if dimension > 2 {
+            SamplingStrategy::QuasiRandom
+        } else {
+            SamplingStrategy::Uniform
+        };
 
     Ok(SamplingDensityAnalysis {
         current_density,
@@ -498,12 +503,11 @@ mod tests {
 
     #[test]
     fn test_data_scaling_analysis() {
-        let points = Array2::from_shape_vec((4, 2), vec![
-            0.0, 0.0,
-            1000.0, 0.0,
-            0.0, 1000.0,
-            1000.0, 1000.0,
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (4, 2),
+            vec![0.0, 0.0, 1000.0, 0.0, 0.0, 1000.0, 1000.0, 1000.0],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 0.001, 0.001, 0.002]);
 
         let scaling = analyze_data_scaling(&points.view(), &values.view()).unwrap();
@@ -554,12 +558,8 @@ mod tests {
 
     #[test]
     fn test_sampling_density_analysis() {
-        let points = Array2::from_shape_vec((4, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0,
-        ]).unwrap();
+        let points =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
 
         let analysis = analyze_sampling_density(&points.view(), 0.01).unwrap();
         assert!(analysis.current_density > 0.0);
@@ -568,13 +568,11 @@ mod tests {
 
     #[test]
     fn test_complete_data_analysis() {
-        let points = Array2::from_shape_vec((5, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            2.0, 0.0,
-            3.0, 0.0,
-            4.0, 0.0,
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (5, 2),
+            vec![0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 1.0, 4.0, 9.0, 16.0]);
 
         let report = analyze_interpolation_data(&points.view(), &values.view()).unwrap();

@@ -10,8 +10,8 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, S
 
 use crate::error::{InterpolateError, InterpolateResult};
 
-use super::types::ExtrapolateMode;
 use super::core::BSpline;
+use super::types::ExtrapolateMode;
 
 impl<T> BSpline<T>
 where
@@ -438,7 +438,7 @@ where
     where
         T: Send + Sync,
     {
-        use rayon::prelude::*;
+        use scirs2_core::parallel_ops::*;
 
         let chunks: Result<Vec<_>, _> = xs
             .axis_chunks_iter(ndarray::Axis(0), chunk_size)

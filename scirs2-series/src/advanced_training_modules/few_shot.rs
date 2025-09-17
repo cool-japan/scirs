@@ -8,8 +8,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
 use super::config::TaskData;
+use crate::error::Result;
 
 /// Prototypical Networks for Few-Shot Learning
 #[derive(Debug)]
@@ -634,7 +634,8 @@ mod tests {
 
     #[test]
     fn test_few_shot_episode() {
-        let support_x = Array2::from_shape_vec((4, 3), (0..12).map(|i| i as f64).collect()).unwrap();
+        let support_x =
+            Array2::from_shape_vec((4, 3), (0..12).map(|i| i as f64).collect()).unwrap();
         let support_y = Array1::from_vec(vec![0, 0, 1, 1]);
         let query_x = Array2::from_shape_vec((2, 3), (12..18).map(|i| i as f64).collect()).unwrap();
         let query_y = Array1::from_vec(vec![0, 1]);
@@ -651,7 +652,8 @@ mod tests {
     #[test]
     fn test_prototypical_networks_features() {
         let model = PrototypicalNetworks::<f64>::new(5, 4, vec![8]);
-        let input = Array2::from_shape_vec((3, 5), (0..15).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((3, 5), (0..15).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let features = model.extract_features(&input).unwrap();
         assert_eq!(features.dim(), (3, 4));
@@ -666,11 +668,15 @@ mod tests {
     fn test_prototypical_networks_classification() {
         let model = PrototypicalNetworks::<f64>::new(4, 6, vec![8]);
 
-        let support_x = Array2::from_shape_vec((6, 4), (0..24).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let support_x =
+            Array2::from_shape_vec((6, 4), (0..24).map(|i| i as f64 * 0.1).collect()).unwrap();
         let support_y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let query_x = Array2::from_shape_vec((2, 4), (24..32).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let query_x =
+            Array2::from_shape_vec((2, 4), (24..32).map(|i| i as f64 * 0.1).collect()).unwrap();
 
-        let predictions = model.few_shot_episode(&support_x, &support_y, &query_x).unwrap();
+        let predictions = model
+            .few_shot_episode(&support_x, &support_y, &query_x)
+            .unwrap();
         assert_eq!(predictions.len(), 2);
 
         // Predictions should be within valid class range
@@ -691,7 +697,8 @@ mod tests {
     #[test]
     fn test_reptile_prediction() {
         let reptile = REPTILE::<f64>::new(4, 8, 2, 0.01, 0.1, 3);
-        let input = Array2::from_shape_vec((3, 4), (0..12).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((3, 4), (0..12).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let output = reptile.predict(&reptile.parameters, &input).unwrap();
         assert_eq!(output.dim(), (3, 2));
@@ -705,14 +712,17 @@ mod tests {
     #[test]
     fn test_reptile_fast_adapt() {
         let reptile = REPTILE::<f64>::new(3, 6, 2, 0.01, 0.1, 2);
-        let support_x = Array2::from_shape_vec((4, 3), (0..12).map(|i| i as f64 * 0.2).collect()).unwrap();
-        let support_y = Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let support_x =
+            Array2::from_shape_vec((4, 3), (0..12).map(|i| i as f64 * 0.2).collect()).unwrap();
+        let support_y =
+            Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let adapted_params = reptile.fast_adapt(&support_x, &support_y).unwrap();
         assert_eq!(adapted_params.dim(), reptile.parameters.dim());
 
         // Adapted parameters should be different from original
-        let params_changed = adapted_params.iter()
+        let params_changed = adapted_params
+            .iter()
             .zip(reptile.parameters.iter())
             .any(|(a, b)| (a - b).abs() > 1e-10);
         assert!(params_changed);
@@ -734,14 +744,18 @@ mod tests {
         let model = PrototypicalNetworks::<f64>::new(4, 3, vec![]);
 
         // Create simple features where we know the expected prototypes
-        let features = Array2::from_shape_vec((6, 3), vec![
-            1.0, 1.0, 1.0,  // Class 0
-            2.0, 2.0, 2.0,  // Class 0
-            3.0, 3.0, 3.0,  // Class 1
-            4.0, 4.0, 4.0,  // Class 1
-            5.0, 5.0, 5.0,  // Class 1
-            6.0, 6.0, 6.0,  // Class 2
-        ]).unwrap();
+        let features = Array2::from_shape_vec(
+            (6, 3),
+            vec![
+                1.0, 1.0, 1.0, // Class 0
+                2.0, 2.0, 2.0, // Class 0
+                3.0, 3.0, 3.0, // Class 1
+                4.0, 4.0, 4.0, // Class 1
+                5.0, 5.0, 5.0, // Class 1
+                6.0, 6.0, 6.0, // Class 2
+            ],
+        )
+        .unwrap();
         let labels = Array1::from_vec(vec![0, 0, 1, 1, 1, 2]);
 
         let prototypes = model.compute_prototypes(&features, &labels).unwrap();

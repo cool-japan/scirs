@@ -26,7 +26,7 @@ pub mod image_stitching;
 pub mod depth_mapping;
 
 // Re-export types from core_warping for backward compatibility
-pub use core_warping::{InterpolationMethod, BoundaryMethod};
+pub use core_warping::{BoundaryMethod, InterpolationMethod};
 
 /// Warp a grayscale image using a transformation matrix
 pub fn warp_image(
@@ -128,7 +128,7 @@ pub fn perspective_correct(
                 corrected_y[[y, x]] = dst_y / w;
             } else {
                 return Err(VisionError::OperationError(
-                    "Perspective transformation resulted in invalid coordinates".to_string()
+                    "Perspective transformation resulted in invalid coordinates".to_string(),
                 ));
             }
         }
@@ -138,12 +138,11 @@ pub fn perspective_correct(
 }
 
 // Re-export types for backward compatibility
-pub use image_stitching::{TileConfig, BlendingMode, StreamingPanoramaProcessor};
 pub use depth_mapping::{
-    StereoMatchingParams, MatchingCostFunction, SgmParams,
-    DepthMapResult, DepthMapStats, ProcessingTimes,
-    compute_depth_map, disparity_to_depth,
+    compute_depth_map, disparity_to_depth, DepthMapResult, DepthMapStats, MatchingCostFunction,
+    ProcessingTimes, SgmParams, StereoMatchingParams,
 };
+pub use image_stitching::{BlendingMode, StreamingPanoramaProcessor, TileConfig};
 
 /// Multiply two 3x3 matrices
 pub fn matrix_multiply(a: &TransformMatrix, b: &TransformMatrix) -> Result<TransformMatrix> {

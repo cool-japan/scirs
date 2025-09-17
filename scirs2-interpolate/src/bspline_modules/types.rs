@@ -220,7 +220,9 @@ where
         };
 
         let total_size = coeffs_size + poly_size + basis_size + matrix_size;
-        self.memory_stats.borrow_mut().update_memory_usage(total_size);
+        self.memory_stats
+            .borrow_mut()
+            .update_memory_usage(total_size);
     }
 
     /// Clear all buffers and reset to minimum size

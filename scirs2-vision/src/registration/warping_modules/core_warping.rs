@@ -5,7 +5,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::registration::{transform_point, Point2D, TransformMatrix};
-use image::{GrayImage, Luma, RgbImage, Rgb};
+use image::{GrayImage, Luma, Rgb, RgbImage};
 use ndarray::{Array1, Array2, Array3};
 use std::time::{Duration, Instant};
 
@@ -382,7 +382,15 @@ fn sample_rgb_image(
             for j in -1..3 {
                 for i in -1..3 {
                     let weight = cubic_kernel(fx - i as f32) * cubic_kernel(fy - j as f32);
-                    let value = get_rgb_pixel_value(image, x0 + i, y0 + j, channel, boundary, width, height);
+                    let value = get_rgb_pixel_value(
+                        image,
+                        x0 + i,
+                        y0 + j,
+                        channel,
+                        boundary,
+                        width,
+                        height,
+                    );
                     sum += weight * value;
                 }
             }
@@ -773,7 +781,9 @@ pub fn invert_3x3_matrix(matrix: &TransformMatrix) -> Result<TransformMatrix> {
         + m[[0, 2]] * (m[[1, 0]] * m[[2, 1]] - m[[1, 1]] * m[[2, 0]]);
 
     if det.abs() < 1e-10 {
-        return Err(VisionError::OperationError("Matrix is singular".to_string()));
+        return Err(VisionError::OperationError(
+            "Matrix is singular".to_string(),
+        ));
     }
 
     let inv_det = 1.0 / det;

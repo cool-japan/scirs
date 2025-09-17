@@ -9,8 +9,8 @@ use num_complex::Complex;
 use num_traits::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 
-use crate::error::{NdimageError, NdimageResult};
 use super::config::{QuantumAIConsciousnessConfig, QuantumAIConsciousnessState};
+use crate::error::{NdimageError, NdimageResult};
 
 /// Quantum Entanglement Network
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl QuantumEntanglementNetwork {
 
         // Create quantum channels
         for i in 0..network_size {
-            for j in i+1..network_size {
+            for j in i + 1..network_size {
                 let channel = QuantumChannel {
                     id: format!("channel_{}_{}", i, j),
                     source_node: i,
@@ -91,7 +91,11 @@ impl QuantumEntanglementNetwork {
     }
 
     /// Evolve quantum state using Schrödinger equation
-    fn evolve_quantum_state(&mut self, channel: &mut QuantumChannel, time_step: f64) -> NdimageResult<()> {
+    fn evolve_quantum_state(
+        &mut self,
+        channel: &mut QuantumChannel,
+        time_step: f64,
+    ) -> NdimageResult<()> {
         // Simplified quantum state evolution
         // In practice, this would solve the time-dependent Schrödinger equation
 
@@ -105,7 +109,12 @@ impl QuantumEntanglementNetwork {
         }
 
         // Normalize quantum state
-        let norm = channel.quantum_state.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let norm = channel
+            .quantum_state
+            .iter()
+            .map(|x| x * x)
+            .sum::<f64>()
+            .sqrt();
         if norm > 1e-10 {
             for amplitude in channel.quantum_state.iter_mut() {
                 *amplitude /= norm;
@@ -133,7 +142,11 @@ impl QuantumEntanglementNetwork {
     }
 
     /// Compute evolution operator exp(-iHt)
-    fn compute_evolution_operator(&self, hamiltonian: &Array2<f64>, time_step: f64) -> NdimageResult<Array2<f64>> {
+    fn compute_evolution_operator(
+        &self,
+        hamiltonian: &Array2<f64>,
+        time_step: f64,
+    ) -> NdimageResult<Array2<f64>> {
         // Simplified evolution operator computation
         // In practice, would use matrix exponentiation
 
@@ -161,22 +174,35 @@ impl QuantumEntanglementNetwork {
         let mut count = 0;
 
         for i in 0..self.channels.len() {
-            for j in i+1..self.channels.len() {
-                let sync = self.calculate_channel_synchronization(&self.channels[i], &self.channels[j])?;
+            for j in i + 1..self.channels.len() {
+                let sync =
+                    self.calculate_channel_synchronization(&self.channels[i], &self.channels[j])?;
                 total_sync += sync;
                 count += 1;
             }
         }
 
-        Ok(if count > 0 { total_sync / count as f64 } else { 0.0 })
+        Ok(if count > 0 {
+            total_sync / count as f64
+        } else {
+            0.0
+        })
     }
 
     /// Calculate synchronization between two quantum channels
-    fn calculate_channel_synchronization(&self, channel1: &QuantumChannel, channel2: &QuantumChannel) -> NdimageResult<f64> {
+    fn calculate_channel_synchronization(
+        &self,
+        channel1: &QuantumChannel,
+        channel2: &QuantumChannel,
+    ) -> NdimageResult<f64> {
         // Calculate quantum state overlap (fidelity)
         let mut overlap = 0.0;
 
-        for i in 0..channel1.quantum_state.len().min(channel2.quantum_state.len()) {
+        for i in 0..channel1
+            .quantum_state
+            .len()
+            .min(channel2.quantum_state.len())
+        {
             overlap += channel1.quantum_state[i] * channel2.quantum_state[i];
         }
 
@@ -185,9 +211,13 @@ impl QuantumEntanglementNetwork {
 
     /// Measure quantum entanglement (concurrence)
     pub fn measure_entanglement(&self, channel_id: &str) -> NdimageResult<f64> {
-        let channel = self.channels.iter()
+        let channel = self
+            .channels
+            .iter()
             .find(|c| c.id == channel_id)
-            .ok_or_else(|| NdimageError::InvalidInput(format!("Channel {} not found", channel_id)))?;
+            .ok_or_else(|| {
+                NdimageError::InvalidInput(format!("Channel {} not found", channel_id))
+            })?;
 
         // Calculate concurrence for Bell state
         let rho = self.construct_density_matrix(&channel.quantum_state)?;
@@ -255,7 +285,12 @@ impl QuantumChannel {
             target_node: target,
             entanglement_strength: strength,
             coherence_time: 100.0,
-            quantum_state: Array1::from_vec(vec![1.0/2.0_f64.sqrt(), 0.0, 0.0, 1.0/2.0_f64.sqrt()]), // Bell state |00⟩ + |11⟩
+            quantum_state: Array1::from_vec(vec![
+                1.0 / 2.0_f64.sqrt(),
+                0.0,
+                0.0,
+                1.0 / 2.0_f64.sqrt(),
+            ]), // Bell state |00⟩ + |11⟩
             decoherence_rate: 0.01,
             measurement_basis: Array2::eye(2),
         }
@@ -264,11 +299,15 @@ impl QuantumChannel {
     /// Apply quantum gate operation
     pub fn apply_gate(&mut self, gate: &Array2<f64>, qubit_index: usize) -> NdimageResult<()> {
         if gate.nrows() != 2 || gate.ncols() != 2 {
-            return Err(NdimageError::InvalidInput("Gate must be 2x2 matrix".to_string()));
+            return Err(NdimageError::InvalidInput(
+                "Gate must be 2x2 matrix".to_string(),
+            ));
         }
 
         if qubit_index >= 2 {
-            return Err(NdimageError::InvalidInput("Qubit index must be 0 or 1".to_string()));
+            return Err(NdimageError::InvalidInput(
+                "Qubit index must be 0 or 1".to_string(),
+            ));
         }
 
         // Apply single-qubit gate to two-qubit state
@@ -278,21 +317,33 @@ impl QuantumChannel {
     }
 
     /// Apply single-qubit gate to two-qubit state
-    fn apply_single_qubit_gate(&mut self, gate: &Array2<f64>, qubit_index: usize) -> NdimageResult<()> {
+    fn apply_single_qubit_gate(
+        &mut self,
+        gate: &Array2<f64>,
+        qubit_index: usize,
+    ) -> NdimageResult<()> {
         let mut new_state = Array1::zeros(4);
 
         if qubit_index == 0 {
             // Apply gate to first qubit
-            new_state[0] = gate[[0, 0]] * self.quantum_state[0] + gate[[0, 1]] * self.quantum_state[2];
-            new_state[1] = gate[[0, 0]] * self.quantum_state[1] + gate[[0, 1]] * self.quantum_state[3];
-            new_state[2] = gate[[1, 0]] * self.quantum_state[0] + gate[[1, 1]] * self.quantum_state[2];
-            new_state[3] = gate[[1, 0]] * self.quantum_state[1] + gate[[1, 1]] * self.quantum_state[3];
+            new_state[0] =
+                gate[[0, 0]] * self.quantum_state[0] + gate[[0, 1]] * self.quantum_state[2];
+            new_state[1] =
+                gate[[0, 0]] * self.quantum_state[1] + gate[[0, 1]] * self.quantum_state[3];
+            new_state[2] =
+                gate[[1, 0]] * self.quantum_state[0] + gate[[1, 1]] * self.quantum_state[2];
+            new_state[3] =
+                gate[[1, 0]] * self.quantum_state[1] + gate[[1, 1]] * self.quantum_state[3];
         } else {
             // Apply gate to second qubit
-            new_state[0] = gate[[0, 0]] * self.quantum_state[0] + gate[[0, 1]] * self.quantum_state[1];
-            new_state[1] = gate[[1, 0]] * self.quantum_state[0] + gate[[1, 1]] * self.quantum_state[1];
-            new_state[2] = gate[[0, 0]] * self.quantum_state[2] + gate[[0, 1]] * self.quantum_state[3];
-            new_state[3] = gate[[1, 0]] * self.quantum_state[2] + gate[[1, 1]] * self.quantum_state[3];
+            new_state[0] =
+                gate[[0, 0]] * self.quantum_state[0] + gate[[0, 1]] * self.quantum_state[1];
+            new_state[1] =
+                gate[[1, 0]] * self.quantum_state[0] + gate[[1, 1]] * self.quantum_state[1];
+            new_state[2] =
+                gate[[0, 0]] * self.quantum_state[2] + gate[[0, 1]] * self.quantum_state[3];
+            new_state[3] =
+                gate[[1, 0]] * self.quantum_state[2] + gate[[1, 1]] * self.quantum_state[3];
         }
 
         self.quantum_state = new_state;
@@ -355,7 +406,11 @@ impl CoherenceMechanism {
     }
 
     /// Apply coherence preservation
-    pub fn preserve_coherence(&mut self, channel: &mut QuantumChannel, time_step: f64) -> NdimageResult<()> {
+    pub fn preserve_coherence(
+        &mut self,
+        channel: &mut QuantumChannel,
+        time_step: f64,
+    ) -> NdimageResult<()> {
         // Apply dynamical decoupling
         self.apply_dynamical_decoupling(channel, time_step)?;
 
@@ -371,7 +426,11 @@ impl CoherenceMechanism {
     }
 
     /// Apply dynamical decoupling sequence
-    fn apply_dynamical_decoupling(&self, channel: &mut QuantumChannel, time_step: f64) -> NdimageResult<()> {
+    fn apply_dynamical_decoupling(
+        &self,
+        channel: &mut QuantumChannel,
+        time_step: f64,
+    ) -> NdimageResult<()> {
         // Simplified DD: apply π-pulses at regular intervals
         let pulse_interval = time_step / 4.0;
 
@@ -389,10 +448,10 @@ impl CoherenceMechanism {
     fn apply_quantum_error_correction(&self, channel: &mut QuantumChannel) -> NdimageResult<()> {
         // Simplified error correction: project back to Bell state subspace
         let bell_states = vec![
-            Array1::from_vec(vec![1.0/2.0_f64.sqrt(), 0.0, 0.0, 1.0/2.0_f64.sqrt()]),
-            Array1::from_vec(vec![1.0/2.0_f64.sqrt(), 0.0, 0.0, -1.0/2.0_f64.sqrt()]),
-            Array1::from_vec(vec![0.0, 1.0/2.0_f64.sqrt(), 1.0/2.0_f64.sqrt(), 0.0]),
-            Array1::from_vec(vec![0.0, 1.0/2.0_f64.sqrt(), -1.0/2.0_f64.sqrt(), 0.0]),
+            Array1::from_vec(vec![1.0 / 2.0_f64.sqrt(), 0.0, 0.0, 1.0 / 2.0_f64.sqrt()]),
+            Array1::from_vec(vec![1.0 / 2.0_f64.sqrt(), 0.0, 0.0, -1.0 / 2.0_f64.sqrt()]),
+            Array1::from_vec(vec![0.0, 1.0 / 2.0_f64.sqrt(), 1.0 / 2.0_f64.sqrt(), 0.0]),
+            Array1::from_vec(vec![0.0, 1.0 / 2.0_f64.sqrt(), -1.0 / 2.0_f64.sqrt(), 0.0]),
         ];
 
         // Find closest Bell state
@@ -433,9 +492,15 @@ impl CoherenceMechanism {
     pub fn get_coherence_metrics(&self) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
         metrics.insert("coherence_level".to_string(), self.coherence_level);
-        metrics.insert("preservation_efficiency".to_string(),
-                      self.mitigation_techniques.values().sum::<f64>() / self.mitigation_techniques.len() as f64);
-        metrics.insert("noise_strength".to_string(), self.noise_model.diag().sum() / self.noise_model.nrows() as f64);
+        metrics.insert(
+            "preservation_efficiency".to_string(),
+            self.mitigation_techniques.values().sum::<f64>()
+                / self.mitigation_techniques.len() as f64,
+        );
+        metrics.insert(
+            "noise_strength".to_string(),
+            self.noise_model.diag().sum() / self.noise_model.nrows() as f64,
+        );
 
         metrics
     }
@@ -465,10 +530,12 @@ impl ConsciousnessSynchronizationState {
     }
 
     /// Update synchronization across consciousness components
-    pub fn update_synchronization<T>(&mut self,
+    pub fn update_synchronization<T>(
+        &mut self,
         image: &ArrayView2<T>,
         quantum_network: &QuantumEntanglementNetwork,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()>
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()>
     where
         T: Float + FromPrimitive + Copy + Send + Sync,
     {
@@ -488,7 +555,10 @@ impl ConsciousnessSynchronizationState {
     }
 
     /// Update phase coherence across network
-    fn update_phase_coherence(&mut self, network: &QuantumEntanglementNetwork) -> NdimageResult<()> {
+    fn update_phase_coherence(
+        &mut self,
+        network: &QuantumEntanglementNetwork,
+    ) -> NdimageResult<()> {
         let num_channels = network.channels.len().max(1);
         self.phase_coherence = Array1::zeros(num_channels);
 
@@ -512,9 +582,8 @@ impl ConsciousnessSynchronizationState {
         // Simple pattern detection based on entanglement strength
         for window in network.channels.windows(3) {
             if window.len() == 3 {
-                let avg_strength = window.iter()
-                    .map(|c| c.entanglement_strength)
-                    .sum::<f64>() / 3.0;
+                let avg_strength =
+                    window.iter().map(|c| c.entanglement_strength).sum::<f64>() / 3.0;
 
                 if avg_strength > 0.7 {
                     let pattern = SynchronizationPattern {
@@ -533,16 +602,22 @@ impl ConsciousnessSynchronizationState {
     }
 
     /// Preserve global coherence across all components
-    fn preserve_global_coherence(&mut self, config: &QuantumAIConsciousnessConfig) -> NdimageResult<()> {
+    fn preserve_global_coherence(
+        &mut self,
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()> {
         // Apply global coherence preservation strategies
-        let preservation_efficiency = self.coherence_mechanism.mitigation_techniques
+        let preservation_efficiency = self
+            .coherence_mechanism
+            .mitigation_techniques
             .get("error_correction")
             .copied()
             .unwrap_or(0.8);
 
         // Update synchronization level with preservation
         self.synchronization_level = (self.synchronization_level * preservation_efficiency)
-            .max(0.0).min(1.0);
+            .max(0.0)
+            .min(1.0);
 
         Ok(())
     }
@@ -562,7 +637,12 @@ pub struct SynchronizationPattern {
 }
 
 /// Initialize quantum core components
-pub fn initialize_quantum_core(config: &QuantumAIConsciousnessConfig) -> NdimageResult<(QuantumEntanglementNetwork, ConsciousnessSynchronizationState)> {
+pub fn initialize_quantum_core(
+    config: &QuantumAIConsciousnessConfig,
+) -> NdimageResult<(
+    QuantumEntanglementNetwork,
+    ConsciousnessSynchronizationState,
+)> {
     let mut quantum_network = QuantumEntanglementNetwork::new();
     quantum_network.initialize(config)?;
 
@@ -590,7 +670,9 @@ where
 
     // Apply coherence preservation to all channels
     for channel in &mut network.channels {
-        sync_state.coherence_mechanism.preserve_coherence(channel, time_step)?;
+        sync_state
+            .coherence_mechanism
+            .preserve_coherence(channel, time_step)?;
     }
 
     Ok(())
@@ -604,14 +686,30 @@ pub fn get_quantum_metrics(
     let mut metrics = HashMap::new();
 
     // Network metrics
-    metrics.insert("network_synchronization".to_string(), network.synchronization_level);
+    metrics.insert(
+        "network_synchronization".to_string(),
+        network.synchronization_level,
+    );
     metrics.insert("active_channels".to_string(), network.channels.len() as f64);
-    metrics.insert("average_entanglement".to_string(),
-                  network.channels.iter().map(|c| c.entanglement_strength).sum::<f64>() / network.channels.len().max(1) as f64);
+    metrics.insert(
+        "average_entanglement".to_string(),
+        network
+            .channels
+            .iter()
+            .map(|c| c.entanglement_strength)
+            .sum::<f64>()
+            / network.channels.len().max(1) as f64,
+    );
 
     // Synchronization metrics
-    metrics.insert("global_synchronization".to_string(), sync_state.synchronization_level);
-    metrics.insert("sync_patterns".to_string(), sync_state.sync_patterns.len() as f64);
+    metrics.insert(
+        "global_synchronization".to_string(),
+        sync_state.synchronization_level,
+    );
+    metrics.insert(
+        "sync_patterns".to_string(),
+        sync_state.sync_patterns.len() as f64,
+    );
 
     // Coherence metrics
     let coherence_metrics = sync_state.coherence_mechanism.get_coherence_metrics();

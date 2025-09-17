@@ -8,8 +8,8 @@ use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::fmt::Debug;
 
+use super::{GpuCapabilities, GpuConfig, TensorCoresConfig, TensorCoresGeneration};
 use crate::error::{Result, TimeSeriesError};
-use super::{GpuConfig, TensorCoresConfig, GpuCapabilities, TensorCoresGeneration};
 
 /// GPU-accelerated BLAS operations
 #[derive(Debug)]

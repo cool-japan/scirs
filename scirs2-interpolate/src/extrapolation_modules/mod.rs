@@ -4,10 +4,10 @@
 //! broken down into focused, maintainable modules.
 
 // Core modules
-pub mod types;
+pub mod advanced;
 pub mod config;
 pub mod core;
-pub mod advanced;
+pub mod types;
 
 // Specialized functionality
 pub mod factory;
@@ -15,45 +15,43 @@ pub mod physics;
 
 // Re-export main types from types module
 pub use types::{
-    ExtrapolationMethod, ExtrapolationDirection, EnsembleCombinationStrategy,
-    AdaptiveSelectionCriterion, ARFittingMethod, PhysicsLaw, BoundaryType,
-    DataCharacteristics,
+    ARFittingMethod, AdaptiveSelectionCriterion, BoundaryType, DataCharacteristics,
+    EnsembleCombinationStrategy, ExtrapolationDirection, ExtrapolationMethod, PhysicsLaw,
 };
 
 // Re-export configuration types from config module
 pub use config::{
-    ExtrapolationParameters, ConfidenceExtrapolationConfig, ConfidenceExtrapolationResult,
-    EnsembleExtrapolationConfig, AdaptiveExtrapolationConfig, AutoregressiveExtrapolationConfig,
-    ExtrapolationConfig, ExtrapolationConfigBuilder,
+    AdaptiveExtrapolationConfig, AutoregressiveExtrapolationConfig, ConfidenceExtrapolationConfig,
+    ConfidenceExtrapolationResult, EnsembleExtrapolationConfig, ExtrapolationConfig,
+    ExtrapolationConfigBuilder, ExtrapolationParameters,
 };
 
 // Re-export core functionality
-pub use core::Extrapolator;
 pub use advanced::AdvancedExtrapolator;
+pub use core::Extrapolator;
 
 // Re-export factory functions
 pub use factory::{
-    make_linear_extrapolator, make_periodic_extrapolator, make_reflection_extrapolator,
-    make_cubic_extrapolator, make_exponential_extrapolator, make_power_law_extrapolator,
-    make_zeros_extrapolator, make_nearest_extrapolator, make_confidence_extrapolator,
-    make_ensemble_extrapolator, make_adaptive_extrapolator, make_autoregressive_extrapolator,
-    make_conservative_extrapolator, make_robust_ensemble_extrapolator,
-    make_smooth_function_extrapolator, make_oscillatory_extrapolator,
-    make_monotonic_extrapolator, make_high_confidence_extrapolator,
+    make_adaptive_extrapolator, make_autoregressive_extrapolator, make_confidence_extrapolator,
+    make_conservative_extrapolator, make_cubic_extrapolator, make_ensemble_extrapolator,
+    make_exponential_extrapolator, make_high_confidence_extrapolator, make_linear_extrapolator,
+    make_monotonic_extrapolator, make_nearest_extrapolator, make_oscillatory_extrapolator,
+    make_periodic_extrapolator, make_power_law_extrapolator, make_reflection_extrapolator,
+    make_robust_ensemble_extrapolator, make_smooth_function_extrapolator, make_zeros_extrapolator,
 };
 
 // Re-export physics-informed functions
 pub use physics::{
-    make_physics_informed_extrapolator, make_boundary_preserving_extrapolator,
-    make_smart_adaptive_extrapolator, make_conservation_law_extrapolator,
-    make_wave_equation_extrapolator, make_diffusion_equation_extrapolator,
-    make_boundary_layer_extrapolator, make_constrained_extrapolator,
-    analyze_physics_characteristics,
+    analyze_physics_characteristics, make_boundary_layer_extrapolator,
+    make_boundary_preserving_extrapolator, make_conservation_law_extrapolator,
+    make_constrained_extrapolator, make_diffusion_equation_extrapolator,
+    make_physics_informed_extrapolator, make_smart_adaptive_extrapolator,
+    make_wave_equation_extrapolator,
 };
 
 // Convenience re-exports for backward compatibility
-pub use core::Extrapolator as ExtrapolationEngine;
 pub use advanced::AdvancedExtrapolator as AdvancedExtrapolationEngine;
+pub use core::Extrapolator as ExtrapolationEngine;
 
 /// Creates a default linear extrapolator for quick usage
 ///
@@ -141,7 +139,11 @@ pub fn create_robust_extrapolator<
 ///
 /// An advanced extrapolator with method selection based on data analysis
 pub fn create_smart_extrapolator<
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Display + std::default::Default + std::ops::AddAssign,
+    T: num_traits::Float
+        + num_traits::FromPrimitive
+        + std::fmt::Display
+        + std::default::Default
+        + std::ops::AddAssign,
 >(
     lower_bound: T,
     upper_bound: T,
@@ -259,7 +261,8 @@ mod tests {
     #[test]
     fn test_data_characteristics_analysis() {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let gradients = Some(vec![1.0, 1.0, 1.0, 1.0].as_slice());
+        let gradient_vec = vec![1.0, 1.0, 1.0, 1.0];
+        let gradients = Some(gradient_vec.as_slice());
 
         let characteristics = analyze_data_for_extrapolation(&values, gradients);
 

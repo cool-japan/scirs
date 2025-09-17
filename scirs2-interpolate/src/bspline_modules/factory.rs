@@ -10,9 +10,9 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, S
 
 use crate::error::{InterpolateError, InterpolateResult};
 
-use super::types::ExtrapolateMode;
 use super::core::BSpline;
 use super::solvers::{solve_least_squares, solve_linear_system};
+use super::types::ExtrapolateMode;
 
 /// Create a B-spline from a set of points using interpolation
 ///
@@ -382,7 +382,9 @@ where
 
     // Determine number of knots based on data size and smoothing factor
     let base_knots = std::cmp::max(k + 1, x.len() / 4);
-    let smoothing_adjustment = (smoothing_factor * T::from_f64(10.0).unwrap()).to_usize().unwrap_or(0);
+    let smoothing_adjustment = (smoothing_factor * T::from_f64(10.0).unwrap())
+        .to_usize()
+        .unwrap_or(0);
     let num_internal_knots = if smoothing_adjustment > base_knots / 2 {
         base_knots / 2
     } else {
@@ -626,7 +628,13 @@ mod tests {
         let k = 2;
         let smoothing = 0.1;
 
-        let spline = make_auto_bspline(&x.view(), &y.view(), k, smoothing, ExtrapolateMode::Extrapolate);
+        let spline = make_auto_bspline(
+            &x.view(),
+            &y.view(),
+            k,
+            smoothing,
+            ExtrapolateMode::Extrapolate,
+        );
         assert!(spline.is_ok());
 
         let spline = spline.unwrap();

@@ -25,12 +25,11 @@ use crate::bspline_modules;
 
 // Re-export the public API
 pub use crate::bspline_modules::{
-    ExtrapolateMode, BSpline, BSplineWorkspace, BSplineWorkspaceBuilder,
-    WorkspaceMemoryStats, WorkspaceProvider, WorkspaceConfig, EvaluationStats,
-    make_interp_bspline, make_lsq_bspline, generate_knots, make_auto_bspline,
-    make_smoothing_bspline, make_periodic_bspline, solve_linear_system,
-    solve_least_squares, lu_decomposition, solve_with_lu, solve_multiple_rhs,
-    condition_number, transpose_matrix, matrix_multiply, matrix_vector_multiply,
+    condition_number, generate_knots, lu_decomposition, make_auto_bspline, make_interp_bspline,
+    make_lsq_bspline, make_periodic_bspline, make_smoothing_bspline, matrix_multiply,
+    matrix_vector_multiply, solve_least_squares, solve_linear_system, solve_multiple_rhs,
+    solve_with_lu, transpose_matrix, BSpline, BSplineWorkspace, BSplineWorkspaceBuilder,
+    EvaluationStats, ExtrapolateMode, WorkspaceConfig, WorkspaceMemoryStats, WorkspaceProvider,
 };
 
 // Convenience re-exports for common patterns
@@ -49,10 +48,7 @@ pub type BSplineF64 = BSpline<f64>;
 /// Create a simple linear B-spline for quick interpolation
 ///
 /// This is a convenience function for creating degree-1 B-splines.
-pub fn linear_bspline<T>(
-    x: &ArrayView1<T>,
-    y: &ArrayView1<T>,
-) -> InterpolateResult<BSpline<T>>
+pub fn linear_bspline<T>(x: &ArrayView1<T>, y: &ArrayView1<T>) -> InterpolateResult<BSpline<T>>
 where
     T: Float
         + FromPrimitive
@@ -75,10 +71,7 @@ where
 /// Create a cubic B-spline for smooth interpolation
 ///
 /// This is a convenience function for creating degree-3 B-splines.
-pub fn cubic_bspline<T>(
-    x: &ArrayView1<T>,
-    y: &ArrayView1<T>,
-) -> InterpolateResult<BSpline<T>>
+pub fn cubic_bspline<T>(x: &ArrayView1<T>, y: &ArrayView1<T>) -> InterpolateResult<BSpline<T>>
 where
     T: Float
         + FromPrimitive
@@ -235,7 +228,6 @@ where
 
         Ok(extrema)
     }
-
 }
 
 // Implementation of Interpolator trait for BSpline
@@ -352,12 +344,8 @@ mod tests {
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
         let y = array![1.0, 2.0, 3.0, 2.0, 1.0];
 
-        let spline = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
         let workspace = BSplineWorkspace::new(2);
 
@@ -378,12 +366,8 @@ mod tests {
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![0.0, 1.0, 8.0, 27.0, 64.0, 125.0]; // y = x^3
 
-        let spline = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            3,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline =
+            make_interp_bspline(&x.view(), &y.view(), 3, ExtrapolateMode::Extrapolate).unwrap();
 
         // Test fast recursive evaluation
         let fast_value = spline.evaluate_fast_recursive(2.5);
@@ -418,13 +402,8 @@ mod tests {
         assert!(lsq_spline.is_ok());
 
         // Test automatic spline creation
-        let auto_spline = make_auto_bspline(
-            &x.view(),
-            &y.view(),
-            3,
-            0.1,
-            ExtrapolateMode::Extrapolate,
-        );
+        let auto_spline =
+            make_auto_bspline(&x.view(), &y.view(), 3, 0.1, ExtrapolateMode::Extrapolate);
         assert!(auto_spline.is_ok());
     }
 
@@ -434,35 +413,23 @@ mod tests {
         let y = array![1.0, 4.0, 9.0, 16.0];
 
         // Test extrapolate mode
-        let spline_extrapolate = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline_extrapolate =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
         let val_out = spline_extrapolate.evaluate(5.0); // Outside domain
         assert!(val_out.is_ok());
 
         // Test NaN mode
-        let spline_nan = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Nan,
-        ).unwrap();
+        let spline_nan =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Nan).unwrap();
 
         let val_nan = spline_nan.evaluate(5.0);
         assert!(val_nan.is_ok());
         assert!(val_nan.unwrap().is_nan());
 
         // Test error mode
-        let spline_error = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Error,
-        ).unwrap();
+        let spline_error =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Error).unwrap();
 
         let val_error = spline_error.evaluate(5.0);
         assert!(val_error.is_err());
@@ -473,12 +440,8 @@ mod tests {
         let x = array![0.0, 1.0, 2.0, 3.0];
         let y = array![0.0, 1.0, 4.0, 9.0];
 
-        let spline = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
         // Test Interpolator trait
         let query_points = array![[1.5], [2.5]];

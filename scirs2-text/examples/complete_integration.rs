@@ -209,7 +209,8 @@ impl AdvancedSystem {
             .collect();
 
         // Optimized similarity matrix
-        let similarity_matrix = AdvancedSIMDTextProcessor::advanced_similarity_matrix(&testtext_refs);
+        let similarity_matrix =
+            AdvancedSIMDTextProcessor::advanced_similarity_matrix(&testtext_refs);
 
         let processing_time = start_time.elapsed();
 

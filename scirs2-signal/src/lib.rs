@@ -50,6 +50,9 @@ pub mod dwt;
 // Enhanced 2D Discrete Wavelet Transform module
 pub mod dwt2d_enhanced;
 
+// Advanced-refined 2D Discrete Wavelet Transform module with memory efficiency
+pub mod dwt2d_super_refined;
+
 // Comprehensive wavelets module (CWT, dual-tree complex, etc.)
 pub mod wavelets;
 
@@ -71,8 +74,8 @@ pub mod waveforms;
 // TODO: Re-add these modules incrementally after fixing compilation errors
 // Lomb-Scargle periodogram module (refactored)
 pub mod lombscargle;
-pub mod lombscargle_scipy_validation;
 pub mod lombscargle_enhanced;
+pub mod lombscargle_scipy_validation;
 // pub mod utilities;
 pub mod simd_advanced;
 // pub mod cqt;

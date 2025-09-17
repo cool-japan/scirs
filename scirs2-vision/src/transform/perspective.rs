@@ -29,7 +29,8 @@ pub use estimation::{
 };
 
 pub use warping::{
-    bilinear_interpolate, bilinear_interpolate_simd, modulo, reflect_coordinate, warp_perspective, warp_perspective_simd,
+    bilinear_interpolate, bilinear_interpolate_simd, modulo, reflect_coordinate, warp_perspective,
+    warp_perspective_simd,
 };
 
 pub use rectification::{auto_perspective_correction, extract_rectangle};
@@ -60,7 +61,7 @@ pub fn detect_quad(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{DynamicImage, Rgb, RgbImage, Rgba};
+    use image::{DynamicImage, GenericImageView, Pixel, Rgb, RgbImage, Rgba};
     use ndarray::arr1;
 
     #[test]

@@ -5,8 +5,8 @@
 
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::config::{GpuBackend, GpuCapabilities, TensorCoresGeneration};
+use crate::error::{Result, TimeSeriesError};
 
 /// GPU device manager for detecting and managing GPU devices
 #[derive(Debug)]

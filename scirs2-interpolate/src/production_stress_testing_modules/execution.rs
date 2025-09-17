@@ -2,8 +2,8 @@
 //!
 //! This module contains the core execution logic for running various types of stress tests.
 
-use super::types::*;
 use super::generators::*;
+use super::types::*;
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
 use ndarray::{Array1, ArrayView1};
@@ -117,7 +117,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         (size / 100).min(1000),
                     );
 
-                    let result = crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
+                    let result =
+                        crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
                     let duration = start.elapsed();
 
                     match result {
@@ -166,11 +167,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
             let test_result = match generate_test_data(pattern, 1000) {
                 Ok((x, y)) => {
                     let start = Instant::now();
-                    let x_query = Array1::linspace(
-                        T::from_f64(1.0).unwrap(),
-                        T::from_f64(9.0).unwrap(),
-                        10,
-                    );
+                    let x_query =
+                        Array1::linspace(T::from_f64(1.0).unwrap(), T::from_f64(9.0).unwrap(), 10);
 
                     // Test multiple interpolation methods
                     let methods = vec!["linear", "cubic"];
@@ -179,8 +177,16 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
 
                     for method in methods {
                         let method_result = match method {
-                            "linear" => crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view()),
-                            "cubic" => crate::interp1d::cubic_interpolate(&x.view(), &y.view(), &x_query.view()),
+                            "linear" => crate::interp1d::linear_interpolate(
+                                &x.view(),
+                                &y.view(),
+                                &x_query.view(),
+                            ),
+                            "cubic" => crate::interp1d::cubic_interpolate(
+                                &x.view(),
+                                &y.view(),
+                                &x_query.view(),
+                            ),
                             _ => continue,
                         };
 
@@ -189,10 +195,15 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                                 // Check result validity
                                 if result.iter().any(|v| !v.is_finite()) {
                                     issues.push(StressTestIssue {
-                                        description: format!("{} method produced non-finite values", method),
+                                        description: format!(
+                                            "{} method produced non-finite values",
+                                            method
+                                        ),
                                         severity: IssueSeverity::High,
                                         production_impact: ProductionImpact::Major,
-                                        suggested_fix: Some("Add input validation and result checking".to_string()),
+                                        suggested_fix: Some(
+                                            "Add input validation and result checking".to_string(),
+                                        ),
                                         iteration: None,
                                     });
                                 }
@@ -254,8 +265,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         println!("Testing numerical edge cases...");
 
         let edge_cases = vec![
-            (1e-15, 1e-10),  // Very small values
-            (-1e15, 1e15),   // Very large range
+            (1e-15, 1e-10),      // Very small values
+            (-1e15, 1e15),       // Very large range
             (0.0, f64::EPSILON), // Near-zero range
         ];
 
@@ -271,7 +282,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         10,
                     );
 
-                    let result = crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
+                    let result =
+                        crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
                     let duration = start.elapsed();
 
                     match result {
@@ -281,10 +293,13 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                             // Check for numerical issues
                             if interpolated.iter().any(|v| !v.is_finite()) {
                                 issues.push(StressTestIssue {
-                                    description: "Interpolation produced non-finite values".to_string(),
+                                    description: "Interpolation produced non-finite values"
+                                        .to_string(),
                                     severity: IssueSeverity::High,
                                     production_impact: ProductionImpact::Major,
-                                    suggested_fix: Some("Improve numerical stability handling".to_string()),
+                                    suggested_fix: Some(
+                                        "Improve numerical stability handling".to_string(),
+                                    ),
                                     iteration: None,
                                 });
                             }
@@ -292,8 +307,15 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                             StressTestResult {
                                 test_name: format!("edge_case_{}", i),
                                 category: StressTestCategory::NumericalEdgeCases,
-                                input_characteristics: format!("Range: [{:.2e}, {:.2e}]", min_val, max_val),
-                                status: if issues.is_empty() { TestStatus::Passed } else { TestStatus::PassedWithWarnings },
+                                input_characteristics: format!(
+                                    "Range: [{:.2e}, {:.2e}]",
+                                    min_val, max_val
+                                ),
+                                status: if issues.is_empty() {
+                                    TestStatus::Passed
+                                } else {
+                                    TestStatus::PassedWithWarnings
+                                },
                                 execution_time: duration,
                                 performance: self.calculate_performance_metrics(&[duration], None),
                                 error_info: None,
@@ -347,7 +369,8 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         data_size / 100,
                     );
 
-                    let result = crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
+                    let result =
+                        crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view());
                     let duration = start.elapsed();
                     let final_memory = self.estimate_memory_usage(data_size);
 
@@ -382,7 +405,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                                     description: "Potential memory leak detected".to_string(),
                                     severity: IssueSeverity::High,
                                     production_impact: ProductionImpact::Major,
-                                    suggested_fix: Some("Investigate memory allocation patterns".to_string()),
+                                    suggested_fix: Some(
+                                        "Investigate memory allocation patterns".to_string(),
+                                    ),
                                     iteration: None,
                                 });
                             }
@@ -452,10 +477,15 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                                 // For most error scenarios, we shouldn't succeed
                                 if error_type != "single_point" {
                                     issues.push(StressTestIssue {
-                                        description: format!("{} method should have failed with {}", method, error_type),
+                                        description: format!(
+                                            "{} method should have failed with {}",
+                                            method, error_type
+                                        ),
                                         severity: IssueSeverity::Medium,
                                         production_impact: ProductionImpact::Minor,
-                                        suggested_fix: Some("Add more robust input validation".to_string()),
+                                        suggested_fix: Some(
+                                            "Add more robust input validation".to_string(),
+                                        ),
                                         iteration: None,
                                     });
                                 }
@@ -487,7 +517,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         duration: Duration::from_millis(1),
                         issues,
                         recommendations: vec![
-                            "Ensure consistent error handling across all methods".to_string()
+                            "Ensure consistent error handling across all methods".to_string(),
                         ],
                     }
                 }
@@ -530,12 +560,19 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                         );
 
                         let iter_start = Instant::now();
-                        let _ = crate::interp1d::linear_interpolate(&x.view(), &y.view(), &x_query.view())?;
+                        let _ = crate::interp1d::linear_interpolate(
+                            &x.view(),
+                            &y.view(),
+                            &x_query.view(),
+                        )?;
                         execution_times.push(iter_start.elapsed());
                     }
 
                     let total_duration = start_time.elapsed();
-                    let performance = self.calculate_performance_metrics(&execution_times, self.baseline_performance.as_ref());
+                    let performance = self.calculate_performance_metrics(
+                        &execution_times,
+                        self.baseline_performance.as_ref(),
+                    );
 
                     let mut issues = Vec::new();
                     if let Some(degradation) = performance.degradation_factor {
@@ -544,7 +581,9 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                                 description: format!("Performance degraded by {:.1}x", degradation),
                                 severity: IssueSeverity::High,
                                 production_impact: ProductionImpact::Major,
-                                suggested_fix: Some("Optimize performance for large datasets".to_string()),
+                                suggested_fix: Some(
+                                    "Optimize performance for large datasets".to_string(),
+                                ),
                                 iteration: None,
                             });
                         }
@@ -553,8 +592,15 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
                     StressTestResult {
                         test_name: format!("performance_stress_{}", i),
                         category: StressTestCategory::PerformanceStress,
-                        input_characteristics: format!("{} data points, {} iterations", stressed_size, 5),
-                        status: if issues.is_empty() { TestStatus::Passed } else { TestStatus::PassedWithWarnings },
+                        input_characteristics: format!(
+                            "{} data points, {} iterations",
+                            stressed_size, 5
+                        ),
+                        status: if issues.is_empty() {
+                            TestStatus::Passed
+                        } else {
+                            TestStatus::PassedWithWarnings
+                        },
                         execution_time: total_duration,
                         performance,
                         error_info: None,

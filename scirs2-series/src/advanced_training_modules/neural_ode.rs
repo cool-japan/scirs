@@ -206,7 +206,10 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> NeuralOD
         let mut next_state = Array1::zeros(self.input_dim);
         for i in 0..self.input_dim {
             next_state[i] = state[i]
-                + dt * (k1[i] + F::from(2.0).unwrap() * k2[i] + F::from(2.0).unwrap() * k3[i] + k4[i])
+                + dt * (k1[i]
+                    + F::from(2.0).unwrap() * k2[i]
+                    + F::from(2.0).unwrap() * k3[i]
+                    + k4[i])
                     / F::from(6.0).unwrap();
         }
 
@@ -242,7 +245,11 @@ impl<F: Float + Debug> ODESolverConfig<F> {
 
     /// Create default RK4 configuration
     pub fn runge_kutta4(step_size: F) -> Self {
-        Self::new(IntegrationMethod::RungeKutta4, step_size, F::from(1e-6).unwrap())
+        Self::new(
+            IntegrationMethod::RungeKutta4,
+            step_size,
+            F::from(1e-6).unwrap(),
+        )
     }
 
     /// Create default RKF45 configuration

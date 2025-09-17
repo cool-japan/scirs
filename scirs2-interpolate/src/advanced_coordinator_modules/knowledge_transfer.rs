@@ -71,11 +71,11 @@ impl<F: Float + Debug> CrossDomainInterpolationKnowledge<F> {
         let source_knowledge = self
             .knowledge_base
             .get_domain_knowledge(source_domain)
-            .ok_or_else(|| {
-                InterpolateError::InvalidInput(format!(
+            .ok_or_else(|| InterpolateError::InvalidInput {
+                message: format!(
                     "No knowledge available for source domain: {}",
                     source_domain
-                ))
+                ),
             })?;
 
         // Find applicable patterns
@@ -383,7 +383,7 @@ pub struct DomainKnowledge<F: Float> {
     pub performance_profile: PerformanceProfile<F>,
 }
 
-impl<F: Float> DomainKnowledge<F> {
+impl<F: Float + std::default::Default> DomainKnowledge<F> {
     /// Create new domain knowledge
     pub fn new(domain: String) -> Self {
         Self {
@@ -643,7 +643,7 @@ pub struct DomainAdapter<F: Float> {
     adaptation_strategies: Vec<AdaptationStrategy<F>>,
 }
 
-impl<F: Float> DomainAdapter<F> {
+impl<F: Float + std::ops::MulAssign> DomainAdapter<F> {
     /// Create new domain adapter
     pub fn new() -> Self {
         Self {

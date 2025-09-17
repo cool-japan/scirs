@@ -28,41 +28,41 @@
 
 // Module declarations
 pub mod config;
+pub mod few_shot;
+pub mod hyperparameter_optimization;
+pub mod memory_augmented;
 pub mod meta_learning;
 pub mod neural_ode;
-pub mod variational;
-pub mod transformers;
-pub mod hyperparameter_optimization;
-pub mod few_shot;
-pub mod memory_augmented;
 pub mod optimization;
+pub mod transformers;
+pub mod variational;
 
 // Configuration and common structures
-pub use config::{TaskData};
+pub use config::TaskData;
 
 // Meta-learning algorithms
-pub use meta_learning::{MAML};
+pub use meta_learning::MAML;
 
 // Neural ODE implementations
-pub use neural_ode::{NeuralODE, ODESolverConfig, IntegrationMethod};
+pub use neural_ode::{IntegrationMethod, NeuralODE, ODESolverConfig};
 
 // Variational methods
 pub use variational::{TimeSeriesVAE, VAEOutput};
 
 // Transformer-based models
-pub use transformers::{TimeSeriesTransformer};
+pub use transformers::TimeSeriesTransformer;
 
 // Hyperparameter optimization
 pub use hyperparameter_optimization::{
-    HyperparameterOptimizer, OptimizationMethod, SearchSpace,
-    HyperparameterSet, OptimizationStep, OptimizationResults
+    HyperparameterOptimizer, HyperparameterSet, OptimizationMethod, OptimizationResults,
+    OptimizationStep, SearchSpace,
 };
 
 // Few-shot learning
-pub use few_shot::{PrototypicalNetworks, FewShotEpisode, REPTILE};
+pub use few_shot::{FewShotEpisode, PrototypicalNetworks, REPTILE};
 
 // Memory-augmented networks
-pub use memory_augmented::{MANN};
+pub use memory_augmented::MANN;
 
 // Meta-optimization
 pub use optimization::{MetaOptimizer, OptimizationProblem};
@@ -70,8 +70,8 @@ pub use optimization::{MetaOptimizer, OptimizationProblem};
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use ndarray::{Array1, Array2};
     use approx::assert_abs_diff_eq;
+    use ndarray::{Array1, Array2};
 
     #[test]
     fn test_module_integration_maml_with_vae() {
@@ -79,15 +79,20 @@ mod integration_tests {
         let mut maml = MAML::<f64>::new(4, 8, 2, 0.01, 0.1, 3);
         let vae = TimeSeriesVAE::<f64>::new(5, 2, 3, 8, 8);
 
-        let input = Array2::from_shape_vec((5, 2), (0..10).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((5, 2), (0..10).map(|i| i as f64 * 0.1).collect()).unwrap();
         let vae_output = vae.forward(&input).unwrap();
 
         // Use VAE latent representation as input to MAML
         let task = TaskData {
-            support_x: Array2::from_shape_vec((3, 4), (0..12).map(|i| i as f64 * 0.1).collect()).unwrap(),
-            support_y: Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.2).collect()).unwrap(),
-            query_x: Array2::from_shape_vec((2, 4), (12..20).map(|i| i as f64 * 0.1).collect()).unwrap(),
-            query_y: Array2::from_shape_vec((2, 2), (6..10).map(|i| i as f64 * 0.2).collect()).unwrap(),
+            support_x: Array2::from_shape_vec((3, 4), (0..12).map(|i| i as f64 * 0.1).collect())
+                .unwrap(),
+            support_y: Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.2).collect())
+                .unwrap(),
+            query_x: Array2::from_shape_vec((2, 4), (12..20).map(|i| i as f64 * 0.1).collect())
+                .unwrap(),
+            query_y: Array2::from_shape_vec((2, 2), (6..10).map(|i| i as f64 * 0.2).collect())
+                .unwrap(),
         };
 
         let loss = maml.meta_train(&[task]).unwrap();
@@ -99,9 +104,7 @@ mod integration_tests {
     fn test_module_integration_transformer_with_hyperopt() {
         // Test hyperparameter optimization with transformer
         let search_space = SearchSpace {
-            continuous: vec![
-                ("learning_rate".to_string(), 0.001, 0.1),
-            ],
+            continuous: vec![("learning_rate".to_string(), 0.001, 0.1)],
             integer: vec![
                 ("num_heads".to_string(), 2, 8),
                 ("num_layers".to_string(), 1, 4),
@@ -109,19 +112,18 @@ mod integration_tests {
             categorical: vec![],
         };
 
-        let mut optimizer = HyperparameterOptimizer::new(
-            OptimizationMethod::RandomSearch,
-            search_space,
-            3
-        );
+        let mut optimizer =
+            HyperparameterOptimizer::new(OptimizationMethod::RandomSearch, search_space, 3);
 
         // Objective function that creates and evaluates a transformer
         let objective = |params: &HyperparameterSet<f64>| -> crate::error::Result<f64> {
             let num_heads = params.get_integer("num_heads").unwrap_or(4) as usize;
             let num_layers = params.get_integer("num_layers").unwrap_or(2) as usize;
 
-            let transformer = TimeSeriesTransformer::<f64>::new(10, 5, 64, num_heads, num_layers, 256);
-            let input = Array2::from_shape_vec((2, 10), (0..20).map(|i| i as f64 * 0.1).collect()).unwrap();
+            let transformer =
+                TimeSeriesTransformer::<f64>::new(10, 5, 64, num_heads, num_layers, 256);
+            let input =
+                Array2::from_shape_vec((2, 10), (0..20).map(|i| i as f64 * 0.1).collect()).unwrap();
 
             let output = transformer.forward(&input)?;
 
@@ -146,9 +148,11 @@ mod integration_tests {
         let mut mann = MANN::<f64>::new(8, 6, 10, 12, 4);
 
         let episode = FewShotEpisode {
-            support_x: Array2::from_shape_vec((4, 8), (0..32).map(|i| i as f64 * 0.1).collect()).unwrap(),
+            support_x: Array2::from_shape_vec((4, 8), (0..32).map(|i| i as f64 * 0.1).collect())
+                .unwrap(),
             support_y: Array1::from_vec(vec![0, 0, 1, 1]),
-            query_x: Array2::from_shape_vec((2, 8), (32..48).map(|i| i as f64 * 0.1).collect()).unwrap(),
+            query_x: Array2::from_shape_vec((2, 8), (32..48).map(|i| i as f64 * 0.1).collect())
+                .unwrap(),
             query_y: Array1::from_vec(vec![0, 1]),
         };
 
@@ -169,11 +173,9 @@ mod integration_tests {
 
         // Create an optimization problem for ODE parameters
         let problem = OptimizationProblem::<f64>::quadratic(10, 20);
-        let (optimized_params, loss_history) = meta_opt.optimize_parameters(
-            &problem.initial_params,
-            &problem.target,
-            problem.max_steps
-        ).unwrap();
+        let (optimized_params, loss_history) = meta_opt
+            .optimize_parameters(&problem.initial_params, &problem.target, problem.max_steps)
+            .unwrap();
 
         assert_eq!(optimized_params.len(), 10);
         assert_eq!(loss_history.len(), 20);
@@ -186,13 +188,18 @@ mod integration_tests {
         let proto_net = PrototypicalNetworks::<f64>::new(6, 4, vec![8]);
         let mut reptile = REPTILE::<f64>::new(6, 8, 2, 0.01, 0.1, 3);
 
-        let support_x = Array2::from_shape_vec((4, 6), (0..24).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let support_x =
+            Array2::from_shape_vec((4, 6), (0..24).map(|i| i as f64 * 0.1).collect()).unwrap();
         let support_y_proto = Array1::from_vec(vec![0, 0, 1, 1]);
-        let support_y_reptile = Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
-        let query_x = Array2::from_shape_vec((2, 6), (24..36).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let support_y_reptile =
+            Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let query_x =
+            Array2::from_shape_vec((2, 6), (24..36).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         // Test Prototypical Networks
-        let proto_predictions = proto_net.few_shot_episode(&support_x, &support_y_proto, &query_x).unwrap();
+        let proto_predictions = proto_net
+            .few_shot_episode(&support_x, &support_y_proto, &query_x)
+            .unwrap();
         assert_eq!(proto_predictions.len(), 2);
 
         // Test REPTILE adaptation
@@ -227,13 +234,15 @@ mod integration_tests {
 
         // VAE
         let vae = TimeSeriesVAE::<f64>::new(3, 2, 2, 4, 4);
-        let vae_input = Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let vae_input =
+            Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.1).collect()).unwrap();
         let vae_output = vae.forward(&vae_input).unwrap();
         assert_eq!(vae_output.reconstruction.dim(), (3, 2));
 
         // Transformer
         let transformer = TimeSeriesTransformer::<f64>::new(4, 2, 8, 2, 1, 16);
-        let transformer_input = Array2::from_shape_vec((1, 4), (0..4).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let transformer_input =
+            Array2::from_shape_vec((1, 4), (0..4).map(|i| i as f64 * 0.1).collect()).unwrap();
         let transformer_output = transformer.forward(&transformer_input).unwrap();
         assert_eq!(transformer_output.dim(), (1, 2));
 
@@ -243,7 +252,8 @@ mod integration_tests {
             integer: vec![],
             categorical: vec![],
         };
-        let mut hyperopt = HyperparameterOptimizer::new(OptimizationMethod::RandomSearch, search_space, 2);
+        let mut hyperopt =
+            HyperparameterOptimizer::new(OptimizationMethod::RandomSearch, search_space, 2);
         let objective = |_: &HyperparameterSet<f64>| -> crate::error::Result<f64> { Ok(0.5) };
         let best_params = hyperopt.optimize(objective).unwrap();
         assert!(!best_params.continuous.is_empty());
@@ -278,14 +288,16 @@ mod integration_tests {
     #[test]
     fn test_cross_module_data_compatibility() {
         // Test that data structures are compatible across modules
-        let time_series_data = Array2::from_shape_vec((5, 3), (0..15).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let time_series_data =
+            Array2::from_shape_vec((5, 3), (0..15).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         // Test that the same data can be used by different modules
         let vae = TimeSeriesVAE::<f64>::new(5, 3, 4, 8, 8);
         let vae_result = vae.forward(&time_series_data).unwrap();
 
         let transformer = TimeSeriesTransformer::<f64>::new(5, 3, 12, 3, 2, 32);
-        let transformer_input = Array2::from_shape_vec((1, 5), (0..5).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let transformer_input =
+            Array2::from_shape_vec((1, 5), (0..5).map(|i| i as f64 * 0.1).collect()).unwrap();
         let transformer_result = transformer.forward(&transformer_input).unwrap();
 
         let proto_net = PrototypicalNetworks::<f64>::new(3, 4, vec![6]);

@@ -99,8 +99,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> AdaptiveLinearRegression<F> {
         for i in 0..self.num_features {
             for j in 0..self.num_features {
                 let _update_term = gain[i] * features[j];
-                new_covariance[[i, j]] = (self.covariance[[i, j]]
-                    - temp_vector[i] * features[j])
+                new_covariance[[i, j]] = (self.covariance[[i, j]] - temp_vector[i] * features[j])
                     / self.forgetting_factor;
 
                 // Add regularization

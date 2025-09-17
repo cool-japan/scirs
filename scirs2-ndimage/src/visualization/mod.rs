@@ -82,33 +82,30 @@ pub mod statistical;
 pub mod types;
 
 // Re-export all core types for backward compatibility
-pub use types::{
-    ColorMap, PlotConfig, ReportConfig, ReportFormat, RgbColor, ColorSchemes,
-};
+pub use types::{ColorMap, ColorSchemes, PlotConfig, ReportConfig, ReportFormat, RgbColor};
 
 // Re-export all colormap functions
 pub use colormap::{
-    create_colormap, get_colormap_function, apply_colormap_to_array,
-    viridis_colormap, plasma_colormap, inferno_colormap, jet_colormap,
-    hot_colormap, cool_colormap, spring_colormap, summer_colormap,
-    autumn_colormap, winter_colormap, gray_colormap,
+    apply_colormap_to_array, autumn_colormap, cool_colormap, create_colormap,
+    get_colormap_function, gray_colormap, hot_colormap, inferno_colormap, jet_colormap,
+    plasma_colormap, spring_colormap, summer_colormap, viridis_colormap, winter_colormap,
 };
 
 // Re-export all plotting functions
 pub use plotting::{
-    plot_histogram, plot_profile, plot_heatmap, plot_surface, plot_contour, plot_gradient,
+    plot_contour, plot_gradient, plot_heatmap, plot_histogram, plot_profile, plot_surface,
     visualize_gradient,
 };
 
 // Re-export all report generation functions
 pub use reports::{
-    generate_report, add_image_info, add_basic_statistics, add_quality_metrics, add_texture_metrics,
+    add_basic_statistics, add_image_info, add_quality_metrics, add_texture_metrics, generate_report,
 };
 
 // Re-export all statistical visualization functions
 pub use statistical::{
-    create_image_montage, plot_statistical_comparison, plot_correlation_matrix,
-    calculate_dataset_statistics,
+    calculate_dataset_statistics, create_image_montage, plot_correlation_matrix,
+    plot_statistical_comparison,
 };
 
 // Legacy aliases for backward compatibility
@@ -127,8 +124,8 @@ pub use reports::add_texture_metrics as addtexturemetrics;
 // Export utilities module inline for compatibility
 /// Export utilities for saving visualization output to files
 pub mod export {
-    use super::types::{ReportConfig, ReportFormat};
     use super::reports::generate_report;
+    use super::types::{ReportConfig, ReportFormat};
     use crate::analysis::{ImageQualityMetrics, TextureMetrics};
     use crate::error::{NdimageError, NdimageResult};
     use ndarray::ArrayView2;
@@ -526,10 +523,7 @@ mod tests {
         let data1 = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let data2 = Array1::from_vec(vec![2.0, 4.0, 6.0, 8.0, 10.0]);
 
-        let datasets = vec![
-            ("Test A", data1.view()),
-            ("Test B", data2.view()),
-        ];
+        let datasets = vec![("Test A", data1.view()), ("Test B", data2.view())];
 
         let config = PlotConfig::new()
             .with_format(ReportFormat::Text)

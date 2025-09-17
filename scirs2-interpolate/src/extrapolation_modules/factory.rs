@@ -8,13 +8,15 @@ use num_traits::{Float, FromPrimitive};
 use std::default::Default;
 use std::ops::AddAssign;
 
-use super::types::{ExtrapolationMethod, EnsembleCombinationStrategy, AdaptiveSelectionCriterion, ARFittingMethod};
+use super::advanced::AdvancedExtrapolator;
 use super::config::{
-    ExtrapolationParameters, ConfidenceExtrapolationConfig,
-    EnsembleExtrapolationConfig, AdaptiveExtrapolationConfig, AutoregressiveExtrapolationConfig,
+    AdaptiveExtrapolationConfig, AutoregressiveExtrapolationConfig, ConfidenceExtrapolationConfig,
+    EnsembleExtrapolationConfig, ExtrapolationParameters,
 };
 use super::core::Extrapolator;
-use super::advanced::AdvancedExtrapolator;
+use super::types::{
+    ARFittingMethod, AdaptiveSelectionCriterion, EnsembleCombinationStrategy, ExtrapolationMethod,
+};
 
 /// Creates an extrapolator with linear extrapolation at both boundaries.
 ///
@@ -284,9 +286,7 @@ pub fn make_nearest_extrapolator<T: Float + std::fmt::Display>(
 }
 
 /// Convenience function to create a confidence extrapolator
-pub fn make_confidence_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_confidence_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     base_extrapolator: Extrapolator<T>,
     confidence_level: T,
     bootstrap_samples: usize,
@@ -302,9 +302,7 @@ pub fn make_confidence_extrapolator<
 }
 
 /// Convenience function to create an ensemble extrapolator
-pub fn make_ensemble_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_ensemble_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     base_extrapolator: Extrapolator<T>,
     methods: Vec<ExtrapolationMethod>,
     weights: Option<Vec<T>>,
@@ -321,9 +319,7 @@ pub fn make_ensemble_extrapolator<
 }
 
 /// Convenience function to create an adaptive extrapolator
-pub fn make_adaptive_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_adaptive_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     base_extrapolator: Extrapolator<T>,
     selection_criterion: AdaptiveSelectionCriterion,
     local_window_size: usize,
@@ -340,9 +336,7 @@ pub fn make_adaptive_extrapolator<
 }
 
 /// Convenience function to create an autoregressive extrapolator
-pub fn make_autoregressive_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_autoregressive_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     base_extrapolator: Extrapolator<T>,
     ar_order: usize,
     fitting_method: ARFittingMethod,
@@ -393,9 +387,7 @@ pub fn make_conservative_extrapolator<T: Float + std::fmt::Display>(
 }
 
 /// Creates a robust ensemble extrapolator combining multiple methods
-pub fn make_robust_ensemble_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_robust_ensemble_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,
@@ -515,9 +507,7 @@ pub fn make_monotonic_extrapolator<T: Float + std::fmt::Display>(
 }
 
 /// Creates a high-confidence extrapolator with uncertainty bounds
-pub fn make_high_confidence_extrapolator<
-    T: Float + std::fmt::Display + Default + AddAssign,
->(
+pub fn make_high_confidence_extrapolator<T: Float + std::fmt::Display + Default + AddAssign>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,

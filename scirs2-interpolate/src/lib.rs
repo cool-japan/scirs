@@ -179,8 +179,8 @@ pub mod bspline_modules;
 pub mod cache;
 pub mod cache_aware;
 pub mod constrained;
-pub mod extrapolation_modules;
 pub mod extrapolation;
+pub mod extrapolation_modules;
 pub mod fast_bspline;
 pub mod geospatial;
 pub mod gpu_accelerated;
@@ -197,12 +197,14 @@ pub mod memory_monitor;
 pub mod multiscale;
 // pub mod neural_enhanced;
 pub mod numerical_stability;
+pub mod numerical_stability_modules;
 pub mod nurbs;
 pub mod optimization;
 pub mod parallel;
 pub mod penalized;
 pub mod physics_informed;
 pub mod production_stress_testing;
+pub mod production_stress_testing_modules;
 pub mod production_validation;
 pub mod scattered_optimized;
 pub mod simd_optimized;
@@ -437,11 +439,10 @@ pub use multiscale::{make_adaptive_bspline, MultiscaleBSpline, RefinementCriteri
 //     NeuralEnhancedInterpolator, NeuralTrainingConfig, TrainingStats,
 // };
 pub use numerical_stability::{
-    analyze_interpolation_edge_cases, apply_tikhonov_regularization,
-    assess_enhanced_matrix_condition, assess_matrix_condition, check_safe_division,
-    compute_adaptive_regularization, early_numerical_warning_system, enhanced_matrix_multiply,
-    machine_epsilon, safe_reciprocal, solve_with_stability_monitoring, BoundaryAnalysis,
-    ConditionReport, EdgeCaseAnalysis, StabilityDiagnostics, StabilityLevel,
+    analyze_interpolation_edge_cases, apply_adaptive_regularization, apply_tikhonov_regularization,
+    assess_matrix_condition, check_safe_division, machine_epsilon, safe_reciprocal,
+    solve_with_stability_monitoring, BoundaryAnalysis, ConditionReport, EdgeCaseAnalysis,
+    StabilityDiagnostics, StabilityLevel,
 };
 pub use nurbs::{make_nurbs_circle, make_nurbs_sphere, NurbsCurve, NurbsSurface};
 pub use optimization::{

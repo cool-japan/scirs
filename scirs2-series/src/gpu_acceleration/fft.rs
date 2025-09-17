@@ -8,8 +8,8 @@ use num_traits::Float;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::GpuConfig;
+use crate::error::{Result, TimeSeriesError};
 
 /// GPU-accelerated FFT processor
 #[derive(Debug)]

@@ -355,7 +355,11 @@ fn estimate_tf_least_squares(
     // Calculate error variance
     let residuals = &y_vec - &y_pred;
     let sq = residuals.mapv(|x| x * x);
-    let error_variance = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
+    let error_variance = if sq.len() > 0 {
+        sq.sum() / sq.len() as f64
+    } else {
+        0.0
+    };
 
     Ok(TfEstimationResult {
         numerator,
@@ -471,7 +475,11 @@ fn estimate_tf_instrumental_variable(
     let fit_percentage = calculate_fit_percentage(&y_vec, &y_pred);
     let residuals = &y_vec - &y_pred;
     let sq = residuals.mapv(|x| x * x);
-    let error_variance = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
+    let error_variance = if sq.len() > 0 {
+        sq.sum() / sq.len() as f64
+    } else {
+        0.0
+    };
 
     Ok(TfEstimationResult {
         numerator,
@@ -1021,7 +1029,11 @@ pub fn validate_model(
 
     // Mean squared error
     let sq = residuals.mapv(|x| x * x);
-    let mse = if sq.len() > 0 { sq.sum() / sq.len() as f64 } else { 0.0 };
+    let mse = if sq.len() > 0 {
+        sq.sum() / sq.len() as f64
+    } else {
+        0.0
+    };
 
     // R-squared
     let y_mean = actual.mean().unwrap_or(0.0);

@@ -66,7 +66,9 @@ pub fn simd_average_unshifted_results(
     shifts: &[usize],
 ) -> SignalResult<Array1<f64>> {
     if results.is_empty() {
-        return Err(SignalError::ValueError("Results array cannot be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "Results array cannot be empty".to_string(),
+        ));
     }
 
     if results.len() != shifts.len() {
@@ -99,32 +101,46 @@ pub fn simd_average_unshifted_results(
 }
 
 /// SIMD-optimized soft thresholding
-pub fn simd_soft_threshold(coeffs: &Array1<f64>, threshold: f64) -> SignalResult<(Array1<f64>, f64)> {
+pub fn simd_soft_threshold(
+    coeffs: &Array1<f64>,
+    threshold: f64,
+) -> SignalResult<(Array1<f64>, f64)> {
     let _caps = PlatformCapabilities::detect();
 
     // TODO: Fix SIMD capability detection methods
     if coeffs.len() >= 64 {
         // simd_soft_threshold_avx(coeffs, threshold)
         // Fall back to scalar implementation for now
-        Ok(crate::denoise_enhanced::thresholding::soft_threshold(coeffs, threshold))
+        Ok(crate::denoise_enhanced::thresholding::soft_threshold(
+            coeffs, threshold,
+        ))
     } else {
         // Fall back to scalar implementation
-        Ok(crate::denoise_enhanced::thresholding::soft_threshold(coeffs, threshold))
+        Ok(crate::denoise_enhanced::thresholding::soft_threshold(
+            coeffs, threshold,
+        ))
     }
 }
 
 /// SIMD-optimized hard thresholding
-pub fn simd_hard_threshold(coeffs: &Array1<f64>, threshold: f64) -> SignalResult<(Array1<f64>, f64)> {
+pub fn simd_hard_threshold(
+    coeffs: &Array1<f64>,
+    threshold: f64,
+) -> SignalResult<(Array1<f64>, f64)> {
     let _caps = PlatformCapabilities::detect();
 
     // TODO: Fix SIMD capability detection methods
     if coeffs.len() >= 64 {
         // simd_hard_threshold_avx(coeffs, threshold)
         // Fall back to scalar implementation for now
-        Ok(crate::denoise_enhanced::thresholding::hard_threshold(coeffs, threshold))
+        Ok(crate::denoise_enhanced::thresholding::hard_threshold(
+            coeffs, threshold,
+        ))
     } else {
         // Fall back to scalar implementation
-        Ok(crate::denoise_enhanced::thresholding::hard_threshold(coeffs, threshold))
+        Ok(crate::denoise_enhanced::thresholding::hard_threshold(
+            coeffs, threshold,
+        ))
     }
 }
 
@@ -157,7 +173,10 @@ fn simd_circular_shift_sse(
     Ok(())
 }
 
-fn simd_soft_threshold_avx(coeffs: &Array1<f64>, threshold: f64) -> SignalResult<(Array1<f64>, f64)> {
+fn simd_soft_threshold_avx(
+    coeffs: &Array1<f64>,
+    threshold: f64,
+) -> SignalResult<(Array1<f64>, f64)> {
     // Simplified implementation - in practice would use AVX intrinsics for parallel processing
     let mut thresholded = coeffs.clone();
     let mut retained_count = 0;
@@ -193,7 +212,10 @@ fn simd_soft_threshold_avx(coeffs: &Array1<f64>, threshold: f64) -> SignalResult
     Ok((thresholded, retention_rate))
 }
 
-fn simd_hard_threshold_avx(coeffs: &Array1<f64>, threshold: f64) -> SignalResult<(Array1<f64>, f64)> {
+fn simd_hard_threshold_avx(
+    coeffs: &Array1<f64>,
+    threshold: f64,
+) -> SignalResult<(Array1<f64>, f64)> {
     // Simplified implementation - in practice would use AVX intrinsics
     let mut thresholded = coeffs.clone();
     let mut retained_count = 0;

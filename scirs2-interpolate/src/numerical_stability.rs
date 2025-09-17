@@ -51,21 +51,18 @@ use crate::numerical_stability_modules;
 
 // Re-export the public API
 pub use crate::numerical_stability_modules::{
-    ConditionReport, StabilityLevel, StabilityDiagnostics, EdgeCaseReport, EdgeCaseTreatment,
-    EnhancedStabilityReport, SolveStrategy, ConvergenceInfo, DataPointsAnalysis,
-    FunctionValuesAnalysis, BoundaryAnalysis, BoundaryTreatment, ExtrapolationRisk,
-    EdgeCaseAnalysis, machine_epsilon, classify_stability, assess_matrix_condition,
-    check_symmetry, estimate_condition_number, check_diagonal_dominance,
-    count_zero_diagonal_elements, check_safe_division, safe_reciprocal,
-    apply_tikhonov_regularization, apply_adaptive_regularization, detect_edge_cases,
-    iterative_refinement, apply_preconditioning, PreconditionerType,
-    analyze_interpolation_edge_cases, analyze_data_points, analyze_function_values,
-    analyze_boundary_conditions, solve_with_enhanced_monitoring,
-    solve_with_stability_monitoring, suggest_data_based_regularization,
-    analyze_interpolation_data, analyze_sampling_density, InterpolationDataReport,
-    DataScalingAnalysis, NoiseAnalysis, DenoisingStrategy,
-    InterpolationMethodRecommendation, InterpolationMethod, SamplingDensityAnalysis,
-    SamplingStrategy,
+    analyze_boundary_conditions, analyze_data_points, analyze_function_values,
+    analyze_interpolation_data, analyze_interpolation_edge_cases, analyze_sampling_density,
+    apply_adaptive_regularization, apply_preconditioning, apply_tikhonov_regularization,
+    assess_matrix_condition, check_diagonal_dominance, check_safe_division, check_symmetry,
+    classify_stability, count_zero_diagonal_elements, detect_edge_cases, estimate_condition_number,
+    iterative_refinement, machine_epsilon, safe_reciprocal, solve_with_enhanced_monitoring,
+    solve_with_stability_monitoring, suggest_data_based_regularization, BoundaryAnalysis,
+    BoundaryTreatment, ConditionReport, ConvergenceInfo, DataPointsAnalysis, DataScalingAnalysis,
+    DenoisingStrategy, EdgeCaseAnalysis, EdgeCaseReport, EdgeCaseTreatment,
+    EnhancedStabilityReport, ExtrapolationRisk, FunctionValuesAnalysis, InterpolationDataReport,
+    InterpolationMethod, InterpolationMethodRecommendation, NoiseAnalysis, PreconditionerType,
+    SamplingDensityAnalysis, SamplingStrategy, SolveStrategy, StabilityDiagnostics, StabilityLevel,
 };
 
 // Convenience re-exports for common patterns
@@ -132,11 +129,9 @@ mod tests {
     #[test]
     fn test_modular_api_integration() {
         // Test the complete workflow using the modular API
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            4.0, 1.0, 0.0,
-            1.0, 4.0, 1.0,
-            0.0, 1.0, 4.0,
-        ]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 0.0, 1.0, 4.0, 1.0, 0.0, 1.0, 4.0])
+                .unwrap();
         let rhs = Array1::from_vec(vec![5.0, 6.0, 5.0]);
 
         // Test condition assessment
@@ -145,7 +140,8 @@ mod tests {
         assert_eq!(condition_report.stability_level, StabilityLevel::Excellent);
 
         // Test enhanced solving
-        let (solution, enhanced_report) = solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
+        let (solution, enhanced_report) =
+            solve_with_enhanced_monitoring(&matrix.view(), &rhs.view()).unwrap();
         assert_eq!(solution.len(), 3);
         assert!(enhanced_report.condition_report.is_well_conditioned);
 
@@ -158,13 +154,11 @@ mod tests {
     #[test]
     fn test_interpolation_data_analysis() {
         // Test interpolation-specific analysis
-        let points = Array2::from_shape_vec((5, 2), vec![
-            0.0, 0.0,
-            1.0, 1.0,
-            2.0, 4.0,
-            3.0, 9.0,
-            4.0, 16.0,
-        ]).unwrap();
+        let points = Array2::from_shape_vec(
+            (5, 2),
+            vec![0.0, 0.0, 1.0, 1.0, 2.0, 4.0, 3.0, 9.0, 4.0, 16.0],
+        )
+        .unwrap();
         let values = Array1::from_vec(vec![0.0, 1.0, 4.0, 9.0, 16.0]);
 
         let analysis = analyze_interpolation_edge_cases(&points.view(), &values.view()).unwrap();
@@ -174,18 +168,19 @@ mod tests {
 
         let data_report = analyze_interpolation_data(&points.view(), &values.view()).unwrap();
         assert!(matches!(
-            data_report.interpolation_method_recommendation.primary_method,
-            InterpolationMethod::CubicSpline | InterpolationMethod::BSpline | InterpolationMethod::Linear
+            data_report
+                .interpolation_method_recommendation
+                .primary_method,
+            InterpolationMethod::CubicSpline
+                | InterpolationMethod::BSpline
+                | InterpolationMethod::Linear
         ));
     }
 
     #[test]
     fn test_regularization_workflow() {
         // Test regularization on a poorly conditioned matrix
-        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![
-            1.0, 1.0,
-            1.0, 1.0001,
-        ]).unwrap();
+        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0001]).unwrap();
 
         let condition_report = assess_matrix_condition(&ill_conditioned.view()).unwrap();
         assert!(!condition_report.is_well_conditioned);
@@ -193,7 +188,8 @@ mod tests {
 
         // Apply Tikhonov regularization
         let reg_param = condition_report.recommended_regularization.unwrap();
-        let regularized = apply_tikhonov_regularization(&ill_conditioned.view(), reg_param).unwrap();
+        let regularized =
+            apply_tikhonov_regularization(&ill_conditioned.view(), reg_param).unwrap();
 
         let regularized_report = assess_matrix_condition(&regularized.view()).unwrap();
         assert!(regularized_report.condition_number < condition_report.condition_number);
@@ -218,7 +214,7 @@ mod tests {
 
         assert!(eps_f32 > 0.0);
         assert!(eps_f64 > 0.0);
-        assert!(eps_f32 > eps_f64); // f32 has larger epsilon
+        assert!(eps_f32 > eps_f64 as f32); // f32 has larger epsilon
     }
 
     #[test]
@@ -232,12 +228,8 @@ mod tests {
     #[test]
     fn test_data_analysis_features() {
         // Test comprehensive data analysis features
-        let uniform_points = Array2::from_shape_vec((4, 2), vec![
-            0.0, 0.0,
-            1.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0,
-        ]).unwrap();
+        let uniform_points =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
         let smooth_values = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
 
         let data_analysis = analyze_data_points(&uniform_points.view()).unwrap();
@@ -249,7 +241,8 @@ mod tests {
         assert!(function_analysis.is_monotonic);
         assert!(!function_analysis.has_outliers);
 
-        let boundary_analysis = analyze_boundary_conditions(&uniform_points.view(), &smooth_values.view()).unwrap();
+        let boundary_analysis =
+            analyze_boundary_conditions(&uniform_points.view(), &smooth_values.view()).unwrap();
         assert!(matches!(
             boundary_analysis.extrapolation_risk,
             ExtrapolationRisk::Low | ExtrapolationRisk::Medium
@@ -271,10 +264,11 @@ mod tests {
 
     #[test]
     fn test_preconditioning() {
-        use super::regularization::PreconditionerType;
+        use super::numerical_stability_modules::regularization::PreconditionerType;
 
         let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 1.0, 1.0, 9.0]).unwrap();
-        let (precond, inv_precond) = apply_preconditioning(&matrix.view(), PreconditionerType::Diagonal).unwrap();
+        let (precond, inv_precond) =
+            apply_preconditioning(&matrix.view(), PreconditionerType::Diagonal).unwrap();
 
         assert_eq!(precond.nrows(), 2);
         assert_eq!(precond.ncols(), 2);

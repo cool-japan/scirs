@@ -714,7 +714,14 @@ fn aggregate_costs_direction(
                     };
 
                     if prev_y < height && prev_x < width {
-                        aggregate_pixel_costs(&mut direction_costs, y, x, prev_y, prev_x, sgm_params);
+                        aggregate_pixel_costs(
+                            &mut direction_costs,
+                            y,
+                            x,
+                            prev_y,
+                            prev_x,
+                            sgm_params,
+                        );
                     }
                 }
             }
@@ -736,7 +743,14 @@ fn aggregate_costs_direction(
                     };
 
                     if prev_y < height && prev_x < width {
-                        aggregate_pixel_costs(&mut direction_costs, y, x, prev_y, prev_x, sgm_params);
+                        aggregate_pixel_costs(
+                            &mut direction_costs,
+                            y,
+                            x,
+                            prev_y,
+                            prev_x,
+                            sgm_params,
+                        );
                     }
                 }
             }
@@ -1018,7 +1032,10 @@ fn apply_median_filter(disparity_map: &Array2<f32>, window_size: usize) -> Resul
 
 /// Apply speckle filter to remove small isolated regions
 #[allow(dead_code)]
-fn apply_speckle_filter(disparity_map: &Array2<f32>, sgm_params: &SgmParams) -> Result<Array2<f32>> {
+fn apply_speckle_filter(
+    disparity_map: &Array2<f32>,
+    sgm_params: &SgmParams,
+) -> Result<Array2<f32>> {
     let (height, width) = disparity_map.dim();
     let mut filtered = disparity_map.clone();
     let mut visited = Array2::from_elem((height, width), false);

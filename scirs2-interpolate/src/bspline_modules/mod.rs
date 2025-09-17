@@ -20,8 +20,8 @@ pub mod solvers;
 
 // Re-export public API
 pub use types::{
-    ExtrapolateMode, BSplineWorkspace, BSplineWorkspaceBuilder, WorkspaceMemoryStats,
-    WorkspaceProvider, WorkspaceConfig,
+    BSplineWorkspace, BSplineWorkspaceBuilder, ExtrapolateMode, WorkspaceConfig,
+    WorkspaceMemoryStats, WorkspaceProvider,
 };
 
 pub use core::BSpline;
@@ -29,22 +29,21 @@ pub use core::BSpline;
 pub use evaluation::EvaluationStats;
 
 pub use factory::{
-    make_interp_bspline, make_lsq_bspline, generate_knots, make_auto_bspline,
-    make_smoothing_bspline, make_periodic_bspline,
+    generate_knots, make_auto_bspline, make_interp_bspline, make_lsq_bspline,
+    make_periodic_bspline, make_smoothing_bspline,
 };
 
 pub use solvers::{
-    solve_linear_system, solve_least_squares, lu_decomposition, solve_with_lu,
-    solve_multiple_rhs, condition_number, transpose_matrix, matrix_multiply,
-    matrix_vector_multiply,
+    condition_number, lu_decomposition, matrix_multiply, matrix_vector_multiply,
+    solve_least_squares, solve_linear_system, solve_multiple_rhs, solve_with_lu, transpose_matrix,
 };
 
 /// Convenience re-exports for common usage patterns
 pub mod prelude {
-    pub use super::types::{ExtrapolateMode, BSplineWorkspace};
     pub use super::core::BSpline;
-    pub use super::factory::{make_interp_bspline, make_lsq_bspline, generate_knots};
     pub use super::evaluation::EvaluationStats;
+    pub use super::factory::{generate_knots, make_interp_bspline, make_lsq_bspline};
+    pub use super::types::{BSplineWorkspace, ExtrapolateMode};
 }
 
 /// Module version and feature information
@@ -123,12 +122,8 @@ mod integration_tests {
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
         let y = array![1.0, 2.0, 3.0, 2.0, 1.0];
 
-        let spline = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            2,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline =
+            make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
         let workspace = BSplineWorkspace::new(2);
 
@@ -149,12 +144,8 @@ mod integration_tests {
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![0.0, 1.0, 8.0, 27.0, 64.0, 125.0]; // y = x^3
 
-        let spline = make_interp_bspline(
-            &x.view(),
-            &y.view(),
-            3,
-            ExtrapolateMode::Extrapolate,
-        ).unwrap();
+        let spline =
+            make_interp_bspline(&x.view(), &y.view(), 3, ExtrapolateMode::Extrapolate).unwrap();
 
         // Test fast recursive evaluation
         let fast_value = spline.evaluate_fast_recursive(2.5);
@@ -189,13 +180,8 @@ mod integration_tests {
         assert!(lsq_spline.is_ok());
 
         // Test automatic spline creation
-        let auto_spline = make_auto_bspline(
-            &x.view(),
-            &y.view(),
-            3,
-            0.1,
-            ExtrapolateMode::Extrapolate,
-        );
+        let auto_spline =
+            make_auto_bspline(&x.view(), &y.view(), 3, 0.1, ExtrapolateMode::Extrapolate);
         assert!(auto_spline.is_ok());
     }
 

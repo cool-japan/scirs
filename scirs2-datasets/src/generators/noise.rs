@@ -1,8 +1,8 @@
 //! Noise injection and data corruption utilities
 
+use super::config::{MissingPattern, OutlierType};
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use super::config::{MissingPattern, OutlierType};
 use ndarray::{Array1, Array2};
 use rand::prelude::*;
 use rand::rngs::StdRng;

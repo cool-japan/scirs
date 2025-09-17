@@ -3,12 +3,12 @@
 //! This module provides functionality for creating panoramas by stitching multiple images
 //! together using geometric transformations and advanced blending techniques.
 
+use super::core_warping::{warp_rgb_image, BoundaryMethod, InterpolationMethod};
+use super::stereo_rectification::matrix_multiply;
 use crate::error::{Result, VisionError};
 use crate::registration::{identity_transform, TransformMatrix};
-use image::{DynamicImage, RgbImage, Rgb};
+use image::{DynamicImage, Rgb, RgbImage};
 use ndarray::Array2;
-use super::core_warping::{warp_rgb_image, InterpolationMethod, BoundaryMethod};
-use super::stereo_rectification::matrix_multiply;
 
 /// Create a panorama by stitching multiple images
 ///
@@ -407,14 +407,24 @@ impl StreamingPanoramaProcessor {
     fn blend_tile(&mut self, tile_x: u32, tile_y: u32, warped_tile: &RgbImage) -> Result<()> {
         match self.blending_mode {
             BlendingMode::Linear => self.blend_tile_linear(tile_x, tile_y, warped_tile),
-            BlendingMode::MultiBandBlending => self.blend_tile_multiband(tile_x, tile_y, warped_tile),
+            BlendingMode::MultiBandBlending => {
+                self.blend_tile_multiband(tile_x, tile_y, warped_tile)
+            }
             BlendingMode::GraphCutSeaming => self.blend_tile_graphcut(tile_x, tile_y, warped_tile),
         }
     }
 
     /// Linear blending for tile
-    fn blend_tile_linear(&mut self, tile_x: u32, tile_y: u32, warped_tile: &RgbImage) -> Result<()> {
-        let tile_id = TileId { x: tile_x, y: tile_y };
+    fn blend_tile_linear(
+        &mut self,
+        tile_x: u32,
+        tile_y: u32,
+        warped_tile: &RgbImage,
+    ) -> Result<()> {
+        let tile_id = TileId {
+            x: tile_x,
+            y: tile_y,
+        };
         let existing_tile = self.tile_cache.get_or_create_tile(tile_id)?;
 
         // Simple averaging blend
@@ -479,7 +489,10 @@ impl StreamingPanoramaProcessor {
 
         for tile_y in 0..self.tile_config.tile_count.1 {
             for tile_x in 0..self.tile_config.tile_count.0 {
-                let tile_id = TileId { x: tile_x, y: tile_y };
+                let tile_id = TileId {
+                    x: tile_x,
+                    y: tile_y,
+                };
                 if let Ok(tile) = self.tile_cache.get_tile(tile_id) {
                     self.copy_tile_to_output(tile, tile_x, tile_y, &mut output)?;
                 }

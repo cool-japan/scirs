@@ -301,36 +301,36 @@ impl ColorSchemes {
     /// Scientific publication-friendly colors
     pub fn scientific() -> [RgbColor; 6] {
         [
-            RgbColor::new(31, 120, 180),    // Blue
-            RgbColor::new(51, 160, 44),     // Green
-            RgbColor::new(227, 26, 28),     // Red
-            RgbColor::new(255, 127, 0),     // Orange
-            RgbColor::new(106, 61, 154),    // Purple
-            RgbColor::new(177, 89, 40),     // Brown
+            RgbColor::new(31, 120, 180), // Blue
+            RgbColor::new(51, 160, 44),  // Green
+            RgbColor::new(227, 26, 28),  // Red
+            RgbColor::new(255, 127, 0),  // Orange
+            RgbColor::new(106, 61, 154), // Purple
+            RgbColor::new(177, 89, 40),  // Brown
         ]
     }
 
     /// Colorblind-friendly palette
     pub fn colorblind_friendly() -> [RgbColor; 8] {
         [
-            RgbColor::new(0, 0, 0),         // Black
-            RgbColor::new(230, 159, 0),     // Orange
-            RgbColor::new(86, 180, 233),    // Sky blue
-            RgbColor::new(0, 158, 115),     // Bluish green
-            RgbColor::new(240, 228, 66),    // Yellow
-            RgbColor::new(0, 114, 178),     // Blue
-            RgbColor::new(213, 94, 0),      // Vermillion
-            RgbColor::new(204, 121, 167),   // Reddish purple
+            RgbColor::new(0, 0, 0),       // Black
+            RgbColor::new(230, 159, 0),   // Orange
+            RgbColor::new(86, 180, 233),  // Sky blue
+            RgbColor::new(0, 158, 115),   // Bluish green
+            RgbColor::new(240, 228, 66),  // Yellow
+            RgbColor::new(0, 114, 178),   // Blue
+            RgbColor::new(213, 94, 0),    // Vermillion
+            RgbColor::new(204, 121, 167), // Reddish purple
         ]
     }
 
     /// High contrast colors for presentations
     pub fn high_contrast() -> [RgbColor; 4] {
         [
-            RgbColor::new(0, 0, 0),         // Black
-            RgbColor::new(255, 255, 255),   // White
-            RgbColor::new(255, 0, 0),       // Red
-            RgbColor::new(0, 0, 255),       // Blue
+            RgbColor::new(0, 0, 0),       // Black
+            RgbColor::new(255, 255, 255), // White
+            RgbColor::new(255, 0, 0),     // Red
+            RgbColor::new(0, 0, 255),     // Blue
         ]
     }
 }

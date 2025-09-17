@@ -3,8 +3,8 @@
 //! This module provides advanced validation tests including numerical conditioning,
 //! aliasing effects, astronomical scenarios, phase coherence, and uncertainty quantification.
 
-use super::types::*;
 use super::core::validate_lombscargle_against_scipy;
+use super::types::*;
 use super::utils::find_peaks;
 use crate::error::SignalResult;
 use crate::lombscargle::{lombscargle, AutoFreqMethod};
@@ -375,7 +375,16 @@ fn test_perturbation_stability(times: &[f64], values: &[f64], freqs: &[f64]) -> 
         .iter()
         .map(|&v| v + perturbation_level * rng.random::<f64>())
         .collect();
-    let perturbed = lombscargle(times, &perturbed_values, Some(freqs), None, None, None, None, None)?;
+    let perturbed = lombscargle(
+        times,
+        &perturbed_values,
+        Some(freqs),
+        None,
+        None,
+        None,
+        None,
+        None,
+    )?;
 
     // Compute relative change
     let relative_changes: Vec<f64> = original
@@ -408,7 +417,16 @@ fn test_gradient_stability(times: &[f64], values: &[f64], freqs: &[f64]) -> Sign
         perturbed_values[i] += h;
 
         let original = lombscargle(times, values, Some(freqs), None, None, None, None, None)?;
-        let perturbed = lombscargle(times, &perturbed_values, Some(freqs), None, None, None, None, None)?;
+        let perturbed = lombscargle(
+            times,
+            &perturbed_values,
+            Some(freqs),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
 
         let gradient_norm: f64 = original
             .1
@@ -426,28 +444,44 @@ fn test_gradient_stability(times: &[f64], values: &[f64], freqs: &[f64]) -> Sign
 
 // Implementation stubs for other test functions (simplified for space)
 #[allow(dead_code)]
-fn test_nyquist_aliasing_detection(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.8) }
+fn test_nyquist_aliasing_detection(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.8)
+}
 
 #[allow(dead_code)]
-fn test_sub_nyquist_handling(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.9) }
+fn test_sub_nyquist_handling(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.9)
+}
 
 #[allow(dead_code)]
-fn test_false_peak_suppression(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.85) }
+fn test_false_peak_suppression(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.85)
+}
 
 #[allow(dead_code)]
-fn test_spectral_leakage_mitigation(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.75) }
+fn test_spectral_leakage_mitigation(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.75)
+}
 
 #[allow(dead_code)]
-fn test_variable_star_simulation(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.9) }
+fn test_variable_star_simulation(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.9)
+}
 
 #[allow(dead_code)]
-fn test_exoplanet_transit_simulation(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.85) }
+fn test_exoplanet_transit_simulation(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.85)
+}
 
 #[allow(dead_code)]
-fn test_rr_lyrae_simulation(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.88) }
+fn test_rr_lyrae_simulation(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.88)
+}
 
 #[allow(dead_code)]
-fn test_multi_periodic_source(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.82) }
+fn test_multi_periodic_source(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.82)
+}
 
 #[allow(dead_code)]
 fn test_phase_preservation(
@@ -461,16 +495,26 @@ fn test_phase_preservation(
 }
 
 #[allow(dead_code)]
-fn test_coherence_stability(times: &[f64], values: &[f64]) -> SignalResult<f64> { Ok(0.85) }
+fn test_coherence_stability(times: &[f64], values: &[f64]) -> SignalResult<f64> {
+    Ok(0.85)
+}
 
 #[allow(dead_code)]
-fn test_phase_wrapping(times: &[f64], values: &[f64]) -> SignalResult<f64> { Ok(0.8) }
+fn test_phase_wrapping(times: &[f64], values: &[f64]) -> SignalResult<f64> {
+    Ok(0.8)
+}
 
 #[allow(dead_code)]
-fn test_min_frequency_separation(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.001) }
+fn test_min_frequency_separation(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.001)
+}
 
 #[allow(dead_code)]
-fn test_resolution_scaling(rng: &mut impl Rng) -> SignalResult<f64> { Ok(2.0) }
+fn test_resolution_scaling(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(2.0)
+}
 
 #[allow(dead_code)]
-fn characterize_spectral_window(rng: &mut impl Rng) -> SignalResult<f64> { Ok(0.9) }
+fn characterize_spectral_window(rng: &mut impl Rng) -> SignalResult<f64> {
+    Ok(0.9)
+}

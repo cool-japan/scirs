@@ -595,8 +595,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
     use crate::visualization::types::{ReportConfig, ReportFormat};
+    use ndarray::Array2;
 
     #[test]
     fn test_generate_basic_report() {

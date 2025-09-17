@@ -3,12 +3,12 @@
 //! This module contains the main validation orchestration functions that
 //! coordinate different aspects of the validation process.
 
-use super::types::*;
 use super::accuracy::validate_basic_accuracy;
-use super::normalization::validate_normalization_methods;
 use super::edge_cases::validate_edge_cases;
-use super::statistical::validate_statistical_properties;
+use super::normalization::validate_normalization_methods;
 use super::performance::validate_performance_characteristics;
+use super::statistical::validate_statistical_properties;
+use super::types::*;
 use crate::error::SignalResult;
 
 /// Run comprehensive Lomb-Scargle validation against SciPy

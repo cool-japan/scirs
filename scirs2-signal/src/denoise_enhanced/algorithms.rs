@@ -8,7 +8,7 @@ use super::types::*;
 use crate::error::{SignalError, SignalResult};
 use ndarray::{s, Array1, Array2};
 use scirs2_core::parallel_ops::*;
-use scirs2_core::validation::{check_positive};
+use scirs2_core::validation::check_positive;
 use scirs2_fft::{fft, ifft};
 
 /// Advanced non-local means denoising for 1D signals
@@ -242,10 +242,7 @@ pub fn denoise_bilateral_1d(
 }
 
 /// Wiener filtering for signal denoising
-pub fn denoise_wiener_1d(
-    signal: &Array1<f64>,
-    config: &WienerConfig,
-) -> SignalResult<Array1<f64>> {
+pub fn denoise_wiener_1d(signal: &Array1<f64>, config: &WienerConfig) -> SignalResult<Array1<f64>> {
     let n = signal.len();
 
     // Pad to power of 2 for efficient FFT

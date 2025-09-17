@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use crate::error::{InterpolateError, InterpolateResult};
 
-use super::types::{ExtrapolateMode, BSplineWorkspace};
+use super::types::{BSplineWorkspace, ExtrapolateMode};
 
 /// B-spline representation for univariate functions
 ///

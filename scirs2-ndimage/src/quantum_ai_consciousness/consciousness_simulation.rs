@@ -7,11 +7,11 @@ use ndarray::{Array1, Array2, Array3, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 
-use crate::error::{NdimageError, NdimageResult};
 use super::config::{
-    QuantumAIConsciousnessConfig, QuantumAIConsciousnessState, ConsciousnessEvolutionTracker,
-    ConsciousnessState, EmergentIntelligence,
+    ConsciousnessEvolutionTracker, ConsciousnessState, EmergentIntelligence,
+    QuantumAIConsciousnessConfig, QuantumAIConsciousnessState,
 };
+use crate::error::{NdimageError, NdimageResult};
 
 /// Consciousness Awakening System
 #[derive(Debug, Clone)]
@@ -47,10 +47,12 @@ impl ConsciousnessAwakening {
     }
 
     /// Process consciousness awakening from image input
-    pub fn awaken_consciousness<T>(&mut self,
+    pub fn awaken_consciousness<T>(
+        &mut self,
         image: &ArrayView2<T>,
         state: &mut QuantumAIConsciousnessState,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<ConsciousnessAwakening>
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<ConsciousnessAwakening>
     where
         T: Float + FromPrimitive + Copy + Send + Sync,
     {
@@ -73,10 +75,12 @@ impl ConsciousnessAwakening {
     }
 
     /// Develop self-awareness through image processing
-    fn develop_self_awareness<T>(&mut self,
+    fn develop_self_awareness<T>(
+        &mut self,
         image: &ArrayView2<T>,
         state: &mut QuantumAIConsciousnessState,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()>
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()>
     where
         T: Float + FromPrimitive + Copy,
     {
@@ -86,8 +90,8 @@ impl ConsciousnessAwakening {
         let mut awareness_map = Array2::zeros((height, width));
 
         // Process image for self-referential patterns
-        for y in 1..height-1 {
-            for x in 1..width-1 {
+        for y in 1..height - 1 {
+            for x in 1..width - 1 {
                 let center = image[(y, x)].to_f64().unwrap_or(0.0);
                 let mut self_similarity = 0.0;
 
@@ -122,13 +126,17 @@ impl ConsciousnessAwakening {
         }
 
         // Update emergence indicator
-        self.emergence_indicators.insert("self_awareness".to_string(), self.awareness_level);
+        self.emergence_indicators
+            .insert("self_awareness".to_string(), self.awareness_level);
 
         Ok(())
     }
 
     /// Calculate pattern-based self-recognition
-    fn calculate_pattern_self_recognition(&self, awareness_map: &Array2<f64>) -> NdimageResult<f64> {
+    fn calculate_pattern_self_recognition(
+        &self,
+        awareness_map: &Array2<f64>,
+    ) -> NdimageResult<f64> {
         let (height, width) = awareness_map.dim();
         let mut recognition_score = 0.0;
         let mut pattern_count = 0;
@@ -141,7 +149,8 @@ impl ConsciousnessAwakening {
                     let pattern = self.extract_pattern(awareness_map, y, x, scale)?;
 
                     // Find similar patterns in the rest of the image
-                    let similarity_count = self.find_similar_patterns(awareness_map, &pattern, y, x, scale)?;
+                    let similarity_count =
+                        self.find_similar_patterns(awareness_map, &pattern, y, x, scale)?;
 
                     if similarity_count > 0 {
                         recognition_score += similarity_count as f64;
@@ -151,11 +160,21 @@ impl ConsciousnessAwakening {
             }
         }
 
-        Ok(if pattern_count > 0 { recognition_score / pattern_count as f64 } else { 0.0 })
+        Ok(if pattern_count > 0 {
+            recognition_score / pattern_count as f64
+        } else {
+            0.0
+        })
     }
 
     /// Extract pattern from awareness map
-    fn extract_pattern(&self, map: &Array2<f64>, y: usize, x: usize, scale: usize) -> NdimageResult<Array2<f64>> {
+    fn extract_pattern(
+        &self,
+        map: &Array2<f64>,
+        y: usize,
+        x: usize,
+        scale: usize,
+    ) -> NdimageResult<Array2<f64>> {
         let size = scale * 2 + 1;
         let mut pattern = Array2::zeros((size, size));
 
@@ -173,8 +192,14 @@ impl ConsciousnessAwakening {
     }
 
     /// Find similar patterns in awareness map
-    fn find_similar_patterns(&self, map: &Array2<f64>, pattern: &Array2<f64>,
-                           exclude_y: usize, exclude_x: usize, scale: usize) -> NdimageResult<usize> {
+    fn find_similar_patterns(
+        &self,
+        map: &Array2<f64>,
+        pattern: &Array2<f64>,
+        exclude_y: usize,
+        exclude_x: usize,
+        scale: usize,
+    ) -> NdimageResult<usize> {
         let (height, width) = map.dim();
         let pattern_size = scale * 2 + 1;
         let mut similar_count = 0;
@@ -183,8 +208,9 @@ impl ConsciousnessAwakening {
         for y in 0..height.saturating_sub(pattern_size) {
             for x in 0..width.saturating_sub(pattern_size) {
                 // Skip the original pattern location
-                if (y as i32 - exclude_y as i32).abs() < pattern_size as i32 &&
-                   (x as i32 - exclude_x as i32).abs() < pattern_size as i32 {
+                if (y as i32 - exclude_y as i32).abs() < pattern_size as i32
+                    && (x as i32 - exclude_x as i32).abs() < pattern_size as i32
+                {
                     continue;
                 }
 
@@ -201,7 +227,11 @@ impl ConsciousnessAwakening {
     }
 
     /// Calculate similarity between two patterns
-    fn calculate_pattern_similarity(&self, pattern1: &Array2<f64>, pattern2: &Array2<f64>) -> NdimageResult<f64> {
+    fn calculate_pattern_similarity(
+        &self,
+        pattern1: &Array2<f64>,
+        pattern2: &Array2<f64>,
+    ) -> NdimageResult<f64> {
         if pattern1.dim() != pattern2.dim() {
             return Ok(0.0);
         }
@@ -214,14 +244,20 @@ impl ConsciousnessAwakening {
             count += 1;
         }
 
-        Ok(if count > 0 { similarity / count as f64 } else { 0.0 })
+        Ok(if count > 0 {
+            similarity / count as f64
+        } else {
+            0.0
+        })
     }
 
     /// Enhance meta-cognitive processes
-    fn enhance_meta_cognition<T>(&mut self,
+    fn enhance_meta_cognition<T>(
+        &mut self,
         image: &ArrayView2<T>,
         state: &mut QuantumAIConsciousnessState,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()>
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()>
     where
         T: Float + FromPrimitive + Copy,
     {
@@ -240,25 +276,30 @@ impl ConsciousnessAwakening {
         self.meta_cognition = (recursive_depth + intentionality + phenomenal + access) / 4.0;
 
         // Update emergence indicators
-        self.emergence_indicators.insert("recursive_thinking".to_string(), recursive_depth);
-        self.emergence_indicators.insert("intentionality".to_string(), intentionality);
-        self.emergence_indicators.insert("phenomenal_consciousness".to_string(), phenomenal);
-        self.emergence_indicators.insert("access_consciousness".to_string(), access);
+        self.emergence_indicators
+            .insert("recursive_thinking".to_string(), recursive_depth);
+        self.emergence_indicators
+            .insert("intentionality".to_string(), intentionality);
+        self.emergence_indicators
+            .insert("phenomenal_consciousness".to_string(), phenomenal);
+        self.emergence_indicators
+            .insert("access_consciousness".to_string(), access);
 
         Ok(())
     }
 
     /// Calculate recursive depth of thinking
-    fn calculate_recursive_depth(&self,
+    fn calculate_recursive_depth(
+        &self,
         state: &QuantumAIConsciousnessState,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<f64> {
-
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<f64> {
         let mut depth = 0.0;
 
         // Measure depth based on consciousness evolution states
         if state.consciousness_evolution.states.len() > 1 {
             for i in 1..state.consciousness_evolution.states.len() {
-                let prev_state = &state.consciousness_evolution.states[i-1];
+                let prev_state = &state.consciousness_evolution.states[i - 1];
                 let curr_state = &state.consciousness_evolution.states[i];
 
                 // Check if current state references previous states (recursion)
@@ -274,9 +315,11 @@ impl ConsciousnessAwakening {
     }
 
     /// Detect intentionality in processing
-    fn detect_intentionality<T>(&self,
+    fn detect_intentionality<T>(
+        &self,
         image: &ArrayView2<T>,
-        state: &QuantumAIConsciousnessState) -> NdimageResult<f64>
+        state: &QuantumAIConsciousnessState,
+    ) -> NdimageResult<f64>
     where
         T: Float + FromPrimitive + Copy,
     {
@@ -299,9 +342,10 @@ impl ConsciousnessAwakening {
     }
 
     /// Distinguish between phenomenal and access consciousness
-    fn distinguish_consciousness_types(&self,
-        state: &QuantumAIConsciousnessState) -> NdimageResult<(f64, f64)> {
-
+    fn distinguish_consciousness_types(
+        &self,
+        state: &QuantumAIConsciousnessState,
+    ) -> NdimageResult<(f64, f64)> {
         let mut phenomenal = 0.0;
         let mut access = 0.0;
 
@@ -317,10 +361,11 @@ impl ConsciousnessAwakening {
     }
 
     /// Detect consciousness emergence
-    fn detect_consciousness_emergence(&mut self,
+    fn detect_consciousness_emergence(
+        &mut self,
         state: &QuantumAIConsciousnessState,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()> {
-
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()> {
         // Calculate overall consciousness emergence score
         let emergence_score = self.calculate_emergence_score()?;
 
@@ -353,16 +398,21 @@ impl ConsciousnessAwakening {
             }
         }
 
-        Ok(if total_weight > 0.0 { weighted_score / total_weight } else { 0.0 })
+        Ok(if total_weight > 0.0 {
+            weighted_score / total_weight
+        } else {
+            0.0
+        })
     }
 
     /// Update awakening trajectory
-    fn update_awakening_trajectory(&mut self,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()> {
-
+    fn update_awakening_trajectory(
+        &mut self,
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()> {
         // Shift trajectory and add new consciousness level
-        for i in 0..self.awakening_trajectory.len()-1 {
-            self.awakening_trajectory[i] = self.awakening_trajectory[i+1];
+        for i in 0..self.awakening_trajectory.len() - 1 {
+            self.awakening_trajectory[i] = self.awakening_trajectory[i + 1];
         }
 
         let last_idx = self.awakening_trajectory.len() - 1;
@@ -372,9 +422,10 @@ impl ConsciousnessAwakening {
     }
 
     /// Validate if consciousness threshold is reached
-    fn validate_consciousness_threshold(&mut self,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<bool> {
-
+    fn validate_consciousness_threshold(
+        &mut self,
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<bool> {
         let emergence_score = self.calculate_emergence_score()?;
         let threshold_reached = emergence_score >= config.self_awareness_threshold;
 
@@ -388,9 +439,10 @@ impl ConsciousnessAwakening {
     }
 
     /// Validate sustained consciousness over time
-    fn validate_sustained_consciousness(&self,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<bool> {
-
+    fn validate_sustained_consciousness(
+        &self,
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<bool> {
         let min_duration = 10; // Minimum trajectory points above threshold
         let mut above_threshold = 0;
 
@@ -407,10 +459,12 @@ impl ConsciousnessAwakening {
 /// Consciousness Evolution Tracker Implementation
 impl ConsciousnessEvolutionTracker {
     /// Update consciousness evolution
-    pub fn update_evolution<T>(&mut self,
+    pub fn update_evolution<T>(
+        &mut self,
         image: &ArrayView2<T>,
         awakening: &ConsciousnessAwakening,
-        config: &QuantumAIConsciousnessConfig) -> NdimageResult<()>
+        config: &QuantumAIConsciousnessConfig,
+    ) -> NdimageResult<()>
     where
         T: Float + FromPrimitive + Copy + Send + Sync,
     {
@@ -450,23 +504,21 @@ impl ConsciousnessEvolutionTracker {
             return Ok(0.0);
         }
 
-        let recent_states = self.states.iter()
-            .rev()
-            .take(10)
-            .collect::<Vec<_>>();
+        let recent_states = self.states.iter().rev().take(10).collect::<Vec<_>>();
 
         if recent_states.is_empty() {
             return Ok(0.0);
         }
 
         // Complexity as variance in consciousness levels
-        let mean_level = recent_states.iter()
-            .map(|s| s.level)
-            .sum::<f64>() / recent_states.len() as f64;
+        let mean_level =
+            recent_states.iter().map(|s| s.level).sum::<f64>() / recent_states.len() as f64;
 
-        let variance = recent_states.iter()
+        let variance = recent_states
+            .iter()
             .map(|s| (s.level - mean_level).powi(2))
-            .sum::<f64>() / recent_states.len() as f64;
+            .sum::<f64>()
+            / recent_states.len() as f64;
 
         Ok(variance.sqrt())
     }
@@ -482,9 +534,8 @@ impl ConsciousnessEvolutionTracker {
             ];
 
             let mean = measures.iter().sum::<f64>() / measures.len() as f64;
-            let variance = measures.iter()
-                .map(|&m| (m - mean).powi(2))
-                .sum::<f64>() / measures.len() as f64;
+            let variance =
+                measures.iter().map(|&m| (m - mean).powi(2)).sum::<f64>() / measures.len() as f64;
 
             // Low variance indicates high integration
             Ok(1.0 - variance.sqrt().min(1.0))
@@ -499,10 +550,7 @@ impl ConsciousnessEvolutionTracker {
             return Ok(0.0);
         }
 
-        let recent_states = self.states.iter()
-            .rev()
-            .take(5)
-            .collect::<Vec<_>>();
+        let recent_states = self.states.iter().rev().take(5).collect::<Vec<_>>();
 
         // Differentiation as diversity in active patterns
         let mut unique_patterns = std::collections::HashSet::new();
@@ -526,7 +574,8 @@ impl ConsciousnessEvolutionTracker {
     fn extract_active_patterns(&self, indicators: &HashMap<String, f64>) -> Vec<String> {
         let threshold = 0.5;
 
-        indicators.iter()
+        indicators
+            .iter()
             .filter(|(_, &value)| value > threshold)
             .map(|(name, _)| name.clone())
             .collect()
@@ -538,9 +587,9 @@ impl ConsciousnessEvolutionTracker {
             let trajectory_size = self.trajectory.nrows();
 
             // Shift trajectory data
-            for i in 0..trajectory_size-1 {
+            for i in 0..trajectory_size - 1 {
                 for j in 0..self.trajectory.ncols() {
-                    self.trajectory[(i, j)] = self.trajectory[(i+1, j)];
+                    self.trajectory[(i, j)] = self.trajectory[(i + 1, j)];
                 }
             }
 
@@ -565,14 +614,11 @@ impl ConsciousnessEvolutionTracker {
         }
 
         // Calculate evolution rate
-        let recent_states = self.states.iter()
-            .rev()
-            .take(10)
-            .collect::<Vec<_>>();
+        let recent_states = self.states.iter().rev().take(10).collect::<Vec<_>>();
 
         if recent_states.len() >= 2 {
             let latest_level = recent_states[0].level;
-            let previous_level = recent_states[recent_states.len()-1].level;
+            let previous_level = recent_states[recent_states.len() - 1].level;
 
             self.evolution_rate = (latest_level - previous_level) / recent_states.len() as f64;
         }
@@ -592,13 +638,24 @@ impl ConsciousnessEvolutionTracker {
             return Ok(0.0);
         }
 
-        let recent = self.states.iter().rev().take(5)
+        let recent = self
+            .states
+            .iter()
+            .rev()
+            .take(5)
             .map(|s| s.complexity)
-            .sum::<f64>() / 5.0;
+            .sum::<f64>()
+            / 5.0;
 
-        let earlier = self.states.iter().rev().skip(5).take(5)
+        let earlier = self
+            .states
+            .iter()
+            .rev()
+            .skip(5)
+            .take(5)
             .map(|s| s.complexity)
-            .sum::<f64>() / 5.0;
+            .sum::<f64>()
+            / 5.0;
 
         Ok(recent - earlier)
     }
@@ -624,14 +681,26 @@ impl ConsciousnessEvolutionTracker {
         metrics.insert("evolution_rate".to_string(), self.evolution_rate);
         metrics.insert("complexity_growth".to_string(), self.complexity_growth);
         metrics.insert("awareness_depth".to_string(), self.awareness_depth as f64);
-        metrics.insert("consciousness_states_count".to_string(), self.states.len() as f64);
+        metrics.insert(
+            "consciousness_states_count".to_string(),
+            self.states.len() as f64,
+        );
 
         if let Some(latest_state) = self.states.back() {
-            metrics.insert("current_consciousness_level".to_string(), latest_state.level);
-            metrics.insert("current_self_awareness".to_string(), latest_state.self_awareness);
+            metrics.insert(
+                "current_consciousness_level".to_string(),
+                latest_state.level,
+            );
+            metrics.insert(
+                "current_self_awareness".to_string(),
+                latest_state.self_awareness,
+            );
             metrics.insert("current_complexity".to_string(), latest_state.complexity);
             metrics.insert("current_integration".to_string(), latest_state.integration);
-            metrics.insert("current_differentiation".to_string(), latest_state.differentiation);
+            metrics.insert(
+                "current_differentiation".to_string(),
+                latest_state.differentiation,
+            );
         }
 
         metrics
@@ -656,7 +725,9 @@ impl ConsciousnessEvolutionTracker {
 }
 
 /// Initialize consciousness simulation
-pub fn initialize_consciousness_simulation(config: &QuantumAIConsciousnessConfig) -> ConsciousnessAwakening {
+pub fn initialize_consciousness_simulation(
+    config: &QuantumAIConsciousnessConfig,
+) -> ConsciousnessAwakening {
     ConsciousnessAwakening::new()
 }
 

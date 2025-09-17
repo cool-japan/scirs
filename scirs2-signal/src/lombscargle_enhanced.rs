@@ -161,11 +161,7 @@ where
     let power = if config.use_fast {
         compute_fast_lombscargle(&times_f64, &windowed_values, &frequencies, config.tolerance)?
     } else {
-        compute_standard_lombscargle(
-            &times_f64,
-            &windowed_values,
-            &frequencies,
-        )?
+        compute_standard_lombscargle(&times_f64, &windowed_values, &frequencies)?
     };
 
     // Compute bootstrap confidence intervals if requested

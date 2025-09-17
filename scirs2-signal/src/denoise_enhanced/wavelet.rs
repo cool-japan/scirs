@@ -7,7 +7,7 @@ use super::types::*;
 use crate::dwt::{wavedec, waverec, DecompositionResult};
 // use crate::dwt2d::dwt2d_decompose; // TODO: Enable when dwt2d module is available
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, s};
+use ndarray::{s, Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
 
@@ -56,7 +56,7 @@ pub fn denoise_wavelet_2d(
 
     // Temporary placeholder - return simplified result
     Err(SignalError::NotImplemented(
-        "2D wavelet denoising requires dwt2d module".to_string()
+        "2D wavelet denoising requires dwt2d module".to_string(),
     ))
 }
 
@@ -251,7 +251,11 @@ pub fn apply_thresholding(
                 crate::denoise_enhanced::thresholding::compute_cv_threshold(detail, noise_sigma)?
             }
             ThresholdRule::FDR { q } => {
-                crate::denoise_enhanced::thresholding::compute_fdr_threshold(detail, noise_sigma, q)?
+                crate::denoise_enhanced::thresholding::compute_fdr_threshold(
+                    detail,
+                    noise_sigma,
+                    q,
+                )?
             }
             ThresholdRule::Custom(t) => t,
         };
@@ -278,13 +282,21 @@ pub fn apply_thresholding(
                 crate::denoise_enhanced::thresholding::scad_threshold(detail, level_threshold, a)
             }
             ThresholdMethod::Firm { alpha } => {
-                crate::denoise_enhanced::thresholding::firm_threshold(detail, level_threshold, alpha)
+                crate::denoise_enhanced::thresholding::firm_threshold(
+                    detail,
+                    level_threshold,
+                    alpha,
+                )
             }
             ThresholdMethod::Hyperbolic => {
                 crate::denoise_enhanced::thresholding::hyperbolic_threshold(detail, level_threshold)
             }
             ThresholdMethod::Block { block_size } => {
-                crate::denoise_enhanced::thresholding::block_threshold(detail, level_threshold, block_size)?
+                crate::denoise_enhanced::thresholding::block_threshold(
+                    detail,
+                    level_threshold,
+                    block_size,
+                )?
             }
         };
 

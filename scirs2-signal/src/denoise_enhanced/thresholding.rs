@@ -182,7 +182,9 @@ pub fn block_threshold(
 pub fn compute_sure_threshold(coeffs: &Array1<f64>, noise_sigma: f64) -> SignalResult<f64> {
     let n = coeffs.len();
     if n == 0 {
-        return Err(SignalError::ValueError("Empty coefficients array".to_string()));
+        return Err(SignalError::ValueError(
+            "Empty coefficients array".to_string(),
+        ));
     }
 
     // Sort coefficients by absolute value
@@ -229,11 +231,7 @@ pub fn compute_minimax_threshold(n: f64, noise_sigma: f64) -> f64 {
 }
 
 /// Compute FDR (False Discovery Rate) threshold
-pub fn compute_fdr_threshold(
-    coeffs: &Array1<f64>,
-    noise_sigma: f64,
-    q: f64,
-) -> SignalResult<f64> {
+pub fn compute_fdr_threshold(coeffs: &Array1<f64>, noise_sigma: f64, q: f64) -> SignalResult<f64> {
     if q <= 0.0 || q >= 1.0 {
         return Err(SignalError::ValueError(
             "FDR parameter q must be between 0 and 1".to_string(),

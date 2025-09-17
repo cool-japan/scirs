@@ -245,7 +245,7 @@ mod tests {
         let coordinator = create_default_advanced_coordinator::<f64>().unwrap();
 
         let x_data = Array1::linspace(0.0, 10.0, 11);
-        let y_data = x_data.mapv(|x| x.sin());
+        let y_data = x_data.mapv(|x: f64| x.sin());
 
         let recommendation = coordinator.analyze_and_recommend(&x_data, &y_data);
         assert!(recommendation.is_ok());

@@ -8,8 +8,8 @@ use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
+use super::types::{classify_stability, ConditionReport, StabilityDiagnostics, StabilityLevel};
 use crate::error::{InterpolateError, InterpolateResult};
-use super::types::{ConditionReport, StabilityDiagnostics, StabilityLevel, classify_stability};
 
 /// Assess the numerical condition of a matrix
 pub fn assess_matrix_condition<F>(matrix: &ArrayView2<F>) -> InterpolateResult<ConditionReport<F>>
@@ -74,7 +74,8 @@ where
     }
 
     let n = matrix.nrows();
-    let tolerance = super::types::machine_epsilon::<F>() * F::from(100.0).unwrap_or_else(|| F::one());
+    let tolerance =
+        super::types::machine_epsilon::<F>() * F::from(100.0).unwrap_or_else(|| F::one());
 
     for i in 0..n {
         for j in 0..n {
@@ -133,7 +134,11 @@ where
 
     // Estimate rank by counting significant singular values
     let rank_threshold = super::types::machine_epsilon::<F>() * max_singular * F::from(n).unwrap();
-    diagnostics.estimated_rank = Some(if min_singular > rank_threshold { n } else { n - 1 });
+    diagnostics.estimated_rank = Some(if min_singular > rank_threshold {
+        n
+    } else {
+        n - 1
+    });
 
     // Check positive definiteness for symmetric matrices
     if diagnostics.is_symmetric {
@@ -192,12 +197,16 @@ where
         }
 
         // Compute Rayleigh quotient
-        let numerator = v.iter().zip(atav.iter()).map(|(x, y)| *x * *y).fold(F::zero(), |acc, x| acc + x);
+        let numerator = v
+            .iter()
+            .zip(atav.iter())
+            .map(|(x, y)| *x * *y)
+            .fold(F::zero(), |acc, x| acc + x);
         let denominator = v.iter().map(|x| *x * *x).fold(F::zero(), |acc, x| acc + x);
 
         if denominator < super::types::machine_epsilon::<F>() {
             return Err(InterpolateError::NumericalInstability {
-                source: "Power iteration failed: zero denominator".to_string(),
+                message: "Power iteration failed: zero denominator".to_string(),
             });
         }
 
@@ -286,10 +295,7 @@ where
 }
 
 /// Suggest regularization parameter based on condition number and diagnostics
-pub fn suggest_regularization<F>(
-    condition_number: F,
-    diagnostics: &StabilityDiagnostics<F>,
-) -> F
+pub fn suggest_regularization<F>(condition_number: F, diagnostics: &StabilityDiagnostics<F>) -> F
 where
     F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
 {
@@ -346,7 +352,8 @@ where
     F: Float + FromPrimitive,
 {
     let n = matrix.nrows();
-    let tolerance = super::types::machine_epsilon::<F>() * F::from(100.0).unwrap_or_else(|| F::one());
+    let tolerance =
+        super::types::machine_epsilon::<F>() * F::from(100.0).unwrap_or_else(|| F::one());
 
     let mut count = 0;
     for i in 0..n {
@@ -393,11 +400,9 @@ mod tests {
 
     #[test]
     fn test_zero_diagonal_count() {
-        let matrix = Array2::from_shape_vec((3, 3), vec![
-            1.0, 2.0, 3.0,
-            4.0, 0.0, 6.0,
-            7.0, 8.0, 0.0,
-        ]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 0.0, 6.0, 7.0, 8.0, 0.0])
+                .unwrap();
 
         assert_eq!(count_zero_diagonal_elements(&matrix.view()), 2);
     }

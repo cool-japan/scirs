@@ -60,7 +60,7 @@ where
 {
     /// Create a new SIMD B-spline evaluator
     pub fn new(spline: BSpline<T>) -> Self {
-        let workspace = BSplineWorkspace::new(_spline.degree());
+        let workspace = BSplineWorkspace::new(spline.degree());
         Self { spline, workspace }
     }
 

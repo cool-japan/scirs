@@ -171,9 +171,9 @@ pub use gpu_ops::{
 
 // Re-export streaming operations
 pub use streaming::{
-    BlurStage, EdgeDetectionStage, Frame, FrameMetadata, GrayscaleStage,
-    SimplePerformanceMonitor, PipelineMetrics, ProcessingStage, StreamPipeline,
-    StreamProcessor, VideoStreamReader, AdvancedStreamPipeline, AdvancedStreamProcessor,
+    AdvancedStreamPipeline, AdvancedStreamProcessor, BlurStage, EdgeDetectionStage, Frame,
+    FrameMetadata, GrayscaleStage, PipelineMetrics, ProcessingStage, SimplePerformanceMonitor,
+    StreamPipeline, StreamProcessor, VideoStreamReader,
 };
 
 // Re-export Advanced mode enhancements

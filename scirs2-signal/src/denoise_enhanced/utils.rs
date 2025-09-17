@@ -6,7 +6,7 @@
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
 use ndarray::Array1;
-use scirs2_core::validation::{check_positive, check_finite};
+use scirs2_core::validation::{check_finite, check_positive};
 
 /// Validate denoising configuration
 pub fn validate_denoise_config(config: &DenoiseConfig) -> SignalResult<()> {
@@ -76,13 +76,16 @@ pub fn estimate_memory_usage(signal_length: usize) -> usize {
     let decomposition_overhead = 2.0; // Approximation for wavelet decomposition
     let temp_arrays = 3; // Various temporary arrays during processing
 
-    (signal_length as f64 * decomposition_overhead * temp_arrays as f64 * element_size as f64) as usize
+    (signal_length as f64 * decomposition_overhead * temp_arrays as f64 * element_size as f64)
+        as usize
 }
 
 /// Compute numerical stability score for denoising result
 pub fn compute_numerical_stability(signal: &Array1<f64>) -> SignalResult<f64> {
     if signal.is_empty() {
-        return Err(SignalError::ValueError("Signal cannot be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "Signal cannot be empty".to_string(),
+        ));
     }
 
     // Check for finite values
@@ -175,7 +178,12 @@ pub fn memory_optimized_denoise_1d(
         let actual_start = if start == 0 { 0 } else { start + overlap / 2 };
         let actual_end = if end == n { end } else { end - overlap / 2 };
 
-        for (i, &val) in block_result.signal.slice(ndarray::s![actual_start - start..actual_end - start]).iter().enumerate() {
+        for (i, &val) in block_result
+            .signal
+            .slice(ndarray::s![actual_start - start..actual_end - start])
+            .iter()
+            .enumerate()
+        {
             denoised_signal[actual_start + i] = val;
         }
 
@@ -302,7 +310,7 @@ pub fn compute_patch_similarity_1d(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dwt::{Wavelet, DecompositionResult};
+    use crate::dwt::{DecompositionResult, Wavelet};
 
     #[test]
     fn test_validate_denoise_config() {

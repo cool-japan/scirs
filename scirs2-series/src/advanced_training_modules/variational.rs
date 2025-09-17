@@ -446,7 +446,8 @@ mod tests {
     #[test]
     fn test_vae_encode_decode() {
         let vae = TimeSeriesVAE::<f64>::new(5, 2, 3, 8, 8);
-        let input = Array2::from_shape_vec((5, 2), (0..10).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((5, 2), (0..10).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let (mean, logvar) = vae.encode(&input).unwrap();
         assert_eq!(mean.len(), 3);
@@ -462,7 +463,8 @@ mod tests {
     #[test]
     fn test_vae_forward() {
         let vae = TimeSeriesVAE::<f64>::new(4, 2, 3, 8, 8);
-        let input = Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((4, 2), (0..8).map(|i| i as f64 * 0.1).collect()).unwrap();
 
         let output = vae.forward(&input).unwrap();
         assert_eq!(output.reconstruction.dim(), (4, 2));
@@ -476,7 +478,8 @@ mod tests {
     #[test]
     fn test_vae_uncertainty_estimation() {
         let vae = TimeSeriesVAE::<f64>::new(3, 2, 2, 6, 6);
-        let input = Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.2).collect()).unwrap();
+        let input =
+            Array2::from_shape_vec((3, 2), (0..6).map(|i| i as f64 * 0.2).collect()).unwrap();
 
         let (mean_recon, std_recon) = vae.estimate_uncertainty(&input, 5).unwrap();
         assert_eq!(mean_recon.dim(), (3, 2));

@@ -1,10 +1,10 @@
 //! GPU-accelerated dataset generators
 
-use crate::error::{DatasetsError, Result};
-use crate::utils::Dataset;
-use crate::gpu::{GpuContext, GpuDeviceInfo};
+use super::basic::{make_blobs, make_classification, make_regression};
 use super::config::GpuConfig;
-use super::basic::{make_classification, make_regression, make_blobs};
+use crate::error::{DatasetsError, Result};
+use crate::gpu::{GpuContext, GpuDeviceInfo};
+use crate::utils::Dataset;
 use ndarray::{Array1, Array2};
 use rand::prelude::*;
 use rand::rngs::StdRng;

@@ -11,13 +11,12 @@ use std::ops::AddAssign;
 
 use crate::error::{InterpolateError, InterpolateResult};
 
-use super::core::Extrapolator;
 use super::config::{
-    ConfidenceExtrapolationConfig, ConfidenceExtrapolationResult,
-    EnsembleExtrapolationConfig, AdaptiveExtrapolationConfig,
-    AutoregressiveExtrapolationConfig,
+    AdaptiveExtrapolationConfig, AutoregressiveExtrapolationConfig, ConfidenceExtrapolationConfig,
+    ConfidenceExtrapolationResult, EnsembleExtrapolationConfig,
 };
-use super::types::{ExtrapolationMethod, EnsembleCombinationStrategy, ARFittingMethod};
+use super::core::Extrapolator;
+use super::types::{ARFittingMethod, EnsembleCombinationStrategy, ExtrapolationMethod};
 
 /// Advanced extrapolator with ensemble, adaptive, and statistical capabilities
 #[derive(Debug, Clone)]
@@ -455,7 +454,10 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
 
     /// Perform multiple extrapolations efficiently
     pub fn extrapolate_batch(&self, x_values: &[T]) -> Vec<InterpolateResult<T>> {
-        x_values.iter().map(|&x| self.extrapolate_advanced(x)).collect()
+        x_values
+            .iter()
+            .map(|&x| self.extrapolate_advanced(x))
+            .collect()
     }
 
     /// Get extrapolation method recommendations based on data characteristics
@@ -479,7 +481,8 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
 
         // For small extrapolation distances, recommend higher-order methods
         if distance_from_lower < domain_width * T::from(0.1).unwrap_or(T::one())
-            || distance_from_upper < domain_width * T::from(0.1).unwrap_or(T::one()) {
+            || distance_from_upper < domain_width * T::from(0.1).unwrap_or(T::one())
+        {
             recommendations.push(ExtrapolationMethod::Cubic);
             recommendations.push(ExtrapolationMethod::Quadratic);
         }
@@ -489,7 +492,8 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
 
         // For large distances, recommend asymptotic methods
         if distance_from_lower > domain_width * T::from(0.5).unwrap_or(T::one())
-            || distance_from_upper > domain_width * T::from(0.5).unwrap_or(T::one()) {
+            || distance_from_upper > domain_width * T::from(0.5).unwrap_or(T::one())
+        {
             recommendations.push(ExtrapolationMethod::Exponential);
             recommendations.push(ExtrapolationMethod::PowerLaw);
         }

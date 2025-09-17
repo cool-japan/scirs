@@ -7,8 +7,8 @@ use ndarray::Array1;
 use num_traits::Float;
 use std::fmt::Debug;
 
-use crate::error::Result;
 use super::config::GpuConfig;
+use crate::error::Result;
 
 /// Trait for GPU-accelerated time series operations
 pub trait GpuAccelerated<F: Float + Debug> {

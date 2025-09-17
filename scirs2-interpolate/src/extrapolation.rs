@@ -114,7 +114,11 @@ pub fn create_production_extrapolator<T: num_traits::Float + std::fmt::Display>(
 
 /// Creates an extrapolator optimized for the given data characteristics
 pub fn create_optimized_extrapolator<
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Display + std::default::Default + std::ops::AddAssign,
+    T: num_traits::Float
+        + num_traits::FromPrimitive
+        + std::fmt::Display
+        + std::default::Default
+        + std::ops::AddAssign,
 >(
     lower_bound: T,
     upper_bound: T,
@@ -147,13 +151,8 @@ pub fn extrapolate_value<T: num_traits::Float + std::fmt::Display>(
     let (lower_bound, upper_bound) = domain;
     let (lower_value, upper_value) = boundary_values;
 
-    let extrapolator = create_simple_extrapolator(
-        lower_bound,
-        upper_bound,
-        lower_value,
-        upper_value,
-        method,
-    );
+    let extrapolator =
+        create_simple_extrapolator(lower_bound, upper_bound, lower_value, upper_value, method);
 
     extrapolator.extrapolate(x)
 }
@@ -168,15 +167,13 @@ pub fn extrapolate_batch<T: num_traits::Float + std::fmt::Display>(
     let (lower_bound, upper_bound) = domain;
     let (lower_value, upper_value) = boundary_values;
 
-    let extrapolator = create_simple_extrapolator(
-        lower_bound,
-        upper_bound,
-        lower_value,
-        upper_value,
-        method,
-    );
+    let extrapolator =
+        create_simple_extrapolator(lower_bound, upper_bound, lower_value, upper_value, method);
 
-    x_values.iter().map(|&x| extrapolator.extrapolate(x)).collect()
+    x_values
+        .iter()
+        .map(|&x| extrapolator.extrapolate(x))
+        .collect()
 }
 
 #[cfg(test)]
@@ -186,10 +183,8 @@ mod tests {
 
     #[test]
     fn test_simple_extrapolator() {
-        let extrapolator = create_simple_extrapolator(
-            0.0, 10.0, 0.0, 10.0,
-            ExtrapolationMethod::Linear
-        );
+        let extrapolator =
+            create_simple_extrapolator(0.0, 10.0, 0.0, 10.0, ExtrapolationMethod::Linear);
 
         let result = extrapolator.extrapolate(-5.0).unwrap();
         assert_abs_diff_eq!(result, -5.0, epsilon = 1e-10);
@@ -198,9 +193,12 @@ mod tests {
     #[test]
     fn test_asymmetric_extrapolator() {
         let extrapolator = create_asymmetric_extrapolator(
-            0.0, 10.0, 0.0, 10.0,
+            0.0,
+            10.0,
+            0.0,
+            10.0,
             ExtrapolationMethod::Linear,
-            ExtrapolationMethod::Constant
+            ExtrapolationMethod::Constant,
         );
 
         // Test lower boundary (linear)
@@ -214,9 +212,7 @@ mod tests {
 
     #[test]
     fn test_production_extrapolator() {
-        let extrapolator = create_production_extrapolator(
-            0.0, 10.0, 0.0, 10.0, 1.0, 1.0
-        );
+        let extrapolator = create_production_extrapolator(0.0, 10.0, 0.0, 10.0, 1.0, 1.0);
 
         let result = extrapolator.extrapolate(-5.0).unwrap();
         assert_abs_diff_eq!(result, -5.0, epsilon = 1e-10);
@@ -224,12 +220,8 @@ mod tests {
 
     #[test]
     fn test_quick_extrapolation() {
-        let result = extrapolate_value(
-            -5.0,
-            (0.0, 10.0),
-            (0.0, 10.0),
-            ExtrapolationMethod::Linear
-        ).unwrap();
+        let result =
+            extrapolate_value(-5.0, (0.0, 10.0), (0.0, 10.0), ExtrapolationMethod::Linear).unwrap();
 
         assert_abs_diff_eq!(result, -5.0, epsilon = 1e-10);
     }
@@ -241,7 +233,7 @@ mod tests {
             &x_values,
             (0.0, 10.0),
             (0.0, 10.0),
-            ExtrapolationMethod::Linear
+            ExtrapolationMethod::Linear,
         );
 
         assert_eq!(results.len(), 4);
@@ -256,12 +248,11 @@ mod tests {
     #[test]
     fn test_optimized_extrapolator() {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let gradients = Some(vec![1.0, 1.0, 1.0, 1.0].as_slice());
+        let gradient_vec = vec![1.0, 1.0, 1.0, 1.0];
+        let gradients = Some(gradient_vec.as_slice());
 
-        let extrapolator = create_optimized_extrapolator(
-            0.0, 4.0, 1.0, 5.0, 1.0, 1.0,
-            &values, gradients
-        );
+        let extrapolator =
+            create_optimized_extrapolator(0.0, 4.0, 1.0, 5.0, 1.0, 1.0, &values, gradients);
 
         let result = extrapolator.extrapolate_advanced(-1.0);
         assert!(result.is_ok());
@@ -269,22 +260,16 @@ mod tests {
 
     #[test]
     fn test_zeros_method() {
-        let result = extrapolate_value(
-            -5.0,
-            (0.0, 10.0),
-            (5.0, 15.0),
-            ExtrapolationMethod::Zeros
-        ).unwrap();
+        let result =
+            extrapolate_value(-5.0, (0.0, 10.0), (5.0, 15.0), ExtrapolationMethod::Zeros).unwrap();
 
         assert_abs_diff_eq!(result, 0.0, epsilon = 1e-10);
     }
 
     #[test]
     fn test_nearest_method() {
-        let extrapolator = create_simple_extrapolator(
-            0.0, 10.0, 5.0, 15.0,
-            ExtrapolationMethod::Nearest
-        );
+        let extrapolator =
+            create_simple_extrapolator(0.0, 10.0, 5.0, 15.0, ExtrapolationMethod::Nearest);
 
         // Test lower extrapolation
         let result = extrapolator.extrapolate(-5.0).unwrap();
@@ -297,10 +282,8 @@ mod tests {
 
     #[test]
     fn test_error_for_in_domain_points() {
-        let extrapolator = create_simple_extrapolator(
-            0.0, 10.0, 0.0, 10.0,
-            ExtrapolationMethod::Linear
-        );
+        let extrapolator =
+            create_simple_extrapolator(0.0, 10.0, 0.0, 10.0, ExtrapolationMethod::Linear);
 
         // Point inside domain should return error
         let result = extrapolator.extrapolate(5.0);

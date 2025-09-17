@@ -53,7 +53,9 @@ pub fn auto_perspective_correction(
     }
 
     let quad = best_quad.ok_or_else(|| {
-        VisionError::OperationError("No suitable quadrilateral found for perspective correction".to_string())
+        VisionError::OperationError(
+            "No suitable quadrilateral found for perspective correction".to_string(),
+        )
     })?;
 
     // Step 4: Create rectification transformation
@@ -396,7 +398,11 @@ fn find_corner_points(contour: &[(f64, f64)]) -> Vec<(f64, f64)> {
         }
 
         corner_angles.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        corners = corner_angles.into_iter().take(4).map(|(_, point)| point).collect();
+        corners = corner_angles
+            .into_iter()
+            .take(4)
+            .map(|(_, point)| point)
+            .collect();
     }
 
     corners

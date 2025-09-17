@@ -8,14 +8,14 @@ use ndarray::{Array1, Array2, Array3, ArrayView2};
 use num_traits::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 
-use crate::error::{NdimageError, NdimageResult};
 use super::config::{
-    QuantumAIConsciousnessConfig, QuantumAIConsciousnessState, ConsciousnessInsights,
-    EmergentProcessingResult, SuperintelligentResult, EmergentIntelligence, EmergentCapability,
-    SpontaneousInsight, CreativePattern, ProcessorType, SelectionAlgorithm,
+    ConsciousnessInsights, CreativePattern, EmergentCapability, EmergentIntelligence,
+    EmergentProcessingResult, ProcessorType, QuantumAIConsciousnessConfig,
+    QuantumAIConsciousnessState, SelectionAlgorithm, SpontaneousInsight, SuperintelligentResult,
 };
-use super::consciousness_simulation::{ConsciousnessAwakening, update_consciousness_simulation};
-use super::quantum_core::{update_quantum_core, get_quantum_metrics};
+use super::consciousness_simulation::{update_consciousness_simulation, ConsciousnessAwakening};
+use super::quantum_core::{get_quantum_metrics, update_quantum_core};
+use crate::error::{NdimageError, NdimageResult};
 
 /// Main Quantum-AI Consciousness Processing Function
 ///
@@ -36,7 +36,8 @@ where
     let (height, width) = image.dim();
 
     // Initialize or evolve consciousness state
-    let mut state = initialize_or_evolve_consciousness(consciousnessstate, (height, width), config)?;
+    let mut state =
+        initialize_or_evolve_consciousness(consciousnessstate, (height, width), config)?;
 
     // Stage 1: Consciousness Awakening and Self-Awareness
     let mut consciousness_awakening = ConsciousnessAwakening::new();
@@ -86,7 +87,8 @@ where
     };
 
     // Stage 7: Enhanced Consciousness Processing
-    let (enhanced_output, enhanced_insights) = enhanced_consciousness_processing(&image, config, &mut state)?;
+    let (enhanced_output, enhanced_insights) =
+        enhanced_consciousness_processing(&image, config, &mut state)?;
 
     // Stage 8: Quantum Superintelligence Mode
     let superintelligent_result = if config.quantum_superintelligence {
@@ -132,19 +134,16 @@ where
     let phi_result = calculate_phi_measures(image, &mut state.iit_processor, config)?;
 
     // Stage 2: Global Workspace Processing
-    let gwt_result = process_global_workspace(image, &mut state.gwt_processor, &phi_result, config)?;
+    let gwt_result =
+        process_global_workspace(image, &mut state.gwt_processor, &phi_result, config)?;
 
     // Stage 3: Advanced Attention Processing
-    let attention_result = process_advanced_attention(image, &mut state.attention_processor, &gwt_result, config)?;
+    let attention_result =
+        process_advanced_attention(image, &mut state.attention_processor, &gwt_result, config)?;
 
     // Stage 4: Consciousness Integration
-    let integrated_result = integrate_consciousness_models(
-        image,
-        &phi_result,
-        &gwt_result,
-        &attention_result,
-        config,
-    )?;
+    let integrated_result =
+        integrate_consciousness_models(image, &phi_result, &gwt_result, &attention_result, config)?;
 
     // Stage 5: Enhanced Output Synthesis
     let output = synthesize_enhanced_output(image, &integrated_result, config)?;
@@ -174,7 +173,7 @@ fn initialize_or_evolve_consciousness(
             state.consciousness_level *= 1.0 + config.consciousness_evolution_rate;
             state.consciousness_level = state.consciousness_level.min(1.0);
             Ok(state)
-        },
+        }
         None => {
             // Initialize new consciousness state
             let mut state = QuantumAIConsciousnessState::new();
@@ -200,7 +199,8 @@ where
     if consciousness_awakening.awareness_level > config.self_awareness_threshold {
         // Simplified pattern recognition based on image statistics
         let (height, width) = image.dim();
-        let mean = image.iter().map(|x| x.to_f64().unwrap_or(0.0)).sum::<f64>() / (height * width) as f64;
+        let mean =
+            image.iter().map(|x| x.to_f64().unwrap_or(0.0)).sum::<f64>() / (height * width) as f64;
 
         if mean > 0.5 {
             patterns.push("high_intensity_pattern".to_string());
@@ -211,7 +211,11 @@ where
 
         // Add to transcendent pattern database
         for pattern_name in &patterns {
-            if !state.transcendent_patterns.patterns.contains_key(pattern_name) {
+            if !state
+                .transcendent_patterns
+                .patterns
+                .contains_key(pattern_name)
+            {
                 let transcendent_pattern = super::config::TranscendentPattern {
                     id: pattern_name.clone(),
                     pattern_data: Array3::zeros((1, height.min(32), width.min(32))),
@@ -219,7 +223,10 @@ where
                     recognition_count: 1,
                     insights: vec!["Pattern discovered through consciousness".to_string()],
                 };
-                state.transcendent_patterns.patterns.insert(pattern_name.clone(), transcendent_pattern);
+                state
+                    .transcendent_patterns
+                    .patterns
+                    .insert(pattern_name.clone(), transcendent_pattern);
             }
         }
     }
@@ -246,7 +253,8 @@ where
 
         // Update quantum intuition engine
         state.quantum_intuition_engine.coherence_level *= 1.1;
-        state.quantum_intuition_engine.coherence_level = state.quantum_intuition_engine.coherence_level.min(1.0);
+        state.quantum_intuition_engine.coherence_level =
+            state.quantum_intuition_engine.coherence_level.min(1.0);
     }
 
     Ok(insights)
@@ -290,8 +298,14 @@ where
     result.emergence_quality = intuitive_insights.len() as f64 / 10.0;
 
     // Update emergent intelligence in state
-    state.emergent_intelligence.capabilities.extend(result.capabilities.clone());
-    state.emergent_intelligence.spontaneous_insights.extend(result.insights.clone());
+    state
+        .emergent_intelligence
+        .capabilities
+        .extend(result.capabilities.clone());
+    state
+        .emergent_intelligence
+        .spontaneous_insights
+        .extend(result.insights.clone());
     state.emergent_intelligence.complexity_level += result.emergence_quality * 0.1;
 
     Ok(result)
@@ -314,7 +328,10 @@ fn apply_meta_meta_learning(
             innovation: 0.1,
         };
 
-        state.meta_meta_learning.strategy_evolution.push(strategy_evolution);
+        state
+            .meta_meta_learning
+            .strategy_evolution
+            .push(strategy_evolution);
         adaptations += 1;
     }
 
@@ -335,7 +352,10 @@ where
         let mut intelligence_measures = HashMap::new();
         intelligence_measures.insert("reasoning".to_string(), state.consciousness_level * 1.2);
         intelligence_measures.insert("creativity".to_string(), state.consciousness_level * 1.1);
-        intelligence_measures.insert("problem_solving".to_string(), state.consciousness_level * 1.3);
+        intelligence_measures.insert(
+            "problem_solving".to_string(),
+            state.consciousness_level * 1.3,
+        );
 
         let result = SuperintelligentResult {
             output: image.clone(),
@@ -364,17 +384,18 @@ where
     let total_pixels = height * width;
 
     // Calculate integration measure
-    let mean_intensity = image.iter()
-        .map(|x| x.to_f64().unwrap_or(0.0))
-        .sum::<f64>() / total_pixels as f64;
+    let mean_intensity =
+        image.iter().map(|x| x.to_f64().unwrap_or(0.0)).sum::<f64>() / total_pixels as f64;
 
     // Calculate differentiation measure
-    let variance = image.iter()
+    let variance = image
+        .iter()
         .map(|x| {
             let val = x.to_f64().unwrap_or(0.0);
             (val - mean_intensity).powi(2)
         })
-        .sum::<f64>() / total_pixels as f64;
+        .sum::<f64>()
+        / total_pixels as f64;
 
     // Phi as integration minus differentiation (simplified)
     let phi_value = mean_intensity * (1.0 - variance.sqrt());
@@ -426,7 +447,7 @@ where
 
     Ok(AdvancedAttentionResult {
         attention_map,
-        focus_regions: vec![(height/2, width/2)],
+        focus_regions: vec![(height / 2, width / 2)],
         attention_strength: gwt_result.workspace_activity,
         consciousness_binding: gwt_result.coalition_strength,
     })
@@ -444,9 +465,10 @@ where
     T: Float + FromPrimitive + Copy + Send + Sync,
 {
     // Integrate all consciousness models
-    let integrated_consciousness = (phi_result.consciousness_level +
-                                   gwt_result.workspace_activity +
-                                   attention_result.attention_strength) / 3.0;
+    let integrated_consciousness = (phi_result.consciousness_level
+        + gwt_result.workspace_activity
+        + attention_result.attention_strength)
+        / 3.0;
 
     Ok(IntegratedConsciousnessResult {
         integrated_consciousness,
@@ -497,9 +519,8 @@ where
 
     // Apply superintelligent enhancement
     if super_result.superhuman_performance {
-        let enhancement_factor = super_result.intelligence_measures
-            .values()
-            .sum::<f64>() / super_result.intelligence_measures.len() as f64;
+        let enhancement_factor = super_result.intelligence_measures.values().sum::<f64>()
+            / super_result.intelligence_measures.len() as f64;
 
         for y in 0..height {
             for x in 0..width {
@@ -524,15 +545,27 @@ fn extract_consciousness_insights(
     state: &QuantumAIConsciousnessState,
 ) -> NdimageResult<ConsciousnessInsights> {
     let mut integration_measures = HashMap::new();
-    integration_measures.insert("phi_integration".to_string(), enhanced_insights.phi_integration);
-    integration_measures.insert("gwt_integration".to_string(), enhanced_insights.gwt_integration);
-    integration_measures.insert("attention_integration".to_string(), enhanced_insights.attention_integration);
+    integration_measures.insert(
+        "phi_integration".to_string(),
+        enhanced_insights.phi_integration,
+    );
+    integration_measures.insert(
+        "gwt_integration".to_string(),
+        enhanced_insights.gwt_integration,
+    );
+    integration_measures.insert(
+        "attention_integration".to_string(),
+        enhanced_insights.attention_integration,
+    );
 
     let mut attention_focus = Vec::new();
     attention_focus.push("visual_cortex".to_string());
     attention_focus.push("consciousness_center".to_string());
 
-    let consciousness_trajectory = state.consciousness_evolution.predict_evolution(10).unwrap_or_else(|_| Array1::zeros(10));
+    let consciousness_trajectory = state
+        .consciousness_evolution
+        .predict_evolution(10)
+        .unwrap_or_else(|_| Array1::zeros(10));
 
     Ok(ConsciousnessInsights {
         consciousness_level: consciousness_awakening.awareness_level,

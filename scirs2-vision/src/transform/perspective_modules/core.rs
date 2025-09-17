@@ -209,7 +209,13 @@ impl PerspectiveTransform {
     }
 
     /// Create a perspective transformation to map a rectangle to a quadrilateral
-    pub fn from_quad(x: f64, y: f64, width: f64, height: f64, dst_points: &[(f64, f64)]) -> Result<Self> {
+    pub fn from_quad(
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        dst_points: &[(f64, f64)],
+    ) -> Result<Self> {
         if dst_points.len() != 4 {
             return Err(VisionError::InvalidParameter(
                 "Exactly 4 destination points are required for quadrilateral mapping".to_string(),

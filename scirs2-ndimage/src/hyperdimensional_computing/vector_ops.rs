@@ -325,7 +325,11 @@ impl Hypervector {
             })
             .collect();
 
-        let norm = thresholded_data.iter().map(|&(_, v)| v * v).sum::<f64>().sqrt();
+        let norm = thresholded_data
+            .iter()
+            .map(|&(_, v)| v * v)
+            .sum::<f64>()
+            .sqrt();
 
         Self {
             sparse_data: thresholded_data,
@@ -688,7 +692,11 @@ mod tests {
 
         let normalized = hv.normalize();
         assert_abs_diff_eq!(normalized.norm, 1.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(normalized.sparse_data[0].1, 2.0 / 8.0_f64.sqrt(), epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            normalized.sparse_data[0].1,
+            2.0 / 8.0_f64.sqrt(),
+            epsilon = 1e-10
+        );
     }
 
     #[test]

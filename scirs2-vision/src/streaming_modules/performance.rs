@@ -352,7 +352,9 @@ impl AdaptivePerformanceMonitor {
             .entry(stagename.to_string())
             .or_insert_with(|| StagePerformanceMetrics {
                 stagename: stagename.to_string(),
-                processing_times: std::collections::VecDeque::with_capacity(self.config.monitoring_window),
+                processing_times: std::collections::VecDeque::with_capacity(
+                    self.config.monitoring_window,
+                ),
                 avg_processing_time: Duration::ZERO,
                 peak_processing_time: Duration::ZERO,
                 frames_processed: 0,
@@ -397,8 +399,10 @@ impl AdaptivePerformanceMonitor {
         // Update thread utilization (simplified model)
         if let Some(config) = self.thread_pool_manager.get_stage_config(stagename) {
             let target_processing_time = Duration::from_millis(16); // 60 FPS target
-            let utilization_factor = processing_time.as_secs_f32() / target_processing_time.as_secs_f32();
-            metrics.thread_utilization = (utilization_factor * 100.0 / config.current_threads as f32).min(100.0);
+            let utilization_factor =
+                processing_time.as_secs_f32() / target_processing_time.as_secs_f32();
+            metrics.thread_utilization =
+                (utilization_factor * 100.0 / config.current_threads as f32).min(100.0);
         }
     }
 
@@ -472,7 +476,9 @@ impl AdaptivePerformanceMonitor {
                     .map(|config| config.current_threads)
                     .unwrap_or(1);
 
-                let new_threads = self.thread_pool_manager.adapt_thread_count(stagename, metrics);
+                let new_threads = self
+                    .thread_pool_manager
+                    .adapt_thread_count(stagename, metrics);
 
                 if new_threads != old_threads {
                     actions.push(format!(
@@ -581,7 +587,9 @@ impl AdaptivePerformanceMonitor {
     /// # Returns
     ///
     /// * HashMap of all stage metrics
-    pub fn get_all_stage_metrics(&self) -> &std::collections::HashMap<String, StagePerformanceMetrics> {
+    pub fn get_all_stage_metrics(
+        &self,
+    ) -> &std::collections::HashMap<String, StagePerformanceMetrics> {
         &self.stage_metrics
     }
 }

@@ -17,6 +17,8 @@ use crate::hyperdimensional_computing::types::{
 pub struct HDCMemory {
     /// Stored hypervector patterns with labels
     pub patterns: HashMap<String, Hypervector>,
+    /// Item memory for atomic concepts
+    pub item_memory: HashMap<String, Hypervector>,
     /// Configuration parameters
     pub config: HDCConfig,
 }
@@ -26,6 +28,7 @@ impl HDCMemory {
     pub fn new(config: HDCConfig) -> Self {
         Self {
             patterns: HashMap::new(),
+            item_memory: HashMap::new(),
             config,
         }
     }
@@ -99,7 +102,12 @@ impl HDCMemory {
     /// * `label` - Pattern label
     /// * `new_pattern` - New pattern to store
     /// * `learning_rate` - Rate for updating existing patterns
-    pub fn update_pattern(&mut self, label: String, new_pattern: Hypervector, learning_rate: f64) -> NdimageResult<()> {
+    pub fn update_pattern(
+        &mut self,
+        label: String,
+        new_pattern: Hypervector,
+        learning_rate: f64,
+    ) -> NdimageResult<()> {
         if let Some(existing_pattern) = self.patterns.get(&label) {
             // Bundle with existing pattern using learning rate
             let weighted_new = new_pattern.scale(learning_rate);
@@ -110,6 +118,16 @@ impl HDCMemory {
             self.patterns.insert(label, new_pattern);
         }
         Ok(())
+    }
+
+    /// Store item in item memory
+    pub fn store_item(&mut self, name: String, item: Hypervector) {
+        self.item_memory.insert(name, item);
+    }
+
+    /// Get item from item memory
+    pub fn get_item(&self, name: &str) -> Option<&Hypervector> {
+        self.item_memory.get(name)
     }
 }
 
@@ -149,7 +167,11 @@ impl ContinualLearningMemory {
     ///
     /// * `experience` - New experience to add
     /// * `consolidation` - Consolidation result information
-    pub fn add_experience(&mut self, experience: Experience, _consolidation: &ConsolidationResult) -> NdimageResult<()> {
+    pub fn add_experience(
+        &mut self,
+        experience: Experience,
+        _consolidation: &ConsolidationResult,
+    ) -> NdimageResult<()> {
         // Check for interference
         let interference = self.calculate_interference(&experience.encoding);
 
@@ -166,7 +188,8 @@ impl ContinualLearningMemory {
         }
 
         // Update associative memory
-        self.associative_memory.insert(experience.label.clone(), experience.encoding);
+        self.associative_memory
+            .insert(experience.label.clone(), experience.encoding);
 
         Ok(())
     }
@@ -256,6 +279,26 @@ impl ContinualLearningMemory {
             self.episodic_buffer.len(),
             self.consolidated_memory.len(),
         )
+    }
+
+    /// Get current timestamp
+    pub fn get_current_time(&self) -> usize {
+        // Simple timestamp based on number of experiences
+        self.episodic_buffer.len()
+    }
+
+    /// Update meta-learning parameters (placeholder)
+    pub fn update_meta_learning_parameters(
+        &mut self,
+        _stats: &crate::hyperdimensional_computing::reasoning::ContinualLearningStats,
+    ) {
+        // Placeholder implementation
+    }
+
+    /// Get meta-learning score (placeholder)
+    pub fn get_meta_learning_score(&self) -> f64 {
+        // Placeholder implementation
+        0.7
     }
 }
 
@@ -456,10 +499,12 @@ impl OnlineLearningSystem {
     ) -> NdimageResult<UpdateResult> {
         // Record performance
         let accuracy = 1.0 - prediction_error;
-        self.performance_tracker.record_update(accuracy, learning_rate);
+        self.performance_tracker
+            .record_update(accuracy, learning_rate);
 
         // Update memory
-        self.memory.update_pattern(correct_label.to_string(), input.clone(), learning_rate)?;
+        self.memory
+            .update_pattern(correct_label.to_string(), input.clone(), learning_rate)?;
 
         // Create experience for continual learning
         let experience = Experience {
@@ -475,10 +520,12 @@ impl OnlineLearningSystem {
             replay_cycles_used: 1,
         };
 
-        self.continual_memory.add_experience(experience, &consolidation)?;
+        self.continual_memory
+            .add_experience(experience, &consolidation)?;
 
         // Adapt learning parameters
-        self.adaptation_params.adjust_based_on_performance(&self.performance_tracker);
+        self.adaptation_params
+            .adjust_based_on_performance(&self.performance_tracker);
 
         // Update learning state based on performance
         self.update_learning_state();
@@ -551,7 +598,8 @@ impl OnlineLearningSystem {
             accuracy: self.performance_tracker.get_accuracy(),
             learning_speed: self.performance_tracker.get_learning_speed(),
             memory_efficiency: self.performance_tracker.get_memory_efficiency(),
-            adaptation_effectiveness: self.adaptation_params.current_rate / self.adaptation_params.base_rate,
+            adaptation_effectiveness: self.adaptation_params.current_rate
+                / self.adaptation_params.base_rate,
         }
     }
 
@@ -560,7 +608,9 @@ impl OnlineLearningSystem {
         // Simplified maintenance - could implement more sophisticated cleanup
 
         // Reset adaptation if performance is poor for too long
-        if self.performance_tracker.get_accuracy() < 0.5 && self.performance_tracker.update_count > 100 {
+        if self.performance_tracker.get_accuracy() < 0.5
+            && self.performance_tracker.update_count > 100
+        {
             self.adaptation_params.reset();
         }
 
@@ -579,10 +629,40 @@ impl OnlineLearningSystem {
 
     /// Get memory statistics
     pub fn get_memory_stats(&self) -> (usize, (usize, usize, usize)) {
-        (
-            self.memory.size(),
-            self.continual_memory.get_memory_stats(),
-        )
+        (self.memory.size(), self.continual_memory.get_memory_stats())
+    }
+
+    /// Compute adaptive learning rate based on prediction error
+    pub fn compute_adaptive_learning_rate(&self, prediction_error: f64) -> f64 {
+        // Simple adaptive learning rate based on error
+        let base_rate = self.adaptation_params.base_rate;
+        let error_factor = 1.0 + prediction_error;
+        (base_rate * error_factor)
+            .min(self.adaptation_params.max_rate)
+            .max(self.adaptation_params.min_rate)
+    }
+
+    /// Perform unsupervised update
+    pub fn unsupervised_update(&mut self, input: &Hypervector) -> NdimageResult<UpdateResult> {
+        // Simple unsupervised learning - just store the pattern
+        let synthetic_label = format!("unsupervised_{}", self.performance_tracker.update_count);
+        self.memory.store(synthetic_label, input.clone());
+
+        Ok(UpdateResult {
+            memory_updated: true,
+            learning_rate_used: self.adaptation_params.current_rate,
+            performance_change: 0.0, // No feedback available
+        })
+    }
+
+    /// Get performance metrics (renamed method)
+    pub fn get_performance_metrics(&self) -> PerformanceMetrics {
+        self.get_performancemetrics()
+    }
+
+    /// Get current adaptation rate
+    pub fn get_current_adaptation_rate(&self) -> f64 {
+        self.adaptation_params.current_rate
     }
 }
 
@@ -718,7 +798,9 @@ mod tests {
         assert_eq!(update_result.learning_rate_used, learning_rate);
 
         // Test online learning step
-        let result = system.online_learning_step(&encoding, Some("test_label")).unwrap();
+        let result = system
+            .online_learning_step(&encoding, Some("test_label"))
+            .unwrap();
         assert!(result.prediction.confidence > 0.0);
         assert!(result.system_performance.accuracy > 0.0);
 

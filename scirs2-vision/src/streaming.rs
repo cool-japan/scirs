@@ -31,7 +31,9 @@ pub mod performance;
 pub mod memory;
 
 // Re-export types for backward compatibility
-pub use core::{Frame, FrameMetadata, PipelineMetrics, ProcessingStage, StreamPipeline, StreamProcessor};
+pub use core::{
+    Frame, FrameMetadata, PipelineMetrics, ProcessingStage, StreamPipeline, StreamProcessor,
+};
 
 pub use stages::{
     BlurStage, BufferOperation, EdgeDetectionStage, FeatureDetectionStage, FeatureDetectorType,
@@ -42,11 +44,13 @@ pub use stages::{
 pub use video_io::{SimplePerformanceMonitor, VideoSource, VideoStreamReader};
 
 pub use performance::{
-    AdaptiveConfig, AdaptivePerformanceMonitor, AutoScalingThreadPoolManager,
-    PerformanceSnapshot, StagePerformanceMetrics, SystemResourceMonitor, ThreadPoolConfig,
+    AdaptiveConfig, AdaptivePerformanceMonitor, AutoScalingThreadPoolManager, PerformanceSnapshot,
+    StagePerformanceMetrics, SystemResourceMonitor, ThreadPoolConfig,
 };
 
-pub use memory::{AdvancedStreamPipeline, AdvancedStreamProcessor, FramePool, MemoryProfiler, MemoryStats};
+pub use memory::{
+    AdvancedStreamPipeline, AdvancedStreamProcessor, FramePool, MemoryProfiler, MemoryStats,
+};
 
 #[cfg(test)]
 mod tests {

@@ -6,7 +6,7 @@
 
 use super::core::{PerspectiveTransform, RansacParams, RansacResult};
 use crate::error::{Result, VisionError};
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{rngs::StdRng, seq::SliceRandom, RngCore, SeedableRng};
 use scirs2_core::random::Random;
 
 /// Find a homography transformation using RANSAC
@@ -49,9 +49,7 @@ pub fn find_homography_ransac(
     let mut rng: Random<StdRng> = if let Some(seed) = params.seed {
         Random::seed(seed)
     } else {
-        Random {
-            rng: SeedableRng::from_entropy(),
-        }
+        Random::seed(rand::random::<u64>())
     };
 
     // Track the best model found so far
@@ -82,8 +80,7 @@ pub fn find_homography_ransac(
         let mut inliers = Vec::new();
         for (i_, (&src_pt, &dst_pt)) in srcpoints.iter().zip(dst_points.iter()).enumerate() {
             let transformed = transform.transform_point(src_pt);
-            let error_sq =
-                (transformed.0 - dst_pt.0).powi(2) + (transformed.1 - dst_pt.1).powi(2);
+            let error_sq = (transformed.0 - dst_pt.0).powi(2) + (transformed.1 - dst_pt.1).powi(2);
 
             if error_sq <= threshold_sq {
                 inliers.push(i_);
@@ -215,9 +212,7 @@ pub fn find_homography_adaptive_ransac(
     let mut rng: Random<StdRng> = if let Some(seed) = base_params.seed {
         Random::seed(seed)
     } else {
-        Random {
-            rng: SeedableRng::from_entropy(),
-        }
+        Random::seed(rand::random::<u64>())
     };
 
     // Track the best model found so far
@@ -255,8 +250,7 @@ pub fn find_homography_adaptive_ransac(
         let mut inliers = Vec::new();
         for (i_, (&src_pt, &dst_pt)) in srcpoints.iter().zip(dst_points.iter()).enumerate() {
             let transformed = transform.transform_point(src_pt);
-            let error_sq =
-                (transformed.0 - dst_pt.0).powi(2) + (transformed.1 - dst_pt.1).powi(2);
+            let error_sq = (transformed.0 - dst_pt.0).powi(2) + (transformed.1 - dst_pt.1).powi(2);
 
             if error_sq <= threshold_sq {
                 inliers.push(i_);
@@ -279,7 +273,7 @@ pub fn find_homography_adaptive_ransac(
                     if prob_all_outliers > 0.0 {
                         let needed_iterations = ((1.0_f64 - base_params.confidence).ln()
                             / prob_all_outliers.ln())
-                            .ceil() as usize;
+                        .ceil() as usize;
                         max_iterations = needed_iterations.min(base_params.max_iterations);
                     }
                 }
@@ -297,7 +291,9 @@ pub fn find_homography_adaptive_ransac(
     }
 
     let best_transform = best_transform.ok_or_else(|| {
-        VisionError::OperationError("Adaptive RANSAC failed to find a valid transformation".to_string())
+        VisionError::OperationError(
+            "Adaptive RANSAC failed to find a valid transformation".to_string(),
+        )
     })?;
 
     // Refine the transformation using all inliers

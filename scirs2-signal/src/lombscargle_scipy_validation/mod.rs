@@ -11,47 +11,47 @@
 //! - Statistical properties (false alarm rate, detection power)
 
 // Core module organization
-pub mod types;
-pub mod core;
 pub mod accuracy;
-pub mod normalization;
-pub mod edge_cases;
-pub mod statistical;
-pub mod performance;
 pub mod advanced;
-pub mod utils;
+pub mod core;
+pub mod edge_cases;
+pub mod normalization;
+pub mod performance;
 pub mod reporting;
+pub mod statistical;
+pub mod types;
+pub mod utils;
 
 // Re-export all types for backward compatibility
 pub use types::*;
 
 // Re-export main validation functions
-pub use core::{validate_lombscargle_against_scipy, calculate_overall_summary};
+pub use core::{calculate_overall_summary, validate_lombscargle_against_scipy};
 
 // Re-export specific validation functions
-pub use accuracy::{validate_basic_accuracy, validate_single_case, compute_reference_lombscargle};
-pub use normalization::{validate_normalization_methods, validate_single_normalization_case};
+pub use accuracy::{compute_reference_lombscargle, validate_basic_accuracy, validate_single_case};
 pub use edge_cases::{
-    validate_edge_cases, test_sparse_sampling, test_extreme_dynamic_range,
-    test_short_time_series, test_high_frequency_resolution, calculate_edge_case_stability_score
+    calculate_edge_case_stability_score, test_extreme_dynamic_range,
+    test_high_frequency_resolution, test_short_time_series, test_sparse_sampling,
+    validate_edge_cases,
 };
-pub use statistical::{
-    validate_statistical_properties, estimate_false_alarm_rate,
-    estimate_detection_power, validate_confidence_intervals
-};
+pub use normalization::{validate_normalization_methods, validate_single_normalization_case};
 pub use performance::validate_performance_characteristics;
+pub use statistical::{
+    estimate_detection_power, estimate_false_alarm_rate, validate_confidence_intervals,
+    validate_statistical_properties,
+};
 
 // Re-export advanced validation functions
 pub use advanced::{
-    validate_lombscargle_advanced, test_numerical_conditioning, test_aliasing_effects,
-    test_astronomical_scenarios, test_phase_coherence, quantify_uncertainty,
-    test_frequency_resolution
+    quantify_uncertainty, test_aliasing_effects, test_astronomical_scenarios,
+    test_frequency_resolution, test_numerical_conditioning, test_phase_coherence,
+    validate_lombscargle_advanced,
 };
 
 // Re-export utility functions
 pub use utils::{
-    calculate_error_metrics, calculate_correlation, calculate_normalization_consistency,
-    find_peaks
+    calculate_correlation, calculate_error_metrics, calculate_normalization_consistency, find_peaks,
 };
 
 // Re-export reporting functions

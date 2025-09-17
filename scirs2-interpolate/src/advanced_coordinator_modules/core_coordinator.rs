@@ -22,7 +22,9 @@ use crate::advanced_coordinator_modules::{
     },
     method_selection::IntelligentMethodSelector,
     pattern_analysis::{DataPatternAnalyzer, PatternAnalysisResult},
-    performance_tuning::{PerformanceOptimizationResult, PerformanceTuningSystem, PerformanceTuningStrategy},
+    performance_tuning::{
+        PerformanceOptimizationResult, PerformanceTuningStrategy, PerformanceTuningSystem,
+    },
     quantum_optimization::{QuantumOptimizationResult, QuantumParameterOptimizer},
     types::{
         AccuracyPrediction, DataPatternType, DataProfile, ExpectedPerformance, FrequencyContent,
@@ -223,9 +225,9 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
         let optimization_time = start_time.elapsed();
 
         Ok(SystemOptimizationResult {
-            memory_optimization,
-            cache_optimization,
-            tuning_optimization,
+            memory_optimization: memory_optimization.clone(),
+            cache_optimization: cache_optimization.clone(),
+            tuning_optimization: tuning_optimization.clone(),
             total_optimization_time: optimization_time.as_millis() as f64,
             overall_improvement_score: self.calculate_improvement_score(
                 &memory_optimization,
@@ -385,10 +387,8 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
                 parameters.insert("smoothing".to_string(), smoothing);
             }
             InterpolationMethodType::RadialBasisFunction => {
-                let epsilon = F::one()
-                    / F::from(data_profile.size as f64)
-                        .unwrap_or(F::one())
-                        .sqrt();
+                let epsilon =
+                    F::one() / F::from(data_profile.size as f64).unwrap_or(F::one()).sqrt();
                 parameters.insert("epsilon".to_string(), epsilon);
                 parameters.insert("function_type".to_string(), F::one()); // Gaussian
             }
@@ -732,11 +732,7 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
             _ => 0.7,
         };
 
-        let point_count_factor = if data_profile.size > 100 {
-            0.1
-        } else {
-            -0.1
-        };
+        let point_count_factor = if data_profile.size > 100 { 0.1 } else { -0.1 };
         let noise_penalty = data_profile.noise_level.to_f64().unwrap_or(0.0) * 0.3;
 
         Ok((base_confidence + point_count_factor - noise_penalty)
@@ -778,21 +774,23 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
         })?;
 
         let initial_stats = cache.get_statistics().clone();
+        let initial_hit_ratio = initial_stats.hit_ratio();
+        let initial_cache_size = initial_stats.total_cache_size;
 
         // Clear cache if hit ratio is very low
-        if initial_stats.hit_ratio() < 0.1 {
+        if initial_hit_ratio < 0.1 {
             cache.clear();
         }
 
         let final_stats = cache.get_statistics().clone();
+        let final_hit_ratio = final_stats.hit_ratio();
+        let final_cache_size = final_stats.total_cache_size;
 
         Ok(CacheOptimizationResult {
-            initial_hit_ratio: initial_stats.hit_ratio(),
-            final_hit_ratio: final_stats.hit_ratio(),
-            cache_size_reduced: initial_stats
-                .total_cache_size
-                .saturating_sub(final_stats.total_cache_size),
-            performance_improvement: (final_stats.hit_ratio() - initial_stats.hit_ratio()).max(0.0),
+            initial_hit_ratio,
+            final_hit_ratio,
+            cache_size_reduced: initial_cache_size.saturating_sub(final_cache_size),
+            performance_improvement: (final_hit_ratio - initial_hit_ratio).max(0.0),
         })
     }
 

@@ -226,11 +226,7 @@ where
             writeln!(&mut plot, "{}", config.title)?;
             writeln!(&mut plot, "{}", "=".repeat(config.title.len()))?;
             writeln!(&mut plot)?;
-            writeln!(
-                &mut plot,
-                "{:>10} {:>10}",
-                config.xlabel, config.ylabel
-            )?;
+            writeln!(&mut plot, "{:>10} {:>10}", config.xlabel, config.ylabel)?;
             writeln!(&mut plot, "{}", "-".repeat(22))?;
 
             for (&x, &y) in x_data.iter().zip(y_data.iter()) {
@@ -791,10 +787,7 @@ where
 }
 
 /// Generate a heatmap visualization of a 2D array
-pub fn plot_heatmap<T>(
-    data: &ArrayView2<T>,
-    config: &PlotConfig,
-) -> NdimageResult<String>
+pub fn plot_heatmap<T>(data: &ArrayView2<T>, config: &PlotConfig) -> NdimageResult<String>
 where
     T: Float + FromPrimitive + ToPrimitive + Debug + Clone,
 {
@@ -848,11 +841,7 @@ where
             }
             writeln!(&mut plot, "</table>")?;
 
-            writeln!(
-                &mut plot,
-                "<p>Data dimensions: {}×{}</p>",
-                height, width
-            )?;
+            writeln!(&mut plot, "<p>Data dimensions: {}×{}</p>", height, width)?;
             writeln!(
                 &mut plot,
                 "<p>Value range: [{:.3}, {:.3}]</p>",
@@ -950,10 +939,7 @@ where
 }
 
 /// Alias for plot_gradient for backward compatibility
-pub fn plot_gradient<T>(
-    data: &ArrayView2<T>,
-    config: &PlotConfig,
-) -> NdimageResult<String>
+pub fn plot_gradient<T>(data: &ArrayView2<T>, config: &PlotConfig) -> NdimageResult<String>
 where
     T: Float + FromPrimitive + ToPrimitive + Debug + Clone,
 {
@@ -961,7 +947,6 @@ where
     // that was extracted from the original code
     plot_heatmap(data, config)
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -10,60 +10,58 @@
 //! - SIMD optimizations and morphological operations
 
 // Sub-modules
-pub mod types;
-pub mod wavelet;
 pub mod algorithms;
-pub mod thresholding;
 pub mod morphological;
 pub mod simd;
+pub mod thresholding;
+pub mod types;
 pub mod utils;
+pub mod wavelet;
 
 // Re-export main types for convenience
 pub use types::{
-    DenoiseConfig, DenoiseResult, Denoise2dResult, ThresholdMethod, ThresholdRule,
-    QualityMetrics, SubbandThresholds, SubbandRetention,
-    NonLocalMeansConfig, TotalVariationConfig, BilateralConfig, WienerConfig,
-    AdaptiveLMSConfig, GuidedFilterConfig, WienerNoiseEstimation,
+    AdaptiveLMSConfig, BilateralConfig, Denoise2dResult, DenoiseConfig, DenoiseResult,
+    GuidedFilterConfig, NonLocalMeansConfig, QualityMetrics, SubbandRetention, SubbandThresholds,
+    ThresholdMethod, ThresholdRule, TotalVariationConfig, WienerConfig, WienerNoiseEstimation,
 };
 
 // Re-export main wavelet denoising functions
 pub use wavelet::{
-    denoise_wavelet_1d, denoise_wavelet_2d, estimate_noise_mad, estimate_noise_2d,
-    apply_thresholding, threshold_subband, compute_effective_df, compute_effective_df_ti,
-    compute_sure_risk, compute_quality_metrics,
+    apply_thresholding, compute_effective_df, compute_effective_df_ti, compute_quality_metrics,
+    compute_sure_risk, denoise_wavelet_1d, denoise_wavelet_2d, estimate_noise_2d,
+    estimate_noise_mad, threshold_subband,
 };
 
 // Re-export alternative denoising algorithms
 pub use algorithms::{
-    denoise_non_local_means_1d, denoise_total_variation_1d, denoise_bilateral_1d,
-    denoise_wiener_1d, denoise_adaptive_lms, denoise_guided_filter_1d, denoise_median_1d,
+    denoise_adaptive_lms, denoise_bilateral_1d, denoise_guided_filter_1d, denoise_median_1d,
+    denoise_non_local_means_1d, denoise_total_variation_1d, denoise_wiener_1d,
 };
 
 // Re-export thresholding functions when module is available
 pub use thresholding::{
-    soft_threshold, hard_threshold, garotte_threshold, scad_threshold,
-    firm_threshold, hyperbolic_threshold, block_threshold,
-    compute_sure_threshold, compute_bayes_threshold, compute_minimax_threshold,
-    compute_fdr_threshold, compute_cv_threshold,
+    block_threshold, compute_bayes_threshold, compute_cv_threshold, compute_fdr_threshold,
+    compute_minimax_threshold, compute_sure_threshold, firm_threshold, garotte_threshold,
+    hard_threshold, hyperbolic_threshold, scad_threshold, soft_threshold,
 };
 
 // Re-export morphological operations when module is available
 pub use morphological::{
-    denoise_morphological_opening, denoise_morphological_closing,
-    morphological_erosion, morphological_dilation,
+    denoise_morphological_closing, denoise_morphological_opening, morphological_dilation,
+    morphological_erosion,
 };
 
 // Re-export SIMD functions when module is available
 pub use simd::{
-    simd_weighted_sum, simd_circular_shift, simd_average_unshifted_results,
-    simd_soft_threshold, simd_hard_threshold,
+    simd_average_unshifted_results, simd_circular_shift, simd_hard_threshold, simd_soft_threshold,
+    simd_weighted_sum,
 };
 
 // Re-export utility functions
 pub use utils::{
-    validate_denoise_config, estimate_memory_usage, compute_numerical_stability,
-    adaptive_noise_estimation, memory_optimized_denoise_1d, compute_snr_improvement,
-    compute_energy, compute_tree_energy, next_power_of_two, compute_patch_similarity_1d,
+    adaptive_noise_estimation, compute_energy, compute_numerical_stability,
+    compute_patch_similarity_1d, compute_snr_improvement, compute_tree_energy,
+    estimate_memory_usage, memory_optimized_denoise_1d, next_power_of_two, validate_denoise_config,
 };
 
 #[cfg(test)]
@@ -136,7 +134,10 @@ mod tests {
         assert_eq!(bilateral_config.window_size, 15);
 
         let wiener_config = WienerConfig::default();
-        assert_eq!(wiener_config.noise_estimation, WienerNoiseEstimation::HighFrequency);
+        assert_eq!(
+            wiener_config.noise_estimation,
+            WienerNoiseEstimation::HighFrequency
+        );
 
         let lms_config = AdaptiveLMSConfig::default();
         assert_eq!(lms_config.filter_length, 32);

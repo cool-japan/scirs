@@ -196,7 +196,10 @@ impl UnifiedDomainProcessor {
         }
 
         // News indicators (check before social media due to length)
-        if text_lower.contains("breaking") || text_lower.contains("according to") || text_lower.contains("officials") {
+        if text_lower.contains("breaking")
+            || text_lower.contains("according to")
+            || text_lower.contains("officials")
+        {
             return Domain::News;
         }
 

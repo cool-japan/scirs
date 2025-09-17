@@ -116,7 +116,7 @@ where
 
             // Use stability-monitored solver
             match solve_with_stability_monitoring(&ata, &aty) {
-                Ok((solution_solve_report)) => return Ok(solution),
+                Ok(solution) => return Ok(solution),
                 Err(_) => {
                     return Err(InterpolateError::ComputationError(
                         "Failed to solve the unconstrained least squares problem with stability monitoring".to_string(),

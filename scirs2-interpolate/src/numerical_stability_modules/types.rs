@@ -5,6 +5,7 @@
 
 use num_traits::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
+use std::marker::PhantomData;
 use std::ops::{AddAssign, SubAssign};
 
 /// Condition number and stability assessment report
@@ -106,6 +107,9 @@ where
 
     /// Additional context about the detected issues
     pub issue_description: String,
+
+    /// Phantom data for type parameter
+    _phantom: PhantomData<F>,
 }
 
 impl<F> Default for EdgeCaseReport<F>
@@ -120,6 +124,7 @@ where
             numerical_rank: None,
             recommended_treatment: EdgeCaseTreatment::None,
             issue_description: "No issues detected".to_string(),
+            _phantom: PhantomData,
         }
     }
 }
@@ -294,6 +299,9 @@ where
 
     /// Extrapolation risk assessment
     pub extrapolation_risk: ExtrapolationRisk,
+
+    /// Phantom data for type parameter
+    _phantom: PhantomData<F>,
 }
 
 impl<F> Default for BoundaryAnalysis<F>
@@ -305,6 +313,7 @@ where
             has_boundary_effects: false,
             recommended_boundary_treatment: BoundaryTreatment::Natural,
             extrapolation_risk: ExtrapolationRisk::Low,
+            _phantom: PhantomData,
         }
     }
 }
@@ -420,7 +429,7 @@ mod tests {
 
         assert!(eps_f32 > 0.0);
         assert!(eps_f64 > 0.0);
-        assert!(eps_f32 > eps_f64); // f32 has larger epsilon
+        assert!(eps_f32 > eps_f64 as f32); // f32 has larger epsilon
     }
 
     #[test]

@@ -4,25 +4,24 @@
 //! including forecasting, decomposition, and feature extraction.
 
 // Module declarations
-pub mod config;
-pub mod traits;
-pub mod array;
-pub mod device_manager;
-pub mod utils;
-pub mod fft;
-pub mod convolution;
-pub mod blas;
 pub mod algorithms;
+pub mod array;
+pub mod blas;
+pub mod config;
+pub mod convolution;
+pub mod device_manager;
+pub mod fft;
+pub mod traits;
+pub mod utils;
 
 // Re-export all public items for backward compatibility
 pub use config::{
-    GpuConfig, GraphOptimizationLevel, MemoryStrategy, GpuBackend,
-    GpuCapabilities, TensorCoresGeneration, TensorDataType, TensorCoresConfig
+    GpuBackend, GpuCapabilities, GpuConfig, GraphOptimizationLevel, MemoryStrategy,
+    TensorCoresConfig, TensorCoresGeneration, TensorDataType,
 };
 
 pub use traits::{
-    GpuAccelerated, DecompositionResult, GpuForecasting, GpuDecomposition,
-    GpuFeatureExtraction
+    DecompositionResult, GpuAccelerated, GpuDecomposition, GpuFeatureExtraction, GpuForecasting,
 };
 
 pub use array::GpuArray;
@@ -31,8 +30,7 @@ pub use device_manager::GpuDeviceManager;
 
 // Re-export utility functions
 pub use utils::{
-    is_gpu_supported, get_recommended_batch_size, estimate_memory_usage,
-    optimize_gpu_config
+    estimate_memory_usage, get_recommended_batch_size, is_gpu_supported, optimize_gpu_config,
 };
 
 // Re-export FFT functionality
@@ -46,8 +44,7 @@ pub use blas::{GpuBLAS, TensorCoresBLAS};
 
 // Re-export algorithms functionality
 pub use algorithms::{
-    GpuTimeSeriesProcessor, ForecastMethod, WindowStatistic,
-    GpuFeatureExtractor, FeatureConfig
+    FeatureConfig, ForecastMethod, GpuFeatureExtractor, GpuTimeSeriesProcessor, WindowStatistic,
 };
 
 // For backward compatibility, also re-export everything at the module level

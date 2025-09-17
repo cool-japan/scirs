@@ -6,7 +6,7 @@
 use num_traits::{Float, FromPrimitive};
 use std::collections::HashMap;
 
-use super::types::{ARFittingMethod, EnsembleCombinationStrategy, AdaptiveSelectionCriterion};
+use super::types::{ARFittingMethod, AdaptiveSelectionCriterion, EnsembleCombinationStrategy};
 
 /// Parameters for specialized extrapolation methods
 #[derive(Debug, Clone)]

@@ -3,8 +3,8 @@
 //! This module provides functions to run comprehensive validation and generate
 //! detailed reports of the Lomb-Scargle implementation performance.
 
-use super::types::*;
 use super::core::validate_lombscargle_against_scipy;
+use super::types::*;
 use crate::error::SignalResult;
 
 /// Run comprehensive validation and print detailed report

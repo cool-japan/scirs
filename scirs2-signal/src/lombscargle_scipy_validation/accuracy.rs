@@ -136,7 +136,11 @@ pub fn validate_single_case(
 /// Compute reference Lomb-Scargle using high-precision algorithm
 /// This implements the exact algorithm used by SciPy for validation
 #[allow(dead_code)]
-pub fn compute_reference_lombscargle(t: &[f64], y: &[f64], freqs: &[f64]) -> SignalResult<Vec<f64>> {
+pub fn compute_reference_lombscargle(
+    t: &[f64],
+    y: &[f64],
+    freqs: &[f64],
+) -> SignalResult<Vec<f64>> {
     let n = t.len();
     let mut periodogram = vec![0.0; freqs.len()];
 
