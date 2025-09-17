@@ -138,8 +138,12 @@ pub use huggingface_compat::{
     TextClassificationPipeline as HfTextClassificationPipeline, ZeroShotClassificationPipeline,
 };
 pub use information_extraction::{
-    Entity, EntityType, ExtractedInformation, InformationExtractionPipeline, KeyPhraseExtractor,
-    PatternExtractor, Relation, RelationExtractor, RuleBasedNER,
+    AdvancedExtractedInformation, AdvancedExtractionPipeline, ConfidenceScorer, CoreferenceChain,
+    CoreferenceMention, CoreferenceResolver, DocumentInformationExtractor, DocumentSummary, Entity,
+    EntityCluster, EntityLinker, EntityType, Event, ExtractedInformation,
+    InformationExtractionPipeline, KeyPhraseExtractor, KnowledgeBaseEntry, LinkedEntity,
+    MentionType, PatternExtractor, Relation, RelationExtractor, RuleBasedNER,
+    StructuredDocumentInformation, TemporalExtractor, Topic,
 };
 pub use ml_integration::{
     BatchTextProcessor, FeatureExtractionMode, MLTextPreprocessor, TextFeatures, TextMLPipeline,
@@ -221,7 +225,7 @@ pub use tokenize::{
 };
 pub use topic_coherence::{TopicCoherence, TopicDiversity};
 pub use topic_modeling::{
-    LatentDirichletAllocation, LdaBuilder, LdaConfig, LdaLearningMethod, Topic,
+    LatentDirichletAllocation, LdaBuilder, LdaConfig, LdaLearningMethod, Topic as LdaTopic,
 };
 pub use transformer::{
     FeedForward, LayerNorm, MultiHeadAttention, PositionalEncoding, TokenEmbedding,

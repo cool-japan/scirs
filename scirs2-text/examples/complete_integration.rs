@@ -199,7 +199,8 @@ impl AdvancedSystem {
         let start_time = Instant::now();
 
         // Optimized text processing
-        let processed_results = AdvancedSIMDTextProcessor::advanced_batch_process(&testtexts);
+        let testtext_refs: Vec<&str> = testtexts.iter().map(|s| s.as_str()).collect();
+        let processed_results = AdvancedSIMDTextProcessor::advanced_batch_process(&testtext_refs);
 
         // SIMD string operations
         let char_counts: Vec<usize> = testtexts
@@ -208,7 +209,7 @@ impl AdvancedSystem {
             .collect();
 
         // Optimized similarity matrix
-        let similarity_matrix = AdvancedSIMDTextProcessor::advanced_similarity_matrix(&testtexts);
+        let similarity_matrix = AdvancedSIMDTextProcessor::advanced_similarity_matrix(&testtext_refs);
 
         let processing_time = start_time.elapsed();
 

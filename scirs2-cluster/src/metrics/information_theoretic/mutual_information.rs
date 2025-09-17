@@ -354,10 +354,10 @@ where
     let mut pred_counts = HashMap::new();
 
     for &label in labels_true.iter() {
-        *true_counts.entry(label).or_insert(0) += 1;
+        *true_counts.entry(label).or_insert(0usize) += 1;
     }
     for &label in labels_pred.iter() {
-        *pred_counts.entry(label).or_insert(0) += 1;
+        *pred_counts.entry(label).or_insert(0usize) += 1;
     }
 
     for &count in true_counts.values() {
@@ -441,10 +441,10 @@ mod tests {
     #[test]
     fn test_mutual_info_score_perfect_match() {
         let labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
-        let mi: f64 = mutual_info_score::<F>(labels.view(), labels.view()).unwrap();
+        let mi: f64 = mutual_info_score::<f64>(labels.view(), labels.view()).unwrap();
 
         // MI should equal entropy for perfect match
-        let h: f64 = entropy::<F>(labels.view()).unwrap();
+        let h: f64 = entropy::<f64>(labels.view()).unwrap();
         assert!((mi - h).abs() < 1e-10);
     }
 
@@ -454,7 +454,7 @@ mod tests {
         let pred_labels = Array1::from_vec(vec![0, 0, 1, 1, 1, 2]);
 
         let nmi: f64 =
-            normalized_mutual_info_score::<F>(true_labels.view(), pred_labels.view()).unwrap();
+            normalized_mutual_info_score::<f64>(true_labels.view(), pred_labels.view()).unwrap();
         assert!(nmi >= 0.0 && nmi <= 1.0);
     }
 
@@ -464,14 +464,14 @@ mod tests {
         let pred_labels = Array1::from_vec(vec![0, 0, 1, 1, 1, 2]);
 
         let ami: f64 =
-            adjusted_mutual_info_score::<F>(true_labels.view(), pred_labels.view()).unwrap();
+            adjusted_mutual_info_score::<f64>(true_labels.view(), pred_labels.view()).unwrap();
         assert!(ami >= -1.0 && ami <= 1.0);
     }
 
     #[test]
     fn test_entropy() {
         let uniform_labels = Array1::from_vec(vec![0, 1, 2, 3]);
-        let h: f64 = entropy::<F>(uniform_labels.view()).unwrap();
+        let h: f64 = entropy::<f64>(uniform_labels.view()).unwrap();
 
         // Entropy of uniform distribution should be log(n)
         let expected = 4.0_f64.ln();
@@ -497,7 +497,7 @@ mod tests {
         let y = Array1::from_vec(vec![0, 1, 0, 1]);
         let z = Array1::from_vec(vec![0, 0, 1, 1]);
 
-        let cmi: f64 = conditional_mutual_information::<F>(x.view(), y.view(), z.view()).unwrap();
+        let cmi: f64 = conditional_mutual_information::<f64>(x.view(), y.view(), z.view()).unwrap();
         assert!(cmi.is_finite());
     }
 }

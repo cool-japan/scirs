@@ -3,11 +3,11 @@
 //! This module provides AI-driven selection of optimal interpolation methods
 //! based on data characteristics, performance requirements, and historical data.
 
-use crate::error::InterpolateResult;
 use super::types::*;
+use crate::error::InterpolateResult;
+use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
-use num_traits::Float;
 use std::time::Instant;
 
 /// Intelligent method selection system
@@ -113,23 +113,27 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
         let key = self.create_method_key(method, data_profile);
 
         // Update or insert performance data
-        let existing = self.method_db.entry(key).or_insert_with(|| {
-            MethodPerformanceData {
+        let existing = self
+            .method_db
+            .entry(key)
+            .or_insert_with(|| MethodPerformanceData {
                 avg_execution_time: 0.0,
                 memory_usage: 0,
                 accuracy: 0.0,
                 noise_robustness: 0.0,
                 sample_count: 0,
                 last_update: Instant::now(),
-            }
-        });
+            });
 
         // Exponential moving average update
         let alpha = 0.1; // Learning rate
-        existing.avg_execution_time = (1.0 - alpha) * existing.avg_execution_time + alpha * performance.avg_execution_time;
+        existing.avg_execution_time =
+            (1.0 - alpha) * existing.avg_execution_time + alpha * performance.avg_execution_time;
         existing.accuracy = (1.0 - alpha) * existing.accuracy + alpha * performance.accuracy;
-        existing.noise_robustness = (1.0 - alpha) * existing.noise_robustness + alpha * performance.noise_robustness;
-        existing.memory_usage = ((1.0 - alpha) * existing.memory_usage as f64 + alpha * performance.memory_usage as f64) as usize;
+        existing.noise_robustness =
+            (1.0 - alpha) * existing.noise_robustness + alpha * performance.noise_robustness;
+        existing.memory_usage = ((1.0 - alpha) * existing.memory_usage as f64
+            + alpha * performance.memory_usage as f64) as usize;
         existing.sample_count += 1;
         existing.last_update = Instant::now();
 
@@ -156,13 +160,20 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     }
 
     /// Get performance statistics for a method
-    pub fn get_method_performance(&self, method: InterpolationMethodType, data_profile: &DataProfile<F>) -> Option<&MethodPerformanceData> {
+    pub fn get_method_performance(
+        &self,
+        method: InterpolationMethodType,
+        data_profile: &DataProfile<F>,
+    ) -> Option<&MethodPerformanceData> {
         let key = self.create_method_key(method, data_profile);
         self.method_db.get(&key)
     }
 
     /// Get all available methods for given data characteristics
-    pub fn get_available_methods(&self, data_profile: &DataProfile<F>) -> Vec<InterpolationMethodType> {
+    pub fn get_available_methods(
+        &self,
+        data_profile: &DataProfile<F>,
+    ) -> Vec<InterpolationMethodType> {
         let mut methods = Vec::new();
 
         // Add methods based on data characteristics
@@ -310,13 +321,18 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     }
 
     /// Select the best method from scores
-    fn select_best_method(&self, method_scores: &HashMap<InterpolationMethodType, f64>) -> InterpolateResult<InterpolationMethodType> {
+    fn select_best_method(
+        &self,
+        method_scores: &HashMap<InterpolationMethodType, f64>,
+    ) -> InterpolateResult<InterpolationMethodType> {
         let best = method_scores
             .iter()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(method, _)| *method);
 
-        best.ok_or_else(|| crate::error::InterpolateError::invalid_input("No suitable method found".to_string()))
+        best.ok_or_else(|| {
+            crate::error::InterpolateError::invalid_input("No suitable method found".to_string())
+        })
     }
 
     /// Generate method recommendation
@@ -368,7 +384,11 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     }
 
     /// Create method key for database storage
-    fn create_method_key(&self, method: InterpolationMethodType, data_profile: &DataProfile<F>) -> MethodKey {
+    fn create_method_key(
+        &self,
+        method: InterpolationMethodType,
+        data_profile: &DataProfile<F>,
+    ) -> MethodKey {
         let size_class = match data_profile.size {
             0..=1000 => DataSizeClass::Small,
             1001..=100000 => DataSizeClass::Medium,
@@ -413,7 +433,8 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
             let recent_records: Vec<_> = self.performance_history.iter().rev().take(10).collect();
 
             // Update model confidence based on recent success rate
-            let success_rate = recent_records.iter().filter(|r| r.success).count() as f64 / recent_records.len() as f64;
+            let success_rate = recent_records.iter().filter(|r| r.success).count() as f64
+                / recent_records.len() as f64;
             self.selection_model.model_confidence = F::from(success_rate * 0.9 + 0.1).unwrap();
         }
 
@@ -425,10 +446,10 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
         match method {
             InterpolationMethodType::Linear => vec![],
             InterpolationMethodType::CubicSpline => vec![0.0], // smoothing factor
-            InterpolationMethodType::BSpline => vec![3.0], // degree
+            InterpolationMethodType::BSpline => vec![3.0],     // degree
             InterpolationMethodType::RadialBasisFunction => vec![1.0], // shape parameter
             InterpolationMethodType::Kriging => vec![1.0, 1.0], // nugget, sill
-            InterpolationMethodType::Polynomial => vec![3.0], // degree
+            InterpolationMethodType::Polynomial => vec![3.0],  // degree
             _ => vec![],
         }
     }
@@ -439,8 +460,12 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
             InterpolationMethodType::Linear => "Standard linear interpolation".to_string(),
             InterpolationMethodType::CubicSpline => "Natural boundary conditions".to_string(),
             InterpolationMethodType::BSpline => "Cubic B-spline with clamped ends".to_string(),
-            InterpolationMethodType::RadialBasisFunction => "Gaussian RBF with automatic scaling".to_string(),
-            InterpolationMethodType::Kriging => "Ordinary kriging with exponential variogram".to_string(),
+            InterpolationMethodType::RadialBasisFunction => {
+                "Gaussian RBF with automatic scaling".to_string()
+            }
+            InterpolationMethodType::Kriging => {
+                "Ordinary kriging with exponential variogram".to_string()
+            }
             _ => "Default configuration".to_string(),
         }
     }
@@ -448,11 +473,23 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     /// Get method benefits
     fn get_method_benefits(&self, method: InterpolationMethodType) -> Vec<String> {
         match method {
-            InterpolationMethodType::Linear => vec!["Fast".to_string(), "Memory efficient".to_string()],
-            InterpolationMethodType::CubicSpline => vec!["Smooth".to_string(), "Good for smooth data".to_string()],
-            InterpolationMethodType::BSpline => vec!["Flexible".to_string(), "Numerical stability".to_string()],
-            InterpolationMethodType::RadialBasisFunction => vec!["Handles scattered data".to_string(), "High accuracy".to_string()],
-            InterpolationMethodType::Kriging => vec!["Uncertainty quantification".to_string(), "Optimal for spatial data".to_string()],
+            InterpolationMethodType::Linear => {
+                vec!["Fast".to_string(), "Memory efficient".to_string()]
+            }
+            InterpolationMethodType::CubicSpline => {
+                vec!["Smooth".to_string(), "Good for smooth data".to_string()]
+            }
+            InterpolationMethodType::BSpline => {
+                vec!["Flexible".to_string(), "Numerical stability".to_string()]
+            }
+            InterpolationMethodType::RadialBasisFunction => vec![
+                "Handles scattered data".to_string(),
+                "High accuracy".to_string(),
+            ],
+            InterpolationMethodType::Kriging => vec![
+                "Uncertainty quantification".to_string(),
+                "Optimal for spatial data".to_string(),
+            ],
             _ => vec!["General purpose".to_string()],
         }
     }
@@ -460,15 +497,27 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     /// Get method limitations
     fn get_method_limitations(&self, method: InterpolationMethodType) -> Vec<String> {
         match method {
-            InterpolationMethodType::Linear => vec!["Low accuracy".to_string(), "Not smooth".to_string()],
-            InterpolationMethodType::CubicSpline => vec!["Sensitive to outliers".to_string(), "Requires ordered data".to_string()],
-            InterpolationMethodType::RadialBasisFunction => vec!["Computationally expensive".to_string(), "Memory intensive".to_string()],
+            InterpolationMethodType::Linear => {
+                vec!["Low accuracy".to_string(), "Not smooth".to_string()]
+            }
+            InterpolationMethodType::CubicSpline => vec![
+                "Sensitive to outliers".to_string(),
+                "Requires ordered data".to_string(),
+            ],
+            InterpolationMethodType::RadialBasisFunction => vec![
+                "Computationally expensive".to_string(),
+                "Memory intensive".to_string(),
+            ],
             _ => vec!["None significant".to_string()],
         }
     }
 
     /// Estimate performance for a method
-    fn estimate_performance(&self, method: InterpolationMethodType, data_profile: &DataProfile<F>) -> ExpectedPerformance {
+    fn estimate_performance(
+        &self,
+        method: InterpolationMethodType,
+        data_profile: &DataProfile<F>,
+    ) -> ExpectedPerformance {
         let base_time = match method {
             InterpolationMethodType::Linear => 10.0,
             InterpolationMethodType::CubicSpline => 100.0,
@@ -490,7 +539,11 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
     }
 
     /// Generate reasoning for recommendation
-    fn generate_reasoning(&self, method: InterpolationMethodType, data_profile: &DataProfile<F>) -> String {
+    fn generate_reasoning(
+        &self,
+        method: InterpolationMethodType,
+        data_profile: &DataProfile<F>,
+    ) -> String {
         format!(
             "Selected {} for {} points with dimensionality {} based on data characteristics and performance history.",
             format!("{:?}", method),
@@ -533,7 +586,10 @@ impl<F: Float> MethodSelectionModel<F> {
 
         // Rule 2: Large data -> Linear interpolation for speed
         self.decision_tree.push(MethodSelectionRule {
-            condition: MethodSelectionCondition::DataSizeRange { min: 100000, max: usize::MAX },
+            condition: MethodSelectionCondition::DataSizeRange {
+                min: 100000,
+                max: usize::MAX,
+            },
             method: InterpolationMethodType::Linear,
             confidence: 0.7,
             expected_accuracy: 0.8,
@@ -565,7 +621,8 @@ impl<F: Float> MethodSelectionModel<F> {
     pub fn update_model(&mut self, feedback: &[MethodPerformanceRecord]) -> InterpolateResult<()> {
         // Simplified model update
         if feedback.len() >= 5 {
-            let success_rate = feedback.iter().filter(|r| r.success).count() as f64 / feedback.len() as f64;
+            let success_rate =
+                feedback.iter().filter(|r| r.success).count() as f64 / feedback.len() as f64;
             self.model_confidence = F::from(success_rate * 0.9 + 0.1).unwrap();
         }
         Ok(())

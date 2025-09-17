@@ -1,7 +1,7 @@
 //! Topic coherence evaluation demonstration
 
 use scirs2_text::{
-    LatentDirichletAllocation, Tokenizer, Topic, TopicCoherence, TopicDiversity,
+    LatentDirichletAllocation, LdaTopic, Tokenizer, TopicCoherence, TopicDiversity,
     WhitespaceTokenizer,
 };
 use std::collections::HashMap;
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("-------------------------");
 
     let manual_topics = vec![
-        Topic {
+        LdaTopic {
             id: 0,
             top_words: vec![
                 ("learning".to_string(), 0.15),
@@ -173,7 +173,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ],
             coherence: None,
         },
-        Topic {
+        LdaTopic {
             id: 1,
             top_words: vec![
                 ("network".to_string(), 0.14),

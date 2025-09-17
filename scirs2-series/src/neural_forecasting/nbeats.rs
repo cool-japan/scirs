@@ -7,9 +7,9 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::config::ActivationFunction;
-use super::lstm::LSTMCell; // For weight initialization utility
+use super::lstm::LSTMCell;
+use crate::error::{Result, TimeSeriesError}; // For weight initialization utility
 
 /// N-BEATS block type enumeration
 #[derive(Debug, Clone)]
@@ -163,10 +163,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> NBeatsStack<F> {
             ));
         }
 
-        Self {
-            stack_type,
-            blocks,
-        }
+        Self { stack_type, blocks }
     }
 
     /// Forward pass through N-BEATS stack

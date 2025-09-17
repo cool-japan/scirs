@@ -92,7 +92,12 @@ impl<F: Float + FromPrimitive + Debug> TransferLearningClustering<F> {
     ) -> Result<Array1<usize>> {
         // Placeholder implementation - would contain full transfer learning algorithm
         let n_samples = target_data.nrows();
+        let n_features = target_data.ncols();
         let labels = Array1::from_shape_fn(n_samples, |i| i % 3);
+
+        // Initialize centroids (placeholder implementation)
+        self.source_centroids = Some(Array2::zeros((3, source_data.ncols())));
+        self.target_centroids = Some(Array2::zeros((3, n_features)));
         self.initialized = true;
         Ok(labels)
     }

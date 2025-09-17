@@ -341,7 +341,7 @@ mod tests {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 1, 0, 1]);
 
-        let js = jensen_shannon_divergence(labels_true.view(), labels_pred.view()).unwrap();
+        let js: f64 = jensen_shannon_divergence(labels_true.view(), labels_pred.view()).unwrap();
         assert!(js >= 0.0 && js <= 1.0);
     }
 
@@ -350,7 +350,7 @@ mod tests {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 1, 0, 1]);
 
-        let vi = variation_of_information(labels_true.view(), labels_pred.view()).unwrap();
+        let vi: f64 = variation_of_information(labels_true.view(), labels_pred.view()).unwrap();
         assert!(vi >= 0.0);
     }
 

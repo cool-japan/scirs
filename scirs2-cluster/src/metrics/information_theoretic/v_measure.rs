@@ -371,13 +371,13 @@ mod tests {
     fn test_entropy() {
         // Uniform distribution should have maximum entropy
         let uniform = Array1::from_vec(vec![0, 1, 2, 3]);
-        let h: f64 = entropy::<F>(uniform.view()).unwrap();
+        let h: f64 = entropy::<f64>(uniform.view()).unwrap();
         let expected = 4.0_f64.ln();
         assert!((h - expected).abs() < 1e-10);
 
         // Single value should have zero entropy
         let single = Array1::from_vec(vec![0, 0, 0, 0]);
-        let h_single: f64 = entropy::<F>(single.view()).unwrap();
+        let h_single: f64 = entropy::<f64>(single.view()).unwrap();
         assert!(h_single.abs() < 1e-10);
     }
 
@@ -387,7 +387,7 @@ mod tests {
         let x = Array1::from_vec(vec![0, 0, 1, 1]);
         let y = Array1::from_vec(vec![0, 0, 1, 1]); // Same as x
 
-        let h_x_given_y: f64 = conditional_entropy::<F>(x.view(), y.view()).unwrap();
+        let h_x_given_y: f64 = conditional_entropy::<f64>(x.view(), y.view()).unwrap();
         assert!(h_x_given_y.abs() < 1e-10);
     }
 

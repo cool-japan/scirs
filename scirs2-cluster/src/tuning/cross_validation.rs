@@ -261,7 +261,19 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float
+            + FromPrimitive
+            + Debug
+            + Send
+            + Sync
+            + ndarray::ScalarOperand
+            + std::ops::MulAssign
+            + std::ops::DivAssign
+            + std::ops::RemAssign
+            + std::fmt::Display
+            + std::iter::Sum
+            + std::ops::AddAssign
+            + std::ops::SubAssign,
         f64: From<F>,
     {
         let n_samples = data.nrows();
@@ -479,7 +491,7 @@ impl CrossValidator {
 /// Extract subset of data based on indices
 fn extract_subset<F>(data: ArrayView2<F>, indices: &[usize]) -> Result<Array2<F>>
 where
-    F: Clone,
+    F: Clone + num_traits::Zero,
 {
     let n_features = data.ncols();
     let mut subset = Array2::zeros((indices.len(), n_features));

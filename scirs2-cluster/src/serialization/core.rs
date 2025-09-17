@@ -287,7 +287,13 @@ impl<T: SerializableModel> SerializableModel for EnhancedModel<T> {}
 /// Format a timestamp for display
 pub fn format_timestamp(timestamp: u64) -> String {
     match SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(timestamp)) {
-        Some(datetime) => format!("{:?}", datetime),
+        Some(_datetime) => {
+            // Simple conversion: Unix timestamp to year
+            // 1640995200 is 2022-01-01 00:00:00 UTC
+            let years_since_1970 = timestamp / (365 * 24 * 3600); // Approximate
+            let year = 1970 + years_since_1970;
+            format!("Timestamp: {} (approx year {})", timestamp, year)
+        },
         None => "Invalid timestamp".to_string(),
     }
 }

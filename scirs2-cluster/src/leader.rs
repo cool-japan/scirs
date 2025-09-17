@@ -236,7 +236,7 @@ impl<F: Float + Debug> LeaderClustering<F> {
 }
 
 /// Tree representation for hierarchical organization of leaders
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LeaderTree<F: Float> {
     /// Root nodes of the tree
     pub roots: Vec<LeaderNode<F>>,
@@ -245,7 +245,7 @@ pub struct LeaderTree<F: Float> {
 }
 
 /// Node in the leader tree structure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LeaderNode<F: Float> {
     /// The leader vector
     pub leader: Array1<F>,

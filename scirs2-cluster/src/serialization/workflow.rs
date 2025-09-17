@@ -89,7 +89,7 @@ pub struct TrainingStep {
 }
 
 /// Workflow configuration
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WorkflowConfig {
     /// Auto-save interval in seconds
     pub auto_save_interval: Option<u64>,

@@ -3,11 +3,8 @@
 //! This module contains all configuration types and settings used to
 //! control the behavior of the advanced interpolation coordinator.
 
-use serde::{Deserialize, Serialize};
-
 /// Configuration for advanced interpolation operations
 #[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
 pub struct AdvancedInterpolationConfig {
     /// Enable intelligent method selection
     pub enable_method_selection: bool,

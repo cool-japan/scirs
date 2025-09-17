@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn test_ensemble_clusterer_creation() {
         let config = EnsembleConfig::default();
-        let ensemble = EnsembleClusterer::new(config.clone());
+        let ensemble: EnsembleClusterer<f64> = EnsembleClusterer::new(config.clone());
 
         // Test that the ensemble can be created with different configurations
         let custom_config = EnsembleConfig {
@@ -328,7 +328,7 @@ mod tests {
             max_clusters: Some(15),
         };
 
-        let custom_ensemble = EnsembleClusterer::new(custom_config);
+        let custom_ensemble: EnsembleClusterer<f64> = EnsembleClusterer::new(custom_config);
 
         // Both ensembles should be creatable without errors
         assert!(true); // If we get here, creation succeeded

@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
-use super::lstm::LSTMCell; // For weight initialization utility
+use super::lstm::LSTMCell;
+use crate::error::Result; // For weight initialization utility
 
 /// Temporal Fusion Transformer main architecture
 #[derive(Debug)]
@@ -26,11 +26,7 @@ pub struct TemporalFusionTransformer<F: Float + Debug> {
 
 impl<F: Float + Debug + Clone + FromPrimitive> TemporalFusionTransformer<F> {
     /// Create new Temporal Fusion Transformer
-    pub fn new(
-        input_dim: usize,
-        model_dim: usize,
-        num_layers: usize,
-    ) -> Self {
+    pub fn new(input_dim: usize, model_dim: usize, num_layers: usize) -> Self {
         let variable_selection = VariableSelectionNetwork::new(input_dim, model_dim);
         let mut grn_layers = Vec::new();
 

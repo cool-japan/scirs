@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
-use super::lstm::LSTMCell; // For weight initialization utility
+use super::lstm::LSTMCell;
+use crate::error::Result; // For weight initialization utility
 
 /// Flash Attention for memory-efficient computation
 #[derive(Debug)]

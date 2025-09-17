@@ -10,6 +10,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(feature = "yaml")]
+use serde_yaml;
+
 use super::core::{EnhancedModelMetadata, PlatformInfo, SerializableModel};
 use super::models::*;
 
@@ -222,11 +225,16 @@ impl AdvancedExport for KMeansModel {
                     .finish()
                     .map_err(|e| ClusteringError::InvalidInput(e.to_string()))
             }
+            #[cfg(feature = "yaml")]
             ExportFormat::Yaml => {
                 let yaml = serde_yaml::to_string(&export_data)
                     .map_err(|e| ClusteringError::InvalidInput(e.to_string()))?;
                 Ok(yaml.into_bytes())
             }
+            #[cfg(not(feature = "yaml"))]
+            ExportFormat::Yaml => Err(ClusteringError::InvalidInput(
+                "YAML support not enabled. Enable the 'yaml' feature".to_string(),
+            )),
             ExportFormat::Csv => self.export_csv(),
             _ => Err(ClusteringError::InvalidInput(format!(
                 "Unsupported export format: {:?}",
@@ -491,7 +499,7 @@ mod tests {
 
         let summary = model.export_summary().unwrap();
         assert!(summary.contains("K-Means"));
-        assert!(summary.contains("\"n_clusters\":2"));
+        assert!(summary.contains("\"n_clusters\": 2"));
     }
 
     #[test]

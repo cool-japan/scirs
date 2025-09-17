@@ -58,8 +58,11 @@ pub mod emd;
 pub mod hilbert;
 pub mod median;
 pub mod parametric;
+pub mod parametric_advanced;
+pub mod parametric_advanced_enhanced;
 pub mod spline;
 pub mod swt;
+pub mod sysid;
 pub mod tv;
 pub mod waveforms;
 
@@ -108,6 +111,12 @@ pub use wavelets::{complex_morlet, cwt, morlet, ricker, scalogram};
 
 // Re-export key additional modules functionality
 pub use parametric::{ar_spectrum, burg_method, yule_walker};
+pub use parametric_advanced_enhanced::{
+    adaptive_ar_spectral_estimation, advanced_enhanced_arma, high_resolution_spectral_estimation,
+    multitaper_parametric_estimation, robust_parametric_spectral_estimation, AdaptiveARConfig,
+    AdvancedEnhancedConfig, HighResolutionConfig, MultitaperParametricConfig,
+    RobustParametricConfig,
+};
 pub use swt::{iswt, swt};
 pub use tv::{tv_denoise_1d, tv_denoise_2d};
 pub use waveforms::{chirp, sawtooth, square};

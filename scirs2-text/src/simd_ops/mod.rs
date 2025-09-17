@@ -13,9 +13,13 @@ pub mod vectorized_ops;
 pub use basic_ops::SimdStringOps;
 pub use edit_distance::SimdEditDistance;
 pub use pattern_matching::SimdPatternMatcher;
-pub use text_analysis::{SimdTextAnalyzer, TextAnalysisResult, AdvancedSIMDTextProcessor, TextProcessingResult};
-pub use vectorized_ops::{VectorizedStringOps, SimdNgramGenerator, SimdTextSimilarity,
-                         SimdTextNormalizer, SimdParallelProcessor};
+pub use text_analysis::{
+    AdvancedSIMDTextProcessor, SimdTextAnalyzer, TextAnalysisResult, TextProcessingResult,
+};
+pub use vectorized_ops::{
+    SimdNgramGenerator, SimdParallelProcessor, SimdTextNormalizer, SimdTextSimilarity,
+    VectorizedStringOps,
+};
 
 use ndarray::Array1;
 

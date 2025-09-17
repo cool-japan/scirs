@@ -77,7 +77,11 @@ impl<F: Float + FromPrimitive + Debug> DeepEmbeddedClustering<F> {
     pub fn fit(&mut self, data: ArrayView2<F>) -> Result<Array1<usize>> {
         // Placeholder implementation - would contain full deep learning training
         let n_samples = data.nrows();
+        let n_features = data.ncols();
         let labels = Array1::from_shape_fn(n_samples, |i| i % self.config.n_clusters);
+
+        // Initialize cluster centers (placeholder implementation)
+        self.cluster_centers = Some(Array2::zeros((self.config.n_clusters, n_features)));
         self.initialized = true;
         Ok(labels)
     }

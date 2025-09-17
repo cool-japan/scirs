@@ -4,15 +4,15 @@
 //! coordinator, broken down into focused, maintainable modules.
 
 // Core types and configuration
-pub mod types;
 pub mod config;
+pub mod types;
 
 // Core coordinator functionality
-pub mod core;
+pub mod core_coordinator;
 
 // Specialized optimization engines
-pub mod method_selection;
 pub mod accuracy_optimization;
+pub mod method_selection;
 pub mod pattern_analysis;
 pub mod performance_tuning;
 pub mod quantum_optimization;
@@ -22,15 +22,22 @@ pub mod knowledge_transfer;
 pub mod memory_management;
 
 // Public API re-exports
-pub use types::*;
 pub use config::*;
-pub use core::AdvancedInterpolationCoordinator;
-
-// Factory functions
-pub use core::{
-    create_advanced_interpolation_coordinator,
-    create_advanced_interpolation_coordinator_with_config,
+pub use core_coordinator::{
+    create_advanced_interpolation_coordinator, AdvancedInterpolationCoordinator,
+    CacheOptimizationResult, InterpolationPerformanceMetrics, InterpolationRecommendation,
+    MethodPerformanceEstimate, SystemOptimizationResult,
 };
+pub use types::*;
 
-// Performance and metrics
-pub use core::InterpolationPerformanceMetrics;
+// Re-export key types from specialized modules
+pub use accuracy_optimization::AccuracyOptimizationEngine;
+pub use knowledge_transfer::{CrossDomainInterpolationKnowledge, TransferKnowledgeResult};
+pub use memory_management::{
+    AdaptiveInterpolationCache, InterpolationMemoryManager, InterpolationPerformanceTracker,
+    MemoryStatistics, PerformanceSummary,
+};
+pub use method_selection::IntelligentMethodSelector;
+pub use pattern_analysis::{DataPatternAnalyzer, PatternAnalysisResult};
+pub use performance_tuning::{PerformanceOptimizationResult, PerformanceTuningSystem};
+pub use quantum_optimization::{QuantumOptimizationResult, QuantumParameterOptimizer};

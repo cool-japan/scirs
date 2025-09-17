@@ -66,6 +66,8 @@ pub mod export;
 pub mod models;
 pub mod workflow;
 
+use ndarray::Array1;
+
 // Re-export main types for convenience
 pub use core::{
     format_timestamp, DataCharacteristics, EnhancedModel, EnhancedModelMetadata, PlatformInfo,
@@ -144,7 +146,12 @@ pub fn create_dbscan_model(
     eps: f64,
     min_samples: usize,
 ) -> DBSCANModel {
-    DBSCANModel::new(core_sample_indices, components, labels, eps, min_samples)
+    DBSCANModel::new(
+        Array1::from_vec(core_sample_indices),
+        labels,
+        eps,
+        min_samples,
+    )
 }
 
 /// Convenience function to create a serializable hierarchical clustering model
@@ -154,7 +161,7 @@ pub fn create_hierarchical_model(
     linkage_matrix: ndarray::Array2<f64>,
     distances: Vec<f64>,
 ) -> HierarchicalModel {
-    HierarchicalModel::new(n_clusters, labels, linkage_matrix, distances)
+    HierarchicalModel::new(linkage_matrix, n_clusters, "ward".to_string(), None)
 }
 
 /// Convenience function to create enhanced model metadata
@@ -275,7 +282,7 @@ mod tests {
     #[test]
     fn test_create_default_workflow() {
         let workflow = create_default_workflow("test_workflow".to_string());
-        assert_eq!(workflow.name, "test_workflow");
-        assert_eq!(workflow.state, WorkflowState::Created);
+        assert_eq!(workflow.workflow_id, "test_workflow");
+        assert!(matches!(workflow.current_state, AlgorithmState::NotStarted));
     }
 }

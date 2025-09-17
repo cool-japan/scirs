@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::Result;
-use super::lstm::LSTMCell; // For weight initialization utility
+use super::lstm::LSTMCell;
+use crate::error::Result; // For weight initialization utility
 
 /// Mixture of Experts layer
 #[derive(Debug)]
@@ -30,13 +30,9 @@ pub struct MixtureOfExperts<F: Float + Debug> {
     gate_bias: Array1<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive> MixtureOfExperts<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MixtureOfExperts<F> {
     /// Create new Mixture of Experts layer
-    pub fn new(
-        input_dim: usize,
-        output_dim: usize,
-        num_experts: usize,
-    ) -> Self {
+    pub fn new(input_dim: usize, output_dim: usize, num_experts: usize) -> Self {
         let scale = F::from(2.0).unwrap() / F::from(input_dim).unwrap();
         let std_dev = scale.sqrt();
 

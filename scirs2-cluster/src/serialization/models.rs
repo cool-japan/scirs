@@ -538,13 +538,13 @@ impl LeaderModel {
             let distance = match self.metric.as_str() {
                 "euclidean" => point
                     .iter()
-                    .zip(leader.center.iter())
+                    .zip(leader.leader.iter())
                     .map(|(a, b)| (a - b).powi(2))
                     .sum::<f64>()
                     .sqrt(),
                 "manhattan" => point
                     .iter()
-                    .zip(leader.center.iter())
+                    .zip(leader.leader.iter())
                     .map(|(a, b)| (a - b).abs())
                     .sum::<f64>(),
                 _ => return Err(ClusteringError::InvalidInput("Unknown metric".to_string())),
@@ -785,7 +785,12 @@ pub fn dbscan_to_model(
     eps: f64,
     min_samples: usize,
 ) -> DBSCANModel {
-    DBSCANModel::new(core_sample_indices, components, labels, eps, min_samples)
+    DBSCANModel::new(
+        Array1::from_vec(core_sample_indices),
+        labels,
+        eps,
+        min_samples,
+    )
 }
 
 /// Convert hierarchical clustering results to serializable model
@@ -795,7 +800,7 @@ pub fn hierarchy_to_model(
     linkage_matrix: Array2<f64>,
     distances: Vec<f64>,
 ) -> HierarchicalModel {
-    HierarchicalModel::new(n_clusters, labels, linkage_matrix, distances)
+    HierarchicalModel::new(linkage_matrix, n_clusters, "ward".to_string(), None)
 }
 
 /// Convert GMM results to serializable model
@@ -828,7 +833,7 @@ pub fn meanshift_to_model(
     bandwidth: f64,
     n_iter: usize,
 ) -> MeanShiftModel {
-    MeanShiftModel::new(cluster_centers, labels, bandwidth, n_iter)
+    MeanShiftModel::new(cluster_centers, bandwidth, Some(labels))
 }
 
 /// Convert Affinity Propagation results to serializable model
@@ -869,7 +874,7 @@ pub fn leader_to_model(
     LeaderModel {
         leaders,
         threshold,
-        distance_metric,
+        metric: distance_metric,
     }
 }
 
@@ -880,9 +885,12 @@ pub fn leadertree_to_model(
     max_depth: usize,
 ) -> LeaderTreeModel<f64> {
     LeaderTreeModel {
-        tree,
+        tree: tree.unwrap_or_else(|| LeaderTree {
+            roots: Vec::new(),
+            threshold,
+        }),
         threshold,
-        max_depth,
+        metric: "euclidean".to_string(),
     }
 }
 
@@ -954,7 +962,10 @@ pub fn save_leader<P: AsRef<std::path::Path>>(model: &LeaderModel, path: P) -> R
 }
 
 /// Save Leader Tree model to file
-pub fn save_leadertree<F: Float + Serialize, P: AsRef<std::path::Path>>(
+pub fn save_leadertree<
+    F: Float + Serialize + for<'de> serde::Deserialize<'de>,
+    P: AsRef<std::path::Path>,
+>(
     model: &LeaderTreeModel<F>,
     path: P,
 ) -> Result<()> {

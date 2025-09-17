@@ -1120,7 +1120,7 @@ impl Default for EnsembleConfig {
                     },
                 ],
             }),
-            quality_threshold: Some(0.0),
+            quality_threshold: None,
             max_clusters: Some(20),
         }
     }

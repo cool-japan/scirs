@@ -219,10 +219,11 @@ pub mod statistical;
 pub mod statistical_advanced;
 pub mod streaming;
 // pub mod stress_testing;
+pub mod advanced_coordinator;
+pub mod advanced_coordinator_modules;
 pub mod tension;
 pub mod tensor;
 pub mod timeseries;
-// pub mod advanced_coordinator; // Missing file
 pub mod utils;
 pub mod voronoi;
 
@@ -246,11 +247,13 @@ pub mod scipy_compatibility;
 // Re-exports for convenience
 
 // Advanced mode coordinator for advanced AI-driven optimization
-// pub use num_coordinator::{
-//     create_advanced_interpolation_coordinator,
-//     create_advanced_interpolation_coordinator_with_config, AdvancedInterpolationConfig,
-//     AdvancedInterpolationCoordinator, InterpolationPerformanceMetrics, InterpolationRecommendation,
-// }; // Missing module
+pub use advanced_coordinator::{
+    create_advanced_interpolation_coordinator, create_balanced_coordinator,
+    create_default_advanced_coordinator, create_high_performance_coordinator,
+    create_memory_efficient_coordinator, AdvancedInterpolationConfig,
+    AdvancedInterpolationCoordinator, CacheOptimizationResult, InterpolationPerformanceMetrics,
+    InterpolationRecommendation, MethodPerformanceEstimate, SystemOptimizationResult,
+};
 
 pub use adaptive_gp::{
     make_adaptive_gp, AdaptiveGPConfig, AdaptiveGaussianProcess, GPStats, KernelHyperparameters,

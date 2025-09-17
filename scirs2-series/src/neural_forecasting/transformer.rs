@@ -7,9 +7,9 @@ use ndarray::{Array1, Array2, Array3};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::config::ActivationFunction;
-use super::lstm::LSTMCell; // For weight initialization utility
+use super::lstm::LSTMCell;
+use crate::error::{Result, TimeSeriesError}; // For weight initialization utility
 
 /// Self-Attention mechanism for Transformer
 #[derive(Debug)]
@@ -99,11 +99,7 @@ pub struct FeedForwardNetwork<F: Float + Debug> {
 
 impl<F: Float + Debug + Clone + FromPrimitive> FeedForwardNetwork<F> {
     /// Create new feed-forward network
-    pub fn new(
-        input_dim: usize,
-        hidden_dim: usize,
-        activation: ActivationFunction,
-    ) -> Self {
+    pub fn new(input_dim: usize, hidden_dim: usize, activation: ActivationFunction) -> Self {
         let scale1 = F::from(2.0).unwrap() / F::from(input_dim).unwrap();
         let std_dev1 = scale1.sqrt();
         let scale2 = F::from(2.0).unwrap() / F::from(hidden_dim).unwrap();
@@ -147,11 +143,7 @@ pub struct TransformerBlock<F: Float + Debug> {
 
 impl<F: Float + Debug + Clone + FromPrimitive> TransformerBlock<F> {
     /// Create new transformer block
-    pub fn new(
-        model_dim: usize,
-        num_heads: usize,
-        ffn_hidden_dim: usize,
-    ) -> Result<Self> {
+    pub fn new(model_dim: usize, num_heads: usize, ffn_hidden_dim: usize) -> Result<Self> {
         let attention = MultiHeadAttention::new(model_dim, num_heads)?;
         let ffn = FeedForwardNetwork::new(model_dim, ffn_hidden_dim, ActivationFunction::ReLU);
 

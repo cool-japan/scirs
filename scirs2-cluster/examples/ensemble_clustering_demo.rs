@@ -7,7 +7,7 @@
 use ndarray::Array2;
 use scirs2_cluster::{
     ensemble::{
-        advanced_ensemble::*, convenience, ClusteringAlgorithm, ConsensusMethod, DiversityStrategy,
+        advanced::*, convenience, ClusteringAlgorithm, ConsensusMethod, DiversityStrategy,
         EnsembleClusterer, EnsembleConfig, SamplingStrategy,
     },
     preprocess::standardize,

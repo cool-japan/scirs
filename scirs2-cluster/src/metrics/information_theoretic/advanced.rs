@@ -487,7 +487,7 @@ mod tests {
         let x = Array1::from_vec(vec![0, 0, 1, 1]);
         let y = Array1::from_vec(vec![0, 1, 0, 1]);
 
-        let uc: f64 = uncertainty_coefficient::<F>(x.view(), y.view()).unwrap();
+        let uc: f64 = uncertainty_coefficient::<f64>(x.view(), y.view()).unwrap();
         assert!(uc >= 0.0 && uc <= 1.0);
     }
 
@@ -497,7 +497,8 @@ mod tests {
         let pred_labels = Array1::from_vec(vec![0, 1, 0, 1]);
 
         let suc: f64 =
-            symmetric_uncertainty_coefficient::<F>(true_labels.view(), pred_labels.view()).unwrap();
+            symmetric_uncertainty_coefficient::<f64>(true_labels.view(), pred_labels.view())
+                .unwrap();
         assert!(suc >= 0.0 && suc <= 1.0);
     }
 

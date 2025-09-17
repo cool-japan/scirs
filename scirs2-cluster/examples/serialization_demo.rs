@@ -46,14 +46,14 @@ fn kmeans_example(data: &Array2<f64>) -> Result<(), Box<dyn std::error::Error>> 
     println!("Cluster assignments: {:?}", labels);
 
     // Convert to serializable model
-    let model = kmeans_to_model(centroids.clone(), labels.clone(), 10);
+    let model = kmeans_to_model(centroids.clone(), Some(labels.clone()), 10, 100.0);
 
     // Save to JSON file
     model.save_to_file("kmeans_model.json")?;
     println!("K-means model saved to 'kmeans_model.json'");
 
     // Alternative: Use convenience function
-    save_kmeans("kmeans_model_alt.json", centroids, labels, 10)?;
+    save_kmeans(&model, "kmeans_model_alt.json")?;
     println!("K-means model saved using convenience function");
 
     Ok(())
@@ -95,18 +95,12 @@ fn hierarchical_example(data: &Array2<f64>) -> Result<(), Box<dyn std::error::Er
     println!("{}", newick);
 
     // Export to JSON tree format
-    let json_tree = model.to_jsontree()?;
+    let json_tree = model.to_json_tree()?;
     println!("\nJSON tree format:");
     println!("{}", serde_json::to_string_pretty(&json_tree)?);
 
     // Alternative: Use convenience function
-    save_hierarchy(
-        "hierarchy_model_alt.json",
-        linkage_matrix,
-        n_observations,
-        "average",
-        Some(labels),
-    )?;
+    save_hierarchy(&model, "hierarchy_model_alt.json")?;
     println!("\nHierarchical model saved using convenience function");
 
     Ok(())

@@ -4,7 +4,6 @@
 //! the advanced interpolation coordinator system.
 
 use num_traits::Float;
-use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::time::Instant;
@@ -23,7 +22,7 @@ pub struct MethodKey {
 }
 
 /// Interpolation method types
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum InterpolationMethodType {
     /// Linear interpolation
     Linear,
@@ -405,6 +404,10 @@ pub struct InterpolationRecommendation<F: Float> {
 pub struct MethodRecommendation {
     /// Recommended method
     pub method: InterpolationMethodType,
+    /// Confidence score (0.0 to 1.0)
+    pub confidence: f64,
+    /// Expected performance characteristics
+    pub expected_performance: ExpectedPerformance,
     /// Recommended parameters
     pub parameters: Vec<f64>,
     /// Configuration suggestions
@@ -428,6 +431,17 @@ pub struct ExpectedPerformance {
     pub performance_score: f64,
 }
 
+/// Actual performance metrics
+#[derive(Debug, Clone)]
+pub struct PerformanceMetrics {
+    /// Execution time in milliseconds
+    pub execution_time_ms: f64,
+    /// Memory usage in bytes
+    pub memory_usage_bytes: usize,
+    /// Achieved accuracy
+    pub accuracy: f64,
+}
+
 impl<F: Float> Default for AdaptiveParameters<F> {
     fn default() -> Self {
         Self {
@@ -444,7 +458,7 @@ impl Default for PerformanceTargets {
     fn default() -> Self {
         Self {
             target_accuracy: 0.99,
-            max_time: 1_000_000.0, // 1 second
+            max_time: 1_000_000.0,          // 1 second
             max_memory: 1024 * 1024 * 1024, // 1 GB
             priority_weights: PerformancePriorities::default(),
         }
@@ -462,7 +476,7 @@ impl Default for PerformancePriorities {
     }
 }
 
-impl<F: Float> InputValidationResult<F> {
+impl<F: Float + std::fmt::Display> InputValidationResult<F> {
     /// Check if validation passed
     pub fn is_high_quality(&self) -> bool {
         self.is_valid && self.quality_score > F::from(0.8).unwrap()

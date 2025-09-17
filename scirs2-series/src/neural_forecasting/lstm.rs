@@ -7,8 +7,8 @@ use ndarray::{Array1, Array2};
 use num_traits::{Float, FromPrimitive};
 use std::fmt::Debug;
 
-use crate::error::{Result, TimeSeriesError};
 use super::config::ActivationFunction;
+use crate::error::{Result, TimeSeriesError};
 
 /// LSTM cell state and hidden state
 #[derive(Debug, Clone)]
@@ -66,7 +66,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> LSTMCell<F> {
     }
 
     /// Initialize random matrix with given standard deviation
-    fn random_matrix(_rows: usize, cols: usize, stddev: F) -> Array2<F> {
+    pub fn random_matrix(_rows: usize, cols: usize, stddev: F) -> Array2<F> {
         let mut matrix = Array2::zeros((_rows, cols));
 
         // Simple pseudo-random initialization (for production, use proper RNG)
