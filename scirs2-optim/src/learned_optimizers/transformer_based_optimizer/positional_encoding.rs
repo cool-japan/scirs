@@ -3,10 +3,11 @@
 use ndarray::{Array1, Array2, Array3, Axis};
 use num_traits::Float;
 use std::f64::consts::PI;
+use serde::{Serialize, Deserialize};
 use crate::error::Result;
 
 /// Positional encoding types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PositionalEncodingType {
     /// Sinusoidal positional encoding (original Transformer)
     Sinusoidal,

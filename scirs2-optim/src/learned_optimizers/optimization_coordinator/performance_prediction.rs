@@ -33,7 +33,7 @@ pub struct PerformancePredictor<T: Float> {
     accuracy_tracker: AccuracyTracker<T>,
 }
 
-impl<T: Float> PerformancePredictor<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T> {
     /// Create new performance predictor
     pub fn new() -> Result<Self> {
         let mut predictor = Self {
@@ -432,7 +432,7 @@ impl<T: Float> PerformancePredictor<T> {
         key.push_str(&format!("{}", context.dimensionality));
 
         // Add some landscape feature info (simplified)
-        key.push_str(&format!("{:.3}", landscape_features.curvature.mean_curvature.to_f64().unwrap_or(0.0)));
+        key.push_str(&format!("{:.3}", landscape_features.curvature_info.mean_curvature.to_f64().unwrap_or(0.0)));
 
         Ok(key)
     }
@@ -939,6 +939,7 @@ impl<T: Float> AccuracyTracker<T> {
             total_predictions: self.total_predictions,
             average_prediction_time,
             model_count: self.model_accuracies.len(),
+            _phantom: std::marker::PhantomData,
         }
     }
 

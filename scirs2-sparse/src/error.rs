@@ -205,3 +205,9 @@ impl SparseError {
         SparseError::ShapeMismatch { expected, found }
     }
 }
+
+impl From<String> for SparseError {
+    fn from(error: String) -> Self {
+        SparseError::ComputationError(error)
+    }
+}

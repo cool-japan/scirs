@@ -75,7 +75,8 @@ pub use stats::{CompressionStats, MemoryStats, CompressionMetadata};
 pub use cache::BlockId;
 
 // Re-export key internal types that might be useful
-pub use access_tracking::{AccessType, AccessPatternType};
+pub use access_tracking::AccessType;
+pub use stats::AccessPatternType;
 pub use compression::{CompressionEngine, CompressionResult};
 pub use out_of_core::OutOfCoreManager;
 pub use memory_mapping::MemoryMappedFile;

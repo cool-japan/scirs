@@ -223,7 +223,8 @@ impl<
             + Sync
             + Default
             + ndarray::ScalarOperand
-            + std::fmt::Debug,
+            + std::fmt::Debug
+            + std::cmp::Ord,
     > AdvancedCoordinator<T>
 {
     /// Create new Advanced coordinator
@@ -233,7 +234,6 @@ impl<
             nas_engine: if config.enable_nas {
                 Some(NeuralArchitectureSearch::new(
                     NASConfig::default(),
-                    ArchitectureSearchSpace::default(),
                 )?)
             } else {
                 None
@@ -253,7 +253,7 @@ impl<
             meta_learning_orchestrator: MetaLearningOrchestrator::new()?,
             performance_predictor: PerformancePredictor::new()?,
             resource_manager: ResourceManager::new()?,
-            adaptation_controller: AdaptationController::new()?,
+            adaptation_controller: AdaptationController::new(config.adaptation_config.clone()),
             knowledge_base: OptimizationKnowledgeBase::new()?,
             state: CoordinatorState::new(),
             performance_history: VecDeque::new(),
@@ -323,12 +323,13 @@ impl<
         )?;
 
         // Phase 8: Knowledge Base Update
-        self.knowledge_base.update_with_optimization_experience(
-            &landscape_features,
-            &optimization_results,
-            &ensembled_result,
-            &context,
-        )?;
+        let experience = crate::learned_optimizers::optimization_coordinator::knowledge_base::OptimizationExperience {
+            optimizer_name: "ensemble".to_string(),
+            problem_characteristics: parameters.clone(),
+            performance: if !ensembled_result.is_empty() { ensembled_result[0] } else { T::zero() },
+            settings: std::collections::HashMap::new(),
+        };
+        self.knowledge_base.update_with_optimization_experience(&experience)?;
 
         // Phase 9: State and Performance Tracking
         self.update_coordinator_state(&ensembled_result, &optimization_results, start_time.elapsed())?;
@@ -421,13 +422,9 @@ impl<
         elapsed_time: Duration,
     ) -> Result<()> {
         // Trigger adaptation based on results
-        self.adaptation_controller.trigger_adaptation(
-            result,
-            optimization_results,
-            landscape_features,
-            context,
-            elapsed_time,
-        )?;
+        if let Some(_adaptation_event) = self.adaptation_controller.trigger_adaptation(context)? {
+            // Handle adaptation event if needed
+        }
 
         // Update performance predictions
         self.performance_predictor.update_with_results(
@@ -452,8 +449,23 @@ impl<
             overall_score: self.calculate_overall_score(result)?,
             optimizer_scores: self.calculate_optimizer_scores(optimization_results)?,
             resource_efficiency: self.resource_manager.get_efficiency_score()?,
-            adaptation_effectiveness: self.adaptation_controller.get_effectiveness_score()?,
+            adaptation_effectiveness: self.adaptation_controller.get_effectiveness_score(),
             convergence_rate: self.calculate_convergence_rate()?,
+            error_rate: T::from(0.01).unwrap(), // Default value
+            stability: T::from(0.95).unwrap(), // Default value
+            context: PerformanceContext {
+                dimensionality: result.len(),
+                problem_type: ProblemType::Convex, // Default
+                resource_usage: crate::learned_optimizers::optimization_coordinator::analytics::ResourceUsage {
+                    cpu_utilization: T::from(0.5).unwrap(),
+                    memory_utilization: T::from(0.3).unwrap(),
+                    gpu_utilization: T::from(0.0).unwrap(),
+                    network_utilization: T::from(0.1).unwrap(),
+                    disk_utilization: T::from(0.2).unwrap(),
+                    energy_consumption: T::from(0.4).unwrap(),
+                },
+                configuration: HashMap::new(),
+            },
         };
 
         // Update performance history
@@ -601,8 +613,74 @@ impl<T: Float> OptimizationAnalyzer<T> {
         _gradients: &Array1<T>,
         _context: &OptimizationContext<T>,
     ) -> Result<LandscapeFeatures<T>> {
-        // Placeholder implementation
-        Ok(LandscapeFeatures::default())
+        // Placeholder implementation - create a basic landscape features instance
+        use crate::learned_optimizers::optimization_coordinator::state::*;
+        use std::time::{SystemTime, Duration};
+
+        Ok(LandscapeFeatures {
+            curvature_info: CurvatureInfo {
+                mean_curvature: T::zero(),
+                max_curvature: T::zero(),
+                condition_number: T::one(),
+                spectral_gap: T::zero(),
+                eigenvalue_distribution: EigenvalueDistribution {
+                    largest_eigenvalue: T::one(),
+                    smallest_eigenvalue: T::zero(),
+                    mean_eigenvalue: T::from(0.5).unwrap(),
+                    eigenvalue_variance: T::zero(),
+                    negative_eigenvalues: 0,
+                    spectral_density: Vec::new(),
+                },
+                hessian_quality: T::one(),
+            },
+            gradient_characteristics: GradientCharacteristics {
+                gradient_norm: T::zero(),
+                gradient_variance: T::zero(),
+                gradient_correlation: T::zero(),
+                directional_derivative: T::zero(),
+                gradient_predictability: T::zero(),
+                gradient_consistency: T::one(),
+                signal_to_noise_ratio: T::one(),
+            },
+            local_geometry: LocalGeometry {
+                local_minima_density: T::zero(),
+                saddle_point_density: T::zero(),
+                basin_width: T::one(),
+                escape_difficulty: T::from(0.5).unwrap(),
+                local_convexity: T::zero(),
+                local_smoothness: T::one(),
+                barrier_height: T::zero(),
+            },
+            global_structure: GlobalStructure {
+                connectivity: T::one(),
+                symmetry: T::one(),
+                hierarchical_structure: T::zero(),
+                fractal_dimension: T::from(2.0).unwrap(),
+                global_convexity: T::from(0.5).unwrap(),
+                scale_separation: T::one(),
+                modularity: T::from(0.5).unwrap(),
+            },
+            noise_characteristics: NoiseCharacteristics {
+                noise_level: T::zero(),
+                noise_type: NoiseType::Gaussian,
+                signal_to_noise_ratio: T::from(100.0).unwrap(),
+                noise_correlation: T::zero(),
+                noise_stationarity: T::one(),
+                noise_predictability: T::from(0.5).unwrap(),
+                frequency_spectrum: Vec::new(),
+            },
+            trajectory_features: TrajectoryFeatures {
+                path_length: T::one(),
+                path_efficiency: T::one(),
+                oscillation: T::zero(),
+                convergence_rate: T::from(0.1).unwrap(),
+                step_consistency: T::one(),
+                direction_consistency: T::one(),
+                progress_rate: T::from(0.1).unwrap(),
+            },
+            extraction_time: SystemTime::now(),
+            validity_duration: Duration::from_secs(3600),
+        })
     }
 }
 

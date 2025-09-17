@@ -16,7 +16,7 @@ pub enum AccessType {
 }
 
 /// Access pattern tracking
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct AccessTracker {
     pub access_patterns: HashMap<BlockId, AccessPattern>,

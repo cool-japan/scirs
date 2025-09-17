@@ -21,7 +21,7 @@ pub struct PerformancePredictor<T: Float> {
     predictor_metrics: PredictorMetrics<T>,
 }
 
-impl<T: Float> PerformancePredictor<T> {
+impl<T: Float + 'static> PerformancePredictor<T> {
     /// Create new performance predictor
     pub fn new(config: &super::config::NASConfig) -> Result<Self> {
         let predictor_config = PredictorConfig::from_nas_config(config);

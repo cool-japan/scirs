@@ -219,7 +219,7 @@ pub struct TimeConstraints {
 }
 
 /// Optimization phase tracking
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OptimizationPhase {
     /// Initialization phase
     Initialization,
@@ -715,7 +715,6 @@ pub enum SnapshotReason {
 }
 
 /// State validation rule
-#[derive(Debug)]
 pub struct StateValidationRule<T: Float + Send + Sync + Debug> {
     /// Rule name
     pub name: String,
@@ -731,6 +730,18 @@ pub struct StateValidationRule<T: Float + Send + Sync + Debug> {
 
     /// Enabled flag
     pub enabled: bool,
+}
+
+impl<T: Float + Send + Sync + Debug> std::fmt::Debug for StateValidationRule<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StateValidationRule")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("validator", &"<closure>")
+            .field("severity", &self.severity)
+            .field("enabled", &self.enabled)
+            .finish()
+    }
 }
 
 /// Validation severity levels
@@ -902,6 +913,7 @@ impl<T: Float + Send + Sync + Debug> StateManager<T> {
             time_in_current_phase: self.get_time_in_current_phase(),
             average_phase_duration: self.compute_average_phase_duration(),
             most_common_transition: self.get_most_common_transition(),
+            _phantom: std::marker::PhantomData,
         }
     }
 

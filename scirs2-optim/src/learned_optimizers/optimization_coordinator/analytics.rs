@@ -1377,7 +1377,6 @@ pub struct AlertSystem<T: Float + Send + Sync + Debug> {
 }
 
 /// Alert rule
-#[derive(Debug)]
 pub struct AlertRule<T: Float + Send + Sync + Debug> {
     /// Rule identifier
     pub rule_id: String,
@@ -1396,6 +1395,19 @@ pub struct AlertRule<T: Float + Send + Sync + Debug> {
 
     /// Enabled flag
     pub enabled: bool,
+}
+
+impl<T: Float + Send + Sync + Debug> std::fmt::Debug for AlertRule<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AlertRule")
+            .field("rule_id", &self.rule_id)
+            .field("name", &self.name)
+            .field("condition", &"<closure>")
+            .field("severity", &self.severity)
+            .field("cooldown", &self.cooldown)
+            .field("enabled", &self.enabled)
+            .finish()
+    }
 }
 
 /// Alert severity levels
@@ -2475,6 +2487,7 @@ impl<T: Float + Send + Sync + Debug> ReportGenerator<T> {
             generated_reports: Vec::new(),
             scheduler: ReportScheduler::new(),
             export_formats: vec![ExportFormat::PDF, ExportFormat::HTML, ExportFormat::JSON],
+            _phantom: std::marker::PhantomData,
         }
     }
 

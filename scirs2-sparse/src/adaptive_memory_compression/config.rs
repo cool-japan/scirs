@@ -29,7 +29,7 @@ pub struct AdaptiveCompressionConfig {
 }
 
 /// Compression algorithms for sparse matrix data
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CompressionAlgorithm {
     /// No compression
     None,

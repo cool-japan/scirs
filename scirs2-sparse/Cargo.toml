@@ -36,6 +36,9 @@ num_cpus = { workspace = true }
 # For IO operations
 byteorder = { workspace = true }
 
+# For logging
+log = { workspace = true }
+
 
 [dev-dependencies]
 approx = { workspace = true }

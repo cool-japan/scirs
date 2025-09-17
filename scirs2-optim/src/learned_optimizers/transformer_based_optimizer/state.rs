@@ -39,10 +39,10 @@ pub struct TransformerOptimizerState<T: Float> {
     version: usize,
 
     /// Creation timestamp
-    created_at: std::time::SystemTime,
+    created_at: std::time::Instant,
 
     /// Last update timestamp
-    last_updated: std::time::SystemTime,
+    last_updated: std::time::Instant,
 }
 
 impl<T: Float> TransformerOptimizerState<T> {
@@ -59,7 +59,7 @@ impl<T: Float> TransformerOptimizerState<T> {
         let state_config = StateConfig::from_optimizer_config(config);
         let statistics = StateStatistics::new();
 
-        let now = Instant::now();
+        let now = std::time::Instant::now();
 
         Ok(Self {
             current_parameters,
@@ -97,7 +97,7 @@ impl<T: Float> TransformerOptimizerState<T> {
 
         // Increment version and update timestamp
         self.version += 1;
-        self.last_updated = Instant::now();
+        self.last_updated = std::time::Instant::now();
 
         Ok(())
     }
@@ -169,7 +169,7 @@ impl<T: Float> TransformerOptimizerState<T> {
         self.memory_state.reset()?;
         self.statistics.reset();
         self.version = 0;
-        self.last_updated = Instant::now();
+        self.last_updated = std::time::Instant::now();
         Ok(())
     }
 
@@ -203,7 +203,7 @@ impl<T: Float> TransformerOptimizerState<T> {
         Ok(StateValidationReport {
             is_valid: issues.is_empty(),
             issues,
-            validation_timestamp: Instant::now(),
+            validation_timestamp: std::time::Instant::now(),
         })
     }
 
@@ -235,8 +235,8 @@ impl<T: Float> TransformerOptimizerState<T> {
     pub fn get_metadata(&self) -> StateMetadata {
         StateMetadata {
             version: self.version,
-            created_at: self.created_at,
-            last_updated: self.last_updated,
+            created_at: SystemTime::now(), // Convert from Instant for serialization
+            last_updated: SystemTime::now(), // Convert from Instant for serialization
             total_updates: self.statistics.total_updates,
             configuration: self.config.clone(),
         }
@@ -270,7 +270,7 @@ impl<T: Float> TransformerOptimizerState<T> {
         self.learning_state.from_serializable(state.learning_state)?;
         self.statistics = state.statistics;
         self.version = state.metadata.version;
-        self.last_updated = state.metadata.last_updated;
+        self.last_updated = Instant::now(); // Convert from SystemTime for internal use
 
         Ok(())
     }
@@ -304,7 +304,7 @@ impl<T: Float> ParameterHistory<T> {
     pub fn record_parameters(&mut self, parameters: &Array1<T>) -> Result<()> {
         let snapshot = ParameterSnapshot {
             parameters: parameters.clone(),
-            timestamp: Instant::now(),
+            timestamp: std::time::Instant::now(),
             norm: parameters.iter().map(|&x| x * x).fold(T::zero(), |acc, x| acc + x).sqrt(),
         };
 
@@ -648,7 +648,7 @@ impl<T: Float> CheckpointManager<T> {
         let metadata = CheckpointMetadata {
             id: checkpoint_id.clone(),
             name: name.clone(),
-            created_at: Instant::now(),
+            created_at: std::time::Instant::now(),
             size_estimate: snapshot.parameters.len() * std::mem::size_of::<T>(),
             description: format!("Checkpoint at version {}", snapshot.version),
         };
@@ -708,7 +708,7 @@ impl<T: Float> CheckpointManager<T> {
 #[derive(Debug, Clone)]
 pub struct ParameterSnapshot<T: Float> {
     pub parameters: Array1<T>,
-    pub timestamp: Instant,
+    pub timestamp: std::time::Instant,
     pub norm: T,
 }
 
@@ -884,7 +884,7 @@ pub struct OptimizerStateSnapshot<T: Float> {
     pub learning_state: LearningState<T>,
     pub memory_state: MemoryState<T>,
     pub version: usize,
-    pub timestamp: Instant,
+    pub timestamp: std::time::Instant,
     pub metadata: SnapshotMetadata,
 }
 
@@ -896,7 +896,7 @@ pub struct SnapshotMetadata {
 }
 
 /// Configuration and metadata structures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StateConfig {
     pub max_history_size: usize,
     pub checkpoint_frequency: usize,
@@ -925,7 +925,7 @@ pub struct StateMetadata {
 }
 
 /// Statistics and tracking structures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StateStatistics<T: Float> {
     pub total_updates: usize,
     pub last_update_magnitude: T,

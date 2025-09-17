@@ -67,7 +67,7 @@ pub struct NeuralArchitectureSearch<T: Float> {
     multi_objective_optimizer: MultiObjectiveOptimizer<T>,
 }
 
-impl<T: Float> NeuralArchitectureSearch<T> {
+impl<T: Float + 'static> NeuralArchitectureSearch<T> {
     /// Create new neural architecture search
     pub fn new(config: NASConfig) -> Result<Self> {
         let search_space = ArchitectureSearchSpace::new(&config.constraints)?;

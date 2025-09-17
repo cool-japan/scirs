@@ -34,7 +34,7 @@ pub use state::{TransformerOptimizerState, OptimizerStateSnapshot};
 pub use TransformerBasedOptimizerConfig as TransformerOptimizerConfig;
 
 use ndarray::{Array1, Array2, Array3, ArrayBase, Data, Dimension, Axis};
-use num_traits::Float;
+use num_traits::{Float, ToPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -82,7 +82,7 @@ pub struct TransformerOptimizer<T: Float> {
     state: TransformerOptimizerState<T>,
 }
 
-impl<T: Float> TransformerOptimizer<T> {
+impl<T: Float + ndarray::ScalarOperand + num_traits::FromPrimitive> TransformerOptimizer<T> {
     /// Create new transformer optimizer
     pub fn new(config: TransformerBasedOptimizerConfig<T>) -> Result<Self> {
         let transformer_config = TransformerArchConfig::from_optimizer_config(&config);
@@ -264,11 +264,12 @@ impl<T: Float> TransformerOptimizer<T> {
             return Ok(0.0);
         }
 
-        let initial_loss = recent_losses.last().unwrap();
-        let final_loss = recent_losses.first().unwrap();
+        let initial_loss = *recent_losses.last().unwrap();
+        let final_loss = *recent_losses.first().unwrap();
 
         let improvement = (initial_loss - final_loss) / initial_loss;
-        Ok(improvement.max(0.0).min(1.0))
+        let improvement_f64 = improvement.to_f64().unwrap_or(0.0);
+        Ok(improvement_f64.max(0.0).min(1.0))
     }
 
     /// Get current state

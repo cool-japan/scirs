@@ -10,7 +10,7 @@ use ndarray::Array2;
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Configuration for neuromorphic computing
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +39,8 @@ pub struct NeuromorphicConfig {
     pub enable_homeostasis: bool,
     /// Enable memory consolidation
     pub enable_memory_consolidation: bool,
+    /// Enable quantum processing
+    pub enable_quantum_processing: bool,
     /// Simulation time step (microseconds)
     pub timestep: Duration,
     /// Maximum simulation time
@@ -60,6 +62,7 @@ impl Default for NeuromorphicConfig {
             enable_stdp: true,
             enable_homeostasis: true,
             enable_memory_consolidation: true,
+            enable_quantum_processing: false,
             timestep: Duration::from_micros(100),
             max_simulation_time: Duration::from_secs(10),
         }
@@ -271,4 +274,72 @@ pub struct InformationMetrics<F: Float> {
     pub integrated_information: F,
     /// Complexity measures
     pub complexity: F,
+}
+
+/// Types of synapses
+#[derive(Debug, Clone)]
+pub enum SynapseType {
+    /// Chemical synapse
+    Chemical,
+    /// Electrical synapse (gap junction)
+    Electrical,
+    /// Modulatory synapse
+    Modulatory,
+    /// Plastic synapse
+    Plastic,
+}
+
+/// Homeostatic controller for maintaining network stability
+#[derive(Debug)]
+pub struct HomeostaticController<F: Float> {
+    /// Target firing rates
+    pub target_rates: HashMap<usize, F>,
+    /// Adaptation time constants
+    pub adaptation_constants: HashMap<usize, F>,
+    /// Scaling factors
+    pub scaling_factors: HashMap<usize, F>,
+    /// Intrinsic excitability parameters
+    pub intrinsic_excitability: HashMap<usize, F>,
+}
+
+impl<F: Float> HomeostaticController<F> {
+    /// Create new homeostatic controller
+    pub fn new(config: &NeuromorphicConfig) -> crate::error::Result<Self> {
+        let mut target_rates = HashMap::new();
+        let mut adaptation_constants = HashMap::new();
+        let mut scaling_factors = HashMap::new();
+        let mut intrinsic_excitability = HashMap::new();
+
+        // Initialize with default values for all neurons
+        let total_neurons = config.input_neurons +
+                          (config.hidden_layers * config.neurons_per_layer) +
+                          config.output_neurons;
+
+        for i in 0..total_neurons {
+            target_rates.insert(i, F::from(5.0).unwrap()); // 5 Hz target
+            adaptation_constants.insert(i, F::from(0.01).unwrap());
+            scaling_factors.insert(i, F::one());
+            intrinsic_excitability.insert(i, F::one());
+        }
+
+        Ok(Self {
+            target_rates,
+            adaptation_constants,
+            scaling_factors,
+            intrinsic_excitability,
+        })
+    }
+
+    /// Regulate network activity
+    pub fn regulate<T>(&mut self, _network: &mut T) -> crate::error::Result<()> {
+        // Simplified homeostatic regulation
+        // In practice, this would adjust synaptic weights and intrinsic properties
+        // based on deviation from target firing rates
+        Ok(())
+    }
+
+    /// Update configuration
+    pub fn update_config(&mut self, _config: &NeuromorphicConfig) -> crate::error::Result<()> {
+        Ok(())
+    }
 }

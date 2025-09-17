@@ -40,3 +40,6 @@ pub use real_world::{
     test_bayesian_validation, test_information_theory_metrics,
     calculate_comprehensive_score_enhanced
 };
+pub use utils::{find_peaks_simple, find_peaks, relative_error, rmse, mae, max_abs_error};
+pub use numerical::{validate_numerical_precision, calculate_numerical_stability_metrics};
+pub use scipy_comparison::{scipy_reference_lombscargle, validate_against_scipy_reference};

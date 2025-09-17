@@ -3,6 +3,7 @@
 use num_traits::Float;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use super::adaptation::AdaptationConfig;
 
 /// Advanced configuration for optimization coordinator
 #[derive(Debug, Clone)]
@@ -42,6 +43,9 @@ pub struct AdvancedConfig<T: Float> {
 
     /// Cache size limit
     pub cache_size_limit: usize,
+
+    /// Adaptation configuration
+    pub adaptation_config: AdaptationConfig<T>,
 }
 
 impl<T: Float> Default for AdvancedConfig<T> {
@@ -74,6 +78,7 @@ impl<T: Float> Default for AdvancedConfig<T> {
             enable_dynamic_reconfiguration: true,
             enable_advanced_analytics: true,
             cache_size_limit: 10000,
+            adaptation_config: AdaptationConfig::default(),
         }
     }
 }
@@ -227,6 +232,7 @@ pub struct OptimizationContext<T: Float> {
     pub metadata: HashMap<String, String>,
 }
 
+
 /// Computational budget
 #[derive(Debug, Clone)]
 pub struct ComputationalBudget {
@@ -239,6 +245,7 @@ pub struct ComputationalBudget {
     /// Available CPU cores
     pub available_cores: usize,
 }
+
 
 /// Convergence criteria
 #[derive(Debug, Clone)]
@@ -254,6 +261,7 @@ pub struct ConvergenceCriteria<T: Float> {
     /// Consecutive improvement threshold
     pub stagnation_threshold: usize,
 }
+
 
 /// Optimization phases
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

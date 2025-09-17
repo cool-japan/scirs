@@ -417,8 +417,8 @@ impl<T: Float + Send + Sync + Debug> AdaptationController<T> {
 
     /// Get current performance metric
     fn get_current_performance(&self, context: &OptimizationContext<T>) -> T {
-        if !context.performance_history.is_empty() {
-            context.performance_history[context.performance_history.len() - 1]
+        if !context.historical_performance.is_empty() {
+            context.historical_performance[context.historical_performance.len() - 1]
         } else {
             T::zero()
         }
@@ -466,6 +466,59 @@ impl<T: Float + Send + Sync + Debug> AdaptationController<T> {
             .iter()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(adaptation_type, _)| *adaptation_type)
+    }
+
+    /// Setup default triggers
+    pub fn setup_default_triggers(&mut self) -> Result<()> {
+        // Add default performance degradation trigger
+        let degradation_trigger = Box::new(PerformanceDegradationTrigger::new(T::from(0.1).unwrap()));
+        self.triggers.push(degradation_trigger);
+
+        // Add convergence stagnation trigger
+        let stagnation_trigger = Box::new(ConvergenceStagnationTrigger::new(T::from(0.01).unwrap()));
+        self.triggers.push(stagnation_trigger);
+
+        Ok(())
+    }
+
+    /// Trigger adaptation
+    pub fn trigger_adaptation(&mut self, context: &OptimizationContext<T>) -> Result<Option<AdaptationEvent<T>>> {
+        // Check all triggers
+        for trigger in &self.triggers {
+            if trigger.is_triggered(context) {
+                let adaptation_type = trigger.trigger_type();
+                let current_performance = if !context.historical_performance.is_empty() {
+                    context.historical_performance[context.historical_performance.len() - 1]
+                } else {
+                    T::zero()
+                };
+
+                return Ok(Some(AdaptationEvent {
+                    timestamp: std::time::SystemTime::now(),
+                    adaptation_type,
+                    trigger_name: trigger.name().to_string(),
+                    performance_before: current_performance,
+                    performance_after: None,
+                    success: false, // Will be updated later
+                    duration: Duration::from_secs(0),
+                    metadata: HashMap::new(),
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Get effectiveness score
+    pub fn get_effectiveness_score(&self) -> T {
+        let stats = self.get_adaptation_statistics();
+        T::from(stats.success_rate).unwrap_or(T::zero())
+    }
+
+    /// Reset the adaptation controller
+    pub fn reset(&mut self) -> Result<()> {
+        self.adaptation_history.clear();
+        self.current_state.adaptation_effectiveness.clear();
+        Ok(())
     }
 }
 
@@ -529,11 +582,11 @@ impl<T: Float + Send + Sync> PerformanceDegradationTrigger<T> {
 
 impl<T: Float + Send + Sync + Debug> AdaptationTrigger<T> for PerformanceDegradationTrigger<T> {
     fn is_triggered(&self, context: &OptimizationContext<T>) -> bool {
-        if context.performance_history.len() < self.min_history_length {
+        if context.historical_performance.len() < self.min_history_length {
             return false;
         }
 
-        let history = &context.performance_history;
+        let history = &context.historical_performance;
         let mut consecutive_drops = 0;
 
         for i in 1..history.len().min(self.consecutive_drops + 1) {
@@ -559,9 +612,9 @@ impl<T: Float + Send + Sync + Debug> AdaptationTrigger<T> for PerformanceDegrada
     }
 
     fn urgency(&self, context: &OptimizationContext<T>) -> T {
-        if context.performance_history.len() >= 2 {
-            let recent = context.performance_history[context.performance_history.len() - 1];
-            let previous = context.performance_history[context.performance_history.len() - 2];
+        if context.historical_performance.len() >= 2 {
+            let recent = context.historical_performance[context.historical_performance.len() - 1];
+            let previous = context.historical_performance[context.historical_performance.len() - 2];
             let drop = (previous - recent).max(T::zero());
             (drop / self.threshold).min(T::one())
         } else {
@@ -608,11 +661,11 @@ impl<T: Float + Send + Sync> ConvergenceStagnationTrigger<T> {
 
 impl<T: Float + Send + Sync + Debug> AdaptationTrigger<T> for ConvergenceStagnationTrigger<T> {
     fn is_triggered(&self, context: &OptimizationContext<T>) -> bool {
-        if context.performance_history.len() < self.check_iterations {
+        if context.historical_performance.len() < self.check_iterations {
             return false;
         }
 
-        let history = &context.performance_history;
+        let history = &context.historical_performance;
         let recent_slice = &history[history.len() - self.check_iterations..];
 
         let max_change = recent_slice.windows(2)
@@ -757,7 +810,7 @@ mod tests {
         assert!(!trigger.is_triggered(&context));
 
         // Add enough history with degradation
-        context.performance_history = vec![1.0, 0.8, 0.6, 0.4, 0.2];
+        context.historical_performance = vec![1.0, 0.8, 0.6, 0.4, 0.2];
         assert!(trigger.is_triggered(&context));
     }
 

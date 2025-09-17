@@ -2,6 +2,7 @@
 
 use num_traits::Float;
 use serde::{Serialize, Deserialize};
+use super::positional_encoding::PositionalEncodingType;
 
 /// Configuration for transformer-based optimizer
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,14 +266,6 @@ pub enum ActivationFunction {
     LeakyReLU,
 }
 
-/// Positional encoding types
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum PositionalEncodingType {
-    Sinusoidal,
-    Learned,
-    Rotary,
-    None,
-}
 
 /// Memory management configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

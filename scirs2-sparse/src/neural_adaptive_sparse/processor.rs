@@ -513,7 +513,7 @@ impl NeuralAdaptiveSparseProcessor {
         y: &mut [T],
     ) -> SparseResult<()>
     where
-        T: Float + NumAssign + SimdUnifiedOps + std::fmt::Debug + Copy,
+        T: Float + NumAssign + SimdUnifiedOps + std::fmt::Debug + Copy + Send + Sync,
     {
         match strategy {
             OptimizationStrategy::RowWiseCache => {
@@ -627,7 +627,8 @@ impl NeuralAdaptiveSparseProcessor {
         // Use parallel operations from scirs2-core
         use scirs2_core::parallel_ops::*;
 
-        parallel_for(0..y.len(), |i| {
+        // Sequential implementation for now
+        for i in 0..y.len() {
             y[i] = T::zero();
             if i + 1 < indptr.len() {
                 for j in indptr[i]..indptr[i + 1] {
@@ -639,7 +640,7 @@ impl NeuralAdaptiveSparseProcessor {
                     }
                 }
             }
-        });
+        }
 
         Ok(())
     }

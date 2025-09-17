@@ -757,7 +757,7 @@ pub struct OptimizerResources<T: Float> {
     pub quality_of_service: QualityOfService,
 }
 
-impl<T: Float> Default for OptimizerResources<T> {
+impl<T: Float + std::default::Default> Default for OptimizerResources<T> {
     fn default() -> Self {
         Self {
             cpu_allocation: 1.0,
@@ -847,11 +847,21 @@ pub struct AllocationRecord<T: Float> {
     pub efficiency_score: T,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct AllocationMetadata<T: Float> {
     pub allocation_strategy: String,
     pub total_efficiency: T,
     pub load_balance_score: T,
+}
+
+impl<T: Float> Default for AllocationMetadata<T> {
+    fn default() -> Self {
+        Self {
+            allocation_strategy: "balanced".to_string(),
+            total_efficiency: T::one(),
+            load_balance_score: T::one(),
+        }
+    }
 }
 
 // Placeholder implementations for supporting components
@@ -1055,6 +1065,12 @@ pub struct HistoricalUsage {
     pub average_cpu_efficiency: f64,
     pub average_memory_efficiency: f64,
     pub total_allocations: usize,
+}
+
+impl HistoricalUsage {
+    pub fn is_empty(&self) -> bool {
+        self.total_allocations == 0
+    }
 }
 
 pub trait OptimizationAlgorithm<T: Float>: Send + Sync + std::fmt::Debug {

@@ -13,6 +13,9 @@ use super::{
     OptimizerCapabilities,
 };
 use super::config::AdaptationType;
+use super::resource_management::OptimizerResources;
+use super::{ScalabilityInfo, ResourceRequirements, ComputationalComplexity, ConvergenceGuarantees};
+use super::config::{ComplexityClass, ParallelScalability};
 use crate::error::Result;
 
 /// Optimizer ensemble manager
@@ -46,7 +49,7 @@ pub struct OptimizerEnsemble<T: Float> {
     weight_updater: WeightUpdateMechanism<T>,
 }
 
-impl<T: Float> OptimizerEnsemble<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync + std::cmp::Ord + std::default::Default> OptimizerEnsemble<T> {
     /// Create new optimizer ensemble
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -333,7 +336,7 @@ impl<T: Float> OptimizerEnsemble<T> {
         context: &OptimizationContext<T>,
     ) -> Result<Vec<String>> {
         let num_select = (context.computational_budget.available_cores).min(self.optimizers.len());
-        let mut selected = Vec::new();
+        let mut selected: Vec<String> = Vec::new();
 
         // Simple epsilon-greedy for MAB
         let epsilon = T::from(0.1).unwrap();
@@ -341,11 +344,14 @@ impl<T: Float> OptimizerEnsemble<T> {
         for _ in 0..num_select {
             if rand::random::<f64>() < epsilon.to_f64().unwrap() {
                 // Exploration: random selection
-                let available: Vec<_> = self.optimizers.keys()
+                let available: Vec<String> = self.optimizers.keys()
                     .filter(|k| !selected.contains(k))
+                    .cloned()
                     .collect();
                 if !available.is_empty() {
-                    let idx = rand::random::<usize>() % available.len();
+                    use rand::Rng;
+                    let mut rng = rand::thread_rng();
+                    let idx = rng.gen_range(0..available.len());
                     selected.push(available[idx].clone());
                 }
             } else {
@@ -515,11 +521,19 @@ impl<T: Float> OptimizerEnsemble<T> {
                 break;
             }
 
-            let best = remaining.iter()
-                .max_by_key(|k| self.performance_scores.get(*k).cloned().unwrap_or(T::zero()))
-                .map(|k| (*k).clone());
+            let mut best_optimizer: Option<String> = None;
+            let mut best_score = T::zero();
 
-            if let Some(optimizer) = best {
+            for &optimizer_id in &remaining {
+                if let Some(score) = self.performance_scores.get(optimizer_id) {
+                    if *score > best_score {
+                        best_score = *score;
+                        best_optimizer = Some(optimizer_id.clone());
+                    }
+                }
+            }
+
+            if let Some(optimizer) = best_optimizer {
                 selected.push(optimizer);
             } else {
                 break;
@@ -536,7 +550,7 @@ impl<T: Float> OptimizerEnsemble<T> {
         gradients: &Array1<T>,
         context: &OptimizationContext<T>,
         _guidance: &MetaLearningGuidance<T>,
-        _resources: &OptimizerResources,
+        _resources: &OptimizerResources<T>,
     ) -> Result<Array1<T>> {
         // Simplified optimization step - in practice, this would call the actual optimizer
         let learning_rate = T::from(0.01).unwrap(); // Would be determined by the optimizer
@@ -735,12 +749,6 @@ pub struct AdaptationEvent<T: Float> {
 
 /// Supporting types and placeholder implementations
 
-#[derive(Debug, Default)]
-pub struct OptimizerResources {
-    pub cpu_allocation: f64,
-    pub memory_allocation: usize,
-    pub time_allocation: Duration,
-}
 
 // Placeholder optimizer implementations
 #[derive(Debug)]
@@ -775,7 +783,35 @@ impl<T: Float + std::fmt::Debug + Send + Sync> AdvancedOptimizer<T> for AdamOpti
     }
 
     fn get_capabilities(&self) -> OptimizerCapabilities {
-        OptimizerCapabilities::default()
+        OptimizerCapabilities {
+            supported_problems: vec![],
+            scalability: ScalabilityInfo {
+                max_parameters: 1000,
+                memory_complexity: ComplexityClass::Linear,
+                time_complexity: ComplexityClass::Linear,
+                parallel_scalability: ParallelScalability {
+                    max_threads: 8,
+                    efficiency: 0.8,
+                    communication_overhead: 0.1,
+                },
+            },
+            memory_requirements: ResourceRequirements {
+                cpu_cores: 1,
+                memory_mb: 1000,
+                gpu_memory_mb: 0,
+                network_bandwidth: 100,
+            },
+            computational_complexity: ComputationalComplexity {
+                time_complexity: "O(n)".to_string(),
+                space_complexity: "O(n)".to_string(),
+                parallelism_factor: 0.8,
+            },
+            convergence_guarantees: ConvergenceGuarantees {
+                guarantees_convergence: false,
+                convergence_rate: None,
+                conditions: vec![],
+            },
+        }
     }
 
     fn get_performance_score(&self) -> T {
@@ -824,7 +860,35 @@ macro_rules! impl_placeholder_optimizer {
             }
 
             fn get_capabilities(&self) -> OptimizerCapabilities {
-                OptimizerCapabilities::default()
+                OptimizerCapabilities {
+                        supported_problems: vec![],
+                        scalability: ScalabilityInfo {
+                            max_parameters: 1000,
+                            memory_complexity: ComplexityClass::Linear,
+                            time_complexity: ComplexityClass::Linear,
+                            parallel_scalability: ParallelScalability {
+                    max_threads: 8,
+                    efficiency: 0.8,
+                    communication_overhead: 0.1,
+                },
+                        },
+                        memory_requirements: ResourceRequirements {
+                            cpu_cores: 1,
+                            memory_mb: 1000,
+                            gpu_memory_mb: 0,
+                            network_bandwidth: 100,
+                        },
+                        computational_complexity: ComputationalComplexity {
+                            time_complexity: "O(n)".to_string(),
+                            space_complexity: "O(n)".to_string(),
+                            parallelism_factor: 0.8,
+                        },
+                        convergence_guarantees: ConvergenceGuarantees {
+                            guarantees_convergence: false,
+                            convergence_rate: None,
+                            conditions: vec![],
+                        },
+                }
             }
 
             fn get_performance_score(&self) -> T {

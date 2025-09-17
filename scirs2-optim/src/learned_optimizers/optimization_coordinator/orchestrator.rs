@@ -38,7 +38,7 @@ pub struct MetaLearningOrchestrator<T: Float> {
     meta_history: VecDeque<MetaLearningEpisode<T>>,
 }
 
-impl<T: Float> MetaLearningOrchestrator<T> {
+impl<T: Float + std::fmt::Debug + Send + Sync> MetaLearningOrchestrator<T> {
     /// Create new meta-learning orchestrator
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -343,9 +343,10 @@ impl<T: Float> MetaLearningOrchestrator<T> {
         task_characteristics: &TaskCharacteristics<T>,
     ) -> Result<HashMap<String, T>> {
         let mut adjustments = HashMap::new();
+        let difficulty_level = self.assess_task_difficulty(task_characteristics)?;
 
         for optimizer in optimizers {
-            let base_adjustment = match task_characteristics.difficulty_level {
+            let base_adjustment = match difficulty_level {
                 DifficultyLevel::Easy => T::from(1.2).unwrap(),
                 DifficultyLevel::Medium => T::one(),
                 DifficultyLevel::Hard => T::from(0.8).unwrap(),
@@ -846,7 +847,7 @@ macro_rules! impl_strategy {
             _phantom: std::marker::PhantomData<T>,
         }
 
-        impl<T: Float> $name<T> {
+        impl<T: Float + std::fmt::Debug + Send + Sync> $name<T> {
             pub fn new() -> Result<Self> {
                 Ok(Self {
                     _phantom: std::marker::PhantomData,

@@ -189,7 +189,7 @@ impl<F: Float> SynapticConnections<F> {
         let connections = HashMap::new();
         let delays = HashMap::new();
         let topology_data = super::core::ConnectionTopology {
-            adjacency_matrix: ndarray::Array2::zeros((0, 0)),
+            adjacency_matrix: ndarray::Array2::from_elem((0, 0), false),
             weight_matrix: ndarray::Array2::zeros((0, 0)),
             small_world: super::core::SmallWorldProperties {
                 clustering_coefficient: 0.0,
@@ -393,7 +393,7 @@ impl<F: Float> STDPCurveParameters<F> {
     }
 }
 
-impl<F: Float> SynapticPlasticityManager<F> {
+impl<F: Float + std::iter::Sum> SynapticPlasticityManager<F> {
     /// Create new plasticity manager
     pub fn new() -> Self {
         let mut stdp_windows = HashMap::new();
@@ -436,7 +436,7 @@ impl<F: Float> SynapticPlasticityManager<F> {
     }
 }
 
-impl<F: Float> HomeostaticController<F> {
+impl<F: Float + std::iter::Sum> HomeostaticController<F> {
     /// Create new homeostatic controller
     pub fn new(target_rate: F, neurons: Vec<usize>, mode: HomeostaticMode) -> Self {
         Self {
@@ -481,7 +481,7 @@ impl<F: Float> HomeostaticController<F> {
     }
 }
 
-impl<F: Float> MetaplasticityState<F> {
+impl<F: Float + std::iter::Sum> MetaplasticityState<F> {
     /// Create new metaplasticity state
     pub fn new() -> Self {
         Self {

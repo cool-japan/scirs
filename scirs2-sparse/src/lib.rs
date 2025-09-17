@@ -324,7 +324,7 @@ pub use adaptive_memory_compression::{
 // Real-time performance monitoring and adaptation (Advanced mode)
 pub mod realtime_performance_monitor;
 pub use realtime_performance_monitor::{
-    Alert, AlertSeverity, Forecast, PerformanceMetrics, PerformanceMonitorConfig,
+    Alert, AlertSeverity, PerformanceMonitorConfig,
     PerformanceSample, ProcessorType, RealTimePerformanceMonitor,
 };
 

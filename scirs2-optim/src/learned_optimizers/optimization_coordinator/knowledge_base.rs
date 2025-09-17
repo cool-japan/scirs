@@ -12,6 +12,19 @@ use std::time::SystemTime;
 /// Result type for knowledge base operations
 type Result<T> = std::result::Result<T, OptimError>;
 
+/// Optimization experience record
+#[derive(Debug, Clone)]
+pub struct OptimizationExperience<T: Float> {
+    /// Optimizer used
+    pub optimizer_name: String,
+    /// Problem characteristics
+    pub problem_characteristics: Array1<T>,
+    /// Performance achieved
+    pub performance: T,
+    /// Optimization settings
+    pub settings: HashMap<String, String>,
+}
+
 /// Comprehensive optimization knowledge base
 #[derive(Debug)]
 pub struct OptimizationKnowledgeBase<T: Float + Send + Sync + Debug> {
@@ -1189,6 +1202,26 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         let similarity = (complexity_similarity + effectiveness_similarity) / T::from(2.0).unwrap();
 
         Ok(similarity)
+    }
+
+    /// Update knowledge base with optimization experience
+    pub fn update_with_optimization_experience(&mut self, _experience: &OptimizationExperience<T>) -> Result<()> {
+        // Placeholder implementation
+        Ok(())
+    }
+
+    /// Initialize the knowledge base
+    pub fn initialize(&mut self) -> Result<()> {
+        // Placeholder implementation
+        Ok(())
+    }
+
+    /// Reset the knowledge base
+    pub fn reset(&mut self) -> Result<()> {
+        self.optimization_patterns.clear();
+        self.statistics.total_patterns = 0;
+        self.statistics.last_update = SystemTime::now();
+        Ok(())
     }
 }
 

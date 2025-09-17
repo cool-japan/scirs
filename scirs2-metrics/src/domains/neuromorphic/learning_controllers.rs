@@ -87,7 +87,7 @@ pub struct AdaptationEvent<F: Float> {
     pub adaptation_magnitude: F,
 }
 
-impl<F: Float> AdaptiveLearningController<F> {
+impl<F: Float + std::fmt::Debug> AdaptiveLearningController<F> {
     /// Create new adaptive learning controller
     pub fn new() -> Self {
         Self {
