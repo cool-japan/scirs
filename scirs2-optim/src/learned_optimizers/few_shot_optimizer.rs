@@ -1194,6 +1194,9 @@ pub enum EvaluationMetric {
     AUC,
     MSE,
     MAE,
+    FinalPerformance,
+    Efficiency,
+    TrainingTime,
 }
 
 #[cfg(test)]

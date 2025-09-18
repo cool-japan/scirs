@@ -475,23 +475,22 @@ where
         return false; // Too few points to detect outliers
     }
 
-    // Calculate mean and standard deviation
-    let mean = values.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(n).unwrap();
-    let variance = values
-        .iter()
-        .map(|&x| {
-            let diff = x - mean;
-            diff * diff
-        })
-        .fold(F::zero(), |acc, x| acc + x)
-        / F::from(n - 1).unwrap();
+    // Use IQR method which is more robust for outlier detection
+    let mut sorted_values: Vec<F> = values.iter().cloned().collect();
+    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let std_dev = variance.sqrt();
+    let q1_idx = n / 4;
+    let q3_idx = 3 * n / 4;
+    let q1 = sorted_values[q1_idx];
+    let q3 = sorted_values[q3_idx];
+    let iqr = q3 - q1;
 
-    // Check for values more than 3 standard deviations from mean
-    let threshold = F::from(3.0).unwrap() * std_dev;
+    // Use 1.5 * IQR rule for outlier detection
+    let lower_bound = q1 - F::from(1.5).unwrap() * iqr;
+    let upper_bound = q3 + F::from(1.5).unwrap() * iqr;
+
     for &value in values.iter() {
-        if (value - mean).abs() > threshold {
+        if value < lower_bound || value > upper_bound {
             return true;
         }
     }

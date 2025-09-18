@@ -14,13 +14,23 @@
 //!
 //! # Example
 //! ```
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use ndarray::Array1;
 //! use scirs2_signal::parametric::{robust_ar_estimation, RobustEstimationOptions};
 //!
-//! let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0, -1.0, -2.0]);
-//! let order = 4;
+//! // Create a simple AR(2) process with known stable parameters
+//! let mut signal_vec = vec![0.0; 256];
+//! signal_vec[0] = 1.0;
+//! signal_vec[1] = 0.5;
+//! for i in 2..256 {
+//!     signal_vec[i] = 0.6 * signal_vec[i-1] - 0.2 * signal_vec[i-2] + 0.1 * (i as f64 * 0.1).sin();
+//! }
+//! let signal = Array1::from_vec(signal_vec);
+//! let order = 2; // Stable AR(2) order
 //! let options = RobustEstimationOptions::default();
-//! let result = robust_ar_estimation(&signal, order, Some(options)).unwrap();
+//! let result = robust_ar_estimation(&signal, order, Some(options))?;
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::{SignalError, SignalResult};

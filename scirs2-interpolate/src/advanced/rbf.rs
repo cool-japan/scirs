@@ -495,7 +495,7 @@ impl<
     ///         }
     ///         StabilityLevel::Marginal | StabilityLevel::Poor => {
     ///             println!("Warning: Numerical instability detected");
-    ///             println!("Condition number: {:.2e}", report._conditionnumber);
+    ///             println!("Condition number: {:.2e}", report.condition_number);
     ///         }
     ///     }
     /// }

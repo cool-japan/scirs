@@ -480,7 +480,7 @@ pub enum HttpMethod {
 }
 
 /// Webhook authentication methods
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WebhookAuth {
     /// Bearer token authentication
     Bearer { token: String },

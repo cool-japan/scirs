@@ -60,7 +60,7 @@ pub struct NASConfig<T: Float> {
 }
 
 /// Search strategy types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum SearchStrategyType {
     /// Random search baseline
     Random,
@@ -134,6 +134,21 @@ pub struct OptimizerComponentConfig {
     pub compatibility_constraints: Vec<CompatibilityConstraint>,
 }
 
+/// Architecture constraints for components
+#[derive(Debug, Clone, Default)]
+pub struct ArchitectureConstraints {
+    /// Minimum parameter count
+    pub min_parameters: Option<usize>,
+    /// Maximum parameter count
+    pub max_parameters: Option<usize>,
+    /// Required input dimensions
+    pub input_dimensions: Vec<usize>,
+    /// Output dimension constraints
+    pub output_dimensions: Vec<usize>,
+    /// Compatibility rules
+    pub compatibility_rules: Vec<String>,
+}
+
 /// Component type configuration
 #[derive(Debug, Clone)]
 pub struct ComponentTypeConfig {
@@ -143,10 +158,22 @@ pub struct ComponentTypeConfig {
     pub parameters: Vec<String>,
     /// Default configuration
     pub defaults: HashMap<String, String>,
+    /// Whether this component type is enabled
+    pub enabled: bool,
+    /// Probability of selection during search
+    pub probability: f64,
+    /// Hyperparameter ranges for this component
+    pub hyperparameter_ranges: HashMap<String, ParameterRange>,
+    /// Dependencies on other components
+    pub dependencies: Vec<String>,
+    /// Component type
+    pub component_type: ComponentType,
+    /// Architecture constraints
+    pub constraints: ArchitectureConstraints,
 }
 
 /// Component types for optimizers
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComponentType {
     /// Gradient computation methods
     GradientComputation,
@@ -208,7 +235,7 @@ pub enum ParameterRange {
 }
 
 /// Connection pattern types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ConnectionPatternType {
     /// Sequential connection
     Sequential,
@@ -252,7 +279,7 @@ pub struct LearningRateScheduleSpace {
 }
 
 /// Schedule types for learning rate
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ScheduleType {
     Constant,
     StepDecay,
@@ -280,7 +307,7 @@ pub struct RegularizationSpace {
 }
 
 /// Regularization techniques
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RegularizationTechnique {
     L1,
     L2,
@@ -309,7 +336,7 @@ pub struct AdaptiveMechanismSpace {
 }
 
 /// Adaptation strategies
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AdaptationStrategy {
     PerformanceBased,
     GradientBased,
@@ -336,7 +363,7 @@ pub struct MemoryConstraints {
 }
 
 /// Memory allocation strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MemoryAllocationStrategy {
     Static,
     Dynamic,
@@ -390,7 +417,7 @@ pub struct CompatibilityConstraint {
 }
 
 /// Compatibility constraint types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum CompatibilityType {
     /// Components must be used together
     Requires,
@@ -484,7 +511,7 @@ pub struct EvaluationConfig<T: Float> {
 }
 
 /// Problem domains for evaluation
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ProblemDomain {
     Classification,
     Regression,
@@ -498,7 +525,7 @@ pub enum ProblemDomain {
 }
 
 /// Resource types for evaluation limits
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ResourceType {
     Memory,
     CPUTime,
@@ -555,7 +582,7 @@ pub struct DatasetCharacteristics {
 }
 
 /// Problem types for evaluation
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ProblemType {
     BinaryClassification,
     MultiClassClassification,
@@ -568,7 +595,7 @@ pub enum ProblemType {
 }
 
 /// Dataset size categories
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum DatasetSizeCategory {
     Small,      // < 1K samples
     Medium,     // 1K - 100K samples
@@ -577,7 +604,7 @@ pub enum DatasetSizeCategory {
 }
 
 /// Correlation structure in datasets
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum CorrelationStructure {
     Independent,
     LowCorrelation,
@@ -642,7 +669,7 @@ pub struct StatisticalTestingConfig {
 }
 
 /// Statistical test types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum StatisticalTestType {
     TTest,
     WilcoxonRankSum,
@@ -652,7 +679,7 @@ pub enum StatisticalTestType {
 }
 
 /// Multiple comparison correction methods
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MultipleComparisonCorrection {
     None,
     Bonferroni,
@@ -703,7 +730,7 @@ pub struct ObjectiveConfig<T: Float> {
 }
 
 /// Objective types
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ObjectiveType {
     Accuracy,
     Loss,
@@ -718,7 +745,7 @@ pub enum ObjectiveType {
 }
 
 /// Optimization directions
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum OptimizationDirection {
     Minimize,
     Maximize,
@@ -734,7 +761,7 @@ pub enum ObjectivePriority {
 }
 
 /// Multi-objective algorithms
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MultiObjectiveAlgorithm {
     NSGA2,
     NSGA3,
@@ -774,7 +801,7 @@ pub enum PreferenceType<T: Float> {
 }
 
 /// Diversity promotion strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum DiversityStrategy {
     Crowding,
     Sharing,
@@ -785,7 +812,7 @@ pub enum DiversityStrategy {
 }
 
 /// Constraint handling methods
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ConstraintHandlingMethod {
     PenaltyFunction,
     DeathPenalty,
@@ -815,7 +842,7 @@ pub struct EarlyStoppingConfig<T: Float> {
 }
 
 /// Convergence detection strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ConvergenceDetectionStrategy {
     BestScore,
     AverageScore,
@@ -825,7 +852,7 @@ pub enum ConvergenceDetectionStrategy {
 }
 
 /// Architecture encoding strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ArchitectureEncodingStrategy {
     /// Direct parameter encoding
     Direct,
@@ -916,7 +943,7 @@ pub struct TimeConstraints {
 }
 
 /// Time budget allocation strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum TimeBudgetAllocation {
     Uniform,
     AdaptiveByComplexity,
@@ -926,7 +953,7 @@ pub enum TimeBudgetAllocation {
 }
 
 /// Resource violation handling strategies
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ResourceViolationHandling {
     /// Stop search immediately
     Abort,

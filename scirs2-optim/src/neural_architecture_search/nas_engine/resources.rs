@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::marker::PhantomData;
 use num_traits::Float;
 
 use crate::error::{OptimError, Result};
@@ -429,13 +430,13 @@ where
         let (gpu_devices, gpu_usage) = self.get_gpu_info()?;
 
         Ok(ResourceUsage {
-            memory_gb: T::from(used_memory),
-            cpu_time_seconds: T::from(cpu_usage * 3600.0), // Convert to CPU-hours equivalent
-            gpu_time_seconds: T::from(gpu_usage * 3600.0), // Convert to GPU-hours equivalent
-            energy_kwh: T::from(0.25), // 0.25 kWh estimated
-            network_io_gb: T::from(1.0), // 1 GB network I/O
-            disk_io_gb: T::from(2.0), // 2 GB disk I/O
-            peak_memory_gb: T::from(used_memory * 1.2), // 20% overhead
+            memory_gb: num_traits::cast::cast(used_memory).unwrap_or_else(|| T::zero()),
+            cpu_time_seconds: num_traits::cast::cast(cpu_usage * 3600.0).unwrap_or_else(|| T::zero()), // Convert to CPU-hours equivalent
+            gpu_time_seconds: num_traits::cast::cast(gpu_usage * 3600.0).unwrap_or_else(|| T::zero()), // Convert to GPU-hours equivalent
+            energy_kwh: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()), // 0.25 kWh estimated
+            network_io_gb: T::from(1.0).unwrap_or_else(|| T::zero()), // 1 GB network I/O
+            disk_io_gb: T::from(2.0).unwrap_or_else(|| T::zero()), // 2 GB disk I/O
+            peak_memory_gb: T::from(used_memory * 1.2).unwrap_or_else(|| T::zero()), // 20% overhead
             efficiency_score: T::from(0.8), // 80% efficiency
         })
     }
@@ -962,6 +963,7 @@ pub struct UsageTrend<T: Float> {
     pub gpu_trend: TrendDirection,
     pub energy_trend: TrendDirection,
     pub overall_trend: TrendDirection,
+    _phantom: PhantomData<T>,
 }
 
 impl<T: Float> Default for UsageTrend<T> {
@@ -972,6 +974,7 @@ impl<T: Float> Default for UsageTrend<T> {
             gpu_trend: TrendDirection::Stable,
             energy_trend: TrendDirection::Stable,
             overall_trend: TrendDirection::Stable,
+            _phantom: PhantomData,
         }
     }
 }

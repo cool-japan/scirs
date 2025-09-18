@@ -34,13 +34,17 @@ use scirs2_core::simd_ops::SimdUnifiedOps;
 /// # Example
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::dwt2d_enhanced::*;
+/// use scirs2_signal::dwt::Wavelet;
 /// use ndarray::Array2;
 ///
-/// let data = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())?;
+/// let data = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64).collect())?;
 /// let config = Dwt2dConfig::default();
 /// let result = enhanced_dwt2d_decompose(&data, Wavelet::Daubechies4, &config)?;
 /// let reconstructed = enhanced_dwt2d_reconstruct(&result, Wavelet::Daubechies4, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn enhanced_dwt2d_reconstruct(
     result: &EnhancedDwt2dResult,
@@ -303,13 +307,17 @@ fn enhanced_simd_dwt2d_reconstruct(
 /// # Example
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::dwt2d_enhanced::*;
+/// use scirs2_signal::dwt::Wavelet;
 /// use ndarray::Array2;
 ///
-/// let data = Array2::from_shape_vec((16, 16), (0..256).map(|x| x as f64).collect())?;
+/// let data = Array2::from_shape_vec((64, 64), (0..4096).map(|x| x as f64).collect())?;
 /// let config = Dwt2dConfig::default();
-/// let decomp = enhanced_wavedec2(&data, Wavelet::Daubechies4, 3, &config)?;
+/// let decomp = wavedec2_enhanced(&data, Wavelet::Daubechies4, 3, &config)?;
 /// let reconstructed = waverec2_enhanced(&decomp)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn waverec2_enhanced(decomp: &MultilevelDwt2d) -> SignalResult<Array2<f64>> {
     let mut current = decomp.approx.clone();

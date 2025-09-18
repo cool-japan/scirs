@@ -57,6 +57,7 @@
 //!
 //! ## Basic FIR Filtering
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{SimdConfig, simd_fir_filter};
 //!
 //! let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -65,10 +66,13 @@
 //! let config = SimdConfig::default();
 //!
 //! simd_fir_filter(&input, &coeffs, &mut output, &config)?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Batch Spectral Analysis
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{SimdConfig, simd_batch_spectral_analysis};
 //! use ndarray::Array2;
 //!
@@ -77,10 +81,13 @@
 //!
 //! let result = simd_batch_spectral_analysis(&signals, "hann", 1024, &config)?;
 //! println!("Power spectra shape: {:?}", result.power_spectra.shape());
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Spectral Centroid and Rolloff Analysis
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{SimdConfig, simd_spectral_centroid, simd_spectral_rolloff};
 //!
 //! let magnitude_spectrum = vec![1.0, 2.0, 3.0, 2.0, 1.0];
@@ -94,6 +101,8 @@
 //! // Compute spectral rolloff (85% energy point)
 //! let rolloff = simd_spectral_rolloff(&magnitude_spectrum, &frequencies, 0.85, &config)?;
 //! println!("Spectral rolloff: {:.1} Hz", rolloff);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Performance Monitoring

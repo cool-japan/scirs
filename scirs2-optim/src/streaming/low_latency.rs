@@ -117,7 +117,7 @@ where
 }
 
 /// Pre-computation engine for preparing updates in advance
-struct PrecomputationEngine<A: Float> {
+struct PrecomputationEngine<A: Float + Send + Sync> {
     /// Buffer of pre-computed updates
     precomputed_updates: VecDeque<PrecomputedUpdate<A>>,
 
@@ -133,7 +133,7 @@ struct PrecomputationEngine<A: Float> {
 
 /// Pre-computed update entry
 #[derive(Debug, Clone)]
-struct PrecomputedUpdate<A: Float> {
+struct PrecomputedUpdate<A: Float + Send + Sync> {
     /// Predicted gradient
     gradient: Array1<A>,
 
@@ -148,7 +148,7 @@ struct PrecomputedUpdate<A: Float> {
 }
 
 /// Lock-free circular buffer for updates
-struct LockFreeBuffer<A: Float> {
+struct LockFreeBuffer<A: Float + Send + Sync> {
     /// Buffer storage
     buffer: Vec<Option<Array1<A>>>,
 
@@ -178,7 +178,7 @@ struct FastMemoryPool {
 }
 
 /// SIMD processor for vectorized operations
-struct SIMDProcessor<A: Float> {
+struct SIMDProcessor<A: Float + Send + Sync> {
     /// Enable SIMD flag
     enabled: bool,
 
@@ -190,7 +190,7 @@ struct SIMDProcessor<A: Float> {
 }
 
 /// Gradient quantization for reduced precision
-struct GradientQuantizer<A: Float> {
+struct GradientQuantizer<A: Float + Send + Sync> {
     /// Quantization bits
     bits: u8,
 
@@ -226,7 +226,7 @@ struct LatencyMonitor {
 }
 
 /// Approximation controller for trading accuracy for speed
-struct ApproximationController<A: Float> {
+struct ApproximationController<A: Float + Send + Sync> {
     /// Current approximation level (0.0 = exact, 1.0 = maximum approximation)
     approximation_level: A,
 
@@ -242,7 +242,7 @@ struct ApproximationController<A: Float> {
 
 /// Performance measurement point
 #[derive(Debug, Clone)]
-struct PerformancePoint<A: Float> {
+struct PerformancePoint<A: Float + Send + Sync> {
     /// Latency measurement
     latency: Duration,
 
@@ -257,7 +257,7 @@ struct PerformancePoint<A: Float> {
 }
 
 /// Gradient predictor for pre-computation
-struct GradientPredictor<A: Float> {
+struct GradientPredictor<A: Float + Send + Sync> {
     /// Recent gradient history
     gradient_history: VecDeque<Array1<A>>,
 
@@ -496,7 +496,7 @@ where
 }
 
 // Implementation of helper structs
-impl<A: Float> PrecomputationEngine<A> {
+impl<A: Float + Send + Sync> PrecomputationEngine<A> {
     fn new(_buffersize: usize) -> Self {
         Self {
             precomputed_updates: VecDeque::with_capacity(_buffersize),
@@ -531,7 +531,7 @@ impl<A: Float> PrecomputationEngine<A> {
     }
 }
 
-impl<A: Float> LockFreeBuffer<A> {
+impl<A: Float + Send + Sync> LockFreeBuffer<A> {
     fn new(capacity: usize) -> Self {
         Self {
             buffer: vec![None; capacity],
@@ -577,7 +577,7 @@ impl FastMemoryPool {
     }
 }
 
-impl<A: Float> SIMDProcessor<A> {
+impl<A: Float + Send + Sync> SIMDProcessor<A> {
     fn new(enabled: bool) -> Self {
         Self {
             enabled,
@@ -592,7 +592,7 @@ impl<A: Float> SIMDProcessor<A> {
     }
 }
 
-impl<A: Float> GradientQuantizer<A> {
+impl<A: Float + Send + Sync> GradientQuantizer<A> {
     fn new(bits: u8) -> Self {
         Self {
             bits,
@@ -667,7 +667,7 @@ impl LatencyMonitor {
     }
 }
 
-impl<A: Float> ApproximationController<A> {
+impl<A: Float + Send + Sync> ApproximationController<A> {
     fn new(targetlatency: Duration) -> Self {
         Self {
             approximation_level: A::zero(),
@@ -717,7 +717,7 @@ impl<A: Float> ApproximationController<A> {
     }
 }
 
-impl<A: Float> GradientPredictor<A> {
+impl<A: Float + Send + Sync> GradientPredictor<A> {
     fn new(windowsize: usize) -> Self {
         Self {
             gradient_history: VecDeque::with_capacity(windowsize),

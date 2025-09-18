@@ -123,12 +123,11 @@ pub use results::{
     ConvergenceData,
 };
 
+pub use config::{ResourceConstraints, HardwareResources};
+pub use results::ResourceUsage;
 pub use resources::{
     ResourceMonitor,
-    ResourceConstraints,
-    ResourceUsage,
     ResourceSnapshot,
-    HardwareResources,
     ResourceOptimizer,
 };
 
@@ -303,6 +302,15 @@ pub fn create_example_nas_config<T: Float>() -> NASConfig<T> {
         search_space: SearchSpaceConfig {
             component_types: vec![
                 ComponentTypeConfig {
+                    name: "Adam".to_string(),
+                    parameters: vec!["learning_rate".to_string(), "beta1".to_string(), "beta2".to_string()],
+                    defaults: {
+                        let mut defaults = std::collections::HashMap::new();
+                        defaults.insert("learning_rate".to_string(), "0.001".to_string());
+                        defaults.insert("beta1".to_string(), "0.9".to_string());
+                        defaults.insert("beta2".to_string(), "0.999".to_string());
+                        defaults
+                    },
                     component_type: ComponentType::Adam,
                     enabled: true,
                     probability: T::from(0.3).unwrap(),
@@ -311,6 +319,14 @@ pub fn create_example_nas_config<T: Float>() -> NASConfig<T> {
                     dependencies: Vec::new(),
                 },
                 ComponentTypeConfig {
+                    name: "SGD".to_string(),
+                    parameters: vec!["learning_rate".to_string(), "momentum".to_string()],
+                    defaults: {
+                        let mut defaults = std::collections::HashMap::new();
+                        defaults.insert("learning_rate".to_string(), "0.01".to_string());
+                        defaults.insert("momentum".to_string(), "0.0".to_string());
+                        defaults
+                    },
                     component_type: ComponentType::SGD,
                     enabled: true,
                     probability: T::from(0.2).unwrap(),
@@ -319,6 +335,14 @@ pub fn create_example_nas_config<T: Float>() -> NASConfig<T> {
                     dependencies: Vec::new(),
                 },
                 ComponentTypeConfig {
+                    name: "RMSprop".to_string(),
+                    parameters: vec!["learning_rate".to_string(), "decay".to_string()],
+                    defaults: {
+                        let mut defaults = std::collections::HashMap::new();
+                        defaults.insert("learning_rate".to_string(), "0.001".to_string());
+                        defaults.insert("decay".to_string(), "0.9".to_string());
+                        defaults
+                    },
                     component_type: ComponentType::RMSprop,
                     enabled: true,
                     probability: T::from(0.2).unwrap(),

@@ -91,7 +91,8 @@ pub mod schedulers;
 pub mod second_order;
 pub mod self_tuning;
 pub mod streaming;
-pub mod tpu;
+// Temporarily commented out TPU module due to ongoing refactoring
+// pub mod tpu;
 pub mod training_stabilization;
 pub mod unified_api;
 pub mod utils;

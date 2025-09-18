@@ -59,29 +59,63 @@ pub fn simd_convolve_2d(image: &ArrayView2<f32>, kernel: &ArrayView2<f32>) -> Re
     let kernel_flat: Vec<f32> = kernel.iter().copied().collect();
     let kernel_arr = ndarray::arr1(&kernel_flat);
 
-    // Pre-allocate patch buffer to avoid repeated allocations
-    let mut patch = vec![0.0f32; k_height * k_width];
+    // Use heap allocation for large kernels to prevent stack overflow
+    let patch_size = k_height * k_width;
+    let use_heap = patch_size > 64; // Use heap for kernels larger than 8x8
 
-    // Process each output pixel
-    for y in k_half_h..(height - k_half_h) {
-        for x in k_half_w..(width - k_half_w) {
-            // Extract _image patch into pre-allocated buffer (cache-friendly)
-            let mut patch_idx = 0;
-            for ky in 0..k_height {
-                for kx in 0..k_width {
-                    patch[patch_idx] = image[[y + ky - k_half_h, x + kx - k_half_w]];
-                    patch_idx += 1;
+    if use_heap {
+        // For large kernels, use memory pool to avoid repeated heap allocations
+        let mut patch = get_temp_buffer(patch_size);
+
+        // Process each output pixel
+        for y in k_half_h..(height - k_half_h) {
+            for x in k_half_w..(width - k_half_w) {
+                // Extract _image patch into pre-allocated buffer (cache-friendly)
+                let mut patch_idx = 0;
+                for ky in 0..k_height {
+                    for kx in 0..k_width {
+                        patch[patch_idx] = image[[y + ky - k_half_h, x + kx - k_half_w]];
+                        patch_idx += 1;
+                    }
                 }
+
+                // Use SIMD for element-wise multiplication and sum
+                let patch_arr = ndarray::arr1(&patch[..patch_size]);
+
+                // SIMD multiplication
+                let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
+
+                // SIMD sum reduction
+                output[[y, x]] = f32::simd_sum(&products.view());
             }
+        }
 
-            // Use SIMD for element-wise multiplication and sum
-            let patch_arr = ndarray::arr1(&patch);
+        return_temp_buffer(patch);
+    } else {
+        // For small kernels, use stack allocation for better performance
+        let mut patch = vec![0.0f32; patch_size];
 
-            // SIMD multiplication
-            let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
+        // Process each output pixel
+        for y in k_half_h..(height - k_half_h) {
+            for x in k_half_w..(width - k_half_w) {
+                // Extract _image patch into pre-allocated buffer (cache-friendly)
+                let mut patch_idx = 0;
+                for ky in 0..k_height {
+                    for kx in 0..k_width {
+                        patch[patch_idx] = image[[y + ky - k_half_h, x + kx - k_half_w]];
+                        patch_idx += 1;
+                    }
+                }
 
-            // SIMD sum reduction
-            output[[y, x]] = f32::simd_sum(&products.view());
+                // Use SIMD for element-wise multiplication and sum
+                let patch_arr = ndarray::arr1(&patch);
+
+                // SIMD multiplication
+                let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
+
+                // SIMD sum reduction
+                output[[y, x]] = f32::simd_sum(&products.view());
+            }
         }
     }
 
@@ -174,21 +208,44 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
     let kernel_size = 2 * kernel_radius + 1; // Ensures odd size
     let kernel_half = kernel_radius;
 
-    let mut kernel_1d = vec![0.0f32; kernel_size];
-    let mut sum = 0.0f32;
+    // Use memory pool for large kernels to prevent stack overflow
+    let use_heap = kernel_size > 32;
+    let (kernel_1d, kernel_arr) = if use_heap {
+        let mut kernel_1d = get_temp_buffer(kernel_size);
+        kernel_1d.resize(kernel_size, 0.0);
+        let mut sum = 0.0f32;
 
-    for (i, kernel_val) in kernel_1d.iter_mut().enumerate() {
-        let x = i as f32 - kernel_half as f32;
-        let value = (-x * x / (2.0 * sigma * sigma)).exp();
-        *kernel_val = value;
-        sum += value;
-    }
+        for (i, kernel_val) in kernel_1d.iter_mut().enumerate() {
+            let x = i as f32 - kernel_half as f32;
+            let value = (-x * x / (2.0 * sigma * sigma)).exp();
+            *kernel_val = value;
+            sum += value;
+        }
 
-    // Normalize kernel
-    for val in &mut kernel_1d {
-        *val /= sum;
-    }
-    let kernel_arr = ndarray::arr1(&kernel_1d);
+        // Normalize kernel
+        for val in &mut kernel_1d {
+            *val /= sum;
+        }
+        let kernel_arr = ndarray::arr1(&kernel_1d);
+        (kernel_1d, kernel_arr)
+    } else {
+        let mut kernel_1d = vec![0.0f32; kernel_size];
+        let mut sum = 0.0f32;
+
+        for (i, kernel_val) in kernel_1d.iter_mut().enumerate() {
+            let x = i as f32 - kernel_half as f32;
+            let value = (-x * x / (2.0 * sigma * sigma)).exp();
+            *kernel_val = value;
+            sum += value;
+        }
+
+        // Normalize kernel
+        for val in &mut kernel_1d {
+            *val /= sum;
+        }
+        let kernel_arr = ndarray::arr1(&kernel_1d);
+        (kernel_1d, kernel_arr)
+    };
 
     // Ensure kernel doesn't exceed _image dimensions
     if kernel_size >= width || kernel_size >= height {
@@ -209,6 +266,10 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
                 }
                 output[[y, x]] = sum_val / count as f32;
             }
+        }
+        // Return memory pool buffer if used
+        if use_heap {
+            return_temp_buffer(kernel_1d);
         }
         return Ok(output);
     }
@@ -283,6 +344,11 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
                 output[[y, x]] = temp[[y, x]];
             }
         }
+    }
+
+    // Return memory pool buffer if used
+    if use_heap {
+        return_temp_buffer(kernel_1d);
     }
 
     Ok(output)
@@ -474,8 +540,14 @@ pub fn simd_convolve_2d_blocked(
     let kernel_flat: Vec<f32> = kernel.iter().copied().collect();
     let kernel_arr = ndarray::arr1(&kernel_flat);
 
-    // Pre-allocate patch buffer
-    let mut patch = vec![0.0f32; k_height * k_width];
+    // Pre-allocate patch buffer using memory pool for large kernels
+    let patch_size = k_height * k_width;
+    let use_heap = patch_size > 64;
+    let mut patch = if use_heap {
+        get_temp_buffer(patch_size)
+    } else {
+        vec![0.0f32; patch_size]
+    };
 
     // Process in cache-friendly blocks
     let y_blocks = (height - 2 * k_half_h).div_ceil(block_size);
@@ -508,6 +580,11 @@ pub fn simd_convolve_2d_blocked(
                 }
             }
         }
+    }
+
+    // Return memory pool buffer if used
+    if use_heap {
+        return_temp_buffer(patch);
     }
 
     Ok(output)

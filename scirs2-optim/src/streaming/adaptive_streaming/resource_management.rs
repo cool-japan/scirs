@@ -1086,30 +1086,29 @@ impl ResourceAlertSystem {
             return Ok(None);
         };
 
+        let threshold_value = match severity {
+            AlertSeverity::Emergency => thresholds.emergency,
+            AlertSeverity::Critical => thresholds.critical,
+            AlertSeverity::Warning => thresholds.warning,
+            _ => thresholds.warning,
+        };
+
+        let suggested_actions = self.generate_suggested_actions(resource_type, &severity);
+
         let alert = ResourceAlert {
             id: format!("{}_{}", resource_type, Instant::now().elapsed().as_nanos()),
             timestamp: Instant::now(),
             severity,
             resource_type: resource_type.to_string(),
             current_value,
-            threshold_value: match severity {
-                AlertSeverity::Emergency => thresholds.emergency,
-                AlertSeverity::Critical => thresholds.critical,
-                AlertSeverity::Warning => thresholds.warning,
-                _ => thresholds.warning,
-            },
+            threshold_value,
             message: format!(
                 "{} usage is {:.2}% (threshold: {:.2}%)",
                 resource_type,
                 current_value,
-                match severity {
-                    AlertSeverity::Emergency => thresholds.emergency,
-                    AlertSeverity::Critical => thresholds.critical,
-                    AlertSeverity::Warning => thresholds.warning,
-                    _ => thresholds.warning,
-                }
+                threshold_value
             ),
-            suggested_actions: self.generate_suggested_actions(resource_type, &severity),
+            suggested_actions,
             auto_resolution_attempts: 0,
         };
 

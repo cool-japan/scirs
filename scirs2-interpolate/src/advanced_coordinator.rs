@@ -43,6 +43,13 @@
 //!     create_advanced_interpolation_coordinator,
 //!     AdvancedInterpolationConfig
 //! };
+//! use ndarray::Array1;
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!
+//! // Sample data
+//! let x_data = Array1::from(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
+//! let y_data = Array1::from(vec![0.0, 1.0, 4.0, 9.0, 16.0]);
+//! let x_new = Array1::from(vec![1.5, 2.5]);
 //!
 //! // Create coordinator with default configuration
 //! let coordinator = create_advanced_interpolation_coordinator::<f64>(None)?;
@@ -65,6 +72,8 @@
 //! let result = coordinator.execute_optimized_interpolation(
 //!     &x_data, &y_data, &x_new, &recommendation
 //! )?;
+//! # Ok(())
+//! # }
 //! ```
 
 // Re-export all functionality from the modular implementation

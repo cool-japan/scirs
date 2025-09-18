@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 /// Performance snapshot representing metrics at a specific point in time
 #[derive(Debug, Clone)]
-pub struct PerformanceSnapshot<A: Float> {
+pub struct PerformanceSnapshot<A: Float + Send + Sync> {
     /// Timestamp when snapshot was taken
     pub timestamp: Instant,
     /// Primary loss metric
@@ -39,7 +39,7 @@ pub struct PerformanceSnapshot<A: Float> {
 
 /// Data quality and distribution statistics
 #[derive(Debug, Clone, Default)]
-pub struct DataStatistics<A: Float> {
+pub struct DataStatistics<A: Float + Send + Sync> {
     /// Number of samples in this batch
     pub sample_count: usize,
     /// Feature-wise means
@@ -54,7 +54,7 @@ pub struct DataStatistics<A: Float> {
 
 /// Performance metrics for tracking and analysis
 #[derive(Debug, Clone)]
-pub enum PerformanceMetric<A: Float> {
+pub enum PerformanceMetric<A: Float + Send + Sync> {
     /// Loss function value
     Loss(A),
     /// Classification/regression accuracy
@@ -75,7 +75,7 @@ pub enum PerformanceMetric<A: Float> {
 
 /// Context information for performance evaluation
 #[derive(Debug, Clone)]
-pub struct PerformanceContext<A: Float> {
+pub struct PerformanceContext<A: Float + Send + Sync> {
     /// Current learning rate
     pub learning_rate: A,
     /// Current batch size
@@ -91,7 +91,7 @@ pub struct PerformanceContext<A: Float> {
 }
 
 /// Performance tracker for streaming optimization
-pub struct PerformanceTracker<A: Float> {
+pub struct PerformanceTracker<A: Float + Send + Sync + std::iter::Sum> {
     /// Configuration for performance tracking
     config: PerformanceConfig,
     /// Performance history
@@ -111,7 +111,7 @@ pub struct PerformanceTracker<A: Float> {
 }
 
 /// Trend analysis for performance metrics
-pub struct PerformanceTrendAnalyzer<A: Float> {
+pub struct PerformanceTrendAnalyzer<A: Float + Send + Sync> {
     /// Window size for trend analysis
     window_size: usize,
     /// Current trends for different metrics
@@ -122,7 +122,7 @@ pub struct PerformanceTrendAnalyzer<A: Float> {
 
 /// Trend data for a specific metric
 #[derive(Debug, Clone)]
-pub struct TrendData<A: Float> {
+pub struct TrendData<A: Float + Send + Sync> {
     /// Linear trend slope
     pub slope: A,
     /// Trend correlation coefficient
@@ -151,7 +151,7 @@ pub enum TrendMethod {
 }
 
 /// Performance predictor using various forecasting methods
-pub struct PerformancePredictor<A: Float> {
+pub struct PerformancePredictor<A: Float + Send + Sync> {
     /// Prediction methods to use
     prediction_methods: Vec<PredictionMethod>,
     /// Historical predictions for accuracy tracking
@@ -179,7 +179,7 @@ pub enum PredictionMethod {
 
 /// Result of performance prediction
 #[derive(Debug, Clone)]
-pub struct PredictionResult<A: Float> {
+pub struct PredictionResult<A: Float + Send + Sync> {
     /// Predicted metric value
     pub predicted_value: A,
     /// Prediction confidence interval
@@ -195,7 +195,7 @@ pub struct PredictionResult<A: Float> {
 }
 
 /// Performance improvement tracking
-pub struct PerformanceImprovementTracker<A: Float> {
+pub struct PerformanceImprovementTracker<A: Float + Send + Sync> {
     /// Baseline performance metrics
     baseline_metrics: HashMap<String, A>,
     /// Current improvement rates
@@ -208,7 +208,7 @@ pub struct PerformanceImprovementTracker<A: Float> {
 
 /// Performance improvement event
 #[derive(Debug, Clone)]
-pub struct ImprovementEvent<A: Float> {
+pub struct ImprovementEvent<A: Float + Send + Sync> {
     /// Event timestamp
     pub timestamp: Instant,
     /// Metric that improved
@@ -222,7 +222,7 @@ pub struct ImprovementEvent<A: Float> {
 }
 
 /// Plateau detection for performance metrics
-pub struct PlateauDetector<A: Float> {
+pub struct PlateauDetector<A: Float + Send + Sync> {
     /// Window size for plateau detection
     window_size: usize,
     /// Plateau threshold (minimum change for non-plateau)
@@ -238,7 +238,7 @@ pub struct PlateauDetector<A: Float> {
 }
 
 /// Anomaly detection for performance metrics
-pub struct PerformanceAnomalyDetector<A: Float> {
+pub struct PerformanceAnomalyDetector<A: Float + Send + Sync> {
     /// Anomaly detection threshold (standard deviations)
     threshold: A,
     /// Historical statistics for anomaly detection
@@ -251,7 +251,7 @@ pub struct PerformanceAnomalyDetector<A: Float> {
 
 /// Statistics for a performance metric
 #[derive(Debug, Clone)]
-pub struct MetricStatistics<A: Float> {
+pub struct MetricStatistics<A: Float + Send + Sync> {
     /// Running mean
     pub mean: A,
     /// Running variance
@@ -268,7 +268,7 @@ pub struct MetricStatistics<A: Float> {
 
 /// Performance anomaly event
 #[derive(Debug, Clone)]
-pub struct PerformanceAnomaly<A: Float> {
+pub struct PerformanceAnomaly<A: Float + Send + Sync> {
     /// Anomaly timestamp
     pub timestamp: Instant,
     /// Affected metric
@@ -313,7 +313,7 @@ pub enum AnomalyType {
     Plateau,
 }
 
-impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
+impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync> PerformanceTracker<A> {
     /// Creates a new performance tracker
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let performance_config = config.performance_config.clone();
@@ -469,7 +469,7 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
     }
 }
 
-impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
+impl<A: Float + Default + Clone + Send + Sync> PerformanceTrendAnalyzer<A> {
     fn new(window_size: usize) -> Self {
         Self {
             window_size,
@@ -523,14 +523,33 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
     }
 
     fn compute_trends(&mut self) -> Result<(), String> {
-        for (metric_name, trend_data) in &mut self.trends {
-            if trend_data.recent_values.len() >= 3 {
-                trend_data.slope = self.compute_slope(&trend_data.recent_values)?;
-                trend_data.correlation = self.compute_correlation(&trend_data.recent_values)?;
-                trend_data.volatility = self.compute_volatility(&trend_data.recent_values)?;
-                trend_data.confidence = self.compute_confidence(&trend_data.recent_values)?;
+        let keys: Vec<_> = self.trends.keys().cloned().collect();
+
+        // Collect all computed values first
+        let mut computed_values = Vec::new();
+        for metric_name in &keys {
+            if let Some(trend_data) = self.trends.get(&metric_name) {
+                if trend_data.recent_values.len() >= 3 {
+                    let values = trend_data.recent_values.clone();
+                    let slope = self.compute_slope(&values)?;
+                    let correlation = self.compute_correlation(&values)?;
+                    let volatility = self.compute_volatility(&values)?;
+                    let confidence = self.compute_confidence(&values)?;
+                    computed_values.push((metric_name.clone(), slope, correlation, volatility, confidence));
+                }
             }
         }
+
+        // Now update the trend data
+        for (metric_name, slope, correlation, volatility, confidence) in computed_values {
+            if let Some(trend_data) = self.trends.get_mut(&metric_name) {
+                trend_data.slope = slope;
+                trend_data.correlation = correlation;
+                trend_data.volatility = volatility;
+                trend_data.confidence = confidence;
+            }
+        }
+
         Ok(())
     }
 
@@ -630,7 +649,7 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
     }
 }
 
-impl<A: Float + Default + Clone> PerformancePredictor<A> {
+impl<A: Float + Default + Clone + Send + Sync> PerformancePredictor<A> {
     fn new() -> Self {
         Self {
             prediction_methods: vec![
@@ -749,6 +768,8 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
 
     fn update_with_actual(&mut self, snapshot: &PerformanceSnapshot<A>) -> Result<(), String> {
         // Update prediction accuracy by matching actual values with predictions
+        let mut updated_predictions = Vec::new();
+
         for prediction in &mut self.prediction_history {
             if prediction.actual_value.is_none() {
                 let time_diff = snapshot.timestamp.duration_since(prediction.timestamp);
@@ -756,9 +777,14 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
 
                 if time_diff >= expected_duration {
                     prediction.actual_value = Some(snapshot.loss);
-                    self.update_accuracy_metrics(prediction)?;
+                    updated_predictions.push(prediction.clone());
                 }
             }
+        }
+
+        // Update accuracy metrics for all updated predictions
+        for prediction in &updated_predictions {
+            self.update_accuracy_metrics(prediction)?;
         }
 
         Ok(())
@@ -796,7 +822,7 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
     }
 }
 
-impl<A: Float + Default + Clone + Sum> PerformanceImprovementTracker<A> {
+impl<A: Float + Default + Clone + Sum + Send + Sync> PerformanceImprovementTracker<A> {
     fn new() -> Self {
         Self {
             baseline_metrics: HashMap::new(),
@@ -854,7 +880,7 @@ impl<A: Float + Default + Clone + Sum> PerformanceImprovementTracker<A> {
     }
 }
 
-impl<A: Float + Default + Clone> PlateauDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> PlateauDetector<A> {
     fn new(window_size: usize, threshold: A) -> Self {
         Self {
             window_size,
@@ -907,7 +933,7 @@ impl<A: Float + Default + Clone> PlateauDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone + Sum> PerformanceAnomalyDetector<A> {
+impl<A: Float + Default + Clone + Sum + Send + Sync> PerformanceAnomalyDetector<A> {
     fn new(threshold: f64) -> Self {
         Self {
             threshold: A::from(threshold).unwrap(),

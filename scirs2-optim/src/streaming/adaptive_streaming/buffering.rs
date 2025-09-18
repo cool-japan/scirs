@@ -15,7 +15,7 @@ use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 /// Adaptive buffer for managing streaming data with quality-based retention
-pub struct AdaptiveBuffer<A: Float> {
+pub struct AdaptiveBuffer<A: Float + Send + Sync> {
     /// Buffer configuration
     config: BufferConfig,
     /// Main data buffer with priority queue
@@ -38,7 +38,7 @@ pub struct AdaptiveBuffer<A: Float> {
 
 /// Data point with priority information for buffering
 #[derive(Debug, Clone)]
-pub struct PrioritizedDataPoint<A: Float> {
+pub struct PrioritizedDataPoint<A: Float + Send + Sync> {
     /// The actual data point
     pub data_point: StreamingDataPoint<A>,
     /// Priority score (higher = more important)
@@ -55,7 +55,7 @@ pub struct PrioritizedDataPoint<A: Float> {
 
 /// Buffer quality metrics for adaptive management
 #[derive(Debug, Clone)]
-pub struct BufferQualityMetrics<A: Float> {
+pub struct BufferQualityMetrics<A: Float + Send + Sync> {
     /// Average quality score of buffered data
     pub average_quality: A,
     /// Quality variance
@@ -74,7 +74,7 @@ pub struct BufferQualityMetrics<A: Float> {
 
 /// Quality trend analysis
 #[derive(Debug, Clone)]
-pub struct QualityTrend<A: Float> {
+pub struct QualityTrend<A: Float + Send + Sync> {
     /// Recent quality changes
     pub recent_changes: VecDeque<A>,
     /// Trend direction
@@ -99,7 +99,7 @@ pub enum TrendDirection {
 }
 
 /// Buffer sizing strategy implementation
-pub struct BufferSizingStrategy<A: Float> {
+pub struct BufferSizingStrategy<A: Float + Send + Sync> {
     /// Current strategy type
     strategy_type: BufferSizeStrategy,
     /// Target size
@@ -114,7 +114,7 @@ pub struct BufferSizingStrategy<A: Float> {
 
 /// Parameters for size adjustment
 #[derive(Debug, Clone)]
-pub struct SizeAdjustmentParams<A: Float> {
+pub struct SizeAdjustmentParams<A: Float + Send + Sync> {
     /// Growth rate for increasing buffer size
     pub growth_rate: A,
     /// Shrinkage rate for decreasing buffer size
@@ -131,7 +131,7 @@ pub struct SizeAdjustmentParams<A: Float> {
 
 /// Performance feedback for buffer sizing
 #[derive(Debug, Clone)]
-pub struct SizingPerformanceFeedback<A: Float> {
+pub struct SizingPerformanceFeedback<A: Float + Send + Sync> {
     /// Buffer size when feedback was recorded
     pub buffer_size: usize,
     /// Processing latency
@@ -181,7 +181,7 @@ pub enum SizingReason {
 }
 
 /// Data retention policy for buffer management
-pub struct DataRetentionPolicy<A: Float> {
+pub struct DataRetentionPolicy<A: Float + Send + Sync> {
     /// Retention strategy
     strategy: RetentionStrategy,
     /// Age-based retention parameters
@@ -230,7 +230,7 @@ pub struct AgeBasedRetention {
 
 /// Quality-based retention configuration
 #[derive(Debug, Clone)]
-pub struct QualityBasedRetention<A: Float> {
+pub struct QualityBasedRetention<A: Float + Send + Sync> {
     /// Minimum quality threshold
     pub min_quality_threshold: A,
     /// Quality weight in retention scoring
@@ -243,7 +243,7 @@ pub struct QualityBasedRetention<A: Float> {
 
 /// Target quality distribution for buffer content
 #[derive(Debug, Clone)]
-pub struct QualityDistributionTargets<A: Float> {
+pub struct QualityDistributionTargets<A: Float + Send + Sync> {
     /// Target percentage of high-quality data
     pub high_quality_target: A,
     /// Target percentage of medium-quality data
@@ -257,7 +257,7 @@ pub struct QualityDistributionTargets<A: Float> {
 
 /// Relevance-based retention configuration
 #[derive(Debug, Clone)]
-pub struct RelevanceBasedRetention<A: Float> {
+pub struct RelevanceBasedRetention<A: Float + Send + Sync> {
     /// Relevance calculation method
     pub relevance_method: RelevanceMethod,
     /// Relevance weight in retention scoring
@@ -286,7 +286,7 @@ pub enum RelevanceMethod {
 }
 
 /// Retention scoring system
-pub struct RetentionScorer<A: Float> {
+pub struct RetentionScorer<A: Float + Send + Sync> {
     /// Scoring weights
     weights: RetentionWeights<A>,
     /// Scoring history for adaptation
@@ -297,7 +297,7 @@ pub struct RetentionScorer<A: Float> {
 
 /// Weights for different retention factors
 #[derive(Debug, Clone)]
-pub struct RetentionWeights<A: Float> {
+pub struct RetentionWeights<A: Float + Send + Sync> {
     /// Age weight
     pub age_weight: A,
     /// Quality weight
@@ -314,7 +314,7 @@ pub struct RetentionWeights<A: Float> {
 
 /// Retention score for a data point
 #[derive(Debug, Clone)]
-pub struct RetentionScore<A: Float> {
+pub struct RetentionScore<A: Float + Send + Sync> {
     /// Overall retention score
     pub overall_score: A,
     /// Individual component scores
@@ -329,7 +329,7 @@ pub struct RetentionScore<A: Float> {
 
 /// Performance feedback for retention decisions
 #[derive(Debug, Clone)]
-pub struct RetentionPerformanceFeedback<A: Float> {
+pub struct RetentionPerformanceFeedback<A: Float + Send + Sync> {
     /// Number of items retained
     pub items_retained: usize,
     /// Number of items discarded
@@ -346,7 +346,7 @@ pub struct RetentionPerformanceFeedback<A: Float> {
 
 /// Buffer statistics for monitoring and optimization
 #[derive(Debug, Clone)]
-pub struct BufferStatistics<A: Float> {
+pub struct BufferStatistics<A: Float + Send + Sync> {
     /// Total items processed
     pub total_items_processed: u64,
     /// Total items discarded
@@ -367,7 +367,7 @@ pub struct BufferStatistics<A: Float> {
 
 /// Throughput statistics
 #[derive(Debug, Clone)]
-pub struct ThroughputStatistics<A: Float> {
+pub struct ThroughputStatistics<A: Float + Send + Sync> {
     /// Current throughput (items per second)
     pub current_throughput: A,
     /// Average throughput
@@ -382,7 +382,7 @@ pub struct ThroughputStatistics<A: Float> {
 
 /// Quality statistics for buffer content
 #[derive(Debug, Clone)]
-pub struct QualityStatistics<A: Float> {
+pub struct QualityStatistics<A: Float + Send + Sync> {
     /// Current average quality
     pub current_avg_quality: A,
     /// Historical average quality
@@ -425,7 +425,7 @@ pub struct SizeChangeEvent {
     pub reason: String,
 }
 
-impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
+impl<A: Float + Default + Clone + Send + Sync> AdaptiveBuffer<A> {
     /// Creates a new adaptive buffer
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let buffer_config = config.buffer_config.clone();
@@ -1101,7 +1101,7 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
 }
 
 // Implement Ord for PrioritizedDataPoint to work with BinaryHeap
-impl<A: Float> Ord for PrioritizedDataPoint<A> {
+impl<A: Float + Send + Sync> Ord for PrioritizedDataPoint<A> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.priority_score
             .partial_cmp(&other.priority_score)
@@ -1109,21 +1109,21 @@ impl<A: Float> Ord for PrioritizedDataPoint<A> {
     }
 }
 
-impl<A: Float> PartialOrd for PrioritizedDataPoint<A> {
+impl<A: Float + Send + Sync> PartialOrd for PrioritizedDataPoint<A> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<A: Float> PartialEq for PrioritizedDataPoint<A> {
+impl<A: Float + Send + Sync> PartialEq for PrioritizedDataPoint<A> {
     fn eq(&self, other: &Self) -> bool {
         self.priority_score == other.priority_score
     }
 }
 
-impl<A: Float> Eq for PrioritizedDataPoint<A> {}
+impl<A: Float + Send + Sync> Eq for PrioritizedDataPoint<A> {}
 
-impl<A: Float> BufferSizingStrategy<A> {
+impl<A: Float + Send + Sync> BufferSizingStrategy<A> {
     fn new(strategy_type: BufferSizeStrategy, initial_size: usize) -> Self {
         Self {
             strategy_type,
@@ -1142,7 +1142,7 @@ impl<A: Float> BufferSizingStrategy<A> {
     }
 }
 
-impl<A: Float> DataRetentionPolicy<A> {
+impl<A: Float + Send + Sync> DataRetentionPolicy<A> {
     fn new(strategy: RetentionStrategy) -> Self {
         Self {
             strategy,
@@ -1175,7 +1175,7 @@ impl<A: Float> DataRetentionPolicy<A> {
     }
 }
 
-impl<A: Float> RetentionScorer<A> {
+impl<A: Float + Send + Sync> RetentionScorer<A> {
     fn new() -> Self {
         Self {
             weights: RetentionWeights {

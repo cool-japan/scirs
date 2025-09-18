@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::error::{OptimError, Result};
 
 /// Reverse-mode AD engine (gradient tape)
-pub struct ReverseModeEngine<T: Float> {
+pub struct ReverseModeEngine<T: Float + Default + Clone + std::iter::Sum + ndarray::ScalarOperand> {
     /// Computation tape for reverse pass
     tape: Vec<ReverseOperation<T>>,
 

@@ -615,10 +615,10 @@ pub mod dashboard {
 // Re-export main analytics engine and core types
 pub use config::*;
 pub use performance::{
-    PerformanceAnalyzer, PerformanceSnapshot, PerformanceMetrics
+    PerformanceAnalyzer, PerformanceSnapshot, PerformanceMetrics, PerformanceContext
 };
 pub use resources::{
-    ResourceMonitor, ResourceUsage as ResourceUtilization, ResourceAlert
+    ResourceMonitor, ResourceUsage as ResourceUtilization, ResourceAlert, ResourceAnalyzer
 };
 pub use convergence::*;
 pub use patterns::*;

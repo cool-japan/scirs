@@ -86,7 +86,7 @@ pub enum StatisticalTestType {
 }
 
 /// Byzantine-robust aggregation engine
-pub struct ByzantineRobustAggregator<T: Float> {
+pub struct ByzantineRobustAggregator<T: Float + Default + Clone + Send + Sync + std::iter::Sum> {
     config: ByzantineRobustConfig,
     client_reputations: HashMap<String, f64>,
     outlier_history: VecDeque<OutlierDetectionResult>,
@@ -95,14 +95,14 @@ pub struct ByzantineRobustAggregator<T: Float> {
 }
 
 /// Statistical analyzer for outlier detection
-pub struct StatisticalAnalyzer<T: Float> {
+pub struct StatisticalAnalyzer<T: Float + Default + Clone + Send + Sync + std::iter::Sum> {
     window_size: usize,
     significancelevel: f64,
     test_statistics: VecDeque<TestStatistic<T>>,
 }
 
 /// Robust estimators for aggregation
-pub struct RobustEstimators<T: Float> {
+pub struct RobustEstimators<T: Float + Default + Clone + Send + Sync + std::iter::Sum> {
     trimmed_mean_cache: HashMap<String, T>,
     median_cache: HashMap<String, T>,
     krum_scores: HashMap<String, f64>,

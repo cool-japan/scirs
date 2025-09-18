@@ -231,7 +231,7 @@ where
 
 /// Streaming data point
 #[derive(Debug, Clone)]
-pub struct StreamingDataPoint<A: Float> {
+pub struct StreamingDataPoint<A: Float + Send + Sync> {
     /// Feature vector
     pub features: Array1<A>,
 
@@ -250,7 +250,7 @@ pub struct StreamingDataPoint<A: Float> {
 
 /// Learning rate adaptation state
 #[derive(Debug, Clone)]
-struct LearningRateAdaptationState<A: Float> {
+struct LearningRateAdaptationState<A: Float + Send + Sync> {
     /// Current learning rate
     current_lr: A,
 
@@ -272,7 +272,7 @@ struct LearningRateAdaptationState<A: Float> {
 
 /// Streaming concept drift detection
 #[derive(Debug, Clone)]
-struct StreamingDriftDetector<A: Float> {
+struct StreamingDriftDetector<A: Float + Send + Sync> {
     /// Window of recent losses
     loss_window: VecDeque<A>,
 
@@ -1325,7 +1325,7 @@ pub enum StreamPriority {
 
 /// Multi-stream coordinator for synchronizing multiple data streams
 #[allow(dead_code)]
-pub struct MultiStreamCoordinator<A: Float> {
+pub struct MultiStreamCoordinator<A: Float + Send + Sync> {
     /// Stream configurations
     stream_configs: HashMap<String, StreamConfig<A>>,
 
@@ -1345,7 +1345,7 @@ pub struct MultiStreamCoordinator<A: Float> {
     load_balancer: LoadBalancingStrategy,
 }
 
-impl<A: Float> MultiStreamCoordinator<A> {
+impl<A: Float + Send + Sync> MultiStreamCoordinator<A> {
     pub fn new(config: &StreamingConfig) -> Result<Self> {
         Ok(Self {
             stream_configs: HashMap::new(),
@@ -1404,7 +1404,7 @@ impl<A: Float> MultiStreamCoordinator<A> {
 
 /// Stream configuration for individual streams
 #[derive(Debug, Clone)]
-pub struct StreamConfig<A: Float> {
+pub struct StreamConfig<A: Float + Send + Sync> {
     pub buffer_size: usize,
     pub latency_tolerance_ms: u64,
     pub throughput_target: f64,
@@ -1423,7 +1423,7 @@ pub enum LoadBalancingStrategy {
 
 /// Predictive streaming engine for anticipating data patterns
 #[allow(dead_code)]
-pub struct PredictiveStreamingEngine<A: Float> {
+pub struct PredictiveStreamingEngine<A: Float + Send + Sync> {
     /// Prediction model state
     prediction_model: PredictionModel<A>,
 
@@ -1440,7 +1440,7 @@ pub struct PredictiveStreamingEngine<A: Float> {
     adaptation_rate: A,
 }
 
-impl<A: Float> PredictiveStreamingEngine<A> {
+impl<A: Float + Send + Sync> PredictiveStreamingEngine<A> {
     pub fn new(config: &StreamingConfig) -> Result<Self> {
         Ok(Self {
             prediction_model: PredictionModel::new(config.buffer_size)?,
@@ -1471,7 +1471,7 @@ impl<A: Float> PredictiveStreamingEngine<A> {
 }
 
 /// Prediction model for streaming data
-pub struct PredictionModel<A: Float> {
+pub struct PredictionModel<A: Float + Send + Sync> {
     /// Model parameters (simplified linear model)
     weights: Array1<A>,
 
@@ -1482,7 +1482,7 @@ pub struct PredictionModel<A: Float> {
     model_order: usize,
 }
 
-impl<A: Float> PredictionModel<A> {
+impl<A: Float + Send + Sync> PredictionModel<A> {
     pub fn new(featuredim: usize) -> Result<Self> {
         Ok(Self {
             weights: Array1::zeros(featuredim),
@@ -1526,7 +1526,7 @@ impl<A: Float> PredictionModel<A> {
 
 /// Stream fusion optimizer for combining multiple optimization streams
 #[allow(dead_code)]
-pub struct StreamFusionOptimizer<A: Float> {
+pub struct StreamFusionOptimizer<A: Float + Send + Sync> {
     /// Fusion strategy
     fusion_strategy: FusionStrategy,
 
@@ -1540,7 +1540,7 @@ pub struct StreamFusionOptimizer<A: Float> {
     consensus_mechanism: ConsensusAlgorithm,
 }
 
-impl<A: Float + std::ops::DivAssign + ndarray::ScalarOperand> StreamFusionOptimizer<A> {
+impl<A: Float + std::ops::DivAssign + ndarray::ScalarOperand + Send + Sync> StreamFusionOptimizer<A> {
     pub fn new(config: &StreamingConfig) -> Result<Self> {
         Ok(Self {
             fusion_strategy: FusionStrategy::WeightedAverage,
@@ -1638,7 +1638,7 @@ pub enum ConsensusAlgorithm {
 
 /// Fused optimization step
 #[derive(Debug, Clone)]
-pub struct FusedOptimizationStep<A: Float> {
+pub struct FusedOptimizationStep<A: Float + Send + Sync> {
     pub step: Array1<A>,
     pub confidence: A,
     pub contributing_streams: Vec<String>,
@@ -1862,7 +1862,7 @@ pub struct ResourceAllocation {
 
 /// Pipeline execution manager for parallel stream processing
 #[allow(dead_code)]
-pub struct PipelineExecutionManager<A: Float> {
+pub struct PipelineExecutionManager<A: Float + Send + Sync> {
     /// Pipeline stages
     pipeline_stages: Vec<PipelineStage<A>>,
 
@@ -1876,7 +1876,7 @@ pub struct PipelineExecutionManager<A: Float> {
     stage_coordinator: StageCoordinator,
 }
 
-impl<A: Float> PipelineExecutionManager<A> {
+impl<A: Float + Send + Sync> PipelineExecutionManager<A> {
     pub fn new(parallelismdegree: usize, processingpriority: StreamPriority) -> Self {
         Self {
             pipeline_stages: Vec::new(),
@@ -1899,7 +1899,7 @@ impl<A: Float> PipelineExecutionManager<A> {
 /// Pipeline stage
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct PipelineStage<A: Float> {
+pub struct PipelineStage<A: Float + Send + Sync> {
     pub stage_id: String,
     pub processing_function: String, // In practice, this would be a function pointer
     pub input_buffer: VecDeque<StreamingDataPoint<A>>,

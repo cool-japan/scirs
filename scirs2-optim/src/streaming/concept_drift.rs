@@ -76,7 +76,7 @@ pub enum DriftStatus {
 
 /// Drift detection event
 #[derive(Debug, Clone)]
-pub struct DriftEvent<A: Float> {
+pub struct DriftEvent<A: Float + Send + Sync> {
     /// Timestamp of detection
     pub timestamp: Instant,
     /// Detection confidence (0.0 to 1.0)
@@ -121,7 +121,7 @@ pub enum AdaptationRecommendation {
 
 /// Page-Hinkley drift detector
 #[derive(Debug, Clone)]
-pub struct PageHinkleyDetector<A: Float> {
+pub struct PageHinkleyDetector<A: Float + Send + Sync> {
     /// Cumulative sum
     sum: A,
     /// Minimum cumulative sum seen
@@ -136,7 +136,7 @@ pub struct PageHinkleyDetector<A: Float> {
     last_drift: Option<Instant>,
 }
 
-impl<A: Float> PageHinkleyDetector<A> {
+impl<A: Float + Send + Sync> PageHinkleyDetector<A> {
     /// Create a new Page-Hinkley detector
     pub fn new(threshold: A, warningthreshold: A) -> Self {
         Self {
@@ -186,7 +186,7 @@ impl<A: Float> PageHinkleyDetector<A> {
 
 /// ADWIN (Adaptive Windowing) drift detector
 #[derive(Debug, Clone)]
-pub struct AdwinDetector<A: Float> {
+pub struct AdwinDetector<A: Float + Send + Sync> {
     /// Window of recent values
     window: VecDeque<A>,
     /// Maximum window size
@@ -197,7 +197,7 @@ pub struct AdwinDetector<A: Float> {
     min_window_size: usize,
 }
 
-impl<A: Float + Sum> AdwinDetector<A> {
+impl<A: Float + Sum + Send + Sync> AdwinDetector<A> {
     /// Create a new ADWIN detector
     pub fn new(delta: A, max_windowsize: usize) -> Self {
         Self {
@@ -283,7 +283,7 @@ impl<A: Float + Sum> AdwinDetector<A> {
 
 /// DDM (Drift Detection Method) detector
 #[derive(Debug, Clone)]
-pub struct DdmDetector<A: Float> {
+pub struct DdmDetector<A: Float + Send + Sync> {
     /// Error rate
     error_rate: A,
     /// Standard deviation of error rate
@@ -298,7 +298,7 @@ pub struct DdmDetector<A: Float> {
     error_count: usize,
 }
 
-impl<A: Float> DdmDetector<A> {
+impl<A: Float + Send + Sync> DdmDetector<A> {
     /// Create a new DDM detector
     pub fn new() -> Self {
         Self {
@@ -359,7 +359,7 @@ impl<A: Float> DdmDetector<A> {
 }
 
 /// Comprehensive concept drift detector
-pub struct ConceptDriftDetector<A: Float> {
+pub struct ConceptDriftDetector<A: Float + Send + Sync> {
     /// Configuration
     config: DriftDetectorConfig,
 
@@ -382,7 +382,7 @@ pub struct ConceptDriftDetector<A: Float> {
     performance_tracker: PerformanceDriftTracker<A>,
 }
 
-impl<A: Float + std::fmt::Debug + Sum> ConceptDriftDetector<A> {
+impl<A: Float + std::fmt::Debug + Sum + Send + Sync> ConceptDriftDetector<A> {
     /// Create a new concept drift detector
     pub fn new(config: DriftDetectorConfig) -> Self {
         let threshold = A::from(config.threshold).unwrap();
@@ -550,14 +550,14 @@ impl<A: Float + std::fmt::Debug + Sum> ConceptDriftDetector<A> {
 
 /// Performance tracker for drift impact analysis
 #[derive(Debug, Clone)]
-struct PerformanceDriftTracker<A: Float> {
+struct PerformanceDriftTracker<A: Float + Send + Sync> {
     /// Performance history with drift annotations
     performance_history: VecDeque<(A, DriftStatus, Instant)>,
     /// Window size for analysis
     window_size: usize,
 }
 
-impl<A: Float + std::iter::Sum> PerformanceDriftTracker<A> {
+impl<A: Float + std::iter::Sum + Send + Sync> PerformanceDriftTracker<A> {
     fn new() -> Self {
         Self {
             performance_history: VecDeque::new(),
@@ -604,7 +604,7 @@ impl<A: Float + std::iter::Sum> PerformanceDriftTracker<A> {
 
 /// Drift detection statistics
 #[derive(Debug, Clone)]
-pub struct DriftStatistics<A: Float> {
+pub struct DriftStatistics<A: Float + Send + Sync> {
     /// Total number of drifts detected
     pub total_drifts: usize,
     /// Recent drift rate (drifts per second)
@@ -624,7 +624,7 @@ pub mod advanced_drift_analysis {
 
     /// Advanced drift detector with machine learning-based detection
     #[derive(Debug)]
-    pub struct AdvancedDriftDetector<A: Float> {
+    pub struct AdvancedDriftDetector<A: Float + Send + Sync> {
         /// Base detector ensemble
         base_detectors: Vec<Box<dyn DriftDetectorTrait<A>>>,
 
@@ -648,7 +648,7 @@ pub mod advanced_drift_analysis {
     }
 
     /// Trait for all drift detectors
-    pub trait DriftDetectorTrait<A: Float>: std::fmt::Debug {
+    pub trait DriftDetectorTrait<A: Float + Send + Sync>: std::fmt::Debug {
         fn update(&mut self, value: A) -> DriftStatus;
         fn reset(&mut self);
         fn get_confidence(&self) -> A;
@@ -656,7 +656,7 @@ pub mod advanced_drift_analysis {
 
     /// Drift pattern analyzer for characterizing drift behavior
     #[derive(Debug)]
-    pub struct DriftPatternAnalyzer<A: Float> {
+    pub struct DriftPatternAnalyzer<A: Float + Send + Sync> {
         /// Pattern history buffer
         pattern_buffer: VecDeque<PatternFeatures<A>>,
 
@@ -672,7 +672,7 @@ pub mod advanced_drift_analysis {
 
     /// Pattern features for drift characterization
     #[derive(Debug, Clone)]
-    pub struct PatternFeatures<A: Float> {
+    pub struct PatternFeatures<A: Float + Send + Sync> {
         /// Statistical moments
         pub mean: A,
         pub variance: A,
@@ -698,7 +698,7 @@ pub mod advanced_drift_analysis {
 
     /// Learned drift pattern
     #[derive(Debug, Clone)]
-    pub struct DriftPattern<A: Float> {
+    pub struct DriftPattern<A: Float + Send + Sync> {
         /// Pattern identifier
         pub id: String,
 
@@ -722,14 +722,14 @@ pub mod advanced_drift_analysis {
     }
 
     /// Feature extractor trait
-    pub trait FeatureExtractor<A: Float>: std::fmt::Debug {
+    pub trait FeatureExtractor<A: Float + Send + Sync>: std::fmt::Debug {
         fn extract(&self, data: &[A]) -> A;
         fn name(&self) -> &str;
     }
 
     /// Adaptive threshold management
     #[derive(Debug)]
-    pub struct AdaptiveThresholdManager<A: Float> {
+    pub struct AdaptiveThresholdManager<A: Float + Send + Sync> {
         /// Current thresholds for different detectors
         thresholds: HashMap<String, A>,
 
@@ -745,7 +745,7 @@ pub mod advanced_drift_analysis {
 
     /// Threshold update record
     #[derive(Debug, Clone)]
-    pub struct ThresholdUpdate<A: Float> {
+    pub struct ThresholdUpdate<A: Float + Send + Sync> {
         pub detector_name: String,
         pub old_threshold: A,
         pub new_threshold: A,
@@ -755,7 +755,7 @@ pub mod advanced_drift_analysis {
 
     /// Performance feedback for threshold adjustment
     #[derive(Debug, Clone)]
-    pub struct PerformanceFeedback<A: Float> {
+    pub struct PerformanceFeedback<A: Float + Send + Sync> {
         pub true_positive_rate: A,
         pub false_positive_rate: A,
         pub detection_delay: Duration,
@@ -765,7 +765,7 @@ pub mod advanced_drift_analysis {
 
     /// Context-aware drift detection
     #[derive(Debug)]
-    pub struct ContextAwareDriftDetector<A: Float> {
+    pub struct ContextAwareDriftDetector<A: Float + Send + Sync> {
         /// Contextual features
         context_features: Vec<ContextFeature<A>>,
 
@@ -781,7 +781,7 @@ pub mod advanced_drift_analysis {
 
     /// Contextual feature for drift detection
     #[derive(Debug, Clone)]
-    pub struct ContextFeature<A: Float> {
+    pub struct ContextFeature<A: Float + Send + Sync> {
         pub name: String,
         pub value: A,
         pub importance_weight: A,
@@ -790,7 +790,7 @@ pub mod advanced_drift_analysis {
 
     /// Drift impact analyzer
     #[derive(Debug)]
-    pub struct DriftImpactAnalyzer<A: Float> {
+    pub struct DriftImpactAnalyzer<A: Float + Send + Sync> {
         /// Impact metrics history
         impact_history: VecDeque<DriftImpact<A>>,
 
@@ -806,7 +806,7 @@ pub mod advanced_drift_analysis {
 
     /// Drift impact assessment
     #[derive(Debug, Clone)]
-    pub struct DriftImpact<A: Float> {
+    pub struct DriftImpact<A: Float + Send + Sync> {
         /// Performance degradation magnitude
         pub performance_degradation: A,
 
@@ -837,7 +837,7 @@ pub mod advanced_drift_analysis {
 
     /// Adaptation strategy selector
     #[derive(Debug)]
-    pub struct AdaptationStrategySelector<A: Float> {
+    pub struct AdaptationStrategySelector<A: Float + Send + Sync> {
         /// Available adaptation strategies
         strategies: Vec<AdaptationStrategy<A>>,
 
@@ -853,7 +853,7 @@ pub mod advanced_drift_analysis {
 
     /// Adaptation strategy
     #[derive(Debug, Clone)]
-    pub struct AdaptationStrategy<A: Float> {
+    pub struct AdaptationStrategy<A: Float + Send + Sync> {
         /// Strategy identifier
         pub id: String,
 
@@ -887,7 +887,7 @@ pub mod advanced_drift_analysis {
 
     /// Conditions for strategy applicability
     #[derive(Debug, Clone)]
-    pub struct ApplicabilityCondition<A: Float> {
+    pub struct ApplicabilityCondition<A: Float + Send + Sync> {
         pub feature_name: String,
         pub operator: ComparisonOperator,
         pub threshold: A,
@@ -906,7 +906,7 @@ pub mod advanced_drift_analysis {
 
     /// Strategy performance tracking
     #[derive(Debug, Clone)]
-    pub struct StrategyPerformance<A: Float> {
+    pub struct StrategyPerformance<A: Float + Send + Sync> {
         pub success_rate: A,
         pub average_improvement: A,
         pub average_adaptation_time: Duration,
@@ -916,7 +916,7 @@ pub mod advanced_drift_analysis {
 
     /// Epsilon-greedy bandit for strategy selection
     #[derive(Debug)]
-    pub struct EpsilonGreedyBandit<A: Float> {
+    pub struct EpsilonGreedyBandit<A: Float + Send + Sync> {
         epsilon: A,
         action_values: HashMap<String, A>,
         action_counts: HashMap<String, usize>,
@@ -925,7 +925,7 @@ pub mod advanced_drift_analysis {
 
     /// Historical drift database
     #[derive(Debug)]
-    pub struct DriftDatabase<A: Float> {
+    pub struct DriftDatabase<A: Float + Send + Sync> {
         /// Stored drift events
         drift_events: Vec<StoredDriftEvent<A>>,
 
@@ -941,7 +941,7 @@ pub mod advanced_drift_analysis {
 
     /// Stored drift event for learning
     #[derive(Debug, Clone)]
-    pub struct StoredDriftEvent<A: Float> {
+    pub struct StoredDriftEvent<A: Float + Send + Sync> {
         pub features: PatternFeatures<A>,
         pub context: Vec<ContextFeature<A>>,
         pub applied_strategy: String,
@@ -951,7 +951,7 @@ pub mod advanced_drift_analysis {
 
     /// Adaptation outcome for learning
     #[derive(Debug, Clone)]
-    pub struct AdaptationOutcome<A: Float> {
+    pub struct AdaptationOutcome<A: Float + Send + Sync> {
         pub success: bool,
         pub performance_improvement: A,
         pub adaptation_time: Duration,
@@ -961,7 +961,7 @@ pub mod advanced_drift_analysis {
 
     /// Seasonal drift pattern
     #[derive(Debug, Clone)]
-    pub struct SeasonalPattern<A: Float> {
+    pub struct SeasonalPattern<A: Float + Send + Sync> {
         pub period: Duration,
         pub amplitude: A,
         pub phase_offset: Duration,
@@ -971,7 +971,7 @@ pub mod advanced_drift_analysis {
 
     /// Similarity search for historical patterns
     #[derive(Debug)]
-    pub struct SimilarityIndex<A: Float> {
+    pub struct SimilarityIndex<A: Float + Send + Sync> {
         /// Feature vectors for similarity search
         feature_vectors: Vec<(String, Vec<A>)>,
 
@@ -990,7 +990,7 @@ pub mod advanced_drift_analysis {
         Mahalanobis,
     }
 
-    impl<A: Float + Default + Clone + std::fmt::Debug + std::iter::Sum> AdvancedDriftDetector<A> {
+    impl<A: Float + Default + Clone + std::fmt::Debug + std::iter::Sum + Send + Sync> AdvancedDriftDetector<A> {
         /// Create new advanced drift detector
         pub fn new(config: DriftDetectorConfig) -> Self {
             let base_detectors: Vec<Box<dyn DriftDetectorTrait<A>>> = vec![
@@ -1139,7 +1139,7 @@ pub mod advanced_drift_analysis {
 
     /// Advanced drift detection result
     #[derive(Debug, Clone)]
-    pub struct AdvancedDriftResult<A: Float> {
+    pub struct AdvancedDriftResult<A: Float + Send + Sync> {
         pub status: DriftStatus,
         pub confidence: A,
         pub matched_pattern: Option<DriftPattern<A>>,
@@ -1150,14 +1150,14 @@ pub mod advanced_drift_analysis {
     }
 
     #[derive(Debug, Clone)]
-    struct CombinedDetectionResult<A: Float> {
+    struct CombinedDetectionResult<A: Float + Send + Sync> {
         status: DriftStatus,
         confidence: A,
     }
 
     // Implementation stubs for complex components
 
-    impl<A: Float + std::iter::Sum> DriftPatternAnalyzer<A> {
+    impl<A: Float + std::iter::Sum + Send + Sync> DriftPatternAnalyzer<A> {
         fn new() -> Self {
             Self {
                 pattern_buffer: VecDeque::new(),
@@ -1207,7 +1207,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> AdaptiveThresholdManager<A> {
+    impl<A: Float + Send + Sync> AdaptiveThresholdManager<A> {
         fn new() -> Self {
             Self {
                 thresholds: HashMap::new(),
@@ -1248,7 +1248,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> ContextAwareDriftDetector<A> {
+    impl<A: Float + Send + Sync> ContextAwareDriftDetector<A> {
         fn new() -> Self {
             Self {
                 context_features: Vec::new(),
@@ -1272,7 +1272,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> DriftImpactAnalyzer<A> {
+    impl<A: Float + Send + Sync> DriftImpactAnalyzer<A> {
         fn new() -> Self {
             Self {
                 impact_history: VecDeque::new(),
@@ -1305,7 +1305,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> AdaptationStrategySelector<A> {
+    impl<A: Float + Send + Sync> AdaptationStrategySelector<A> {
         fn new() -> Self {
             Self {
                 strategies: Vec::new(),
@@ -1339,7 +1339,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> DriftDatabase<A> {
+    impl<A: Float + Send + Sync> DriftDatabase<A> {
         fn new() -> Self {
             Self {
                 drift_events: Vec::new(),
@@ -1375,7 +1375,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> SimilarityIndex<A> {
+    impl<A: Float + Send + Sync> SimilarityIndex<A> {
         fn new() -> Self {
             Self {
                 feature_vectors: Vec::new(),
@@ -1385,7 +1385,7 @@ pub mod advanced_drift_analysis {
         }
     }
 
-    impl<A: Float> EpsilonGreedyBandit<A> {
+    impl<A: Float + Send + Sync> EpsilonGreedyBandit<A> {
         fn new(epsilon: A) -> Self {
             Self {
                 epsilon,
@@ -1399,11 +1399,11 @@ pub mod advanced_drift_analysis {
     // Placeholder implementations for complex analyzers
 
     #[derive(Debug)]
-    struct SeverityClassifier<A: Float> {
+    struct SeverityClassifier<A: Float + Send + Sync> {
         _phantom: std::marker::PhantomData<A>,
     }
 
-    impl<A: Float> SeverityClassifier<A> {
+    impl<A: Float + Send + Sync> SeverityClassifier<A> {
         fn new() -> Self {
             Self {
                 _phantom: std::marker::PhantomData,
@@ -1412,11 +1412,11 @@ pub mod advanced_drift_analysis {
     }
 
     #[derive(Debug)]
-    struct RecoveryTimePredictor<A: Float> {
+    struct RecoveryTimePredictor<A: Float + Send + Sync> {
         _phantom: std::marker::PhantomData<A>,
     }
 
-    impl<A: Float> RecoveryTimePredictor<A> {
+    impl<A: Float + Send + Sync> RecoveryTimePredictor<A> {
         fn new() -> Self {
             Self {
                 _phantom: std::marker::PhantomData,
@@ -1425,11 +1425,11 @@ pub mod advanced_drift_analysis {
     }
 
     #[derive(Debug)]
-    struct BusinessImpactEstimator<A: Float> {
+    struct BusinessImpactEstimator<A: Float + Send + Sync> {
         _phantom: std::marker::PhantomData<A>,
     }
 
-    impl<A: Float> BusinessImpactEstimator<A> {
+    impl<A: Float + Send + Sync> BusinessImpactEstimator<A> {
         fn new() -> Self {
             Self {
                 _phantom: std::marker::PhantomData,

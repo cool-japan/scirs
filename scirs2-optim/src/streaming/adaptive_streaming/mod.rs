@@ -26,7 +26,7 @@ pub fn create_default_optimizer<O, A, D>() -> StreamingResult<AdaptiveStreamingO
 where
     O: Send + Sync + 'static,
     A: ndarray::ScalarOperand + Clone + Default + Send + Sync + 'static + num_traits::Float,
-    D: ndarray::Data<Elem = A> + Send + Sync + 'static,
+    D: ndarray::Data<Elem = A> + ndarray::Dimension + Send + Sync + 'static,
 {
     let config = StreamingConfig::default();
     Ok(AdaptiveStreamingOptimizer::new(config)?)
@@ -38,7 +38,7 @@ pub fn create_optimizer_with_config<O, A, D>(
 where
     O: Send + Sync + 'static,
     A: ndarray::ScalarOperand + Clone + Default + Send + Sync + 'static + num_traits::Float,
-    D: ndarray::Data<Elem = A> + Send + Sync + 'static,
+    D: ndarray::Data<Elem = A> + ndarray::Dimension + Send + Sync + 'static,
 {
     Ok(AdaptiveStreamingOptimizer::new(config)?)
 }

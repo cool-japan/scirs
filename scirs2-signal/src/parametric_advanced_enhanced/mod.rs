@@ -30,8 +30,11 @@
 //! use scirs2_signal::parametric_advanced_enhanced::{advanced_enhanced_arma, AdvancedEnhancedConfig};
 //! use ndarray::Array1;
 //!
-//! // Generate test signal
-//! let signal = Array1::from_vec(vec![1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3]);
+//! // Generate test signal (longer for robust estimation)
+//! let signal_vec: Vec<f64> = (0..512).map(|i| {
+//!     1.0 + 0.5 * (i as f64 * 0.1).sin() + 0.3 * (i as f64 * 0.05).cos()
+//! }).collect();
+//! let signal = Array1::from_vec(signal_vec);
 //! let config = AdvancedEnhancedConfig::default();
 //!
 //! // Estimate AR(2) MA(1) model
@@ -47,30 +50,44 @@
 //! ## Adaptive AR Estimation
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::parametric_advanced_enhanced::{adaptive_ar_spectral_estimation, AdaptiveARConfig};
 //!
-//! let signal = vec![1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3, 1.9, 2.1];
+//! // Create numerically stable AR-like signal
+//! let mut signal = vec![0.0; 256];
+//! signal[0] = 1.0;
+//! for i in 1..256 {
+//!     signal[i] = 0.7 * signal[i-1] + 0.1 * (i as f64 * 0.1).sin();
+//! }
 //! let config = AdaptiveARConfig::default();
 //!
-//! let result = adaptive_ar_spectral_estimation(&signal, 2, &config)?;
+//! let result = adaptive_ar_spectral_estimation(&signal, 1, &config)?;
 //! println!("Number of time windows: {}", result.time_vector.len());
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Robust Estimation
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::parametric_advanced_enhanced::{robust_parametric_spectral_estimation, RobustParametricConfig};
 //!
-//! let mut signal = vec![1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3];
-//! signal[3] = 10.0; // Add outlier
+//! // Create stable AR signal with outlier for robust estimation testing
+//! let mut signal = vec![0.0; 128];
+//! signal[0] = 1.0;
+//! for i in 1..128 {
+//!     signal[i] = 0.6 * signal[i-1] + 0.05 * (i as f64).sin();
+//! }
+//! signal[64] = 5.0; // Add outlier (smaller magnitude for stability)
 //!
 //! let config = RobustParametricConfig::default();
-//! let result = robust_parametric_spectral_estimation(&signal, 2, 1, &config)?;
+//! let result = robust_parametric_spectral_estimation(&signal, 1, 0, &config)?;
 //!
 //! println!("Robust scale: {}", result.robust_scale);
 //! println!("Outliers detected: {}", result.outliers.iter().filter(|&&x| x).count());
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 
 // Common imports

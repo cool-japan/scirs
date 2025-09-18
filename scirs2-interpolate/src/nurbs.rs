@@ -41,7 +41,7 @@
 //!     &weights.view(),
 //!     &knots.view(),
 //!     degree,
-//!     ExtrapolateMode::Constant
+//!     ExtrapolateMode::Extrapolate
 //! ).unwrap();
 //!
 //! // Evaluate the curve at parameter t = 0.5
@@ -70,7 +70,7 @@
 //!     &knotsu.view(),
 //!     &knotsv.view(),
 //!     1, 1,  // degreeu, degreev
-//!     ExtrapolateMode::Constant
+//!     ExtrapolateMode::Extrapolate
 //! ).unwrap();
 //!
 //! // Evaluate the surface at parameters (u=0.5, v=0.5)
@@ -83,7 +83,7 @@
 //! use scirs2_interpolate::nurbs::{make_nurbs_circle, make_nurbs_sphere};
 //!
 //! // Create a circle centered at origin with radius 1.0
-//! let circle = make_nurbs_circle([0.0, 0.0], 1.0, 0.0, 2.0 * std::f64::consts::PI).unwrap();
+//! let circle = make_nurbs_circle([0.0, 0.0], 1.0, Some(0.0), Some(2.0 * std::f64::consts::PI)).unwrap();
 //!
 //! // Create a sphere centered at origin with radius 1.0
 //! let sphere = make_nurbs_sphere([0.0, 0.0, 0.0], 1.0).unwrap();

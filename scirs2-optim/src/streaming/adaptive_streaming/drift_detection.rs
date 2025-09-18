@@ -13,7 +13,7 @@ use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 /// Enhanced drift detector with multiple detection methods
-pub struct EnhancedDriftDetector<A: Float> {
+pub struct EnhancedDriftDetector<A: Float + Send + Sync> {
     /// Configuration for drift detection
     config: DriftConfig,
     /// Current detection method
@@ -42,7 +42,7 @@ pub struct EnhancedDriftDetector<A: Float> {
 
 /// Drift event information
 #[derive(Debug, Clone)]
-pub struct DriftEvent<A: Float> {
+pub struct DriftEvent<A: Float + Send + Sync> {
     /// Event timestamp
     pub timestamp: Instant,
     /// Drift severity level
@@ -86,7 +86,7 @@ pub enum DriftState {
 }
 
 /// False positive tracking for drift detection
-pub struct FalsePositiveTracker<A: Float> {
+pub struct FalsePositiveTracker<A: Float + Send + Sync> {
     /// Recent false positive events
     false_positives: VecDeque<Instant>,
     /// True positive events
@@ -98,7 +98,7 @@ pub struct FalsePositiveTracker<A: Float> {
 }
 
 /// Trait for statistical drift detection tests
-pub trait StatisticalTest<A: Float>: Send + Sync {
+pub trait StatisticalTest<A: Float + Send + Sync>: Send + Sync {
     /// Performs the statistical test for drift
     fn test_for_drift(
         &mut self,
@@ -115,7 +115,7 @@ pub trait StatisticalTest<A: Float>: Send + Sync {
 
 /// Result of a drift detection test
 #[derive(Debug, Clone)]
-pub struct DriftTestResult<A: Float> {
+pub struct DriftTestResult<A: Float + Send + Sync> {
     /// Whether drift was detected
     pub drift_detected: bool,
     /// Statistical significance (p-value)
@@ -129,7 +129,7 @@ pub struct DriftTestResult<A: Float> {
 }
 
 /// Trait for distribution-based drift detection
-pub trait DistributionComparator<A: Float>: Send + Sync {
+pub trait DistributionComparator<A: Float + Send + Sync>: Send + Sync {
     /// Compares two distributions for drift
     fn compare_distributions(
         &self,
@@ -146,7 +146,7 @@ pub trait DistributionComparator<A: Float>: Send + Sync {
 
 /// Result of distribution comparison
 #[derive(Debug, Clone)]
-pub struct DistributionComparison<A: Float> {
+pub struct DistributionComparison<A: Float + Send + Sync> {
     /// Distance/divergence measure
     pub distance: A,
     /// Threshold for drift detection
@@ -158,7 +158,7 @@ pub struct DistributionComparison<A: Float> {
 }
 
 /// Trait for model-based drift detection
-pub trait ModelBasedDetector<A: Float>: Send + Sync {
+pub trait ModelBasedDetector<A: Float + Send + Sync>: Send + Sync {
     /// Updates the model with new data
     fn update_model(&mut self, data: &[StreamingDataPoint<A>]) -> Result<(), String>;
 
@@ -174,7 +174,7 @@ pub trait ModelBasedDetector<A: Float>: Send + Sync {
 
 /// Result of model-based drift detection
 #[derive(Debug, Clone)]
-pub struct ModelDriftResult<A: Float> {
+pub struct ModelDriftResult<A: Float + Send + Sync> {
     /// Whether drift was detected
     pub drift_detected: bool,
     /// Model performance degradation
@@ -655,7 +655,7 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
     }
 }
 
-impl<A: Float> FalsePositiveTracker<A> {
+impl<A: Float + Send + Sync> FalsePositiveTracker<A> {
     fn new() -> Self {
         Self {
             false_positives: VecDeque::new(),
@@ -704,12 +704,12 @@ pub struct DriftDiagnostics {
 // Simplified implementations of detection methods
 // In practice, these would be more sophisticated
 
-struct ADWINTest<A: Float> {
+struct ADWINTest<A: Float + Send + Sync> {
     sensitivity: A,
     window: VecDeque<A>,
 }
 
-impl<A: Float + Default + Clone> ADWINTest<A> {
+impl<A: Float + Default + Clone + Send + Sync> ADWINTest<A> {
     fn new(sensitivity: f64) -> Result<Self, String> {
         Ok(Self {
             sensitivity: A::from(sensitivity).unwrap(),
@@ -718,7 +718,7 @@ impl<A: Float + Default + Clone> ADWINTest<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StatisticalTest<A> for ADWINTest<A> {
+impl<A: Float + Default + Clone + Send + Sync> StatisticalTest<A> for ADWINTest<A> {
     fn test_for_drift(
         &mut self,
         reference: &[A],
@@ -759,13 +759,13 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for ADWINTest<A> {
     }
 }
 
-struct DDMTest<A: Float> {
+struct DDMTest<A: Float + Send + Sync> {
     sensitivity: A,
     error_rate: A,
     std_dev: A,
 }
 
-impl<A: Float + Default> DDMTest<A> {
+impl<A: Float + Default + Send + Sync> DDMTest<A> {
     fn new(sensitivity: f64) -> Result<Self, String> {
         Ok(Self {
             sensitivity: A::from(sensitivity).unwrap(),
@@ -775,7 +775,7 @@ impl<A: Float + Default> DDMTest<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StatisticalTest<A> for DDMTest<A> {
+impl<A: Float + Default + Clone + Send + Sync> StatisticalTest<A> for DDMTest<A> {
     fn test_for_drift(
         &mut self,
         reference: &[A],
@@ -815,12 +815,12 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for DDMTest<A> {
     }
 }
 
-struct PageHinkleyTest<A: Float> {
+struct PageHinkleyTest<A: Float + Send + Sync> {
     sensitivity: A,
     cumulative_sum: A,
 }
 
-impl<A: Float + Default> PageHinkleyTest<A> {
+impl<A: Float + Default + Send + Sync> PageHinkleyTest<A> {
     fn new(sensitivity: f64) -> Result<Self, String> {
         Ok(Self {
             sensitivity: A::from(sensitivity).unwrap(),
@@ -829,7 +829,7 @@ impl<A: Float + Default> PageHinkleyTest<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StatisticalTest<A> for PageHinkleyTest<A> {
+impl<A: Float + Default + Clone + Send + Sync> StatisticalTest<A> for PageHinkleyTest<A> {
     fn test_for_drift(
         &mut self,
         reference: &[A],
@@ -870,11 +870,11 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for PageHinkleyTest<A> {
     }
 }
 
-struct KLDivergenceComparator<A: Float> {
+struct KLDivergenceComparator<A: Float + Send + Sync> {
     threshold: A,
 }
 
-impl<A: Float> KLDivergenceComparator<A> {
+impl<A: Float + Send + Sync> KLDivergenceComparator<A> {
     fn new(sensitivity: f64) -> Result<Self, String> {
         Ok(Self {
             threshold: A::from(sensitivity).unwrap(),
@@ -882,7 +882,7 @@ impl<A: Float> KLDivergenceComparator<A> {
     }
 }
 
-impl<A: Float + Default + Clone> DistributionComparator<A> for KLDivergenceComparator<A> {
+impl<A: Float + Default + Clone + Send + Sync> DistributionComparator<A> for KLDivergenceComparator<A> {
     fn compare_distributions(
         &self,
         reference: &[A],
@@ -916,11 +916,11 @@ impl<A: Float + Default + Clone> DistributionComparator<A> for KLDivergenceCompa
     }
 }
 
-struct JSDivergenceComparator<A: Float> {
+struct JSDivergenceComparator<A: Float + Send + Sync> {
     threshold: A,
 }
 
-impl<A: Float> JSDivergenceComparator<A> {
+impl<A: Float + Send + Sync> JSDivergenceComparator<A> {
     fn new(sensitivity: f64) -> Result<Self, String> {
         Ok(Self {
             threshold: A::from(sensitivity).unwrap(),
@@ -928,7 +928,7 @@ impl<A: Float> JSDivergenceComparator<A> {
     }
 }
 
-impl<A: Float + Default + Clone> DistributionComparator<A> for JSDivergenceComparator<A> {
+impl<A: Float + Default + Clone + Send + Sync> DistributionComparator<A> for JSDivergenceComparator<A> {
     fn compare_distributions(
         &self,
         reference: &[A],
@@ -962,12 +962,12 @@ impl<A: Float + Default + Clone> DistributionComparator<A> for JSDivergenceCompa
     }
 }
 
-struct LinearModelDetector<A: Float> {
+struct LinearModelDetector<A: Float + Send + Sync> {
     model_performance: A,
     baseline_performance: A,
 }
 
-impl<A: Float + Default> LinearModelDetector<A> {
+impl<A: Float + Default + Send + Sync> LinearModelDetector<A> {
     fn new() -> Result<Self, String> {
         Ok(Self {
             model_performance: A::zero(),
@@ -976,7 +976,7 @@ impl<A: Float + Default> LinearModelDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> ModelBasedDetector<A> for LinearModelDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> ModelBasedDetector<A> for LinearModelDetector<A> {
     fn update_model(&mut self, _data: &[StreamingDataPoint<A>]) -> Result<(), String> {
         // Simplified model update
         Ok(())

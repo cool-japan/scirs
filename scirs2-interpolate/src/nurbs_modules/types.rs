@@ -86,9 +86,9 @@ impl<T> NurbsFloat for T where
 /// let degree = 2;
 ///
 /// let curve = NurbsCurve::new(
-///     control_points,
-///     weights,
-///     knots,
+///     &control_points.view(),
+///     &weights.view(),
+///     &knots.view(),
 ///     degree,
 ///     ExtrapolateMode::Extrapolate
 /// ).unwrap();
@@ -139,11 +139,11 @@ pub struct NurbsCurve<T: NurbsFloat> {
 /// let knotsv = array![0.0, 0.0, 1.0, 1.0];
 ///
 /// let surface = NurbsSurface::new(
-///     control_points,
-///     weights,
+///     &control_points.view(),
+///     &weights.view(),
 ///     2, 2,  // nu, nv
-///     knotsu,
-///     knotsv,
+///     &knotsu.view(),
+///     &knotsv.view(),
 ///     1, 1,  // degreeu, degreev
 ///     ExtrapolateMode::Extrapolate
 /// ).unwrap();

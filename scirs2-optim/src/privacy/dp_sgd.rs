@@ -19,7 +19,7 @@ use crate::optimizers::Optimizer;
 /// DP-SGD optimizer with privacy guarantees
 pub struct DPSGDOptimizer<O, A, D>
 where
-    A: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug,
+    A: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug + Default + Clone + std::iter::Sum,
     D: ndarray::Dimension,
     O: Optimizer<A, D>,
 {
@@ -154,7 +154,7 @@ pub struct PrivacyConsumption {
 
 /// Gradient statistics for DP-SGD
 #[derive(Debug, Clone)]
-struct GradientStatistics<A: Float> {
+struct GradientStatistics<A: Float + Default + Clone + std::iter::Sum> {
     /// Recent gradient norms
     norm_history: VecDeque<A>,
 

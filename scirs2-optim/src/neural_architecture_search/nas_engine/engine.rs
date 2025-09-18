@@ -692,23 +692,23 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
 }
 
 // Strategy implementations (placeholder structures for compilation)
-struct RandomStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct EvolutionaryStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct BayesianStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct ReinforcementStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct DifferentiableStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct ProgressiveStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct HybridStrategy<T: Float> { _phantom: std::marker::PhantomData<T> }
+struct RandomStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct EvolutionaryStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct BayesianStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct ReinforcementStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct DifferentiableStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct ProgressiveStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct HybridStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
 
 // Multi-objective optimizer implementations (placeholder)
-struct NSGA2Optimizer<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct NSGA3Optimizer<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct MOEADOptimizer<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct PAESOptimizer<T: Float> { _phantom: std::marker::PhantomData<T> }
-struct SPEA2Optimizer<T: Float> { _phantom: std::marker::PhantomData<T> }
+struct NSGA2Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct NSGA3Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct MOEADOptimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct PAESOptimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct SPEA2Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
 
 // Architecture controller implementation (placeholder)
-struct DefaultArchitectureController<T: Float> { _phantom: std::marker::PhantomData<T> }
+struct DefaultArchitectureController<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
 
 // Implementations for PerformanceEvaluator
 impl<T: Float> PerformanceEvaluator<T> {
@@ -790,13 +790,13 @@ impl<T: Float> PerformancePredictor<T> {
 // Placeholder implementations for strategy traits
 macro_rules! impl_search_strategy {
     ($strategy:ident) => {
-        impl<T: Float> $strategy<T> {
+        impl<T: Float + Send + Sync> $strategy<T> {
             pub fn new(_config: &NASConfig<T>) -> Result<Self> {
                 Ok(Self { _phantom: std::marker::PhantomData })
             }
         }
 
-        impl<T: Float> SearchStrategy<T> for $strategy<T> {
+        impl<T: Float + Send + Sync> SearchStrategy<T> for $strategy<T> {
             fn generate_candidates(&mut self, _history: &VecDeque<SearchResult<T>>) -> Result<Vec<OptimizerArchitecture<T>>> {
                 Ok(Vec::new())
             }
@@ -827,13 +827,13 @@ impl_search_strategy!(HybridStrategy);
 // Placeholder implementations for multi-objective optimizers
 macro_rules! impl_multi_objective_optimizer {
     ($optimizer:ident) => {
-        impl<T: Float> $optimizer<T> {
+        impl<T: Float + Send + Sync> $optimizer<T> {
             pub fn new(_config: &MultiObjectiveConfig<T>) -> Result<Self> {
                 Ok(Self { _phantom: std::marker::PhantomData })
             }
         }
 
-        impl<T: Float> MultiObjectiveOptimizer<T> for $optimizer<T> {
+        impl<T: Float + Send + Sync> MultiObjectiveOptimizer<T> for $optimizer<T> {
             fn update_pareto_front(&mut self, _results: &[SearchResult<T>]) -> Result<ParetoFront<T>> {
                 Ok(ParetoFront {
                     solutions: Vec::new(),
@@ -867,13 +867,13 @@ impl_multi_objective_optimizer!(PAESOptimizer);
 impl_multi_objective_optimizer!(SPEA2Optimizer);
 
 // Implementation for DefaultArchitectureController
-impl<T: Float> DefaultArchitectureController<T> {
+impl<T: Float + Send + Sync> DefaultArchitectureController<T> {
     pub fn new(_config: &NASConfig<T>) -> Result<Self> {
         Ok(Self { _phantom: std::marker::PhantomData })
     }
 }
 
-impl<T: Float> ArchitectureController<T> for DefaultArchitectureController<T> {
+impl<T: Float + Send + Sync> ArchitectureController<T> for DefaultArchitectureController<T> {
     fn generate_random(&mut self) -> Result<OptimizerArchitecture<T>> {
         Ok(OptimizerArchitecture {
             components: Vec::new(),

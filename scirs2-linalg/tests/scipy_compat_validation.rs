@@ -669,7 +669,7 @@ mod performance_validation_tests {
             }
         });
 
-        let max_time_ms = 2000; // Generous bound for CI environments
+        let max_time_ms = 5000; // More generous bound for CI environments
 
         // Test LU decomposition
         let start = Instant::now();

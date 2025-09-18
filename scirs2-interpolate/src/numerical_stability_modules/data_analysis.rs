@@ -219,10 +219,10 @@ where
     let coord_scale_factor = max_coord_range;
     let value_scale_factor = value_range;
     let scaling_recommended = coord_scale_factor
-        > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
-        || coord_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap())
-        || value_scale_factor > F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
-        || value_scale_factor < F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap());
+        >= F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
+        || coord_scale_factor <= F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap())
+        || value_scale_factor >= F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap())
+        || value_scale_factor <= F::from(0.001).unwrap_or_else(|| F::from(0.001).unwrap());
 
     // Estimate condition number improvement
     let condition_improvement_factor = if scaling_recommended {
@@ -339,18 +339,22 @@ where
         reasons.push("Large datasets benefit from B-spline efficiency".to_string());
     }
 
-    // Consider function characteristics
+    // Consider function characteristics (but don't override small dataset preference)
     if !function_values.is_smooth {
         if function_values.has_outliers {
-            primary_method = InterpolationMethod::RadialBasisFunction;
-            alternative_methods.push(InterpolationMethod::Kriging);
-            reasons.push("Non-smooth functions with outliers need robust methods".to_string());
+            if data_points.num_points >= 10 {
+                primary_method = InterpolationMethod::RadialBasisFunction;
+                alternative_methods.push(InterpolationMethod::Kriging);
+                reasons.push("Non-smooth functions with outliers need robust methods".to_string());
+            }
         } else {
-            primary_method = InterpolationMethod::PiecewisePolynomial;
-            alternative_methods.push(InterpolationMethod::BSpline);
-            reasons.push("Non-smooth functions benefit from piecewise approaches".to_string());
+            if data_points.num_points >= 10 {
+                primary_method = InterpolationMethod::PiecewisePolynomial;
+                alternative_methods.push(InterpolationMethod::BSpline);
+                reasons.push("Non-smooth functions benefit from piecewise approaches".to_string());
+            }
         }
-    } else if function_values.is_monotonic {
+    } else if function_values.is_monotonic && data_points.num_points >= 10 {
         primary_method = InterpolationMethod::CubicSpline;
         alternative_methods.push(InterpolationMethod::BSpline);
         reasons.push("Smooth monotonic functions are ideal for spline interpolation".to_string());

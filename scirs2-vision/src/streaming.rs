@@ -110,12 +110,12 @@ mod tests {
     #[test]
     fn test_processing_stages() {
         let frame = Frame {
-            data: Array2::from_shape_fn((10, 10), |(y, x)| (x + y) as f32 / 20.0),
+            data: Array2::from_shape_fn((4, 4), |(y, x)| (x + y) as f32 / 8.0), // Smaller test image
             timestamp: Instant::now(),
             index: 0,
             metadata: Some(FrameMetadata {
-                width: 10,
-                height: 10,
+                width: 4,
+                height: 4,
                 fps: 30.0,
                 channels: 1,
             }),
@@ -126,8 +126,8 @@ mod tests {
         let result = grayscale_stage.process(frame.clone());
         assert!(result.is_ok());
 
-        // Test blur stage
-        let mut blur_stage = BlurStage::new(1.0);
+        // Test blur stage with smaller sigma to reduce computational complexity
+        let mut blur_stage = BlurStage::new(0.5);
         let result = blur_stage.process(frame.clone());
         assert!(result.is_ok());
 

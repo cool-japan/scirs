@@ -315,7 +315,7 @@ impl FeatureDetectionStage {
         // Ixx = Ix * Ix, Iyy = Iy * Iy, Ixy = Ix * Iy
         for y in 0..height {
             let gx_row = grad_x.row(y);
-            let gy_row = grad_x.row(y);
+            let gy_row = grad_y_.row(y);
 
             // SIMD element-wise multiplication
             let ixx_row = f32::simd_mul(&gx_row, &gx_row);

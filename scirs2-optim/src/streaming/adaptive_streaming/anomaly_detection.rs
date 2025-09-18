@@ -13,7 +13,7 @@ use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 /// Comprehensive anomaly detector for streaming data
-pub struct AnomalyDetector<A: Float> {
+pub struct AnomalyDetector<A: Float + Send + Sync> {
     /// Anomaly detection configuration
     config: AnomalyConfig,
     /// Statistical anomaly detectors
@@ -34,7 +34,7 @@ pub struct AnomalyDetector<A: Float> {
 
 /// Anomaly event record
 #[derive(Debug, Clone)]
-pub struct AnomalyEvent<A: Float> {
+pub struct AnomalyEvent<A: Float + Send + Sync> {
     /// Event ID
     pub id: u64,
     /// Timestamp of detection
@@ -97,7 +97,7 @@ pub enum AnomalySeverity {
 
 /// Context information for anomaly
 #[derive(Debug, Clone)]
-pub struct AnomalyContext<A: Float> {
+pub struct AnomalyContext<A: Float + Send + Sync> {
     /// Recent data statistics
     pub recent_statistics: DataStatistics<A>,
     /// Performance metrics at detection time
@@ -112,7 +112,7 @@ pub struct AnomalyContext<A: Float> {
 
 /// Data statistics for anomaly context
 #[derive(Debug, Clone)]
-pub struct DataStatistics<A: Float> {
+pub struct DataStatistics<A: Float + Send + Sync> {
     /// Mean values for features
     pub means: Vec<A>,
     /// Standard deviations for features
@@ -130,7 +130,7 @@ pub struct DataStatistics<A: Float> {
 }
 
 /// Trait for statistical anomaly detectors
-pub trait StatisticalAnomalyDetector<A: Float>: Send + Sync {
+pub trait StatisticalAnomalyDetector<A: Float + Send + Sync>: Send + Sync {
     /// Detects anomalies in the given data point
     fn detect_anomaly(
         &mut self,
@@ -154,7 +154,7 @@ pub trait StatisticalAnomalyDetector<A: Float>: Send + Sync {
 }
 
 /// Trait for machine learning-based anomaly detectors
-pub trait MLAnomalyDetector<A: Float>: Send + Sync {
+pub trait MLAnomalyDetector<A: Float + Send + Sync>: Send + Sync {
     /// Detects anomalies using ML model
     fn detect_anomaly(
         &mut self,
@@ -176,7 +176,7 @@ pub trait MLAnomalyDetector<A: Float>: Send + Sync {
 
 /// Result of anomaly detection
 #[derive(Debug, Clone)]
-pub struct AnomalyDetectionResult<A: Float> {
+pub struct AnomalyDetectionResult<A: Float + Send + Sync> {
     /// Whether an anomaly was detected
     pub is_anomaly: bool,
     /// Anomaly score (higher = more anomalous)
@@ -193,7 +193,7 @@ pub struct AnomalyDetectionResult<A: Float> {
 
 /// Performance metrics for ML models
 #[derive(Debug, Clone)]
-pub struct MLModelMetrics<A: Float> {
+pub struct MLModelMetrics<A: Float + Send + Sync> {
     /// Accuracy of anomaly detection
     pub accuracy: A,
     /// Precision (true positives / (true positives + false positives))
@@ -213,7 +213,7 @@ pub struct MLModelMetrics<A: Float> {
 }
 
 /// Ensemble anomaly detector combining multiple methods
-pub struct EnsembleAnomalyDetector<A: Float> {
+pub struct EnsembleAnomalyDetector<A: Float + Send + Sync> {
     /// Individual detector results
     detector_results: HashMap<String, AnomalyDetectionResult<A>>,
     /// Ensemble voting strategy
@@ -247,7 +247,7 @@ pub enum EnsembleVotingStrategy {
 
 /// Performance tracking for individual detectors
 #[derive(Debug, Clone)]
-pub struct DetectorPerformance<A: Float> {
+pub struct DetectorPerformance<A: Float + Send + Sync> {
     /// Recent accuracy
     pub recent_accuracy: A,
     /// Historical accuracy
@@ -264,7 +264,7 @@ pub struct DetectorPerformance<A: Float> {
 
 /// Ensemble configuration
 #[derive(Debug, Clone)]
-pub struct EnsembleConfig<A: Float> {
+pub struct EnsembleConfig<A: Float + Send + Sync> {
     /// Minimum number of detectors that must agree
     pub min_consensus: usize,
     /// Threshold for ensemble anomaly score
@@ -278,7 +278,7 @@ pub struct EnsembleConfig<A: Float> {
 }
 
 /// Adaptive threshold management system
-pub struct AdaptiveThresholdManager<A: Float> {
+pub struct AdaptiveThresholdManager<A: Float + Send + Sync> {
     /// Current thresholds for different detectors
     thresholds: HashMap<String, A>,
     /// Threshold adaptation strategy
@@ -312,7 +312,7 @@ pub enum ThresholdAdaptationStrategy {
 
 /// Performance feedback for threshold adaptation
 #[derive(Debug, Clone)]
-pub struct ThresholdPerformanceFeedback<A: Float> {
+pub struct ThresholdPerformanceFeedback<A: Float + Send + Sync> {
     /// Detector name
     pub detector_name: String,
     /// Threshold value
@@ -331,7 +331,7 @@ pub struct ThresholdPerformanceFeedback<A: Float> {
 
 /// Threshold adaptation parameters
 #[derive(Debug, Clone)]
-pub struct ThresholdAdaptationParams<A: Float> {
+pub struct ThresholdAdaptationParams<A: Float + Send + Sync> {
     /// Learning rate for threshold updates
     pub learning_rate: A,
     /// Momentum for threshold changes
@@ -345,7 +345,7 @@ pub struct ThresholdAdaptationParams<A: Float> {
 }
 
 /// False positive tracking system
-pub struct FalsePositiveTracker<A: Float> {
+pub struct FalsePositiveTracker<A: Float + Send + Sync> {
     /// Recent false positive events
     false_positives: VecDeque<FalsePositiveEvent<A>>,
     /// False positive rate calculation
@@ -358,7 +358,7 @@ pub struct FalsePositiveTracker<A: Float> {
 
 /// False positive event
 #[derive(Debug, Clone)]
-pub struct FalsePositiveEvent<A: Float> {
+pub struct FalsePositiveEvent<A: Float + Send + Sync> {
     /// Event timestamp
     pub timestamp: Instant,
     /// Data point incorrectly flagged
@@ -372,7 +372,7 @@ pub struct FalsePositiveEvent<A: Float> {
 }
 
 /// False positive rate calculator
-pub struct FPRateCalculator<A: Float> {
+pub struct FPRateCalculator<A: Float + Send + Sync> {
     /// Recent detection results
     recent_results: VecDeque<DetectionResult>,
     /// Calculation window size
@@ -398,7 +398,7 @@ pub struct DetectionResult {
 
 /// Patterns in false positives
 #[derive(Debug, Clone)]
-pub struct FalsePositivePatterns<A: Float> {
+pub struct FalsePositivePatterns<A: Float + Send + Sync> {
     /// Temporal patterns
     pub temporal_patterns: Vec<TemporalPattern>,
     /// Feature-based patterns
@@ -437,7 +437,7 @@ pub enum TemporalPatternType {
 
 /// Context pattern for false positives
 #[derive(Debug, Clone)]
-pub struct ContextPattern<A: Float> {
+pub struct ContextPattern<A: Float + Send + Sync> {
     /// Context features associated with false positives
     pub context_features: Vec<A>,
     /// Pattern frequency
@@ -464,7 +464,7 @@ pub enum FPMitigationStrategy {
 }
 
 /// Anomaly response system
-pub struct AnomalyResponseSystem<A: Float> {
+pub struct AnomalyResponseSystem<A: Float + Send + Sync> {
     /// Response strategies
     response_strategies: HashMap<AnomalyType, Vec<ResponseAction>>,
     /// Response execution engine
@@ -495,7 +495,7 @@ pub enum ResponseAction {
 }
 
 /// Response execution engine
-pub struct ResponseExecutor<A: Float> {
+pub struct ResponseExecutor<A: Float + Send + Sync> {
     /// Pending responses
     pending_responses: VecDeque<PendingResponse<A>>,
     /// Response execution history
@@ -506,7 +506,7 @@ pub struct ResponseExecutor<A: Float> {
 
 /// Pending response action
 #[derive(Debug, Clone)]
-pub struct PendingResponse<A: Float> {
+pub struct PendingResponse<A: Float + Send + Sync> {
     /// Response ID
     pub id: u64,
     /// Associated anomaly event
@@ -523,7 +523,7 @@ pub struct PendingResponse<A: Float> {
 
 /// Response execution record
 #[derive(Debug, Clone)]
-pub struct ResponseExecution<A: Float> {
+pub struct ResponseExecution<A: Float + Send + Sync> {
     /// Execution ID
     pub id: u64,
     /// Response that was executed
@@ -567,7 +567,7 @@ pub struct ResponseResourceLimits {
 }
 
 /// Response effectiveness tracking
-pub struct ResponseEffectivenessTracker<A: Float> {
+pub struct ResponseEffectivenessTracker<A: Float + Send + Sync> {
     /// Effectiveness metrics per response type
     effectiveness_metrics: HashMap<ResponseAction, EffectivenessMetrics<A>>,
     /// Response outcome tracking
@@ -578,7 +578,7 @@ pub struct ResponseEffectivenessTracker<A: Float> {
 
 /// Effectiveness metrics for responses
 #[derive(Debug, Clone)]
-pub struct EffectivenessMetrics<A: Float> {
+pub struct EffectivenessMetrics<A: Float + Send + Sync> {
     /// Success rate
     pub success_rate: A,
     /// Average response time
@@ -593,7 +593,7 @@ pub struct EffectivenessMetrics<A: Float> {
 
 /// Response outcome record
 #[derive(Debug, Clone)]
-pub struct ResponseOutcome<A: Float> {
+pub struct ResponseOutcome<A: Float + Send + Sync> {
     /// Response execution
     pub execution: ResponseExecution<A>,
     /// Outcome measurement
@@ -606,7 +606,7 @@ pub struct ResponseOutcome<A: Float> {
 
 /// Measurement of response outcome
 #[derive(Debug, Clone)]
-pub struct OutcomeMeasurement<A: Float> {
+pub struct OutcomeMeasurement<A: Float + Send + Sync> {
     /// Did response resolve the issue
     pub issue_resolved: bool,
     /// Time to resolution
@@ -621,7 +621,7 @@ pub struct OutcomeMeasurement<A: Float> {
 
 /// Trend analysis for response effectiveness
 #[derive(Debug, Clone)]
-pub struct TrendAnalysis<A: Float> {
+pub struct TrendAnalysis<A: Float + Send + Sync> {
     /// Trend direction
     pub trend_direction: TrendDirection,
     /// Trend magnitude
@@ -647,7 +647,7 @@ pub enum TrendDirection {
 
 /// Escalation rules for severe anomalies
 #[derive(Debug, Clone)]
-pub struct EscalationRule<A: Float> {
+pub struct EscalationRule<A: Float + Send + Sync> {
     /// Rule name
     pub name: String,
     /// Conditions for escalation
@@ -660,7 +660,7 @@ pub struct EscalationRule<A: Float> {
 
 /// Escalation conditions
 #[derive(Debug, Clone)]
-pub struct EscalationCondition<A: Float> {
+pub struct EscalationCondition<A: Float + Send + Sync> {
     /// Condition type
     pub condition_type: EscalationConditionType,
     /// Threshold value
@@ -710,7 +710,7 @@ pub enum EscalationPriority {
     Emergency = 2,
 }
 
-impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
+impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync> AnomalyDetector<A> {
     /// Creates a new anomaly detector
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let anomaly_config = config.anomaly_config.clone();
@@ -943,14 +943,14 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
 // Simplified implementations of detector types
 
 /// Z-Score based statistical detector
-pub struct ZScoreDetector<A: Float> {
+pub struct ZScoreDetector<A: Float + Send + Sync> {
     threshold: A,
     running_mean: A,
     running_variance: A,
     sample_count: usize,
 }
 
-impl<A: Float + Default + Clone> ZScoreDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> ZScoreDetector<A> {
     fn new(threshold: f64) -> Result<Self, String> {
         Ok(Self {
             threshold: A::from(threshold).unwrap(),
@@ -961,7 +961,7 @@ impl<A: Float + Default + Clone> ZScoreDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for ZScoreDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync + std::iter::Sum> StatisticalAnomalyDetector<A> for ZScoreDetector<A> {
     fn detect_anomaly(
         &mut self,
         data_point: &StreamingDataPoint<A>,
@@ -1046,13 +1046,13 @@ impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for ZScoreDetecto
 }
 
 /// IQR-based statistical detector
-pub struct IQRDetector<A: Float> {
+pub struct IQRDetector<A: Float + Send + Sync> {
     threshold: A,
     recent_values: VecDeque<A>,
     window_size: usize,
 }
 
-impl<A: Float + Default + Clone> IQRDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> IQRDetector<A> {
     fn new(threshold: f64) -> Result<Self, String> {
         Ok(Self {
             threshold: A::from(threshold).unwrap(),
@@ -1062,7 +1062,7 @@ impl<A: Float + Default + Clone> IQRDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for IQRDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> StatisticalAnomalyDetector<A> for IQRDetector<A> {
     fn detect_anomaly(
         &mut self,
         data_point: &StreamingDataPoint<A>,
@@ -1153,12 +1153,12 @@ impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for IQRDetector<A
 }
 
 // Simplified ML detector implementations
-pub struct IsolationForestDetector<A: Float> {
+pub struct IsolationForestDetector<A: Float + Send + Sync> {
     model_trained: bool,
     threshold: A,
 }
 
-impl<A: Float + Default> IsolationForestDetector<A> {
+impl<A: Float + Default + Send + Sync> IsolationForestDetector<A> {
     fn new() -> Result<Self, String> {
         Ok(Self {
             model_trained: false,
@@ -1167,7 +1167,7 @@ impl<A: Float + Default> IsolationForestDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> MLAnomalyDetector<A> for IsolationForestDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> MLAnomalyDetector<A> for IsolationForestDetector<A> {
     fn detect_anomaly(
         &mut self,
         data_point: &StreamingDataPoint<A>,
@@ -1211,12 +1211,12 @@ impl<A: Float + Default + Clone> MLAnomalyDetector<A> for IsolationForestDetecto
     }
 }
 
-pub struct OneClassSVMDetector<A: Float> {
+pub struct OneClassSVMDetector<A: Float + Send + Sync> {
     model_trained: bool,
     threshold: A,
 }
 
-impl<A: Float + Default> OneClassSVMDetector<A> {
+impl<A: Float + Default + Send + Sync> OneClassSVMDetector<A> {
     fn new() -> Result<Self, String> {
         Ok(Self {
             model_trained: false,
@@ -1225,7 +1225,7 @@ impl<A: Float + Default> OneClassSVMDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> MLAnomalyDetector<A> for OneClassSVMDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> MLAnomalyDetector<A> for OneClassSVMDetector<A> {
     fn detect_anomaly(
         &mut self,
         _data_point: &StreamingDataPoint<A>,
@@ -1268,12 +1268,12 @@ impl<A: Float + Default + Clone> MLAnomalyDetector<A> for OneClassSVMDetector<A>
     }
 }
 
-pub struct LOFDetector<A: Float> {
+pub struct LOFDetector<A: Float + Send + Sync> {
     model_trained: bool,
     threshold: A,
 }
 
-impl<A: Float + Default> LOFDetector<A> {
+impl<A: Float + Default + Send + Sync> LOFDetector<A> {
     fn new() -> Result<Self, String> {
         Ok(Self {
             model_trained: false,
@@ -1282,7 +1282,7 @@ impl<A: Float + Default> LOFDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> MLAnomalyDetector<A> for LOFDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> MLAnomalyDetector<A> for LOFDetector<A> {
     fn detect_anomaly(
         &mut self,
         _data_point: &StreamingDataPoint<A>,
@@ -1327,7 +1327,7 @@ impl<A: Float + Default + Clone> MLAnomalyDetector<A> for LOFDetector<A> {
 
 // Simplified implementations for supporting structures
 
-impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> EnsembleAnomalyDetector<A> {
     fn new(voting_strategy: EnsembleVotingStrategy) -> Result<Self, String> {
         Ok(Self {
             detector_results: HashMap::new(),
@@ -1402,7 +1402,7 @@ impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> AdaptiveThresholdManager<A> {
+impl<A: Float + Default + Clone + Send + Sync> AdaptiveThresholdManager<A> {
     fn new(strategy: ThresholdAdaptationStrategy) -> Result<Self, String> {
         Ok(Self {
             thresholds: HashMap::new(),
@@ -1420,7 +1420,7 @@ impl<A: Float + Default + Clone> AdaptiveThresholdManager<A> {
     }
 }
 
-impl<A: Float + Default + Clone> FalsePositiveTracker<A> {
+impl<A: Float + Default + Clone + Send + Sync> FalsePositiveTracker<A> {
     fn new() -> Self {
         Self {
             false_positives: VecDeque::with_capacity(1000),
@@ -1451,7 +1451,7 @@ impl<A: Float + Default + Clone> FalsePositiveTracker<A> {
     }
 }
 
-impl<A: Float + Default + Clone> AnomalyResponseSystem<A> {
+impl<A: Float + Default + Clone + Send + Sync> AnomalyResponseSystem<A> {
     fn new(response_strategy: &AnomalyResponseStrategy) -> Result<Self, String> {
         let mut response_strategies = HashMap::new();
 

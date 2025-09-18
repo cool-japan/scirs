@@ -14,7 +14,7 @@ use crate::error::{OptimError, Result};
 
 /// Higher-order differentiation engine
 #[allow(dead_code)]
-pub struct HigherOrderEngine<T: Float> {
+pub struct HigherOrderEngine<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOperand> {
     /// Forward-mode engine for directional derivatives
     forward_engine: ForwardModeEngine<T>,
 

@@ -43,6 +43,7 @@ use super::utils::{
 /// ```
 /// use scirs2_signal::parametric_advanced_enhanced::{advanced_enhanced_arma, AdvancedEnhancedConfig};
 /// use ndarray::Array1;
+/// use std::f64::consts::PI;
 ///
 /// // Generate test signal with two sinusoids plus noise
 /// let n = 1024;

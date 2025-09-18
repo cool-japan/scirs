@@ -5,14 +5,14 @@
 //! tracking, resource management, and adaptive learning rate control.
 
 use super::anomaly_detection::{
-    EnsembleAnomalyDetector, MLAnomalyDetector, StatisticalAnomalyDetector,
+    AnomalyDetector, AnomalyDiagnostics, EnsembleAnomalyDetector, MLAnomalyDetector, StatisticalAnomalyDetector,
 };
-use super::buffering::AdaptiveBuffer;
+use super::buffering::{AdaptiveBuffer, BufferDiagnostics};
 use super::config::*;
-use super::drift_detection::EnhancedDriftDetector;
-use super::meta_learning::{ExperienceReplay, MetaLearner, StrategySelector};
-use super::performance::{DataStatistics, PerformanceSnapshot, PerformanceTracker};
-use super::resource_management::{ResourceManager, ResourceUsage};
+use super::drift_detection::{DriftDiagnostics, EnhancedDriftDetector};
+use super::meta_learning::{ExperienceReplay, MetaAction, MetaLearner, MetaLearningDiagnostics, MetaState, StrategySelector};
+use super::performance::{DataStatistics, PerformanceDiagnostics, PerformanceSnapshot, PerformanceTracker};
+use super::resource_management::{ResourceDiagnostics, ResourceManager, ResourceUsage};
 
 use crate::adaptive_selection::OptimizerType;
 use crate::learned_optimizers::lstm_optimizer::AdaptiveLearningRateController;
@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 
 /// Streaming data point for optimization
 #[derive(Debug, Clone)]
-pub struct StreamingDataPoint<A: Float> {
+pub struct StreamingDataPoint<A: Float + Send + Sync> {
     /// Input features
     pub features: Array1<A>,
     /// Target values (optional for unsupervised learning)
@@ -43,7 +43,7 @@ pub struct StreamingDataPoint<A: Float> {
 
 /// Adaptation instruction for optimizer components
 #[derive(Debug, Clone)]
-pub struct Adaptation<A: Float> {
+pub struct Adaptation<A: Float + Send + Sync> {
     /// Type of adaptation
     pub adaptation_type: AdaptationType,
     /// Magnitude of adaptation
@@ -122,7 +122,7 @@ pub struct AdaptiveStreamingStats {
 /// Main adaptive streaming optimizer
 pub struct AdaptiveStreamingOptimizer<O, A, D>
 where
-    A: Float + Default + Clone + Send + Sync,
+    A: Float + Default + Clone + Send + Sync + std::iter::Sum,
     D: Dimension,
 {
     /// Base optimizer instance

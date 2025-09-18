@@ -12,7 +12,7 @@ use crate::error::Result;
 
 /// Streaming metrics collector and analyzer
 #[derive(Debug)]
-pub struct StreamingMetricsCollector<A: Float> {
+pub struct StreamingMetricsCollector<A: Float + Send + Sync> {
     /// Performance metrics
     performance_metrics: PerformanceMetrics<A>,
 
@@ -43,7 +43,7 @@ pub struct StreamingMetricsCollector<A: Float> {
 
 /// Performance-related metrics
 #[derive(Debug, Clone)]
-pub struct PerformanceMetrics<A: Float> {
+pub struct PerformanceMetrics<A: Float + Send + Sync> {
     /// Throughput measurements
     pub throughput: ThroughputMetrics,
 
@@ -137,7 +137,7 @@ pub struct LatencyStats {
 
 /// Accuracy and convergence metrics
 #[derive(Debug, Clone)]
-pub struct AccuracyMetrics<A: Float> {
+pub struct AccuracyMetrics<A: Float + Send + Sync> {
     /// Current loss value
     pub current_loss: A,
 
@@ -162,7 +162,7 @@ pub struct AccuracyMetrics<A: Float> {
 
 /// Model stability metrics
 #[derive(Debug, Clone)]
-pub struct StabilityMetrics<A: Float> {
+pub struct StabilityMetrics<A: Float + Send + Sync> {
     /// Loss variance
     pub loss_variance: A,
 
@@ -184,7 +184,7 @@ pub struct StabilityMetrics<A: Float> {
 
 /// Efficiency metrics
 #[derive(Debug, Clone)]
-pub struct EfficiencyMetrics<A: Float> {
+pub struct EfficiencyMetrics<A: Float + Send + Sync> {
     /// Computational efficiency
     pub computational_efficiency: A,
 
@@ -250,7 +250,7 @@ pub struct MemoryUsage {
 
 /// Quality metrics for streaming optimization
 #[derive(Debug, Clone)]
-pub struct QualityMetrics<A: Float> {
+pub struct QualityMetrics<A: Float + Send + Sync> {
     /// Data quality score
     pub data_quality: A,
 
@@ -269,7 +269,7 @@ pub struct QualityMetrics<A: Float> {
 
 /// Model quality assessment
 #[derive(Debug, Clone)]
-pub struct ModelQuality<A: Float> {
+pub struct ModelQuality<A: Float + Send + Sync> {
     /// Training quality score
     pub training_quality: A,
 
@@ -288,7 +288,7 @@ pub struct ModelQuality<A: Float> {
 
 /// Concept drift monitoring metrics
 #[derive(Debug, Clone)]
-pub struct ConceptDriftMetrics<A: Float> {
+pub struct ConceptDriftMetrics<A: Float + Send + Sync> {
     /// Drift detection confidence
     pub drift_confidence: A,
 
@@ -307,7 +307,7 @@ pub struct ConceptDriftMetrics<A: Float> {
 
 /// Anomaly detection metrics
 #[derive(Debug, Clone)]
-pub struct AnomalyMetrics<A: Float> {
+pub struct AnomalyMetrics<A: Float + Send + Sync> {
     /// Anomaly score
     pub anomaly_score: A,
 
@@ -326,7 +326,7 @@ pub struct AnomalyMetrics<A: Float> {
 
 /// Model robustness metrics
 #[derive(Debug, Clone)]
-pub struct RobustnessMetrics<A: Float> {
+pub struct RobustnessMetrics<A: Float + Send + Sync> {
     /// Noise tolerance
     pub noise_tolerance: A,
 
@@ -345,7 +345,7 @@ pub struct RobustnessMetrics<A: Float> {
 
 /// Business and operational metrics
 #[derive(Debug, Clone)]
-pub struct BusinessMetrics<A: Float> {
+pub struct BusinessMetrics<A: Float + Send + Sync> {
     /// System availability
     pub availability: f64,
 
@@ -364,7 +364,7 @@ pub struct BusinessMetrics<A: Float> {
 
 /// Cost-related metrics
 #[derive(Debug, Clone)]
-pub struct CostMetrics<A: Float> {
+pub struct CostMetrics<A: Float + Send + Sync> {
     /// Computational cost
     pub computational_cost: A,
 
@@ -383,7 +383,7 @@ pub struct CostMetrics<A: Float> {
 
 /// Historical metrics storage
 #[derive(Debug)]
-pub struct HistoricalMetrics<A: Float> {
+pub struct HistoricalMetrics<A: Float + Send + Sync> {
     /// Time-series data storage
     time_series: BTreeMap<u64, MetricsSnapshot<A>>,
 
@@ -399,7 +399,7 @@ pub struct HistoricalMetrics<A: Float> {
 
 /// Point-in-time metrics snapshot
 #[derive(Debug, Clone)]
-pub struct MetricsSnapshot<A: Float> {
+pub struct MetricsSnapshot<A: Float + Send + Sync> {
     /// Timestamp
     pub timestamp: u64,
 
@@ -428,7 +428,7 @@ pub enum AggregationPeriod {
 
 /// Aggregated metrics over a time period
 #[derive(Debug, Clone)]
-pub struct AggregatedMetrics<A: Float> {
+pub struct AggregatedMetrics<A: Float + Send + Sync> {
     /// Time period start
     pub period_start: u64,
 
@@ -569,7 +569,7 @@ pub struct WidgetLayout {
 
 /// Alert system for monitoring
 #[derive(Debug)]
-pub struct AlertSystem<A: Float> {
+pub struct AlertSystem<A: Float + Send + Sync> {
     /// Alert rules
     pub rules: Vec<AlertRule<A>>,
 
@@ -585,7 +585,7 @@ pub struct AlertSystem<A: Float> {
 
 /// Alert rule definition
 #[derive(Debug, Clone)]
-pub struct AlertRule<A: Float> {
+pub struct AlertRule<A: Float + Send + Sync> {
     /// Rule name
     pub name: String,
 
@@ -607,7 +607,7 @@ pub struct AlertRule<A: Float> {
 
 /// Alert conditions
 #[derive(Debug, Clone)]
-pub enum AlertCondition<A: Float> {
+pub enum AlertCondition<A: Float + Send + Sync> {
     /// Threshold crossing
     Threshold {
         operator: ComparisonOperator,
@@ -645,7 +645,7 @@ pub enum AlertSeverity {
 
 /// Active or historical alert
 #[derive(Debug, Clone)]
-pub struct Alert<A: Float> {
+pub struct Alert<A: Float + Send + Sync> {
     /// Alert ID
     pub id: String,
 
@@ -772,7 +772,7 @@ pub enum ExportDestination {
     },
 }
 
-impl<A: Float + Default + Clone + std::fmt::Debug> StreamingMetricsCollector<A> {
+impl<A: Float + Default + Clone + std::fmt::Debug + Send + Sync> StreamingMetricsCollector<A> {
     /// Create a new metrics collector
     pub fn new() -> Self {
         Self {
@@ -878,7 +878,7 @@ impl<A: Float + Default + Clone + std::fmt::Debug> StreamingMetricsCollector<A> 
 
 /// Individual metrics sample
 #[derive(Debug, Clone)]
-pub struct MetricsSample<A: Float> {
+pub struct MetricsSample<A: Float + Send + Sync> {
     /// Timestamp of the sample
     pub timestamp: SystemTime,
 
@@ -900,7 +900,7 @@ pub struct MetricsSample<A: Float> {
 
 /// Complete metrics summary
 #[derive(Debug, Clone)]
-pub struct MetricsSummary<A: Float> {
+pub struct MetricsSummary<A: Float + Send + Sync> {
     /// Performance metrics
     pub performance: PerformanceMetrics<A>,
 
@@ -918,7 +918,7 @@ pub struct MetricsSummary<A: Float> {
 }
 
 // Implement default traits for metrics structs
-impl<A: Float + Default> Default for PerformanceMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for PerformanceMetrics<A> {
     fn default() -> Self {
         Self {
             throughput: ThroughputMetrics::default(),
@@ -972,7 +972,7 @@ impl Default for LatencyStats {
     }
 }
 
-impl<A: Float + Default> Default for AccuracyMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for AccuracyMetrics<A> {
     fn default() -> Self {
         Self {
             current_loss: A::default(),
@@ -986,7 +986,7 @@ impl<A: Float + Default> Default for AccuracyMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for StabilityMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for StabilityMetrics<A> {
     fn default() -> Self {
         Self {
             loss_variance: A::default(),
@@ -999,7 +999,7 @@ impl<A: Float + Default> Default for StabilityMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for EfficiencyMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for EfficiencyMetrics<A> {
     fn default() -> Self {
         Self {
             computational_efficiency: A::default(),
@@ -1038,7 +1038,7 @@ impl Default for MemoryUsage {
     }
 }
 
-impl<A: Float + Default> Default for QualityMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for QualityMetrics<A> {
     fn default() -> Self {
         Self {
             data_quality: A::default(),
@@ -1050,7 +1050,7 @@ impl<A: Float + Default> Default for QualityMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for ModelQuality<A> {
+impl<A: Float + Default + Send + Sync> Default for ModelQuality<A> {
     fn default() -> Self {
         Self {
             training_quality: A::default(),
@@ -1062,7 +1062,7 @@ impl<A: Float + Default> Default for ModelQuality<A> {
     }
 }
 
-impl<A: Float + Default> Default for ConceptDriftMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for ConceptDriftMetrics<A> {
     fn default() -> Self {
         Self {
             drift_confidence: A::default(),
@@ -1074,7 +1074,7 @@ impl<A: Float + Default> Default for ConceptDriftMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for AnomalyMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for AnomalyMetrics<A> {
     fn default() -> Self {
         Self {
             anomaly_score: A::default(),
@@ -1086,7 +1086,7 @@ impl<A: Float + Default> Default for AnomalyMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for RobustnessMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for RobustnessMetrics<A> {
     fn default() -> Self {
         Self {
             noise_tolerance: A::default(),
@@ -1098,7 +1098,7 @@ impl<A: Float + Default> Default for RobustnessMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for BusinessMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for BusinessMetrics<A> {
     fn default() -> Self {
         Self {
             availability: 0.0,
@@ -1110,7 +1110,7 @@ impl<A: Float + Default> Default for BusinessMetrics<A> {
     }
 }
 
-impl<A: Float + Default> Default for CostMetrics<A> {
+impl<A: Float + Default + Send + Sync> Default for CostMetrics<A> {
     fn default() -> Self {
         Self {
             computational_cost: A::default(),
@@ -1122,7 +1122,7 @@ impl<A: Float + Default> Default for CostMetrics<A> {
     }
 }
 
-impl<A: Float> HistoricalMetrics<A> {
+impl<A: Float + Send + Sync> HistoricalMetrics<A> {
     fn new() -> Self {
         Self {
             time_series: BTreeMap::new(),
@@ -1165,7 +1165,7 @@ impl<A: Float> HistoricalMetrics<A> {
     }
 }
 
-impl<A: Float> AlertSystem<A> {
+impl<A: Float + Send + Sync> AlertSystem<A> {
     fn new() -> Self {
         Self {
             rules: Vec::new(),

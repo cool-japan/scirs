@@ -26,7 +26,21 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// // Assuming you have a curve...
+    /// use ndarray::array;
+    /// use scirs2_interpolate::nurbs::NurbsCurve;
+    /// use scirs2_interpolate::bspline::ExtrapolateMode;
+    ///
+    /// let control_points = array![[0.0, 0.0], [1.0, 0.0]];
+    /// let weights = array![1.0, 1.0];
+    /// let knots = array![0.0, 0.0, 1.0, 1.0];
+    /// let curve = NurbsCurve::new(
+    ///     &control_points.view(),
+    ///     &weights.view(),
+    ///     &knots.view(),
+    ///     1,
+    ///     ExtrapolateMode::Extrapolate
+    /// ).unwrap();
+    ///
     /// let point = curve.evaluate(0.5).unwrap();
     /// println!("Point at t=0.5: {:?}", point);
     /// ```
@@ -87,6 +101,19 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     ///
     /// ```rust
     /// use ndarray::array;
+    /// use scirs2_interpolate::nurbs::NurbsCurve;
+    /// use scirs2_interpolate::bspline::ExtrapolateMode;
+    ///
+    /// let control_points = array![[0.0, 0.0], [1.0, 0.0]];
+    /// let weights = array![1.0, 1.0];
+    /// let knots = array![0.0, 0.0, 1.0, 1.0];
+    /// let curve = NurbsCurve::new(
+    ///     &control_points.view(),
+    ///     &weights.view(),
+    ///     &knots.view(),
+    ///     1,
+    ///     ExtrapolateMode::Extrapolate
+    /// ).unwrap();
     ///
     /// let t_vals = array![0.0, 0.25, 0.5, 0.75, 1.0];
     /// let points = curve.evaluate_array(&t_vals.view()).unwrap();
@@ -122,6 +149,21 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
+    /// use ndarray::array;
+    /// use scirs2_interpolate::nurbs::NurbsCurve;
+    /// use scirs2_interpolate::bspline::ExtrapolateMode;
+    ///
+    /// let control_points = array![[0.0, 0.0], [1.0, 0.0]];
+    /// let weights = array![1.0, 1.0];
+    /// let knots = array![0.0, 0.0, 1.0, 1.0];
+    /// let curve = NurbsCurve::new(
+    ///     &control_points.view(),
+    ///     &weights.view(),
+    ///     &knots.view(),
+    ///     1,
+    ///     ExtrapolateMode::Extrapolate
+    /// ).unwrap();
+    ///
     /// // First derivative (tangent vector)
     /// let tangent = curve.derivative(0.5, 1).unwrap();
     ///
@@ -249,6 +291,21 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
+    /// use ndarray::array;
+    /// use scirs2_interpolate::nurbs::NurbsCurve;
+    /// use scirs2_interpolate::bspline::ExtrapolateMode;
+    ///
+    /// let control_points = array![[0.0, 0.0], [1.0, 0.0]];
+    /// let weights = array![1.0, 1.0];
+    /// let knots = array![0.0, 0.0, 1.0, 1.0];
+    /// let curve = NurbsCurve::new(
+    ///     &control_points.view(),
+    ///     &weights.view(),
+    ///     &knots.view(),
+    ///     1,
+    ///     ExtrapolateMode::Extrapolate
+    /// ).unwrap();
+    ///
     /// // Integrate curve from t=0 to t=1
     /// let integral = curve.integrate(0.0, 1.0).unwrap();
     /// ```
@@ -298,6 +355,21 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
+    /// use ndarray::array;
+    /// use scirs2_interpolate::nurbs::NurbsCurve;
+    /// use scirs2_interpolate::bspline::ExtrapolateMode;
+    ///
+    /// let control_points = array![[0.0, 0.0], [1.0, 0.0]];
+    /// let weights = array![1.0, 1.0];
+    /// let knots = array![0.0, 0.0, 1.0, 1.0];
+    /// let curve = NurbsCurve::new(
+    ///     &control_points.view(),
+    ///     &weights.view(),
+    ///     &knots.view(),
+    ///     1,
+    ///     ExtrapolateMode::Extrapolate
+    /// ).unwrap();
+    ///
     /// // Insert knot at parameter 0.5 once
     /// let refined_curve = curve.insert_knot(0.5, 1).unwrap();
     /// ```

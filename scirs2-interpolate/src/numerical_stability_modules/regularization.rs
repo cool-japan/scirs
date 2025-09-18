@@ -155,7 +155,13 @@ where
     let threshold =
         eps * F::from(n).unwrap() * F::from(1000.0).unwrap_or_else(|| F::from(1000.0).unwrap());
 
-    // Check determinant approximation using diagonal product
+    // For 2x2 matrices, compute actual determinant
+    if n == 2 {
+        let det = matrix[(0, 0)] * matrix[(1, 1)] - matrix[(0, 1)] * matrix[(1, 0)];
+        return det.abs() < F::from(1e-10).unwrap_or_else(|| F::from(1e-10).unwrap());
+    }
+
+    // For larger matrices, check diagonal product as approximation
     let mut diag_product = F::one();
     for i in 0..n {
         diag_product *= matrix[(i, i)].abs();

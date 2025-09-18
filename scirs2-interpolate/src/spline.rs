@@ -68,8 +68,8 @@
 //!
 //! // Advanced usage with builder pattern
 //! let spline = CubicSpline::builder()
-//!     .x(x)
-//!     .y(y)
+//!     .x(x.clone())
+//!     .y(y.clone())
 //!     .boundary_condition(SplineBoundaryCondition::Clamped(0.0, 6.0))
 //!     .build()
 //!     .unwrap();

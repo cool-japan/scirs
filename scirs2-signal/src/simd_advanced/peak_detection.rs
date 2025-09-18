@@ -20,6 +20,7 @@
 //! # Usage
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{simd_peak_detection, SimdConfig};
 //!
 //! let signal = vec![0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0];
@@ -27,6 +28,8 @@
 //!
 //! let peaks = simd_peak_detection(&signal, 0.5, 1, &config)?;
 //! println!("Found peaks at indices: {:?}", peaks);
+//! # Ok(())
+//! # }
 //! ```
 
 #[cfg(target_arch = "x86_64")]
@@ -64,6 +67,7 @@ use scirs2_core::validation::check_finite;
 /// # Examples
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{simd_peak_detection, SimdConfig};
 ///
 /// // Simple peaked signal
@@ -77,6 +81,8 @@ use scirs2_core::validation::check_finite;
 /// // Higher threshold filters out smaller peaks
 /// let peaks_high = simd_peak_detection(&signal, 1.5, 1, &config)?;
 /// assert_eq!(peaks_high, vec![3, 5]); // Only higher peaks
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_peak_detection(

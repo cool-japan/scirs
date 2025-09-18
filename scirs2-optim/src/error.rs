@@ -31,6 +31,8 @@ pub enum OptimError {
     MonitoringError(String),
     /// Analysis error
     AnalysisError(String),
+    /// Analytics error
+    AnalyticsError(String),
     /// Unsupported operation
     UnsupportedOperation(String),
     /// Resource error
@@ -61,6 +63,8 @@ pub enum OptimError {
     PluginInMaintenance(String),
     /// Unsupported data type error
     UnsupportedDataType(String),
+    /// Input/Output error
+    IO(std::io::Error),
     /// Other error
     Other(String),
 }
@@ -101,6 +105,9 @@ impl fmt::Display for OptimError {
             }
             OptimError::AnalysisError(msg) => {
                 write!(f, "Analysis error: {msg}")
+            }
+            OptimError::AnalyticsError(msg) => {
+                write!(f, "Analytics error: {msg}")
             }
             OptimError::UnsupportedOperation(msg) => {
                 write!(f, "Unsupported operation: {msg}")
@@ -147,6 +154,9 @@ impl fmt::Display for OptimError {
             OptimError::UnsupportedDataType(msg) => {
                 write!(f, "Unsupported data type: {msg}")
             }
+            OptimError::IO(err) => {
+                write!(f, "I/O error: {err}")
+            }
             OptimError::Other(msg) => write!(f, "Error: {msg}"),
         }
     }
@@ -175,7 +185,7 @@ impl From<serde_json::Error> for OptimError {
 
 impl From<std::io::Error> for OptimError {
     fn from(error: std::io::Error) -> Self {
-        OptimError::Other(format!("IO error: {error}"))
+        OptimError::IO(error)
     }
 }
 

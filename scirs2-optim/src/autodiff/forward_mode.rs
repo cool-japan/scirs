@@ -30,7 +30,7 @@ pub struct VectorDual<T: Float> {
 }
 
 /// Forward-mode AD engine
-pub struct ForwardModeEngine<T: Float> {
+pub struct ForwardModeEngine<T: Float + Default + Clone + std::iter::Sum + 'static> {
     /// Computation graph
     tape: Vec<ForwardOperation<T>>,
 

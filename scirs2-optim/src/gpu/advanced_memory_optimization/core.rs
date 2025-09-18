@@ -25,7 +25,7 @@ use scirs2_core::gpu::GpuContext;
 
 /// Advanced memory optimizer for large-scale training
 #[derive(Debug)]
-pub struct AdvancedMemoryOptimizer<T: Float> {
+pub struct AdvancedMemoryOptimizer<T: Float + Default + Clone + Send + Sync + std::iter::Sum + 'static> {
     /// Configuration settings
     config: AdvancedMemoryConfig,
 

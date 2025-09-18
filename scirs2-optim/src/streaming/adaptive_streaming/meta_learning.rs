@@ -24,7 +24,7 @@ pub enum MetaModelType {
 }
 
 /// Meta-learning system for streaming optimization
-pub struct MetaLearner<A: Float> {
+pub struct MetaLearner<A: Float + Send + Sync> {
     /// Meta-learning configuration
     config: MetaLearningConfig,
     /// Experience buffer for learning
@@ -41,8 +41,11 @@ pub struct MetaLearner<A: Float> {
     learning_rate_adapter: LearningRateAdapter<A>,
 }
 
+/// Type alias for experience replay functionality
+pub type ExperienceReplay<A> = ExperienceBuffer<A>;
+
 /// Experience buffer for storing and managing learning experiences
-pub struct ExperienceBuffer<A: Float> {
+pub struct ExperienceBuffer<A: Float + Send + Sync> {
     /// Buffer configuration
     config: ExperienceReplayConfig,
     /// Stored experiences
@@ -57,7 +60,7 @@ pub struct ExperienceBuffer<A: Float> {
 
 /// Meta-learning experience representation
 #[derive(Debug, Clone)]
-pub struct MetaExperience<A: Float> {
+pub struct MetaExperience<A: Float + Send + Sync> {
     /// Unique experience ID
     pub id: u64,
     /// State when experience occurred
@@ -80,7 +83,7 @@ pub struct MetaExperience<A: Float> {
 
 /// Meta-state representation
 #[derive(Debug, Clone)]
-pub struct MetaState<A: Float> {
+pub struct MetaState<A: Float + Send + Sync> {
     /// Performance metrics at this state
     pub performance_metrics: Vec<A>,
     /// Resource state
@@ -95,7 +98,7 @@ pub struct MetaState<A: Float> {
 
 /// Meta-action representation
 #[derive(Debug, Clone)]
-pub struct MetaAction<A: Float> {
+pub struct MetaAction<A: Float + Send + Sync> {
     /// Adaptation magnitudes applied
     pub adaptation_magnitudes: Vec<A>,
     /// Types of adaptations
@@ -110,7 +113,7 @@ pub struct MetaAction<A: Float> {
 
 /// Episode context for meta-learning
 #[derive(Debug, Clone)]
-pub struct EpisodeContext<A: Float> {
+pub struct EpisodeContext<A: Float + Send + Sync> {
     /// Episode ID
     pub episode_id: u64,
     /// Episode start time
@@ -143,7 +146,7 @@ pub enum EpisodeOutcome {
 }
 
 /// Experience diversity tracking
-pub struct ExperienceDiversityTracker<A: Float> {
+pub struct ExperienceDiversityTracker<A: Float + Send + Sync> {
     /// State space clustering
     state_clusters: Vec<StateCluster<A>>,
     /// Action space clustering
@@ -156,7 +159,7 @@ pub struct ExperienceDiversityTracker<A: Float> {
 
 /// State clustering for diversity
 #[derive(Debug, Clone)]
-pub struct StateCluster<A: Float> {
+pub struct StateCluster<A: Float + Send + Sync> {
     /// Cluster center
     pub center: MetaState<A>,
     /// Cluster members
@@ -169,7 +172,7 @@ pub struct StateCluster<A: Float> {
 
 /// Action clustering for diversity
 #[derive(Debug, Clone)]
-pub struct ActionCluster<A: Float> {
+pub struct ActionCluster<A: Float + Send + Sync> {
     /// Cluster center
     pub center: MetaAction<A>,
     /// Cluster members
@@ -182,7 +185,7 @@ pub struct ActionCluster<A: Float> {
 
 /// Diversity metrics for experience management
 #[derive(Debug, Clone)]
-pub struct DiversityMetrics<A: Float> {
+pub struct DiversityMetrics<A: Float + Send + Sync> {
     /// State space coverage
     pub state_coverage: A,
     /// Action space coverage
@@ -196,7 +199,7 @@ pub struct DiversityMetrics<A: Float> {
 }
 
 /// Novelty detection for new experiences
-pub struct NoveltyDetector<A: Float> {
+pub struct NoveltyDetector<A: Float + Send + Sync> {
     /// Reference experiences for comparison
     reference_experiences: VecDeque<MetaExperience<A>>,
     /// Novelty threshold
@@ -206,7 +209,7 @@ pub struct NoveltyDetector<A: Float> {
 }
 
 /// Meta-model for decision making
-pub struct MetaModel<A: Float> {
+pub struct MetaModel<A: Float + Send + Sync> {
     /// Model type
     model_type: MetaModelType,
     /// Model parameters
@@ -221,7 +224,7 @@ pub struct MetaModel<A: Float> {
 
 /// Meta-model parameters
 #[derive(Debug, Clone)]
-pub struct MetaModelParameters<A: Float> {
+pub struct MetaModelParameters<A: Float + Send + Sync> {
     /// Weight matrices for neural networks
     pub weights: Vec<Vec<A>>,
     /// Bias vectors
@@ -236,7 +239,7 @@ pub struct MetaModelParameters<A: Float> {
 
 /// Regularization parameters
 #[derive(Debug, Clone)]
-pub struct RegularizationParams<A: Float> {
+pub struct RegularizationParams<A: Float + Send + Sync> {
     /// L1 regularization strength
     pub l1_lambda: A,
     /// L2 regularization strength
@@ -249,7 +252,7 @@ pub struct RegularizationParams<A: Float> {
 
 /// Optimization parameters
 #[derive(Debug, Clone)]
-pub struct OptimizationParams<A: Float> {
+pub struct OptimizationParams<A: Float + Send + Sync> {
     /// Momentum coefficient
     pub momentum: A,
     /// Adam beta1 parameter
@@ -264,7 +267,7 @@ pub struct OptimizationParams<A: Float> {
 
 /// Training episode for meta-model
 #[derive(Debug, Clone)]
-pub struct TrainingEpisode<A: Float> {
+pub struct TrainingEpisode<A: Float + Send + Sync> {
     /// Episode ID
     pub episode_id: u64,
     /// Training loss
@@ -283,7 +286,7 @@ pub struct TrainingEpisode<A: Float> {
 
 /// Model performance metrics
 #[derive(Debug, Clone)]
-pub struct ModelPerformanceMetrics<A: Float> {
+pub struct ModelPerformanceMetrics<A: Float + Send + Sync> {
     /// Prediction accuracy
     pub prediction_accuracy: A,
     /// Decision quality
@@ -297,7 +300,7 @@ pub struct ModelPerformanceMetrics<A: Float> {
 }
 
 /// Strategy selection system
-pub struct StrategySelector<A: Float> {
+pub struct StrategySelector<A: Float + Send + Sync> {
     /// Available strategies
     strategies: HashMap<String, AdaptationStrategy<A>>,
     /// Strategy performance history
@@ -312,7 +315,7 @@ pub struct StrategySelector<A: Float> {
 
 /// Adaptation strategy representation
 #[derive(Debug, Clone)]
-pub struct AdaptationStrategy<A: Float> {
+pub struct AdaptationStrategy<A: Float + Send + Sync> {
     /// Strategy name
     pub name: String,
     /// Strategy parameters
@@ -344,7 +347,7 @@ pub enum StrategyType {
 
 /// Strategy applicability conditions
 #[derive(Debug, Clone)]
-pub struct StrategyCondition<A: Float> {
+pub struct StrategyCondition<A: Float + Send + Sync> {
     /// Condition type
     pub condition_type: ConditionType,
     /// Threshold value
@@ -389,7 +392,7 @@ pub enum ComparisonOperator {
 
 /// Strategy performance tracking
 #[derive(Debug, Clone)]
-pub struct StrategyPerformance<A: Float> {
+pub struct StrategyPerformance<A: Float + Send + Sync> {
     /// Number of times used
     pub usage_count: usize,
     /// Success rate
@@ -438,7 +441,7 @@ pub enum SelectionPolicy {
 
 /// Exploration parameters
 #[derive(Debug, Clone)]
-pub struct ExplorationParams<A: Float> {
+pub struct ExplorationParams<A: Float + Send + Sync> {
     /// Exploration rate
     pub exploration_rate: A,
     /// Exploration decay
@@ -452,7 +455,7 @@ pub struct ExplorationParams<A: Float> {
 }
 
 /// Context-based strategy selector
-pub struct ContextBasedSelector<A: Float> {
+pub struct ContextBasedSelector<A: Float + Send + Sync> {
     /// Context features
     context_features: Vec<ContextFeature<A>>,
     /// Context clustering
@@ -465,7 +468,7 @@ pub struct ContextBasedSelector<A: Float> {
 
 /// Context feature for strategy selection
 #[derive(Debug, Clone)]
-pub struct ContextFeature<A: Float> {
+pub struct ContextFeature<A: Float + Send + Sync> {
     /// Feature name
     pub name: String,
     /// Feature value
@@ -478,7 +481,7 @@ pub struct ContextFeature<A: Float> {
 
 /// Context clustering for similar situations
 #[derive(Debug, Clone)]
-pub struct ContextCluster<A: Float> {
+pub struct ContextCluster<A: Float + Send + Sync> {
     /// Cluster ID
     pub id: String,
     /// Cluster center features
@@ -492,7 +495,7 @@ pub struct ContextCluster<A: Float> {
 }
 
 /// Context recognition model
-pub struct ContextModel<A: Float> {
+pub struct ContextModel<A: Float + Send + Sync> {
     /// Model parameters
     parameters: Vec<A>,
     /// Feature weights
@@ -504,7 +507,7 @@ pub struct ContextModel<A: Float> {
 }
 
 /// Transfer learning system
-pub struct TransferLearning<A: Float> {
+pub struct TransferLearning<A: Float + Send + Sync> {
     /// Source domain experiences
     source_experiences: HashMap<String, Vec<MetaExperience<A>>>,
     /// Transfer learning strategies
@@ -531,7 +534,7 @@ pub enum TransferStrategy {
 }
 
 /// Domain adaptation methods
-pub struct DomainAdaptation<A: Float> {
+pub struct DomainAdaptation<A: Float + Send + Sync> {
     /// Source domain characteristics
     source_characteristics: Vec<A>,
     /// Target domain characteristics
@@ -544,7 +547,7 @@ pub struct DomainAdaptation<A: Float> {
 
 /// Transfer learning metrics
 #[derive(Debug, Clone)]
-pub struct TransferMetrics<A: Float> {
+pub struct TransferMetrics<A: Float + Send + Sync> {
     /// Transfer success rate
     pub success_rate: A,
     /// Improvement from transfer
@@ -556,7 +559,7 @@ pub struct TransferMetrics<A: Float> {
 }
 
 /// Learning rate adaptation system
-pub struct LearningRateAdapter<A: Float> {
+pub struct LearningRateAdapter<A: Float + Send + Sync> {
     /// Current learning rate
     current_rate: A,
     /// Learning rate history
@@ -593,7 +596,7 @@ pub enum LearningRateStrategy {
 
 /// Meta-learning statistics
 #[derive(Debug, Clone)]
-pub struct MetaLearningStatistics<A: Float> {
+pub struct MetaLearningStatistics<A: Float + Send + Sync> {
     /// Total experiences collected
     pub total_experiences: usize,
     /// Model training episodes
@@ -612,7 +615,7 @@ pub struct MetaLearningStatistics<A: Float> {
     pub replay_effectiveness: A,
 }
 
-impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
+impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync> MetaLearner<A> {
     /// Creates a new meta-learner
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let meta_config = config.meta_learning_config.clone();
@@ -881,7 +884,7 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
     }
 }
 
-impl<A: Float + Default + Clone> ExperienceBuffer<A> {
+impl<A: Float + Default + Clone + Send + Sync> ExperienceBuffer<A> {
     fn new(config: &ExperienceReplayConfig) -> Self {
         Self {
             config: config.clone(),
@@ -946,7 +949,7 @@ impl<A: Float + Default + Clone> ExperienceBuffer<A> {
     }
 }
 
-impl<A: Float + Default + Clone> ExperienceDiversityTracker<A> {
+impl<A: Float + Default + Clone + Send + Sync> ExperienceDiversityTracker<A> {
     fn new() -> Self {
         Self {
             state_clusters: Vec::new(),
@@ -963,7 +966,7 @@ impl<A: Float + Default + Clone> ExperienceDiversityTracker<A> {
     }
 }
 
-impl<A: Float + Default + Clone> NoveltyDetector<A> {
+impl<A: Float + Default + Clone + Send + Sync> NoveltyDetector<A> {
     fn new() -> Self {
         Self {
             reference_experiences: VecDeque::with_capacity(1000),
@@ -973,7 +976,7 @@ impl<A: Float + Default + Clone> NoveltyDetector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> MetaModel<A> {
+impl<A: Float + Default + Clone + Send + Sync> MetaModel<A> {
     fn new(complexity: MetaModelComplexity) -> Result<Self, String> {
         let parameters = match complexity {
             MetaModelComplexity::Low => MetaModelParameters {
@@ -1064,7 +1067,7 @@ impl<A: Float + Default + Clone> MetaModel<A> {
     }
 }
 
-impl<A: Float + Default + Clone> StrategySelector<A> {
+impl<A: Float + Default + Clone + Send + Sync> StrategySelector<A> {
     fn new() -> Self {
         let mut strategies = HashMap::new();
 
@@ -1126,7 +1129,7 @@ impl<A: Float + Default + Clone> StrategySelector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> ContextBasedSelector<A> {
+impl<A: Float + Default + Clone + Send + Sync> ContextBasedSelector<A> {
     fn new() -> Self {
         Self {
             context_features: Vec::new(),
@@ -1142,7 +1145,7 @@ impl<A: Float + Default + Clone> ContextBasedSelector<A> {
     }
 }
 
-impl<A: Float + Default + Clone> TransferLearning<A> {
+impl<A: Float + Default + Clone + Send + Sync> TransferLearning<A> {
     fn new() -> Self {
         Self {
             source_experiences: HashMap::new(),
@@ -1163,7 +1166,7 @@ impl<A: Float + Default + Clone> TransferLearning<A> {
     }
 }
 
-impl<A: Float + Default + Clone> LearningRateAdapter<A> {
+impl<A: Float + Default + Clone + Send + Sync> LearningRateAdapter<A> {
     fn new(initial_rate: f64) -> Self {
         Self {
             current_rate: A::from(initial_rate).unwrap(),

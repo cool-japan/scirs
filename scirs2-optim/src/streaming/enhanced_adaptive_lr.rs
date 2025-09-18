@@ -14,7 +14,7 @@ use crate::error::Result;
 
 /// Performance metric types for adaptation
 #[derive(Debug, Clone)]
-pub enum PerformanceMetric<A: Float> {
+pub enum PerformanceMetric<A: Float + Send + Sync> {
     Loss(A),
     Accuracy(A),
     F1Score(A),
@@ -24,7 +24,7 @@ pub enum PerformanceMetric<A: Float> {
 
 /// Enhanced adaptive learning rate controller with multiple adaptation mechanisms
 #[derive(Debug, Clone)]
-pub struct EnhancedAdaptiveLRController<A: Float> {
+pub struct EnhancedAdaptiveLRController<A: Float + Send + Sync> {
     /// Current learning rate
     current_lr: A,
 
@@ -62,7 +62,7 @@ pub struct EnhancedAdaptiveLRController<A: Float> {
 
 /// Configuration for adaptive learning rate controller
 #[derive(Debug, Clone)]
-pub struct AdaptiveLRConfig<A: Float> {
+pub struct AdaptiveLRConfig<A: Float + Send + Sync> {
     /// Base learning rate
     pub base_lr: A,
 
@@ -102,7 +102,7 @@ pub struct AdaptiveLRConfig<A: Float> {
 
 /// Multi-signal adaptation strategy
 #[derive(Debug, Clone)]
-pub struct MultiSignalAdaptationStrategy<A: Float> {
+pub struct MultiSignalAdaptationStrategy<A: Float + Send + Sync> {
     /// Weighted voting system for adaptation signals
     signal_weights: HashMap<AdaptationSignalType, A>,
 
@@ -134,7 +134,7 @@ pub enum AdaptationSignalType {
 
 /// Signal vote for learning rate adaptation
 #[derive(Debug, Clone)]
-pub struct SignalVote<A: Float> {
+pub struct SignalVote<A: Float + Send + Sync> {
     signal_type: AdaptationSignalType,
     recommended_lr_change: A, // Multiplier (1.0 = no change)
     confidence: A,
@@ -159,7 +159,7 @@ pub enum ConflictResolution {
 
 /// Adaptation decision with rationale
 #[derive(Debug, Clone)]
-pub struct AdaptationDecision<A: Float> {
+pub struct AdaptationDecision<A: Float + Send + Sync> {
     new_lr: A,
     lr_multiplier: A,
     contributing_signals: Vec<AdaptationSignalType>,
@@ -170,7 +170,7 @@ pub struct AdaptationDecision<A: Float> {
 
 /// Gradient-based adaptation using statistical analysis
 #[derive(Debug, Clone)]
-pub struct GradientBasedAdapter<A: Float> {
+pub struct GradientBasedAdapter<A: Float + Send + Sync> {
     /// Gradient magnitude history
     magnitude_history: VecDeque<A>,
 
@@ -189,7 +189,7 @@ pub struct GradientBasedAdapter<A: Float> {
 
 /// Performance-based adaptation using multiple metrics
 #[derive(Debug, Clone)]
-pub struct PerformanceBasedAdapter<A: Float> {
+pub struct PerformanceBasedAdapter<A: Float + Send + Sync> {
     /// Performance metric history
     metric_history: HashMap<String, VecDeque<A>>,
 
@@ -208,7 +208,7 @@ pub struct PerformanceBasedAdapter<A: Float> {
 
 /// Drift-aware adaptation for non-stationary data
 #[derive(Debug, Clone)]
-pub struct DriftAwareAdapter<A: Float> {
+pub struct DriftAwareAdapter<A: Float + Send + Sync> {
     /// Concept drift detection methods
     drift_detectors: Vec<ConceptDriftDetector<A>>,
 
@@ -224,7 +224,7 @@ pub struct DriftAwareAdapter<A: Float> {
 
 /// Resource-aware adaptation based on computational constraints
 #[derive(Debug, Clone)]
-pub struct ResourceAwareAdapter<A: Float> {
+pub struct ResourceAwareAdapter<A: Float + Send + Sync> {
     /// Memory usage tracker
     memory_tracker: MemoryUsageTracker,
 
@@ -243,7 +243,7 @@ pub struct ResourceAwareAdapter<A: Float> {
 
 /// Meta-learning optimizer for hyperparameter adaptation
 #[derive(Debug, Clone)]
-pub struct MetaOptimizer<A: Float> {
+pub struct MetaOptimizer<A: Float + Send + Sync> {
     /// Neural network for learning rate prediction
     lr_predictor: LearningRatePredictorNetwork<A>,
 
@@ -259,7 +259,7 @@ pub struct MetaOptimizer<A: Float> {
 
 /// Adaptation event for tracking and analysis
 #[derive(Debug, Clone)]
-pub struct AdaptationEvent<A: Float> {
+pub struct AdaptationEvent<A: Float + Send + Sync> {
     timestamp: Instant,
     old_lr: A,
     new_lr: A,
@@ -271,7 +271,7 @@ pub struct AdaptationEvent<A: Float> {
 
 /// Gradient norm statistics for adaptation
 #[derive(Debug, Clone)]
-pub struct GradientNormStatistics<A: Float> {
+pub struct GradientNormStatistics<A: Float + Send + Sync> {
     mean: A,
     variance: A,
     skewness: A,
@@ -282,7 +282,7 @@ pub struct GradientNormStatistics<A: Float> {
 
 /// Signal-to-noise ratio estimation for gradients
 #[derive(Debug, Clone)]
-pub struct SignalToNoiseEstimator<A: Float> {
+pub struct SignalToNoiseEstimator<A: Float + Send + Sync> {
     signal_estimate: A,
     noise_estimate: A,
     snr_history: VecDeque<A>,
@@ -299,14 +299,14 @@ pub enum SNREstimationMethod {
 
 /// Gradient staleness detection for distributed settings
 #[derive(Debug, Clone)]
-pub struct GradientStalenessDetector<A: Float> {
+pub struct GradientStalenessDetector<A: Float + Send + Sync> {
     staleness_threshold: Duration,
     gradient_timestamps: VecDeque<Instant>,
     staleness_impact_model: StalenessImpactModel<A>,
 }
 
 #[derive(Debug, Clone)]
-pub struct StalenessImpactModel<A: Float> {
+pub struct StalenessImpactModel<A: Float + Send + Sync> {
     staleness_penalty: A,
     compensation_factor: A,
     impact_history: VecDeque<A>,
@@ -314,7 +314,7 @@ pub struct StalenessImpactModel<A: Float> {
 
 /// Performance trend analysis for learning rate adaptation
 #[derive(Debug, Clone)]
-pub struct PerformanceTrendAnalyzer<A: Float> {
+pub struct PerformanceTrendAnalyzer<A: Float + Send + Sync> {
     trend_detection_window: usize,
     trend_types: Vec<TrendType>,
     trend_strength: A,
@@ -332,7 +332,7 @@ pub enum TrendType {
 
 /// Plateau detection in learning curves
 #[derive(Debug, Clone)]
-pub struct PlateauDetector<A: Float> {
+pub struct PlateauDetector<A: Float + Send + Sync> {
     plateau_threshold: A,
     min_plateau_duration: usize,
     current_plateau_length: usize,
@@ -341,7 +341,7 @@ pub struct PlateauDetector<A: Float> {
 
 /// Overfitting detection mechanism
 #[derive(Debug, Clone)]
-pub struct OverfittingDetector<A: Float> {
+pub struct OverfittingDetector<A: Float + Send + Sync> {
     train_loss_history: VecDeque<A>,
     val_loss_history: VecDeque<A>,
     overfitting_threshold: A,
@@ -350,7 +350,7 @@ pub struct OverfittingDetector<A: Float> {
 
 /// Learning efficiency tracking
 #[derive(Debug, Clone)]
-pub struct LearningEfficiencyTracker<A: Float> {
+pub struct LearningEfficiencyTracker<A: Float + Send + Sync> {
     loss_reduction_per_step: VecDeque<A>,
     parameter_change_magnitude: VecDeque<A>,
     efficiency_score: A,
@@ -359,7 +359,7 @@ pub struct LearningEfficiencyTracker<A: Float> {
 
 /// Concept drift detection methods
 #[derive(Debug, Clone)]
-pub struct ConceptDriftDetector<A: Float> {
+pub struct ConceptDriftDetector<A: Float + Send + Sync> {
     detection_method: DriftDetectionMethod,
     drift_threshold: A,
     window_size: usize,
@@ -379,7 +379,7 @@ pub enum DriftDetectionMethod {
 
 /// Data distribution tracking
 #[derive(Debug, Clone)]
-pub struct DistributionTracker<A: Float> {
+pub struct DistributionTracker<A: Float + Send + Sync> {
     feature_distributions: HashMap<usize, FeatureDistribution<A>>,
     kl_divergence_threshold: A,
     wasserstein_distance_threshold: A,
@@ -387,7 +387,7 @@ pub struct DistributionTracker<A: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct FeatureDistribution<A: Float> {
+pub struct FeatureDistribution<A: Float + Send + Sync> {
     mean: A,
     variance: A,
     histogram: Vec<A>,
@@ -396,7 +396,7 @@ pub struct FeatureDistribution<A: Float> {
 
 /// Adaptation speed controller for drift response
 #[derive(Debug, Clone)]
-pub struct AdaptationSpeedController<A: Float> {
+pub struct AdaptationSpeedController<A: Float + Send + Sync> {
     base_adaptation_rate: A,
     current_adaptation_rate: A,
     acceleration_factor: A,
@@ -406,14 +406,14 @@ pub struct AdaptationSpeedController<A: Float> {
 
 /// Drift severity assessment
 #[derive(Debug, Clone)]
-pub struct DriftSeverityAssessor<A: Float> {
+pub struct DriftSeverityAssessor<A: Float + Send + Sync> {
     severity_levels: Vec<DriftSeverityLevel<A>>,
     current_severity: DriftSeverityLevel<A>,
     severity_history: VecDeque<DriftSeverityLevel<A>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct DriftSeverityLevel<A: Float> {
+pub struct DriftSeverityLevel<A: Float + Send + Sync> {
     level: DriftSeverity,
     magnitude: A,
     recommended_lr_adjustment: A,
@@ -455,7 +455,7 @@ pub struct EnergyConsumptionTracker {
 }
 
 #[derive(Debug, Clone)]
-pub struct ThroughputRequirements<A: Float> {
+pub struct ThroughputRequirements<A: Float + Send + Sync> {
     min_samples_per_second: A,
     target_samples_per_second: A,
     current_throughput: A,
@@ -463,7 +463,7 @@ pub struct ThroughputRequirements<A: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ResourceBudgetManager<A: Float> {
+pub struct ResourceBudgetManager<A: Float + Send + Sync> {
     memory_budget_mb: f64,
     compute_budget_seconds: f64,
     energy_budget_joules: f64,
@@ -473,7 +473,7 @@ pub struct ResourceBudgetManager<A: Float> {
 
 /// Learning rate predictor neural network
 #[derive(Debug, Clone)]
-pub struct LearningRatePredictorNetwork<A: Float> {
+pub struct LearningRatePredictorNetwork<A: Float + Send + Sync> {
     input_features: Vec<FeatureType>,
     hidden_layers: Vec<usize>,
     weights: Vec<Array2<A>>,
@@ -495,7 +495,7 @@ pub enum FeatureType {
 
 /// Hyperparameter update record
 #[derive(Debug, Clone)]
-pub struct HyperparameterUpdate<A: Float> {
+pub struct HyperparameterUpdate<A: Float + Send + Sync> {
     timestamp: Instant,
     old_lr: A,
     new_lr: A,
@@ -506,7 +506,7 @@ pub struct HyperparameterUpdate<A: Float> {
 
 /// Exploration strategy for hyperparameter optimization
 #[derive(Debug, Clone)]
-pub struct ExplorationStrategy<A: Float> {
+pub struct ExplorationStrategy<A: Float + Send + Sync> {
     strategy_type: ExplorationStrategyType,
     exploration_rate: A,
     exploitation_rate: A,
@@ -525,7 +525,7 @@ pub enum ExplorationStrategyType {
 
 /// Transfer learning for hyperparameter optimization
 #[derive(Debug, Clone)]
-pub struct TransferLearner<A: Float> {
+pub struct TransferLearner<A: Float + Send + Sync> {
     source_task_data: Vec<TaskData<A>>,
     similarity_metrics: Vec<TaskSimilarityMetric<A>>,
     transfer_weights: Array1<A>,
@@ -533,7 +533,7 @@ pub struct TransferLearner<A: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TaskData<A: Float> {
+pub struct TaskData<A: Float + Send + Sync> {
     task_id: String,
     optimal_lr_sequence: Vec<A>,
     task_features: Array1<A>,
@@ -541,7 +541,7 @@ pub struct TaskData<A: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TaskSimilarityMetric<A: Float> {
+pub struct TaskSimilarityMetric<A: Float + Send + Sync> {
     metric_type: SimilarityMetricType,
     similarity_score: A,
     weight: A,
@@ -558,7 +558,7 @@ pub enum SimilarityMetricType {
 
 /// Adaptation statistics for monitoring and analysis
 #[derive(Debug, Clone, Default)]
-pub struct AdaptationStatistics<A: Float> {
+pub struct AdaptationStatistics<A: Float + Send + Sync> {
     /// Total number of adaptations
     pub total_adaptations: usize,
 
@@ -765,7 +765,7 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedAdaptiveLRController<A> {
 // Implementation stubs for the various components
 // In a full implementation, these would contain sophisticated algorithms
 
-impl<A: Float + Default + Clone> MultiSignalAdaptationStrategy<A> {
+impl<A: Float + Default + Clone + Send + Sync> MultiSignalAdaptationStrategy<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             signal_weights: HashMap::new(),
@@ -828,7 +828,7 @@ impl<A: Float + Default + Clone> MultiSignalAdaptationStrategy<A> {
     }
 }
 
-impl<A: Float + Default + Clone> GradientBasedAdapter<A> {
+impl<A: Float + Default + Clone + Send + Sync> GradientBasedAdapter<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             magnitude_history: VecDeque::new(),
@@ -875,7 +875,7 @@ impl<A: Float + Default + Clone> GradientBasedAdapter<A> {
     }
 }
 
-impl<A: Float + Default + Clone> PerformanceBasedAdapter<A> {
+impl<A: Float + Default + Clone + Send + Sync> PerformanceBasedAdapter<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             metric_history: HashMap::new(),
@@ -930,7 +930,7 @@ impl<A: Float + Default + Clone> PerformanceBasedAdapter<A> {
     }
 }
 
-impl<A: Float + Default + Clone> DriftAwareAdapter<A> {
+impl<A: Float + Default + Clone + Send + Sync> DriftAwareAdapter<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             drift_detectors: vec![],
@@ -956,7 +956,7 @@ impl<A: Float + Default + Clone> DriftAwareAdapter<A> {
     }
 }
 
-impl<A: Float + Default + Clone> ResourceAwareAdapter<A> {
+impl<A: Float + Default + Clone + Send + Sync> ResourceAwareAdapter<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             memory_tracker: MemoryUsageTracker::default(),
@@ -1006,7 +1006,7 @@ impl<A: Float + Default + Clone> ResourceAwareAdapter<A> {
     }
 }
 
-impl<A: Float + Default + Clone> MetaOptimizer<A> {
+impl<A: Float + Default + Clone + Send + Sync> MetaOptimizer<A> {
     fn new(config: &AdaptiveLRConfig<A>) -> Result<Self> {
         Ok(Self {
             lr_predictor: LearningRatePredictorNetwork::default(),
@@ -1027,7 +1027,7 @@ impl<A: Float + Default + Clone> MetaOptimizer<A> {
 }
 
 // Default implementations for various structures
-impl<A: Float + Default> Default for GradientNormStatistics<A> {
+impl<A: Float + Default + Send + Sync> Default for GradientNormStatistics<A> {
     fn default() -> Self {
         Self {
             mean: A::default(),
@@ -1040,7 +1040,7 @@ impl<A: Float + Default> Default for GradientNormStatistics<A> {
     }
 }
 
-impl<A: Float + Default> Default for SignalToNoiseEstimator<A> {
+impl<A: Float + Default + Send + Sync> Default for SignalToNoiseEstimator<A> {
     fn default() -> Self {
         Self {
             signal_estimate: A::default(),
@@ -1051,7 +1051,7 @@ impl<A: Float + Default> Default for SignalToNoiseEstimator<A> {
     }
 }
 
-impl<A: Float + Default> Default for GradientStalenessDetector<A> {
+impl<A: Float + Default + Send + Sync> Default for GradientStalenessDetector<A> {
     fn default() -> Self {
         Self {
             staleness_threshold: Duration::from_secs(1),
@@ -1061,7 +1061,7 @@ impl<A: Float + Default> Default for GradientStalenessDetector<A> {
     }
 }
 
-impl<A: Float + Default> Default for StalenessImpactModel<A> {
+impl<A: Float + Default + Send + Sync> Default for StalenessImpactModel<A> {
     fn default() -> Self {
         Self {
             staleness_penalty: A::default(),
@@ -1071,7 +1071,7 @@ impl<A: Float + Default> Default for StalenessImpactModel<A> {
     }
 }
 
-impl<A: Float + Default> Default for PerformanceTrendAnalyzer<A> {
+impl<A: Float + Default + Send + Sync> Default for PerformanceTrendAnalyzer<A> {
     fn default() -> Self {
         Self {
             trend_detection_window: 10,
@@ -1082,7 +1082,7 @@ impl<A: Float + Default> Default for PerformanceTrendAnalyzer<A> {
     }
 }
 
-impl<A: Float + Default> Default for PlateauDetector<A> {
+impl<A: Float + Default + Send + Sync> Default for PlateauDetector<A> {
     fn default() -> Self {
         Self {
             plateau_threshold: A::default(),
@@ -1093,7 +1093,7 @@ impl<A: Float + Default> Default for PlateauDetector<A> {
     }
 }
 
-impl<A: Float + Default> Default for OverfittingDetector<A> {
+impl<A: Float + Default + Send + Sync> Default for OverfittingDetector<A> {
     fn default() -> Self {
         Self {
             train_loss_history: VecDeque::new(),
@@ -1104,7 +1104,7 @@ impl<A: Float + Default> Default for OverfittingDetector<A> {
     }
 }
 
-impl<A: Float + Default> Default for LearningEfficiencyTracker<A> {
+impl<A: Float + Default + Send + Sync> Default for LearningEfficiencyTracker<A> {
     fn default() -> Self {
         Self {
             loss_reduction_per_step: VecDeque::new(),
@@ -1115,7 +1115,7 @@ impl<A: Float + Default> Default for LearningEfficiencyTracker<A> {
     }
 }
 
-impl<A: Float + Default> Default for DistributionTracker<A> {
+impl<A: Float + Default + Send + Sync> Default for DistributionTracker<A> {
     fn default() -> Self {
         Self {
             feature_distributions: HashMap::new(),
@@ -1126,7 +1126,7 @@ impl<A: Float + Default> Default for DistributionTracker<A> {
     }
 }
 
-impl<A: Float + Default> Default for AdaptationSpeedController<A> {
+impl<A: Float + Default + Send + Sync> Default for AdaptationSpeedController<A> {
     fn default() -> Self {
         Self {
             base_adaptation_rate: A::from(0.1).unwrap_or_default(),
@@ -1138,7 +1138,7 @@ impl<A: Float + Default> Default for AdaptationSpeedController<A> {
     }
 }
 
-impl<A: Float + Default> Default for DriftSeverityAssessor<A> {
+impl<A: Float + Default + Send + Sync> Default for DriftSeverityAssessor<A> {
     fn default() -> Self {
         Self {
             severity_levels: vec![],
@@ -1148,7 +1148,7 @@ impl<A: Float + Default> Default for DriftSeverityAssessor<A> {
     }
 }
 
-impl<A: Float + Default> Default for DriftSeverityLevel<A> {
+impl<A: Float + Default + Send + Sync> Default for DriftSeverityLevel<A> {
     fn default() -> Self {
         Self {
             level: DriftSeverity::None,
@@ -1159,7 +1159,7 @@ impl<A: Float + Default> Default for DriftSeverityLevel<A> {
     }
 }
 
-impl<A: Float + Default> Default for LearningRatePredictorNetwork<A> {
+impl<A: Float + Default + Send + Sync> Default for LearningRatePredictorNetwork<A> {
     fn default() -> Self {
         Self {
             input_features: vec![],
@@ -1171,7 +1171,7 @@ impl<A: Float + Default> Default for LearningRatePredictorNetwork<A> {
     }
 }
 
-impl<A: Float + Default> Default for ExplorationStrategy<A> {
+impl<A: Float + Default + Send + Sync> Default for ExplorationStrategy<A> {
     fn default() -> Self {
         Self {
             strategy_type: ExplorationStrategyType::EpsilonGreedy,
@@ -1183,7 +1183,7 @@ impl<A: Float + Default> Default for ExplorationStrategy<A> {
     }
 }
 
-impl<A: Float + Default> Default for TransferLearner<A> {
+impl<A: Float + Default + Send + Sync> Default for TransferLearner<A> {
     fn default() -> Self {
         Self {
             source_task_data: vec![],

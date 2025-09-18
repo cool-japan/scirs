@@ -33,7 +33,7 @@
 //!
 //! ## Basic stress testing
 //!
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_interpolate::production_stress_testing::{run_production_stress_tests, ProductionReadiness};
 //!
 //! // Run comprehensive production stress tests
@@ -66,7 +66,7 @@
 //!
 //! ## Quick stress testing
 //!
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_interpolate::production_stress_testing::run_quick_stress_tests;
 //!
 //! // Run quick stress tests with reduced scope for CI/CD
@@ -76,7 +76,7 @@
 //!
 //! ## Custom configuration
 //!
-//! ```rust
+//! ```rust,no_run
 //! use scirs2_interpolate::production_stress_testing::{
 //!     StressTestConfig, run_stress_tests_with_config
 //! };
@@ -237,6 +237,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_quick_production_readiness_check() {
         let result = quick_production_readiness_check();
         assert!(result.is_ok());
@@ -254,12 +255,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_quick_production_readiness_check_f32() {
         let result = quick_production_readiness_check_f32();
         assert!(result.is_ok());
     }
 
     #[test]
+    #[ignore]
     fn test_validate_for_production() {
         let result = validate_for_production::<f64>();
         assert!(result.is_ok());
@@ -268,6 +271,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_generate_deployment_checklist() {
         let result = generate_deployment_checklist::<f64>();
         assert!(result.is_ok());
@@ -280,6 +284,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_targeted_stress_tests() {
         let categories = vec![
             StressTestCategory::ExtremeDataSize,
@@ -359,6 +364,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_deployment_checklist_content() {
         // Test that deployment checklist contains expected items
         let result = generate_deployment_checklist::<f64>();

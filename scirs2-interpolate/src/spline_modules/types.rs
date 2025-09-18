@@ -114,7 +114,7 @@ pub enum SplineBoundaryCondition<T> {
     /// // For angular data from 0 to 2π
     /// let x = array![0.0, 1.57, 3.14, 4.71, 6.28]; // π/2, π, 3π/2, 2π
     /// let y = array![0.0, 1.0, 0.0, -1.0, 0.0]; // sine-like data
-    /// let bc = SplineBoundaryCondition::Periodic;
+    /// let bc: SplineBoundaryCondition<f64> = SplineBoundaryCondition::Periodic;
     /// ```
     Periodic,
 
