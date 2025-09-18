@@ -5,7 +5,7 @@
 //! ensemble approaches, and adaptive threshold management.
 
 use super::config::*;
-use super::optimizer::{StreamingDataPoint, Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType, StreamingDataPoint};
 
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
@@ -132,7 +132,10 @@ pub struct DataStatistics<A: Float> {
 /// Trait for statistical anomaly detectors
 pub trait StatisticalAnomalyDetector<A: Float>: Send + Sync {
     /// Detects anomalies in the given data point
-    fn detect_anomaly(&mut self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String>;
+    fn detect_anomaly(
+        &mut self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String>;
 
     /// Updates the detector with new data
     fn update(&mut self, data_point: &StreamingDataPoint<A>) -> Result<(), String>;
@@ -153,7 +156,10 @@ pub trait StatisticalAnomalyDetector<A: Float>: Send + Sync {
 /// Trait for machine learning-based anomaly detectors
 pub trait MLAnomalyDetector<A: Float>: Send + Sync {
     /// Detects anomalies using ML model
-    fn detect_anomaly(&mut self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String>;
+    fn detect_anomaly(
+        &mut self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String>;
 
     /// Trains the ML model with new data
     fn train(&mut self, training_data: &[StreamingDataPoint<A>]) -> Result<(), String>;
@@ -709,7 +715,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let anomaly_config = config.anomaly_config.clone();
 
-        let mut statistical_detectors: HashMap<String, Box<dyn StatisticalAnomalyDetector<A>>> = HashMap::new();
+        let mut statistical_detectors: HashMap<String, Box<dyn StatisticalAnomalyDetector<A>>> =
+            HashMap::new();
         let mut ml_detectors: HashMap<String, Box<dyn MLAnomalyDetector<A>>> = HashMap::new();
 
         // Initialize statistical detectors
@@ -729,26 +736,24 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
                     "isolation_forest".to_string(),
                     Box::new(IsolationForestDetector::new()?),
                 );
-            },
+            }
             AnomalyDetectionMethod::OneClassSVM => {
                 ml_detectors.insert(
                     "one_class_svm".to_string(),
                     Box::new(OneClassSVMDetector::new()?),
                 );
-            },
+            }
             AnomalyDetectionMethod::LocalOutlierFactor => {
-                ml_detectors.insert(
-                    "lof".to_string(),
-                    Box::new(LOFDetector::new()?),
-                );
-            },
+                ml_detectors.insert("lof".to_string(), Box::new(LOFDetector::new()?));
+            }
             _ => {
                 // Use statistical methods for other cases
             }
         }
 
         let ensemble_detector = EnsembleAnomalyDetector::new(EnsembleVotingStrategy::Weighted)?;
-        let threshold_manager = AdaptiveThresholdManager::new(ThresholdAdaptationStrategy::PerformanceBased)?;
+        let threshold_manager =
+            AdaptiveThresholdManager::new(ThresholdAdaptationStrategy::PerformanceBased)?;
         let false_positive_tracker = FalsePositiveTracker::new();
         let response_system = AnomalyResponseSystem::new(&anomaly_config.response_strategy)?;
 
@@ -789,7 +794,9 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
             let anomaly_event = AnomalyEvent {
                 id: self.generate_event_id(),
                 timestamp: Instant::now(),
-                anomaly_type: ensemble_result.anomaly_type.unwrap_or(AnomalyType::StatisticalOutlier),
+                anomaly_type: ensemble_result
+                    .anomaly_type
+                    .unwrap_or(AnomalyType::StatisticalOutlier),
                 severity: ensemble_result.severity,
                 confidence: ensemble_result.confidence,
                 data_point: data_point.clone(),
@@ -803,7 +810,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
             self.record_anomaly(anomaly_event)?;
 
             // Trigger response
-            self.response_system.trigger_response(&ensemble_result, data_point)?;
+            self.response_system
+                .trigger_response(&ensemble_result, data_point)?;
 
             return Ok(true);
         }
@@ -826,7 +834,10 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
     }
 
     /// Creates anomaly context
-    fn create_anomaly_context(&self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyContext<A>, String> {
+    fn create_anomaly_context(
+        &self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyContext<A>, String> {
         // Calculate recent statistics
         let recent_statistics = self.calculate_recent_statistics()?;
 
@@ -891,7 +902,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
             }
 
             // Update ensemble configuration
-            self.ensemble_detector.adjust_sensitivity(threshold_adjustment)?;
+            self.ensemble_detector
+                .adjust_sensitivity(threshold_adjustment)?;
         }
 
         Ok(())
@@ -918,7 +930,9 @@ impl<A: Float + Default + Clone + std::iter::Sum> AnomalyDetector<A> {
         let recent_window = Duration::from_secs(3600); // 1 hour
         let cutoff_time = Instant::now() - recent_window;
 
-        let recent_count = self.anomaly_history.iter()
+        let recent_count = self
+            .anomaly_history
+            .iter()
             .filter(|event| event.timestamp > cutoff_time)
             .count();
 
@@ -948,7 +962,10 @@ impl<A: Float + Default + Clone> ZScoreDetector<A> {
 }
 
 impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for ZScoreDetector<A> {
-    fn detect_anomaly(&mut self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn detect_anomaly(
+        &mut self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         if self.sample_count < 10 {
             // Not enough samples for reliable detection
             return Ok(AnomalyDetectionResult {
@@ -975,8 +992,16 @@ impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for ZScoreDetecto
         Ok(AnomalyDetectionResult {
             is_anomaly,
             anomaly_score,
-            confidence: if is_anomaly { A::from(0.8).unwrap() } else { A::from(0.2).unwrap() },
-            anomaly_type: if is_anomaly { Some(AnomalyType::StatisticalOutlier) } else { None },
+            confidence: if is_anomaly {
+                A::from(0.8).unwrap()
+            } else {
+                A::from(0.2).unwrap()
+            },
+            anomaly_type: if is_anomaly {
+                Some(AnomalyType::StatisticalOutlier)
+            } else {
+                None
+            },
             severity: if anomaly_score > A::from(3.0).unwrap() {
                 AnomalySeverity::High
             } else if anomaly_score > A::from(2.0).unwrap() {
@@ -1038,7 +1063,10 @@ impl<A: Float + Default + Clone> IQRDetector<A> {
 }
 
 impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for IQRDetector<A> {
-    fn detect_anomaly(&mut self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn detect_anomaly(
+        &mut self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         if self.recent_values.len() < 20 {
             return Ok(AnomalyDetectionResult {
                 is_anomaly: false,
@@ -1077,8 +1105,16 @@ impl<A: Float + Default + Clone> StatisticalAnomalyDetector<A> for IQRDetector<A
         Ok(AnomalyDetectionResult {
             is_anomaly,
             anomaly_score: distance_from_bounds / iqr.max(A::from(1e-8).unwrap()),
-            confidence: if is_anomaly { A::from(0.7).unwrap() } else { A::from(0.3).unwrap() },
-            anomaly_type: if is_anomaly { Some(AnomalyType::StatisticalOutlier) } else { None },
+            confidence: if is_anomaly {
+                A::from(0.7).unwrap()
+            } else {
+                A::from(0.3).unwrap()
+            },
+            anomaly_type: if is_anomaly {
+                Some(AnomalyType::StatisticalOutlier)
+            } else {
+                None
+            },
             severity: if distance_from_bounds > iqr * A::from(2.0).unwrap() {
                 AnomalySeverity::High
             } else {
@@ -1132,7 +1168,10 @@ impl<A: Float + Default> IsolationForestDetector<A> {
 }
 
 impl<A: Float + Default + Clone> MLAnomalyDetector<A> for IsolationForestDetector<A> {
-    fn detect_anomaly(&mut self, data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn detect_anomaly(
+        &mut self,
+        data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         // Simplified implementation
         let anomaly_score = A::from(0.3).unwrap(); // Placeholder
         Ok(AnomalyDetectionResult {
@@ -1187,7 +1226,10 @@ impl<A: Float + Default> OneClassSVMDetector<A> {
 }
 
 impl<A: Float + Default + Clone> MLAnomalyDetector<A> for OneClassSVMDetector<A> {
-    fn detect_anomaly(&mut self, _data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn detect_anomaly(
+        &mut self,
+        _data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         // Simplified implementation
         Ok(AnomalyDetectionResult {
             is_anomaly: false,
@@ -1241,7 +1283,10 @@ impl<A: Float + Default> LOFDetector<A> {
 }
 
 impl<A: Float + Default + Clone> MLAnomalyDetector<A> for LOFDetector<A> {
-    fn detect_anomaly(&mut self, _data_point: &StreamingDataPoint<A>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn detect_anomaly(
+        &mut self,
+        _data_point: &StreamingDataPoint<A>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         // Simplified implementation
         Ok(AnomalyDetectionResult {
             is_anomaly: false,
@@ -1299,7 +1344,10 @@ impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
         })
     }
 
-    fn combine_results(&mut self, results: HashMap<String, AnomalyDetectionResult<A>>) -> Result<AnomalyDetectionResult<A>, String> {
+    fn combine_results(
+        &mut self,
+        results: HashMap<String, AnomalyDetectionResult<A>>,
+    ) -> Result<AnomalyDetectionResult<A>, String> {
         if results.is_empty() {
             return Ok(AnomalyDetectionResult {
                 is_anomaly: false,
@@ -1314,8 +1362,10 @@ impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
         let anomaly_count = results.values().filter(|r| r.is_anomaly).count();
         let total_count = results.len();
 
-        let avg_score = results.values().map(|r| r.anomaly_score).sum::<A>() / A::from(total_count).unwrap();
-        let avg_confidence = results.values().map(|r| r.confidence).sum::<A>() / A::from(total_count).unwrap();
+        let avg_score =
+            results.values().map(|r| r.anomaly_score).sum::<A>() / A::from(total_count).unwrap();
+        let avg_confidence =
+            results.values().map(|r| r.confidence).sum::<A>() / A::from(total_count).unwrap();
 
         let is_anomaly = match self.voting_strategy {
             EnsembleVotingStrategy::Majority => anomaly_count > total_count / 2,
@@ -1327,7 +1377,11 @@ impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
             is_anomaly,
             anomaly_score: avg_score,
             confidence: avg_confidence,
-            anomaly_type: if is_anomaly { Some(AnomalyType::StatisticalOutlier) } else { None },
+            anomaly_type: if is_anomaly {
+                Some(AnomalyType::StatisticalOutlier)
+            } else {
+                None
+            },
             severity: if avg_score > A::from(0.8).unwrap() {
                 AnomalySeverity::High
             } else if avg_score > A::from(0.5).unwrap() {
@@ -1340,7 +1394,8 @@ impl<A: Float + Default + Clone> EnsembleAnomalyDetector<A> {
     }
 
     fn adjust_sensitivity(&mut self, adjustment: A) -> Result<(), String> {
-        self.ensemble_config.ensemble_threshold = (self.ensemble_config.ensemble_threshold + adjustment)
+        self.ensemble_config.ensemble_threshold = (self.ensemble_config.ensemble_threshold
+            + adjustment)
             .max(A::from(0.1).unwrap())
             .min(A::from(0.9).unwrap());
         Ok(())
@@ -1389,7 +1444,10 @@ impl<A: Float + Default + Clone> FalsePositiveTracker<A> {
     }
 
     fn get_current_fp_rate(&self) -> f64 {
-        self.fp_rate_calculator.current_fp_rate.to_f64().unwrap_or(0.05)
+        self.fp_rate_calculator
+            .current_fp_rate
+            .to_f64()
+            .unwrap_or(0.05)
     }
 }
 
@@ -1400,19 +1458,24 @@ impl<A: Float + Default + Clone> AnomalyResponseSystem<A> {
         // Set up default response strategies
         match response_strategy {
             AnomalyResponseStrategy::Ignore => {
-                response_strategies.insert(AnomalyType::StatisticalOutlier, vec![ResponseAction::Log]);
-            },
+                response_strategies
+                    .insert(AnomalyType::StatisticalOutlier, vec![ResponseAction::Log]);
+            }
             AnomalyResponseStrategy::Filter => {
-                response_strategies.insert(AnomalyType::StatisticalOutlier, vec![ResponseAction::Quarantine]);
-            },
+                response_strategies.insert(
+                    AnomalyType::StatisticalOutlier,
+                    vec![ResponseAction::Quarantine],
+                );
+            }
             AnomalyResponseStrategy::Adaptive => {
-                response_strategies.insert(AnomalyType::StatisticalOutlier, vec![
-                    ResponseAction::Log,
-                    ResponseAction::ModelAdjustment,
-                ]);
-            },
+                response_strategies.insert(
+                    AnomalyType::StatisticalOutlier,
+                    vec![ResponseAction::Log, ResponseAction::ModelAdjustment],
+                );
+            }
             _ => {
-                response_strategies.insert(AnomalyType::StatisticalOutlier, vec![ResponseAction::Alert]);
+                response_strategies
+                    .insert(AnomalyType::StatisticalOutlier, vec![ResponseAction::Alert]);
             }
         }
 
@@ -1437,7 +1500,11 @@ impl<A: Float + Default + Clone> AnomalyResponseSystem<A> {
         })
     }
 
-    fn trigger_response(&mut self, _result: &AnomalyDetectionResult<A>, _data_point: &StreamingDataPoint<A>) -> Result<(), String> {
+    fn trigger_response(
+        &mut self,
+        _result: &AnomalyDetectionResult<A>,
+        _data_point: &StreamingDataPoint<A>,
+    ) -> Result<(), String> {
         // Simplified response triggering
         Ok(())
     }

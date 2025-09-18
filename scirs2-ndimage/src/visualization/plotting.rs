@@ -1025,7 +1025,7 @@ mod tests {
 
     #[test]
     fn test_empty_data_error() {
-        let empty_data = Array1::from_vec(vec![]);
+        let empty_data = Array1::<f64>::from_vec(vec![]);
         let config = PlotConfig::default();
 
         let result = plot_histogram(&empty_data.view(), &config);

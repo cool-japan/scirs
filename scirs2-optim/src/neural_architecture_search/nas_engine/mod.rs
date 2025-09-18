@@ -75,6 +75,9 @@
 //! - Caching of evaluation results
 //! - Early stopping based on convergence criteria
 
+use num_traits::Float;
+use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
+
 pub mod config;
 pub mod results;
 pub mod resources;
@@ -107,11 +110,6 @@ pub use config::{
     MultiObjectiveConfig,
     ObjectiveConfig,
     EarlyStoppingConfig,
-    ComponentTypeConfig,
-    HyperparameterConfig,
-    ArchitectureConstraints,
-    ValidationConfig,
-    TransferLearningConfig,
 };
 
 pub use results::{
@@ -120,11 +118,9 @@ pub use results::{
     EvaluationResults,
     ArchitectureEncoding,
     SearchStatistics,
-    ConvergenceData,
     OptimizerArchitecture,
     OptimizerComponent,
-    OptimizerConnection,
-    OptimizerHyperparameter,
+    ConvergenceData,
 };
 
 pub use resources::{
@@ -134,10 +130,6 @@ pub use resources::{
     ResourceSnapshot,
     HardwareResources,
     ResourceOptimizer,
-    ResourceScheduler,
-    ResourcePredictor,
-    ResourceAlert,
-    UsageStatistics,
 };
 
 #[cfg(test)]

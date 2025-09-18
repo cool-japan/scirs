@@ -60,7 +60,7 @@ where
 {
     /// Create a new SIMD B-spline evaluator
     pub fn new(spline: BSpline<T>) -> Self {
-        let workspace = BSplineWorkspace::new(spline.degree());
+        let workspace = BSplineWorkspace::new();
         Self { spline, workspace }
     }
 
@@ -209,12 +209,12 @@ impl SimdBSplineOps {
     {
         if T::simd_available() {
             // Compute (_points - centers)^2 using SIMD
-            let diff = T::simd_sub(_points, centers);
+            let diff = T::simd_sub(points, centers);
             T::simd_mul(&diff.view(), &diff.view())
         } else {
             // Fallback to scalar computation
-            let mut result = Array1::zeros(_points.len());
-            for i in 0.._points.len() {
+            let mut result = Array1::zeros(points.len());
+            for i in 0..points.len() {
                 let diff = points[i] - centers[i];
                 result[i] = diff * diff;
             }
@@ -229,11 +229,11 @@ impl SimdBSplineOps {
         T: Float + SimdUnifiedOps,
     {
         if T::simd_available() {
-            let products = T::simd_mul(_values, weights);
+            let products = T::simd_mul(values, weights);
             T::simd_sum(&products.view())
         } else {
             // Fallback to scalar computation
-            _values
+            values
                 .iter()
                 .zip(weights.iter())
                 .map(|(&v, &w)| v * w)

@@ -549,10 +549,18 @@ mod tests {
 
     #[test]
     fn test_advanced_enhanced_arma() {
-        let signal = Array1::from_vec(vec![1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3]);
+        // Use longer signal for ARMA estimation (need at least 65 for AR(2) MA(1))
+        let mut signal_vec = vec![];
+        for i in 0..128 {
+            signal_vec.push(1.0 + 0.5 * (i as f64 * 0.1).sin() + 0.3 * (i as f64 * 0.2).cos());
+        }
+        let signal = Array1::from_vec(signal_vec);
         let config = AdvancedEnhancedConfig::default();
 
         let result = advanced_enhanced_arma(&signal, 2, 1, &config);
+        if result.is_err() {
+            println!("Enhanced ARMA error: {:?}", result.as_ref().err());
+        }
         assert!(result.is_ok());
 
         let arma_result = result.unwrap();

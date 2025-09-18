@@ -22,7 +22,16 @@ pub fn solve_with_enhanced_monitoring<F>(
     rhs: &ArrayView1<F>,
 ) -> InterpolateResult<(Array1<F>, EnhancedStabilityReport<F>)>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + AddAssign
+        + SubAssign
+        + Clone
+        + 'static
+        + std::ops::MulAssign
+        + std::ops::DivAssign,
 {
     if matrix.nrows() != matrix.ncols() {
         return Err(InterpolateError::ShapeMismatch {
@@ -74,7 +83,16 @@ pub fn solve_with_stability_monitoring<F>(
     rhs: &ArrayView1<F>,
 ) -> InterpolateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + AddAssign
+        + SubAssign
+        + Clone
+        + 'static
+        + std::ops::MulAssign
+        + std::ops::DivAssign,
 {
     let (solution, _report) = solve_with_enhanced_monitoring(matrix, rhs)?;
     Ok(solution)
@@ -87,7 +105,14 @@ fn solve_with_strategy<F>(
     report: &EnhancedStabilityReport<F>,
 ) -> InterpolateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + AddAssign
+        + SubAssign
+        + Clone
+        + std::ops::DivAssign,
 {
     match report.recommended_strategy {
         SolveStrategy::DirectLU => solve_direct_lu(matrix, rhs, report),
@@ -129,7 +154,14 @@ fn solve_direct_qr<F>(
     _report: &EnhancedStabilityReport<F>,
 ) -> InterpolateResult<Array1<F>>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + AddAssign
+        + SubAssign
+        + Clone
+        + std::ops::DivAssign,
 {
     // Simplified QR solve - in practice would use Householder reflections
     let (q, r) = qr_decomposition(matrix)?;
@@ -463,7 +495,14 @@ where
 /// Simplified QR decomposition
 fn qr_decomposition<F>(matrix: &ArrayView2<F>) -> InterpolateResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + Clone,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + AddAssign
+        + SubAssign
+        + Clone
+        + std::ops::DivAssign,
 {
     let (m, n) = matrix.dim();
     let mut q = Array2::zeros((m, n));
@@ -487,7 +526,8 @@ where
 
             // Q[:,j] = Q[:,j] - R[i,j] * Q[:,i]
             for k in 0..m {
-                q[(k, j)] -= r[(i, j)] * q[(k, i)];
+                let q_ki = q[(k, i)];
+                q[(k, j)] -= r[(i, j)] * q_ki;
             }
         }
 

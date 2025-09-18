@@ -13,10 +13,13 @@
 //! # Usage
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::benchmark_simd_operations;
 //!
 //! // Benchmark SIMD operations with 8192-sample signals
 //! benchmark_simd_operations(8192)?;
+//! # Ok(())
+//! # }
 //! ```
 
 use super::{simd_autocorrelation, simd_fir_filter, SimdConfig};
@@ -42,12 +45,15 @@ use std::time::Instant;
 /// # Examples
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::benchmark_simd_operations;
 ///
 /// // Benchmark with different signal sizes
 /// benchmark_simd_operations(1024)?;   // Small signal
 /// benchmark_simd_operations(8192)?;   // Medium signal
 /// benchmark_simd_operations(65536)?;  // Large signal
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn benchmark_simd_operations(signal_length: usize) -> SignalResult<()> {

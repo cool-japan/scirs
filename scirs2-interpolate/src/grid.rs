@@ -132,6 +132,8 @@ where
         + std::fmt::Display
         + std::ops::AddAssign
         + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + std::fmt::LowerExp
         + Send
         + Sync,
@@ -252,6 +254,8 @@ where
         + std::fmt::Display
         + std::ops::AddAssign
         + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + std::fmt::LowerExp
         + Send
         + Sync,

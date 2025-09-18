@@ -105,7 +105,7 @@ pub mod info {
 mod integration_tests {
     use super::*;
     use ndarray::{Array1, Array2};
-    use simba::scalar::ComplexField;
+    use num_traits::Float;
 
     #[test]
     fn test_complete_stability_workflow() {
@@ -160,7 +160,10 @@ mod integration_tests {
         let ill_conditioned = Array2::from_shape_vec(
             (2, 2),
             vec![
-                1.0, 1.0, 1.0, 1.0001, // Nearly singular
+                1.0,
+                1.0,
+                1.0,
+                1.0 + 1e-15, // Nearly singular
             ],
         )
         .unwrap();

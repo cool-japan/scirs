@@ -125,7 +125,7 @@ mod integration_tests {
         let spline =
             make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
-        let workspace = BSplineWorkspace::new(2);
+        let workspace = BSplineWorkspace::new();
 
         // Test workspace evaluation
         let value1 = spline.evaluate_with_workspace(1.5, &workspace);
@@ -153,7 +153,7 @@ mod integration_tests {
 
         // Test batch evaluation
         let test_points = array![1.5, 2.5, 3.5];
-        let batch_values = spline.evaluate_batch_fast(&test_points.view());
+        let batch_values = spline.evaluate_array(&test_points.view());
         assert!(batch_values.is_ok());
         assert_eq!(batch_values.unwrap().len(), 3);
     }

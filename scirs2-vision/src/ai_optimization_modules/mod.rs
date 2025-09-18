@@ -20,7 +20,7 @@ pub use reinforcement_learning::{
 // Re-export genetic algorithms functionality
 pub use genetic_algorithms::{
     AdaptiveMutationStrategies, EliteArchives, GAParameters, GeneticPipelineOptimizer,
-    ObjectiveWeights, ParetoFrontier, PerformancePredictors, PipelineGenome,
+    MutationStrategy, PerformancePredictors, PipelineGenome,
 };
 
 // Re-export neural architecture search functionality

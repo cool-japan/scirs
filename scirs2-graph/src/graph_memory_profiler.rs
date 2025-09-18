@@ -373,12 +373,7 @@ impl AdvancedMemoryProfiler {
         self.record_allocation("graph", graph_memory, "input_data", false);
 
         // Execute algorithm with memory tracking
-        let result = crate::advanced::execute_with_enhanced_advanced(
-            processor,
-            graph,
-            algorithm_name,
-            algorithm,
-        );
+        let result = crate::advanced::execute_with_enhanced_advanced(graph, algorithm);
 
         let execution_end = SystemTime::now();
         let final_memory = self.profile.overall_stats.current_usage;
@@ -450,7 +445,7 @@ impl AdvancedMemoryProfiler {
         let base_memory = 1024 * 1024; // 1MB base
 
         // Neural RL agent memory (estimated based on optimizations)
-        let neural_memory = stats.total_optimizations * 1024; // 1KB per optimization
+        let neural_memory = stats.total_operations * 1024; // 1KB per optimization
 
         // Cache memory (estimated)
         let cache_memory = (stats.memory_efficiency * 10.0 * 1024.0 * 1024.0) as usize; // Based on efficiency
@@ -473,7 +468,7 @@ impl AdvancedMemoryProfiler {
     fn estimate_cache_memory(&self, processor: &AdvancedProcessor) -> usize {
         let stats = processor.get_optimization_stats();
         // Estimate based on optimization count and efficiency
-        (stats.total_optimizations as f64 * stats.memory_efficiency * 1024.0) as usize
+        (stats.total_operations as f64 * stats.memory_efficiency * 1024.0) as usize
     }
 
     /// Calculate execution efficiency
@@ -1187,15 +1182,11 @@ pub fn run_memory_stress_tests() -> Result<Vec<MemoryUsageReport>> {
                 "small_graph_baseline",
                 |proc| {
                     // Run basic algorithm
-                    let _result = crate::advanced::execute_with_enhanced_advanced(
-                        proc,
-                        &small_graph,
-                        "baseline_cc",
-                        |g| {
+                    let _result =
+                        crate::advanced::execute_with_enhanced_advanced(&small_graph, |g| {
                             use crate::algorithms::connectivity::connected_components;
                             Ok(connected_components(g))
-                        },
-                    );
+                        });
                     Ok("Small graph baseline completed".to_string())
                 },
             )?;
@@ -1218,25 +1209,17 @@ pub fn run_memory_stress_tests() -> Result<Vec<MemoryUsageReport>> {
                 "medium_graph_stress",
                 |proc| {
                     // Run multiple algorithms
-                    let _cc_result = crate::advanced::execute_with_enhanced_advanced(
-                        proc,
-                        &medium_graph,
-                        "medium_cc",
-                        |g| {
+                    let _cc_result =
+                        crate::advanced::execute_with_enhanced_advanced(&medium_graph, |g| {
                             use crate::algorithms::connectivity::connected_components;
                             Ok(connected_components(g))
-                        },
-                    );
+                        });
 
-                    let _pr_result = crate::advanced::execute_with_enhanced_advanced(
-                        proc,
-                        &medium_graph,
-                        "medium_pr",
-                        |g| {
+                    let _pr_result =
+                        crate::advanced::execute_with_enhanced_advanced(&medium_graph, |g| {
                             use crate::measures::pagerank_centrality;
                             pagerank_centrality(g, 0.85, 1e-3)
-                        },
-                    );
+                        });
 
                     Ok("Medium graph stress test completed".to_string())
                 },
@@ -1260,11 +1243,8 @@ pub fn run_memory_stress_tests() -> Result<Vec<MemoryUsageReport>> {
                 "large_graph_extreme",
                 |proc| {
                     // Run memory-intensive test
-                    let _result = crate::advanced::execute_with_enhanced_advanced(
-                        proc,
-                        &large_graph,
-                        "large_memory_test",
-                        |g| {
+                    let _result =
+                        crate::advanced::execute_with_enhanced_advanced(&large_graph, |g| {
                             // Force memory allocation to test memory management
                             let nodes: Vec<_> = g.nodes().into_iter().collect();
                             let edges: Vec<_> = g
@@ -1278,8 +1258,7 @@ pub fn run_memory_stress_tests() -> Result<Vec<MemoryUsageReport>> {
                                 .collect();
 
                             Ok(nodes.len() + edges.len())
-                        },
-                    );
+                        });
 
                     Ok("Large graph extreme test completed".to_string())
                 },

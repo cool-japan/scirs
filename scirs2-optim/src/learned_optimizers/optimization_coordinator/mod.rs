@@ -455,7 +455,7 @@ impl<
             context: PerformanceContext {
                 dimensionality: result.len(),
                 problem_type: ProblemType::Convex, // Default
-                resource_usage: crate::learned_optimizers::optimization_coordinator::analytics::ResourceUsage {
+                resource_usage: crate::learned_optimizers::optimization_coordinator::analytics::ResourceUtilization {
                     cpu_utilization: T::from(0.5).unwrap(),
                     memory_utilization: T::from(0.3).unwrap(),
                     gpu_utilization: T::from(0.0).unwrap(),

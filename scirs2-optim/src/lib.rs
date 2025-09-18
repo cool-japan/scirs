@@ -175,8 +175,8 @@ pub use meta_learning::{
     UpdateNetwork,
 };
 pub use neural_architecture_search::{
-    ArchitectureEncodingStrategy, EvaluationMetric, MultiObjectiveConfig, NASConfig,
-    NeuralArchitectureSearch, OptimizerArchitecture, PerformanceEvaluator, SearchResults,
+    ArchitectureEncodingStrategy, MultiObjectiveConfig, NASConfig,
+    NeuralArchitectureSearch, PerformanceEvaluator, SearchResults,
     SearchStrategyType,
 };
 pub use neural_integration::architecture_aware::{

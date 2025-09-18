@@ -584,6 +584,8 @@ impl<
             + AddAssign
             + SubAssign
             + std::fmt::LowerExp
+            + std::ops::MulAssign
+            + std::ops::DivAssign
             + Send
             + Sync
             + 'static,
@@ -836,6 +838,8 @@ impl<
             + AddAssign
             + std::ops::SubAssign
             + std::fmt::LowerExp
+            + std::ops::MulAssign
+            + std::ops::DivAssign
             + Send
             + Sync
             + 'static,

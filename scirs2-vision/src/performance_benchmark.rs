@@ -430,7 +430,7 @@ impl AdvancedBenchmarkSuite {
             let frame_latency = frame_start.elapsed().as_secs_f64() * 1000.0;
 
             latencies.push(frame_latency);
-            quality_scores.push(result.performance.quality_score);
+            quality_scores.push(result.quality);
         }
 
         let total_time = start_time.elapsed();

@@ -182,7 +182,7 @@ fn demonstrate_advanced_methods() -> InterpolateResult<()> {
     if let Some(report) = rbf.condition_report() {
         println!(
             "   RBF Matrix Condition: {:.2e} ({})",
-            report._conditionnumber,
+            report.condition_number,
             match report.stability_level {
                 StabilityLevel::Excellent => "Excellent",
                 StabilityLevel::Good => "Good",
@@ -262,7 +262,7 @@ fn demonstrate_simd_optimizations() -> InterpolateResult<()> {
 
         // Time SIMD evaluation
         let start = Instant::now();
-        let simd_results = simd_evaluator.evaluate_batch(&large_batch.view())?;
+        let simd_results = simd_evaluator.eval_batch(&large_batch.view())?;
         let simd_time = start.elapsed();
 
         // Time scalar evaluation for comparison
@@ -312,7 +312,7 @@ fn demonstrate_numerical_stability() -> InterpolateResult<()> {
     let good_report = assess_matrix_condition(&good_matrix.view())?;
     println!(
         "   Identity matrix: condition {:.2e} ({})",
-        good_report._conditionnumber,
+        good_report.condition_number,
         if good_report.is_well_conditioned {
             "Well-conditioned"
         } else {
@@ -326,7 +326,7 @@ fn demonstrate_numerical_stability() -> InterpolateResult<()> {
     let bad_report = assess_matrix_condition(&bad_matrix.view())?;
     println!(
         "   Near-singular matrix: condition {:.2e} ({})",
-        bad_report._conditionnumber,
+        bad_report.condition_number,
         if bad_report.is_well_conditioned {
             "Well-conditioned"
         } else {
@@ -356,7 +356,7 @@ fn demonstrate_numerical_stability() -> InterpolateResult<()> {
             if let Some(report) = interpolator.condition_report() {
                 println!(
                     "   Challenging RBF condition: {:.2e}",
-                    report._conditionnumber
+                    report.condition_number
                 );
                 if !report.is_well_conditioned {
                     println!("   ⚠️  Potential numerical issues detected!");

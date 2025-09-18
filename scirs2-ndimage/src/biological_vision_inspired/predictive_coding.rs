@@ -75,7 +75,7 @@ pub fn initialize_predictive_coding_system(
 
         // Temporal predictions (includes time dimension)
         temporal_predictions.push(Array4::zeros((
-            config.prediction_horizon,
+            config.motion_prediction_window,
             num_features,
             level_height,
             level_width,

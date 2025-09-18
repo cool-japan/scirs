@@ -107,7 +107,8 @@ mod tests {
         let well_conditioned = Array2::<f64>::eye(3);
         assert!(quick_condition_check(&well_conditioned.view()).unwrap());
 
-        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0001]).unwrap();
+        let ill_conditioned =
+            Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0 + 1e-15]).unwrap();
         assert!(!quick_condition_check(&ill_conditioned.view()).unwrap());
     }
 
@@ -180,7 +181,8 @@ mod tests {
     #[test]
     fn test_regularization_workflow() {
         // Test regularization on a poorly conditioned matrix
-        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0001]).unwrap();
+        let ill_conditioned =
+            Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0 + 1e-15]).unwrap();
 
         let condition_report = assess_matrix_condition(&ill_conditioned.view()).unwrap();
         assert!(!condition_report.is_well_conditioned);

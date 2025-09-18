@@ -276,11 +276,11 @@ impl<F: Float + Debug> PerformanceTuningSystem<F> {
 
         // Store tuning result
         self.tuning_history.push_back(TuningResult {
-            method,
-            adjusted_parameters: optimized_params,
             improvement: improvement_score,
-            success: result.success,
-            timestamp: start_time,
+            iterations: 1, // Single iteration for this tuning attempt
+            final_parameters: optimized_params.values().cloned().collect(),
+            converged: result.success,
+            time_taken: start_time.elapsed().as_millis() as f64,
         });
 
         // Limit history size

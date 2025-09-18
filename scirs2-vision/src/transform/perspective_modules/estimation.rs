@@ -333,7 +333,7 @@ pub fn validate_homography_geometry(transform: &PerspectiveTransform) -> bool {
     let scale_y = (h[[0, 1]].powi(2) + h[[1, 1]].powi(2)).sqrt();
 
     // Reasonable scale bounds (between 0.1x and 10x)
-    if scale_x < 0.1 || scale_x > 10.0 || scale_y < 0.1 || scale_y > 10.0 {
+    if !(0.1..=10.0).contains(&scale_x) || !(0.1..=10.0).contains(&scale_y) {
         return false;
     }
 

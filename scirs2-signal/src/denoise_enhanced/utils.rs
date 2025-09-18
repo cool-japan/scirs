@@ -370,7 +370,7 @@ mod tests {
         let approx = Array1::from_vec(vec![1.0, 2.0]);
 
         let coeffs = DecompositionResult {
-            approximation: approx,
+            approx,
             details: vec![detail1, detail2],
         };
 

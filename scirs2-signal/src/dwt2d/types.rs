@@ -1,9 +1,11 @@
-//! Type definitions for 2D Discrete Wavelet Transform operations.
+//! Type definitions for 2D Discrete Wavelet Transform
 //!
-//! This module contains all the data structures used throughout the 2D DWT implementation,
-//! including configuration types, result containers, validation structures, and metrics.
+//! This module contains the core data structures used throughout the DWT2D implementation:
+//! - Configuration structures for memory optimization and algorithm parameters
+//! - Result structures for decomposition output
+//! - Enumerations for threshold methods
+//! - Memory pool for efficient temporary buffer management
 
-use crate::dwt::Wavelet;
 use ndarray::Array2;
 use std::collections::HashMap;
 
@@ -56,51 +58,55 @@ impl MemoryPool {
         vec![0.0; size]
     }
 
-    pub fn return_buffer(&mut self, buffer: Vec<f64>) {
+    pub fn return_buffer(&mut self, mut buffer: Vec<f64>) {
         let size = buffer.capacity();
-        let pool = self.pools.entry(size).or_insert_with(Vec::new);
-        if pool.len() < self.max_pool_size {
-            pool.push(buffer);
+        if let Some(pool) = self.pools.get_mut(&size) {
+            if pool.len() < self.max_pool_size {
+                buffer.clear();
+                pool.push(buffer);
+            }
+        } else {
+            let mut new_pool = Vec::new();
+            buffer.clear();
+            new_pool.push(buffer);
+            self.pools.insert(size, new_pool);
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.pools.clear();
+    }
+
+    pub fn get_pool_statistics(&self) -> HashMap<usize, usize> {
+        self.pools.iter().map(|(&size, pool)| (size, pool.len())).collect()
     }
 }
 
-/// Result of a 2D DWT decomposition, containing the approximation and detail coefficients.
+impl Default for MemoryPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Result of a 2D discrete wavelet transform
 ///
-/// The 2D DWT decomposes an image into four subbands, each representing different
-/// frequency components in horizontal and vertical directions. These subbands are
-/// represented as separate 2D arrays (matrices) in this struct.
+/// Contains the four subbands produced by the 2D DWT:
+/// - LL (approximation): Low-frequency content in both dimensions
+/// - LH (horizontal detail): High-frequency horizontal, low-frequency vertical
+/// - HL (vertical detail): Low-frequency horizontal, high-frequency vertical
+/// - HH (diagonal detail): High-frequency content in both dimensions
 ///
-/// The coefficients represent the following subbands:
-/// - `approx`: Low-frequency approximation coefficients (LL) - Represents the coarse, low-resolution version of the image
-/// - `detail_h`: Horizontal detail coefficients (LH) - Captures horizontal edges (high frequency in horizontal direction)
-/// - `detail_v`: Vertical detail coefficients (HL) - Captures vertical edges (high frequency in vertical direction)
-/// - `detail_d`: Diagonal detail coefficients (HH) - Captures diagonal details (high frequency in both directions)
+/// # Example
 ///
-/// These four subbands together contain all the information needed to reconstruct
-/// the original image. For multi-level decomposition, the approximation coefficients
-/// are recursively decomposed into further subbands.
-///
-/// # Examples
-///
-/// ```
+/// ```rust,no_run
 /// use ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::{dwt2d_decompose, Dwt2dResult};
+/// use scirs2_signal::dwt2d::dwt2d_decompose;
 ///
-/// // Create a simple 4x4 image with a gradient pattern
-/// let mut image = Array2::zeros((4, 4));
-/// for i in 0..4 {
-///     for j in 0..4 {
-///         image[[i, j]] = (i * j)  as f64;
-///     }
-/// }
+/// let data = Array2::from_shape_fn((4, 4), |(i, j)| (i + j) as f64);
+/// let result = dwt2d_decompose(&data, Wavelet::Haar, None).unwrap();
 ///
-/// // Decompose the image
-/// let result: Dwt2dResult = dwt2d_decompose(&image, Wavelet::Haar, None).unwrap();
-///
-/// // The image is now decomposed into four subbands:
-/// let ll = &result.approx;  // Approximation coefficients (low-resolution image)
+/// let ll = &result.approx;    // Approximation coefficients
 /// let lh = &result.detail_h;  // Horizontal details
 /// let hl = &result.detail_v;  // Vertical details
 /// let hh = &result.detail_d;  // Diagonal details
@@ -132,112 +138,4 @@ pub enum ThresholdMethod {
     Soft,
     /// Garrote thresholding: a non-linear thresholding approach with properties between hard and soft
     Garrote,
-}
-
-/// Structure containing energy values for each wavelet subband.
-#[derive(Debug, Clone, Copy)]
-pub struct WaveletEnergy {
-    /// Energy in approximation coefficients (LL band)
-    pub approx: f64,
-    /// Energy in horizontal detail coefficients (LH band)
-    pub detail_h: f64,
-    /// Energy in vertical detail coefficients (HL band)
-    pub detail_v: f64,
-    /// Energy in diagonal detail coefficients (HH band)
-    pub detail_d: f64,
-}
-
-/// Structure containing non-zero coefficient counts for each wavelet subband.
-#[derive(Debug, Clone, Copy)]
-pub struct WaveletCounts {
-    /// Count in approximation coefficients (LL band)
-    pub approx: usize,
-    /// Count in horizontal detail coefficients (LH band)
-    pub detail_h: usize,
-    /// Count in vertical detail coefficients (HL band)
-    pub detail_v: usize,
-    /// Count in diagonal detail coefficients (HH band)
-    pub detail_d: usize,
-}
-
-/// Enhanced validation metrics for 2D wavelet transforms
-#[derive(Debug, Clone)]
-pub struct Dwt2dValidationResult {
-    /// Reconstruction error (RMSE)
-    pub reconstruction_error: f64,
-    /// Energy conservation error
-    pub energy_conservation_error: f64,
-    /// Orthogonality preservation
-    pub orthogonality_error: f64,
-    /// Memory efficiency metrics
-    pub memory_efficiency: MemoryEfficiencyMetrics,
-    /// Performance metrics
-    pub performance_metrics: PerformanceMetrics2d,
-    /// Overall validation score (0-100)
-    pub overall_score: f64,
-    /// Issues found during validation
-    pub issues: Vec<String>,
-}
-
-/// Memory efficiency metrics for 2D DWT operations
-#[derive(Debug, Clone)]
-pub struct MemoryEfficiencyMetrics {
-    /// Peak memory usage (bytes)
-    pub peak_memory_bytes: usize,
-    /// Memory allocation count
-    pub allocation_count: usize,
-    /// Cache miss ratio (estimated)
-    pub cache_miss_ratio: f64,
-    /// Memory access pattern efficiency
-    pub access_pattern_efficiency: f64,
-}
-
-/// Performance metrics for 2D DWT operations
-#[derive(Debug, Clone)]
-pub struct PerformanceMetrics2d {
-    /// Total computation time (ms)
-    pub total_time_ms: f64,
-    /// Decomposition time (ms)
-    pub decomposition_time_ms: f64,
-    /// Reconstruction time (ms)
-    pub reconstruction_time_ms: f64,
-    /// SIMD utilization percentage
-    pub simd_utilization: f64,
-    /// Parallel efficiency
-    pub parallel_efficiency: f64,
-    /// Throughput (MB/s)
-    pub throughput_mbs: f64,
-}
-
-/// Advanced configuration for 2D DWT validation
-#[derive(Debug, Clone)]
-pub struct Dwt2dValidationConfig {
-    /// Tolerance for numerical comparisons
-    pub tolerance: f64,
-    /// Test various image sizes
-    pub test_sizes: Vec<(usize, usize)>,
-    /// Test different wavelets
-    pub test_wavelets: Vec<Wavelet>,
-    /// Enable performance benchmarking
-    pub benchmark_performance: bool,
-    /// Test memory efficiency
-    pub test_memory_efficiency: bool,
-    /// Test numerical stability
-    pub test_numerical_stability: bool,
-    /// Test edge cases
-    pub test_edge_cases: bool,
-}
-
-impl Default for Dwt2dValidationConfig {
-    fn default() -> Self {
-        Self {
-            tolerance: 1e-12,
-            test_sizes: vec![(4, 4), (8, 8), (16, 16), (32, 32), (64, 64)],
-            test_wavelets: vec![Wavelet::Haar, Wavelet::DB(2), Wavelet::DB(4)],
-            benchmark_performance: true,
-            test_memory_efficiency: true,
-            test_numerical_stability: true,
-            test_edge_cases: true,
-        }
-    }
 }

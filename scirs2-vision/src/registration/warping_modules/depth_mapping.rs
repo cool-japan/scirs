@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 /// - Disparity refinement with left-right consistency check
 /// - Hole filling and median filtering for robust depth maps
 /// - SIMD-optimized cost volume computation
-
+///
 /// Stereo matching parameters for depth map computation
 #[derive(Debug, Clone)]
 pub struct StereoMatchingParams {

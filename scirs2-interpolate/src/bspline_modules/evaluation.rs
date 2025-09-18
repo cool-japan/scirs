@@ -448,7 +448,7 @@ where
                 for (i, &x) in chunk.iter().enumerate() {
                     results[i] = self.evaluate(x)?;
                 }
-                Ok(results)
+                Ok::<Array1<T>, crate::error::InterpolateError>(results)
             })
             .collect();
 

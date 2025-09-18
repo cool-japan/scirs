@@ -340,12 +340,12 @@ mod tests {
         let threshold = 0.6;
         let (thresholded, retention_rate) = soft_threshold(&coeffs, threshold);
 
-        assert_eq!(thresholded[0], 0.4); // 1.0 - 0.6
-        assert_eq!(thresholded[1], 0.0); // |0.5| <= 0.6
-        assert_eq!(thresholded[2], -0.2); // -0.8 + 0.6
-        assert_eq!(thresholded[3], 0.0); // |0.2| <= 0.6
-        assert_eq!(thresholded[4], -0.9); // -1.5 + 0.6
-        assert_eq!(retention_rate, 0.6); // 3 out of 5 coefficients retained
+        assert!((thresholded[0] - 0.4).abs() < 1e-10); // 1.0 - 0.6
+        assert!((thresholded[1] - 0.0).abs() < 1e-10); // |0.5| <= 0.6
+        assert!((thresholded[2] - (-0.2)).abs() < 1e-10); // -0.8 + 0.6
+        assert!((thresholded[3] - 0.0).abs() < 1e-10); // |0.2| <= 0.6
+        assert!((thresholded[4] - (-0.9)).abs() < 1e-10); // -1.5 + 0.6
+        assert!((retention_rate - 0.6).abs() < 1e-10); // 3 out of 5 coefficients retained
     }
 
     #[test]

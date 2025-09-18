@@ -200,6 +200,8 @@
 //! - **Custom Constraints**: Add problem-specific architecture constraints
 //! - **Custom Predictors**: Implement specialized performance prediction models
 
+use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
+
 pub mod nas_engine;
 
 // Re-export everything from the nas_engine module for convenience

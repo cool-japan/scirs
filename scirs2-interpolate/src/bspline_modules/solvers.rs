@@ -90,17 +90,31 @@ where
     let ata = matrix_multiply(&at.view(), &a)?;
     let atb = matrix_vector_multiply(&at.view(), b)?;
 
-    // Add small regularization if needed for numerical stability
+    // Add regularization for numerical stability
     let mut regularized_ata = ata.clone();
-    if a.nrows() < a.ncols() {
-        // Underdetermined system - add regularization
-        let reg = T::from_f64(1e-12).unwrap();
-        for i in 0..regularized_ata.nrows() {
-            regularized_ata[[i, i]] += reg;
-        }
+    let reg = if a.nrows() < a.ncols() {
+        // Underdetermined system - add more regularization
+        T::from_f64(1e-8).unwrap()
+    } else {
+        // Square or overdetermined system - add minimal regularization
+        T::from_f64(1e-10).unwrap()
+    };
+
+    for i in 0..regularized_ata.nrows() {
+        regularized_ata[[i, i]] += reg;
     }
 
-    solve_linear_system(&regularized_ata.view(), &atb.view())
+    // Try to solve, if it fails, increase regularization
+    match solve_linear_system(&regularized_ata.view(), &atb.view()) {
+        Ok(result) => Ok(result),
+        Err(_) => {
+            // Increase regularization significantly
+            for i in 0..regularized_ata.nrows() {
+                regularized_ata[[i, i]] += T::from_f64(1e-6).unwrap();
+            }
+            solve_linear_system(&regularized_ata.view(), &atb.view())
+        }
+    }
 }
 
 /// Solve banded linear system using optimized band solver
@@ -201,8 +215,11 @@ where
             }
         }
 
-        // Check for singular matrix
-        if max_val < T::from_f64(1e-14).unwrap() {
+        // Check for singular matrix with more reasonable threshold
+        // Use machine epsilon * matrix size as threshold for singularity
+        let eps = T::from_f64(2.22e-16).unwrap(); // Machine epsilon for f64
+        let threshold = eps * T::from_usize(n).unwrap() * T::from_f64(1e8).unwrap();
+        if max_val < threshold {
             return Err(InterpolateError::invalid_input(
                 "matrix is singular or nearly singular".to_string(),
             ));
@@ -357,8 +374,11 @@ where
             }
         }
 
-        // Check for singular matrix
-        if max_val < T::from_f64(1e-14).unwrap() {
+        // Check for singular matrix with more reasonable threshold
+        // Use machine epsilon * matrix size as threshold for singularity
+        let eps = T::from_f64(2.22e-16).unwrap(); // Machine epsilon for f64
+        let threshold = eps * T::from_usize(n).unwrap() * T::from_f64(1000.0).unwrap();
+        if max_val < threshold {
             return Err(InterpolateError::invalid_input(
                 "matrix is singular or nearly singular".to_string(),
             ));

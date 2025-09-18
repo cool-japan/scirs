@@ -400,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_analyze_patch_for_feature() {
-        let patch = Array2::zeros((8, 8));
+        let patch = Array2::<f64>::zeros((8, 8));
 
         let edge_strength = analyze_patch_for_feature(&patch.view(), "edge").unwrap();
         assert_eq!(edge_strength, 0.8);

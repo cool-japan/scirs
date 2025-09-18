@@ -934,7 +934,7 @@ mod tests {
         // Test cross-validation with a few lambda values
         let lambda_values = array![0.001, 0.01, 0.1, 1.0, 10.0];
 
-        let (best_lambda_) = cross_validate_lambda(
+        let (best_lambda_, _) = cross_validate_lambda(
             &x.view(),
             &y.view(),
             10,
@@ -948,7 +948,7 @@ mod tests {
         // Best lambda should be one of the values in the array
         assert!(lambda_values
             .iter()
-            .any(|&x| (x - best_lambda).abs() < 1e-10));
+            .any(|&x| (x - best_lambda_).abs() < 1e-10));
 
         // Fit with the best lambda
         let pspline = PSpline::new(
@@ -956,7 +956,7 @@ mod tests {
             &y.view(),
             10,
             3,
-            best_lambda,
+            best_lambda_,
             PenaltyType::SecondDerivative,
             ExtrapolateMode::Extrapolate,
         )

@@ -339,12 +339,23 @@ mod tests {
 
     #[test]
     fn test_multitaper_parametric_estimation() {
-        let signal = vec![
-            1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3, 1.9, 2.1, 2.4, 1.6, 2.0, 1.4, 2.8,
-        ];
+        // Use longer signal for multitaper parametric estimation
+        let mut signal = vec![];
+        for i in 0..256 {
+            signal.push(
+                1.0 + 0.7 * (i as f64 * 0.08).sin()
+                    + 0.5 * (i as f64 * 0.12).cos()
+                    + 0.3 * (i as f64 * 0.04).sin()
+                    + 0.1 * rand::random::<f64>(), // Add small amount of noise
+            );
+        }
+
         let config = MultitaperParametricConfig::default();
 
         let result = multitaper_parametric_estimation(&signal, &config);
+        if result.is_err() {
+            println!("Multitaper error: {:?}", result.as_ref().err());
+        }
         assert!(result.is_ok());
 
         let mt_result = result.unwrap();

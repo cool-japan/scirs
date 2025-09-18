@@ -19,7 +19,7 @@ pub struct RLParameterOptimizer {
     /// Learning parameters
     learning_params: RLLearningParams,
     /// Action space
-    action_space: Vec<ActionDiscrete>,
+    pub action_space: Vec<ActionDiscrete>,
     /// State space
     state_space: Vec<StateDiscrete>,
     /// Experience replay buffer

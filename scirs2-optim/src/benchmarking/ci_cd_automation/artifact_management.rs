@@ -748,10 +748,9 @@ impl ArtifactManager {
                 format!("{:x}", hasher.finalize())
             }
             ChecksumAlgorithm::MD5 => {
-                use md5::{Md5, Digest};
-                let mut hasher = Md5::new();
-                hasher.update(&buffer);
-                format!("{:x}", hasher.finalize())
+                let mut hasher = md5::Context::new();
+                hasher.consume(&buffer);
+                format!("{:x}", hasher.compute())
             }
             _ => {
                 // Simplified implementation for other algorithms

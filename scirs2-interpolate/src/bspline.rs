@@ -275,6 +275,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::traits::Interpolator;
     use ndarray::array;
 
     #[test]
@@ -347,7 +348,7 @@ mod tests {
         let spline =
             make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
-        let workspace = BSplineWorkspace::new(2);
+        let workspace = BSplineWorkspace::new();
 
         // Test workspace evaluation
         let value1 = spline.evaluate_with_workspace(1.5, &workspace);
@@ -375,7 +376,7 @@ mod tests {
 
         // Test batch evaluation
         let test_points = array![1.5, 2.5, 3.5];
-        let batch_values = spline.evaluate_batch_fast(&test_points.view());
+        let batch_values = spline.evaluate_array(&test_points.view());
         assert!(batch_values.is_ok());
         assert_eq!(batch_values.unwrap().len(), 3);
     }
@@ -444,8 +445,8 @@ mod tests {
             make_interp_bspline(&x.view(), &y.view(), 2, ExtrapolateMode::Extrapolate).unwrap();
 
         // Test Interpolator trait
-        let query_points = array![[1.5], [2.5]];
-        let values = spline.evaluate(&query_points.view()).unwrap();
+        let query_points = array![1.5, 2.5];
+        let values = spline.evaluate_array(&query_points.view()).unwrap();
         assert_eq!(values.len(), 2);
 
         assert_eq!(spline.dimension(), 1);

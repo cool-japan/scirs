@@ -76,12 +76,13 @@ impl QuantumEntanglementNetwork {
 
     /// Update quantum entanglement state
     pub fn update_entanglement(&mut self, time_step: f64) -> NdimageResult<()> {
-        for channel in &mut self.channels {
+        for i in 0..self.channels.len() {
             // Apply decoherence
-            channel.entanglement_strength *= (1.0 - channel.decoherence_rate * time_step);
+            self.channels[i].entanglement_strength *=
+                (1.0 - self.channels[i].decoherence_rate * time_step);
 
             // Update quantum state evolution
-            self.evolve_quantum_state(channel, time_step)?;
+            self.evolve_quantum_state_by_index(i, time_step)?;
         }
 
         // Update synchronization level
@@ -117,6 +118,39 @@ impl QuantumEntanglementNetwork {
             .sqrt();
         if norm > 1e-10 {
             for amplitude in channel.quantum_state.iter_mut() {
+                *amplitude /= norm;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update quantum state evolution by index to avoid borrow checker issues
+    fn evolve_quantum_state_by_index(
+        &mut self,
+        channel_index: usize,
+        time_step: f64,
+    ) -> NdimageResult<()> {
+        let hamiltonian = self.construct_hamiltonian(&self.channels[channel_index])?;
+        let evolution_operator = self.compute_evolution_operator(&hamiltonian, time_step)?;
+
+        // Apply evolution operator to quantum state
+        for i in 0..self.channels[channel_index].quantum_state.len() {
+            let old_amplitude = self.channels[channel_index].quantum_state[i];
+            self.channels[channel_index].quantum_state[i] =
+                old_amplitude * evolution_operator[(i, i % 2)];
+        }
+
+        // Normalize quantum state
+        let norm = self.channels[channel_index]
+            .quantum_state
+            .iter()
+            .map(|c| c * c)
+            .sum::<f64>()
+            .sqrt();
+
+        if norm > 0.0 {
+            for amplitude in &mut self.channels[channel_index].quantum_state {
                 *amplitude /= norm;
             }
         }
@@ -569,7 +603,8 @@ impl ConsciousnessSynchronizationState {
                 phase_sum += channel.quantum_state[j];
             }
 
-            self.phase_coherence[i % self.phase_coherence.len()] = phase_sum.abs();
+            let coherence_len = self.phase_coherence.len();
+            self.phase_coherence[i % coherence_len] = phase_sum.abs();
         }
 
         Ok(())

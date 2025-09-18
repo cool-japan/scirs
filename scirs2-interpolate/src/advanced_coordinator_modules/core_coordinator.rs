@@ -29,7 +29,7 @@ use crate::advanced_coordinator_modules::{
     types::{
         AccuracyPrediction, DataPatternType, DataProfile, ExpectedPerformance, FrequencyContent,
         GradientStatistics, InterpolationMethodType, MethodRecommendation, PerformanceMetrics,
-        PerformanceTargets,
+        PerformancePriorities, PerformanceTargets,
     },
 };
 use crate::error::{InterpolateError, InterpolateResult};
@@ -59,7 +59,15 @@ pub struct AdvancedInterpolationCoordinator<F: Float + Debug> {
     config: AdvancedInterpolationConfig,
 }
 
-impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
+impl<
+        F: Float
+            + Debug
+            + std::ops::MulAssign
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::default::Default,
+    > AdvancedInterpolationCoordinator<F>
+{
     /// Create a new advanced interpolation coordinator
     pub fn new(config: AdvancedInterpolationConfig) -> InterpolateResult<Self> {
         Ok(Self {
@@ -306,22 +314,21 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
 
             let performance_targets = PerformanceTargets {
                 target_accuracy: self.config.target_accuracy,
-                max_execution_time_ms: 10000.0, // Default 10 seconds
-                max_memory_usage_mb: self.config.max_memory_mb,
-                prefer_accuracy_over_speed: true,
+                max_time: 10000.0, // Default 10 seconds in microseconds
+                max_memory: (self.config.max_memory_mb * 1024 * 1024) as usize, // Convert MB to bytes
+                priority_weights: PerformancePriorities::default(),
             };
 
             let recommendation = selector.select_method(data_profile, &performance_targets)?;
 
             Ok(MethodRecommendation {
-                method: recommendation.recommended_method,
-                confidence: recommendation.confidence_score,
-                expected_performance: ExpectedPerformance {
-                    execution_time: recommendation.expected_performance.expected_execution_time,
-                    memory_usage: recommendation.expected_performance.expected_memory_usage,
-                    accuracy: recommendation.expected_accuracy,
-                    robustness: 0.8, // Default robustness
-                },
+                method: recommendation.primary_method.method,
+                confidence: recommendation.confidence.to_f64().unwrap_or(0.5),
+                expected_performance: recommendation.expected_performance.clone(),
+                parameters: vec![],                   // Default empty parameters
+                configuration: "default".to_string(), // Default configuration
+                benefits: vec!["Automatically selected method".to_string()],
+                limitations: vec!["May require parameter tuning".to_string()],
             })
         } else {
             // Simple fallback method selection
@@ -347,16 +354,20 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
 
         let confidence = self.calculate_method_confidence(data_profile, &method)?;
         let expected_performance = ExpectedPerformance {
-            execution_time: 1000.0,    // Default 1 second
-            memory_usage: 1024 * 1024, // Default 1 MB
-            accuracy: 0.9,
-            robustness: 0.8,
+            accuracy_range: (0.8, 0.95),
+            time_range: (100.0, 1000.0),       // microseconds
+            memory_range: (1024, 1024 * 1024), // bytes
+            performance_score: 0.85,
         };
 
         Ok(MethodRecommendation {
             method,
             confidence,
             expected_performance,
+            parameters: vec![], // Default empty parameters
+            configuration: "fallback".to_string(),
+            benefits: vec!["Reliable fallback method".to_string()],
+            limitations: vec!["May not be optimal for all data types".to_string()],
         })
     }
 
@@ -424,7 +435,7 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
                 InterpolateError::InvalidState("Failed to lock accuracy optimizer".to_string())
             })?;
 
-            optimizer.predict_accuracy(data_profile, method)
+            optimizer.predict_accuracy(*method, data_profile, &std::collections::HashMap::new())
         } else {
             // Simple accuracy prediction
             self.get_simple_accuracy_prediction(data_profile, method)
@@ -458,12 +469,13 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
             + F::from(0.05).unwrap_or(F::zero());
 
         Ok(AccuracyPrediction {
-            expected_accuracy,
-            uncertainty,
+            predicted_accuracy: expected_accuracy,
             confidence_interval: (
                 expected_accuracy - uncertainty,
                 expected_accuracy + uncertainty,
             ),
+            prediction_confidence: F::from(0.8).unwrap_or(F::one()),
+            accuracy_factors: vec![], // Default empty factors
         })
     }
 
@@ -495,7 +507,7 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
             .map(|_| y_data.iter().next().cloned().unwrap_or(F::zero()))
             .collect();
 
-        ArrayD::from_shape_vec(result_shape, result_data)
+        ArrayD::from_shape_vec(result_shape.into_dyn(), result_data)
             .map_err(|e| InterpolateError::ComputationError(format!("Shape error: {}", e)))
     }
 
@@ -677,9 +689,10 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
 
         if data_vec.len() < 2 {
             return Ok(GradientStatistics {
-                mean_gradient: F::zero(),
+                mean_magnitude: F::zero(),
+                variance: F::zero(),
                 max_gradient: F::zero(),
-                gradient_variance: F::zero(),
+                distribution_skew: F::zero(),
             });
         }
 
@@ -702,9 +715,10 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
         let gradient_variance = variance_sum / F::from(gradients.len()).unwrap_or(F::one());
 
         Ok(GradientStatistics {
-            mean_gradient,
+            mean_magnitude: mean_gradient,
+            variance: gradient_variance,
             max_gradient,
-            gradient_variance,
+            distribution_skew: F::zero(), // Simple placeholder for skewness
         })
     }
 
@@ -716,7 +730,8 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
         Ok(FrequencyContent {
             dominant_frequency: F::zero(),
             frequency_spread: F::one(),
-            spectral_centroid: F::from(0.5).unwrap_or(F::zero()),
+            high_freq_ratio: F::from(0.3).unwrap_or(F::zero()),
+            low_freq_ratio: F::from(0.7).unwrap_or(F::one()),
         })
     }
 
@@ -773,7 +788,7 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
             InterpolateError::InvalidState("Failed to lock adaptive cache".to_string())
         })?;
 
-        let initial_stats = cache.get_statistics().clone();
+        let initial_stats = cache.get_statistics();
         let initial_hit_ratio = initial_stats.hit_ratio();
         let initial_cache_size = initial_stats.total_cache_size;
 
@@ -782,7 +797,7 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
             cache.clear();
         }
 
-        let final_stats = cache.get_statistics().clone();
+        let final_stats = cache.get_statistics();
         let final_hit_ratio = final_stats.hit_ratio();
         let final_cache_size = final_stats.total_cache_size;
 
@@ -807,7 +822,15 @@ impl<F: Float + Debug> AdvancedInterpolationCoordinator<F> {
     }
 }
 
-impl<F: Float + Debug> Default for AdvancedInterpolationCoordinator<F> {
+impl<
+        F: Float
+            + Debug
+            + std::ops::MulAssign
+            + std::ops::AddAssign
+            + std::ops::SubAssign
+            + std::default::Default,
+    > Default for AdvancedInterpolationCoordinator<F>
+{
     fn default() -> Self {
         let config = AdvancedInterpolationConfig::default();
         Self::new(config).expect("Failed to create default AdvancedInterpolationCoordinator")
@@ -888,7 +911,14 @@ pub struct CacheOptimizationResult {
 }
 
 /// Factory function to create an advanced interpolation coordinator
-pub fn create_advanced_interpolation_coordinator<F: Float + Debug>(
+pub fn create_advanced_interpolation_coordinator<
+    F: Float
+        + Debug
+        + std::ops::MulAssign
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::default::Default,
+>(
     config: Option<AdvancedInterpolationConfig>,
 ) -> InterpolateResult<AdvancedInterpolationCoordinator<F>> {
     let coordinator_config = config.unwrap_or_default();

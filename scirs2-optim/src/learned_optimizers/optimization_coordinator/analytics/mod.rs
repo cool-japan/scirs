@@ -38,6 +38,9 @@
 //! # }
 //! ```
 
+use num_traits::Float;
+use std::fmt::Debug;
+
 pub mod config;
 pub mod performance;
 pub mod convergence;
@@ -611,9 +614,13 @@ pub mod dashboard {
 
 // Re-export main analytics engine and core types
 pub use config::*;
-pub use performance::*;
+pub use performance::{
+    PerformanceAnalyzer, PerformanceSnapshot, PerformanceMetrics
+};
+pub use resources::{
+    ResourceMonitor, ResourceUsage as ResourceUtilization, ResourceAlert
+};
 pub use convergence::*;
-pub use resources::*;
 pub use patterns::*;
 pub use anomalies::*;
 pub use trends::*;

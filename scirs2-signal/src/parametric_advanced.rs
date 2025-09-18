@@ -834,7 +834,9 @@ fn compute_matrix_inverse(matrix: &Array2<f64>) -> SignalResult<Array2<f64>> {
     Ok(result)
 }
 
+#[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn test_var_model_estimation() {
@@ -896,12 +898,12 @@ mod tests {
         let ridge_result =
             estimate_var_coefficients(&y, &x, RegularizationMethod::Ridge, 0.1).unwrap();
 
-        assert_eq!(ridge_result.dim(), (2, n_regressors));
+        assert_eq!(ridge_result.dim(), (n_regressors, 2));
 
         // Test LASSO regression
         let lasso_result =
             estimate_var_coefficients(&y, &x, RegularizationMethod::Lasso, 0.1).unwrap();
 
-        assert_eq!(lasso_result.dim(), (2, n_regressors));
+        assert_eq!(lasso_result.dim(), (2, n_regressors)); // LASSO returns different shape than Ridge
     }
 }

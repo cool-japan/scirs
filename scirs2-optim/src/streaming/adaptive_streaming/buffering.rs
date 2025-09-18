@@ -5,13 +5,13 @@
 //! strategies for streaming optimization scenarios.
 
 use super::config::*;
-use super::optimizer::{StreamingDataPoint, Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType, StreamingDataPoint};
 use super::performance::{PerformanceSnapshot, PerformanceTracker};
 
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque, BinaryHeap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 /// Adaptive buffer for managing streaming data with quality-based retention
@@ -537,7 +537,8 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
             self.buffer.push(prioritized_point);
         } else {
             // Add to secondary buffer for potential later processing
-            self.secondary_buffer.push_back(prioritized_point.data_point);
+            self.secondary_buffer
+                .push_back(prioritized_point.data_point);
         }
 
         // Update statistics
@@ -579,7 +580,7 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         for recent_point in &recent_points {
             let distance = self.calculate_feature_distance(
                 &data_point.features,
-                &recent_point.data_point.features
+                &recent_point.data_point.features,
             )?;
             total_distance = total_distance + distance;
         }
@@ -592,7 +593,11 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
     }
 
     /// Calculates distance between feature vectors
-    fn calculate_feature_distance(&self, features1: &ndarray::Array1<A>, features2: &ndarray::Array1<A>) -> Result<A, String> {
+    fn calculate_feature_distance(
+        &self,
+        features1: &ndarray::Array1<A>,
+        features2: &ndarray::Array1<A>,
+    ) -> Result<A, String> {
         if features1.len() != features2.len() {
             return Err("Feature vectors have different lengths".to_string());
         }
@@ -655,7 +660,8 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         let mut batch_size = self.config.initial_size.min(32); // Default reasonable batch size
 
         // Adjust based on buffer fullness
-        let buffer_utilization = self.current_size() as f64 / self.sizing_strategy.target_size as f64;
+        let buffer_utilization =
+            self.current_size() as f64 / self.sizing_strategy.target_size as f64;
         if buffer_utilization > 0.8 {
             batch_size = (batch_size as f64 * 1.5) as usize; // Larger batches when buffer is full
         } else if buffer_utilization < 0.3 {
@@ -699,12 +705,15 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
             self.quality_metrics.average_quality = quality_sum / count;
 
             // Update min/max quality
-            self.quality_metrics.min_quality = quality_values.iter().cloned().fold(A::one(), A::min);
-            self.quality_metrics.max_quality = quality_values.iter().cloned().fold(A::zero(), A::max);
+            self.quality_metrics.min_quality =
+                quality_values.iter().cloned().fold(A::one(), A::min);
+            self.quality_metrics.max_quality =
+                quality_values.iter().cloned().fold(A::zero(), A::max);
 
             // Calculate quality variance
             let mean = self.quality_metrics.average_quality;
-            let variance_sum = quality_values.iter()
+            let variance_sum = quality_values
+                .iter()
                 .map(|&q| (q - mean) * (q - mean))
                 .sum::<A>();
             self.quality_metrics.quality_variance = variance_sum / count;
@@ -729,8 +738,10 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         // Analyze trend if we have enough data
         if trend.recent_changes.len() >= 10 {
             let recent: Vec<A> = trend.recent_changes.iter().cloned().collect();
-            let first_half_avg = recent.iter().take(recent.len() / 2).cloned().sum::<A>() / A::from(recent.len() / 2).unwrap();
-            let second_half_avg = recent.iter().skip(recent.len() / 2).cloned().sum::<A>() / A::from(recent.len() - recent.len() / 2).unwrap();
+            let first_half_avg = recent.iter().take(recent.len() / 2).cloned().sum::<A>()
+                / A::from(recent.len() / 2).unwrap();
+            let second_half_avg = recent.iter().skip(recent.len() / 2).cloned().sum::<A>()
+                / A::from(recent.len() - recent.len() / 2).unwrap();
 
             let change = second_half_avg - first_half_avg;
             let change_threshold = A::from(0.05).unwrap(); // 5% change threshold
@@ -784,14 +795,26 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         let new_size = match reason {
             SizingReason::ThroughputOptimization => {
                 // Grow buffer
-                let growth_factor = 1.0 + self.sizing_strategy.adjustment_params.growth_rate.to_f64().unwrap_or(0.2);
+                let growth_factor = 1.0
+                    + self
+                        .sizing_strategy
+                        .adjustment_params
+                        .growth_rate
+                        .to_f64()
+                        .unwrap_or(0.2);
                 ((old_size as f64) * growth_factor) as usize
-            },
+            }
             SizingReason::MemoryPressure => {
                 // Shrink buffer
-                let shrink_factor = 1.0 - self.sizing_strategy.adjustment_params.shrinkage_rate.to_f64().unwrap_or(0.2);
+                let shrink_factor = 1.0
+                    - self
+                        .sizing_strategy
+                        .adjustment_params
+                        .shrinkage_rate
+                        .to_f64()
+                        .unwrap_or(0.2);
                 ((old_size as f64) * shrink_factor) as usize
-            },
+            }
             _ => old_size, // No change for other reasons
         };
 
@@ -850,8 +873,12 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
 
         // Sort by retention score and keep the best items
         temp_buffer.sort_by(|a, b| {
-            let score_a = self.calculate_retention_score(&a.data_point).unwrap_or(A::zero());
-            let score_b = self.calculate_retention_score(&b.data_point).unwrap_or(A::zero());
+            let score_a = self
+                .calculate_retention_score(&a.data_point)
+                .unwrap_or(A::zero());
+            let score_b = self
+                .calculate_retention_score(&b.data_point)
+                .unwrap_or(A::zero());
             score_b.partial_cmp(&score_a).unwrap_or(Ordering::Equal)
         });
 
@@ -882,9 +909,9 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         let freshness_score = self.calculate_freshness_score(data_point);
 
         // Weighted combination
-        let retention_score = quality_score * A::from(0.5).unwrap() +
-                             freshness_score * A::from(0.3).unwrap() +
-                             age_score * A::from(0.2).unwrap();
+        let retention_score = quality_score * A::from(0.5).unwrap()
+            + freshness_score * A::from(0.3).unwrap()
+            + age_score * A::from(0.2).unwrap();
 
         Ok(retention_score)
     }
@@ -909,12 +936,15 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
 
             // Update average throughput (simple moving average)
             let alpha = A::from(0.1).unwrap(); // Smoothing factor
-            self.statistics.throughput_stats.avg_throughput =
-                alpha * throughput_value + (A::one() - alpha) * self.statistics.throughput_stats.avg_throughput;
+            self.statistics.throughput_stats.avg_throughput = alpha * throughput_value
+                + (A::one() - alpha) * self.statistics.throughput_stats.avg_throughput;
 
             // Update peak throughput
-            self.statistics.throughput_stats.peak_throughput =
-                self.statistics.throughput_stats.peak_throughput.max(throughput_value);
+            self.statistics.throughput_stats.peak_throughput = self
+                .statistics
+                .throughput_stats
+                .peak_throughput
+                .max(throughput_value);
         }
 
         Ok(())
@@ -936,7 +966,10 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
     }
 
     /// Computes size adaptation based on performance feedback
-    pub fn compute_size_adaptation(&self, performance_tracker: &PerformanceTracker<A>) -> Result<Option<Adaptation<A>>, String> {
+    pub fn compute_size_adaptation(
+        &self,
+        performance_tracker: &PerformanceTracker<A>,
+    ) -> Result<Option<Adaptation<A>>, String> {
         // Get recent performance data
         let recent_performance = performance_tracker.get_recent_performance(10);
         if recent_performance.is_empty() {
@@ -944,12 +977,15 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         }
 
         // Calculate average processing time
-        let avg_processing_time = recent_performance.iter()
+        let avg_processing_time = recent_performance
+            .iter()
             .map(|p| p.timestamp.elapsed().as_millis() as f64)
-            .sum::<f64>() / recent_performance.len() as f64;
+            .sum::<f64>()
+            / recent_performance.len() as f64;
 
         // If processing is too slow, suggest reducing buffer size
-        if avg_processing_time > 1000.0 { // More than 1 second
+        if avg_processing_time > 1000.0 {
+            // More than 1 second
             let adaptation = Adaptation {
                 adaptation_type: AdaptationType::BufferSize,
                 magnitude: A::from(-0.2).unwrap(), // Reduce by 20%
@@ -983,10 +1019,13 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
         if adaptation.adaptation_type == AdaptationType::BufferSize {
             let current_target = self.sizing_strategy.target_size;
             let change_factor = A::one() + adaptation.magnitude;
-            let new_target = (current_target as f64 * change_factor.to_f64().unwrap_or(1.0)) as usize;
+            let new_target =
+                (current_target as f64 * change_factor.to_f64().unwrap_or(1.0)) as usize;
 
             // Apply bounds
-            let bounded_target = new_target.max(self.config.min_size).min(self.config.max_size);
+            let bounded_target = new_target
+                .max(self.config.min_size)
+                .min(self.config.max_size);
 
             if bounded_target != current_target {
                 self.sizing_strategy.target_size = bounded_target;
@@ -1064,7 +1103,8 @@ impl<A: Float + Default + Clone> AdaptiveBuffer<A> {
 // Implement Ord for PrioritizedDataPoint to work with BinaryHeap
 impl<A: Float> Ord for PrioritizedDataPoint<A> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority_score.partial_cmp(&other.priority_score)
+        self.priority_score
+            .partial_cmp(&other.priority_score)
             .unwrap_or(Ordering::Equal)
     }
 }
@@ -1107,7 +1147,7 @@ impl<A: Float> DataRetentionPolicy<A> {
         Self {
             strategy,
             age_policy: AgeBasedRetention {
-                max_age: Duration::from_secs(7200), // 2 hours
+                max_age: Duration::from_secs(7200),        // 2 hours
                 soft_age_limit: Duration::from_secs(3600), // 1 hour
                 age_weight: 0.3,
                 adaptive_limits: true,

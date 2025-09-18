@@ -392,7 +392,7 @@ impl ConsciousnessAwakening {
         let mut total_weight = 0.0;
 
         for (indicator, &weight) in &weights {
-            if let Some(&value) = self.emergence_indicators.get(indicator) {
+            if let Some(&value) = self.emergence_indicators.get(&**indicator) {
                 weighted_score += value * weight;
                 total_weight += weight;
             }

@@ -399,10 +399,22 @@ mod tests {
 
     #[test]
     fn test_high_resolution_spectral_estimation() {
-        let signal = vec![1.0, 2.0, 1.5, 2.5, 1.8, 2.2, 1.7, 2.3, 1.9, 2.1];
+        // Use longer signal with more spectral content for high-resolution estimation
+        let mut signal = vec![];
+        for i in 0..128 {
+            signal.push(
+                1.0 + 0.8 * (i as f64 * 0.1).sin()
+                    + 0.6 * (i as f64 * 0.15).cos()
+                    + 0.4 * (i as f64 * 0.05).sin()
+                    + 0.1 * rand::random::<f64>(), // Add small amount of noise
+            );
+        }
         let config = HighResolutionConfig::default();
 
         let result = high_resolution_spectral_estimation(&signal, &config);
+        if result.is_err() {
+            println!("High-resolution error: {:?}", result.as_ref().err());
+        }
         assert!(result.is_ok());
 
         let hr_result = result.unwrap();

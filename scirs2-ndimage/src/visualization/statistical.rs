@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_zero_grid_cols() {
-        let img = Array2::zeros((5, 5));
+        let img = Array2::<f64>::zeros((5, 5));
         let images = vec![img.view()];
         let config = PlotConfig::new();
 

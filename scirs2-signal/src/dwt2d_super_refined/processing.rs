@@ -46,26 +46,26 @@ pub fn optimize_simd_configuration(
         },
         SimdLevel::Basic => SimdConfiguration {
             use_avx2: false,
-            use_sse: caps.has_sse(),
-            acceleration_factor: if caps.has_sse() { 2.0 } else { 1.0 },
+            use_sse: caps.simd_available,
+            acceleration_factor: if caps.simd_available { 2.0 } else { 1.0 },
         },
         SimdLevel::Advanced => SimdConfiguration {
-            use_avx2: caps.has_avx2(),
-            use_sse: caps.has_sse(),
-            acceleration_factor: if caps.has_avx2() {
+            use_avx2: caps.avx2_available,
+            use_sse: caps.simd_available,
+            acceleration_factor: if caps.avx2_available {
                 4.0
-            } else if caps.has_sse() {
+            } else if caps.simd_available {
                 2.0
             } else {
                 1.0
             },
         },
         SimdLevel::Aggressive => SimdConfiguration {
-            use_avx2: caps.has_avx2(),
-            use_sse: caps.has_sse(),
-            acceleration_factor: if caps.has_avx2() {
+            use_avx2: caps.avx2_available,
+            use_sse: caps.simd_available,
+            acceleration_factor: if caps.avx2_available {
                 6.0 // Aggressive optimization
-            } else if caps.has_sse() {
+            } else if caps.simd_available {
                 3.0
             } else {
                 1.0
@@ -297,7 +297,7 @@ fn apply_separable_2d_dwt_simd(
     let mut result = Array2::zeros((height, width));
 
     // Get wavelet filters
-    let filters = WaveletFilters::new(wavelet)?;
+    let filters = wavelet.filters()?;
 
     // Process rows first
     let mut row_processed = Array2::zeros((height, width));
@@ -345,8 +345,8 @@ fn apply_dwt_convolution_simd(
     let n = signal.len();
     let mut result = Array1::zeros(n);
 
-    let h_len = filters.dec_low.len();
-    let g_len = filters.dec_high.len();
+    let h_len = filters.dec_lo.len();
+    let g_len = filters.dec_hi.len();
 
     // Process in SIMD-sized chunks
     for i in (0..n).step_by(simd_width) {
@@ -358,14 +358,24 @@ fn apply_dwt_convolution_simd(
 
             // Convolution with low-pass filter
             for k in 0..h_len {
-                let signal_idx = if j >= k { j - k } else { j + n - k };
-                low_sum += signal[signal_idx % n] * filters.dec_low[k];
+                let signal_idx = if j >= k {
+                    j - k
+                } else {
+                    // Use wrapping arithmetic to avoid overflow
+                    (j + n).wrapping_sub(k)
+                };
+                low_sum += signal[signal_idx % n] * filters.dec_lo[k];
             }
 
             // Convolution with high-pass filter
             for k in 0..g_len {
-                let signal_idx = if j >= k { j - k } else { j + n - k };
-                high_sum += signal[signal_idx % n] * filters.dec_high[k];
+                let signal_idx = if j >= k {
+                    j - k
+                } else {
+                    // Use wrapping arithmetic to avoid overflow
+                    (j + n).wrapping_sub(k)
+                };
+                high_sum += signal[signal_idx % n] * filters.dec_hi[k];
             }
 
             // Combine results (simplified)
@@ -384,8 +394,8 @@ fn apply_dwt_convolution_scalar(
     let n = signal.len();
     let mut result = Array1::zeros(n);
 
-    let h_len = filters.dec_low.len();
-    let g_len = filters.dec_high.len();
+    let h_len = filters.dec_lo.len();
+    let g_len = filters.dec_hi.len();
 
     for j in 0..n {
         let mut low_sum = 0.0;
@@ -394,12 +404,12 @@ fn apply_dwt_convolution_scalar(
         // Convolution with filters
         for k in 0..h_len {
             let signal_idx = (j + n - k) % n;
-            low_sum += signal[signal_idx] * filters.dec_low[k];
+            low_sum += signal[signal_idx] * filters.dec_lo[k];
         }
 
         for k in 0..g_len {
             let signal_idx = (j + n - k) % n;
-            high_sum += signal[signal_idx] * filters.dec_high[k];
+            high_sum += signal[signal_idx] * filters.dec_hi[k];
         }
 
         result[j] = if j % 2 == 0 { low_sum } else { high_sum };
@@ -417,11 +427,11 @@ fn apply_separable_2d_dwt_standard(
     let config = crate::dwt2d_enhanced::Dwt2dConfig::default();
 
     // Call the enhanced decomposition function
-    let result = enhanced_dwt2d_decompose(image, wavelet, &config)?;
+    let result = enhanced_dwt2d_decompose(image, *wavelet, &config)?;
 
     // Extract the approximation coefficients as the result
     // This is a simplified version - in practice we would organize all subbands
-    Ok(result.subbands[0].clone())
+    Ok(result.approx.clone())
 }
 
 /// Extract approximation coefficients for next level
@@ -546,8 +556,8 @@ mod tests {
 
     #[test]
     fn test_process_image_whole() {
-        let image = Array2::from_shape_fn((32, 32), |(i, j)| {
-            ((i as f64 / 4.0).sin() * (j as f64 / 4.0).cos() + 1.0) / 2.0
+        let image = Array2::from_shape_fn((64, 64), |(i, j)| {
+            ((i as f64 / 8.0).sin() * (j as f64 / 8.0).cos() + 1.0) / 2.0
         });
 
         let config = AdvancedRefinedConfig::default();
@@ -565,7 +575,7 @@ mod tests {
 
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.coefficients.shape()[1], 32);
-        assert_eq!(result.coefficients.shape()[2], 32);
+        assert_eq!(result.coefficients.shape()[1], 64);
+        assert_eq!(result.coefficients.shape()[2], 64);
     }
 }

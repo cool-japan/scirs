@@ -14,6 +14,7 @@
 //! # Usage
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{comprehensive_simd_validation, SimdConfig};
 //!
 //! let config = SimdConfig::default();
@@ -23,6 +24,8 @@
 //!     println!("SIMD validation passed!");
 //!     println!("Speedup: {:.2}x", result.operations_per_second);
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use super::{
@@ -57,6 +60,7 @@ use ndarray::Array2;
 /// # Examples
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{comprehensive_simd_validation, SimdConfig};
 ///
 /// // Validate with default configuration
@@ -68,6 +72,8 @@ use ndarray::Array2;
 ///     println!("FIR filter time: {} ns", result.fir_filter_time_ns);
 ///     println!("Max error: {:.2e}", result.simd_scalar_max_error);
 /// }
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn comprehensive_simd_validation(

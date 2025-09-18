@@ -113,7 +113,7 @@ pub fn detect_edge_cases<F>(
     matrix: &ArrayView2<F>,
 ) -> InterpolateResult<super::types::EdgeCaseReport<F>>
 where
-    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
+    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign + std::ops::MulAssign,
 {
     let n = matrix.nrows();
     if n == 0 {
@@ -460,7 +460,7 @@ where
 /// Transpose a matrix
 fn transpose_matrix<F>(matrix: &ArrayView2<F>) -> Array2<F>
 where
-    F: Clone,
+    F: Clone + num_traits::Zero,
 {
     let (rows, cols) = matrix.dim();
     let mut result = Array2::zeros((cols, rows));

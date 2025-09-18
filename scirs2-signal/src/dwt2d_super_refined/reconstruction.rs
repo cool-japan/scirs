@@ -7,6 +7,7 @@ use super::types::*;
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use ndarray::{Array2, Array3};
+use rand::Rng;
 
 /// Apply perceptual coefficient processing
 pub fn apply_perceptual_coefficient_processing(
@@ -529,7 +530,7 @@ mod tests {
     #[test]
     fn test_analyze_noise_characteristics() {
         let noisy_image = Array2::from_shape_fn((16, 16), |(i, j)| {
-            (i + j) as f64 + 0.1 * fastrand::f64() // Simple pattern + noise
+            (i + j) as f64 + 0.1 * rand::random::<f64>() // Simple pattern + noise
         });
 
         let wavelet = crate::dwt::Wavelet::DB(2);

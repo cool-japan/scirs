@@ -97,13 +97,70 @@ where
 {
     let n = matrix.nrows();
 
-    // For small matrices, use SVD-based estimation
-    if n <= 100 {
+    // For very small matrices, use direct calculation
+    if n == 2 {
+        estimate_condition_2x2(matrix, diagnostics)
+    } else if n <= 100 {
+        // For small matrices, use SVD-based estimation
         estimate_condition_svd(matrix, diagnostics)
     } else {
         // For larger matrices, use norm-based estimation
         estimate_condition_norm_based(matrix)
     }
+}
+
+/// Estimate condition number for 2x2 matrices using analytical approach
+pub fn estimate_condition_2x2<F>(
+    matrix: &ArrayView2<F>,
+    diagnostics: &mut StabilityDiagnostics<F>,
+) -> InterpolateResult<F>
+where
+    F: Float + FromPrimitive + Debug + Display + AddAssign + SubAssign,
+{
+    let a = matrix[(0, 0)];
+    let b = matrix[(0, 1)];
+    let c = matrix[(1, 0)];
+    let d = matrix[(1, 1)];
+
+    // Calculate determinant
+    let det = a * d - b * c;
+
+    // If determinant is effectively zero, matrix is singular
+    let eps = super::types::machine_epsilon::<F>() * F::from(1000.0).unwrap();
+    if det.abs() < eps {
+        return Ok(F::infinity());
+    }
+
+    // Calculate trace and determinant for eigenvalue computation
+    let trace = a + d;
+    let discriminant = trace * trace - F::from(4.0).unwrap() * det;
+
+    if discriminant < F::zero() {
+        // Complex eigenvalues, use Frobenius norm approach
+        let frobenius_norm = (a * a + b * b + c * c + d * d).sqrt();
+        let frobenius_norm_inv = F::one() / det.abs() * (d * d + b * b + c * c + a * a).sqrt();
+        return Ok(frobenius_norm * frobenius_norm_inv);
+    }
+
+    // Real eigenvalues
+    let sqrt_discriminant = discriminant.sqrt();
+    let lambda1 = (trace + sqrt_discriminant) / F::from(2.0).unwrap();
+    let lambda2 = (trace - sqrt_discriminant) / F::from(2.0).unwrap();
+
+    // For condition number, we need singular values, not eigenvalues
+    // For symmetric matrices, they're the same; for general matrices, we need different approach
+    let max_singular = lambda1.abs().max(lambda2.abs());
+    let min_singular = lambda1.abs().min(lambda2.abs());
+
+    if min_singular < eps {
+        return Ok(F::infinity());
+    }
+
+    diagnostics.max_singular_value = Some(max_singular);
+    diagnostics.min_singular_value = Some(min_singular);
+    diagnostics.estimated_rank = Some(if min_singular > eps { 2 } else { 1 });
+
+    Ok(max_singular / min_singular)
 }
 
 /// Estimate condition number using SVD decomposition

@@ -141,7 +141,7 @@ fn find_null_space(matrix: &TransformMatrix) -> Result<Point2D> {
         }
 
         // Normalize
-        let norm = (v_new[0] * v_new[0] + v_new[1] * v_new[1] + v_new[2] * v_new[2]).sqrt() as f64;
+        let norm = (v_new[0] * v_new[0] + v_new[1] * v_new[1] + v_new[2] * v_new[2]).sqrt();
         if norm > 1e-10 {
             for v_new_item in v_new.iter_mut().take(3) {
                 *v_new_item /= norm;

@@ -40,6 +40,10 @@ regex = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 rsa = { workspace = true, optional = true }
 x509-parser = { workspace = true, optional = true }
+md5 = "0.8.0"
+fastrand.workspace = true
+log.workspace = true
+sysinfo.workspace = true
 
 [[bin]]
 name = "performance_regression_tester"

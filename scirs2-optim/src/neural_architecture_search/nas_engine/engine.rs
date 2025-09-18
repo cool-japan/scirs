@@ -8,6 +8,7 @@ use super::config::*;
 use super::results::*;
 use super::resources::*;
 use crate::error::Result;
+use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -506,7 +507,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
             SearchStrategyType::Hybrid => Ok(Box::new(HybridStrategy::new(config)?)),
             SearchStrategyType::Custom => {
                 // For custom strategies, user would need to provide implementation
-                Err(crate::error::OptimizationError::ConfigurationError(
+                Err(crate::error::OptimizerError::ConfigurationError(
                     "Custom search strategy requires user implementation".to_string()
                 ))
             }
@@ -633,7 +634,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
     /// Check resource constraints
     fn check_resource_constraints(&mut self) -> Result<()> {
         if self.resource_monitor.check_resource_violations() {
-            return Err(crate::error::OptimizationError::ResourceLimitExceeded(
+            return Err(crate::error::OptimizerError::ResourceLimitExceeded(
                 "Resource constraints violated during search".to_string()
             ));
         }

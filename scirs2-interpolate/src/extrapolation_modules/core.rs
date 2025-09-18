@@ -75,9 +75,22 @@ impl<T: Float + std::fmt::Display> Extrapolator<T> {
         lower_method: ExtrapolationMethod,
         upper_method: ExtrapolationMethod,
     ) -> Self {
-        // For linear methods, estimate derivatives as zero by default
-        let lower_derivative = T::zero();
-        let upper_derivative = T::zero();
+        // For linear methods, calculate derivatives based on boundary values
+        let slope = if upper_bound != lower_bound {
+            (upper_value - lower_value) / (upper_bound - lower_bound)
+        } else {
+            T::zero()
+        };
+
+        let lower_derivative = match lower_method {
+            ExtrapolationMethod::Linear => slope,
+            _ => T::zero(),
+        };
+
+        let upper_derivative = match upper_method {
+            ExtrapolationMethod::Linear => slope,
+            _ => T::zero(),
+        };
 
         Self {
             lower_bound,

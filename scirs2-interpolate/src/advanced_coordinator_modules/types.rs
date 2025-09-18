@@ -120,6 +120,8 @@ pub struct DataProfile<F: Float> {
     pub sparsity: F,
     /// Smoothness measure
     pub smoothness: F,
+    /// Pattern type classification
+    pub pattern_type: DataPatternType,
 }
 
 /// Gradient statistics

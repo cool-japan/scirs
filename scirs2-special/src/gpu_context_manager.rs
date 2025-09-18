@@ -107,9 +107,9 @@ impl GpuContextPool {
             contexts: RwLock::new(HashMap::new()),
             device_info: RwLock::new(HashMap::new()),
             performance_stats: RwLock::new(HashMap::new()),
-            fallback_threshold: Mutex::new(_config.max_retry_attempts as usize),
-            auto_fallback_enabled: Mutex::new(_config.enable_adaptive_switching),
-            production_config: RwLock::new(_config),
+            fallback_threshold: Mutex::new(config.max_retry_attempts as usize),
+            auto_fallback_enabled: Mutex::new(config.enable_adaptive_switching),
+            production_config: RwLock::new(config),
             memory_usage_tracker: RwLock::new(HashMap::new()),
         }
     }
@@ -372,7 +372,7 @@ impl GpuContextPool {
     /// Get performance statistics for a backend
     pub fn get_performance_stats(&self, backendtype: GpuBackend) -> Option<GpuPerformanceStats> {
         let stats = self.performance_stats.read().unwrap();
-        stats.get(&backend_type).cloned()
+        stats.get(&backendtype).cloned()
     }
 
     /// Get all available device information
@@ -419,12 +419,12 @@ impl GpuContextPool {
         #[cfg(feature = "gpu")]
         log::debug!("Querying OpenCL device properties...");
 
-        let estimated_memory = self.estimate_gpu_memory_opencl();
-        let estimated_compute_units = self.estimate_compute_units_opencl();
+        let estimated_memory = 2 * 1024 * 1024 * 1024; // 2GB default
+        let estimated_compute_units = 16; // Default estimate
 
         Ok(GpuDeviceInfo {
             device_id: 0,
-            device_name: format!("OpenCL GPU Device ({})", self.detect_gpu_vendor()),
+            device_name: format!("OpenCL GPU Device (Unknown)"),
             memorysize: estimated_memory,
             compute_units: estimated_compute_units,
             max_workgroupsize: 256,
@@ -438,12 +438,12 @@ impl GpuContextPool {
         #[cfg(feature = "gpu")]
         log::debug!("Querying CUDA device properties...");
 
-        let estimated_memory = self.estimate_gpu_memory_cuda();
-        let estimated_compute_units = self.estimate_compute_units_cuda();
+        let estimated_memory = 4 * 1024 * 1024 * 1024; // 4GB default
+        let estimated_compute_units = 64; // Default estimate
 
         Ok(GpuDeviceInfo {
             device_id: 0,
-            device_name: format!("NVIDIA CUDA Device ({})", self.detect_nvidia_architecture()),
+            device_name: format!("NVIDIA CUDA Device (Unknown)"),
             memorysize: estimated_memory,
             compute_units: estimated_compute_units,
             max_workgroupsize: 1024,
@@ -703,10 +703,10 @@ pub fn enable_gpu_monitoring(_enablealerts: bool) -> SpecialResult<()> {
 
     #[cfg(feature = "gpu")]
     {
-        if _enable_alerts {
-            log::info!("GPU performance monitoring enabled with _alerts");
+        if _enablealerts {
+            log::info!("GPU performance monitoring enabled with alerts");
         } else {
-            log::info!("GPU performance monitoring enabled without _alerts");
+            log::info!("GPU performance monitoring enabled without alerts");
         }
     }
 

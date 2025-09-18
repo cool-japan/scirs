@@ -221,8 +221,8 @@ pub use visual_slam::{
 // Re-export Advanced integration functionality
 pub use integration::{
     batch_process_advanced, process_with_advanced_mode, realtime_advanced_stream,
-    AdvancedProcessingResult, CrossModuleAdvancedProcessingResult, EmergentBehavior, FusionQuality,
-    NeuralQuantumHybridProcessor, PerformanceMetrics,
+    AdvancedProcessingResult, CrossModuleAdvancedProcessingResult, EmergentBehaviorDetection,
+    FusionQualityIndicators, NeuralQuantumHybridProcessor, PerformanceMetrics,
     UncertaintyQuantification as AdvancedUncertaintyQuantification,
 };
 

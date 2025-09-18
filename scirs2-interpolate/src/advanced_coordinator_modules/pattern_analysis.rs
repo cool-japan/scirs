@@ -340,13 +340,13 @@ impl<F: Float + Debug> DataPatternAnalyzer<F> {
         let gradient_variance = features.get("gradient_variance").copied().unwrap_or(1.0);
         let max_gradient = features.get("max_gradient").copied().unwrap_or(1.0);
 
-        if smoothness > 0.95 && gradient_variance < 0.01 {
+        if smoothness >= 0.95 && gradient_variance < 0.01 {
             SmoothnessProfile::VerySmooth
-        } else if smoothness > 0.8 && gradient_variance < 0.1 {
+        } else if smoothness >= 0.8 && gradient_variance < 0.1 {
             SmoothnessProfile::Smooth
-        } else if smoothness > 0.6 && max_gradient < 10.0 {
+        } else if smoothness >= 0.6 && max_gradient < 10.0 {
             SmoothnessProfile::ModeratelySmooth
-        } else if smoothness > 0.3 {
+        } else if smoothness >= 0.3 {
             SmoothnessProfile::Continuous
         } else {
             SmoothnessProfile::Discontinuous
@@ -490,10 +490,11 @@ impl<F: Float + Debug> DataPatternAnalyzer<F> {
         let robustness_score = (base_robustness + robustness_bonus).min(1.0);
 
         Ok(PerformanceCharacteristics {
-            time_multiplier,
-            memory_multiplier,
-            expected_accuracy,
-            robustness_score,
+            throughput: 1.0 / time_multiplier.max(0.1), // Convert time multiplier to throughput
+            memory_efficiency: 1.0 / memory_multiplier.max(0.1), // Convert memory multiplier to efficiency
+            accuracy_score: expected_accuracy,
+            stability: robustness_score,
+            scalability: 1.0, // Default scalability value
         })
     }
 

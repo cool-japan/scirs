@@ -5,13 +5,23 @@
 //! experience replay, transfer learning, and adaptive strategy selection.
 
 use super::config::*;
-use super::optimizer::{StreamingDataPoint, Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType, StreamingDataPoint};
 use super::performance::{PerformanceSnapshot, PerformanceTracker};
 
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
+
+/// Type of meta-model used for decision making
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MetaModelType {
+    NeuralNetwork,
+    LinearRegression,
+    RandomForest,
+    GradientBoosting,
+    SupportVectorMachine,
+}
 
 /// Meta-learning system for streaming optimization
 pub struct MetaLearner<A: Float> {
@@ -572,7 +582,11 @@ pub enum LearningRateStrategy {
     /// Performance-based adaptation
     PerformanceBased,
     /// Cyclical learning rates
-    Cyclical { min_lr: f64, max_lr: f64, cycle_length: usize },
+    Cyclical {
+        min_lr: f64,
+        max_lr: f64,
+        cycle_length: usize,
+    },
     /// Adaptive learning rate (Adam-style)
     Adaptive,
 }
@@ -632,7 +646,12 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
     }
 
     /// Updates the meta-learner with new experience
-    pub fn update_experience(&mut self, state: MetaState<A>, action: MetaAction<A>, reward: A) -> Result<(), String> {
+    pub fn update_experience(
+        &mut self,
+        state: MetaState<A>,
+        action: MetaAction<A>,
+        reward: A,
+    ) -> Result<(), String> {
         let experience = MetaExperience {
             id: self.generate_experience_id(),
             state,
@@ -705,13 +724,16 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
     /// Triggers meta-learning update
     fn trigger_learning(&mut self) -> Result<(), String> {
         // Sample experiences for training
-        let training_batch = self.experience_buffer.sample_batch(self.config.replay_config.batch_size)?;
+        let training_batch = self
+            .experience_buffer
+            .sample_batch(self.config.replay_config.batch_size)?;
 
         // Train meta-model
         self.meta_model.train_on_batch(&training_batch)?;
 
         // Update strategy selection
-        self.strategy_selector.update_from_experiences(&training_batch)?;
+        self.strategy_selector
+            .update_from_experiences(&training_batch)?;
 
         // Update statistics
         self.statistics.training_episodes += 1;
@@ -735,7 +757,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
         let strategy = self.strategy_selector.select_strategy(&current_state)?;
 
         // Generate adaptations based on prediction and strategy
-        let adaptations = self.generate_adaptations_from_prediction(&predicted_action, &strategy)?;
+        let adaptations =
+            self.generate_adaptations_from_prediction(&predicted_action, &strategy)?;
 
         Ok(adaptations)
     }
@@ -783,7 +806,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
 
         // Generate adaptations based on predicted action
         for (i, &magnitude) in predicted_action.adaptation_magnitudes.iter().enumerate() {
-            if magnitude.abs() > A::from(0.05).unwrap() { // Minimum threshold
+            if magnitude.abs() > A::from(0.05).unwrap() {
+                // Minimum threshold
                 let adaptation_type = if i < predicted_action.adaptation_types.len() {
                     predicted_action.adaptation_types[i].clone()
                 } else {
@@ -817,7 +841,7 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
                 // Adjust meta-learning parameters
                 let new_rate = self.learning_rate_adapter.current_rate + adaptation.magnitude;
                 self.learning_rate_adapter.update_rate(new_rate)?;
-            },
+            }
             _ => {
                 // Handle other adaptation types
             }
@@ -836,10 +860,23 @@ impl<A: Float + Default + Clone + std::iter::Sum> MetaLearner<A> {
         MetaLearningDiagnostics {
             total_experiences: self.statistics.total_experiences,
             training_episodes: self.statistics.training_episodes,
-            current_learning_rate: self.learning_rate_adapter.current_rate.to_f64().unwrap_or(0.0),
-            model_accuracy: self.meta_model.performance_metrics.prediction_accuracy.to_f64().unwrap_or(0.0),
+            current_learning_rate: self
+                .learning_rate_adapter
+                .current_rate
+                .to_f64()
+                .unwrap_or(0.0),
+            model_accuracy: self
+                .meta_model
+                .performance_metrics
+                .prediction_accuracy
+                .to_f64()
+                .unwrap_or(0.0),
             strategy_count: self.strategy_selector.strategies.len(),
-            transfer_success_rate: self.statistics.transfer_success_rate.to_f64().unwrap_or(0.0),
+            transfer_success_rate: self
+                .statistics
+                .transfer_success_rate
+                .to_f64()
+                .unwrap_or(0.0),
         }
     }
 }
@@ -868,9 +905,9 @@ impl<A: Float + Default + Clone> ExperienceBuffer<A> {
             self.priority_queue.push_back((experience, priority));
 
             // Sort by priority
-            self.priority_queue.make_contiguous().sort_by(|a, b| {
-                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-            });
+            self.priority_queue
+                .make_contiguous()
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Limit priority queue size
             if self.priority_queue.len() > 1000 {
@@ -1032,21 +1069,27 @@ impl<A: Float + Default + Clone> StrategySelector<A> {
         let mut strategies = HashMap::new();
 
         // Add default strategies
-        strategies.insert("conservative".to_string(), AdaptationStrategy {
-            name: "conservative".to_string(),
-            parameters: HashMap::new(),
-            strategy_type: StrategyType::Conservative,
-            conditions: Vec::new(),
-            expected_outcomes: vec![A::from(0.05).unwrap()],
-        });
+        strategies.insert(
+            "conservative".to_string(),
+            AdaptationStrategy {
+                name: "conservative".to_string(),
+                parameters: HashMap::new(),
+                strategy_type: StrategyType::Conservative,
+                conditions: Vec::new(),
+                expected_outcomes: vec![A::from(0.05).unwrap()],
+            },
+        );
 
-        strategies.insert("aggressive".to_string(), AdaptationStrategy {
-            name: "aggressive".to_string(),
-            parameters: HashMap::new(),
-            strategy_type: StrategyType::Aggressive,
-            conditions: Vec::new(),
-            expected_outcomes: vec![A::from(0.2).unwrap()],
-        });
+        strategies.insert(
+            "aggressive".to_string(),
+            AdaptationStrategy {
+                name: "aggressive".to_string(),
+                parameters: HashMap::new(),
+                strategy_type: StrategyType::Aggressive,
+                conditions: Vec::new(),
+                expected_outcomes: vec![A::from(0.2).unwrap()],
+            },
+        );
 
         Self {
             strategies,
@@ -1074,7 +1117,10 @@ impl<A: Float + Default + Clone> StrategySelector<A> {
         }
     }
 
-    fn update_from_experiences(&mut self, _experiences: &[MetaExperience<A>]) -> Result<(), String> {
+    fn update_from_experiences(
+        &mut self,
+        _experiences: &[MetaExperience<A>],
+    ) -> Result<(), String> {
         // Update strategy performance based on experiences
         Ok(())
     }

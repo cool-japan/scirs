@@ -106,7 +106,12 @@ fn main() -> Result<()> {
     println!("\n8. Incidence matrix:");
 
     let incidence = hypergraph.incidence_matrix();
-    println!("   Incidence matrix shape: {:?}", incidence.shape());
+    let num_nodes = incidence.len();
+    let num_hyperedges = if num_nodes > 0 { incidence[0].len() } else { 0 };
+    println!(
+        "   Incidence matrix shape: ({}, {})",
+        num_nodes, num_hyperedges
+    );
     println!("   (rows = nodes, columns = hyperedges)");
 
     // Print a simplified view of the incidence matrix
@@ -116,8 +121,8 @@ fn main() -> Result<()> {
 
     for (i, node) in sorted_nodes.iter().enumerate() {
         print!("   {node}: ");
-        for j in 0..incidence.shape()[1] {
-            print!("{} ", incidence[[i, j]]);
+        for j in 0..num_hyperedges {
+            print!("{} ", incidence[i][j]);
         }
         println!();
     }
@@ -135,7 +140,7 @@ fn main() -> Result<()> {
 
     println!("\n10. Removing a hyperedge:");
 
-    println!("   Removing hyperedge {he2} (Alice-Diana friendship)");
+    println!("   Removing hyperedge {} (Alice-Diana friendship)", he2);
     let removed = hypergraph.remove_hyperedge(he2)?;
     println!(
         "   Removed: {:?} with weight {}",

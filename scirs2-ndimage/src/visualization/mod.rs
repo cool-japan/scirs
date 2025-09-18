@@ -508,8 +508,8 @@ mod tests {
 
     #[test]
     fn test_backward_compatibility_aliases() {
-        let img1 = Array2::zeros((5, 5));
-        let img2 = Array2::ones((5, 5));
+        let img1 = Array2::<f64>::zeros((5, 5));
+        let img2 = Array2::<f64>::ones((5, 5));
         let images = vec![img1.view(), img2.view()];
         let config = PlotConfig::new().with_format(ReportFormat::Text);
 
@@ -555,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_report_generation() {
-        let image = Array2::ones((10, 10));
+        let image = Array2::<f64>::ones((10, 10));
         let config = ReportConfig::new()
             .with_format(ReportFormat::Text)
             .minimal();

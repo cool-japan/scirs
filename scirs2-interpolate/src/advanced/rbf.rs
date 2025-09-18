@@ -60,6 +60,8 @@ impl<
             + Display
             + AddAssign
             + std::ops::SubAssign
+            + std::ops::MulAssign
+            + std::ops::DivAssign
             + std::fmt::LowerExp
             + Send
             + Sync

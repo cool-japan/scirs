@@ -264,7 +264,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
     fn test_numerical_edge_cases(&mut self) -> InterpolateResult<()> {
         println!("Testing numerical edge cases...");
 
-        let edge_cases = vec![
+        let edge_cases = [
             (1e-15, 1e-10),      // Very small values
             (-1e15, 1e15),       // Very large range
             (0.0, f64::EPSILON), // Near-zero range
@@ -353,7 +353,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
     fn test_memory_pressure(&mut self) -> InterpolateResult<()> {
         println!("Testing memory pressure scenarios...");
 
-        let memory_test_sizes = vec![50_000, 100_000, 250_000];
+        let memory_test_sizes = [50_000, 100_000, 250_000];
 
         for (i, &data_size) in memory_test_sizes.iter().enumerate() {
             println!("  Testing memory pressure with {} data points", data_size);
@@ -539,7 +539,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
     fn test_performance_under_stress(&mut self) -> InterpolateResult<()> {
         println!("Testing performance under stress...");
 
-        let stress_sizes = vec![10_000, 50_000, 100_000];
+        let stress_sizes = [10_000, 50_000, 100_000];
 
         for (i, &size) in stress_sizes.iter().enumerate() {
             println!("  Testing performance stress with {} data points", size);

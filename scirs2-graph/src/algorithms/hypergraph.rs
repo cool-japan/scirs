@@ -73,9 +73,11 @@ where
             let mut hit_hyperedges = Vec::new();
             let mut hits_all = true;
 
-            for hyperedge in &hyperedges {
+            for hyperedge in hyperedges {
+                let hyperedge_nodes: std::collections::HashSet<N> =
+                    hyperedge.nodes.iter().cloned().collect();
                 if candidate_set
-                    .intersection(&hyperedge.nodes)
+                    .intersection(&hyperedge_nodes)
                     .next()
                     .is_some()
                 {
@@ -162,7 +164,7 @@ pub fn minimum_vertex_cut<N, E, Ix>(
 ) -> Result<HypergraphCut<N>>
 where
     N: Node + Clone + Ord + std::fmt::Debug,
-    E: EdgeWeight + Clone + num_traits::Zero + std::ops::Add<Output = E> + Into<f64>,
+    E: EdgeWeight + Clone + Default + num_traits::Zero + std::ops::Add<Output = E> + Into<f64>,
     Ix: IndexType,
 {
     if !hypergraph.has_node(source) || !hypergraph.has_node(target) {
@@ -206,8 +208,10 @@ where
     let mut cut_weight = 0.0;
 
     for hyperedge in hypergraph.hyperedges() {
-        let has_a = hyperedge.nodes.intersection(&partition_a).next().is_some();
-        let has_b = hyperedge.nodes.intersection(&partition_b).next().is_some();
+        let hyperedge_nodes: std::collections::HashSet<N> =
+            hyperedge.nodes.iter().cloned().collect();
+        let has_a = hyperedge_nodes.intersection(&partition_a).next().is_some();
+        let has_b = hyperedge_nodes.intersection(&partition_b).next().is_some();
 
         if has_a && has_b {
             cut_hyperedges.push(hyperedge.id);
@@ -270,7 +274,7 @@ where
 
     // Use a more sophisticated approach for indirect connections
     // Try removing each hyperedge individually and check connectivity
-    for hyperedge in &hyperedges {
+    for hyperedge in hyperedges {
         let mut temphypergraph: Hypergraph<N, E, Ix> = Hypergraph::new();
 
         // Add all nodes
@@ -279,7 +283,7 @@ where
         }
 
         // Add all hyperedges except the one we're testing
-        for other_hyperedge in &hyperedges {
+        for other_hyperedge in hyperedges {
             if other_hyperedge.id != hyperedge.id {
                 temphypergraph.add_hyperedge(
                     other_hyperedge.nodes.clone(),

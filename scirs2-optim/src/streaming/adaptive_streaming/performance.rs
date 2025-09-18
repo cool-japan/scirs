@@ -5,12 +5,13 @@
 //! real-time metrics collection, statistical analysis, and predictive modeling.
 
 use super::config::*;
-use super::optimizer::{StreamingDataPoint, Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType, StreamingDataPoint};
 use super::resource_management::ResourceUsage;
 
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::iter::Sum;
 use std::time::{Duration, Instant};
 
 /// Performance snapshot representing metrics at a specific point in time
@@ -356,7 +357,9 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
         self.improvement_tracker.update(&snapshot)?;
 
         // Check for performance anomalies
-        let anomalies = self.performance_anomaly_detector.check_for_anomalies(&snapshot)?;
+        let anomalies = self
+            .performance_anomaly_detector
+            .check_for_anomalies(&snapshot)?;
         if !anomalies.is_empty() {
             // Handle detected anomalies
             self.handle_performance_anomalies(&anomalies)?;
@@ -372,7 +375,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
 
     /// Gets recent performance snapshots
     pub fn get_recent_performance(&self, count: usize) -> Vec<PerformanceSnapshot<A>> {
-        self.performance_history.iter()
+        self.performance_history
+            .iter()
             .rev()
             .take(count)
             .cloned()
@@ -381,7 +385,8 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
 
     /// Gets recent loss values for trend analysis
     pub fn get_recent_losses(&self, count: usize) -> Vec<A> {
-        self.performance_history.iter()
+        self.performance_history
+            .iter()
             .rev()
             .take(count)
             .map(|snapshot| snapshot.loss)
@@ -389,12 +394,16 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
     }
 
     /// Predicts future performance
-    pub fn predict_performance(&mut self, steps_ahead: usize) -> Result<PredictionResult<A>, String> {
+    pub fn predict_performance(
+        &mut self,
+        steps_ahead: usize,
+    ) -> Result<PredictionResult<A>, String> {
         if !self.config.enable_prediction {
             return Err("Performance prediction is disabled".to_string());
         }
 
-        self.predictor.predict(steps_ahead, &self.performance_history)
+        self.predictor
+            .predict(steps_ahead, &self.performance_history)
     }
 
     /// Gets current performance trends
@@ -407,22 +416,28 @@ impl<A: Float + Default + Clone + std::iter::Sum> PerformanceTracker<A> {
         if adaptation.adaptation_type == AdaptationType::PerformanceThreshold {
             // Adjust anomaly detection thresholds
             let new_threshold = self.performance_anomaly_detector.threshold + adaptation.magnitude;
-            self.performance_anomaly_detector.update_threshold(new_threshold);
+            self.performance_anomaly_detector
+                .update_threshold(new_threshold);
         }
         Ok(())
     }
 
     /// Handles detected performance anomalies
-    fn handle_performance_anomalies(&mut self, anomalies: &[PerformanceAnomaly<A>]) -> Result<(), String> {
+    fn handle_performance_anomalies(
+        &mut self,
+        anomalies: &[PerformanceAnomaly<A>],
+    ) -> Result<(), String> {
         for anomaly in anomalies {
             match anomaly.severity {
                 AnomalySeverity::Critical | AnomalySeverity::Major => {
                     // Log critical anomalies for immediate attention
                     println!("Critical performance anomaly detected: {:?}", anomaly);
-                },
+                }
                 _ => {
                     // Store for analysis
-                    self.performance_anomaly_detector.recent_anomalies.push_back(anomaly.clone());
+                    self.performance_anomaly_detector
+                        .recent_anomalies
+                        .push_back(anomaly.clone());
                 }
             }
         }
@@ -461,7 +476,9 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
             trends: HashMap::new(),
             trend_methods: vec![
                 TrendMethod::LinearRegression,
-                TrendMethod::MovingAverage { window: window_size / 2 },
+                TrendMethod::MovingAverage {
+                    window: window_size / 2,
+                },
                 TrendMethod::ExponentialSmoothing { alpha: 0.3 },
             ],
         }
@@ -484,7 +501,9 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
     }
 
     fn update_metric_trend(&mut self, metric_name: &str, value: A) -> Result<(), String> {
-        let trend_data = self.trends.entry(metric_name.to_string())
+        let trend_data = self
+            .trends
+            .entry(metric_name.to_string())
             .or_insert_with(|| TrendData {
                 slope: A::zero(),
                 correlation: A::zero(),
@@ -523,12 +542,12 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
         let n = A::from(values.len()).unwrap();
         let sum_x = (A::one()..=n).sum::<A>();
         let sum_y = values.iter().cloned().sum::<A>();
-        let sum_xy = values.iter().enumerate()
+        let sum_xy = values
+            .iter()
+            .enumerate()
             .map(|(i, &y)| A::from(i + 1).unwrap() * y)
             .sum::<A>();
-        let sum_x_squared = (A::one()..=n)
-            .map(|x| x * x)
-            .sum::<A>();
+        let sum_x_squared = (A::one()..=n).map(|x| x * x).sum::<A>();
 
         let denominator = n * sum_x_squared - sum_x * sum_x;
         if denominator == A::zero() {
@@ -552,15 +571,19 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
         let mean_time = time_values.iter().cloned().sum::<A>() / A::from(n).unwrap();
         let mean_value = value_vec.iter().cloned().sum::<A>() / A::from(n).unwrap();
 
-        let numerator = time_values.iter().zip(value_vec.iter())
+        let numerator = time_values
+            .iter()
+            .zip(value_vec.iter())
             .map(|(&t, &v)| (t - mean_time) * (v - mean_value))
             .sum::<A>();
 
-        let time_variance = time_values.iter()
+        let time_variance = time_values
+            .iter()
             .map(|&t| (t - mean_time) * (t - mean_time))
             .sum::<A>();
 
-        let value_variance = value_vec.iter()
+        let value_variance = value_vec
+            .iter()
             .map(|&v| (v - mean_value) * (v - mean_value))
             .sum::<A>();
 
@@ -578,9 +601,8 @@ impl<A: Float + Default + Clone> PerformanceTrendAnalyzer<A> {
         }
 
         let mean = values.iter().cloned().sum::<A>() / A::from(values.len()).unwrap();
-        let variance = values.iter()
-            .map(|&v| (v - mean) * (v - mean))
-            .sum::<A>() / A::from(values.len()).unwrap();
+        let variance = values.iter().map(|&v| (v - mean) * (v - mean)).sum::<A>()
+            / A::from(values.len()).unwrap();
 
         Ok(variance.sqrt())
     }
@@ -613,7 +635,10 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
         Self {
             prediction_methods: vec![
                 PredictionMethod::Linear,
-                PredictionMethod::Exponential { alpha: 0.3, beta: 0.1 },
+                PredictionMethod::Exponential {
+                    alpha: 0.3,
+                    beta: 0.1,
+                },
             ],
             prediction_history: VecDeque::with_capacity(1000),
             model_accuracies: HashMap::new(),
@@ -621,7 +646,11 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
         }
     }
 
-    fn predict(&mut self, steps_ahead: usize, history: &VecDeque<PerformanceSnapshot<A>>) -> Result<PredictionResult<A>, String> {
+    fn predict(
+        &mut self,
+        steps_ahead: usize,
+        history: &VecDeque<PerformanceSnapshot<A>>,
+    ) -> Result<PredictionResult<A>, String> {
         if history.len() < 2 {
             return Err("Insufficient history for prediction".to_string());
         }
@@ -709,9 +738,11 @@ impl<A: Float + Default + Clone> PerformancePredictor<A> {
         let recent_values = &values[values.len() - recent_count..];
 
         let mean = recent_values.iter().cloned().sum::<A>() / A::from(recent_count).unwrap();
-        let variance = recent_values.iter()
+        let variance = recent_values
+            .iter()
             .map(|&v| (v - mean) * (v - mean))
-            .sum::<A>() / A::from(recent_count).unwrap();
+            .sum::<A>()
+            / A::from(recent_count).unwrap();
 
         Ok(variance.sqrt())
     }
@@ -778,9 +809,11 @@ impl<A: Float + Default + Clone + Sum> PerformanceImprovementTracker<A> {
     fn update(&mut self, snapshot: &PerformanceSnapshot<A>) -> Result<(), String> {
         // Update baseline if not set
         if self.baseline_metrics.is_empty() {
-            self.baseline_metrics.insert("loss".to_string(), snapshot.loss);
+            self.baseline_metrics
+                .insert("loss".to_string(), snapshot.loss);
             if let Some(accuracy) = snapshot.accuracy {
-                self.baseline_metrics.insert("accuracy".to_string(), accuracy);
+                self.baseline_metrics
+                    .insert("accuracy".to_string(), accuracy);
             }
         }
 
@@ -802,7 +835,8 @@ impl<A: Float + Default + Clone + Sum> PerformanceImprovementTracker<A> {
                 self.improvement_history.push_back(improvement_event);
 
                 // Update baseline
-                self.baseline_metrics.insert("loss".to_string(), snapshot.loss);
+                self.baseline_metrics
+                    .insert("loss".to_string(), snapshot.loss);
             }
         }
 
@@ -883,7 +917,10 @@ impl<A: Float + Default + Clone + Sum> PerformanceAnomalyDetector<A> {
         }
     }
 
-    fn check_for_anomalies(&mut self, snapshot: &PerformanceSnapshot<A>) -> Result<Vec<PerformanceAnomaly<A>>, String> {
+    fn check_for_anomalies(
+        &mut self,
+        snapshot: &PerformanceSnapshot<A>,
+    ) -> Result<Vec<PerformanceAnomaly<A>>, String> {
         let mut anomalies = Vec::new();
 
         // Check loss anomaly
@@ -894,7 +931,8 @@ impl<A: Float + Default + Clone + Sum> PerformanceAnomalyDetector<A> {
 
         // Check accuracy anomaly if available
         if let Some(accuracy) = snapshot.accuracy {
-            let accuracy_anomaly = self.check_metric_anomaly("accuracy", accuracy, snapshot.timestamp)?;
+            let accuracy_anomaly =
+                self.check_metric_anomaly("accuracy", accuracy, snapshot.timestamp)?;
             if let Some(anomaly) = accuracy_anomaly {
                 anomalies.push(anomaly);
             }
@@ -903,9 +941,16 @@ impl<A: Float + Default + Clone + Sum> PerformanceAnomalyDetector<A> {
         Ok(anomalies)
     }
 
-    fn check_metric_anomaly(&mut self, metric_name: &str, value: A, timestamp: Instant) -> Result<Option<PerformanceAnomaly<A>>, String> {
+    fn check_metric_anomaly(
+        &mut self,
+        metric_name: &str,
+        value: A,
+        timestamp: Instant,
+    ) -> Result<Option<PerformanceAnomaly<A>>, String> {
         // Update statistics for this metric
-        let stats = self.historical_stats.entry(metric_name.to_string())
+        let stats = self
+            .historical_stats
+            .entry(metric_name.to_string())
             .or_insert_with(|| MetricStatistics {
                 mean: value,
                 variance: A::zero(),

@@ -605,7 +605,7 @@ impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T
         println!("Testing resource exhaustion recovery...");
 
         // Test memory exhaustion scenarios
-        let large_sizes = vec![500_000, 1_000_000];
+        let large_sizes = [500_000, 1_000_000];
 
         for (i, &size) in large_sizes.iter().enumerate() {
             let test_result = match std::panic::catch_unwind(|| create_large_test_data(size)) {

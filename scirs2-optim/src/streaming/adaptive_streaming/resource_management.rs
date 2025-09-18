@@ -5,7 +5,7 @@
 //! streaming optimization workloads.
 
 use super::config::*;
-use super::optimizer::{Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType};
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -646,13 +646,17 @@ impl ResourceManager {
         let allocations = self.allocations.lock().unwrap();
 
         // Calculate total allocated resources
-        let total_memory: usize = allocations.values()
+        let total_memory: usize = allocations
+            .values()
             .map(|a| a.allocated_memory_mb)
-            .sum::<usize>() + memory_mb;
+            .sum::<usize>()
+            + memory_mb;
 
-        let total_cpu: f64 = allocations.values()
+        let total_cpu: f64 = allocations
+            .values()
             .map(|a| a.allocated_cpu_percent)
-            .sum::<f64>() + cpu_percent;
+            .sum::<f64>()
+            + cpu_percent;
 
         // Check constraints
         if total_memory > self.budget.memory_budget.max_allocation_mb {
@@ -687,7 +691,8 @@ impl ResourceManager {
 
         // Check for optimization opportunities
         if self.config.enable_dynamic_allocation {
-            self.optimizer.check_optimization_opportunities(&current_usage, &self.allocations)?;
+            self.optimizer
+                .check_optimization_opportunities(&current_usage, &self.allocations)?;
         }
 
         Ok(())
@@ -698,12 +703,12 @@ impl ResourceManager {
         let current_usage = self.current_usage.lock().unwrap();
 
         // Check memory availability
-        let memory_available = current_usage.memory_usage_mb <
-            (self.budget.memory_budget.soft_limit_mb as f64 * 0.9) as usize;
+        let memory_available = current_usage.memory_usage_mb
+            < (self.budget.memory_budget.soft_limit_mb as f64 * 0.9) as usize;
 
         // Check CPU availability
-        let cpu_available = current_usage.cpu_usage_percent <
-            self.budget.cpu_budget.target_utilization * 0.9;
+        let cpu_available =
+            current_usage.cpu_usage_percent < self.budget.cpu_budget.target_utilization * 0.9;
 
         Ok(memory_available && cpu_available)
     }
@@ -745,7 +750,10 @@ impl ResourceManager {
     }
 
     /// Applies resource allocation adaptation
-    pub fn apply_allocation_adaptation(&mut self, adaptation: &Adaptation<f32>) -> Result<(), String> {
+    pub fn apply_allocation_adaptation(
+        &mut self,
+        adaptation: &Adaptation<f32>,
+    ) -> Result<(), String> {
         if adaptation.adaptation_type == AdaptationType::ResourceAllocation {
             match adaptation.target_component.as_str() {
                 "memory_manager" => {
@@ -759,7 +767,7 @@ impl ResourceManager {
                                 ((allocation.allocated_memory_mb as f32) * factor) as usize;
                         }
                     }
-                },
+                }
                 "cpu_manager" => {
                     // Adjust CPU allocations
                     let factor = 1.0 + adaptation.magnitude;
@@ -770,7 +778,7 @@ impl ResourceManager {
                             allocation.allocated_cpu_percent *= factor as f64;
                         }
                     }
-                },
+                }
                 _ => {
                     // Handle other resource adaptations
                 }
@@ -799,8 +807,9 @@ impl ResourceManager {
         ResourceDiagnostics {
             current_usage: current_usage.clone(),
             total_allocations: allocations.len(),
-            memory_utilization: (current_usage.memory_usage_mb as f64 /
-                self.budget.memory_budget.max_allocation_mb as f64) * 100.0,
+            memory_utilization: (current_usage.memory_usage_mb as f64
+                / self.budget.memory_budget.max_allocation_mb as f64)
+                * 100.0,
             cpu_utilization: current_usage.cpu_usage_percent,
             active_alerts: self.alert_system.active_alerts.len(),
             budget_violations: 0, // Would be calculated from history
@@ -843,19 +852,22 @@ impl ResourcePredictor {
         let recent_patterns: Vec<_> = self.usage_patterns.iter().rev().take(10).collect();
 
         // Analyze memory trend
-        let memory_values: Vec<f64> = recent_patterns.iter()
+        let memory_values: Vec<f64> = recent_patterns
+            .iter()
             .map(|u| u.memory_usage_mb as f64)
             .collect();
         self.trend_analysis.memory_trend = self.analyze_trend(&memory_values);
 
         // Analyze CPU trend
-        let cpu_values: Vec<f64> = recent_patterns.iter()
+        let cpu_values: Vec<f64> = recent_patterns
+            .iter()
             .map(|u| u.cpu_usage_percent)
             .collect();
         self.trend_analysis.cpu_trend = self.analyze_trend(&cpu_values);
 
         // Calculate trend confidence
-        self.trend_analysis.trend_confidence = self.calculate_trend_confidence(&memory_values, &cpu_values);
+        self.trend_analysis.trend_confidence =
+            self.calculate_trend_confidence(&memory_values, &cpu_values);
 
         Ok(())
     }
@@ -865,8 +877,10 @@ impl ResourcePredictor {
             return TrendDirection::Unknown;
         }
 
-        let first_half: f64 = values.iter().take(values.len() / 2).sum::<f64>() / (values.len() / 2) as f64;
-        let second_half: f64 = values.iter().skip(values.len() / 2).sum::<f64>() / (values.len() - values.len() / 2) as f64;
+        let first_half: f64 =
+            values.iter().take(values.len() / 2).sum::<f64>() / (values.len() / 2) as f64;
+        let second_half: f64 = values.iter().skip(values.len() / 2).sum::<f64>()
+            / (values.len() - values.len() / 2) as f64;
 
         let change_threshold = 0.05; // 5% change threshold
         let relative_change = (second_half - first_half) / first_half.max(1.0);
@@ -898,9 +912,7 @@ impl ResourcePredictor {
         }
 
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
         variance
     }
@@ -935,13 +947,13 @@ impl ResourceOptimizer {
         match self.strategy {
             ResourceOptimizationStrategy::Balanced => {
                 self.check_balanced_optimization(current_usage, allocations)?;
-            },
+            }
             ResourceOptimizationStrategy::PowerEfficient => {
                 self.check_power_optimization(current_usage, allocations)?;
-            },
+            }
             ResourceOptimizationStrategy::LatencyOptimized => {
                 self.check_latency_optimization(current_usage, allocations)?;
-            },
+            }
             _ => {
                 // Handle other strategies
             }
@@ -960,16 +972,16 @@ impl ResourceOptimizer {
         let cpu_utilization = current_usage.cpu_usage_percent;
 
         // If one resource is heavily utilized while others are underutilized, suggest rebalancing
-        if (memory_utilization > 80.0 && cpu_utilization < 40.0) ||
-           (cpu_utilization > 80.0 && memory_utilization < 40.0) {
-
+        if (memory_utilization > 80.0 && cpu_utilization < 40.0)
+            || (cpu_utilization > 80.0 && memory_utilization < 40.0)
+        {
             let optimization_event = OptimizationEvent {
                 timestamp: Instant::now(),
                 optimization_type: "resource_rebalancing".to_string(),
                 affected_resources: vec!["memory".to_string(), "cpu".to_string()],
                 resource_deltas: HashMap::new(),
                 performance_impact: 0.05, // Expected 5% improvement
-                success: false, // Will be updated after application
+                success: false,           // Will be updated after application
             };
 
             if self.optimization_history.len() >= 100 {
@@ -1023,10 +1035,10 @@ impl ResourceAlertSystem {
                     recovery: 75.0,
                 },
                 response_time_thresholds: ThresholdSet {
-                    warning: 1000.0, // 1 second
-                    critical: 5000.0, // 5 seconds
+                    warning: 1000.0,    // 1 second
+                    critical: 5000.0,   // 5 seconds
                     emergency: 10000.0, // 10 seconds
-                    recovery: 500.0, // 0.5 seconds
+                    recovery: 500.0,    // 0.5 seconds
                 },
             },
             active_alerts: VecDeque::new(),
@@ -1040,19 +1052,30 @@ impl ResourceAlertSystem {
 
         // Check memory thresholds
         let memory_percent = (usage.memory_usage_mb as f64 / 1024.0) * 100.0; // Simplified
-        if let Some(alert) = self.check_threshold("memory", memory_percent, &self.thresholds.memory_thresholds)? {
+        if let Some(alert) =
+            self.check_threshold("memory", memory_percent, &self.thresholds.memory_thresholds)?
+        {
             alerts.push(alert);
         }
 
         // Check CPU thresholds
-        if let Some(alert) = self.check_threshold("cpu", usage.cpu_usage_percent, &self.thresholds.cpu_thresholds)? {
+        if let Some(alert) = self.check_threshold(
+            "cpu",
+            usage.cpu_usage_percent,
+            &self.thresholds.cpu_thresholds,
+        )? {
             alerts.push(alert);
         }
 
         Ok(alerts)
     }
 
-    fn check_threshold(&self, resource_type: &str, current_value: f64, thresholds: &ThresholdSet) -> Result<Option<ResourceAlert>, String> {
+    fn check_threshold(
+        &self,
+        resource_type: &str,
+        current_value: f64,
+        thresholds: &ThresholdSet,
+    ) -> Result<Option<ResourceAlert>, String> {
         let severity = if current_value >= thresholds.emergency {
             AlertSeverity::Emergency
         } else if current_value >= thresholds.critical {
@@ -1075,14 +1098,17 @@ impl ResourceAlertSystem {
                 AlertSeverity::Warning => thresholds.warning,
                 _ => thresholds.warning,
             },
-            message: format!("{} usage is {:.2}% (threshold: {:.2}%)",
-                resource_type, current_value,
+            message: format!(
+                "{} usage is {:.2}% (threshold: {:.2}%)",
+                resource_type,
+                current_value,
                 match severity {
                     AlertSeverity::Emergency => thresholds.emergency,
                     AlertSeverity::Critical => thresholds.critical,
                     AlertSeverity::Warning => thresholds.warning,
                     _ => thresholds.warning,
-                }),
+                }
+            ),
             suggested_actions: self.generate_suggested_actions(resource_type, &severity),
             auto_resolution_attempts: 0,
         };
@@ -1090,7 +1116,11 @@ impl ResourceAlertSystem {
         Ok(Some(alert))
     }
 
-    fn generate_suggested_actions(&self, resource_type: &str, severity: &AlertSeverity) -> Vec<String> {
+    fn generate_suggested_actions(
+        &self,
+        resource_type: &str,
+        severity: &AlertSeverity,
+    ) -> Vec<String> {
         match (resource_type, severity) {
             ("memory", AlertSeverity::Critical | AlertSeverity::Emergency) => vec![
                 "Reduce buffer sizes".to_string(),

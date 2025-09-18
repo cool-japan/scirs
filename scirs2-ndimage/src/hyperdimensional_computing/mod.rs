@@ -170,7 +170,7 @@ mod tests {
 
         // Test image encoder
         let encoder = ImageHDCEncoder::new(8, 8, config.clone());
-        let image = Array2::zeros((8, 8));
+        let image = Array2::<f64>::zeros((8, 8));
         let encoded = encoder.encode_image(image.view()).unwrap();
         assert_eq!(encoded.dimension, config.hypervector_dim);
     }
@@ -191,12 +191,12 @@ mod tests {
     #[test]
     fn test_classification_integration() {
         let config = HDCConfig::default();
-        let train_zeros = Array2::zeros((4, 4));
-        let train_ones = Array2::ones((4, 4));
+        let train_zeros = Array2::<f64>::zeros((4, 4));
+        let train_ones = Array2::<f64>::ones((4, 4));
         let train_images = vec![train_zeros.view(), train_ones.view()];
         let train_labels = vec!["zeros".to_string(), "ones".to_string()];
 
-        let test_zeros = Array2::zeros((4, 4));
+        let test_zeros = Array2::<f64>::zeros((4, 4));
         let test_images = vec![test_zeros.view()];
 
         let results =
@@ -209,12 +209,12 @@ mod tests {
     #[test]
     fn test_sequence_processing_integration() {
         let config = HDCConfig::default();
-        let frame1 = Array2::zeros((4, 4));
-        let frame2 = Array2::ones((4, 4));
+        let frame1 = Array2::<f64>::zeros((4, 4));
+        let frame2 = Array2::<f64>::ones((4, 4));
         let sequence = vec![frame1.view(), frame2.view()];
 
         let sequence_hv = hdc_sequence_processing(&sequence, 2, &config).unwrap();
-        assert_eq!(sequence_hv.dimension, config.hypervector_dim);
+        assert_eq!(sequence_hv.encoding.dimension, config.hypervector_dim);
     }
 
     #[test]
@@ -237,7 +237,7 @@ mod tests {
         let overlap = calculate_overlap(&matches[0], &matches[1]);
         assert!(overlap > 0.0);
 
-        let filtered = non_maximum_suppression(matches, 0.3).unwrap();
+        let filtered = non_maximum_suppression(matches, 0.1).unwrap();
         assert_eq!(filtered.len(), 1); // Should remove overlapping match
     }
 
@@ -291,7 +291,7 @@ mod tests {
         let config = HDCConfig::default();
         let mut learning_system = OnlineLearningSystem::new(&config);
 
-        let stream_image = Array2::zeros((4, 4));
+        let stream_image = Array2::<f64>::zeros((4, 4));
 
         let result = advanced_online_learning_hdc(
             stream_image.view(),

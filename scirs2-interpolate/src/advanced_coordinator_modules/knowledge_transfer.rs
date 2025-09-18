@@ -24,7 +24,9 @@ pub struct CrossDomainInterpolationKnowledge<F: Float + Debug> {
     domain_adapter: DomainAdapter<F>,
 }
 
-impl<F: Float + Debug> CrossDomainInterpolationKnowledge<F> {
+impl<F: Float + Debug + std::ops::MulAssign + std::default::Default>
+    CrossDomainInterpolationKnowledge<F>
+{
     /// Create new cross-domain knowledge system
     pub fn new() -> Self {
         Self {
@@ -149,7 +151,9 @@ impl<F: Float + Debug> CrossDomainInterpolationKnowledge<F> {
     }
 }
 
-impl<F: Float + Debug> Default for CrossDomainInterpolationKnowledge<F> {
+impl<F: Float + Debug + std::ops::MulAssign + std::default::Default> Default
+    for CrossDomainInterpolationKnowledge<F>
+{
     fn default() -> Self {
         Self::new()
     }
@@ -166,7 +170,7 @@ pub struct InterpolationKnowledgeBase<F: Float> {
     confidence_scores: HashMap<String, f64>,
 }
 
-impl<F: Float> InterpolationKnowledgeBase<F> {
+impl<F: Float + std::default::Default> InterpolationKnowledgeBase<F> {
     /// Create new knowledge base
     pub fn new() -> Self {
         Self {
@@ -364,7 +368,7 @@ impl<F: Float> InterpolationKnowledgeBase<F> {
     }
 }
 
-impl<F: Float> Default for InterpolationKnowledgeBase<F> {
+impl<F: Float + std::default::Default> Default for InterpolationKnowledgeBase<F> {
     fn default() -> Self {
         Self::new()
     }
@@ -712,7 +716,7 @@ impl<F: Float + std::ops::MulAssign> DomainAdapter<F> {
     }
 }
 
-impl<F: Float> Default for DomainAdapter<F> {
+impl<F: Float + std::ops::MulAssign> Default for DomainAdapter<F> {
     fn default() -> Self {
         Self::new()
     }

@@ -5,7 +5,7 @@
 //! and ensemble methods for identifying concept drift in streaming data.
 
 use super::config::*;
-use super::optimizer::{StreamingDataPoint, Adaptation, AdaptationType, AdaptationPriority};
+use super::optimizer::{Adaptation, AdaptationPriority, AdaptationType, StreamingDataPoint};
 
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
@@ -100,7 +100,11 @@ pub struct FalsePositiveTracker<A: Float> {
 /// Trait for statistical drift detection tests
 pub trait StatisticalTest<A: Float>: Send + Sync {
     /// Performs the statistical test for drift
-    fn test_for_drift(&mut self, reference: &[A], current: &[A]) -> Result<DriftTestResult<A>, String>;
+    fn test_for_drift(
+        &mut self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DriftTestResult<A>, String>;
 
     /// Updates test parameters based on historical performance
     fn update_parameters(&mut self, performance_feedback: A) -> Result<(), String>;
@@ -127,7 +131,11 @@ pub struct DriftTestResult<A: Float> {
 /// Trait for distribution-based drift detection
 pub trait DistributionComparator<A: Float>: Send + Sync {
     /// Compares two distributions for drift
-    fn compare_distributions(&self, reference: &[A], current: &[A]) -> Result<DistributionComparison<A>, String>;
+    fn compare_distributions(
+        &self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DistributionComparison<A>, String>;
 
     /// Gets the threshold for drift detection
     fn get_threshold(&self) -> A;
@@ -155,7 +163,10 @@ pub trait ModelBasedDetector<A: Float>: Send + Sync {
     fn update_model(&mut self, data: &[StreamingDataPoint<A>]) -> Result<(), String>;
 
     /// Detects drift based on model performance
-    fn detect_drift(&mut self, data: &[StreamingDataPoint<A>]) -> Result<ModelDriftResult<A>, String>;
+    fn detect_drift(
+        &mut self,
+        data: &[StreamingDataPoint<A>],
+    ) -> Result<ModelDriftResult<A>, String>;
 
     /// Resets the model
     fn reset_model(&mut self) -> Result<(), String>;
@@ -179,24 +190,46 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let drift_config = config.drift_config.clone();
 
-        let mut statistical_tests: HashMap<StatisticalMethod, Box<dyn StatisticalTest<A>>> = HashMap::new();
-        let mut distribution_methods: HashMap<DistributionMethod, Box<dyn DistributionComparator<A>>> = HashMap::new();
-        let mut model_detectors: HashMap<ModelType, Box<dyn ModelBasedDetector<A>>> = HashMap::new();
+        let mut statistical_tests: HashMap<StatisticalMethod, Box<dyn StatisticalTest<A>>> =
+            HashMap::new();
+        let mut distribution_methods: HashMap<
+            DistributionMethod,
+            Box<dyn DistributionComparator<A>>,
+        > = HashMap::new();
+        let mut model_detectors: HashMap<ModelType, Box<dyn ModelBasedDetector<A>>> =
+            HashMap::new();
 
         // Initialize statistical tests
-        statistical_tests.insert(StatisticalMethod::ADWIN, Box::new(ADWINTest::new(drift_config.sensitivity)?));
-        statistical_tests.insert(StatisticalMethod::DDM, Box::new(DDMTest::new(drift_config.sensitivity)?));
-        statistical_tests.insert(StatisticalMethod::PageHinkley, Box::new(PageHinkleyTest::new(drift_config.sensitivity)?));
+        statistical_tests.insert(
+            StatisticalMethod::ADWIN,
+            Box::new(ADWINTest::new(drift_config.sensitivity)?),
+        );
+        statistical_tests.insert(
+            StatisticalMethod::DDM,
+            Box::new(DDMTest::new(drift_config.sensitivity)?),
+        );
+        statistical_tests.insert(
+            StatisticalMethod::PageHinkley,
+            Box::new(PageHinkleyTest::new(drift_config.sensitivity)?),
+        );
 
         // Initialize distribution methods
-        distribution_methods.insert(DistributionMethod::KLDivergence, Box::new(KLDivergenceComparator::new(drift_config.sensitivity)?));
-        distribution_methods.insert(DistributionMethod::JSDivergence, Box::new(JSDivergenceComparator::new(drift_config.sensitivity)?));
+        distribution_methods.insert(
+            DistributionMethod::KLDivergence,
+            Box::new(KLDivergenceComparator::new(drift_config.sensitivity)?),
+        );
+        distribution_methods.insert(
+            DistributionMethod::JSDivergence,
+            Box::new(JSDivergenceComparator::new(drift_config.sensitivity)?),
+        );
 
         // Initialize model detectors
         model_detectors.insert(ModelType::Linear, Box::new(LinearModelDetector::new()?));
 
         let ensemble_strategy = match &drift_config.detection_method {
-            DriftDetectionMethod::Ensemble { voting_strategy, .. } => Some(voting_strategy.clone()),
+            DriftDetectionMethod::Ensemble {
+                voting_strategy, ..
+            } => Some(voting_strategy.clone()),
             _ => None,
         };
 
@@ -240,16 +273,23 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
         let drift_result = match &self.detection_method {
             DriftDetectionMethod::Statistical(method) => {
                 self.detect_statistical_drift(method, &reference_features, &current_features)?
-            },
+            }
             DriftDetectionMethod::Distribution(method) => {
                 self.detect_distribution_drift(method, &reference_features, &current_features)?
-            },
+            }
             DriftDetectionMethod::ModelBased(model_type) => {
                 self.detect_model_drift(model_type, batch)?
-            },
-            DriftDetectionMethod::Ensemble { methods, voting_strategy } => {
-                self.detect_ensemble_drift(methods, voting_strategy, &reference_features, &current_features, batch)?
-            },
+            }
+            DriftDetectionMethod::Ensemble {
+                methods,
+                voting_strategy,
+            } => self.detect_ensemble_drift(
+                methods,
+                voting_strategy,
+                &reference_features,
+                &current_features,
+                batch,
+            )?,
         };
 
         // Update drift state and history
@@ -286,7 +326,9 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
 
     /// Extracts reference features from the reference window
     fn extract_reference_features(&self) -> Result<Vec<A>, String> {
-        let reference_data: Vec<_> = self.reference_window.iter()
+        let reference_data: Vec<_> = self
+            .reference_window
+            .iter()
             .take(self.reference_window.len() / 2)
             .collect();
 
@@ -310,7 +352,8 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
 
             // Apply sensitivity factor
             result.confidence = result.confidence * self.sensitivity_factor;
-            result.drift_detected = result.p_value < A::from(self.config.significance_level).unwrap() * self.sensitivity_factor;
+            result.drift_detected = result.p_value
+                < A::from(self.config.significance_level).unwrap() * self.sensitivity_factor;
 
             Ok(result)
         } else {
@@ -381,17 +424,17 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
             let result = match method {
                 DriftDetectionMethod::Statistical(stat_method) => {
                     self.detect_statistical_drift(stat_method, reference, current)?
-                },
+                }
                 DriftDetectionMethod::Distribution(dist_method) => {
                     self.detect_distribution_drift(dist_method, reference, current)?
-                },
+                }
                 DriftDetectionMethod::ModelBased(model_type) => {
                     self.detect_model_drift(model_type, batch)?
-                },
+                }
                 DriftDetectionMethod::Ensemble { .. } => {
                     // Avoid recursive ensemble calls
                     continue;
-                },
+                }
             };
             results.push(result);
         }
@@ -415,42 +458,37 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
             VotingStrategy::Majority => {
                 let positive_votes = results.iter().filter(|r| r.drift_detected).count();
                 positive_votes > results.len() / 2
-            },
+            }
             VotingStrategy::Weighted { weights } => {
                 if weights.len() != results.len() {
                     return Err("Number of weights doesn't match number of results".to_string());
                 }
 
-                let weighted_score: f64 = results.iter().zip(weights.iter())
-                    .map(|(result, &weight)| {
-                        weight * if result.drift_detected { 1.0 } else { 0.0 }
-                    })
+                let weighted_score: f64 = results
+                    .iter()
+                    .zip(weights.iter())
+                    .map(|(result, &weight)| weight * if result.drift_detected { 1.0 } else { 0.0 })
                     .sum();
 
                 let total_weight: f64 = weights.iter().sum();
                 weighted_score / total_weight > 0.5
-            },
-            VotingStrategy::Unanimous => {
-                results.iter().all(|r| r.drift_detected)
-            },
+            }
+            VotingStrategy::Unanimous => results.iter().all(|r| r.drift_detected),
             VotingStrategy::Threshold { min_votes } => {
                 let positive_votes = results.iter().filter(|r| r.drift_detected).count();
                 positive_votes >= *min_votes
-            },
+            }
         };
 
         // Aggregate confidence and p-values
-        let avg_confidence = results.iter()
-            .map(|r| r.confidence)
-            .sum::<A>() / A::from(results.len()).unwrap();
+        let avg_confidence =
+            results.iter().map(|r| r.confidence).sum::<A>() / A::from(results.len()).unwrap();
 
-        let avg_p_value = results.iter()
-            .map(|r| r.p_value)
-            .sum::<A>() / A::from(results.len()).unwrap();
+        let avg_p_value =
+            results.iter().map(|r| r.p_value).sum::<A>() / A::from(results.len()).unwrap();
 
-        let avg_test_statistic = results.iter()
-            .map(|r| r.test_statistic)
-            .sum::<A>() / A::from(results.len()).unwrap();
+        let avg_test_statistic =
+            results.iter().map(|r| r.test_statistic).sum::<A>() / A::from(results.len()).unwrap();
 
         Ok(DriftTestResult {
             drift_detected,
@@ -553,9 +591,14 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
     }
 
     /// Applies sensitivity adaptation
-    pub fn apply_sensitivity_adaptation(&mut self, adaptation: &Adaptation<A>) -> Result<(), String> {
+    pub fn apply_sensitivity_adaptation(
+        &mut self,
+        adaptation: &Adaptation<A>,
+    ) -> Result<(), String> {
         if adaptation.adaptation_type == AdaptationType::DriftSensitivity {
-            self.sensitivity_factor = (self.sensitivity_factor + adaptation.magnitude).max(A::from(0.1).unwrap()).min(A::from(2.0).unwrap());
+            self.sensitivity_factor = (self.sensitivity_factor + adaptation.magnitude)
+                .max(A::from(0.1).unwrap())
+                .min(A::from(2.0).unwrap());
         }
         Ok(())
     }
@@ -600,7 +643,11 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
         DriftDiagnostics {
             current_state: self.drift_state.clone(),
             detection_count: self.detection_history.len(),
-            false_positive_rate: self.false_positive_tracker.current_fp_rate.to_f64().unwrap_or(0.0),
+            false_positive_rate: self
+                .false_positive_tracker
+                .current_fp_rate
+                .to_f64()
+                .unwrap_or(0.0),
             sensitivity_factor: self.sensitivity_factor.to_f64().unwrap_or(1.0),
             last_detection_time: self.last_detection,
             reference_window_size: self.reference_window.len(),
@@ -635,7 +682,8 @@ impl<A: Float> FalsePositiveTracker<A> {
         // Update false positive rate
         let total_detections = self.false_positives.len() + self.true_positives.len();
         if total_detections > 0 {
-            self.current_fp_rate = A::from(self.false_positives.len()).unwrap() / A::from(total_detections).unwrap();
+            self.current_fp_rate =
+                A::from(self.false_positives.len()).unwrap() / A::from(total_detections).unwrap();
         }
 
         Ok(())
@@ -671,7 +719,11 @@ impl<A: Float + Default + Clone> ADWINTest<A> {
 }
 
 impl<A: Float + Default + Clone> StatisticalTest<A> for ADWINTest<A> {
-    fn test_for_drift(&mut self, reference: &[A], current: &[A]) -> Result<DriftTestResult<A>, String> {
+    fn test_for_drift(
+        &mut self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DriftTestResult<A>, String> {
         // Simplified ADWIN implementation
         let ref_mean = reference.iter().cloned().sum::<A>() / A::from(reference.len()).unwrap();
         let cur_mean = current.iter().cloned().sum::<A>() / A::from(current.len()).unwrap();
@@ -683,9 +735,17 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for ADWINTest<A> {
 
         Ok(DriftTestResult {
             drift_detected,
-            p_value: if drift_detected { A::from(0.01).unwrap() } else { A::from(0.5).unwrap() },
+            p_value: if drift_detected {
+                A::from(0.01).unwrap()
+            } else {
+                A::from(0.5).unwrap()
+            },
             test_statistic: difference,
-            confidence: if drift_detected { A::from(0.9).unwrap() } else { A::from(0.1).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.9).unwrap()
+            } else {
+                A::from(0.1).unwrap()
+            },
             metadata: HashMap::new(),
         })
     }
@@ -716,7 +776,11 @@ impl<A: Float + Default> DDMTest<A> {
 }
 
 impl<A: Float + Default + Clone> StatisticalTest<A> for DDMTest<A> {
-    fn test_for_drift(&mut self, reference: &[A], current: &[A]) -> Result<DriftTestResult<A>, String> {
+    fn test_for_drift(
+        &mut self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DriftTestResult<A>, String> {
         // Simplified DDM implementation
         let ref_mean = reference.iter().cloned().sum::<A>() / A::from(reference.len()).unwrap();
         let cur_mean = current.iter().cloned().sum::<A>() / A::from(current.len()).unwrap();
@@ -726,9 +790,17 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for DDMTest<A> {
 
         Ok(DriftTestResult {
             drift_detected,
-            p_value: if drift_detected { A::from(0.02).unwrap() } else { A::from(0.6).unwrap() },
+            p_value: if drift_detected {
+                A::from(0.02).unwrap()
+            } else {
+                A::from(0.6).unwrap()
+            },
             test_statistic: difference,
-            confidence: if drift_detected { A::from(0.85).unwrap() } else { A::from(0.15).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.85).unwrap()
+            } else {
+                A::from(0.15).unwrap()
+            },
             metadata: HashMap::new(),
         })
     }
@@ -758,7 +830,11 @@ impl<A: Float + Default> PageHinkleyTest<A> {
 }
 
 impl<A: Float + Default + Clone> StatisticalTest<A> for PageHinkleyTest<A> {
-    fn test_for_drift(&mut self, reference: &[A], current: &[A]) -> Result<DriftTestResult<A>, String> {
+    fn test_for_drift(
+        &mut self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DriftTestResult<A>, String> {
         // Simplified Page-Hinkley test
         let ref_mean = reference.iter().cloned().sum::<A>() / A::from(reference.len()).unwrap();
         let cur_mean = current.iter().cloned().sum::<A>() / A::from(current.len()).unwrap();
@@ -770,9 +846,17 @@ impl<A: Float + Default + Clone> StatisticalTest<A> for PageHinkleyTest<A> {
 
         Ok(DriftTestResult {
             drift_detected,
-            p_value: if drift_detected { A::from(0.015).unwrap() } else { A::from(0.7).unwrap() },
+            p_value: if drift_detected {
+                A::from(0.015).unwrap()
+            } else {
+                A::from(0.7).unwrap()
+            },
             test_statistic: self.cumulative_sum,
-            confidence: if drift_detected { A::from(0.88).unwrap() } else { A::from(0.12).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.88).unwrap()
+            } else {
+                A::from(0.12).unwrap()
+            },
             metadata: HashMap::new(),
         })
     }
@@ -799,7 +883,11 @@ impl<A: Float> KLDivergenceComparator<A> {
 }
 
 impl<A: Float + Default + Clone> DistributionComparator<A> for KLDivergenceComparator<A> {
-    fn compare_distributions(&self, reference: &[A], current: &[A]) -> Result<DistributionComparison<A>, String> {
+    fn compare_distributions(
+        &self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DistributionComparison<A>, String> {
         // Simplified KL divergence calculation
         let ref_mean = reference.iter().cloned().sum::<A>() / A::from(reference.len()).unwrap();
         let cur_mean = current.iter().cloned().sum::<A>() / A::from(current.len()).unwrap();
@@ -811,7 +899,11 @@ impl<A: Float + Default + Clone> DistributionComparator<A> for KLDivergenceCompa
             distance,
             threshold: self.threshold,
             drift_detected,
-            confidence: if drift_detected { A::from(0.8).unwrap() } else { A::from(0.2).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.8).unwrap()
+            } else {
+                A::from(0.2).unwrap()
+            },
         })
     }
 
@@ -837,7 +929,11 @@ impl<A: Float> JSDivergenceComparator<A> {
 }
 
 impl<A: Float + Default + Clone> DistributionComparator<A> for JSDivergenceComparator<A> {
-    fn compare_distributions(&self, reference: &[A], current: &[A]) -> Result<DistributionComparison<A>, String> {
+    fn compare_distributions(
+        &self,
+        reference: &[A],
+        current: &[A],
+    ) -> Result<DistributionComparison<A>, String> {
         // Simplified JS divergence calculation
         let ref_mean = reference.iter().cloned().sum::<A>() / A::from(reference.len()).unwrap();
         let cur_mean = current.iter().cloned().sum::<A>() / A::from(current.len()).unwrap();
@@ -849,7 +945,11 @@ impl<A: Float + Default + Clone> DistributionComparator<A> for JSDivergenceCompa
             distance,
             threshold: self.threshold,
             drift_detected,
-            confidence: if drift_detected { A::from(0.75).unwrap() } else { A::from(0.25).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.75).unwrap()
+            } else {
+                A::from(0.25).unwrap()
+            },
         })
     }
 
@@ -882,7 +982,10 @@ impl<A: Float + Default + Clone> ModelBasedDetector<A> for LinearModelDetector<A
         Ok(())
     }
 
-    fn detect_drift(&mut self, _data: &[StreamingDataPoint<A>]) -> Result<ModelDriftResult<A>, String> {
+    fn detect_drift(
+        &mut self,
+        _data: &[StreamingDataPoint<A>],
+    ) -> Result<ModelDriftResult<A>, String> {
         // Simplified drift detection based on performance degradation
         let performance_degradation = self.baseline_performance - self.model_performance;
         let drift_detected = performance_degradation > A::from(0.1).unwrap();
@@ -890,7 +993,11 @@ impl<A: Float + Default + Clone> ModelBasedDetector<A> for LinearModelDetector<A
         Ok(ModelDriftResult {
             drift_detected,
             performance_degradation,
-            confidence: if drift_detected { A::from(0.7).unwrap() } else { A::from(0.3).unwrap() },
+            confidence: if drift_detected {
+                A::from(0.7).unwrap()
+            } else {
+                A::from(0.3).unwrap()
+            },
             feature_importance_changes: Vec::new(),
         })
     }

@@ -98,7 +98,7 @@ pub struct AccuracyOptimizationResult {
     pub timestamp: Instant,
 }
 
-impl<F: Float + Debug> AccuracyOptimizationEngine<F> {
+impl<F: Float + Debug + std::ops::AddAssign> AccuracyOptimizationEngine<F> {
     /// Create a new accuracy optimization engine
     pub fn new() -> InterpolateResult<Self> {
         Ok(Self {
@@ -479,7 +479,7 @@ impl<F: Float> Default for AccuracyTargets<F> {
     }
 }
 
-impl<F: Float> ErrorPredictionModel<F> {
+impl<F: Float + std::ops::AddAssign> ErrorPredictionModel<F> {
     /// Create a new error prediction model
     pub fn new() -> InterpolateResult<Self> {
         Ok(Self {

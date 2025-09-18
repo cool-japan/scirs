@@ -209,8 +209,8 @@ impl AdvancedSimdOps {
 
                 if heap.len() < k {
                     heap.push(Reverse((ordered_float::OrderedFloat(distance), point_idx)));
-                } else if let Some(Reverse((max_dist_))) = heap.peek() {
-                    if ordered_float::OrderedFloat(distance) < *max_dist {
+                } else if let Some(Reverse((max_dist_, _))) = heap.peek() {
+                    if ordered_float::OrderedFloat(distance) < *max_dist_ {
                         heap.pop();
                         heap.push(Reverse((ordered_float::OrderedFloat(distance), point_idx)));
                     }
@@ -405,8 +405,8 @@ impl AdvancedSimdOps {
 
                 if heap.len() < k {
                     heap.push((ordered_float::OrderedFloat(distance), point_idx));
-                } else if let Some((max_dist_)) = heap.peek() {
-                    if ordered_float::OrderedFloat(distance) < *max_dist {
+                } else if let Some((max_dist_, _)) = heap.peek() {
+                    if ordered_float::OrderedFloat(distance) < *max_dist_ {
                         heap.pop();
                         heap.push((ordered_float::OrderedFloat(distance), point_idx));
                     }

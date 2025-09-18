@@ -548,12 +548,8 @@ impl AdvancedNumericalValidator {
 
         let result = match algorithm {
             ValidationAlgorithm::ConnectedComponents => {
-                let components = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_connected_components",
-                    |g| Ok(connected_components(g)),
-                )?;
+                let components =
+                    execute_with_enhanced_advanced(graph, |g| Ok(connected_components(g)))?;
                 AlgorithmOutput::ComponentMap({
                     let mut component_map = HashMap::new();
                     for (component_id, component) in components.iter().enumerate() {
@@ -565,15 +561,10 @@ impl AdvancedNumericalValidator {
                 })
             }
             ValidationAlgorithm::StronglyConnectedComponents => {
-                let components = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_strongly_connected_components",
-                    |g| {
-                        // strongly_connected_components requires DiGraph, skip for undirected graphs
-                        Ok(vec![g.nodes().into_iter().cloned().collect::<HashSet<_>>()])
-                    },
-                )?;
+                let components = execute_with_enhanced_advanced(graph, |g| {
+                    // strongly_connected_components requires DiGraph, skip for undirected graphs
+                    Ok(vec![g.nodes().into_iter().cloned().collect::<HashSet<_>>()])
+                })?;
                 AlgorithmOutput::ComponentMap({
                     let mut component_map = HashMap::new();
                     for (component_id, component) in components.iter().enumerate() {
@@ -589,108 +580,75 @@ impl AdvancedNumericalValidator {
                 max_iterations: _,
                 tolerance,
             } => {
-                let scores = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_pagerank",
-                    |g| pagerank_centrality(g, *damping, *tolerance),
-                )?;
+                let scores = execute_with_enhanced_advanced(graph, |g| {
+                    pagerank_centrality(g, *damping, *tolerance)
+                })?;
                 AlgorithmOutput::ScoreMap(scores)
             }
             ValidationAlgorithm::BetweennessCentrality => {
-                let scores = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_betweenness_centrality",
-                    |g| Ok(betweenness_centrality(g, false)),
-                )?;
+                let scores = execute_with_enhanced_advanced(graph, |g| {
+                    Ok(betweenness_centrality(g, false))
+                })?;
                 AlgorithmOutput::ScoreMap(scores)
             }
             ValidationAlgorithm::ClosenessCentrality => {
-                let scores = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_closeness_centrality",
-                    |g| Ok(closeness_centrality(g, false)),
-                )?;
+                let scores =
+                    execute_with_enhanced_advanced(graph, |g| Ok(closeness_centrality(g, false)))?;
                 AlgorithmOutput::ScoreMap(scores)
             }
             ValidationAlgorithm::DegreeCentrality => {
-                let scores = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_degree_centrality",
-                    |g| {
-                        let mut degree_map = HashMap::new();
-                        for node in g.nodes() {
-                            degree_map.insert(*node, g.degree(node) as f64);
-                        }
-                        Ok(degree_map)
-                    },
-                )?;
+                let scores = execute_with_enhanced_advanced(graph, |g| {
+                    let mut degree_map = HashMap::new();
+                    for node in g.nodes() {
+                        degree_map.insert(*node, g.degree(node) as f64);
+                    }
+                    Ok(degree_map)
+                })?;
                 AlgorithmOutput::ScoreMap(scores)
             }
             ValidationAlgorithm::ShortestPaths { source } => {
-                let distances = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_shortest_paths",
-                    |g| {
-                        use petgraph::algo::dijkstra;
-                        let graph_ref = g.inner();
-                        let source_idx = graph_ref
-                            .node_indices()
-                            .find(|&idx| &graph_ref[idx] == source)
-                            .ok_or_else(|| {
-                                crate::error::GraphError::node_not_found("source node")
-                            })?;
+                let distances = execute_with_enhanced_advanced(graph, |g| {
+                    use petgraph::algo::dijkstra;
+                    let graph_ref = g.inner();
+                    let source_idx = graph_ref
+                        .node_indices()
+                        .find(|&idx| &graph_ref[idx] == source)
+                        .ok_or_else(|| crate::error::GraphError::node_not_found("source node"))?;
 
-                        let distances = dijkstra(graph_ref, source_idx, None, |e| *e.weight());
-                        let mut distance_map = HashMap::new();
-                        for (node_idx, distance) in distances {
-                            distance_map.insert(graph_ref[node_idx], distance);
-                        }
-                        Ok(distance_map)
-                    },
-                )?;
+                    let distances = dijkstra(graph_ref, source_idx, None, |e| *e.weight());
+                    let mut distance_map = HashMap::new();
+                    for (node_idx, distance) in distances {
+                        distance_map.insert(graph_ref[node_idx], distance);
+                    }
+                    Ok(distance_map)
+                })?;
                 AlgorithmOutput::DistanceMap(distances)
             }
             ValidationAlgorithm::AllPairsShortestPaths => {
-                let distances = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_all_pairs_shortest_paths",
-                    |g| {
-                        let distance_matrix = floyd_warshall(g)?;
-                        let mut distance_map = HashMap::new();
+                let distances = execute_with_enhanced_advanced(graph, |g| {
+                    let distance_matrix = floyd_warshall(g)?;
+                    let mut distance_map = HashMap::new();
 
-                        for i in 0..distance_matrix.nrows() {
-                            for j in 0..distance_matrix.ncols() {
-                                distance_map.insert((i, j), distance_matrix[[i, j]]);
-                            }
+                    for i in 0..distance_matrix.nrows() {
+                        for j in 0..distance_matrix.ncols() {
+                            distance_map.insert((i, j), distance_matrix[[i, j]]);
                         }
+                    }
 
-                        Ok(distance_map)
-                    },
-                )?;
+                    Ok(distance_map)
+                })?;
                 AlgorithmOutput::AllPairsDistances(distances)
             }
             ValidationAlgorithm::LouvainCommunities => {
-                let communities = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_louvain_communities",
-                    |g| Ok(louvain_communities_result(g).node_communities),
-                )?;
+                let communities = execute_with_enhanced_advanced(graph, |g| {
+                    Ok(louvain_communities_result(g).node_communities)
+                })?;
                 AlgorithmOutput::ComponentMap(communities)
             }
             ValidationAlgorithm::LabelPropagation { max_iterations } => {
-                let communities = execute_with_enhanced_advanced(
-                    &mut processor,
-                    graph,
-                    "validation_label_propagation",
-                    |g| Ok(label_propagation_result(g, *max_iterations).node_communities),
-                )?;
+                let communities = execute_with_enhanced_advanced(graph, |g| {
+                    Ok(label_propagation_result(g, *max_iterations).node_communities)
+                })?;
                 AlgorithmOutput::ComponentMap(communities)
             }
         };

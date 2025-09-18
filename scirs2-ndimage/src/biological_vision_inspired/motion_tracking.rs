@@ -168,10 +168,13 @@ where
 
     for dy in 0..window_size {
         for dx in 0..window_size {
-            let ny = y + dy - half_window;
-            let nx = x + dx - half_window;
+            let y_offset = dy as isize - half_window as isize;
+            let x_offset = dx as isize - half_window as isize;
+            let ny = (y as isize + y_offset) as usize;
+            let nx = (x as isize + x_offset) as usize;
 
-            if ny < height && nx < width {
+            if y as isize + y_offset >= 0 && x as isize + x_offset >= 0 && ny < height && nx < width
+            {
                 let value = frame[(ny, nx)].to_f64().unwrap_or(0.0);
                 sum += value;
                 sum_sq += value * value;
@@ -219,9 +222,7 @@ pub fn predict_future_positions(
         let predicted_x = track.position.0 + track.velocity.0 * step as f64;
         let predicted_y = track.position.1 + track.velocity.1 * step as f64;
 
-        track
-            .predicted_positions
-            .push((predicted_x as usize, predicted_y as usize));
+        track.predicted_positions.push((predicted_x, predicted_y));
     }
 
     Ok(())

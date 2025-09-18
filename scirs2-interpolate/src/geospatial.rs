@@ -699,6 +699,7 @@ where
         + Display
         + std::ops::AddAssign
         + std::ops::SubAssign
+        + std::ops::MulAssign
         + 'static,
 {
     rbf: RBFInterpolator<T>,
@@ -717,6 +718,8 @@ where
         + Sync
         + std::ops::AddAssign
         + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + 'static,
 {
     fn interpolate_spatial(

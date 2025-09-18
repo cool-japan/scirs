@@ -115,10 +115,16 @@ where
 
     for dy in 0..window_size {
         for dx in 0..window_size {
-            let y = center_y + dy - half_window;
-            let x = center_x + dx - half_window;
+            let y_offset = dy as isize - half_window as isize;
+            let x_offset = dx as isize - half_window as isize;
+            let y = (center_y as isize + y_offset) as usize;
+            let x = (center_x as isize + x_offset) as usize;
 
-            if y < height && x < width {
+            if center_y as isize + y_offset >= 0
+                && center_x as isize + x_offset >= 0
+                && y < height
+                && x < width
+            {
                 let r = image[(y, x, 0)].to_f64().unwrap_or(0.0);
                 let g = image[(y, x, 1)].to_f64().unwrap_or(0.0);
                 let b = image[(y, x, 2)].to_f64().unwrap_or(0.0);

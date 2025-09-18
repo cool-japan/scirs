@@ -2,8 +2,8 @@
 
 use super::config::*;
 use super::state::*;
-use super::analytics::AnalyticsData;
-use super::{TrendDirection, AlertSeverity};
+// use super::analytics::AnalyticsData;
+use crate::benchmarking::enhanced_memory_monitor::{TrendDirection, AlertSeverity};
 use crate::OptimizerError as OptimError;
 use ndarray::Array1;
 use num_traits::Float;

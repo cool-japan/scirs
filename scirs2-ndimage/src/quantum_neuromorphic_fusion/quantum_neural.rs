@@ -934,33 +934,42 @@ fn regulate_global_quantum_coherence(
 
 #[allow(dead_code)]
 fn pattern_to_quantum_trace<T>(
-    _pattern: &Array2<T>,
+    pattern: &Array2<T>,
     _config: &QuantumNeuromorphicConfig,
 ) -> NdimageResult<Array2<Complex<f64>>>
 where
     T: Float + FromPrimitive + Copy,
 {
     // Implementation would convert pattern to quantum trace
-    Ok(Array2::zeros((1, 1)))
+    let (height, width) = pattern.dim();
+    Ok(Array2::zeros((height, width)))
 }
 
 #[allow(dead_code)]
 fn slow_wave_quantum_consolidation(
-    _traces: &[Array2<Complex<f64>>],
+    traces: &[Array2<Complex<f64>>],
     _config: &QuantumNeuromorphicConfig,
 ) -> NdimageResult<Array2<Complex<f64>>> {
     // Implementation would perform slow-wave consolidation
-    Ok(Array2::zeros((1, 1)))
+    if traces.is_empty() {
+        return Ok(Array2::zeros((1, 1)));
+    }
+    let (height, width) = traces[0].dim();
+    Ok(Array2::zeros((height, width)))
 }
 
 #[allow(dead_code)]
 fn rem_quantum_consolidation(
-    _traces: &[Array2<Complex<f64>>],
+    traces: &[Array2<Complex<f64>>],
     _config: &QuantumNeuromorphicConfig,
     _cycle: usize,
 ) -> NdimageResult<Array2<Complex<f64>>> {
     // Implementation would perform REM consolidation
-    Ok(Array2::zeros((1, 1)))
+    if traces.is_empty() {
+        return Ok(Array2::zeros((1, 1)));
+    }
+    let (height, width) = traces[0].dim();
+    Ok(Array2::zeros((height, width)))
 }
 
 #[allow(dead_code)]

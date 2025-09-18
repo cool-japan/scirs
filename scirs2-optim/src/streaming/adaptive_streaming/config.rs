@@ -649,8 +649,9 @@ impl StreamingConfig {
             return Err("Buffer max_size must be >= min_size".to_string());
         }
 
-        if self.buffer_config.initial_size < self.buffer_config.min_size ||
-           self.buffer_config.initial_size > self.buffer_config.max_size {
+        if self.buffer_config.initial_size < self.buffer_config.min_size
+            || self.buffer_config.initial_size > self.buffer_config.max_size
+        {
             return Err("Buffer initial_size must be between min_size and max_size".to_string());
         }
 
@@ -668,13 +669,18 @@ impl StreamingConfig {
             return Err("Learning rate min_rate must be < max_rate".to_string());
         }
 
-        if self.learning_rate_config.initial_rate < self.learning_rate_config.min_rate ||
-           self.learning_rate_config.initial_rate > self.learning_rate_config.max_rate {
-            return Err("Learning rate initial_rate must be between min_rate and max_rate".to_string());
+        if self.learning_rate_config.initial_rate < self.learning_rate_config.min_rate
+            || self.learning_rate_config.initial_rate > self.learning_rate_config.max_rate
+        {
+            return Err(
+                "Learning rate initial_rate must be between min_rate and max_rate".to_string(),
+            );
         }
 
         // Validate resource configuration
-        if self.resource_config.max_cpu_percent <= 0.0 || self.resource_config.max_cpu_percent > 100.0 {
+        if self.resource_config.max_cpu_percent <= 0.0
+            || self.resource_config.max_cpu_percent > 100.0
+        {
             return Err("Resource max_cpu_percent must be in (0, 100]".to_string());
         }
 
@@ -683,7 +689,9 @@ impl StreamingConfig {
             return Err("Meta-learning rate must be > 0".to_string());
         }
 
-        if self.meta_learning_config.exploration_rate < 0.0 || self.meta_learning_config.exploration_rate > 1.0 {
+        if self.meta_learning_config.exploration_rate < 0.0
+            || self.meta_learning_config.exploration_rate > 1.0
+        {
             return Err("Meta-learning exploration_rate must be in [0, 1]".to_string());
         }
 

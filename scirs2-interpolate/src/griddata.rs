@@ -139,6 +139,8 @@ where
         + AddAssign
         + std::ops::SubAssign
         + std::fmt::LowerExp
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + Send
         + Sync
         + 'static,
@@ -252,6 +254,8 @@ where
         + AddAssign
         + std::ops::SubAssign
         + std::fmt::LowerExp
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + 'static,
 {
     // Import parallel processing utilities
@@ -419,6 +423,8 @@ where
         + Display
         + AddAssign
         + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + std::fmt::LowerExp
         + 'static,
 {
@@ -981,6 +987,8 @@ where
         + AddAssign
         + std::ops::SubAssign
         + std::fmt::LowerExp
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + Send
         + Sync
         + 'static,
@@ -1006,6 +1014,8 @@ where
         + AddAssign
         + std::ops::SubAssign
         + std::fmt::LowerExp
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + Send
         + Sync
         + 'static,
@@ -1276,6 +1286,8 @@ where
         + AddAssign
         + std::ops::SubAssign
         + std::fmt::LowerExp
+        + std::ops::MulAssign
+        + std::ops::DivAssign
         + Send
         + Sync
         + 'static,

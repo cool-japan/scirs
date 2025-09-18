@@ -60,105 +60,55 @@ pub mod core_automation;
 pub use config::{
     CiCdAutomationConfig, CiCdPlatform, TestExecutionConfig, BaselineManagementConfig,
     ReportingConfig, ArtifactStorageConfig, IntegrationConfig, PerformanceGatesConfig,
-    PlatformSpecificConfig, GitHubActionsConfig, GitLabCiConfig, JenkinsConfig,
-    TeamCityConfig, CircleCiConfig, TravisCiConfig, AppVeyorConfig, AzureDevOpsConfig,
-    TestEnvironmentConfig, TestSelectionConfig, ParallelismConfig, TimeoutConfig,
-    RetryConfig, BaselineStrategy, BaselineUpdatePolicy, BaselineValidationConfig,
-    ReportFormat, ReportTemplate, NotificationConfig, DistributionConfig,
-    StorageProvider, S3Config, GcsConfig, AzureBlobConfig, FtpConfig, HttpConfig,
-    CacheConfig, CompressionConfig, EncryptionConfig, GitHubIntegrationConfig,
-    SlackIntegrationConfig, EmailIntegrationConfig, WebhookIntegrationConfig,
-    GateEvaluationMode, RegressionThreshold, TrendAnalysisConfig, AlertConfig,
-    EscalationConfig, validate_config, default_config, platform_specific_defaults,
+    PlatformSpecificConfig, ResourceLimits, CronSchedule, BaselineStorageConfig,
+    EncryptionConfig, KeyManagementConfig, CompressionConfig, BaselineValidationConfig,
+    ReportTemplateConfig, ReportStylingConfig, ReportDistributionConfig,
+    GitHubIntegration, SlackIntegration, EmailIntegration, WebhookIntegration,
+    MetricGate, GateFailureHandling, BaselineStorageProvider, TestIsolationLevel,
+    EncryptionAlgorithm, MetricType, GateType, ComparisonOperator, GateSeverity,
 };
 
 // Test execution types and functionality
 pub use test_execution::{
     PerformanceTestSuite, PerformanceTestCase, TestSuiteConfig, CiCdContext,
-    CiCdTestResult, TestExecutor, TestCaseMetadata, TestDependency, TestResource,
-    ResourceType, TestEnvironment, TestConfiguration, TestExecutionStrategy,
-    ParallelTestExecutor, SequentialTestExecutor, TestResultCollector,
-    TestMetricsCollector, TestFailureAnalyzer, TestRetryManager, TestTimeoutManager,
-    TestResourceManager, ResourceAllocation, ResourceConstraints, DynamicResourceManager,
-    TestOrchestrator, ExecutionPlan, TestBatch, BatchingStrategy, TestPrioritizer,
-    PriorityLevel, TestFilterManager, FilterCriteria, ConditionalExecution,
-    create_test_suite, configure_test_environment, execute_test_batch,
-    collect_test_metrics, analyze_test_failures, manage_test_resources,
+    CiCdTestResult, TestExecutor, ParallelExecutionConfig, ResourceAllocationConfig,
+    ResourceMonitoringConfig, TestFilteringConfig, TestRetryConfig, EnvironmentRequirements,
+    SoftwareDependency, NetworkAccessRequirements, BaselineMetrics, MetricBaseline,
+    ResourceUsageReport, ResourceSnapshot, TestExecutionMetadata, GitInfo,
+    PullRequestInfo, RegressionAnalysisResult, TestSuiteStatistics, TestCategory,
+    TestGroupingStrategy, TestFailureType, DependencySource, TestExecutionStatus,
+    TriggerEvent,
 };
 
 // Reporting types and functionality
 pub use reporting::{
-    ReportGenerator, TemplateEngine, GeneratedReport, ReportContent, ReportSection,
-    ReportMetadata, ReportAsset, HtmlReportGenerator, JsonReportGenerator,
-    MarkdownReportGenerator, PdfReportGenerator, JunitXmlReportGenerator,
-    CustomReportGenerator, ReportTemplate as ReportTemplateStruct, TemplateVariable,
-    TemplateContext, ReportFormatter, FormattingOptions, StyleConfiguration,
-    ReportDistributor, DistributionChannel, NotificationManager, ReportNotification,
-    NotificationTemplate, ReportArchiver, ArchivePolicy, ReportCompressor,
-    CompressionSettings, ReportValidator, ValidationRule, ReportAnalyzer,
-    AnalysisMetrics, TrendReporter, HistoricalComparison, generate_html_report,
-    generate_json_report, generate_markdown_report, generate_pdf_report,
-    generate_junit_xml_report, create_report_template, format_report_content,
-    distribute_report, archive_report, validate_report_content,
+    ReportGenerator, TemplateEngine, TemplateFunction, GeneratedReport, ReportMetadata,
+    GeneratorInfo, ReportSummary, ChartData, DataSeries, DataPoint, SeriesStyle,
+    ChartConfig, AxisConfig, LegendConfig, GridConfig, AnimationConfig,
+    PerformanceTrendAnalysis, TrendDataPoint, JsonReportData, ReportType, ChartType,
+    DataValue, StrokeStyle, ScaleType, LegendPosition, LegendOrientation,
+    EasingFunction, TrendDirection,
 };
 
 // Artifact management types and functionality
 pub use artifact_management::{
-    ArtifactManager, ArtifactStorage, ArtifactRegistry, UploadManager, DownloadManager,
-    RetentionManager, LocalStorage, S3Storage, GcsStorage, AzureBlobStorage,
-    FtpStorage, HttpStorage, ArtifactMetadata, ArtifactInfo, ArtifactType,
-    StorageLocation, UploadProgress, DownloadProgress, TransferStatistics,
-    ArtifactCompressor, CompressionAlgorithm, ArtifactEncryptor, EncryptionKey,
-    ArtifactValidator, ValidationResult, ArtifactIndexer, SearchCriteria,
-    ArtifactCleaner, CleanupPolicy, RetentionPolicy, ArtifactMigrator,
-    MigrationPlan, SyncManager, SyncPolicy, ArtifactMonitor, MonitoringMetrics,
-    create_artifact_manager, upload_artifact, download_artifact, search_artifacts,
-    cleanup_artifacts, migrate_artifacts, sync_artifacts, monitor_storage,
+    ArtifactManager, ArtifactStorage, ArtifactRegistry, ArtifactRecord, RegistryMetadata,
+    RegistryStatistics, ArtifactInfo, ArtifactMetadata, CompressionInfo, EncryptionInfo,
+    StorageStatistics, UploadManager, UploadTask, UploadProgress, UploadTaskConfig,
+    UploadResult, DownloadManager, DownloadCache, CacheEntry, CacheStatistics,
+    DownloadTask, DownloadProgress, RetentionManager, CleanupScheduler, CleanupRule,
+    CleanupResult, LocalArtifactStorage, LocalStorageConfig, ArtifactStatus,
+    ChecksumAlgorithm, UploadStatus, DownloadStatus, CleanupCondition, CleanupAction,
 };
 
 // Integration types and functionality
-pub use integrations::{
-    IntegrationManager, GitHubClient, SlackClient, EmailClient, WebhookClient,
-    CustomIntegration, IntegrationStatistics, GitHubIntegration, SlackIntegration,
-    EmailIntegration, WebhookIntegration, IntegrationEvent, EventPayload,
-    NotificationPayload, MessageTemplate, MessageFormatter, DeliveryStatus,
-    RetryPolicy as IntegrationRetryPolicy, RateLimiter, ApiCredentials,
-    AuthenticationMethod, IntegrationHealth, HealthChecker, FailureRecovery,
-    IntegrationMetrics, UsageStatistics, IntegrationLogger, LogLevel,
-    IntegrationValidator, ValidationError, IntegrationTester, TestResult,
-    create_integration_manager, setup_github_integration, setup_slack_integration,
-    setup_email_integration, setup_webhook_integration, send_notification,
-    check_integration_health, validate_integration_config, test_integration,
-};
+pub use integrations::*;
 
 // Performance gates types and functionality
-pub use performance_gates::{
-    PerformanceGateEvaluator, BaselineMetric, GateEvaluationResult, GateState,
-    PerformanceTrendAnalyzer, AlertManager, MetricType, GateConfiguration,
-    ThresholdType, StatisticalMethod, TrendAnalysis, TrendDirection,
-    AlertCondition, AlertSeverity, EscalationLevel, NotificationChannel,
-    GatePolicy, PolicyRule, RuleAction, MetricCollector, MetricProcessor,
-    MetricAggregator, StatisticalAnalyzer, RegressionDetector, AnomalyDetector,
-    BaselineManager, BaselineCalculator, HistoricalDataManager, GateReporter,
-    GateMetrics, GateStatistics, evaluate_performance_gates, analyze_trends,
-    detect_regressions, detect_anomalies, update_baselines, generate_alerts,
-    escalate_alerts, collect_gate_metrics, report_gate_status,
-};
+pub use performance_gates::*;
 
 // Core automation types and functionality
-pub use core_automation::{
-    CiCdAutomation, PerformanceRegressionDetector, EnvironmentInfo, AutomationStatistics,
-    AutomationExecutionContext, RegressionAnalysis, StatisticalTest, ConfidenceLevel,
-    RegressionSeverity, AnalysisMethod, ComparisonStrategy, MetricComparison,
-    RegressionReport, TrendAnalysisResult, PerformanceBaseline, AutomationEvent,
-    ExecutionPhase, PhaseResult, AutomationMetrics, ExecutionSummary,
-    PerformanceInsights, RecommendationEngine, ActionableInsight, InsightType,
-    AutomationOrchestrator, WorkflowDefinition, WorkflowStep, StepDependency,
-    AutomationScheduler, SchedulePolicy, TriggerCondition, AutomationLogger,
-    LogEntry, LogContext, create_automation_engine, detect_performance_regression,
-    analyze_performance_trends, generate_performance_insights, orchestrate_workflow,
-    schedule_automation, log_automation_event,
-};
+pub use core_automation::*;
 
 // Convenience type aliases
 pub type CiCdResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -176,14 +126,7 @@ pub const DEFAULT_BASELINE_WINDOW: usize = 10;
 pub const DEFAULT_CONFIDENCE_LEVEL: f64 = 0.95;
 pub const DEFAULT_REGRESSION_THRESHOLD: f64 = 0.05; // 5%
 
-// Error types
-pub use config::ConfigError;
-pub use test_execution::TestExecutionError;
-pub use reporting::ReportingError;
-pub use artifact_management::ArtifactError;
-pub use integrations::IntegrationError;
-pub use performance_gates::GateError;
-pub use core_automation::AutomationError;
+// Error types - removed non-existent error types
 
 // Utility functions
 pub fn version() -> &'static str {

@@ -12,18 +12,16 @@ use ndarray::{Array, ArrayView1, Dimension};
 #[allow(dead_code)]
 fn cast_slice_to_bytes<T>(slice: &[T]) -> &[u8] {
     // SAFETY: This is safe because:
-    // 1. The pointer is derived from a valid _slice
+    // 1. The pointer is derived from a valid slice
     // 2. The size calculation is correct using size_of_val
-    // 3. The lifetime is bounded by the input _slice
-    unsafe {
-        std::_slice::from_raw_parts(_slice.as_ptr() as *const u8, std::mem::size_of_val(_slice))
-    }
+    // 3. The lifetime is bounded by the input slice
+    unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const u8, std::mem::size_of_val(slice)) }
 }
 
 /// Safe slice casting replacement for bytemuck::cast_slice (reverse)
 #[allow(dead_code)]
 fn cast_bytes_to_slice<T>(bytes: &[u8]) -> &[T] {
-    assert_eq!(_bytes.len() % std::mem::size_of::<T>(), 0);
+    assert_eq!(bytes.len() % std::mem::size_of::<T>(), 0);
     // SAFETY: This is safe because:
     // 1. We assert that the byte length is a multiple of T's size
     // 2. The pointer is derived from a valid slice
@@ -107,12 +105,12 @@ pub mod memory_efficient {
     pub fn estimate_memory_usage<T>(shape: &[usize], numarrays: usize) -> usize {
         let elemsize = std::mem::size_of::<T>();
         let total_elements: usize = shape.iter().product();
-        total_elements * elemsize * num_arrays
+        total_elements * elemsize * numarrays
     }
 
     /// Check if operation fits within memory limits
     pub fn check_memory_limit<T>(shape: &[usize], numarrays: usize, config: &ArrayConfig) -> bool {
-        estimate_memory_usage::<T>(shape, num_arrays) <= config.memory_limit
+        estimate_memory_usage::<T>(shape, numarrays) <= config.memory_limit
     }
 }
 
@@ -478,11 +476,7 @@ pub mod gpu {
 
         /// Get performance statistics for a kernel
         pub fn get_kernel_stats(&self, kernelname: &str) -> Option<(u64, std::time::Duration)> {
-            self.performance_stats
-                .lock()
-                .ok()?
-                .get(kernel_name)
-                .copied()
+            self.performance_stats.lock().ok()?.get(kernelname).copied()
         }
 
         /// Clear performance statistics

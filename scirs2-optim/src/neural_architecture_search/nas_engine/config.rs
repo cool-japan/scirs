@@ -6,10 +6,11 @@
 use std::collections::HashMap;
 use std::time::Duration;
 use num_traits::Float;
+use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
 
 use crate::neural_architecture_search::{
-    EvaluationMetric, MultiObjectiveOptimizer, PerformanceEvaluator, PerformancePredictor,
-    ParetoFront, OptimizerArchitecture,
+    MultiObjectiveOptimizer, PerformanceEvaluator, PerformancePredictor,
+    ParetoFront,
 };
 
 /// Neural Architecture Search configuration for optimizers
@@ -131,6 +132,17 @@ pub struct OptimizerComponentConfig {
 
     /// Compatibility constraints
     pub compatibility_constraints: Vec<CompatibilityConstraint>,
+}
+
+/// Component type configuration
+#[derive(Debug, Clone)]
+pub struct ComponentTypeConfig {
+    /// Component type name
+    pub name: String,
+    /// Available parameters
+    pub parameters: Vec<String>,
+    /// Default configuration
+    pub defaults: HashMap<String, String>,
 }
 
 /// Component types for optimizers

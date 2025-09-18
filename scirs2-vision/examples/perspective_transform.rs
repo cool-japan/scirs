@@ -54,11 +54,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (width as f64 * 0.1, height as f64 * 0.85), // Bottom-left
     ];
 
-    // First create the distorted image
-    let distort_transform = PerspectiveTransform::rect_to_quad(
-        (0.0, 0.0, width as f64, height as f64),
-        distorted_corners,
-    )?;
+    // First create the distorted image using from_quad
+    let distort_transform =
+        PerspectiveTransform::from_quad(0.0, 0.0, width as f64, height as f64, &distorted_corners)?;
 
     let distorted = warp_perspective(
         &img,
@@ -71,8 +69,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     distorted.save("output/perspective_distorted.png")?;
     println!("  Saved distorted image to output/perspective_distorted.png");
 
+    // Convert distorted image to Array2<f64> for perspective correction
+    use ndarray::Array2;
+    let (dist_width, dist_height) = distorted.dimensions();
+    let mut distorted_array = Array2::zeros((dist_height as usize, dist_width as usize));
+
+    // Convert DynamicImage to grayscale Array2
+    for y in 0..dist_height {
+        for x in 0..dist_width {
+            let pixel = distorted.get_pixel(x, y);
+            let gray =
+                (0.299 * pixel[0] as f64 + 0.587 * pixel[1] as f64 + 0.114 * pixel[2] as f64)
+                    / 255.0;
+            distorted_array[[y as usize, x as usize]] = gray;
+        }
+    }
+
     // Now correct the perspective
-    let corrected = correct_perspective(&distorted, distorted_corners, None)?;
+    let correction_transform = correct_perspective(&distorted_array, 0.1, 1000.0)?;
+    let corrected = warp_perspective(
+        &distorted,
+        &correction_transform,
+        None,
+        None,
+        BorderMode::Constant(image::Rgba([255, 255, 255, 255])),
+    )?;
 
     corrected.save("output/perspective_corrected.png")?;
     println!("  Saved corrected image to output/perspective_corrected.png");

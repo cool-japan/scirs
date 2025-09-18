@@ -125,14 +125,26 @@ pub use crate::advanced_coordinator_modules::{
 };
 
 /// Convenience function for creating a coordinator with default settings
-pub fn create_default_advanced_coordinator<F: num_traits::Float + std::fmt::Debug>(
-) -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
+pub fn create_default_advanced_coordinator<
+    F: num_traits::Float
+        + std::fmt::Debug
+        + std::ops::MulAssign
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::default::Default,
+>() -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
     create_advanced_interpolation_coordinator(None)
 }
 
 /// Convenience function for creating a high-performance coordinator
-pub fn create_high_performance_coordinator<F: num_traits::Float + std::fmt::Debug>(
-) -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
+pub fn create_high_performance_coordinator<
+    F: num_traits::Float
+        + std::fmt::Debug
+        + std::ops::MulAssign
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::default::Default,
+>() -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
     let config = AdvancedInterpolationConfig {
         enable_method_selection: true,
         enable_adaptive_optimization: true,
@@ -152,8 +164,14 @@ pub fn create_high_performance_coordinator<F: num_traits::Float + std::fmt::Debu
 }
 
 /// Convenience function for creating a memory-efficient coordinator
-pub fn create_memory_efficient_coordinator<F: num_traits::Float + std::fmt::Debug>(
-) -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
+pub fn create_memory_efficient_coordinator<
+    F: num_traits::Float
+        + std::fmt::Debug
+        + std::ops::MulAssign
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::default::Default,
+>() -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
     let config = AdvancedInterpolationConfig {
         enable_method_selection: true,
         enable_adaptive_optimization: false, // Reduce memory usage
@@ -173,8 +191,14 @@ pub fn create_memory_efficient_coordinator<F: num_traits::Float + std::fmt::Debu
 }
 
 /// Convenience function for creating a balanced coordinator
-pub fn create_balanced_coordinator<F: num_traits::Float + std::fmt::Debug>(
-) -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
+pub fn create_balanced_coordinator<
+    F: num_traits::Float
+        + std::fmt::Debug
+        + std::ops::MulAssign
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::default::Default,
+>() -> crate::error::InterpolateResult<AdvancedInterpolationCoordinator<F>> {
     let config = AdvancedInterpolationConfig {
         enable_method_selection: true,
         enable_adaptive_optimization: true,

@@ -19,6 +19,7 @@
 //! # Usage
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{simd_enhanced_convolution, SimdConfig};
 //!
 //! let signal = vec![1.0, 2.0, 3.0, 4.0];
@@ -27,6 +28,8 @@
 //! let config = SimdConfig::default();
 //!
 //! simd_enhanced_convolution(&signal, &kernel, &mut output, &config)?;
+//! # Ok(())
+//! # }
 //! ```
 
 #[cfg(target_arch = "x86_64")]
@@ -74,6 +77,7 @@ use std::arch::x86_64::*;
 /// # Examples
 ///
 /// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{simd_enhanced_convolution, SimdConfig};
 ///
 /// // Simple lowpass filter
@@ -86,6 +90,8 @@ use std::arch::x86_64::*;
 ///
 /// // Output will contain the full convolution result
 /// assert_eq!(output.len(), 7); // 5 + 3 - 1
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_enhanced_convolution(

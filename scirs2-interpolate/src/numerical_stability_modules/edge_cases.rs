@@ -179,11 +179,11 @@ where
     // Assess extrapolation risk
     let extrapolation_risk = assess_extrapolation_risk(points, values)?;
 
-    Ok(BoundaryAnalysis {
-        has_boundary_effects,
-        recommended_boundary_treatment,
-        extrapolation_risk,
-    })
+    let mut analysis = BoundaryAnalysis::default();
+    analysis.has_boundary_effects = has_boundary_effects;
+    analysis.recommended_boundary_treatment = recommended_boundary_treatment;
+    analysis.extrapolation_risk = extrapolation_risk;
+    Ok(analysis)
 }
 
 /// Analyze distances between all pairs of points

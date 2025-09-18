@@ -32,11 +32,10 @@ pub use ai_optimization_modules::{
     LayerType,
     // Predictive Scaling
     ModelType,
+    MutationStrategy,
     NeuralArchitectureSearch,
     NormalizationType,
-    ObjectiveWeights,
     ParameterType,
-    ParetoFrontier,
     PerformanceMetric,
     PerformancePredictors,
     PipelineGenome,

@@ -6,10 +6,32 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use num_traits::Float;
+use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
 
 use crate::neural_architecture_search::{
-    EvaluationMetric, OptimizerArchitecture, ParetoFront,
+    ParetoFront,
 };
+
+// Define missing types as placeholders since they're not available
+#[derive(Debug, Clone)]
+pub struct OptimizerArchitecture<T: Float> {
+    pub components: Vec<String>,
+    pub parameters: HashMap<String, T>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OptimizerComponent<T: Float> {
+    pub name: String,
+    pub parameters: HashMap<String, T>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConvergenceData<T: Float> {
+    pub iteration: usize,
+    pub best_score: T,
+    pub convergence_rate: T,
+    pub stability_measure: T,
+}
 
 /// Search result for tracking individual architecture evaluations
 #[derive(Debug, Clone)]

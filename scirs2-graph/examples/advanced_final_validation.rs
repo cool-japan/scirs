@@ -140,9 +140,7 @@ fn test_algorithm_execution() -> HashMap<String, Duration> {
     // Test BFS
     println!("  Testing BFS with Advanced...");
     let start_time = Instant::now();
-    match execute_with_enhanced_advanced(&mut processor, &test_graph, "bfs_test", |g| {
-        breadth_first_search(g, &0)
-    }) {
+    match execute_with_enhanced_advanced(&test_graph, |g| breadth_first_search(g, &0)) {
         Ok(_) => {
             let duration = start_time.elapsed();
             results.insert("bfs".to_string(), duration);
@@ -156,12 +154,7 @@ fn test_algorithm_execution() -> HashMap<String, Duration> {
     // Test Connected Components
     println!("  Testing connected components with advanced...");
     let start_time = Instant::now();
-    match execute_with_enhanced_advanced(
-        &mut processor,
-        &test_graph,
-        "connected_components_test",
-        |g| Ok(connected_components(g)),
-    ) {
+    match execute_with_enhanced_advanced(&test_graph, |g| Ok(connected_components(g))) {
         Ok(_) => {
             let duration = start_time.elapsed();
             results.insert("connected_components".to_string(), duration);
@@ -175,9 +168,7 @@ fn test_algorithm_execution() -> HashMap<String, Duration> {
     // Test PageRank
     println!("  Testing PageRank with advanced...");
     let start_time = Instant::now();
-    match execute_with_enhanced_advanced(&mut processor, &test_graph, "pagerank_test", |g| {
-        pagerank_centrality(g, 0.85, 1e-6)
-    }) {
+    match execute_with_enhanced_advanced(&test_graph, |g| pagerank_centrality(g, 0.85, 1e-6)) {
         Ok(_) => {
             let duration = start_time.elapsed();
             results.insert("pagerank".to_string(), duration);
@@ -191,12 +182,7 @@ fn test_algorithm_execution() -> HashMap<String, Duration> {
     // Test Community Detection
     println!("  Testing community detection with advanced...");
     let start_time = Instant::now();
-    match execute_with_enhanced_advanced(
-        &mut processor,
-        &test_graph,
-        "community_detection_test",
-        |g| Ok(louvain_communities_result(g)),
-    ) {
+    match execute_with_enhanced_advanced(&test_graph, |g| Ok(louvain_communities_result(g))) {
         Ok(_) => {
             let duration = start_time.elapsed();
             results.insert("community_detection".to_string(), duration);
@@ -241,24 +227,11 @@ fn test_memory_efficiency() -> f64 {
     profiler.start_profiling(&processor);
 
     // Run several memory-intensive operations
-    let _ =
-        execute_with_enhanced_advanced(&mut processor, &test_graph, "memory_test_pagerank", |g| {
-            pagerank_centrality(g, 0.85, 1e-6)
-        });
+    let _ = execute_with_enhanced_advanced(&test_graph, |g| pagerank_centrality(g, 0.85, 1e-6));
 
-    let _ = execute_with_enhanced_advanced(
-        &mut processor,
-        &test_graph,
-        "memory_test_betweenness",
-        |g| Ok(betweenness_centrality(g, false)),
-    );
+    let _ = execute_with_enhanced_advanced(&test_graph, |g| Ok(betweenness_centrality(g, false)));
 
-    let _ = execute_with_enhanced_advanced(
-        &mut processor,
-        &test_graph,
-        "memory_test_connected_components",
-        |g| Ok(connected_components(g)),
-    );
+    let _ = execute_with_enhanced_advanced(&test_graph, |g| Ok(connected_components(g)));
 
     // Memory profiling results would be available after processing
     let efficiency = 0.85; // Placeholder efficiency score
@@ -335,12 +308,8 @@ fn test_performance_improvements() -> HashMap<String, f64> {
     // Advanced execution
     let mut processor = create_performance_advanced_processor();
     let start_time = Instant::now();
-    let _advanced_result = execute_with_enhanced_advanced(
-        &mut processor,
-        &test_graph,
-        "pagerank_performance_test",
-        |g| pagerank_centrality(g, 0.85, 1e-6),
-    );
+    let _advanced_result =
+        execute_with_enhanced_advanced(&test_graph, |g| pagerank_centrality(g, 0.85, 1e-6));
     let advanced_duration = start_time.elapsed();
 
     if advanced_duration.as_nanos() > 0 {
@@ -360,9 +329,7 @@ fn test_performance_improvements() -> HashMap<String, f64> {
     // Advanced execution
     let start_time = Instant::now();
     let _advanced_result =
-        execute_with_enhanced_advanced(&mut processor, &test_graph, "cc_performance_test", |g| {
-            Ok(connected_components(g))
-        });
+        execute_with_enhanced_advanced(&test_graph, |g| Ok(connected_components(g)));
     let advanced_duration = start_time.elapsed();
 
     if advanced_duration.as_nanos() > 0 {

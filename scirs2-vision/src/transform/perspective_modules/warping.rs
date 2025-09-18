@@ -266,7 +266,7 @@ pub fn warp_perspective_simd(
     // Process image in rows for better SIMD efficiency
     for y in 0..dst_height {
         // Create arrays of destination coordinates for this row
-        let dst_x_coords: Vec<f64> = (0..dst_width).map(|x| f64::from(x)).collect();
+        let dst_x_coords: Vec<f64> = (0..dst_width).map(f64::from).collect();
         let dst_y_coords: Vec<f64> = vec![f64::from(y); dst_width as usize];
 
         let dst_points: Vec<(f64, f64)> = dst_x_coords

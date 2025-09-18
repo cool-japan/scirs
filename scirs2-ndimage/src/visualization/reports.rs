@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_generate_basic_report() {
-        let image = Array2::ones((10, 10));
+        let image = Array2::<f64>::ones((10, 10));
         let config = ReportConfig::new()
             .with_format(ReportFormat::Text)
             .with_header("Test Report", "Test Suite")
@@ -619,7 +619,7 @@ mod tests {
 
     #[test]
     fn test_generate_html_report() {
-        let image = Array2::zeros((5, 5));
+        let image = Array2::<f64>::zeros((5, 5));
         let config = ReportConfig::new()
             .with_format(ReportFormat::Html)
             .with_header("HTML Test", "HTML Suite")

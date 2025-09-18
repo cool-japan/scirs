@@ -4,16 +4,19 @@
 //! all streaming optimization components including drift detection, performance
 //! tracking, resource management, and adaptive learning rate control.
 
+use super::anomaly_detection::{
+    EnsembleAnomalyDetector, MLAnomalyDetector, StatisticalAnomalyDetector,
+};
+use super::buffering::AdaptiveBuffer;
 use super::config::*;
-use super::drift_detection::*;
-use super::performance::*;
-use super::resource_management::*;
-use super::buffering::*;
-use super::meta_learning::*;
-use super::anomaly_detection::*;
+use super::drift_detection::EnhancedDriftDetector;
+use super::meta_learning::{ExperienceReplay, MetaLearner, StrategySelector};
+use super::performance::{DataStatistics, PerformanceSnapshot, PerformanceTracker};
+use super::resource_management::{ResourceManager, ResourceUsage};
 
 use crate::adaptive_selection::OptimizerType;
-use ndarray::{Array, Array1, Array2, Dimension};
+use crate::learned_optimizers::lstm_optimizer::AdaptiveLearningRateController;
+use ndarray::{Array, Array1, Array2, Dimension, IxDyn};
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -207,7 +210,10 @@ where
     }
 
     /// Performs an adaptive optimization step with streaming data
-    pub fn adaptive_step(&mut self, data_batch: Vec<StreamingDataPoint<A>>) -> Result<Array<A, D>, String> {
+    pub fn adaptive_step(
+        &mut self,
+        data_batch: Vec<StreamingDataPoint<A>>,
+    ) -> Result<Array<A, D>, String> {
         let start_time = Instant::now();
 
         // Update resource utilization tracking
@@ -219,7 +225,10 @@ where
 
         // Check if buffer should be processed
         if !self.should_process_buffer()? {
-            return self.parameters.clone().ok_or("No parameters available".to_string());
+            return self
+                .parameters
+                .clone()
+                .ok_or("No parameters available".to_string());
         }
 
         // Get batch from buffer for processing
@@ -245,7 +254,8 @@ where
         let performance = self.evaluate_performance(&processing_batch, &updated_parameters)?;
 
         // Update performance tracking
-        self.performance_tracker.add_performance(performance.clone())?;
+        self.performance_tracker
+            .add_performance(performance.clone())?;
 
         // Update meta-learner with experience
         self.update_meta_learner(&processing_batch, &adaptations, &performance)?;
@@ -259,7 +269,10 @@ where
         self.stats.meta_learning_score = self.meta_learner.get_effectiveness_score() as f64;
 
         let processing_time = start_time.elapsed().as_millis() as f64;
-        self.stats.avg_processing_time_ms = (self.stats.avg_processing_time_ms * (self.stats.optimization_steps - 1) as f64 + processing_time) / self.stats.optimization_steps as f64;
+        self.stats.avg_processing_time_ms = (self.stats.avg_processing_time_ms
+            * (self.stats.optimization_steps - 1) as f64
+            + processing_time)
+            / self.stats.optimization_steps as f64;
 
         // Store updated parameters
         self.parameters = Some(updated_parameters.clone());
@@ -268,7 +281,10 @@ where
     }
 
     /// Filters out anomalous data points
-    fn filter_anomalies(&mut self, data_batch: Vec<StreamingDataPoint<A>>) -> Result<Vec<StreamingDataPoint<A>>, String> {
+    fn filter_anomalies(
+        &mut self,
+        data_batch: Vec<StreamingDataPoint<A>>,
+    ) -> Result<Vec<StreamingDataPoint<A>>, String> {
         if !self.config.anomaly_config.enable_detection {
             return Ok(data_batch);
         }
@@ -286,24 +302,24 @@ where
                     AnomalyResponseStrategy::Ignore => {
                         // Include the data point anyway
                         filtered_batch.push(data_point);
-                    },
+                    }
                     AnomalyResponseStrategy::Filter => {
                         // Skip this data point
                         continue;
-                    },
+                    }
                     AnomalyResponseStrategy::Adaptive => {
                         // Adapt the data point or model
                         let adapted_point = self.adapt_for_anomaly(data_point)?;
                         filtered_batch.push(adapted_point);
-                    },
+                    }
                     AnomalyResponseStrategy::Reset => {
                         // Reset relevant components (implemented in apply_adaptations)
                         filtered_batch.push(data_point);
-                    },
+                    }
                     AnomalyResponseStrategy::Custom(_) => {
                         // Custom handling (simplified)
                         filtered_batch.push(data_point);
-                    },
+                    }
                 }
             } else {
                 filtered_batch.push(data_point);
@@ -314,7 +330,10 @@ where
     }
 
     /// Adapts a data point that was detected as anomalous
-    fn adapt_for_anomaly(&self, mut data_point: StreamingDataPoint<A>) -> Result<StreamingDataPoint<A>, String> {
+    fn adapt_for_anomaly(
+        &self,
+        mut data_point: StreamingDataPoint<A>,
+    ) -> Result<StreamingDataPoint<A>, String> {
         // Simple adaptation: reduce the influence of extreme values
         let median = self.compute_feature_median(&data_point.features)?;
 
@@ -324,7 +343,11 @@ where
 
             if diff > threshold {
                 // Clip the value to be within the threshold
-                let sign = if *value > median[i] { A::one() } else { -A::one() };
+                let sign = if *value > median[i] {
+                    A::one()
+                } else {
+                    -A::one()
+                };
                 *value = median[i] + sign * threshold;
             }
         }
@@ -351,13 +374,17 @@ where
         let size_ready = buffer_size >= size_threshold;
 
         // Check quality threshold
-        let quality_ready = buffer_quality.average_quality >= A::from(self.config.buffer_config.quality_threshold).unwrap();
+        let quality_ready = buffer_quality.average_quality
+            >= A::from(self.config.buffer_config.quality_threshold).unwrap();
 
         // Check timeout
-        let timeout_ready = self.buffer.time_since_last_processing() >= self.config.buffer_config.processing_timeout;
+        let timeout_ready = self.buffer.time_since_last_processing()
+            >= self.config.buffer_config.processing_timeout;
 
         // Check resource availability
-        let resources_available = self.resource_manager.has_sufficient_resources_for_processing()?;
+        let resources_available = self
+            .resource_manager
+            .has_sufficient_resources_for_processing()?;
 
         Ok((size_ready && quality_ready) || timeout_ready && resources_available)
     }
@@ -371,7 +398,10 @@ where
         let mut adaptations = Vec::new();
 
         // Learning rate adaptation
-        if let Some(lr_adaptation) = self.learning_rate_controller.compute_adaptation(batch, &self.performance_tracker)? {
+        if let Some(lr_adaptation) = self
+            .learning_rate_controller
+            .compute_adaptation(batch, &self.performance_tracker)?
+        {
             adaptations.push(lr_adaptation);
         }
 
@@ -383,7 +413,10 @@ where
         }
 
         // Buffer size adaptation
-        if let Some(buffer_adaptation) = self.buffer.compute_size_adaptation(&self.performance_tracker)? {
+        if let Some(buffer_adaptation) = self
+            .buffer
+            .compute_size_adaptation(&self.performance_tracker)?
+        {
             adaptations.push(buffer_adaptation);
         }
 
@@ -393,7 +426,9 @@ where
         }
 
         // Meta-learning based adaptations
-        let meta_adaptations = self.meta_learner.recommend_adaptations(batch, &self.performance_tracker)?;
+        let meta_adaptations = self
+            .meta_learner
+            .recommend_adaptations(batch, &self.performance_tracker)?;
         adaptations.extend(meta_adaptations);
 
         // Sort adaptations by priority
@@ -408,29 +443,32 @@ where
             match &adaptation.adaptation_type {
                 AdaptationType::LearningRate => {
                     self.learning_rate_controller.apply_adaptation(adaptation)?;
-                },
+                }
                 AdaptationType::BufferSize => {
                     self.buffer.apply_size_adaptation(adaptation)?;
-                },
+                }
                 AdaptationType::DriftSensitivity => {
-                    self.drift_detector.apply_sensitivity_adaptation(adaptation)?;
-                },
+                    self.drift_detector
+                        .apply_sensitivity_adaptation(adaptation)?;
+                }
                 AdaptationType::ResourceAllocation => {
-                    self.resource_manager.apply_allocation_adaptation(adaptation)?;
-                },
+                    self.resource_manager
+                        .apply_allocation_adaptation(adaptation)?;
+                }
                 AdaptationType::PerformanceThreshold => {
-                    self.performance_tracker.apply_threshold_adaptation(adaptation)?;
-                },
+                    self.performance_tracker
+                        .apply_threshold_adaptation(adaptation)?;
+                }
                 AdaptationType::AnomalyDetection => {
                     self.anomaly_detector.apply_adaptation(adaptation)?;
-                },
+                }
                 AdaptationType::MetaLearning => {
                     self.meta_learner.apply_adaptation(adaptation)?;
-                },
+                }
                 AdaptationType::Custom(name) => {
                     // Handle custom adaptations
                     println!("Applying custom adaptation: {}", name);
-                },
+                }
             }
 
             // Store adaptation in history
@@ -470,7 +508,10 @@ where
     }
 
     /// Computes batch gradients from streaming data
-    fn compute_batch_gradients(&self, batch: &[StreamingDataPoint<A>]) -> Result<Array1<A>, String> {
+    fn compute_batch_gradients(
+        &self,
+        batch: &[StreamingDataPoint<A>],
+    ) -> Result<Array1<A>, String> {
         if batch.is_empty() {
             return Err("Cannot compute gradients from empty batch".to_string());
         }
@@ -525,7 +566,11 @@ where
     }
 
     /// Computes loss for the current batch and parameters
-    fn compute_loss(&self, batch: &[StreamingDataPoint<A>], _parameters: &Array<A, D>) -> Result<A, String> {
+    fn compute_loss(
+        &self,
+        batch: &[StreamingDataPoint<A>],
+        _parameters: &Array<A, D>,
+    ) -> Result<A, String> {
         // Simplified loss computation (Mean Squared Error)
         let mut total_loss = A::zero();
         let mut count = 0;
@@ -548,7 +593,11 @@ where
     }
 
     /// Computes accuracy for the current batch and parameters
-    fn compute_accuracy(&self, batch: &[StreamingDataPoint<A>], _parameters: &Array<A, D>) -> Result<A, String> {
+    fn compute_accuracy(
+        &self,
+        batch: &[StreamingDataPoint<A>],
+        _parameters: &Array<A, D>,
+    ) -> Result<A, String> {
         // Simplified accuracy computation
         let mut correct = 0;
         let mut total = 0;
@@ -583,7 +632,10 @@ where
     }
 
     /// Computes comprehensive data statistics
-    fn compute_data_statistics(&self, batch: &[StreamingDataPoint<A>]) -> Result<DataStatistics<A>, String> {
+    fn compute_data_statistics(
+        &self,
+        batch: &[StreamingDataPoint<A>],
+    ) -> Result<DataStatistics<A>, String> {
         if batch.is_empty() {
             return Ok(DataStatistics::default());
         }
@@ -608,7 +660,8 @@ where
         feature_stds /= A::from(batch.len()).unwrap();
         feature_stds = feature_stds.mapv(|x| x.sqrt());
 
-        let avg_quality = quality_scores.iter().copied().sum::<A>() / A::from(quality_scores.len()).unwrap();
+        let avg_quality =
+            quality_scores.iter().copied().sum::<A>() / A::from(quality_scores.len()).unwrap();
 
         Ok(DataStatistics {
             sample_count: batch.len(),
@@ -640,13 +693,17 @@ where
         let reward = self.compute_meta_reward(performance)?;
 
         // Update meta-learner
-        self.meta_learner.update_experience(meta_state, meta_action, reward)?;
+        self.meta_learner
+            .update_experience(meta_state, meta_action, reward)?;
 
         Ok(())
     }
 
     /// Extracts meta-state representation from performance data
-    fn extract_meta_state(&self, performance: &PerformanceSnapshot<A>) -> Result<MetaState<A>, String> {
+    fn extract_meta_state(
+        &self,
+        performance: &PerformanceSnapshot<A>,
+    ) -> Result<MetaState<A>, String> {
         let state = MetaState {
             performance_metrics: vec![
                 performance.loss,
@@ -657,9 +714,12 @@ where
                 A::from(performance.resource_usage.memory_usage_mb as f64).unwrap(),
                 A::from(performance.resource_usage.cpu_usage_percent).unwrap(),
             ],
-            drift_indicators: vec![
-                A::from(if self.drift_detector.is_drift_detected() { 1.0 } else { 0.0 }).unwrap(),
-            ],
+            drift_indicators: vec![A::from(if self.drift_detector.is_drift_detected() {
+                1.0
+            } else {
+                0.0
+            })
+            .unwrap()],
             adaptation_history: self.adaptation_history.len(),
             timestamp: Instant::now(),
         };
@@ -710,7 +770,8 @@ where
     /// Counts the number of adaptations applied in recent history
     fn count_adaptations_applied(&self) -> usize {
         let recent_threshold = Instant::now() - Duration::from_secs(300); // Last 5 minutes
-        self.adaptation_history.iter()
+        self.adaptation_history
+            .iter()
             .filter(|adaptation| adaptation.timestamp > recent_threshold)
             .count()
     }
@@ -719,13 +780,20 @@ where
     fn compute_performance_trend(&self) -> f64 {
         let recent_performance = self.performance_tracker.get_recent_performance(20);
         if recent_performance.len() >= 2 {
-            let recent_avg = recent_performance.iter().rev().take(5)
+            let recent_avg = recent_performance
+                .iter()
+                .rev()
+                .take(5)
                 .map(|p| p.loss.to_f64().unwrap_or(0.0))
-                .sum::<f64>() / 5.0;
+                .sum::<f64>()
+                / 5.0;
 
-            let older_avg = recent_performance.iter().take(5)
+            let older_avg = recent_performance
+                .iter()
+                .take(5)
                 .map(|p| p.loss.to_f64().unwrap_or(0.0))
-                .sum::<f64>() / 5.0;
+                .sum::<f64>()
+                / 5.0;
 
             // Negative trend means improvement (lower loss)
             (recent_avg - older_avg) / older_avg

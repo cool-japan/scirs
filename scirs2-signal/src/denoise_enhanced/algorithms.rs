@@ -553,7 +553,10 @@ mod tests {
     #[test]
     fn test_adaptive_lms() {
         let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0]);
-        let config = AdaptiveLMSConfig::default();
+        let config = AdaptiveLMSConfig {
+            filter_length: 4, // Use a smaller filter length that works with our signal size
+            ..Default::default()
+        };
         let result = denoise_adaptive_lms(&signal, &config);
         assert!(result.is_ok());
         let denoised = result.unwrap();

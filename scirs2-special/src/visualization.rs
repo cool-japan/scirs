@@ -116,8 +116,8 @@ impl MultiPlot {
         let mut chart = ChartBuilder::on(&root)
             .caption(&self.config.title, ("sans-serif", 40))
             .margin(10)
-            .x_label_areasize(30)
-            .y_label_areasize(40)
+            .x_label_area_size(30)
+            .y_label_area_size(40)
             .build_cartesian_2d(self.x_range.0..self.x_range.1, -2f64..2f64)?;
 
         if self.config.show_grid {
@@ -190,8 +190,8 @@ pub mod gamma_plots {
         let mut chart = ChartBuilder::on(&root)
             .caption("Complex Gamma Function |Γ(z)|", ("sans-serif", 40))
             .margin(10)
-            .x_label_areasize(30)
-            .y_label_areasize(40)
+            .x_label_area_size(30)
+            .y_label_area_size(40)
             .build_cartesian_2d(-5f64..5f64, -5f64..5f64)?;
 
         chart
@@ -259,8 +259,8 @@ pub mod bessel_plots {
             let mut chart = ChartBuilder::on(&root)
                 .caption("Bessel Function Zeros", ("sans-serif", 40))
                 .margin(10)
-                .x_label_areasize(30)
-                .y_label_areasize(40)
+                .x_label_area_size(30)
+                .y_label_area_size(40)
                 .build_cartesian_2d(0f64..30f64, -0.5f64..1f64)?;
 
             chart.configure_mesh().x_desc("x").y_desc("J_n(x)").draw()?;
@@ -373,8 +373,8 @@ pub mod surface_plots {
         let mut chart = ChartBuilder::on(&root)
             .caption(title, ("sans-serif", 40))
             .margin(10)
-            .x_label_areasize(30)
-            .y_label_areasize(40)
+            .x_label_area_size(30)
+            .y_label_area_size(40)
             .build_cartesian_3d(-5.0..5.0, -5.0..5.0, -2.0..2.0)?;
 
         chart.configure_axes().draw()?;
@@ -1085,8 +1085,8 @@ pub mod export {
                     let mut chart = plotters::chart::ChartBuilder::on(&backend)
                         .caption("Special Function Plot", ("sans-serif", 30))
                         .margin(10)
-                        .x_label_areasize(30)
-                        .y_label_areasize(40)
+                        .x_label_area_size(30)
+                        .y_label_area_size(40)
                         .build_cartesian_2d(x_range.0..x_range.1, -2f64..2f64)
                         .map_err(|e| format!("Failed to build chart: {}", e))?;
 
@@ -1136,8 +1136,8 @@ pub mod export {
                     let mut chart = plotters::chart::ChartBuilder::on(&root)
                         .caption("Special Function Plot", ("sans-serif", 30))
                         .margin(10)
-                        .x_label_areasize(30)
-                        .y_label_areasize(40)
+                        .x_label_area_size(30)
+                        .y_label_area_size(40)
                         .build_cartesian_2d(x_range.0..x_range.1, -2f64..2f64)
                         .map_err(|e| format!("Failed to build chart: {}", e))?;
 

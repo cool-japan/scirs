@@ -35,10 +35,10 @@ pub fn validate_normalization_methods(
         let mut total_corr = 0.0;
         let mut valid_tests = 0;
 
-        for &fs in &config.sampling_frequencies[..2] {
+        for &fs in &config.sampling_frequencies[..config.sampling_frequencies.len().min(2)] {
             // Limit for normalization testing
-            for &n in &config.test_lengths[..3] {
-                for &test_freq in &config.test_frequencies[..2] {
+            for &n in &config.test_lengths[..config.test_lengths.len().min(3)] {
+                for &test_freq in &config.test_frequencies[..config.test_frequencies.len().min(2)] {
                     if let Ok((_, _, _, corr)) =
                         validate_single_normalization_case(n, fs, test_freq, norm_method, config)
                     {

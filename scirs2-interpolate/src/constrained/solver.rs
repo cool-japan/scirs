@@ -7,7 +7,8 @@ use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::error::{InterpolateError, InterpolateResult};
 #[cfg(feature = "linalg")]
 use crate::numerical_stability::{
-    assess_matrix_condition, solve_with_stability_monitoring, StabilityLevel,
+    assess_matrix_condition, solve_with_enhanced_monitoring, solve_with_stability_monitoring,
+    StabilityLevel,
 };
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, FromPrimitive};
@@ -115,7 +116,7 @@ where
             }
 
             // Use stability-monitored solver
-            match solve_with_stability_monitoring(&ata, &aty) {
+            match solve_with_stability_monitoring(&ata.view(), &aty.view()) {
                 Ok(solution) => return Ok(solution),
                 Err(_) => {
                     return Err(InterpolateError::ComputationError(
@@ -138,13 +139,13 @@ where
     #[cfg(feature = "linalg")]
     let mut c = {
         // Use stability-monitored solver for initial solution
-        match solve_with_stability_monitoring(&ata, &aty) {
+        match solve_with_enhanced_monitoring(&ata.view(), &aty.view()) {
             Ok((solution, solve_report)) => {
-                if !solve_report.is_well_conditioned {
+                if !solve_report.condition_report.is_well_conditioned {
                     eprintln!(
                         "Warning: Initial solution for constrained problem computed with \
                          poorly conditioned _matrix (condition number: {:.2e})",
-                        solve_report.condition_number
+                        solve_report.condition_report.condition_number
                     );
                 }
                 solution

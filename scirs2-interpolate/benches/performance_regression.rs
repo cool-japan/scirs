@@ -201,7 +201,7 @@ fn bench_bspline_regression(c: &mut Criterion) {
     });
 
     group.bench_function("bspline_batch_evaluation", |b| {
-        b.iter(|| black_box(spline.evaluate_batch_fast(black_box(&queries.view()))))
+        b.iter(|| black_box(spline.evaluate_array(black_box(&queries.view()))))
     });
 
     group.finish();

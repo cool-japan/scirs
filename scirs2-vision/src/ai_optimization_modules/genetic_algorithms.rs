@@ -10,7 +10,7 @@ use std::collections::{HashMap, VecDeque};
 /// Advanced genetic algorithm for pipeline evolution with multi-objective optimization
 pub struct GeneticPipelineOptimizer {
     /// Population of pipeline configurations
-    population: Vec<PipelineGenome>,
+    pub population: Vec<PipelineGenome>,
     /// GA parameters
     ga_params: GAParameters,
     /// Fitness history

@@ -50,13 +50,14 @@ pub fn parallel_fft_filter(
 ) -> SignalResult<Vec<f64>> {
     let fft_size = chunk_size.unwrap_or(4096);
     let ir_len = impulse_response.len();
-    let useful_size = fft_size - ir_len + 1;
 
     if fft_size < ir_len {
         return Err(SignalError::ValueError(
             "FFT size too small for impulse response length".to_string(),
         ));
     }
+
+    let useful_size = fft_size - ir_len + 1;
 
     // Prepare FFT planner
     let mut planner = FftPlanner::new();

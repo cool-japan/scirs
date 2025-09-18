@@ -355,6 +355,13 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
 
         let primary_recommendation = MethodRecommendation {
             method: best_method,
+            confidence: 0.8, // Default confidence score
+            expected_performance: ExpectedPerformance {
+                accuracy_range: (0.8, 0.95),
+                time_range: (100.0, 1000.0),
+                memory_range: (1024, 10240),
+                performance_score: 0.8,
+            },
             parameters: self.get_default_parameters(best_method),
             configuration: self.get_method_configuration(best_method),
             benefits: self.get_method_benefits(best_method),
@@ -365,6 +372,13 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
             .into_iter()
             .map(|(method, _)| MethodRecommendation {
                 method,
+                confidence: 0.6, // Lower confidence for alternatives
+                expected_performance: ExpectedPerformance {
+                    accuracy_range: (0.8, 0.95),
+                    time_range: (100.0, 1000.0),
+                    memory_range: (1024, 10240),
+                    performance_score: 0.8,
+                },
                 parameters: self.get_default_parameters(method),
                 configuration: self.get_method_configuration(method),
                 benefits: self.get_method_benefits(method),

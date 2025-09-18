@@ -71,6 +71,7 @@ fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_fir_filter};
 ///
 /// let input = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -79,6 +80,8 @@ fn check_slice_finite(slice: &[f64], name: &str) -> SignalResult<()> {
 /// let config = SimdConfig::default();
 ///
 /// simd_fir_filter(&input, &coeffs, &mut output, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn simd_fir_filter(
     input: &[f64],
@@ -129,12 +132,15 @@ pub fn simd_fir_filter(
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_autocorrelation};
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
 /// let config = SimdConfig::default();
 ///
 /// let autocorr = simd_autocorrelation(&signal, 4, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn simd_autocorrelation(
     signal: &[f64],
@@ -184,6 +190,7 @@ pub fn simd_autocorrelation(
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_cross_correlation};
 ///
 /// let signal1 = vec![1.0, 2.0, 3.0, 4.0];
@@ -191,6 +198,8 @@ pub fn simd_autocorrelation(
 /// let config = SimdConfig::default();
 ///
 /// let xcorr = simd_cross_correlation(&signal1, &signal2, "full", &config)?;
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_cross_correlation(
@@ -272,6 +281,7 @@ pub fn simd_cross_correlation(
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_complex_fft_butterfly};
 /// use num_complex::Complex64;
 ///
@@ -280,6 +290,8 @@ pub fn simd_cross_correlation(
 /// let config = SimdConfig::default();
 ///
 /// simd_complex_fft_butterfly(&mut data, &twiddles, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_complex_fft_butterfly(
@@ -330,6 +342,7 @@ pub fn simd_complex_fft_butterfly(
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_apply_window};
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -338,6 +351,8 @@ pub fn simd_complex_fft_butterfly(
 /// let config = SimdConfig::default();
 ///
 /// simd_apply_window(&signal, &window, &mut output, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_apply_window(
@@ -398,12 +413,15 @@ pub fn simd_apply_window(
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_zero_crossing_rate};
 ///
 /// let signal = vec![1.0, -1.0, 2.0, -2.0, 3.0, -3.0];
 /// let config = SimdConfig::default();
 ///
 /// let zcr = simd_zero_crossing_rate(&signal, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn simd_zero_crossing_rate(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
     check_slice_finite(signal, "signal")?;
@@ -449,12 +467,15 @@ pub fn simd_zero_crossing_rate(signal: &[f64], config: &SimdConfig) -> SignalRes
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_signal_energy};
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let config = SimdConfig::default();
 ///
 /// let energy = simd_signal_energy(&signal, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn simd_signal_energy(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {
     check_slice_finite(signal, "signal")?;
@@ -493,12 +514,15 @@ pub fn simd_signal_energy(signal: &[f64], config: &SimdConfig) -> SignalResult<f
 /// # Examples
 ///
 /// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_rms};
 ///
 /// let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 /// let config = SimdConfig::default();
 ///
 /// let rms = simd_rms(&signal, &config)?;
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn simd_rms(signal: &[f64], config: &SimdConfig) -> SignalResult<f64> {

@@ -170,26 +170,26 @@ where
             for (concept_name, concept_hv) in level_concept_map {
                 let activation = current_encoding.similarity(concept_hv);
                 if activation > config.cleanup_threshold {
-                    level_activations.insert(concept_name.clone(), activation);
+                    level_activations.insert(concept_name.clone(), concept_hv.clone());
                 }
             }
         }
 
         // Create abstract representation for next level
         let mut abstract_encoding = Hypervector::random(config.hypervector_dim, 0.0);
-        for (concept_name, activation) in &level_activations {
-            if let Some(concept_hv) = concept_library.get_concept(concept_name) {
-                let weighted_concept = weight_hypervector(concept_hv, *activation);
-                abstract_encoding = abstract_encoding.bundle(&weighted_concept)?;
-            }
+        for (concept_name, concept_hv) in &level_activations {
+            // Use the stored concept hypervector with a default weight of 1.0
+            let weighted_concept = weight_hypervector(concept_hv, 1.0);
+            abstract_encoding = abstract_encoding.bundle(&weighted_concept)?;
         }
 
         level_encodings.push(abstract_encoding);
+        let complexity = level_activations.len() as f64;
         abstraction_results.push(AbstractionLevel {
             level,
             concepts: level_activations,
             resolution: 1.0 / level as f64,
-            complexity: level_activations.len() as f64,
+            complexity,
         });
     }
 
@@ -312,7 +312,7 @@ where
             super::image_processing::hdc_sequence_processing(sequence, sequence.len(), config)?;
         fusion_components.push(FusionComponent {
             modality: "temporal".to_string(),
-            encoding: temporal_encoding,
+            encoding: temporal_encoding.encoding,
             weight: fusion_config.temporal_weight,
         });
     }

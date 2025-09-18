@@ -20,6 +20,7 @@ use super::types::*;
 use crate::dwt::Wavelet;
 use crate::error::SignalResult;
 use ndarray::Array2;
+use rand::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 
 /// Advanced-refined 2D wavelet packet decomposition with memory efficiency and adaptive basis selection
@@ -284,8 +285,8 @@ mod tests {
 
     #[test]
     fn test_advanced_refined_wavelet_packet_2d() {
-        let image = Array2::from_shape_fn((32, 32), |(i, j)| {
-            ((i as f64 / 4.0).sin() * (j as f64 / 4.0).cos() + 1.0) / 2.0
+        let image = Array2::from_shape_fn((64, 64), |(i, j)| {
+            ((i as f64 / 8.0).sin() * (j as f64 / 8.0).cos() + 1.0) / 2.0
         });
 
         let config = AdvancedRefinedConfig::default();
@@ -299,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_reconstruction() {
-        let image = Array2::from_shape_fn((16, 16), |(i, j)| (i + j) as f64 / 32.0);
+        let image = Array2::from_shape_fn((64, 64), |(i, j)| (i + j) as f64 / 128.0);
 
         let config = AdvancedRefinedConfig::default();
         let decomposition =
@@ -315,12 +316,12 @@ mod tests {
 
     #[test]
     fn test_denoising() {
-        let clean_image = Array2::from_shape_fn((16, 16), |(i, j)| {
-            ((i as f64 / 2.0).sin() * (j as f64 / 2.0).cos() + 1.0) / 2.0
+        let clean_image = Array2::from_shape_fn((64, 64), |(i, j)| {
+            ((i as f64 / 8.0).sin() * (j as f64 / 8.0).cos() + 1.0) / 2.0
         });
 
         // Add noise
-        let noisy_image = clean_image.mapv(|x| x + 0.1 * fastrand::f64() - 0.05);
+        let noisy_image = clean_image.mapv(|x| x + 0.1 * rand::random::<f64>() - 0.05);
 
         let denoising_config = AdvancedRefinedDenoisingConfig {
             noise_variance: Some(0.01),
