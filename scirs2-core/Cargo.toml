@@ -98,6 +98,7 @@ gmp-mpfr-sys = { workspace = true, optional = true }  # Low-level GMP/MPFR bindi
 # For macOS, we don't include OpenBLAS dependencies - use system Accelerate framework
 # Metal GPU dependencies (macOS only)
 metal = { workspace = true, optional = true }  # Metal GPU backend for macOS
+objc2 = { workspace = true, optional = true }  # Objective-C runtime for Metal
 objc2-metal-performance-shaders = { workspace = true, optional = true }  # MPS integration for Metal
 
 # Linux: OpenBLAS by default (when openblas feature is enabled)
@@ -128,7 +129,7 @@ async = ["tokio", "async-trait"]  # Async error handling and recovery mechanisms
 gpu = []  # GPU acceleration abstractions
 cuda = ["gpu", "dep:cudarc"]  # CUDA-specific GPU acceleration
 opencl = ["gpu", "dep:opencl3"]  # OpenCL-specific GPU acceleration
-metal = ["gpu", "dep:metal", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple)
+metal = ["gpu", "dep:metal", "dep:objc2", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple)
 wgpu_backend = ["gpu", "dep:wgpu", "dep:pollster"]  # WebGPU-specific GPU acceleration
 rocm = ["gpu"]  # ROCm-specific GPU acceleration (AMD)
 memory_management = ["bincode", "tempfile"]  # Advanced memory management

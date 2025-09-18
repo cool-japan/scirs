@@ -2,12 +2,13 @@
 
 use num_traits::Float;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use serde::{Serialize, Deserialize};
 use super::adaptation::AdaptationConfig;
 
 /// Advanced configuration for optimization coordinator
 #[derive(Debug, Clone)]
-pub struct AdvancedConfig<T: Float> {
+pub struct AdvancedConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Enable neural architecture search
     pub enable_nas: bool,
 

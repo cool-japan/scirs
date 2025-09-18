@@ -9,9 +9,10 @@ use ndarray::Array1;
 use num_traits::Float;
 use rand::Rng;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 /// Secure Multi-Party Computation coordinator
-pub struct SMPCCoordinator<T: Float> {
+pub struct SMPCCoordinator<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration for SMPC protocols
     config: SMPCConfig,
 
@@ -171,7 +172,7 @@ pub enum SMPCProtocolState {
 }
 
 /// Shamir Secret Sharing implementation
-pub struct ShamirSecretSharing<T: Float> {
+pub struct ShamirSecretSharing<T: Float + Debug + Send + Sync + 'static> {
     /// Threshold for reconstruction
     threshold: usize,
 
@@ -185,7 +186,7 @@ pub struct ShamirSecretSharing<T: Float> {
     coefficients: Vec<T>,
 }
 
-impl<T: Float + Send + Sync> ShamirSecretSharing<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ShamirSecretSharing<T> {
     /// Create new secret sharing instance
     pub fn new(threshold: usize, numshares: usize) -> Self {
         // Use a large prime for field arithmetic
@@ -265,7 +266,7 @@ impl<T: Float + Send + Sync> ShamirSecretSharing<T> {
 }
 
 /// Cryptographic aggregator with formal security guarantees
-pub struct CryptographicAggregator<T: Float> {
+pub struct CryptographicAggregator<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: SMPCConfig,
 
@@ -279,7 +280,7 @@ pub struct CryptographicAggregator<T: Float> {
     aggregation_proofs: Vec<AggregationProof<T>>,
 }
 
-impl<T: Float + Send + Sync + ndarray::ScalarOperand> CryptographicAggregator<T> {
+impl<T: Float + Debug + Send + Sync + 'static + ndarray::ScalarOperand> CryptographicAggregator<T> {
     /// Create new cryptographic aggregator
     pub fn new(config: SMPCConfig) -> Self {
         Self {
@@ -442,7 +443,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> CryptographicAggregator<T>
 }
 
 /// Commitment scheme for input values
-pub struct CommitmentScheme<T: Float> {
+pub struct CommitmentScheme<T: Float + Debug + Send + Sync + 'static> {
     /// Random commitment key
     commitment_key: Vec<u8>,
 
@@ -450,7 +451,7 @@ pub struct CommitmentScheme<T: Float> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Float + Send + Sync> CommitmentScheme<T> {
+impl<T: Float + Debug + Send + Sync + 'static> CommitmentScheme<T> {
     /// Create new commitment scheme
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -480,7 +481,7 @@ impl<T: Float + Send + Sync> CommitmentScheme<T> {
 }
 
 /// Verification parameters for aggregation
-pub struct VerificationParameters<T: Float> {
+pub struct VerificationParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Verification key
     verification_key: Vec<u8>,
 
@@ -488,7 +489,7 @@ pub struct VerificationParameters<T: Float> {
     proof_params: ProofParameters<T>,
 }
 
-impl<T: Float + Send + Sync> VerificationParameters<T> {
+impl<T: Float + Debug + Send + Sync + 'static> VerificationParameters<T> {
     /// Create new verification parameters
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -517,7 +518,7 @@ impl<T: Float + Send + Sync> VerificationParameters<T> {
 }
 
 /// Proof parameters for cryptographic operations
-pub struct ProofParameters<T: Float> {
+pub struct ProofParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Generator elements
     generators: Vec<T>,
 
@@ -525,7 +526,7 @@ pub struct ProofParameters<T: Float> {
     system_params: Vec<u8>,
 }
 
-impl<T: Float + Send + Sync> ProofParameters<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ProofParameters<T> {
     /// Create new proof parameters
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -542,7 +543,7 @@ impl<T: Float + Send + Sync> ProofParameters<T> {
 }
 
 /// Homomorphic encryption engine
-pub struct HomomorphicEngine<T: Float> {
+pub struct HomomorphicEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Encryption parameters
     params: HomomorphicParameters<T>,
 
@@ -553,7 +554,7 @@ pub struct HomomorphicEngine<T: Float> {
     private_key: Vec<u8>,
 }
 
-impl<T: Float + Send + Sync> HomomorphicEngine<T> {
+impl<T: Float + Debug + Send + Sync + 'static> HomomorphicEngine<T> {
     /// Create new homomorphic encryption engine
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -656,7 +657,7 @@ impl<T: Float + Send + Sync> HomomorphicEngine<T> {
 
 /// Homomorphic encryption parameters
 #[derive(Debug, Clone)]
-pub struct HomomorphicParameters<T: Float> {
+pub struct HomomorphicParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Security level
     pub security_level: usize,
 
@@ -667,7 +668,7 @@ pub struct HomomorphicParameters<T: Float> {
     pub modulus: u128,
 }
 
-impl<T: Float + Send + Sync> HomomorphicParameters<T> {
+impl<T: Float + Debug + Send + Sync + 'static> HomomorphicParameters<T> {
     /// Create new homomorphic parameters
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -685,7 +686,7 @@ impl<T: Float + Send + Sync> HomomorphicParameters<T> {
 
 /// Homomorphic ciphertext
 #[derive(Debug, Clone)]
-pub struct HomomorphicCiphertext<T: Float> {
+pub struct HomomorphicCiphertext<T: Float + Debug + Send + Sync + 'static> {
     /// Encrypted data
     pub data: Vec<Vec<u8>>,
 
@@ -694,7 +695,7 @@ pub struct HomomorphicCiphertext<T: Float> {
 }
 
 /// Zero-knowledge proof system
-pub struct ZKProofSystem<T: Float> {
+pub struct ZKProofSystem<T: Float + Debug + Send + Sync + 'static> {
     /// Proof parameters
     params: ZKProofParameters<T>,
 
@@ -702,7 +703,7 @@ pub struct ZKProofSystem<T: Float> {
     crs: Vec<u8>,
 }
 
-impl<T: Float + Send + Sync> ZKProofSystem<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ZKProofSystem<T> {
     /// Create new zero-knowledge proof system
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -772,7 +773,7 @@ impl<T: Float + Send + Sync> ZKProofSystem<T> {
 
 /// Zero-knowledge proof parameters
 #[derive(Debug, Clone)]
-pub struct ZKProofParameters<T: Float> {
+pub struct ZKProofParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Security parameter
     pub security_param: usize,
 
@@ -783,7 +784,7 @@ pub struct ZKProofParameters<T: Float> {
     pub circuit_params: Vec<T>,
 }
 
-impl<T: Float + Send + Sync> ZKProofParameters<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ZKProofParameters<T> {
     /// Create new ZK proof parameters
     pub fn new() -> Self {
         let mut rng = scirs2_core::random::Random::seed(42);
@@ -814,7 +815,7 @@ pub enum ZKProofType {
 
 /// Zero-knowledge proof
 #[derive(Debug, Clone)]
-pub struct ZKProof<T: Float> {
+pub struct ZKProof<T: Float + Debug + Send + Sync + 'static> {
     /// Statement being proved
     pub statement: String,
 
@@ -833,7 +834,7 @@ pub struct ZKProof<T: Float> {
 
 /// Aggregation proof
 #[derive(Debug, Clone)]
-pub struct AggregationProof<T: Float> {
+pub struct AggregationProof<T: Float + Debug + Send + Sync + 'static> {
     /// Commitment to aggregate result
     pub aggregate_commitment: Vec<u8>,
 
@@ -852,7 +853,7 @@ pub struct AggregationProof<T: Float> {
 
 /// Secure aggregation result
 #[derive(Debug, Clone)]
-pub struct SecureAggregationResult<T: Float> {
+pub struct SecureAggregationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Aggregated result
     pub aggregate: Array1<T>,
 
@@ -866,7 +867,7 @@ pub struct SecureAggregationResult<T: Float> {
     pub security_level: CommunicationSecurity,
 }
 
-impl<T: Float + Send + Sync + ndarray::ScalarOperand> SMPCCoordinator<T> {
+impl<T: Float + Debug + Send + Sync + 'static + ndarray::ScalarOperand> SMPCCoordinator<T> {
     /// Create new SMPC coordinator
     pub fn new(config: SMPCConfig) -> Result<Self> {
         let secret_sharing = ShamirSecretSharing::new(config.threshold, config.num_participants);
@@ -1119,7 +1120,7 @@ pub enum SMPCComputation {
 
 /// SMPC computation result
 #[derive(Debug, Clone)]
-pub struct SMPCResult<T: Float> {
+pub struct SMPCResult<T: Float + Debug + Send + Sync + 'static> {
     /// Computation result
     pub result: Array1<T>,
 

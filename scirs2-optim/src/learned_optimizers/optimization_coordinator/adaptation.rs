@@ -32,7 +32,7 @@ pub struct AdaptationController<T: Float + Send + Sync + Debug> {
 
 /// Adaptation state tracking current system state
 #[derive(Debug, Clone)]
-pub struct AdaptationState<T: Float> {
+pub struct AdaptationState<T: Float + Debug + Send + Sync + 'static> {
     /// Last adaptation timestamp
     pub last_adaptation_time: SystemTime,
 
@@ -51,7 +51,7 @@ pub struct AdaptationState<T: Float> {
 
 /// Adaptation configuration
 #[derive(Debug, Clone)]
-pub struct AdaptationConfig<T: Float> {
+pub struct AdaptationConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Maximum adaptations per time window
     pub max_adaptations_per_window: usize,
 
@@ -70,7 +70,7 @@ pub struct AdaptationConfig<T: Float> {
 
 /// Adaptation event record
 #[derive(Debug, Clone)]
-pub struct AdaptationEvent<T: Float> {
+pub struct AdaptationEvent<T: Float + Debug + Send + Sync + 'static> {
     /// Event timestamp
     pub timestamp: SystemTime,
 
@@ -139,7 +139,7 @@ pub trait AdaptationStrategy<T: Float>: Send + Sync + Debug {
 
 /// Result of an adaptation operation
 #[derive(Debug, Clone)]
-pub struct AdaptationResult<T: Float> {
+pub struct AdaptationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Success status
     pub success: bool,
 
@@ -161,7 +161,7 @@ pub struct AdaptationResult<T: Float> {
 
 /// Performance degradation trigger
 #[derive(Debug)]
-pub struct PerformanceDegradationTrigger<T: Float> {
+pub struct PerformanceDegradationTrigger<T: Float + Debug + Send + Sync + 'static> {
     /// Performance drop threshold
     pub threshold: T,
 
@@ -174,7 +174,7 @@ pub struct PerformanceDegradationTrigger<T: Float> {
 
 /// Resource constraint trigger
 #[derive(Debug)]
-pub struct ResourceConstraintTrigger<T: Float> {
+pub struct ResourceConstraintTrigger<T: Float + Debug + Send + Sync + 'static> {
     /// Memory utilization threshold
     pub memory_threshold: T,
 
@@ -187,7 +187,7 @@ pub struct ResourceConstraintTrigger<T: Float> {
 
 /// Convergence stagnation trigger
 #[derive(Debug)]
-pub struct ConvergenceStagnationTrigger<T: Float> {
+pub struct ConvergenceStagnationTrigger<T: Float + Debug + Send + Sync + 'static> {
     /// Stagnation threshold
     pub stagnation_threshold: T,
 
@@ -197,7 +197,7 @@ pub struct ConvergenceStagnationTrigger<T: Float> {
 
 /// Learning rate adaptation strategy
 #[derive(Debug)]
-pub struct LearningRateAdaptationStrategy<T: Float> {
+pub struct LearningRateAdaptationStrategy<T: Float + Debug + Send + Sync + 'static> {
     /// Adaptation factor
     pub adaptation_factor: T,
 
@@ -210,7 +210,7 @@ pub struct LearningRateAdaptationStrategy<T: Float> {
 
 /// Optimizer selection adaptation strategy
 #[derive(Debug)]
-pub struct OptimizerSelectionStrategy<T: Float> {
+pub struct OptimizerSelectionStrategy<T: Float + Debug + Send + Sync + 'static> {
     /// Available optimizers
     pub available_optimizers: Vec<String>,
 

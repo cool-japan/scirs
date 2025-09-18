@@ -51,7 +51,7 @@ pub struct OptimizationContext<T: Float + Send + Sync + Debug> {
 
 /// Current optimization state
 #[derive(Debug, Clone)]
-pub struct OptimizationState<T: Float> {
+pub struct OptimizationState<T: Float + Debug + Send + Sync + 'static> {
     /// Current iteration number
     pub current_iteration: usize,
 
@@ -85,7 +85,7 @@ pub struct OptimizationState<T: Float> {
 
 /// Adaptive optimizer state
 #[derive(Debug, Clone)]
-pub struct AdaptiveState<T: Float> {
+pub struct AdaptiveState<T: Float + Debug + Send + Sync + 'static> {
     /// First moment estimate (Adam, etc.)
     pub first_moment: Option<Array1<T>>,
 
@@ -104,7 +104,7 @@ pub struct AdaptiveState<T: Float> {
 
 /// Learning rate schedule
 #[derive(Debug, Clone)]
-pub struct LearningRateSchedule<T: Float> {
+pub struct LearningRateSchedule<T: Float + Debug + Send + Sync + 'static> {
     /// Schedule type
     pub schedule_type: ScheduleType,
 
@@ -123,7 +123,7 @@ pub struct LearningRateSchedule<T: Float> {
 
 /// Bias correction for adaptive optimizers
 #[derive(Debug, Clone)]
-pub struct BiasCorrection<T: Float> {
+pub struct BiasCorrection<T: Float + Debug + Send + Sync + 'static> {
     /// First moment bias correction
     pub beta1_correction: T,
 
@@ -134,9 +134,32 @@ pub struct BiasCorrection<T: Float> {
     pub power: usize,
 }
 
+/// Problem type classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProblemType {
+    /// Unconstrained optimization
+    Unconstrained,
+    /// Constrained optimization
+    Constrained,
+    /// Multi-objective optimization
+    MultiObjective,
+    /// Stochastic optimization
+    Stochastic,
+    /// Discrete optimization
+    Discrete,
+    /// Mixed-integer optimization
+    MixedInteger,
+}
+
+impl Default for ProblemType {
+    fn default() -> Self {
+        ProblemType::Unconstrained
+    }
+}
+
 /// Problem characteristics
 #[derive(Debug, Clone)]
-pub struct ProblemCharacteristics<T: Float> {
+pub struct ProblemCharacteristics<T: Float + Debug + Send + Sync + 'static> {
     /// Problem dimensionality
     pub dimensionality: usize,
 
@@ -170,7 +193,7 @@ pub struct ProblemCharacteristics<T: Float> {
 
 /// Resource constraints
 #[derive(Debug, Clone)]
-pub struct ResourceConstraints<T: Float> {
+pub struct ResourceConstraints<T: Float + Debug + Send + Sync + 'static> {
     /// Maximum memory usage (MB)
     pub max_memory: T,
 
@@ -239,7 +262,7 @@ pub enum OptimizationPhase {
 
 /// State transition information
 #[derive(Debug, Clone)]
-pub struct StateTransition<T: Float> {
+pub struct StateTransition<T: Float + Debug + Send + Sync + 'static> {
     /// Source phase
     pub from_phase: OptimizationPhase,
 
@@ -288,7 +311,7 @@ pub enum TransitionReason {
 
 /// Landscape features for problem analysis
 #[derive(Debug, Clone)]
-pub struct LandscapeFeatures<T: Float> {
+pub struct LandscapeFeatures<T: Float + Debug + Send + Sync + 'static> {
     /// Curvature information
     pub curvature_info: CurvatureInfo<T>,
 
@@ -316,7 +339,7 @@ pub struct LandscapeFeatures<T: Float> {
 
 /// Curvature information
 #[derive(Debug, Clone)]
-pub struct CurvatureInfo<T: Float> {
+pub struct CurvatureInfo<T: Float + Debug + Send + Sync + 'static> {
     /// Mean curvature
     pub mean_curvature: T,
 
@@ -338,7 +361,7 @@ pub struct CurvatureInfo<T: Float> {
 
 /// Eigenvalue distribution characteristics
 #[derive(Debug, Clone)]
-pub struct EigenvalueDistribution<T: Float> {
+pub struct EigenvalueDistribution<T: Float + Debug + Send + Sync + 'static> {
     /// Largest eigenvalue
     pub largest_eigenvalue: T,
 
@@ -360,7 +383,7 @@ pub struct EigenvalueDistribution<T: Float> {
 
 /// Gradient characteristics
 #[derive(Debug, Clone)]
-pub struct GradientCharacteristics<T: Float> {
+pub struct GradientCharacteristics<T: Float + Debug + Send + Sync + 'static> {
     /// Current gradient norm
     pub gradient_norm: T,
 
@@ -385,7 +408,7 @@ pub struct GradientCharacteristics<T: Float> {
 
 /// Local geometry features
 #[derive(Debug, Clone)]
-pub struct LocalGeometry<T: Float> {
+pub struct LocalGeometry<T: Float + Debug + Send + Sync + 'static> {
     /// Local minima density
     pub local_minima_density: T,
 
@@ -410,7 +433,7 @@ pub struct LocalGeometry<T: Float> {
 
 /// Global structure features
 #[derive(Debug, Clone)]
-pub struct GlobalStructure<T: Float> {
+pub struct GlobalStructure<T: Float + Debug + Send + Sync + 'static> {
     /// Connectivity measure
     pub connectivity: T,
 
@@ -435,7 +458,7 @@ pub struct GlobalStructure<T: Float> {
 
 /// Noise characteristics
 #[derive(Debug, Clone)]
-pub struct NoiseCharacteristics<T: Float> {
+pub struct NoiseCharacteristics<T: Float + Debug + Send + Sync + 'static> {
     /// Noise level
     pub noise_level: T,
 
@@ -477,7 +500,7 @@ pub enum NoiseType {
 
 /// Trajectory features
 #[derive(Debug, Clone)]
-pub struct TrajectoryFeatures<T: Float> {
+pub struct TrajectoryFeatures<T: Float + Debug + Send + Sync + 'static> {
     /// Path length
     pub path_length: T,
 
@@ -502,7 +525,7 @@ pub struct TrajectoryFeatures<T: Float> {
 
 /// Optimization statistics
 #[derive(Debug, Clone)]
-pub struct OptimizationStatistics<T: Float> {
+pub struct OptimizationStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Total iterations performed
     pub total_iterations: usize,
 
@@ -533,7 +556,7 @@ pub struct OptimizationStatistics<T: Float> {
 
 /// Convergence record
 #[derive(Debug, Clone)]
-pub struct ConvergenceRecord<T: Float> {
+pub struct ConvergenceRecord<T: Float + Debug + Send + Sync + 'static> {
     /// Iteration number
     pub iteration: usize,
 
@@ -555,7 +578,7 @@ pub struct ConvergenceRecord<T: Float> {
 
 /// Performance metrics
 #[derive(Debug, Clone)]
-pub struct PerformanceMetrics<T: Float> {
+pub struct PerformanceMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Convergence speed
     pub convergence_speed: T,
 
@@ -627,7 +650,7 @@ pub struct ComputationalBudget {
 
 /// Convergence criteria
 #[derive(Debug, Clone)]
-pub struct ConvergenceCriteria<T: Float> {
+pub struct ConvergenceCriteria<T: Float + Debug + Send + Sync + 'static> {
     /// Tolerance for function value changes
     pub function_tolerance: T,
 
@@ -677,7 +700,7 @@ pub struct StateManager<T: Float + Send + Sync + Debug> {
 
 /// State snapshot for checkpointing
 #[derive(Debug, Clone)]
-pub struct StateSnapshot<T: Float> {
+pub struct StateSnapshot<T: Float + Debug + Send + Sync + 'static> {
     /// Snapshot timestamp
     pub timestamp: SystemTime,
 
@@ -964,7 +987,7 @@ impl<T: Float + Send + Sync + Debug> StateManager<T> {
 
 /// State statistics
 #[derive(Debug, Clone)]
-pub struct StateStatistics<T: Float> {
+pub struct StateStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Total number of state transitions
     pub total_transitions: usize,
 
@@ -1007,7 +1030,7 @@ impl<T: Float + Send + Sync + Debug> Default for OptimizationContext<T> {
     }
 }
 
-impl<T: Float> Default for OptimizationState<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for OptimizationState<T> {
     fn default() -> Self {
         Self {
             current_iteration: 0,
@@ -1024,7 +1047,7 @@ impl<T: Float> Default for OptimizationState<T> {
     }
 }
 
-impl<T: Float> Default for ProblemCharacteristics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ProblemCharacteristics<T> {
     fn default() -> Self {
         Self {
             dimensionality: 100,
@@ -1041,7 +1064,7 @@ impl<T: Float> Default for ProblemCharacteristics<T> {
     }
 }
 
-impl<T: Float> Default for ResourceConstraints<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ResourceConstraints<T> {
     fn default() -> Self {
         Self {
             max_memory: num_traits::cast::cast(8192.0).unwrap_or_else(|| T::zero()), // 8GB
@@ -1084,7 +1107,7 @@ impl Default for ComputationalBudget {
     }
 }
 
-impl<T: Float> Default for ConvergenceCriteria<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ConvergenceCriteria<T> {
     fn default() -> Self {
         Self {
             function_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
@@ -1099,7 +1122,7 @@ impl<T: Float> Default for ConvergenceCriteria<T> {
     }
 }
 
-impl<T: Float> Default for OptimizationStatistics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for OptimizationStatistics<T> {
     fn default() -> Self {
         Self {
             total_iterations: 0,
@@ -1115,7 +1138,7 @@ impl<T: Float> Default for OptimizationStatistics<T> {
     }
 }
 
-impl<T: Float> Default for PerformanceMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for PerformanceMetrics<T> {
     fn default() -> Self {
         Self {
             convergence_speed: T::zero(),
@@ -1153,6 +1176,15 @@ impl Default for StatePersistenceConfig {
         }
     }
 }
+
+
+
+
+
+
+
+
+
 
 #[cfg(test)]
 mod tests {

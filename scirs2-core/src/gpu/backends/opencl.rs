@@ -459,7 +459,7 @@ impl GpuKernelImpl for OpenCLKernelHandle {
         params.insert(name.to_string(), KernelParam::F64(value));
     }
 
-    fn dispatch_workgroups(&self, workgroups: [u32; 3]) {
+    fn dispatch(&self, workgroups: [u32; 3]) {
         #[cfg(feature = "opencl")]
         {
             // Real OpenCL kernel execution
@@ -493,7 +493,7 @@ impl GpuKernelImpl for OpenCLKernelHandle {
                 // Execute kernel
                 let event = unsafe {
                     execute_kernel
-                        .set_global_work_size(work_groups[0] as usize)
+                        .set_global_work_size(workgroups[0] as usize)
                         .set_local_work_size(64)
                         .enqueue_nd_range(&kernel.queue)
                 };
@@ -732,7 +732,7 @@ impl OpenCLMemoryPool {
         // Define power-of-2 size classes for optimal bucketing
         let size_classes = (0..32)
             .map(|i| 1usize << i)
-            .filter(|&size| size <= total_size)
+            .filter(|&size| size <= totalsize)
             .collect();
 
         Self {
@@ -740,7 +740,7 @@ impl OpenCLMemoryPool {
             size_classes,
             allocation_stats: HashMap::new(),
             memory_pressure_threshold: 0.85, // Trigger cleanup at 85% usage
-            total_size,
+            total_size: totalsize,
             used_size: 0,
             peak_used_size: 0,
             fragmentation_ratio: 0.0,
@@ -753,11 +753,11 @@ impl OpenCLMemoryPool {
     fn get_size_class(&self, requestedsize: usize) -> usize {
         self.size_classes
             .iter()
-            .find(|&&class_size| class_size >= requested_size)
+            .find(|&&class_size| class_size >= requestedsize)
             .copied()
             .unwrap_or_else(|| {
                 // For sizes larger than our classes, round up to the nearest 4KB boundary
-                ((requested_size + 4095) / 4096) * 4096
+                ((requestedsize + 4095) / 4096) * 4096
             })
     }
 
@@ -833,7 +833,7 @@ impl OpenCLMemoryPool {
     fn update_allocation_stats(&mut self, sizeclass: usize, allocated: bool) {
         let stats = self
             .allocation_stats
-            .entry(size_class)
+            .entry(sizeclass)
             .or_insert_with(|| AllocationStats {
                 total_allocations: 0,
                 total_deallocations: 0,
@@ -845,7 +845,7 @@ impl OpenCLMemoryPool {
 
         if allocated {
             stats.total_allocations += 1;
-            stats.total_bytes_allocated += size_class as u64;
+            stats.total_bytes_allocated += sizeclass as u64;
             stats.current_allocations += 1;
             stats.peak_concurrent_allocations = stats
                 .peak_concurrent_allocations

@@ -424,7 +424,7 @@ impl GpuKernelImpl for MetalKernel {
             .insert(name.to_string(), ScalarValue::F64(value));
     }
 
-    fn dispatch_workgroups(&self, workgroups: [u32; 3]) {
+    fn dispatch(&self, workgroups: [u32; 3]) {
         let Some(pipeline) = &self.pipeline else {
             eprintln!("Warning: Attempting to dispatch stub kernel");
             return;

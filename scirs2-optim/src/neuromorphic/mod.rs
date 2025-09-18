@@ -8,6 +8,7 @@ use crate::error::Result;
 use crate::optimizers::Optimizer;
 use ndarray::{Array1, Array2, ArrayBase, Data, DataMut, Dimension};
 use num_traits::Float;
+use std::fmt::Debug;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -45,7 +46,7 @@ pub enum NeuromorphicPlatform {
 /// Neuromorphic optimization configuration
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct NeuromorphicConfig<T: Float> {
+pub struct NeuromorphicConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Target neuromorphic platform
     pub platform: NeuromorphicPlatform,
     
@@ -84,7 +85,7 @@ pub struct NeuromorphicConfig<T: Float> {
 
 /// Spike Timing Dependent Plasticity configuration
 #[derive(Debug, Clone)]
-pub struct STDPConfig<T: Float> {
+pub struct STDPConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Learning rate for potentiation
     pub learning_rate_pot: T,
     
@@ -111,7 +112,7 @@ pub struct STDPConfig<T: Float> {
 
 /// Membrane potential dynamics configuration
 #[derive(Debug, Clone)]
-pub struct MembraneDynamicsConfig<T: Float> {
+pub struct MembraneDynamicsConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Membrane time constant (ms)
     pub tau_membrane: T,
     
@@ -232,7 +233,7 @@ pub enum SynchronizationMechanism {
 /// Energy optimization configuration
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct EnergyOptimizationConfig<T: Float> {
+pub struct EnergyOptimizationConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Energy budget (nJ per operation)
     pub energy_budget: T,
     
@@ -260,7 +261,7 @@ pub struct EnergyOptimizationConfig<T: Float> {
 /// Sleep mode configuration for energy efficiency
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct SleepModeConfig<T: Float> {
+pub struct SleepModeConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Enable sleep mode
     pub enable_sleep_mode: bool,
     
@@ -279,7 +280,7 @@ pub struct SleepModeConfig<T: Float> {
 /// Thermal management configuration
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct ThermalManagementConfig<T: Float> {
+pub struct ThermalManagementConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Enable thermal management
     pub enable_thermal_management: bool,
     
@@ -317,7 +318,7 @@ pub enum ThermalThrottlingStrategy {
 /// Spike representation for neuromorphic optimization
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct Spike<T: Float> {
+pub struct Spike<T: Float + Debug + Send + Sync + 'static> {
     /// Neuron ID
     pub neuron_id: usize,
     
@@ -341,7 +342,7 @@ pub struct Spike<T: Float> {
 
 /// Spike train representation
 #[derive(Debug, Clone)]
-pub struct SpikeTrain<T: Float> {
+pub struct SpikeTrain<T: Float + Debug + Send + Sync + 'static> {
     /// Neuron ID
     pub neuron_id: usize,
     
@@ -360,7 +361,7 @@ pub struct SpikeTrain<T: Float> {
     /// Spike count
     pub spike_count: usize}
 
-impl<T: Float + Send + Sync> SpikeTrain<T> {
+impl<T: Float + Debug + Send + Sync + 'static> SpikeTrain<T> {
     /// Create a new spike train from spike times
     pub fn new(_neuron_id: usize, spiketimes: Vec<T>) -> Self {
         let spike_count = spike_times.len();
@@ -435,7 +436,7 @@ impl<T: Float + Send + Sync> SpikeTrain<T> {
 /// Event-driven update representation
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct NeuromorphicEvent<T: Float> {
+pub struct NeuromorphicEvent<T: Float + Debug + Send + Sync + 'static> {
     /// Event type
     pub event_type: EventType,
     
@@ -469,7 +470,7 @@ pub enum EventPriority {
 
 /// Neuromorphic optimization metrics
 #[derive(Debug, Clone)]
-pub struct NeuromorphicMetrics<T: Float> {
+pub struct NeuromorphicMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Total spikes processed
     pub total_spikes: usize,
     
@@ -500,7 +501,7 @@ pub struct NeuromorphicMetrics<T: Float> {
     /// Network synchronization measure
     pub network_synchronization: T}
 
-impl<T: Float> Default for NeuromorphicMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for NeuromorphicMetrics<T> {
     fn default() -> Self {
         Self {
             total_spikes: 0,
@@ -516,7 +517,7 @@ impl<T: Float> Default for NeuromorphicMetrics<T> {
     }
 }
 
-impl<T: Float> Default for NeuromorphicConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for NeuromorphicConfig<T> {
     fn default() -> Self {
         Self {
             platform: NeuromorphicPlatform::IntelLoihi,
@@ -534,7 +535,7 @@ impl<T: Float> Default for NeuromorphicConfig<T> {
     }
 }
 
-impl<T: Float> Default for STDPConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for STDPConfig<T> {
     fn default() -> Self {
         Self {
             learning_rate_pot: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
@@ -548,7 +549,7 @@ impl<T: Float> Default for STDPConfig<T> {
     }
 }
 
-impl<T: Float> Default for MembraneDynamicsConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for MembraneDynamicsConfig<T> {
     fn default() -> Self {
         Self {
             tau_membrane: num_traits::cast::cast(20.0).unwrap_or_else(|| T::zero()),
@@ -576,7 +577,7 @@ impl Default for PopulationConfig {
     }
 }
 
-impl<T: Float> Default for EnergyOptimizationConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for EnergyOptimizationConfig<T> {
     fn default() -> Self {
         Self {
             energy_budget: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()), // 10 nJ per operation
@@ -590,7 +591,7 @@ impl<T: Float> Default for EnergyOptimizationConfig<T> {
     }
 }
 
-impl<T: Float> Default for SleepModeConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for SleepModeConfig<T> {
     fn default() -> Self {
         Self {
             enable_sleep_mode: true,
@@ -601,7 +602,7 @@ impl<T: Float> Default for SleepModeConfig<T> {
     }
 }
 
-impl<T: Float> Default for ThermalManagementConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ThermalManagementConfig<T> {
     fn default() -> Self {
         Self {
             enable_thermal_management: true,

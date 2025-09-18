@@ -293,7 +293,7 @@ impl WebGPUContext {
                         binding: binding_index,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read, only: false },
+                            ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
@@ -612,7 +612,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
         params.insert(name.to_string(), KernelParam::F64(value));
     }
 
-    fn dispatch_workgroups(&self, workgroups: [u32; 3]) {
+    fn dispatch(&self, workgroups: [u32; 3]) {
         #[cfg(feature = "wgpu_backend")]
         {
             // Real WebGPU compute dispatch

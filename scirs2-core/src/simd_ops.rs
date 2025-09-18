@@ -850,7 +850,6 @@ mod tests {
     use ndarray::arr1;
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_unified_ops_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0]);
         let b = arr1(&[5.0f32, 6.0, 7.0, 8.0]);

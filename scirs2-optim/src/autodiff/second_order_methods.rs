@@ -5,6 +5,7 @@
 
 use ndarray::{Array, Array1, Array2, Axis};
 use num_traits::Float;
+use std::fmt::Debug;
 use std::collections::VecDeque;
 
 use crate::autodiff::{AutodiffEngine, HigherOrderGradients, HessianMatrix, HessianComputationStrategy, JacobianComputationStrategy};
@@ -88,7 +89,7 @@ pub enum LineSearchMethod {
     Exact}
 
 /// Newton's method optimizer with automatic differentiation
-pub struct NewtonOptimizer<T: Float> {
+pub struct NewtonOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: SecondOrderConfig,
     
@@ -108,7 +109,7 @@ pub struct NewtonOptimizer<T: Float> {
     trust_region_state: TrustRegionState<T>}
 
 /// Quasi-Newton optimizer (BFGS/L-BFGS)
-pub struct QuasiNewtonOptimizer<T: Float> {
+pub struct QuasiNewtonOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: SecondOrderConfig,
     
@@ -125,7 +126,7 @@ pub struct QuasiNewtonOptimizer<T: Float> {
     convergence_history: VecDeque<ConvergenceMetrics<T>>}
 
 /// K-FAC (Kronecker-Factored Approximate Curvature) optimizer
-pub struct KFACOptimizer<T: Float> {
+pub struct KFACOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: SecondOrderConfig,
     
@@ -142,7 +143,7 @@ pub struct KFACOptimizer<T: Float> {
     layer_info: Vec<LayerInfo>}
 
 /// Natural gradient optimizer
-pub struct NaturalGradientOptimizer<T: Float> {
+pub struct NaturalGradientOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: SecondOrderConfig,
     
@@ -160,7 +161,7 @@ pub struct NaturalGradientOptimizer<T: Float> {
 
 /// Trust region state
 #[derive(Debug, Clone)]
-pub struct TrustRegionState<T: Float> {
+pub struct TrustRegionState<T: Float + Debug + Send + Sync + 'static> {
     /// Current trust region radius
     pub radius: T,
     
@@ -181,7 +182,7 @@ pub struct TrustRegionState<T: Float> {
 
 /// BFGS memory for quasi-Newton methods
 #[derive(Debug, Clone)]
-pub struct BFGSMemory<T: Float> {
+pub struct BFGSMemory<T: Float + Debug + Send + Sync + 'static> {
     /// Memory size
     pub memory_size: usize,
     
@@ -199,7 +200,7 @@ pub struct BFGSMemory<T: Float> {
 
 /// KFAC state for neural network optimization
 #[derive(Debug, Clone)]
-pub struct KFACState<T: Float> {
+pub struct KFACState<T: Float + Debug + Send + Sync + 'static> {
     /// A matrices (input covariances)
     pub a_matrices: Vec<Array2<T>>,
     
@@ -253,7 +254,7 @@ pub enum LayerType {
 
 /// Convergence metrics for optimization
 #[derive(Debug, Clone)]
-pub struct ConvergenceMetrics<T: Float> {
+pub struct ConvergenceMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Iteration number
     pub iteration: usize,
     

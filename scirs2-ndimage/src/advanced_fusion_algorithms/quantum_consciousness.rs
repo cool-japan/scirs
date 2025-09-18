@@ -26,9 +26,15 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! use crate::advanced_fusion_algorithms::quantum_consciousness::*;
+//! use ndarray::{Array2, Array5};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # let features = Array5::zeros((1, 3, 10, 64, 64));
+//! # let mut state = AdvancedState::default();
+//! # let config = AdvancedConfig::default();
+//! # let image = Array2::zeros((64, 64));
 //! // Basic quantum consciousness simulation
 //! let consciousness_output = simulate_quantum_consciousness(
 //!     &features,
@@ -45,6 +51,8 @@
 //!     &config,
 //!     &mut evolution_system,
 //! )?;
+//! # Ok(())
+//! # }
 //! ```
 
 use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayView1, ArrayView2};

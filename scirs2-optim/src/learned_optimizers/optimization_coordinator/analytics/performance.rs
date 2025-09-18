@@ -45,7 +45,7 @@ pub struct PerformanceAnalyzer<T: Float + Send + Sync + Debug> {
 
 /// Performance snapshot for point-in-time analysis
 #[derive(Debug, Clone)]
-pub struct PerformanceSnapshot<T: Float> {
+pub struct PerformanceSnapshot<T: Float + Debug + Send + Sync + 'static> {
     /// Timestamp of snapshot
     pub timestamp: SystemTime,
 
@@ -85,7 +85,7 @@ pub struct PerformanceSnapshot<T: Float> {
 
 /// Comprehensive performance metrics
 #[derive(Debug, Clone)]
-pub struct PerformanceMetrics<T: Float> {
+pub struct PerformanceMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Primary loss value
     pub loss: T,
 
@@ -119,7 +119,7 @@ pub struct PerformanceMetrics<T: Float> {
 
 /// Performance context information
 #[derive(Debug, Clone)]
-pub struct PerformanceContext<T: Float> {
+pub struct PerformanceContext<T: Float + Debug + Send + Sync + 'static> {
     /// Model architecture
     pub model_architecture: String,
 
@@ -147,7 +147,7 @@ pub struct PerformanceContext<T: Float> {
 
 /// Resource usage tracking
 #[derive(Debug, Clone)]
-pub struct ResourceUsage<T: Float> {
+pub struct ResourceUsage<T: Float + Debug + Send + Sync + 'static> {
     /// CPU usage percentage
     pub cpu_usage: f32,
 
@@ -219,7 +219,7 @@ pub enum ModelType {
 
 /// Model parameters
 #[derive(Debug, Clone)]
-pub struct ModelParameters<T: Float> {
+pub struct ModelParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Weight coefficients
     pub weights: Array1<T>,
 
@@ -831,7 +831,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> PerformanceContextTracker
 }
 
 // Default implementations
-impl<T: Float> Default for PerformanceMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for PerformanceMetrics<T> {
     fn default() -> Self {
         Self {
             loss: T::zero(),

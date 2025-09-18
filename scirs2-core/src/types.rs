@@ -623,7 +623,7 @@ mod tests {
     }
 }
 
-// # Enhanced Type Conversions (Alpha 6)
+// # Enhanced Type Conversions (Beta 2)
 //
 // This section provides advanced type conversion features including precision tracking,
 // unit conversion, dimensional analysis, and specialized scientific computing types.

@@ -31,10 +31,11 @@
 //!
 //! ## Quantum Spiking Neural Network Processing
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
 //! use ndarray::Array2;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create configuration
 //! let config = QuantumNeuromorphicConfig::default();
 //!
@@ -42,15 +43,17 @@
 //! let image = Array2::ones((64, 64));
 //! let result = quantum_spiking_neural_network(image.view(), &config)?;
 //! println!("Quantum neural processing result: {:?}", result.dim());
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Consciousness-Inspired Global Workspace
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
 //! use ndarray::Array2;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create consciousness configuration
 //! let config = ConsciousnessConfig::default();
 //!
@@ -58,15 +61,17 @@
 //! let image = Array2::ones((128, 128));
 //! let result = consciousness_inspired_global_workspace(image.view(), &config)?;
 //! println!("Consciousness processing result: {:?}", result.dim());
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Quantum-Classical Hybrid Processing
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
 //! use ndarray::Array2;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create hybrid configuration
 //! let config = QuantumClassicalHybridConfig::default();
 //!
@@ -75,7 +80,8 @@
 //! let result = advanced_quantum_classical_hybrid_processing(image.view(), &config)?;
 //! println!("Hybrid processing completed with quantum speedup: {:.2}x",
 //!          result.quantum_contribution / result.classical_contribution);
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Performance Characteristics

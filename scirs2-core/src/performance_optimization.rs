@@ -759,8 +759,8 @@ impl AdaptiveOptimizer {
                 .insert(strategy, performance_score);
         }
 
-        // TODO: Implement adaptive threshold updates based on performance
-        // self.update_thresholds(operation, size, duration_ns);
+        // Implement adaptive threshold updates based on performance
+        self.update_thresholds(operation, size, duration_ns);
     }
 
     /// Get performance metrics for analysis
@@ -853,6 +853,94 @@ impl AdaptiveOptimizer {
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             false
+        }
+    }
+
+    /// Update thresholds adaptively based on performance measurements
+    fn update_thresholds(&self, operation: &str, size: usize, duration_ns: u64) {
+        // Calculate operation efficiency (operations per nanosecond)
+        let ops_per_ns = size as f64 / duration_ns as f64;
+
+        // Get current strategy
+        let current_strategy = self.select_optimal_strategy(operation, size);
+
+        // Define efficiency targets for each strategy
+        const PARALLEL_MIN_EFFICIENCY: f64 = 0.5; // Minimum ops/ns for parallel to be worthwhile
+        const SIMD_MIN_EFFICIENCY: f64 = 2.0; // Minimum ops/ns for SIMD to be worthwhile
+        const GPU_MIN_EFFICIENCY: f64 = 10.0; // Minimum ops/ns for GPU to be worthwhile
+
+        match current_strategy {
+            OptimizationStrategy::Parallel => {
+                if ops_per_ns < PARALLEL_MIN_EFFICIENCY {
+                    // Parallel overhead is too high, increase threshold
+                    let new_threshold = (size as f64 * 1.2) as usize;
+                    self.parallel_threshold
+                        .store(new_threshold, Ordering::Relaxed);
+                } else if ops_per_ns > PARALLEL_MIN_EFFICIENCY * 2.0 {
+                    // Parallel is very efficient, could lower threshold
+                    let current = self.parallel_threshold.load(Ordering::Relaxed);
+                    let new_threshold = (current as f64 * 0.9).max(1000.0) as usize;
+                    self.parallel_threshold
+                        .store(new_threshold, Ordering::Relaxed);
+                }
+            }
+            OptimizationStrategy::Simd => {
+                if ops_per_ns < SIMD_MIN_EFFICIENCY {
+                    // SIMD not efficient enough, increase threshold
+                    let new_threshold = (size as f64 * 1.1) as usize;
+                    self.simd_threshold.store(new_threshold, Ordering::Relaxed);
+                } else if ops_per_ns > SIMD_MIN_EFFICIENCY * 2.0 {
+                    // SIMD is very efficient, could lower threshold
+                    let current = self.simd_threshold.load(Ordering::Relaxed);
+                    let new_threshold = (current as f64 * 0.95).max(100.0) as usize;
+                    self.simd_threshold.store(new_threshold, Ordering::Relaxed);
+                }
+            }
+            OptimizationStrategy::Gpu => {
+                if ops_per_ns < GPU_MIN_EFFICIENCY {
+                    // GPU overhead is too high, increase threshold
+                    let new_threshold = (size as f64 * 1.5) as usize;
+                    self.gpu_threshold.store(new_threshold, Ordering::Relaxed);
+                } else if ops_per_ns > GPU_MIN_EFFICIENCY * 2.0 {
+                    // GPU is very efficient, could lower threshold
+                    let current = self.gpu_threshold.load(Ordering::Relaxed);
+                    let new_threshold = (current as f64 * 0.8).max(10000.0) as usize;
+                    self.gpu_threshold.store(new_threshold, Ordering::Relaxed);
+                }
+            }
+            _ => {
+                // For scalar operations, check if we should enable optimizations
+                if size > 1000 && ops_per_ns > SIMD_MIN_EFFICIENCY {
+                    // Could benefit from SIMD
+                    let current = self.simd_threshold.load(Ordering::Relaxed);
+                    let new_threshold = size.min(current);
+                    self.simd_threshold.store(new_threshold, Ordering::Relaxed);
+                }
+                if size > 10000 && ops_per_ns > PARALLEL_MIN_EFFICIENCY {
+                    // Could benefit from parallelization
+                    let current = self.parallel_threshold.load(Ordering::Relaxed);
+                    let new_threshold = size.min(current);
+                    self.parallel_threshold
+                        .store(new_threshold, Ordering::Relaxed);
+                }
+            }
+        }
+
+        // Update performance metrics with the new threshold values
+        if let Ok(mut metrics) = self.performance_metrics.write() {
+            // Store current threshold values in metrics for analysis
+            metrics.operation_times.insert(
+                format!("{}_threshold_parallel", operation),
+                self.parallel_threshold.load(Ordering::Relaxed) as f64,
+            );
+            metrics.operation_times.insert(
+                format!("{}_threshold_simd", operation),
+                self.simd_threshold.load(Ordering::Relaxed) as f64,
+            );
+            metrics.operation_times.insert(
+                format!("{}_threshold_gpu", operation),
+                self.gpu_threshold.load(Ordering::Relaxed) as f64,
+            );
         }
     }
 }
@@ -1401,7 +1489,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmarking_config() {
         let config = benchmarking::BenchmarkConfig::default();
 
@@ -1425,7 +1512,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_measurement() {
         let measurement = benchmarking::BenchmarkMeasurement {
             duration: Duration::from_millis(5),
@@ -1443,7 +1529,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_runner() {
         let config = benchmarking::BenchmarkConfig {
             warmup_iterations: 1,
@@ -1451,7 +1536,9 @@ mod tests {
             min_duration: Duration::from_millis(1),
             max_duration: Duration::from_secs(1),
             sample_sizes: vec![10, 100],
-            strategies: vec![OptimizationStrategy::Scalar, OptimizationStrategy::Simd],
+            strategies: vec![OptimizationStrategy::Scalar, OptimizationStrategy::Simd]
+                .into_iter()
+                .collect(),
         };
 
         let runner = benchmarking::BenchmarkRunner::new(config);
@@ -1572,7 +1659,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_results() {
         let measurement = benchmarking::BenchmarkMeasurement {
             strategy: OptimizationStrategy::Parallel,
@@ -1695,7 +1781,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "benchmarking")]
-    #[ignore = "timeout"]
     fn test_advanced_benchmark_config() {
         let config = benchmarking::presets::advanced_comprehensive();
 
@@ -1725,7 +1810,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "benchmarking")]
-    #[ignore = "timeout"]
     fn test_modern_architecture_benchmark_config() {
         let config = benchmarking::presets::modern_architectures();
 

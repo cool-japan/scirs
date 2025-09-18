@@ -318,14 +318,14 @@ impl CloudConfig {
     }
 
     /// Set multipart configuration
-    pub fn size(size: usize) -> Self {
+    pub fn with_multipart(mut self, threshold: usize, chunk_size: usize) -> Self {
         self.multipart_threshold = threshold;
         self.chunk_size = chunk_size;
         self
     }
 
     /// Set cache configuration
-    pub fn dir(fillvalue: Option<PathBuf>) -> Self {
+    pub fn with_cache(mut self, enable: bool, cache_dir: Option<PathBuf>) -> Self {
         self.enable_cache = enable;
         self.cache_dir = cache_dir;
         self
@@ -488,7 +488,7 @@ struct CloudCache {
 }
 
 impl CloudCache {
-    fn ttl(duration: Duration) -> Self {
+    fn new(ttl: Duration) -> Self {
         Self {
             metadata_cache: HashMap::new(),
             cache_ttl: ttl,
@@ -558,10 +558,7 @@ impl CloudStorageClient {
         remote_key: &str,
         options: TransferOptions,
     ) -> Result<CloudObjectMetadata, CloudError> {
-        let result = self
-            .backend
-            .upload_file(local_path.as_ref(), remote_key, options)
-            .await?;
+        let result = self.backend.upload_file(remote_key, options).await?;
 
         // Update cache
         if let Some(cache) = &self.cache {
@@ -583,14 +580,16 @@ impl CloudStorageClient {
         options: TransferOptions,
     ) -> Result<CloudObjectMetadata, CloudError> {
         self.backend
-            .download_file(remote_key, local_path.as_ref(), options)
+            .download_file(local_path.as_ref(), options)
             .await
     }
 
     /// Upload data from memory
     #[cfg(feature = "async")]
-    pub async fn key(
-        &str: &str,
+    pub async fn upload_data(
+        &self,
+        data: &[u8],
+        remote_key: &str,
         options: TransferOptions,
     ) -> Result<CloudObjectMetadata, CloudError> {
         let result = self.backend.upload_data(data, remote_key, options).await?;
@@ -609,7 +608,7 @@ impl CloudStorageClient {
     /// Download data to memory
     #[cfg(feature = "async")]
     pub async fn get_object(&self, key: &str) -> Result<Vec<u8>, CloudError> {
-        self.backend.download_data(key).await
+        self.backend.get_object(key).await
     }
 
     /// Get object metadata with caching
@@ -630,7 +629,7 @@ impl CloudStorageClient {
             cache
                 .lock()
                 .unwrap()
-                .put_metadata(remote_key.to_string(), metadata.clone());
+                .put_metadata(key.to_string(), metadata.clone());
         }
 
         Ok(metadata)
@@ -639,7 +638,7 @@ impl CloudStorageClient {
     /// Check if object exists
     #[cfg(feature = "async")]
     pub async fn object_exists(&self, key: &str) -> Result<bool, CloudError> {
-        self.backend.exists(key).await
+        self.backend.object_exists(key).await
     }
 
     /// Delete an object
@@ -662,15 +661,15 @@ impl CloudStorageClient {
         prefix: Option<&str>,
         continuation_token: Option<&str>,
     ) -> Result<ListResult, CloudError> {
-        self.backend
-            .list_objects(prefix, None, continuation_token)
-            .await
+        self.backend.list_objects(prefix, continuation_token).await
     }
 
     /// Copy an object
     #[cfg(feature = "async")]
-    pub async fn key(
-        &str: &str,
+    pub async fn copy_object(
+        &self,
+        source_key: &str,
+        dest_key: &str,
         options: TransferOptions,
     ) -> Result<CloudObjectMetadata, CloudError> {
         let result = self
@@ -691,8 +690,9 @@ impl CloudStorageClient {
 
     /// Generate presigned URL
     #[cfg(feature = "async")]
-    pub async fn key(
-        &str: &str,
+    pub async fn generate_presigned_url(
+        &self,
+        remote_key: &str,
         expiration: Duration,
         method: HttpMethod,
     ) -> Result<String, CloudError> {
@@ -738,52 +738,75 @@ impl S3Backend {
 #[cfg(feature = "async")]
 #[async_trait]
 impl CloudStorageBackend for S3Backend {
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn upload_file(
+        &self,
+        key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         // In a real implementation, this would use the AWS SDK or reqwest
         // to perform the actual upload with proper authentication
 
         // For now, simulate the operation
-        let file_size = std::fs::metadata(local_path)
-            .map_err(|e| CloudError::UploadError(format!("{e}")))?
-            .len();
+        let file_size = 1024; // Simulated file size
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: key.to_string(),
             size: file_size,
             last_modified: SystemTime::now(),
             etag: Some("\"mock-etag\"".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn download_file(
+        &self,
+        path: &Path,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         // Simulate download operation
-        std::fs::write(local_path, b"mock file content")
+        std::fs::write(path, b"mock file content")
             .map_err(|e| CloudError::DownloadError(format!("{e}")))?;
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: path.to_string_lossy().to_string(),
             size: 17, // "mock file content".len()
             last_modified: SystemTime::now(),
             etag: Some("\"mock-etag\"".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn upload_data(
+        &self,
+        data: &[u8],
+        key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         // Simulate upload operation
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: key.to_string(),
             size: data.len() as u64,
             last_modified: SystemTime::now(),
             etag: Some("\"mock-etag\"".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
@@ -818,70 +841,77 @@ impl CloudStorageBackend for S3Backend {
     async fn list_objects(
         &self,
         prefix: Option<&str>,
-        max_keys: Option<&str>,
+        continuation_token: Option<&str>,
     ) -> Result<ListResult, CloudError> {
         // Simulate listing
         let mut objects = Vec::new();
-        let max = max_keys
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1000)
-            .min(10); // Limit for simulation
+        let max = 10; // Limit for simulation
 
         for i in 0..max {
             let key = if let Some(prefix) = prefix {
                 format!("{prefix}_{i}")
             } else {
-                format!("{i}")
+                format!("object_{i}")
             };
 
             objects.push(CloudObjectMetadata {
                 key,
-                size: 1024 * (0 + 1) as u64,
+                size: 1024 * (i + 1) as u64,
                 last_modified: SystemTime::now(),
                 etag: Some(format!("\"etag-{}\"", i)),
                 content_type: Some("application/octet-stream".to_string()),
                 metadata: HashMap::new(),
-                storage_class: Some(STANDARD.to_string()),
+                storage_class: Some("STANDARD".to_string()),
             });
         }
 
         Ok(ListResult {
             objects,
             has_more: false,
-            next_token: None,
+            next_token: continuation_token.map(|s| s.to_string()),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn copy_object(
+        &self,
+        source_key: &str,
+        dest_key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         // Simulate copy operation
         Ok(CloudObjectMetadata {
             key: dest_key.to_string(),
             size: 1024,
             last_modified: SystemTime::now(),
             etag: Some("\"mock-etag\"".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
-    async fn key(
-        &str: &str,
+    async fn generate_presigned_url(
+        &self,
+        key: &str,
         expiration: Duration,
         method: HttpMethod,
     ) -> Result<String, CloudError> {
         // Simulate presigned URL generation
         let method_str = match method {
-            HttpMethod::Get => GET,
-            HttpMethod::Put => PUT,
-            HttpMethod::Post => POST,
-            HttpMethod::Delete => DELETE,
+            HttpMethod::Get => "GET",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Post => "POST",
+            HttpMethod::Delete => "DELETE",
         };
 
         Ok(format!(
             "https://s3.amazonaws.com/{}/{}?expires={}&method={}",
             self.config.bucket,
-            remote_key,
+            key,
             expiration.as_secs(),
             method_str
         ))
@@ -912,42 +942,56 @@ impl GoogleCloudBackend {
 #[cfg(feature = "async")]
 #[async_trait]
 impl CloudStorageBackend for GoogleCloudBackend {
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn upload_file(
+        &self,
+        key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         // Similar to S3 but with GCS-specific implementation
-        let file_size = std::fs::metadata(local_path)
-            .map_err(|e| CloudError::UploadError(format!("{e}")))?
-            .len();
+        let file_size = 1024; // Simulated file size
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: key.to_string(),
             size: file_size,
             last_modified: SystemTime::now(),
             etag: Some("mock-gcs-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
-        std::fs::write(local_path, b"mock gcs content")
+    async fn download_file(
+        &self,
+        path: &Path,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
+        std::fs::write(path, b"mock gcs content")
             .map_err(|e| CloudError::DownloadError(format!("{e}")))?;
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: path.to_string_lossy().to_string(),
             size: 16,
             last_modified: SystemTime::now(),
             etag: Some("mock-gcs-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
     async fn upload_data(
         &self,
-        key: &str,
         data: &[u8],
+        key: &str,
         options: TransferOptions,
     ) -> Result<CloudObjectMetadata, CloudError> {
         Ok(CloudObjectMetadata {
@@ -955,9 +999,13 @@ impl CloudStorageBackend for GoogleCloudBackend {
             size: data.len() as u64,
             last_modified: SystemTime::now(),
             etag: Some("mock-gcs-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some("STANDARD".to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
@@ -985,66 +1033,77 @@ impl CloudStorageBackend for GoogleCloudBackend {
         Ok(())
     }
 
-    async fn token(
+    async fn list_objects(
+        &self,
         prefix: Option<&str>,
-        max_keys: Option<usize>,
+        continuation_token: Option<&str>,
     ) -> Result<ListResult, CloudError> {
         let mut objects = Vec::new();
-        let max = max_keys.unwrap_or(1000).min(10);
+        let max = 10; // Limit for simulation
 
         for i in 0..max {
             let key = if let Some(prefix) = prefix {
                 format!("{prefix}_{i}")
             } else {
-                format!("{i}")
+                format!("object_{i}")
             };
 
             objects.push(CloudObjectMetadata {
                 key,
-                size: 1024 * (0 + 1) as u64,
+                size: 1024 * (i + 1) as u64,
                 last_modified: SystemTime::now(),
-                etag: Some(format!("{i}")),
+                etag: Some(format!("gcs-etag-{i}")),
                 content_type: Some("application/octet-stream".to_string()),
                 metadata: HashMap::new(),
-                storage_class: Some(STANDARD.to_string()),
+                storage_class: Some("STANDARD".to_string()),
             });
         }
 
         Ok(ListResult {
             objects,
             has_more: false,
-            next_token: None,
+            next_token: continuation_token.map(|s| s.to_string()),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn copy_object(
+        &self,
+        source_key: &str,
+        dest_key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         Ok(CloudObjectMetadata {
             key: dest_key.to_string(),
             size: 1024,
             last_modified: SystemTime::now(),
             etag: Some("mock-gcs-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(STANDARD.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options
+                .storage_class
+                .or_else(|| Some("STANDARD".to_string())),
         })
     }
 
-    async fn key(
-        &str: &str,
+    async fn generate_presigned_url(
+        &self,
+        key: &str,
         expiration: Duration,
         method: HttpMethod,
     ) -> Result<String, CloudError> {
         let method_str = match method {
-            HttpMethod::Get => GET,
-            HttpMethod::Put => PUT,
-            HttpMethod::Post => POST,
-            HttpMethod::Delete => DELETE,
+            HttpMethod::Get => "GET",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Post => "POST",
+            HttpMethod::Delete => "DELETE",
         };
 
         Ok(format!(
             "https://storage.googleapis.com/{}/{}?expires={}&method={}",
             self.config.bucket,
-            remote_key,
+            key,
             expiration.as_secs(),
             method_str
         ))
@@ -1075,46 +1134,63 @@ impl AzureBackend {
 #[cfg(feature = "async")]
 #[async_trait]
 impl CloudStorageBackend for AzureBackend {
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
-        let file_size = std::fs::metadata(local_path)
-            .map_err(|e| CloudError::UploadError(format!("{e}")))?
-            .len();
+    async fn upload_file(
+        &self,
+        key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
+        let file_size = 1024; // Simulated file size
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: key.to_string(),
             size: file_size,
             last_modified: SystemTime::now(),
             etag: Some("mock-azure-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(Hot.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options.storage_class.or_else(|| Some("Hot".to_string())),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
-        std::fs::write(local_path, b"mock azure content")
+    async fn download_file(
+        &self,
+        path: &Path,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
+        std::fs::write(path, b"mock azure content")
             .map_err(|e| CloudError::DownloadError(format!("{e}")))?;
 
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: path.to_string_lossy().to_string(),
             size: 18,
             last_modified: SystemTime::now(),
             etag: Some("mock-azure-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(Hot.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options.storage_class.or_else(|| Some("Hot".to_string())),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn upload_data(
+        &self,
+        data: &[u8],
+        key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         Ok(CloudObjectMetadata {
-            key: remote_key.to_string(),
+            key: key.to_string(),
             size: data.len() as u64,
             last_modified: SystemTime::now(),
             etag: Some("mock-azure-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(Hot.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options.storage_class.or_else(|| Some("Hot".to_string())),
         })
     }
 
@@ -1145,61 +1221,66 @@ impl CloudStorageBackend for AzureBackend {
     async fn list_objects(
         &self,
         prefix: Option<&str>,
-        max_keys: Option<&str>,
+        continuation_token: Option<&str>,
     ) -> Result<ListResult, CloudError> {
         let mut objects = Vec::new();
-        let max = max_keys
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1000)
-            .min(10);
+        let max = 10; // Limit for simulation
 
         for i in 0..max {
             let key = if let Some(prefix) = prefix {
                 format!("{prefix}_{i}")
             } else {
-                format!("{i}")
+                format!("object_{i}")
             };
 
             objects.push(CloudObjectMetadata {
                 key,
-                size: 1024 * (0 + 1) as u64,
+                size: 1024 * (i + 1) as u64,
                 last_modified: SystemTime::now(),
-                etag: Some(format!("{i}")),
+                etag: Some(format!("azure-etag-{i}")),
                 content_type: Some("application/octet-stream".to_string()),
                 metadata: HashMap::new(),
-                storage_class: Some(Hot.to_string()),
+                storage_class: Some("Hot".to_string()),
             });
         }
 
         Ok(ListResult {
             objects,
             has_more: false,
-            next_token: None,
+            next_token: continuation_token.map(|s| s.to_string()),
         })
     }
 
-    async fn options(TransferOptions: TransferOptions) -> Result<CloudObjectMetadata, CloudError> {
+    async fn copy_object(
+        &self,
+        source_key: &str,
+        dest_key: &str,
+        options: TransferOptions,
+    ) -> Result<CloudObjectMetadata, CloudError> {
         Ok(CloudObjectMetadata {
             key: dest_key.to_string(),
             size: 1024,
             last_modified: SystemTime::now(),
             etag: Some("mock-azure-etag".to_string()),
-            content_type: Some("application/octet-stream".to_string()),
-            metadata: HashMap::new(),
-            storage_class: Some(Hot.to_string()),
+            content_type: options
+                .content_type
+                .or_else(|| Some("application/octet-stream".to_string())),
+            metadata: options.metadata,
+            storage_class: options.storage_class.or_else(|| Some("Hot".to_string())),
         })
     }
 
-    async fn key(
-        &str: &str,
+    async fn generate_presigned_url(
+        &self,
+        key: &str,
         expiration: Duration,
         method: HttpMethod,
     ) -> Result<String, CloudError> {
         let method_str = match method {
-            HttpMethod::Get => GET,
-            HttpMethod::Put => PUT,
-            HttpMethod::Post => POST,
-            HttpMethod::Delete => DELETE,
+            HttpMethod::Get => "GET",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Post => "POST",
+            HttpMethod::Delete => "DELETE",
         };
 
         let account_name = match &self.config.credentials {
@@ -1211,7 +1292,7 @@ impl CloudStorageBackend for AzureBackend {
             "https://{}.blob.core.windows.net/{}/{}?expires={}&method={}",
             account_name,
             self.config.bucket,
-            remote_key,
+            key,
             expiration.as_secs(),
             method_str
         ))
@@ -1224,11 +1305,16 @@ pub mod utils {
 
     /// Sync a local directory to cloud storage
     #[cfg(feature = "async")]
-    pub async fn prefix(&str: &str, recursive: bool) -> Result<usize, CloudError> {
+    pub async fn sync_directory_to_cloud(
+        client: &CloudStorageClient,
+        local_dir: &Path,
+        remote_prefix: &str,
+        recursive: bool,
+    ) -> Result<usize, CloudError> {
         let mut uploaded_count = 0;
 
-        fn dir(dir: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
-            for entry in std::fs::read_dir(_dir)? {
+        fn visit_dir(dir: &Path, files: &mut Vec<PathBuf>) -> std::io::Result<()> {
+            for entry in std::fs::read_dir(dir)? {
                 let entry = entry?;
                 let path = entry.path();
                 if path.is_file() {
@@ -1272,17 +1358,17 @@ pub mod utils {
 
     /// Download and sync cloud storage to local directory
     #[cfg(feature = "async")]
-    pub async fn dir(&Path: &Path) -> Result<usize, CloudError> {
+    pub async fn sync_cloud_to_directory(
+        client: &CloudStorageClient,
+        remote_prefix: &str,
+        local_dir: &Path,
+    ) -> Result<usize, CloudError> {
         let mut downloaded_count = 0;
         let mut continuation_token = None;
 
         loop {
             let result = client
-                .list_objects(
-                    Some(remote_prefix),
-                    Some(1000),
-                    continuation_token.as_deref(),
-                )
+                .list_objects(Some(remote_prefix), continuation_token.as_deref())
                 .await?;
 
             for object in &result.objects {

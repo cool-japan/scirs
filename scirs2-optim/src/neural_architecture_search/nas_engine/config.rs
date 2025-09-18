@@ -4,6 +4,7 @@
 //! for the Neural Architecture Search system.
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::time::Duration;
 use num_traits::Float;
 use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
@@ -15,7 +16,7 @@ use crate::neural_architecture_search::{
 
 /// Neural Architecture Search configuration for optimizers
 #[derive(Debug, Clone)]
-pub struct NASConfig<T: Float> {
+pub struct NASConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Search strategy to use
     pub search_strategy: SearchStrategyType,
 
@@ -481,7 +482,7 @@ pub enum ParameterCondition {
 
 /// Performance evaluation configuration
 #[derive(Debug, Clone)]
-pub struct EvaluationConfig<T: Float> {
+pub struct EvaluationConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Evaluation metrics to use
     pub metrics: Vec<EvaluationMetric>,
 
@@ -690,7 +691,7 @@ pub enum MultipleComparisonCorrection {
 
 /// Multi-objective optimization configuration
 #[derive(Debug, Clone)]
-pub struct MultiObjectiveConfig<T: Float> {
+pub struct MultiObjectiveConfig<T: Float + Debug + Send + Sync + 'static> {
     /// List of objectives to optimize
     pub objectives: Vec<ObjectiveConfig<T>>,
 
@@ -709,7 +710,7 @@ pub struct MultiObjectiveConfig<T: Float> {
 
 /// Objective configuration
 #[derive(Debug, Clone)]
-pub struct ObjectiveConfig<T: Float> {
+pub struct ObjectiveConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Objective name
     pub name: String,
 
@@ -776,7 +777,7 @@ pub enum MultiObjectiveAlgorithm {
 
 /// User preferences for multi-objective optimization
 #[derive(Debug, Clone)]
-pub struct UserPreferences<T: Float> {
+pub struct UserPreferences<T: Float + Debug + Send + Sync + 'static> {
     /// Preference type
     pub preference_type: PreferenceType<T>,
 
@@ -824,7 +825,7 @@ pub enum ConstraintHandlingMethod {
 
 /// Early stopping configuration
 #[derive(Debug, Clone)]
-pub struct EarlyStoppingConfig<T: Float> {
+pub struct EarlyStoppingConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Enable early stopping
     pub enabled: bool,
 
@@ -884,7 +885,7 @@ pub enum ArchitectureEncodingStrategy {
 
 /// Resource constraints for NAS
 #[derive(Debug, Clone)]
-pub struct ResourceConstraints<T: Float> {
+pub struct ResourceConstraints<T: Float + Debug + Send + Sync + 'static> {
     /// Hardware resource limits
     pub hardware_resources: HardwareResources,
 

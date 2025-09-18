@@ -961,8 +961,10 @@ impl JitBackendImpl for LlvmBackend {
         })
     }
 
-    fn outputs(
-        &mut self,
+    fn execute_kernel(
+        &self,
+        kernel: &CompiledKernel,
+        inputs: &[&dyn std::any::Any],
         outputs: &mut [&mut dyn std::any::Any],
     ) -> Result<ExecutionProfile, JitError> {
         // Placeholder implementation
@@ -1052,8 +1054,10 @@ impl JitBackendImpl for InterpreterBackend {
         })
     }
 
-    fn outputs(
-        &mut self,
+    fn execute_kernel(
+        &self,
+        kernel: &CompiledKernel,
+        inputs: &[&dyn std::any::Any],
         outputs: &mut [&mut dyn std::any::Any],
     ) -> Result<ExecutionProfile, JitError> {
         // Placeholder interpreter execution

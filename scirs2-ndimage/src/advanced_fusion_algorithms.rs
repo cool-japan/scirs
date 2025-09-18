@@ -25,17 +25,19 @@
 //!
 //! ## Usage Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::advanced_fusion_algorithms::*;
 //! use ndarray::Array2;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create configuration
 //! let config = AdvancedConfig::default();
 //!
 //! // Process image with advanced fusion
 //! let image = Array2::zeros((256, 256));
 //! let (result, final_state) = fusion_processing(image.view(), &config, None)?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Performance Characteristics

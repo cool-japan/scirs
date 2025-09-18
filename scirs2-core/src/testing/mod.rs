@@ -19,7 +19,7 @@
 //! - **Integration testing**: Cross-module compatibility and communication validation
 //! - **Ecosystem integration**: Complete ecosystem validation for 1.0 release readiness
 
-// pub mod ecosystem_integration; // Temporarily disabled due to compilation errors
+pub mod ecosystem_integration;
 pub mod fuzzing;
 pub mod integration;
 pub mod large_scale;

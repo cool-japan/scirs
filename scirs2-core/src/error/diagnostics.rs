@@ -355,7 +355,7 @@ impl ErrorDiagnostics {
         suggestions
     }
 
-    /// Diagnose environment-specific issues with enhanced Alpha 6 analysis
+    /// Diagnose environment-specific issues with enhanced Beta 2 analysis
     fn diagnose_environment_issues(&self, error: &CoreError) -> Vec<String> {
         let mut diagnostics = Vec::new();
 
@@ -455,7 +455,7 @@ impl ErrorDiagnostics {
         diagnostics
     }
 
-    /// Add general environment diagnostics for Alpha 6
+    /// Add general environment diagnostics for Beta 2
     fn add_general_environment_diagnostics(&self, diagnostics: &mut Vec<String>) {
         // Check for optimal thread configuration
         if let (Some(cores), Some(omp_threads)) = (
@@ -492,7 +492,7 @@ impl ErrorDiagnostics {
         }
     }
 
-    /// Perform predictive error analysis based on historical patterns (Alpha 6 feature)
+    /// Perform predictive error analysis based on historical patterns (Beta 2 feature)
     #[allow(dead_code)]
     pub fn predict_potentialerrors(&self, context: &str) -> Vec<String> {
         let mut predictions = Vec::new();
@@ -543,7 +543,7 @@ impl ErrorDiagnostics {
         predictions
     }
 
-    /// Generate domain-specific recovery strategies (Alpha 6 feature)
+    /// Generate domain-specific recovery strategies (Beta 2 feature)
     #[allow(dead_code)]
     pub fn suggest_domain_recovery(&self, error: &CoreError, domain: &str) -> Vec<String> {
         let mut strategies = Vec::new();
@@ -636,7 +636,7 @@ impl ErrorDiagnostics {
         strategies
     }
 
-    /// Initialize known error patterns with enhanced Alpha 6 patterns
+    /// Initialize known error patterns with enhanced Beta 2 patterns
     fn initialize_patterns() -> Vec<ErrorPattern> {
         vec![
             ErrorPattern {
@@ -697,7 +697,7 @@ impl ErrorDiagnostics {
                     "Use IEEE 754 special value handling where appropriate".to_string(),
                 ],
             },
-            // New Alpha 6 patterns
+            // New Beta 2 patterns
             ErrorPattern {
                 description: "GPU memory exhaustion in accelerated computations".to_string(),
                 errortypes: vec!["MemoryError".to_string(), "ComputationError".to_string()],
@@ -812,7 +812,7 @@ impl fmt::Display for PerformanceImpact {
     }
 }
 
-/// Comprehensive error diagnostic report with Alpha 6 enhancements
+/// Comprehensive error diagnostic report with Beta 2 enhancements
 #[derive(Debug)]
 pub struct ErrorDiagnosticReport {
     /// The original error
@@ -829,9 +829,9 @@ pub struct ErrorDiagnosticReport {
     pub contextual_suggestions: Vec<String>,
     /// Environment-specific diagnostics
     pub environment_diagnostics: Vec<String>,
-    /// Alpha 6: Predictive error analysis
+    /// Beta 2: Predictive error analysis
     pub predictions: Vec<String>,
-    /// Alpha 6: Domain-specific recovery strategies
+    /// Beta 2: Domain-specific recovery strategies
     pub domain_strategies: Vec<String>,
     /// Timestamp when report was generated
     pub generated_at: SystemTime,
@@ -948,7 +948,7 @@ impl ErrorDiagnosticReport {
             report.push('\n');
         }
 
-        // Alpha 6: Predictive analysis
+        // Beta 2: Predictive analysis
         if !self.predictions.is_empty() {
             report.push_str("🔮 Predictive Analysis:\n");
             for prediction in &self.predictions {
@@ -957,7 +957,7 @@ impl ErrorDiagnosticReport {
             report.push('\n');
         }
 
-        // Alpha 6: Domain-specific recovery strategies
+        // Beta 2: Domain-specific recovery strategies
         if !self.domain_strategies.is_empty() {
             report.push_str("🎯 Domain-Specific Recovery Strategies:\n");
             for (i, strategy) in self.domain_strategies.iter().enumerate() {

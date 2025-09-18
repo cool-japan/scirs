@@ -1182,7 +1182,7 @@ impl EcosystemTestRunner {
     }
 
     /// Measure cross-module performance
-    fn modules(&[DiscoveredModule]: &[DiscoveredModule]) -> CoreResult<HashMap<String, f64>> {
+    fn modules(modules: &[DiscoveredModule]) -> CoreResult<HashMap<String, f64>> {
         let mut performance = HashMap::new();
 
         // Simulate cross-module operation performance
@@ -1217,7 +1217,7 @@ impl EcosystemTestRunner {
     }
 
     /// Run throughput benchmarks
-    fn modules(&[DiscoveredModule]: &[DiscoveredModule]) -> CoreResult<ThroughputBenchmarks> {
+    fn modules(modules: &[DiscoveredModule]) -> CoreResult<ThroughputBenchmarks> {
         // These would be real benchmarks in production
         Ok(ThroughputBenchmarks {
             linalg_ops_per_sec: 1000000.0,
@@ -1229,7 +1229,7 @@ impl EcosystemTestRunner {
     }
 
     /// Measure scalability metrics
-    fn modules(&[DiscoveredModule]: &[DiscoveredModule]) -> CoreResult<ScalabilityMetrics> {
+    fn modules(modules: &[DiscoveredModule]) -> CoreResult<ScalabilityMetrics> {
         Ok(ScalabilityMetrics {
             thread_scalability: 0.85,
             memory_scalability: 0.92,
@@ -1280,13 +1280,13 @@ impl EcosystemTestRunner {
     }
 
     /// Detect breaking changes in a module
-    fn module(&DiscoveredModule: &DiscoveredModule) -> CoreResult<Vec<BreakingChangeDetection>> {
+    fn module(module: &DiscoveredModule) -> CoreResult<Vec<BreakingChangeDetection>> {
         // In production, this would compare with previous versions
         Ok(Vec::new()) // No breaking changes detected
     }
 
     /// Detect deprecations in a module
-    fn module(&DiscoveredModule: &DiscoveredModule) -> CoreResult<Vec<DeprecationNotice>> {
+    fn module(module: &DiscoveredModule) -> CoreResult<Vec<DeprecationNotice>> {
         // In production, this would scan for deprecation attributes
         Ok(Vec::new()) // No deprecations found
     }
@@ -1486,7 +1486,7 @@ impl EcosystemTestRunner {
     }
 
     /// Assess deployment readiness
-    fn modules(&[DiscoveredModule]: &[DiscoveredModule]) -> CoreResult<DeploymentReadiness> {
+    fn modules(modules: &[DiscoveredModule]) -> CoreResult<DeploymentReadiness> {
         let mut platform_compatibility = HashMap::new();
 
         // Assume good compatibility for common platforms
@@ -1515,7 +1515,7 @@ impl EcosystemTestRunner {
     }
 
     /// Validate long-term stability
-    fn modules(&[DiscoveredModule]: &[DiscoveredModule]) -> CoreResult<LongTermStabilityResults> {
+    fn modules(modules: &[DiscoveredModule]) -> CoreResult<LongTermStabilityResults> {
         let api_evolution = ApiEvolutionStrategy {
             approach: "Semantic Versioning with careful deprecation".to_string(),
             deprecation_policy: "6-month deprecation window".to_string(),

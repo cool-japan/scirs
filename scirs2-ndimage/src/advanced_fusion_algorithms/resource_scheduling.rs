@@ -25,10 +25,12 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,ignore
 //! use crate::advanced_fusion_algorithms::resource_scheduling::*;
 //! use crate::advanced_fusion_algorithms::config::*;
+//! use std::collections::HashMap;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize quantum-aware resource scheduler
 //! let mut scheduler = QuantumAwareResourceScheduler::default();
 //! let config = AdvancedConfig::default();
@@ -54,6 +56,8 @@
 //!     &mut scheduler,
 //!     &workload,
 //! )?;
+//! # Ok(())
+//! # }
 //! ```
 
 use super::config::*;

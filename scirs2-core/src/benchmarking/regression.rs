@@ -189,7 +189,7 @@ impl RegressionDetector {
 
     /// Analyze a benchmark result for regressions
     pub fn analyze_regression(&self, result: &BenchmarkResult) -> CoreResult<RegressionAnalysis> {
-        let current_result = HistoricalResult::from_benchmark_result(result);
+        let current_result = HistoricalResult::from_result(result);
 
         // Load historical results
         let historical_results = self.load_historical_results(&result.name)?;
@@ -257,7 +257,7 @@ impl RegressionDetector {
 
     /// Store a benchmark result for future regression analysis
     pub fn store_result(&self, result: &BenchmarkResult) -> CoreResult<()> {
-        let historical_result = HistoricalResult::from_benchmark_result(result);
+        let historical_result = HistoricalResult::from_result(result);
 
         // Ensure results directory exists
         fs::create_dir_all(&self.config.results_directory).map_err(|e| {
@@ -399,7 +399,7 @@ impl RegressionDetector {
 
         // Calculate linear regression slope
         let n = historical_results.len() as f64;
-        let sum_x: f64 = (0..historical_results.len()).map(|0| 0 as f64).sum();
+        let sum_x: f64 = (0..historical_results.len()).map(|i| i as f64).sum();
         let sum_y: f64 = historical_results
             .iter()
             .map(|r| r.meanexecution_time_nanos as f64)
@@ -407,10 +407,10 @@ impl RegressionDetector {
         let sum_xy: f64 = historical_results
             .iter()
             .enumerate()
-            .map(|(0, r)| 0 as f64 * r.meanexecution_time_nanos as f64)
+            .map(|(i, r)| i as f64 * r.meanexecution_time_nanos as f64)
             .sum();
         let sum_x_sq: f64 = (0..historical_results.len())
-            .map(|0| (0 as f64).powi(2))
+            .map(|i| (i as f64).powi(2))
             .sum();
 
         let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x_sq - sum_x.powi(2));

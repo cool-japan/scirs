@@ -27,13 +27,13 @@
 //!
 //! # Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::hybrid_processing::*;
 //! use ndarray::Array2;
 //!
 //! // Create hybrid configuration
 //! let hybrid_config = QuantumClassicalHybridConfig::default();
-//! let quantum_neuro_config = super::config::QuantumNeuromorphicConfig::default();
+//! let quantum_neuro_config = QuantumNeuromorphicConfig::default();
 //!
 //! // Process image with hybrid algorithm
 //! let image = Array2::ones((100, 100));

@@ -74,7 +74,7 @@ pub struct ResourceMonitor<T: Float + Send + Sync + Debug> {
 
 /// Resource usage information
 #[derive(Debug, Clone)]
-pub struct ResourceUsage<T: Float> {
+pub struct ResourceUsage<T: Float + Debug + Send + Sync + 'static> {
     /// Timestamp
     pub timestamp: SystemTime,
 
@@ -163,7 +163,7 @@ pub enum ResourceSpecificMetrics<T: Float> {
 
 /// Resource statistics
 #[derive(Debug, Clone)]
-pub struct ResourceStatistics<T: Float> {
+pub struct ResourceStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Average utilization
     pub avg_utilization: T,
 
@@ -201,7 +201,7 @@ pub enum TrendDirection {
 
 /// System-wide resource snapshot
 #[derive(Debug, Clone)]
-pub struct SystemResourceSnapshot<T: Float> {
+pub struct SystemResourceSnapshot<T: Float + Debug + Send + Sync + 'static> {
     /// Snapshot timestamp
     pub timestamp: SystemTime,
 
@@ -220,7 +220,7 @@ pub struct SystemResourceSnapshot<T: Float> {
 
 /// System load indicators
 #[derive(Debug, Clone)]
-pub struct SystemLoad<T: Float> {
+pub struct SystemLoad<T: Float + Debug + Send + Sync + 'static> {
     /// Overall system load (0-1)
     pub overall_load: T,
 
@@ -245,7 +245,7 @@ pub enum LoadCategory {
 
 /// Performance impact assessment
 #[derive(Debug, Clone)]
-pub struct PerformanceImpact<T: Float> {
+pub struct PerformanceImpact<T: Float + Debug + Send + Sync + 'static> {
     /// Impact score (0-1)
     pub impact_score: T,
 
@@ -261,7 +261,7 @@ pub struct PerformanceImpact<T: Float> {
 
 /// Resource contention analysis
 #[derive(Debug, Clone)]
-pub struct ResourceContention<T: Float> {
+pub struct ResourceContention<T: Float + Debug + Send + Sync + 'static> {
     /// Contention level (0-1)
     pub contention_level: T,
 
@@ -322,7 +322,7 @@ pub struct ResourceAlertManager<T: Float + Send + Sync + Debug> {
 
 /// Resource alert
 #[derive(Debug, Clone)]
-pub struct ResourceAlert<T: Float> {
+pub struct ResourceAlert<T: Float + Debug + Send + Sync + 'static> {
     /// Alert ID
     pub alert_id: String,
 
@@ -382,7 +382,7 @@ pub struct ResourcePerformanceCorrelator<T: Float + Send + Sync + Debug> {
 
 /// Correlation matrix for resource-performance relationships
 #[derive(Debug, Clone)]
-pub struct CorrelationMatrix<T: Float> {
+pub struct CorrelationMatrix<T: Float + Debug + Send + Sync + 'static> {
     /// Correlation coefficient (-1 to 1)
     pub correlation_coefficient: T,
 
@@ -401,7 +401,7 @@ pub struct CorrelationMatrix<T: Float> {
 
 /// Performance-resource data pair
 #[derive(Debug, Clone)]
-pub struct PerformanceResourcePair<T: Float> {
+pub struct PerformanceResourcePair<T: Float + Debug + Send + Sync + 'static> {
     /// Timestamp
     pub timestamp: SystemTime,
 
@@ -430,7 +430,7 @@ pub struct ResourceOptimizationAdvisor<T: Float + Send + Sync + Debug> {
 
 /// Optimization rule
 #[derive(Debug, Clone)]
-pub struct OptimizationRule<T: Float> {
+pub struct OptimizationRule<T: Float + Debug + Send + Sync + 'static> {
     /// Rule name
     pub name: String,
 
@@ -449,7 +449,7 @@ pub struct OptimizationRule<T: Float> {
 
 /// Trigger condition for optimization
 #[derive(Debug, Clone)]
-pub struct TriggerCondition<T: Float> {
+pub struct TriggerCondition<T: Float + Debug + Send + Sync + 'static> {
     /// Resource type
     pub resource_type: ResourceType,
 
@@ -512,7 +512,7 @@ pub enum OptimizationAction {
 
 /// Optimization recommendation
 #[derive(Debug, Clone)]
-pub struct OptimizationRecommendation<T: Float> {
+pub struct OptimizationRecommendation<T: Float + Debug + Send + Sync + 'static> {
     /// Recommendation ID
     pub id: String,
 
@@ -562,7 +562,7 @@ pub struct EffectivenessTracker<T: Float + Send + Sync + Debug> {
 
 /// Implementation result tracking
 #[derive(Debug, Clone)]
-pub struct ImplementationResult<T: Float> {
+pub struct ImplementationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Recommendation ID
     pub recommendation_id: String,
 
@@ -584,7 +584,7 @@ pub struct ImplementationResult<T: Float> {
 
 /// Impact measurement
 #[derive(Debug, Clone)]
-pub struct ImpactMeasurement<T: Float> {
+pub struct ImpactMeasurement<T: Float + Debug + Send + Sync + 'static> {
     /// Measurement timestamp
     pub timestamp: SystemTime,
 
@@ -603,7 +603,7 @@ pub struct ImpactMeasurement<T: Float> {
 
 /// Current system resource state
 #[derive(Debug, Clone)]
-pub struct SystemResourceState<T: Float> {
+pub struct SystemResourceState<T: Float + Debug + Send + Sync + 'static> {
     /// Overall health score
     pub health_score: T,
 
@@ -622,7 +622,7 @@ pub struct SystemResourceState<T: Float> {
 
 /// System capacity information
 #[derive(Debug, Clone)]
-pub struct SystemCapacity<T: Float> {
+pub struct SystemCapacity<T: Float + Debug + Send + Sync + 'static> {
     /// Total system capacity
     pub total_capacity: T,
 
@@ -641,7 +641,7 @@ pub struct SystemCapacity<T: Float> {
 
 /// Optimization opportunity
 #[derive(Debug, Clone)]
-pub struct OptimizationOpportunity<T: Float> {
+pub struct OptimizationOpportunity<T: Float + Debug + Send + Sync + 'static> {
     /// Opportunity type
     pub opportunity_type: OpportunityType,
 
@@ -1322,7 +1322,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> EffectivenessTracker<T> {
 }
 
 // Default implementations
-impl<T: Float> ResourceUsage<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceUsage<T> {
     /// Create default usage for resource type
     pub fn default_for_type(resource_type: ResourceType) -> Self {
         Self {
@@ -1337,7 +1337,7 @@ impl<T: Float> ResourceUsage<T> {
     }
 }
 
-impl<T: Float> ResourceSpecificMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceSpecificMetrics<T> {
     /// Create default metrics for resource type
     pub fn default_for_type(resource_type: ResourceType) -> Self {
         match resource_type {
@@ -1393,7 +1393,7 @@ impl<T: Float> ResourceSpecificMetrics<T> {
     }
 }
 
-impl<T: Float> Default for ResourceStatistics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ResourceStatistics<T> {
     fn default() -> Self {
         Self {
             avg_utilization: T::zero(),
@@ -1408,7 +1408,7 @@ impl<T: Float> Default for ResourceStatistics<T> {
     }
 }
 
-impl<T: Float> Default for SystemResourceState<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for SystemResourceState<T> {
     fn default() -> Self {
         Self {
             health_score: T::one(),

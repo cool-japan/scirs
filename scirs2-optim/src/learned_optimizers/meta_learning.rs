@@ -9,6 +9,7 @@
 use ndarray::{Array1, Array2, Dimension};
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::time::Instant;
 
 #[allow(unused_imports)]
@@ -16,7 +17,7 @@ use crate::error::Result;
 use crate::optimizers::Optimizer;
 
 /// Meta-Learning Framework for Learned Optimizers
-pub struct MetaLearningFramework<T: Float> {
+pub struct MetaLearningFramework<T: Float + Debug + Send + Sync + 'static> {
     /// Meta-learning configuration
     config: MetaLearningConfig,
 
@@ -452,7 +453,7 @@ pub trait MetaLearner<T: Float>: Send + Sync {
 
 /// Meta-task representation
 #[derive(Debug, Clone)]
-pub struct MetaTask<T: Float> {
+pub struct MetaTask<T: Float + Debug + Send + Sync + 'static> {
     /// Task identifier
     pub id: String,
 
@@ -477,7 +478,7 @@ pub struct MetaTask<T: Float> {
 
 /// Task dataset
 #[derive(Debug, Clone)]
-pub struct TaskDataset<T: Float> {
+pub struct TaskDataset<T: Float + Debug + Send + Sync + 'static> {
     /// Input features
     pub features: Vec<Array1<T>>,
 
@@ -539,7 +540,7 @@ pub enum TaskType {
 
 /// Meta-training result
 #[derive(Debug, Clone)]
-pub struct MetaTrainingResult<T: Float> {
+pub struct MetaTrainingResult<T: Float + Debug + Send + Sync + 'static> {
     /// Meta-loss
     pub meta_loss: T,
 
@@ -558,7 +559,7 @@ pub struct MetaTrainingResult<T: Float> {
 
 /// Meta-training metrics
 #[derive(Debug, Clone)]
-pub struct MetaTrainingMetrics<T: Float> {
+pub struct MetaTrainingMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Average adaptation speed
     pub avg_adaptation_speed: T,
 
@@ -574,7 +575,7 @@ pub struct MetaTrainingMetrics<T: Float> {
 
 /// Adaptation statistics
 #[derive(Debug, Clone)]
-pub struct AdaptationStatistics<T: Float> {
+pub struct AdaptationStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Convergence steps per task
     pub convergence_steps: Vec<usize>,
 
@@ -590,7 +591,7 @@ pub struct AdaptationStatistics<T: Float> {
 
 /// Stability metrics
 #[derive(Debug, Clone)]
-pub struct StabilityMetrics<T: Float> {
+pub struct StabilityMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Parameter stability
     pub parameter_stability: T,
 
@@ -628,7 +629,7 @@ pub struct TrainingResult {
 
 /// Meta-parameters for meta-learning
 #[derive(Debug, Clone)]
-pub struct MetaParameters<T: Float> {
+pub struct MetaParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Parameter values
     pub parameters: HashMap<String, Array1<T>>,
     /// Parameter metadata
@@ -694,7 +695,7 @@ impl Default for DatasetMetadata {
 
 /// Task adaptation result
 #[derive(Debug, Clone)]
-pub struct TaskAdaptationResult<T: Float> {
+pub struct TaskAdaptationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Adapted parameters
     pub adapted_parameters: HashMap<String, Array1<T>>,
 
@@ -710,7 +711,7 @@ pub struct TaskAdaptationResult<T: Float> {
 
 /// Adaptation step
 #[derive(Debug, Clone)]
-pub struct AdaptationStep<T: Float> {
+pub struct AdaptationStep<T: Float + Debug + Send + Sync + 'static> {
     /// Step number
     pub step: usize,
 
@@ -729,7 +730,7 @@ pub struct AdaptationStep<T: Float> {
 
 /// Task adaptation metrics
 #[derive(Debug, Clone)]
-pub struct TaskAdaptationMetrics<T: Float> {
+pub struct TaskAdaptationMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Convergence speed
     pub convergence_speed: T,
 
@@ -745,7 +746,7 @@ pub struct TaskAdaptationMetrics<T: Float> {
 
 /// Query evaluation result
 #[derive(Debug, Clone)]
-pub struct QueryEvaluationResult<T: Float> {
+pub struct QueryEvaluationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Query set loss
     pub query_loss: T,
 
@@ -764,7 +765,7 @@ pub struct QueryEvaluationResult<T: Float> {
 
 /// Query evaluation metrics
 #[derive(Debug, Clone)]
-pub struct QueryEvaluationMetrics<T: Float> {
+pub struct QueryEvaluationMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Mean squared error (for regression)
     pub mse: Option<T>,
 
@@ -779,7 +780,7 @@ pub struct QueryEvaluationMetrics<T: Float> {
 }
 
 /// MAML implementation
-pub struct MAMLLearner<T: Float, D: Dimension> {
+pub struct MAMLLearner<T: Float + Debug + Send + Sync + 'static, D: Dimension> {
     /// MAML configuration
     config: MAMLConfig<T>,
 
@@ -801,7 +802,7 @@ pub struct MAMLLearner<T: Float, D: Dimension> {
 
 /// MAML configuration
 #[derive(Debug, Clone)]
-pub struct MAMLConfig<T: Float> {
+pub struct MAMLConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Enable second-order gradients
     pub second_order: bool,
 
@@ -823,7 +824,7 @@ pub struct MAMLConfig<T: Float> {
 
 /// Gradient computation engine
 #[derive(Debug)]
-pub struct GradientComputationEngine<T: Float> {
+pub struct GradientComputationEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Gradient computation method
     method: GradientComputationMethod,
 
@@ -860,7 +861,7 @@ pub enum GradientComputationMethod {
 
 /// Computation graph for gradient computation
 #[derive(Debug)]
-pub struct ComputationGraph<T: Float> {
+pub struct ComputationGraph<T: Float + Debug + Send + Sync + 'static> {
     /// Graph nodes
     nodes: Vec<ComputationNode<T>>,
 
@@ -892,7 +893,7 @@ impl<T: Float + Default + Clone> ComputationGraph<T> {
 
 /// Computation graph node
 #[derive(Debug, Clone)]
-pub struct ComputationNode<T: Float> {
+pub struct ComputationNode<T: Float + Debug + Send + Sync + 'static> {
     /// Node ID
     pub id: usize,
 
@@ -942,7 +943,7 @@ pub enum LossFunction {
 
 /// Automatic differentiation engine
 #[derive(Debug)]
-pub struct AutoDiffEngine<T: Float> {
+pub struct AutoDiffEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Forward mode AD
     forward_mode: ForwardModeAD<T>,
 
@@ -966,7 +967,7 @@ impl<T: Float + Default + Clone> AutoDiffEngine<T> {
 
 /// Forward mode automatic differentiation
 #[derive(Debug)]
-pub struct ForwardModeAD<T: Float> {
+pub struct ForwardModeAD<T: Float + Debug + Send + Sync + 'static> {
     /// Dual numbers
     dual_numbers: Vec<DualNumber<T>>,
 
@@ -986,7 +987,7 @@ impl<T: Float + Default + Clone> ForwardModeAD<T> {
 
 /// Dual number for forward mode AD
 #[derive(Debug, Clone)]
-pub struct DualNumber<T: Float> {
+pub struct DualNumber<T: Float + Debug + Send + Sync + 'static> {
     /// Real part
     pub real: T,
 
@@ -996,7 +997,7 @@ pub struct DualNumber<T: Float> {
 
 /// Reverse mode automatic differentiation
 #[derive(Debug)]
-pub struct ReverseModeAD<T: Float> {
+pub struct ReverseModeAD<T: Float + Debug + Send + Sync + 'static> {
     /// Computational tape
     tape: Vec<TapeEntry<T>>,
 
@@ -1020,7 +1021,7 @@ impl<T: Float + Default + Clone> ReverseModeAD<T> {
 
 /// Tape entry for reverse mode AD
 #[derive(Debug, Clone)]
-pub struct TapeEntry<T: Float> {
+pub struct TapeEntry<T: Float + Debug + Send + Sync + 'static> {
     /// Operation ID
     pub op_id: usize,
 
@@ -1036,7 +1037,7 @@ pub struct TapeEntry<T: Float> {
 
 /// Mixed mode automatic differentiation
 #[derive(Debug)]
-pub struct MixedModeAD<T: Float> {
+pub struct MixedModeAD<T: Float + Debug + Send + Sync + 'static> {
     /// Forward mode component
     forward_component: ForwardModeAD<T>,
 
@@ -1069,7 +1070,7 @@ pub enum ModeSelectionStrategy {
 
 /// Second-order gradient engine
 #[derive(Debug)]
-pub struct SecondOrderGradientEngine<T: Float> {
+pub struct SecondOrderGradientEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Hessian computation method
     hessian_method: HessianComputationMethod,
 
@@ -1107,7 +1108,7 @@ pub enum HessianComputationMethod {
 
 /// Hessian-vector product engine
 #[derive(Debug)]
-pub struct HessianVectorProductEngine<T: Float> {
+pub struct HessianVectorProductEngine<T: Float + Debug + Send + Sync + 'static> {
     /// HVP computation method
     method: HVPComputationMethod,
 
@@ -1139,7 +1140,7 @@ pub enum HVPComputationMethod {
 
 /// Curvature estimator
 #[derive(Debug)]
-pub struct CurvatureEstimator<T: Float> {
+pub struct CurvatureEstimator<T: Float + Debug + Send + Sync + 'static> {
     /// Curvature estimation method
     method: CurvatureEstimationMethod,
 
@@ -1454,7 +1455,7 @@ impl<
 
 /// Meta-training results
 #[derive(Debug, Clone)]
-pub struct MetaTrainingResults<T: Float> {
+pub struct MetaTrainingResults<T: Float + Debug + Send + Sync + 'static> {
     pub final_parameters: HashMap<String, Array1<T>>,
     pub training_history: Vec<MetaTrainingEpoch<T>>,
     pub best_performance: T,
@@ -1463,7 +1464,7 @@ pub struct MetaTrainingResults<T: Float> {
 
 /// Meta-training epoch
 #[derive(Debug, Clone)]
-pub struct MetaTrainingEpoch<T: Float> {
+pub struct MetaTrainingEpoch<T: Float + Debug + Send + Sync + 'static> {
     pub epoch: usize,
     pub training_result: MetaTrainingResult<T>,
     pub validation_result: MetaValidationResult<T>,
@@ -1472,7 +1473,7 @@ pub struct MetaTrainingEpoch<T: Float> {
 
 /// Meta-validation result
 #[derive(Debug, Clone)]
-pub struct MetaValidationResult<T: Float> {
+pub struct MetaValidationResult<T: Float + Debug + Send + Sync + 'static> {
     pub performance: T,
     pub adaptation_speed: T,
     pub generalization_gap: T,
@@ -1481,7 +1482,7 @@ pub struct MetaValidationResult<T: Float> {
 
 /// Few-shot learning result
 #[derive(Debug, Clone)]
-pub struct FewShotResult<T: Float> {
+pub struct FewShotResult<T: Float + Debug + Send + Sync + 'static> {
     pub accuracy: T,
     pub confidence: T,
     pub adaptation_steps: usize,
@@ -1490,7 +1491,7 @@ pub struct FewShotResult<T: Float> {
 
 /// Transfer learning result
 #[derive(Debug, Clone)]
-pub struct TransferLearningResult<T: Float> {
+pub struct TransferLearningResult<T: Float + Debug + Send + Sync + 'static> {
     pub transfer_efficiency: T,
     pub domain_adaptation_score: T,
     pub source_task_retention: T,
@@ -1499,7 +1500,7 @@ pub struct TransferLearningResult<T: Float> {
 
 /// Task result for meta-learning
 #[derive(Debug, Clone)]
-pub struct TaskResult<T: Float> {
+pub struct TaskResult<T: Float + Debug + Send + Sync + 'static> {
     pub task_id: String,
     pub loss: T,
     pub metrics: HashMap<String, T>,
@@ -1507,7 +1508,7 @@ pub struct TaskResult<T: Float> {
 
 /// Continual learning result
 #[derive(Debug, Clone)]
-pub struct ContinualLearningResult<T: Float> {
+pub struct ContinualLearningResult<T: Float + Debug + Send + Sync + 'static> {
     pub sequence_results: Vec<TaskResult<T>>,
     pub forgetting_measure: T,
     pub adaptation_efficiency: T,
@@ -1515,7 +1516,7 @@ pub struct ContinualLearningResult<T: Float> {
 
 /// Multi-task learning result
 #[derive(Debug, Clone)]
-pub struct MultiTaskResult<T: Float> {
+pub struct MultiTaskResult<T: Float + Debug + Send + Sync + 'static> {
     pub task_results: Vec<TaskResult<T>>,
     pub coordination_overhead: T,
     pub convergence_status: String,
@@ -1523,7 +1524,7 @@ pub struct MultiTaskResult<T: Float> {
 
 /// Meta-learning statistics
 #[derive(Debug, Clone)]
-pub struct MetaLearningStatistics<T: Float> {
+pub struct MetaLearningStatistics<T: Float + Debug + Send + Sync + 'static> {
     pub algorithm: MetaLearningAlgorithm,
     pub total_tasks_seen: usize,
     pub adaptation_efficiency: T,
@@ -1771,7 +1772,7 @@ impl<T: Float + Default + Clone + std::iter::Sum, D: Dimension> MAMLLearner<T, D
 // Stub implementations for missing types to enable compilation
 
 /// Meta-validation system for meta-learning
-pub struct MetaValidator<T: Float> {
+pub struct MetaValidator<T: Float + Debug + Send + Sync + 'static> {
     config: MetaLearningConfig,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1799,7 +1800,7 @@ impl<T: Float + Default + Clone> MetaValidator<T> {
 }
 
 /// Adaptation engine for meta-learning
-pub struct AdaptationEngine<T: Float> {
+pub struct AdaptationEngine<T: Float + Debug + Send + Sync + 'static> {
     config: MetaLearningConfig,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1835,7 +1836,7 @@ impl<T: Float + Default + Clone> AdaptationEngine<T> {
 }
 
 /// Transfer learning manager
-pub struct TransferLearningManager<T: Float> {
+pub struct TransferLearningManager<T: Float + Debug + Send + Sync + 'static> {
     settings: TransferLearningSettings,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1869,7 +1870,7 @@ impl<T: Float + Default + Clone> TransferLearningManager<T> {
 }
 
 /// Continual learning system
-pub struct ContinualLearningSystem<T: Float> {
+pub struct ContinualLearningSystem<T: Float + Debug + Send + Sync + 'static> {
     settings: ContinualLearningSettings,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1914,7 +1915,7 @@ impl<T: Float + Default + Clone> ContinualLearningSystem<T> {
 }
 
 /// Multi-task coordinator
-pub struct MultiTaskCoordinator<T: Float> {
+pub struct MultiTaskCoordinator<T: Float + Debug + Send + Sync + 'static> {
     settings: MultiTaskSettings,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1959,7 +1960,7 @@ impl<T: Float + Default + Clone> MultiTaskCoordinator<T> {
 }
 
 /// Meta-optimization tracker
-pub struct MetaOptimizationTracker<T: Float> {
+pub struct MetaOptimizationTracker<T: Float + Debug + Send + Sync + 'static> {
     step_count: usize,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -1998,7 +1999,7 @@ impl<T: Float + Default + Clone> MetaOptimizationTracker<T> {
 }
 
 /// Task distribution manager
-pub struct TaskDistributionManager<T: Float> {
+pub struct TaskDistributionManager<T: Float + Debug + Send + Sync + 'static> {
     config: MetaLearningConfig,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -2022,7 +2023,7 @@ impl<T: Float + Default + Clone> TaskDistributionManager<T> {
 }
 
 /// Few-shot learner
-pub struct FewShotLearner<T: Float> {
+pub struct FewShotLearner<T: Float + Debug + Send + Sync + 'static> {
     settings: FewShotSettings,
     _phantom: std::marker::PhantomData<T>,
 }

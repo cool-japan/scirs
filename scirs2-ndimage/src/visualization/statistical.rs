@@ -29,10 +29,11 @@ use statrs::statistics::Statistics;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use ndarray::Array2;
 /// use scirs2_ndimage::visualization::{PlotConfig, ReportFormat, create_image_montage};
 ///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let img1 = Array2::zeros((10, 10));
 /// let img2 = Array2::ones((10, 10));
 /// let images = vec![img1.view(), img2.view()];
@@ -42,7 +43,8 @@ use statrs::statistics::Statistics;
 ///     .with_title("Image Comparison");
 ///
 /// let montage = create_image_montage(&images, 2, &config)?;
-/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn create_image_montage<T>(

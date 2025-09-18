@@ -12,7 +12,7 @@ use crate::error::{CoreError, CoreResult, ErrorContext, ErrorLocation};
 // use ndarray::Dimension; // Currently unused
 use std::time::Duration;
 
-/// Alpha 6: Workload types for optimized chunking strategies
+/// Beta 2: Workload types for optimized chunking strategies
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkloadType {
     /// Memory-intensive workloads that need smaller chunks
@@ -52,7 +52,7 @@ pub struct AdaptiveChunkingParams {
 
 impl Default for AdaptiveChunkingParams {
     fn default() -> Self {
-        // Alpha 6: Enhanced defaults based on system detection
+        // Beta 2: Enhanced defaults based on system detection
         let available_memory = Self::detect_available_memory();
         let cpu_cores = std::thread::available_parallelism()
             .map(|n| n.get())
@@ -69,16 +69,16 @@ impl Default for AdaptiveChunkingParams {
             target_memory_usage: target_memory,
             max_chunksize: usize::MAX,
             min_chunksize: 1024,
-            target_chunk_duration: Some(Duration::from_millis(100)), // Alpha 6: Default target 100ms per chunk
-            consider_distribution: true,                             // Alpha 6: Enable by default
-            optimize_for_parallel: cpu_cores > 1,                    // Alpha 6: Auto-detect
+            target_chunk_duration: Some(Duration::from_millis(100)), // Beta 2: Default target 100ms per chunk
+            consider_distribution: true,                             // Beta 2: Enable by default
+            optimize_for_parallel: cpu_cores > 1,                    // Beta 2: Auto-detect
             numworkers: Some(cpu_cores),
         }
     }
 }
 
 impl AdaptiveChunkingParams {
-    /// Alpha 6: Detect available system memory
+    /// Beta 2: Detect available system memory
     fn detect_available_memory() -> Option<usize> {
         // Simplified memory detection - in a real implementation this would be more robust
         #[cfg(unix)]
@@ -100,7 +100,7 @@ impl AdaptiveChunkingParams {
         None
     }
 
-    /// Alpha 6: Create optimized parameters for specific workload types
+    /// Beta 2: Create optimized parameters for specific workload types
     pub fn for_workload(workload: WorkloadType) -> Self {
         let mut params = Self::default();
 
@@ -550,8 +550,8 @@ impl Default for AdaptiveChunkingBuilder {
     }
 }
 
-/// Alpha 6: Advanced adaptive chunking algorithms and load balancing
-pub mod alpha6_enhancements {
+/// Beta 2: Advanced adaptive chunking algorithms and load balancing
+pub mod beta2_enhancements {
     use super::*;
     use std::sync::atomic::AtomicUsize;
     use std::sync::Arc;
@@ -566,7 +566,7 @@ pub mod alpha6_enhancements {
         pub cpu_utilization: Vec<f64>,
     }
 
-    /// Alpha 6: Dynamic load balancer for heterogeneous computing environments
+    /// Beta 2: Dynamic load balancer for heterogeneous computing environments
     #[allow(dead_code)]
     pub struct DynamicLoadBalancer {
         worker_performance: Vec<f64>,         // Relative performance scores
@@ -625,7 +625,7 @@ pub mod alpha6_enhancements {
         }
     }
 
-    /// Alpha 6: Intelligent chunk size predictor using historical data
+    /// Beta 2: Intelligent chunk size predictor using historical data
     #[allow(dead_code)]
     pub struct ChunkSizePredictor {
         historical_metrics: Vec<ChunkingPerformanceMetrics>,
@@ -699,7 +699,7 @@ pub mod alpha6_enhancements {
         }
     }
 
-    /// Alpha 6: NUMA-aware chunking for large multi-socket systems
+    /// Beta 2: NUMA-aware chunking for large multi-socket systems
     #[allow(dead_code)]
     pub fn numa_aware_chunking(data_size: usize, num_numanodes: usize) -> ChunkingStrategy {
         if num_numanodes <= 1 {

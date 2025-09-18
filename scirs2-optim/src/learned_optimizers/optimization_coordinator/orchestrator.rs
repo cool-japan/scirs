@@ -3,6 +3,7 @@
 use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::{
@@ -12,7 +13,7 @@ use crate::error::Result;
 
 /// Meta-learning orchestrator
 #[derive(Debug)]
-pub struct MetaLearningOrchestrator<T: Float> {
+pub struct MetaLearningOrchestrator<T: Float + Debug + Send + Sync + 'static> {
     /// Meta-learning strategies
     strategies: Vec<Box<dyn MetaLearningStrategy<T>>>,
 
@@ -650,7 +651,7 @@ pub trait MetaLearningStrategy<T: Float>: Send + Sync + std::fmt::Debug {
 
 /// Meta-task definition
 #[derive(Debug, Clone)]
-pub struct MetaTask<T: Float> {
+pub struct MetaTask<T: Float + Debug + Send + Sync + 'static> {
     pub task_id: String,
     pub task_type: TaskType,
     pub participating_optimizers: Vec<String>,
@@ -666,7 +667,7 @@ pub struct MetaTask<T: Float> {
 
 /// Task characteristics
 #[derive(Debug, Clone)]
-pub struct TaskCharacteristics<T: Float> {
+pub struct TaskCharacteristics<T: Float + Debug + Send + Sync + 'static> {
     pub complexity_score: T,
     pub dimensionality: usize,
     pub noise_level: T,
@@ -678,12 +679,12 @@ pub struct TaskCharacteristics<T: Float> {
 
 /// Task distribution analyzer
 #[derive(Debug)]
-pub struct TaskDistributionAnalyzer<T: Float> {
+pub struct TaskDistributionAnalyzer<T: Float + Debug + Send + Sync + 'static> {
     pub task_history: VecDeque<TaskCharacteristics<T>>,
     pub distribution_model: DistributionModel<T>,
 }
 
-impl<T: Float> TaskDistributionAnalyzer<T> {
+impl<T: Float + Debug + Send + Sync + 'static> TaskDistributionAnalyzer<T> {
     pub fn new() -> Self {
         Self {
             task_history: VecDeque::new(),
@@ -723,11 +724,11 @@ impl<T: Float> TaskDistributionAnalyzer<T> {
 
 /// Distribution model for task analysis
 #[derive(Debug)]
-pub struct DistributionModel<T: Float> {
+pub struct DistributionModel<T: Float + Debug + Send + Sync + 'static> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Float> DistributionModel<T> {
+impl<T: Float + Debug + Send + Sync + 'static> DistributionModel<T> {
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
@@ -737,7 +738,7 @@ impl<T: Float> DistributionModel<T> {
 
 /// Meta-learning state
 #[derive(Debug, Clone)]
-pub struct MetaLearningState<T: Float> {
+pub struct MetaLearningState<T: Float + Debug + Send + Sync + 'static> {
     pub current_context: OptimizationContext<T>,
     pub enable_strategy_ensemble: bool,
     pub session_start_time: Instant,
@@ -745,7 +746,7 @@ pub struct MetaLearningState<T: Float> {
     pub performance_tracking: PerformanceTracking<T>,
 }
 
-impl<T: Float> MetaLearningState<T> {
+impl<T: Float + Debug + Send + Sync + 'static> MetaLearningState<T> {
     pub fn new() -> Self {
         Self {
             current_context: OptimizationContext::default(),
@@ -767,7 +768,7 @@ impl<T: Float> MetaLearningState<T> {
 
 /// Strategy guidance
 #[derive(Debug, Clone)]
-pub struct StrategyGuidance<T: Float> {
+pub struct StrategyGuidance<T: Float + Debug + Send + Sync + 'static> {
     pub optimizer_priorities: HashMap<String, T>,
     pub learning_rate_scaling: HashMap<String, T>,
     pub exploration_factors: HashMap<String, T>,
@@ -778,7 +779,7 @@ pub struct StrategyGuidance<T: Float> {
 
 /// Meta-learning guidance
 #[derive(Debug, Clone)]
-pub struct MetaLearningGuidance<T: Float> {
+pub struct MetaLearningGuidance<T: Float + Debug + Send + Sync + 'static> {
     pub strategy_guidance: StrategyGuidance<T>,
     pub adaptation_instructions: AdaptationInstructions<T>,
     pub learning_rate_adjustments: HashMap<String, T>,
@@ -791,7 +792,7 @@ pub struct MetaLearningGuidance<T: Float> {
 
 /// Additional supporting types with default implementations
 #[derive(Debug, Clone)]
-pub struct MetaLearningEpisode<T: Float> {
+pub struct MetaLearningEpisode<T: Float + Debug + Send + Sync + 'static> {
     pub episode_id: usize,
     pub meta_task: MetaTask<T>,
     pub guidance_used: StrategyGuidance<T>,
@@ -801,7 +802,7 @@ pub struct MetaLearningEpisode<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TemporalContext<T: Float> {
+pub struct TemporalContext<T: Float + Debug + Send + Sync + 'static> {
     pub episode_number: usize,
     pub time_since_start: Duration,
     pub recent_performance_trend: T,
@@ -841,7 +842,7 @@ pub struct ResourceRequirements {
 }
 
 #[derive(Debug, Clone)]
-pub struct SuccessCriteria<T: Float> {
+pub struct SuccessCriteria<T: Float + Debug + Send + Sync + 'static> {
     pub target_performance: T,
     pub convergence_threshold: T,
     pub max_iterations: usize,
@@ -907,7 +908,7 @@ impl_strategy!(LEARNStrategy, "learn");
 
 // Additional supporting types
 #[derive(Debug, Clone)]
-pub struct AdaptationInstructions<T: Float> {
+pub struct AdaptationInstructions<T: Float + Debug + Send + Sync + 'static> {
     pub parameter_adjustments: HashMap<String, T>,
     pub strategy_switches: Vec<StrategySwitch>,
     pub resource_reallocations: Vec<ResourceReallocation>,
@@ -915,7 +916,7 @@ pub struct AdaptationInstructions<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExplorationParameters<T: Float> {
+pub struct ExplorationParameters<T: Float + Debug + Send + Sync + 'static> {
     pub exploration_rate: T,
     pub exploration_decay: T,
     pub exploration_strategy: ExplorationStrategy,
@@ -931,7 +932,7 @@ pub enum ExplorationStrategy {
 }
 
 #[derive(Debug, Clone)]
-pub struct MetaFeatures<T: Float> {
+pub struct MetaFeatures<T: Float + Debug + Send + Sync + 'static> {
     pub task_complexity: T,
     pub convergence_history: Vec<T>,
     pub performance_variance: T,
@@ -940,7 +941,7 @@ pub struct MetaFeatures<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransferLearningInfo<T: Float> {
+pub struct TransferLearningInfo<T: Float + Debug + Send + Sync + 'static> {
     pub source_tasks: Vec<String>,
     pub transferable_knowledge: HashMap<String, T>,
     pub transfer_strength: T,
@@ -948,7 +949,7 @@ pub struct TransferLearningInfo<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TemporalCoordination<T: Float> {
+pub struct TemporalCoordination<T: Float + Debug + Send + Sync + 'static> {
     pub synchronization_points: Vec<SynchronizationPoint>,
     pub coordination_schedule: CoordinationSchedule,
     pub temporal_dependencies: TemporalDependencies,
@@ -997,26 +998,26 @@ pub struct TemporalDependencies {
 }
 
 #[derive(Debug, Clone)]
-pub struct AdaptationEvent<T: Float> {
+pub struct AdaptationEvent<T: Float + Debug + Send + Sync + 'static> {
     pub event_type: String,
     pub timestamp: Instant,
     pub parameters_changed: HashMap<String, T>,
 }
 
 #[derive(Debug, Clone)]
-pub struct AdaptationSignal<T: Float> {
+pub struct AdaptationSignal<T: Float + Debug + Send + Sync + 'static> {
     pub signal_type: String,
     pub strength: T,
     pub target_optimizers: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct PerformanceTracking<T: Float> {
+pub struct PerformanceTracking<T: Float + Debug + Send + Sync + 'static> {
     pub episode_performances: VecDeque<T>,
     pub strategy_performances: HashMap<String, VecDeque<T>>,
 }
 
-impl<T: Float> PerformanceTracking<T> {
+impl<T: Float + Debug + Send + Sync + 'static> PerformanceTracking<T> {
     pub fn new() -> Self {
         Self {
             episode_performances: VecDeque::new(),

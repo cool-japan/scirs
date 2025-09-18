@@ -575,7 +575,7 @@ macro_rules! getlogger {
     };
 }
 
-// # Distributed Logging and Adaptive Rate Limiting (Alpha 6)
+// # Distributed Logging and Adaptive Rate Limiting (Beta 2)
 //
 // This section provides advanced distributed logging capabilities with
 // aggregation, adaptive rate limiting, and multi-node coordination.

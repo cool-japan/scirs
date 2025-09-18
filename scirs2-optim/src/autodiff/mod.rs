@@ -8,6 +8,7 @@ use crate::error::{OptimError, Result};
 use ndarray::{Array, Array1, Array2, Dimension};
 use num_traits::Float;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 pub mod forward_mode;
 pub mod higher_order;
@@ -80,7 +81,7 @@ pub enum HessianApproximation {
 
 /// Computational graph node for automatic differentiation
 #[derive(Debug, Clone)]
-pub struct ADNode<T: Float> {
+pub struct ADNode<T: Float + Debug + Send + Sync + 'static> {
     /// Value at this node
     pub value: T,
 
@@ -123,7 +124,7 @@ pub enum Operation {
 }
 
 /// Automatic differentiation engine
-pub struct AutodiffEngine<T: Float> {
+pub struct AutodiffEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: AutodiffConfig,
 
@@ -145,7 +146,7 @@ pub struct AutodiffEngine<T: Float> {
 
 /// Entry in the gradient tape
 #[derive(Debug, Clone)]
-struct TapeEntry<T: Float> {
+struct TapeEntry<T: Float + Debug + Send + Sync + 'static> {
     operation: Operation,
     inputs: Vec<usize>,
     output: usize,
@@ -168,7 +169,7 @@ struct ComputationContext {
 /// Hessian approximation state
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-struct HessianApproximationState<T: Float> {
+struct HessianApproximationState<T: Float + Debug + Send + Sync + 'static> {
     /// Approximation method
     method: HessianApproximation,
 
@@ -191,7 +192,7 @@ struct HessianApproximationState<T: Float> {
 /// L-BFGS memory structure
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-struct LBFGSMemory<T: Float> {
+struct LBFGSMemory<T: Float + Debug + Send + Sync + 'static> {
     /// Gradient differences (y_k = g_{k+1} - g_k)
     y_history: Vec<Array1<T>>,
 
@@ -211,7 +212,7 @@ struct LBFGSMemory<T: Float> {
 /// Computation checkpoint for gradient checkpointing
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-struct ComputationCheckpoint<T: Float> {
+struct ComputationCheckpoint<T: Float + Debug + Send + Sync + 'static> {
     /// Saved node values
     values: Vec<T>,
 
@@ -225,7 +226,7 @@ struct ComputationCheckpoint<T: Float> {
     memory_usage: usize,
 }
 
-impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
+impl<T: Float + Debug + Send + Sync + 'static + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
     /// Create a new automatic differentiation engine
     pub fn new(config: AutodiffConfig) -> Self {
         Self {
@@ -981,7 +982,7 @@ impl AutodiffUtils {
 
 /// Gradient check result
 #[derive(Debug, Clone)]
-pub struct GradientCheckResult<T: Float> {
+pub struct GradientCheckResult<T: Float + Debug + Send + Sync + 'static> {
     pub analytical_gradient: Vec<T>,
     pub numerical_gradient: Vec<T>,
     pub max_relative_error: T,

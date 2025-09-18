@@ -484,7 +484,7 @@ impl BenchmarkRunner {
 
         // Warmup phase
         for _ in 0..self.config.warmup_iterations {
-            benchmark_fn()?;
+            benchmarkfn()?;
         }
 
         // Measurement phase
@@ -501,7 +501,7 @@ impl BenchmarkRunner {
             };
 
             let start = Instant::now();
-            benchmark_fn()?;
+            benchmarkfn()?;
             let execution_time = start.elapsed();
 
             let memory_after = if self.config.enable_memory_tracking {
@@ -1099,7 +1099,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_config() {
         let config = BenchmarkConfig::new()
             .with_warmup_iterations(5)
@@ -1114,7 +1113,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_measurement() {
         let measurement = BenchmarkMeasurement::new(Duration::from_millis(100))
             .with_memory_usage(1024)
@@ -1126,7 +1124,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_statistics() {
         let measurements = vec![
             BenchmarkMeasurement::new(Duration::from_millis(100)),
@@ -1144,7 +1141,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_runner() {
         let config = BenchmarkConfig::new()
             .with_warmup_iterations(1)

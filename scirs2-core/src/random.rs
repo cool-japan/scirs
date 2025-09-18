@@ -1,9 +1,9 @@
-//! # Random Number Generation (Alpha 6 Enhanced)
+//! # Random Number Generation (Beta 2 Enhanced)
 //!
 //! This module provides a comprehensive interface for random number generation in scientific computing
 //! with advanced features for high-performance and specialized applications.
 //!
-//! ## Enhanced Features (Alpha 6)
+//! ## Enhanced Features (Beta 2)
 //!
 //! * Consistent interface across distribution types
 //! * Thread-local and seedable random number generators

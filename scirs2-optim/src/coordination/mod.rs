@@ -7,6 +7,7 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -46,7 +47,7 @@ pub use monitoring::{
 };
 
 /// Main coordination manager that integrates all coordination components
-pub struct OptimizationCoordinator<T: Float> {
+pub struct OptimizationCoordinator<T: Float + Debug + Send + Sync + 'static> {
     scheduler: TaskScheduler<T>,
     orchestrator: PipelineOrchestrator<T>,
     performance_tracker: PerformanceTracker<T>,
@@ -60,7 +61,7 @@ pub struct OptimizationCoordinator<T: Float> {
 
 /// Configuration for the optimization coordinator
 #[derive(Debug, Clone)]
-pub struct CoordinatorConfig<T: Float> {
+pub struct CoordinatorConfig<T: Float + Debug + Send + Sync + 'static> {
     pub max_concurrent_tasks: usize,
     pub default_timeout: Duration,
     pub monitoring_interval: Duration,
@@ -74,7 +75,7 @@ pub struct CoordinatorConfig<T: Float> {
     pub performance_threshold: T,
 }
 
-impl<T: Float> Default for CoordinatorConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for CoordinatorConfig<T> {
     fn default() -> Self {
         Self {
             max_concurrent_tasks: 10,
@@ -94,7 +95,7 @@ impl<T: Float> Default for CoordinatorConfig<T> {
 
 /// Internal state of the coordination manager
 #[derive(Debug)]
-pub struct CoordinatorState<T: Float> {
+pub struct CoordinatorState<T: Float + Debug + Send + Sync + 'static> {
     pub active_tasks: HashMap<String, OptimizationTask<T>>,
     pub active_pipelines: HashMap<String, OptimizationPipeline<T>>,
     pub active_experiments: HashMap<String, Experiment<T>>,
@@ -106,7 +107,7 @@ pub struct CoordinatorState<T: Float> {
     pub total_experiments_completed: usize,
 }
 
-impl<T: Float> CoordinatorState<T> {
+impl<T: Float + Debug + Send + Sync + 'static> CoordinatorState<T> {
     pub fn new() -> Self {
         Self {
             active_tasks: HashMap::new(),
@@ -124,7 +125,7 @@ impl<T: Float> CoordinatorState<T> {
 
 /// Metrics for coordination performance
 #[derive(Debug, Clone)]
-pub struct CoordinatorMetrics<T: Float> {
+pub struct CoordinatorMetrics<T: Float + Debug + Send + Sync + 'static> {
     pub average_task_completion_time: T,
     pub throughput: T,
     pub resource_utilization: T,
@@ -135,7 +136,7 @@ pub struct CoordinatorMetrics<T: Float> {
     pub total_processed_tasks: usize,
 }
 
-impl<T: Float> Default for CoordinatorMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for CoordinatorMetrics<T> {
     fn default() -> Self {
         Self {
             average_task_completion_time: T::zero(),
@@ -152,7 +153,7 @@ impl<T: Float> Default for CoordinatorMetrics<T> {
 
 /// Result of coordination operations
 #[derive(Debug, Clone)]
-pub struct CoordinationResult<T: Float> {
+pub struct CoordinationResult<T: Float + Debug + Send + Sync + 'static> {
     pub success: bool,
     pub task_id: String,
     pub execution_time: Duration,
@@ -163,7 +164,7 @@ pub struct CoordinationResult<T: Float> {
     pub errors: Vec<String>,
 }
 
-impl<T: Float> OptimizationCoordinator<T> {
+impl<T: Float + Debug + Send + Sync + 'static> OptimizationCoordinator<T> {
     /// Create a new optimization coordinator
     pub fn new(config: CoordinatorConfig<T>) -> Self {
         let scheduler = TaskScheduler::new(scheduling::SchedulerConfig {
@@ -643,7 +644,7 @@ impl<T: Float> OptimizationCoordinator<T> {
 
 /// Result of monitoring operations
 #[derive(Debug, Clone)]
-pub struct MonitoringResult<T: Float> {
+pub struct MonitoringResult<T: Float + Debug + Send + Sync + 'static> {
     pub task_id: String,
     pub value: T,
     pub convergence_result: ConvergenceResult<T>,
@@ -663,7 +664,7 @@ pub enum MonitoringAlert<T: Float> {
 
 /// Current status of the coordination system
 #[derive(Debug, Clone)]
-pub struct CoordinationStatus<T: Float> {
+pub struct CoordinationStatus<T: Float + Debug + Send + Sync + 'static> {
     pub active_tasks: usize,
     pub active_pipelines: usize,
     pub active_experiments: usize,
@@ -683,11 +684,11 @@ pub enum HealthStatus {
 }
 
 /// Builder for creating optimization coordinators
-pub struct CoordinatorBuilder<T: Float> {
+pub struct CoordinatorBuilder<T: Float + Debug + Send + Sync + 'static> {
     config: CoordinatorConfig<T>,
 }
 
-impl<T: Float> CoordinatorBuilder<T> {
+impl<T: Float + Debug + Send + Sync + 'static> CoordinatorBuilder<T> {
     pub fn new() -> Self {
         Self {
             config: CoordinatorConfig::default(),
@@ -724,7 +725,7 @@ impl<T: Float> CoordinatorBuilder<T> {
     }
 }
 
-impl<T: Float> Default for CoordinatorBuilder<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for CoordinatorBuilder<T> {
     fn default() -> Self {
         Self::new()
     }

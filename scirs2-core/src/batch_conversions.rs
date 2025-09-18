@@ -895,7 +895,7 @@ mod tests {
 
     #[test]
     fn test_large_dataset_threshold() {
-        let data: Vec<f64> = (0..20000).map(|0| 0 as f64 * 0.1).collect();
+        let data: Vec<f64> = (0..20000).map(|_| 0 as f64 * 0.1).collect();
         let config = BatchConversionConfig::default().with_parallel_threshold(10000);
         let converter = BatchConverter::new(config);
 

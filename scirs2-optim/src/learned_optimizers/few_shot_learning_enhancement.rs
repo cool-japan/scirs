@@ -8,13 +8,14 @@
 use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::time::Instant;
 
 #[allow(unused_imports)]
 use crate::error::Result;
 
 /// Few-Shot Learning Enhancement System for Learned Optimizers
-pub struct FewShotLearningEnhancement<T: Float> {
+pub struct FewShotLearningEnhancement<T: Float + Debug + Send + Sync + 'static> {
     /// Support set manager
     support_set_manager: SupportSetManager<T>,
 
@@ -42,7 +43,7 @@ pub struct FewShotLearningEnhancement<T: Float> {
 
 /// Configuration for few-shot learning
 #[derive(Debug, Clone)]
-pub struct FewShotConfig<T: Float> {
+pub struct FewShotConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Number of support examples per class
     pub support_size: usize,
 
@@ -103,7 +104,7 @@ pub struct FewShotConfig<T: Float> {
 
 /// Support set manager for few-shot learning
 #[derive(Debug)]
-pub struct SupportSetManager<T: Float> {
+pub struct SupportSetManager<T: Float + Debug + Send + Sync + 'static> {
     /// Current support sets
     support_sets: HashMap<String, SupportSet<T>>,
 
@@ -122,7 +123,7 @@ pub struct SupportSetManager<T: Float> {
 
 /// Support set representation
 #[derive(Debug, Clone)]
-pub struct SupportSet<T: Float> {
+pub struct SupportSet<T: Float + Debug + Send + Sync + 'static> {
     /// Examples in the support set
     pub examples: Vec<Example<T>>,
 
@@ -141,7 +142,7 @@ pub struct SupportSet<T: Float> {
 
 /// Individual example in support set
 #[derive(Debug, Clone)]
-pub struct Example<T: Float> {
+pub struct Example<T: Float + Debug + Send + Sync + 'static> {
     /// Feature vector
     pub features: Array1<T>,
 
@@ -201,7 +202,7 @@ pub enum FewShotTaskType {
 
 /// Support set quality metrics
 #[derive(Debug, Clone)]
-pub struct SupportSetQuality<T: Float> {
+pub struct SupportSetQuality<T: Float + Debug + Send + Sync + 'static> {
     /// Diversity score
     pub diversity: T,
 
@@ -220,7 +221,7 @@ pub struct SupportSetQuality<T: Float> {
 
 /// Few-shot meta-learner
 #[derive(Debug)]
-pub struct FewShotMetaLearner<T: Float> {
+pub struct FewShotMetaLearner<T: Float + Debug + Send + Sync + 'static> {
     /// Meta-network parameters
     meta_parameters: MetaParameters<T>,
 
@@ -239,7 +240,7 @@ pub struct FewShotMetaLearner<T: Float> {
 
 /// Prototype network for few-shot learning
 #[derive(Debug)]
-pub struct PrototypeNetwork<T: Float> {
+pub struct PrototypeNetwork<T: Float + Debug + Send + Sync + 'static> {
     /// Prototype embeddings
     pub prototypes: Array2<T>,
 
@@ -258,7 +259,7 @@ pub struct PrototypeNetwork<T: Float> {
 
 /// Similarity matcher for task matching
 #[derive(Debug)]
-pub struct SimilarityMatcher<T: Float> {
+pub struct SimilarityMatcher<T: Float + Debug + Send + Sync + 'static> {
     /// Similarity computer
     similarity_computer: SimilarityComputer<T>,
 
@@ -277,7 +278,7 @@ pub struct SimilarityMatcher<T: Float> {
 
 /// Task distribution analyzer
 #[derive(Debug)]
-pub struct TaskDistributionAnalyzer<T: Float> {
+pub struct TaskDistributionAnalyzer<T: Float + Debug + Send + Sync + 'static> {
     /// Task distribution estimator
     distribution_estimator: TaskDistributionEstimator<T>,
 
@@ -293,7 +294,7 @@ pub struct TaskDistributionAnalyzer<T: Float> {
 
 /// Adaptation controller for few-shot learning
 #[derive(Debug)]
-pub struct AdaptationController<T: Float> {
+pub struct AdaptationController<T: Float + Debug + Send + Sync + 'static> {
     /// Adaptation strategy
     strategy: AdaptationStrategy<T>,
 
@@ -312,7 +313,7 @@ pub struct AdaptationController<T: Float> {
 
 /// Few-shot performance tracker
 #[derive(Debug)]
-pub struct FewShotPerformanceTracker<T: Float> {
+pub struct FewShotPerformanceTracker<T: Float + Debug + Send + Sync + 'static> {
     /// Episode performance history
     episode_performance: VecDeque<EpisodePerformance<T>>,
 
@@ -451,7 +452,7 @@ pub enum SimilarityMetric {
 
 /// Meta-parameters for few-shot learning
 #[derive(Debug, Clone)]
-pub struct MetaParameters<T: Float> {
+pub struct MetaParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Initial parameters
     pub initial_params: HashMap<String, Array1<T>>,
 
@@ -467,7 +468,7 @@ pub struct MetaParameters<T: Float> {
 
 /// Episode memory for meta-learning
 #[derive(Debug)]
-pub struct EpisodeMemory<T: Float> {
+pub struct EpisodeMemory<T: Float + Debug + Send + Sync + 'static> {
     /// Recent episodes
     episodes: VecDeque<Episode<T>>,
 
@@ -483,7 +484,7 @@ pub struct EpisodeMemory<T: Float> {
 
 /// Individual episode
 #[derive(Debug, Clone)]
-pub struct Episode<T: Float> {
+pub struct Episode<T: Float + Debug + Send + Sync + 'static> {
     /// Episode identifier
     pub id: String,
 
@@ -502,7 +503,7 @@ pub struct Episode<T: Float> {
 
 /// Episode performance metrics
 #[derive(Debug, Clone)]
-pub struct EpisodePerformance<T: Float> {
+pub struct EpisodePerformance<T: Float + Debug + Send + Sync + 'static> {
     /// Initial performance
     pub initial_performance: T,
 
@@ -521,7 +522,7 @@ pub struct EpisodePerformance<T: Float> {
 
 /// Adaptation step in trajectory
 #[derive(Debug, Clone)]
-pub struct AdaptationStep<T: Float> {
+pub struct AdaptationStep<T: Float + Debug + Send + Sync + 'static> {
     /// Step number
     pub step: usize,
 
@@ -540,7 +541,7 @@ pub struct AdaptationStep<T: Float> {
 
 /// Meta-gradient computer
 #[derive(Debug)]
-pub struct MetaGradientComputer<T: Float> {
+pub struct MetaGradientComputer<T: Float + Debug + Send + Sync + 'static> {
     /// Gradient computation method
     computation_method: GradientComputationMethod,
 
@@ -556,7 +557,7 @@ pub struct MetaGradientComputer<T: Float> {
 
 /// Fast adaptation engine
 #[derive(Debug)]
-pub struct FastAdaptationEngine<T: Float> {
+pub struct FastAdaptationEngine<T: Float + Debug + Send + Sync + 'static> {
     /// Adaptation algorithm
     algorithm: FastAdaptationAlgorithm,
 
@@ -572,7 +573,7 @@ pub struct FastAdaptationEngine<T: Float> {
 
 /// Prototype update rule
 #[derive(Debug)]
-pub struct PrototypeUpdateRule<T: Float> {
+pub struct PrototypeUpdateRule<T: Float + Debug + Send + Sync + 'static> {
     /// Update method
     method: PrototypeUpdateMethod,
 
@@ -585,7 +586,7 @@ pub struct PrototypeUpdateRule<T: Float> {
 
 /// Distance computer for prototypes
 #[derive(Debug)]
-pub struct DistanceComputer<T: Float> {
+pub struct DistanceComputer<T: Float + Debug + Send + Sync + 'static> {
     /// Distance metric
     metric: DistanceMetric,
 
@@ -601,7 +602,7 @@ pub struct DistanceComputer<T: Float> {
 
 /// Similarity computer
 #[derive(Debug)]
-pub struct SimilarityComputer<T: Float> {
+pub struct SimilarityComputer<T: Float + Debug + Send + Sync + 'static> {
     /// Similarity metrics
     metrics: Vec<SimilarityMetric>,
 
@@ -617,7 +618,7 @@ pub struct SimilarityComputer<T: Float> {
 
 /// Similarity cache
 #[derive(Debug)]
-pub struct SimilarityCache<T: Float> {
+pub struct SimilarityCache<T: Float + Debug + Send + Sync + 'static> {
     /// Cached similarities
     cache: HashMap<(String, String), T>,
 
@@ -633,7 +634,7 @@ pub struct SimilarityCache<T: Float> {
 
 /// Task distribution estimator
 #[derive(Debug)]
-pub struct TaskDistributionEstimator<T: Float> {
+pub struct TaskDistributionEstimator<T: Float + Debug + Send + Sync + 'static> {
     /// Distribution model
     distribution_model: DistributionModel<T>,
 
@@ -649,7 +650,7 @@ pub struct TaskDistributionEstimator<T: Float> {
 
 /// Task novelty detector
 #[derive(Debug)]
-pub struct TaskNoveltyDetector<T: Float> {
+pub struct TaskNoveltyDetector<T: Float + Debug + Send + Sync + 'static> {
     /// Novelty threshold
     novelty_threshold: T,
 
@@ -665,7 +666,7 @@ pub struct TaskNoveltyDetector<T: Float> {
 
 /// Task difficulty estimator
 #[derive(Debug)]
-pub struct TaskDifficultyEstimator<T: Float> {
+pub struct TaskDifficultyEstimator<T: Float + Debug + Send + Sync + 'static> {
     /// Difficulty model
     difficulty_model: DifficultyModel<T>,
 
@@ -681,7 +682,7 @@ pub struct TaskDifficultyEstimator<T: Float> {
 
 /// Task distribution
 #[derive(Debug, Clone)]
-pub struct TaskDistribution<T: Float> {
+pub struct TaskDistribution<T: Float + Debug + Send + Sync + 'static> {
     /// Distribution parameters
     pub parameters: HashMap<String, T>,
 
@@ -697,7 +698,7 @@ pub struct TaskDistribution<T: Float> {
 
 /// Additional supporting structures
 #[derive(Debug, Clone)]
-pub struct SupportSetStatistics<T: Float> {
+pub struct SupportSetStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Total support sets
     pub total_sets: usize,
 
@@ -712,7 +713,7 @@ pub struct SupportSetStatistics<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct SupportSetQualityAssessor<T: Float> {
+pub struct SupportSetQualityAssessor<T: Float + Debug + Send + Sync + 'static> {
     /// Quality metrics
     metrics: Vec<QualityMetric>,
 
@@ -724,7 +725,7 @@ pub struct SupportSetQualityAssessor<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct ProcessedSupportSet<T: Float> {
+pub struct ProcessedSupportSet<T: Float + Debug + Send + Sync + 'static> {
     /// Processed features
     features: Array2<T>,
 
@@ -757,7 +758,7 @@ pub enum QualityAssessmentMethod {
 }
 
 #[derive(Debug, Clone)]
-pub struct FeatureStatistics<T: Float> {
+pub struct FeatureStatistics<T: Float + Debug + Send + Sync + 'static> {
     pub mean: Array1<T>,
     pub variance: Array1<T>,
     pub skewness: Array1<T>,
@@ -780,7 +781,7 @@ pub enum GradientComputationMethod {
 }
 
 #[derive(Debug)]
-pub struct ComputationalGraph<T: Float> {
+pub struct ComputationalGraph<T: Float + Debug + Send + Sync + 'static> {
     /// Graph nodes
     nodes: Vec<GraphNode<T>>,
 
@@ -792,7 +793,7 @@ pub struct ComputationalGraph<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct GraphNode<T: Float> {
+pub struct GraphNode<T: Float + Debug + Send + Sync + 'static> {
     /// Node ID
     id: usize,
 
@@ -837,7 +838,7 @@ pub enum FastAdaptationAlgorithm {
 }
 
 #[derive(Debug, Clone)]
-pub struct OptimizationState<T: Float> {
+pub struct OptimizationState<T: Float + Debug + Send + Sync + 'static> {
     /// Current parameters
     parameters: HashMap<String, Array1<T>>,
 
@@ -852,7 +853,7 @@ pub struct OptimizationState<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct ConvergenceDetector<T: Float> {
+pub struct ConvergenceDetector<T: Float + Debug + Send + Sync + 'static> {
     /// Convergence criteria
     criteria: Vec<ConvergenceCriterion<T>>,
 
@@ -867,7 +868,7 @@ pub struct ConvergenceDetector<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct EarlyStoppingMechanism<T: Float> {
+pub struct EarlyStoppingMechanism<T: Float + Debug + Send + Sync + 'static> {
     /// Patience parameter
     patience: usize,
 
@@ -882,7 +883,7 @@ pub struct EarlyStoppingMechanism<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PrototypeUpdate<T: Float> {
+pub struct PrototypeUpdate<T: Float + Debug + Send + Sync + 'static> {
     /// Update timestamp
     timestamp: Instant,
 
@@ -906,7 +907,7 @@ pub enum DistanceNormalization {
 }
 
 #[derive(Debug, Clone)]
-pub struct SimilarityParameters<T: Float> {
+pub struct SimilarityParameters<T: Float + Debug + Send + Sync + 'static> {
     /// Temperature parameter
     temperature: T,
 
@@ -935,7 +936,7 @@ pub enum DistributionModel<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TaskSample<T: Float> {
+pub struct TaskSample<T: Float + Debug + Send + Sync + 'static> {
     /// Sample features
     features: Array1<T>,
 
@@ -950,7 +951,7 @@ pub struct TaskSample<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct NoveltyScore<T: Float> {
+pub struct NoveltyScore<T: Float + Debug + Send + Sync + 'static> {
     /// Novelty value
     score: T,
 
@@ -973,7 +974,7 @@ pub enum NoveltyDetectionAlgorithm {
 }
 
 #[derive(Debug)]
-pub struct DifficultyModel<T: Float> {
+pub struct DifficultyModel<T: Float + Debug + Send + Sync + 'static> {
     /// Model parameters
     parameters: HashMap<String, T>,
 
@@ -985,7 +986,7 @@ pub struct DifficultyModel<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct DifficultyFeatureExtractor<T: Float> {
+pub struct DifficultyFeatureExtractor<T: Float + Debug + Send + Sync + 'static> {
     /// Feature dimensions
     feature_dims: usize,
 
@@ -997,7 +998,7 @@ pub struct DifficultyFeatureExtractor<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct DifficultyEstimate<T: Float> {
+pub struct DifficultyEstimate<T: Float + Debug + Send + Sync + 'static> {
     /// Estimated difficulty
     difficulty: T,
 
@@ -1031,7 +1032,7 @@ pub enum DifficultyModelType {
 }
 
 #[derive(Debug, Clone)]
-pub struct DifficultyTrainingExample<T: Float> {
+pub struct DifficultyTrainingExample<T: Float + Debug + Send + Sync + 'static> {
     /// Example features
     features: Array1<T>,
 
@@ -1063,7 +1064,7 @@ pub enum DifficultyEstimationMethod {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConvergenceCriterion<T: Float> {
+pub struct ConvergenceCriterion<T: Float + Debug + Send + Sync + 'static> {
     /// Criterion type
     criterion_type: ConvergenceCriterionType,
 
@@ -1086,7 +1087,7 @@ pub enum ConvergenceCriterionType {
 }
 
 #[derive(Debug, Clone)]
-pub struct StoppingCriterion<T: Float> {
+pub struct StoppingCriterion<T: Float + Debug + Send + Sync + 'static> {
     /// Maximum iterations
     max_iterations: usize,
 
@@ -1111,7 +1112,7 @@ pub enum MemoryRetrievalMechanism {
 
 // Additional structures for adaptation
 #[derive(Debug)]
-pub struct AdaptationStrategy<T: Float> {
+pub struct AdaptationStrategy<T: Float + Debug + Send + Sync + 'static> {
     /// Strategy type
     _strategytype: AdaptationStrategyType,
 
@@ -1123,7 +1124,7 @@ pub struct AdaptationStrategy<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct AdaptationRateController<T: Float> {
+pub struct AdaptationRateController<T: Float + Debug + Send + Sync + 'static> {
     /// Base learning rate
     _baserate: T,
 
@@ -1138,7 +1139,7 @@ pub struct AdaptationRateController<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct AdaptationMemory<T: Float> {
+pub struct AdaptationMemory<T: Float + Debug + Send + Sync + 'static> {
     /// Memory entries
     entries: VecDeque<AdaptationMemoryEntry<T>>,
 
@@ -1150,7 +1151,7 @@ pub struct AdaptationMemory<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct AdaptationPerformanceMonitor<T: Float> {
+pub struct AdaptationPerformanceMonitor<T: Float + Debug + Send + Sync + 'static> {
     /// Performance history
     performance_history: VecDeque<T>,
 
@@ -1165,7 +1166,7 @@ pub struct AdaptationPerformanceMonitor<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct TaskPerformance<T: Float> {
+pub struct TaskPerformance<T: Float + Debug + Send + Sync + 'static> {
     /// Task identifier
     _taskid: String,
 
@@ -1180,7 +1181,7 @@ pub struct TaskPerformance<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct FewShotMetrics<T: Float> {
+pub struct FewShotMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Average performance across tasks
     avg_performance: T,
 
@@ -1198,7 +1199,7 @@ pub struct FewShotMetrics<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct PerformanceTrends<T: Float> {
+pub struct PerformanceTrends<T: Float + Debug + Send + Sync + 'static> {
     /// Trend direction
     trend_direction: TrendDirection,
 
@@ -1222,7 +1223,7 @@ pub enum AdaptationStrategyType {
 }
 
 #[derive(Debug, Clone)]
-pub struct AdaptationResult<T: Float> {
+pub struct AdaptationResult<T: Float + Debug + Send + Sync + 'static> {
     /// Adaptation success
     success: bool,
 
@@ -1246,7 +1247,7 @@ pub enum LearningRateSchedule {
 }
 
 #[derive(Debug, Clone)]
-pub struct AdaptationMemoryEntry<T: Float> {
+pub struct AdaptationMemoryEntry<T: Float + Debug + Send + Sync + 'static> {
     /// Entry ID
     id: String,
 
@@ -1264,7 +1265,7 @@ pub struct AdaptationMemoryEntry<T: Float> {
 }
 
 #[derive(Debug)]
-pub struct AdaptationStatistics<T: Float> {
+pub struct AdaptationStatistics<T: Float + Debug + Send + Sync + 'static> {
     /// Average adaptation time
     avg_adaptation_time: std::time::Duration,
 

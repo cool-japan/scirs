@@ -13,10 +13,11 @@ use crate::optimizers::adam::Adam;
 use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
 /// Multi-GPU distributed optimizer wrapper
-pub struct DistributedOptimizer<T: Float> {
+pub struct DistributedOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Local optimizer instance
     local_optimizer: Adam<T>,
 
@@ -63,7 +64,7 @@ pub struct ParameterInfo {
 
 /// Configuration for distributed optimization
 #[derive(Debug, Clone)]
-pub struct DistributedConfig<T: Float> {
+pub struct DistributedConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Synchronization frequency
     pub sync_frequency: SyncFrequency,
 
@@ -83,7 +84,7 @@ pub struct DistributedConfig<T: Float> {
     pub enable_overlap: bool,
 }
 
-impl<T: Float + Send + Sync> DistributedOptimizer<T> {
+impl<T: Float + Debug + Send + Sync + 'static> DistributedOptimizer<T> {
     /// Create new distributed optimizer
     pub fn new(
         local_optimizer: Adam<T>,
@@ -372,7 +373,7 @@ impl<T: Float + Send + Sync> DistributedOptimizer<T> {
     }
 }
 
-impl<T: Float> Default for DistributedConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for DistributedConfig<T> {
     fn default() -> Self {
         Self {
             sync_frequency: SyncFrequency::EveryStep,

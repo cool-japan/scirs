@@ -521,12 +521,15 @@ impl Layer for MaxPool2D {
 
     fn forward(
         &self,
-        _inputs: &dyn ArrayProtocol,
+        inputs: &dyn ArrayProtocol,
     ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
-        // TODO: Implement max_pool2d in ml_ops module
-        Err(OperationError::NotImplemented(
-            "max_pool2d not yet implemented".to_string(),
-        ))
+        // Use the max_pool2d implementation from ml_ops module
+        crate::array_protocol::ml_ops::max_pool2d(
+            inputs,
+            self.kernel_size,
+            self.stride,
+            self.padding,
+        )
     }
 
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {

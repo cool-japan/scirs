@@ -458,7 +458,6 @@ mod tests {
     use ndarray::arr1;
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_maximum_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let b = arr1(&[9.0f32, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
@@ -472,7 +471,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_maximum_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0, 5.0]);
         let b = arr1(&[5.0f64, 4.0, 3.0, 2.0, 1.0]);
@@ -486,7 +484,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_minimum_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let b = arr1(&[9.0f32, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
@@ -500,7 +497,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_minimum_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0, 5.0]);
         let b = arr1(&[5.0f64, 4.0, 3.0, 2.0, 1.0]);
@@ -544,7 +540,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_add_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let b = arr1(&[9.0f32, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
@@ -558,7 +553,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_add_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0, 5.0]);
         let b = arr1(&[5.0f64, 4.0, 3.0, 2.0, 1.0]);
@@ -572,7 +566,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_mul_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
         let b = arr1(&[2.0f32, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
@@ -586,7 +579,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_mul_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0]);
         let b = arr1(&[2.0f64, 3.0, 4.0, 5.0]);
@@ -600,7 +592,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_dot_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
         let b = arr1(&[8.0f32, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
@@ -612,7 +603,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_dot_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0]);
         let b = arr1(&[4.0f64, 3.0, 2.0, 1.0]);
@@ -624,7 +614,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_scalar_mul_f32() {
         let a = arr1(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
         let scalar = 2.5f32;
@@ -638,7 +627,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_simd_scalar_mul_f64() {
         let a = arr1(&[1.0f64, 2.0, 3.0, 4.0]);
         let scalar = 3.0f64;

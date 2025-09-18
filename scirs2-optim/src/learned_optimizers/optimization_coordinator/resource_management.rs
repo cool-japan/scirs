@@ -2,6 +2,7 @@
 
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque, BTreeMap};
+use std::fmt::Debug;
 use std::time::{Duration, Instant, SystemTime};
 use std::sync::{Arc, Mutex};
 
@@ -13,7 +14,7 @@ use crate::error::Result;
 
 /// Resource manager for coordinating optimization resources
 #[derive(Debug)]
-pub struct ResourceManager<T: Float> {
+pub struct ResourceManager<T: Float + Debug + Send + Sync + 'static> {
     /// Available resources
     available_resources: ResourcePool,
 
@@ -39,7 +40,7 @@ pub struct ResourceManager<T: Float> {
     allocation_history: VecDeque<AllocationRecord<T>>,
 }
 
-impl<T: Float> ResourceManager<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceManager<T> {
     /// Create new resource manager
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -711,12 +712,12 @@ impl ResourcePool {
 /// Supporting data structures
 
 #[derive(Debug, Clone)]
-pub struct ResourceAllocation<T: Float> {
+pub struct ResourceAllocation<T: Float + Debug + Send + Sync + 'static> {
     pub allocations: HashMap<String, OptimizerResources<T>>,
     pub allocation_metadata: AllocationMetadata<T>,
 }
 
-impl<T: Float> ResourceAllocation<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceAllocation<T> {
     pub fn new() -> Self {
         Self {
             allocations: HashMap::new(),
@@ -748,7 +749,7 @@ impl<T: Float> ResourceAllocation<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct OptimizerResources<T: Float> {
+pub struct OptimizerResources<T: Float + Debug + Send + Sync + 'static> {
     pub cpu_allocation: f64,
     pub memory_allocation: usize,
     pub gpu_memory_allocation: usize,
@@ -757,7 +758,7 @@ pub struct OptimizerResources<T: Float> {
     pub quality_of_service: QualityOfService,
 }
 
-impl<T: Float + std::default::Default> Default for OptimizerResources<T> {
+impl<T: Float + Debug + Send + Sync + 'static + Default> Default for OptimizerResources<T> {
     fn default() -> Self {
         Self {
             cpu_allocation: 1.0,
@@ -840,7 +841,7 @@ impl Default for ResourceConstraints {
 }
 
 #[derive(Debug, Clone)]
-pub struct AllocationRecord<T: Float> {
+pub struct AllocationRecord<T: Float + Debug + Send + Sync + 'static> {
     pub timestamp: SystemTime,
     pub allocation: ResourceAllocation<T>,
     pub allocation_time: Duration,
@@ -848,13 +849,13 @@ pub struct AllocationRecord<T: Float> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AllocationMetadata<T: Float> {
+pub struct AllocationMetadata<T: Float + Debug + Send + Sync + 'static> {
     pub allocation_strategy: String,
     pub total_efficiency: T,
     pub load_balance_score: T,
 }
 
-impl<T: Float> Default for AllocationMetadata<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for AllocationMetadata<T> {
     fn default() -> Self {
         Self {
             allocation_strategy: "balanced".to_string(),
@@ -867,13 +868,13 @@ impl<T: Float> Default for AllocationMetadata<T> {
 // Placeholder implementations for supporting components
 
 #[derive(Debug)]
-pub struct ResourceAllocationTracker<T: Float> {
+pub struct ResourceAllocationTracker<T: Float + Debug + Send + Sync + 'static> {
     active_allocations: HashMap<String, OptimizerResources<T>>,
     allocation_history: VecDeque<AllocationRecord<T>>,
     usage_statistics: UsageStatistics,
 }
 
-impl<T: Float> ResourceAllocationTracker<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceAllocationTracker<T> {
     pub fn new() -> Result<Self> {
         Ok(Self {
             active_allocations: HashMap::new(),
@@ -924,11 +925,11 @@ impl<T: Float> ResourceAllocationTracker<T> {
 }
 
 #[derive(Debug)]
-pub struct ResourceOptimizationEngine<T: Float> {
+pub struct ResourceOptimizationEngine<T: Float + Debug + Send + Sync + 'static> {
     optimization_algorithms: Vec<Box<dyn OptimizationAlgorithm<T>>>,
 }
 
-impl<T: Float> ResourceOptimizationEngine<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourceOptimizationEngine<T> {
     pub fn new() -> Result<Self> {
         Ok(Self {
             optimization_algorithms: Vec::new(),
@@ -952,12 +953,12 @@ impl<T: Float> ResourceOptimizationEngine<T> {
 }
 
 #[derive(Debug)]
-pub struct LoadBalancer<T: Float> {
+pub struct LoadBalancer<T: Float + Debug + Send + Sync + 'static> {
     balancing_strategy: LoadBalancingStrategy,
     load_metrics: LoadMetrics<T>,
 }
 
-impl<T: Float> LoadBalancer<T> {
+impl<T: Float + Debug + Send + Sync + 'static> LoadBalancer<T> {
     pub fn new() -> Result<Self> {
         Ok(Self {
             balancing_strategy: LoadBalancingStrategy::RoundRobin,
@@ -990,12 +991,12 @@ impl<T: Float> LoadBalancer<T> {
 }
 
 #[derive(Debug)]
-pub struct ResourcePerformanceMonitor<T: Float> {
+pub struct ResourcePerformanceMonitor<T: Float + Debug + Send + Sync + 'static> {
     performance_history: HashMap<String, VecDeque<f64>>,
     allocation_records: VecDeque<AllocationRecord<T>>,
 }
 
-impl<T: Float> ResourcePerformanceMonitor<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ResourcePerformanceMonitor<T> {
     pub fn new() -> Self {
         Self {
             performance_history: HashMap::new(),
@@ -1086,13 +1087,13 @@ pub enum LoadBalancingStrategy {
 }
 
 #[derive(Debug)]
-pub struct LoadMetrics<T: Float> {
+pub struct LoadMetrics<T: Float + Debug + Send + Sync + 'static> {
     pub current_load: T,
     pub load_history: VecDeque<T>,
     pub load_variance: T,
 }
 
-impl<T: Float> LoadMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> LoadMetrics<T> {
     pub fn new() -> Self {
         Self {
             current_load: T::zero(),

@@ -620,14 +620,50 @@ where
                 // Read-only view
                 let ptr = view.as_ptr() as *const A;
                 // Validation: ptr should be within bounds
-                // TODO: Implement proper bounds checking
+                // Check that the view has enough bytes for the requested size
+                let required_bytes = self.size * std::mem::size_of::<A>();
+                if view.len() < required_bytes {
+                    return Err(CoreError::ValidationError(
+                        ErrorContext::new(format!(
+                            "Memory map view too small: {} bytes available, {} bytes required",
+                            view.len(),
+                            required_bytes
+                        ))
+                        .with_location(ErrorLocation::new(file!(), line!())),
+                    ));
+                }
+                // Check pointer alignment
+                if ptr as usize % std::mem::align_of::<A>() != 0 {
+                    return Err(CoreError::ValidationError(
+                        ErrorContext::new("Memory map pointer is not properly aligned")
+                            .with_location(ErrorLocation::new(file!(), line!())),
+                    ));
+                }
                 unsafe { std::slice::from_raw_parts(ptr, self.size) }
             }
             (_, Some(view)) => {
                 // Mutable view
                 let ptr = view.as_ptr() as *const A;
                 // Validation: ptr should be within bounds
-                // TODO: Implement proper bounds checking
+                // Check that the view has enough bytes for the requested size
+                let required_bytes = self.size * std::mem::size_of::<A>();
+                if view.len() < required_bytes {
+                    return Err(CoreError::ValidationError(
+                        ErrorContext::new(format!(
+                            "Memory map view too small: {} bytes available, {} bytes required",
+                            view.len(),
+                            required_bytes
+                        ))
+                        .with_location(ErrorLocation::new(file!(), line!())),
+                    ));
+                }
+                // Check pointer alignment
+                if ptr as usize % std::mem::align_of::<A>() != 0 {
+                    return Err(CoreError::ValidationError(
+                        ErrorContext::new("Memory map pointer is not properly aligned")
+                            .with_location(ErrorLocation::new(file!(), line!())),
+                    ));
+                }
                 unsafe { std::slice::from_raw_parts(ptr, self.size) }
             }
             _ => {

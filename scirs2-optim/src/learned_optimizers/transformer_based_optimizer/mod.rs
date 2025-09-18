@@ -36,6 +36,7 @@ pub use TransformerBasedOptimizerConfig as TransformerOptimizerConfig;
 use ndarray::{Array1, Array2, Array3, ArrayBase, Data, Dimension, Axis};
 use num_traits::{Float, ToPrimitive};
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use serde::{Serialize, Deserialize};
@@ -50,7 +51,7 @@ use super::{
 // Import for external compatibility
 
 /// Transformer-based meta-learning optimizer
-pub struct TransformerOptimizer<T: Float> {
+pub struct TransformerOptimizer<T: Float + Debug + Send + Sync + 'static> {
     /// Core transformer architecture
     transformer: TransformerArchitecture<T>,
 
@@ -82,7 +83,7 @@ pub struct TransformerOptimizer<T: Float> {
     state: TransformerOptimizerState<T>,
 }
 
-impl<T: Float + ndarray::ScalarOperand + num_traits::FromPrimitive> TransformerOptimizer<T> {
+impl<T: Float + Debug + Send + Sync + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive> TransformerOptimizer<T> {
     /// Create new transformer optimizer
     pub fn new(config: TransformerBasedOptimizerConfig<T>) -> Result<Self> {
         let transformer_config = TransformerArchConfig::from_optimizer_config(&config);
@@ -292,7 +293,7 @@ impl<T: Float + ndarray::ScalarOperand + num_traits::FromPrimitive> TransformerO
 
 /// Optimization trajectory for training
 #[derive(Debug, Clone)]
-pub struct OptimizationTrajectory<T: Float> {
+pub struct OptimizationTrajectory<T: Float + Debug + Send + Sync + 'static> {
     pub gradient_sequence: Array2<T>,
     pub parameter_sequence: Array2<T>,
     pub loss_sequence: Array1<T>,
@@ -310,7 +311,7 @@ pub struct TrajectoryMetadata {
 
 /// Training sequence
 #[derive(Debug, Clone)]
-pub struct TrainingSequence<T: Float> {
+pub struct TrainingSequence<T: Float + Debug + Send + Sync + 'static> {
     pub input: Array2<T>,
     pub target: Array2<T>,
     pub sequence_length: usize,

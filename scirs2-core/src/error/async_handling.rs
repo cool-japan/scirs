@@ -230,7 +230,7 @@ impl AsyncProgressTracker {
     /// Create a new progress tracker
     pub fn new(totalsteps: usize) -> Self {
         Self {
-            total_steps,
+            total_steps: totalsteps,
             completed_steps: Arc::new(Mutex::new(0)),
             errors: Arc::new(Mutex::new(Vec::new())),
             start_time: Instant::now(),
@@ -461,7 +461,7 @@ impl<F> TrackedAsyncOperation<F> {
     pub fn new(operation: F, totalsteps: usize) -> Self {
         Self {
             operation,
-            tracker: AsyncProgressTracker::new(total_steps),
+            tracker: AsyncProgressTracker::new(totalsteps),
             retry_strategy: None,
         }
     }

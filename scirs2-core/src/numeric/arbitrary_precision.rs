@@ -1040,7 +1040,7 @@ impl ToArbitraryPrecision for i32 {
         ArbitraryInt::from_i64(*self as i64)
     }
 
-    fn prec(prec: u32) -> CoreResult<Self::ArbitraryType> {
+    fn to_arbitrary_prec(&self, prec: u32) -> CoreResult<Self::ArbitraryType> {
         Ok(self.to_arbitrary())
     }
 }
@@ -1052,7 +1052,7 @@ impl ToArbitraryPrecision for i64 {
         ArbitraryInt::from_i64(*self)
     }
 
-    fn prec(prec: u32) -> CoreResult<Self::ArbitraryType> {
+    fn to_arbitrary_prec(&self, prec: u32) -> CoreResult<Self::ArbitraryType> {
         Ok(self.to_arbitrary())
     }
 }

@@ -6,13 +6,14 @@ use crate::error::Result;
 use ndarray::Array1;
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::sync::Arc;
 use scirs2_core::random::Random;
 
 // Advanced federated learning implementation structures
 
 /// Byzantine-robust aggregation engine
-pub struct ByzantineRobustAggregator<T: Float> {
+pub struct ByzantineRobustAggregator<T: Float + Debug + Send + Sync + 'static> {
     config: ByzantineRobustConfig,
     client_reputations: HashMap<String, f64>,
     outlier_history: VecDeque<OutlierDetectionResult>,
@@ -21,7 +22,7 @@ pub struct ByzantineRobustAggregator<T: Float> {
 }
 
 /// Personalized federated learning manager
-pub struct PersonalizationManager<T: Float> {
+pub struct PersonalizationManager<T: Float + Debug + Send + Sync + 'static> {
     config: PersonalizationConfig,
     client_models: HashMap<String, PersonalizedModel<T>>,
     global_model: Option<Array1<T>>,
@@ -31,7 +32,7 @@ pub struct PersonalizationManager<T: Float> {
 }
 
 /// Adaptive privacy budget manager
-pub struct AdaptiveBudgetManager<T: Float> {
+pub struct AdaptiveBudgetManager<T: Float + Debug + Send + Sync + 'static> {
     config: AdaptiveBudgetConfig,
     client_budgets: HashMap<String, AdaptiveBudget>,
     global_budget_tracker: GlobalBudgetTracker,
@@ -42,7 +43,7 @@ pub struct AdaptiveBudgetManager<T: Float> {
 }
 
 /// Communication efficiency optimizer
-pub struct CommunicationOptimizer<T: Float> {
+pub struct CommunicationOptimizer<T: Float + Debug + Send + Sync + 'static> {
     config: CommunicationConfig,
     compression_engine: CompressionEngine<T>,
     bandwidth_monitor: BandwidthMonitor,
@@ -52,7 +53,7 @@ pub struct CommunicationOptimizer<T: Float> {
 }
 
 /// Continual learning coordinator
-pub struct ContinualLearningCoordinator<T: Float> {
+pub struct ContinualLearningCoordinator<T: Float + Debug + Send + Sync + 'static> {
     config: ContinualLearningConfig,
     task_detector: TaskDetector<T>,
     memory_manager: MemoryManager<T>,
@@ -64,14 +65,14 @@ pub struct ContinualLearningCoordinator<T: Float> {
 // Supporting implementation structures
 
 /// Statistical analyzer for Byzantine detection
-pub struct StatisticalAnalyzer<T: Float> {
+pub struct StatisticalAnalyzer<T: Float + Debug + Send + Sync + 'static> {
     window_size: usize,
     significancelevel: f64,
     test_statistics: VecDeque<TestStatistic<T>>,
 }
 
 /// Robust estimators for aggregation
-pub struct RobustEstimators<T: Float> {
+pub struct RobustEstimators<T: Float + Debug + Send + Sync + 'static> {
     trimmed_mean_cache: HashMap<String, T>,
     median_cache: HashMap<String, T>,
     krum_scores: HashMap<String, f64>,
@@ -89,7 +90,7 @@ pub struct OutlierDetectionResult {
 
 /// Personalized model for each client
 #[derive(Debug, Clone)]
-pub struct PersonalizedModel<T: Float> {
+pub struct PersonalizedModel<T: Float + Debug + Send + Sync + 'static> {
     pub model_parameters: Array1<T>,
     pub personal_layers: HashMap<usize, Array1<T>>,
     pub adaptation_state: AdaptationState<T>,
@@ -99,7 +100,7 @@ pub struct PersonalizedModel<T: Float> {
 
 /// Adaptation state for personalized models
 #[derive(Debug, Clone)]
-pub struct AdaptationState<T: Float> {
+pub struct AdaptationState<T: Float + Debug + Send + Sync + 'static> {
     pub learning_rate: f64,
     pub momentum: Array1<T>,
     pub adaptation_count: usize,
@@ -107,7 +108,7 @@ pub struct AdaptationState<T: Float> {
 }
 
 /// Clustering engine for federated learning
-pub struct ClusteringEngine<T: Float> {
+pub struct ClusteringEngine<T: Float + Debug + Send + Sync + 'static> {
     method: ClusteringMethod,
     cluster_centers: HashMap<usize, Array1<T>>,
     client_clusters: HashMap<String, usize>,
@@ -115,7 +116,7 @@ pub struct ClusteringEngine<T: Float> {
 }
 
 /// Federated meta-learner
-pub struct FederatedMetaLearner<T: Float> {
+pub struct FederatedMetaLearner<T: Float + Debug + Send + Sync + 'static> {
     meta_parameters: Array1<T>,
     client_adaptations: HashMap<String, Array1<T>>,
     meta_gradient_buffer: Array1<T>,
@@ -124,7 +125,7 @@ pub struct FederatedMetaLearner<T: Float> {
 
 /// Task distribution for meta-learning
 #[derive(Debug, Clone)]
-pub struct TaskDistribution<T: Float> {
+pub struct TaskDistribution<T: Float + Debug + Send + Sync + 'static> {
     pub support_gradient: Array1<T>,
     pub query_gradient: Array1<T>,
     pub task_similarity: f64,
@@ -132,14 +133,14 @@ pub struct TaskDistribution<T: Float> {
 }
 
 /// Adaptation tracker
-pub struct AdaptationTracker<T: Float> {
+pub struct AdaptationTracker<T: Float + Debug + Send + Sync + 'static> {
     adaptation_history: HashMap<String, Vec<AdaptationEvent<T>>>,
     convergence_metrics: HashMap<String, ConvergenceMetrics>,
 }
 
 /// Adaptation event
 #[derive(Debug, Clone)]
-pub struct AdaptationEvent<T: Float> {
+pub struct AdaptationEvent<T: Float + Debug + Send + Sync + 'static> {
     pub round: usize,
     pub parameter_change: Array1<T>,
     pub loss_improvement: f64,
@@ -260,7 +261,7 @@ pub struct ContextModel {
 }
 
 /// Compression engine
-pub struct CompressionEngine<T: Float> {
+pub struct CompressionEngine<T: Float + Debug + Send + Sync + 'static> {
     strategy: CompressionStrategy,
     compression_history: VecDeque<CompressionResult<T>>,
     error_feedback_memory: HashMap<String, Array1<T>>,
@@ -268,7 +269,7 @@ pub struct CompressionEngine<T: Float> {
 
 /// Compression result
 #[derive(Debug, Clone)]
-pub struct CompressionResult<T: Float> {
+pub struct CompressionResult<T: Float + Debug + Send + Sync + 'static> {
     pub original_size: usize,
     pub compressed_size: usize,
     pub compressionratio: f64,
@@ -325,7 +326,7 @@ pub struct TransmissionTask {
 }
 
 /// Gradient buffer for communication optimization
-pub struct GradientBuffer<T: Float> {
+pub struct GradientBuffer<T: Float + Debug + Send + Sync + 'static> {
     buffered_gradients: VecDeque<Array1<T>>,
     staleness_tolerance: usize,
     buffer_capacity: usize,
@@ -345,7 +346,7 @@ pub struct PerformanceMonitor {
 }
 
 /// Task detector for continual learning
-pub struct TaskDetector<T: Float> {
+pub struct TaskDetector<T: Float + Debug + Send + Sync + 'static> {
     detection_method: TaskDetectionMethod,
     gradient_buffer: VecDeque<Array1<T>>,
     change_points: Vec<ChangePoint>,
@@ -361,7 +362,7 @@ pub struct ChangePoint {
 }
 
 /// Memory manager for continual learning
-pub struct MemoryManager<T: Float> {
+pub struct MemoryManager<T: Float + Debug + Send + Sync + 'static> {
     memory_budget: usize,
     stored_examples: VecDeque<MemoryExample<T>>,
     eviction_strategy: EvictionStrategy,
@@ -370,7 +371,7 @@ pub struct MemoryManager<T: Float> {
 
 /// Memory example for continual learning
 #[derive(Debug, Clone)]
-pub struct MemoryExample<T: Float> {
+pub struct MemoryExample<T: Float + Debug + Send + Sync + 'static> {
     pub features: Array1<T>,
     pub target: Array1<T>,
     pub importance: f64,
@@ -379,14 +380,14 @@ pub struct MemoryExample<T: Float> {
 }
 
 /// Knowledge transfer engine
-pub struct KnowledgeTransferEngine<T: Float> {
+pub struct KnowledgeTransferEngine<T: Float + Debug + Send + Sync + 'static> {
     transfer_method: KnowledgeTransferMethod,
     transfer_matrices: HashMap<String, Array1<T>>,
     similarity_cache: HashMap<String, f64>,
 }
 
 /// Forgetting prevention engine
-pub struct ForgettingPreventionEngine<T: Float> {
+pub struct ForgettingPreventionEngine<T: Float + Debug + Send + Sync + 'static> {
     method: ForgettingPreventionMethod,
     importance_weights: HashMap<String, Array1<T>>,
     regularization_strength: f64,
@@ -405,7 +406,7 @@ pub struct TaskInfo {
 
 /// Test statistic for outlier detection
 #[derive(Debug, Clone)]
-pub struct TestStatistic<T: Float> {
+pub struct TestStatistic<T: Float + Debug + Send + Sync + 'static> {
     pub round: usize,
     pub statistic_value: T,
     pub p_value: f64,
@@ -414,7 +415,7 @@ pub struct TestStatistic<T: Float> {
 }
 
 /// Secure aggregation protocol implementation
-pub struct SecureAggregator<T: Float> {
+pub struct SecureAggregator<T: Float + Debug + Send + Sync + 'static> {
     config: SecureAggregationConfig,
     client_masks: HashMap<String, Array1<T>>,
     shared_randomness: Arc<std::sync::Mutex<Random>>,
@@ -430,7 +431,7 @@ pub struct PrivacyAmplificationAnalyzer {
 }
 
 /// Cross-device privacy manager
-pub struct CrossDevicePrivacyManager<T: Float> {
+pub struct CrossDevicePrivacyManager<T: Float + Debug + Send + Sync + 'static> {
     config: CrossDeviceConfig,
     user_clusters: HashMap<String, Vec<String>>,
     device_profiles: HashMap<String, DeviceProfile<T>>,
@@ -476,7 +477,7 @@ pub struct SubsamplingEvent {
 
 /// Device profile for cross-device privacy
 #[derive(Debug, Clone)]
-pub struct DeviceProfile<T: Float> {
+pub struct DeviceProfile<T: Float + Debug + Send + Sync + 'static> {
     pub device_id: String,
     pub user_id: String,
     pub device_type: DeviceType,

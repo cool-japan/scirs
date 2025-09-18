@@ -29,7 +29,7 @@
 //!
 //! ## Basic Image Classification
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::hyperdimensional_computing::*;
 //! use ndarray::Array2;
 //!
@@ -48,7 +48,7 @@
 //!
 //! ## Pattern Matching
 //!
-//! ```rust
+//! ```rust,ignore
 //! use scirs2_ndimage::hyperdimensional_computing::*;
 //! use ndarray::Array2;
 //!

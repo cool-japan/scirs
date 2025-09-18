@@ -14,7 +14,7 @@ type Result<T> = std::result::Result<T, OptimError>;
 
 /// Optimization experience record
 #[derive(Debug, Clone)]
-pub struct OptimizationExperience<T: Float> {
+pub struct OptimizationExperience<T: Float + Debug + Send + Sync + 'static> {
     /// Optimizer used
     pub optimizer_name: String,
     /// Problem characteristics
@@ -52,7 +52,7 @@ pub struct OptimizationKnowledgeBase<T: Float + Send + Sync + Debug> {
 
 /// Optimization pattern
 #[derive(Debug, Clone)]
-pub struct OptimizationPattern<T: Float> {
+pub struct OptimizationPattern<T: Float + Debug + Send + Sync + 'static> {
     /// Unique pattern identifier
     pub pattern_id: String,
 
@@ -80,7 +80,7 @@ pub struct OptimizationPattern<T: Float> {
 
 /// Pattern characteristics
 #[derive(Debug, Clone)]
-pub struct PatternCharacteristics<T: Float> {
+pub struct PatternCharacteristics<T: Float + Debug + Send + Sync + 'static> {
     /// Type of pattern
     pub pattern_type: PatternType,
 
@@ -246,7 +246,7 @@ pub enum FailureType {
 
 /// Failure pattern
 #[derive(Debug, Clone)]
-pub struct FailurePattern<T: Float> {
+pub struct FailurePattern<T: Float + Debug + Send + Sync + 'static> {
     /// Pattern identifier
     pub pattern_id: String,
 
@@ -268,7 +268,7 @@ pub struct FailurePattern<T: Float> {
 
 /// Root cause analysis
 #[derive(Debug, Clone)]
-pub struct RootCause<T: Float> {
+pub struct RootCause<T: Float + Debug + Send + Sync + 'static> {
     /// Cause identifier
     pub cause_id: String,
 
@@ -1457,7 +1457,7 @@ impl Default for ActiveLearningBudget {
     }
 }
 
-impl<T: Float> Default for CalibrationData<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for CalibrationData<T> {
     fn default() -> Self {
         Self {
             calibration_scores: Vec::new(),

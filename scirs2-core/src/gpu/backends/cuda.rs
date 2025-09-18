@@ -685,7 +685,7 @@ impl CudaKernelHandle {
         if let Ok(kernels) = self.compiled_kernels.lock() {
             if let Some(_kernel) = kernels.get(&self.kernel_name) {
                 // Convert parameters to CUDA-compatible format
-                let mut _cuda_params = Vec::new();
+                let mut cuda_params = Vec::new();
 
                 for (_, param) in params.iter() {
                     match param {
@@ -712,7 +712,7 @@ impl CudaKernelHandle {
                 }
 
                 // Calculate optimal grid and block dimensions
-                let (grid_dim, block_dim) = self.calculate_launch_config(work_groups);
+                let (grid_dim, block_dim) = self.calculate_launch_config(workgroups);
 
                 #[cfg(debug_assertions)]
                 eprintln!(
@@ -736,11 +736,11 @@ impl CudaKernelHandle {
     #[cfg(not(feature = "cuda"))]
     fn simulate_kernel_execution(
         &self,
-        work_groups: [u32; 3],
+        workgroups: [u32; 3],
         params: &HashMap<String, KernelParam>,
     ) {
         // Advanced simulation that models actual computation
-        let total_threads = work_groups[0] as u64 * work_groups[1] as u64 * work_groups[2] as u64;
+        let total_threads = workgroups[0] as u64 * workgroups[1] as u64 * workgroups[2] as u64;
 
         // Simulate computation time based on kernel type and parameters
         let computation_time = self.estimate_kernel_time(total_threads, params);
@@ -769,7 +769,7 @@ impl CudaKernelHandle {
         let warp_size = 32u32; // CUDA warp size
 
         // Calculate block dimensions that are multiples of warp size
-        let total_work = work_groups[0] * work_groups[1] * work_groups[2];
+        let total_work = workgroups[0] * workgroups[1] * workgroups[2];
 
         if total_work <= max_threads_per_block {
             // Use single block if work fits
@@ -777,15 +777,15 @@ impl CudaKernelHandle {
             ((1, 1, 1), (block_size.min(max_threads_per_block), 1, 1))
         } else {
             // Multi-block configuration
-            let block_x = if work_groups[0] <= max_threads_per_block {
-                ((work_groups[0] + warp_size - 1) / warp_size) * warp_size
+            let block_x = if workgroups[0] <= max_threads_per_block {
+                ((workgroups[0] + warp_size - 1) / warp_size) * warp_size
             } else {
                 max_threads_per_block
             };
 
-            let grid_x = (work_groups[0] + block_x - 1) / block_x;
-            let grid_y = work_groups[1];
-            let grid_z = work_groups[2];
+            let grid_x = (workgroups[0] + block_x - 1) / block_x;
+            let grid_y = workgroups[1];
+            let grid_z = workgroups[2];
 
             ((grid_x, grid_y, grid_z), (block_x, 1, 1))
         }
@@ -875,12 +875,12 @@ impl GpuKernelImpl for CudaKernelHandle {
     }
 
     /// Execute the kernel launch with comprehensive parameter marshaling and execution
-    fn dispatch_workgroups(&self, workgroups: [u32; 3]) {
+    fn dispatch(&self, workgroups: [u32; 3]) {
         #[cfg(debug_assertions)]
         {
             eprintln!(
-                "CUDA: Launching kernel '{}' with work _groups [{}, {}, {}]",
-                self.kernel_name, work_groups[0], work_groups[1], work_groups[2]
+                "CUDA: Launching kernel '{}' with workgroups [{}, {}, {}]",
+                self.kernel_name, workgroups[0], workgroups[1], workgroups[2]
             );
         }
 
@@ -906,12 +906,12 @@ impl GpuKernelImpl for CudaKernelHandle {
             #[cfg(feature = "cuda")]
             {
                 // Real CUDA implementation with parameter marshaling
-                self.execute_cuda_kernel(work_groups, &params);
+                self.execute_cuda_kernel(workgroups, &params);
             }
             #[cfg(not(feature = "cuda"))]
             {
                 // Enhanced simulation with computation modeling
-                self.simulate_kernel_execution(work_groups, &params);
+                self.simulate_kernel_execution(workgroups, &params);
             }
         }
     }
@@ -941,8 +941,8 @@ impl CudaMemoryPool {
         let base_ptr = 0x10000000;
 
         Self {
-            total_size,
-            free_blocks: vec![(base_ptr, total_size)], // Initially all memory is free
+            total_size: totalsize,
+            free_blocks: vec![(base_ptr, totalsize)], // Initially all memory is free
             allocated_blocks: HashMap::new(),
         }
     }

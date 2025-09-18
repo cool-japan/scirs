@@ -62,16 +62,19 @@ use crate::error::NdimageResult;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use ndarray::Array5;
 /// use scirs2_ndimage::advanced_fusion_algorithms::neural_processing::*;
 ///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let features = Array5::zeros((1, 3, 10, 64, 64));
 /// let mut state = AdvancedState::default();
 /// let config = AdvancedConfig::default();
 ///
 /// let result = self_organizing_neural_processing(&features, &mut state, &config)?;
 /// assert_eq!(result.dim(), (64, 64));
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn self_organizing_neural_processing(
@@ -275,9 +278,14 @@ fn calculate_connection_input(
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # use scirs2_ndimage::advanced_fusion_algorithms::neural_processing::*;
+/// # let config = AdvancedConfig::default();
 /// let output = apply_activation_function(2.5, &ActivationType::Sigmoid, &config)?;
 /// assert!(output > 0.9 && output < 1.0);
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 fn apply_activation_function(

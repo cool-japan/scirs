@@ -932,7 +932,7 @@ impl CrossModuleBenchmarkRunner {
         // Simulate a complete scientific simulation workflow
         for &data_size in &self.config.data_sizes {
             let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_scientific_simulation_workflow(data_size)
+                self.simulate_scientific_workflow(data_size)
             })?;
 
             if data_size == *self.config.data_sizes.last().unwrap() {
@@ -1188,9 +1188,7 @@ impl CrossModuleBenchmarkRunner {
     }
 
     /// Analyze performance regressions
-    fn measurements(
-        &[PerformanceMeasurement]: &[PerformanceMeasurement],
-    ) -> CoreResult<RegressionAnalysis> {
+    fn measurements(measurements: &[PerformanceMeasurement]) -> CoreResult<RegressionAnalysis> {
         // In a real implementation, this would compare against saved baseline data
         let regression_analysis = RegressionAnalysis {
             regression_detected: false,
@@ -1473,7 +1471,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_config_creation() {
         let config = CrossModuleBenchConfig::default();
         assert_eq!(config.iterations, 100);
@@ -1495,7 +1492,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_benchmark_runner_creation() {
         let config = CrossModuleBenchConfig::default();
         let runner = CrossModuleBenchmarkRunner::new(config);
@@ -1505,7 +1501,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "timeout"]
     fn test_quick_benchmarks() {
         // This test should run quickly
         match run_quick_benchmarks() {

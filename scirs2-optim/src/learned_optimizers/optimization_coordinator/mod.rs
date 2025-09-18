@@ -23,13 +23,15 @@ pub use performance_prediction::*;
 pub use resource_management::*;
 pub use adaptation::*;
 pub use knowledge_base::*;
-pub use state::*;
-pub use analytics::*;
+pub use state::{OptimizationContext, OptimizationState, ProblemCharacteristics, ResourceConstraints, TimeConstraints, OptimizationPhase, LandscapeFeatures, ComputationalBudget, ConvergenceCriteria};
+pub use analytics::{PerformanceAnalyzer, PerformanceSnapshot, PerformanceMetrics, PerformanceContext};
+pub use analytics::performance::ResourceUsage;
 pub use integration::*;
 
 use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::time::{Duration, Instant, SystemTime};
 
 use super::{
@@ -43,7 +45,7 @@ use crate::error::{OptimError, Result};
 
 /// Coordinator state for tracking optimization progress
 #[derive(Debug, Clone)]
-pub struct CoordinatorState<T: Float> {
+pub struct CoordinatorState<T: Float + Debug + Send + Sync + 'static> {
     /// Current metrics
     pub current_metrics: CoordinatorMetrics<T>,
     /// Resource utilization
@@ -56,7 +58,7 @@ pub struct CoordinatorState<T: Float> {
 
 /// Coordinator performance metrics
 #[derive(Debug, Clone)]
-pub struct CoordinatorMetrics<T: Float> {
+pub struct CoordinatorMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Overall performance score
     pub overall_performance: T,
     /// Convergence rate
@@ -71,7 +73,7 @@ pub struct CoordinatorMetrics<T: Float> {
 
 /// Resource utilization tracking
 #[derive(Debug, Clone)]
-pub struct ResourceUtilization<T: Float> {
+pub struct ResourceUtilization<T: Float + Debug + Send + Sync + 'static> {
     /// CPU utilization
     pub cpu_utilization: T,
     /// Memory utilization
@@ -83,7 +85,7 @@ pub struct ResourceUtilization<T: Float> {
 }
 
 /// Optimization landscape analyzer
-pub struct OptimizationAnalyzer<T: Float> {
+pub struct OptimizationAnalyzer<T: Float + Debug + Send + Sync + 'static> {
     _phantom: std::marker::PhantomData<T>,
 }
 
@@ -454,20 +456,25 @@ impl<
             learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()), // Default
             gradient_norm: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())), // Default
             metrics: PerformanceMetrics {
-                throughput: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
-                latency: elapsed_time,
-                error_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
-                memory_efficiency: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
-                convergence_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
-                stability_score: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+                loss: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                val_loss: Some(num_traits::cast::cast(0.12).unwrap_or_else(|| T::zero())),
+                accuracy: Some(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())),
+                val_accuracy: Some(num_traits::cast::cast(0.88).unwrap_or_else(|| T::zero())),
+                learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+                gradient_norm: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())),
+                parameter_norm: Some(num_traits::cast::cast(5.0).unwrap_or_else(|| T::zero())),
+                throughput: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())),
+                convergence_rate: Some(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())),
+                custom_metrics: HashMap::new(),
             },
             resource_usage: ResourceUsage {
-                memory_gb: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
-                cpu_time_seconds: num_traits::cast::cast(elapsed_time.as_secs_f64()).unwrap_or_else(|| T::zero()),
-                gpu_time_seconds: T::zero(),
-                energy_kwh: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
-                cost_usd: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
-                network_gb: T::zero(),
+                cpu_usage: 50.0, // Default 50% CPU usage
+                memory_usage: 1024 * 1024 * 1024, // Default 1GB in bytes
+                gpu_memory_usage: Some(512 * 1024 * 1024), // Default 512MB GPU memory
+                gpu_utilization: Some(0.0), // Default no GPU utilization
+                disk_io_rate: Some(num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero())), // Default 10 MB/s
+                network_io_rate: Some(T::zero()), // Default no network I/O
+                power_consumption: Some(50.0), // Default 50W
             },
             context: PerformanceContext {
                 model_architecture: "Unknown".to_string(),
@@ -572,7 +579,7 @@ impl<
 }
 
 // Default implementations for supporting types
-impl<T: Float> Default for CoordinatorMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for CoordinatorMetrics<T> {
     fn default() -> Self {
         Self {
             overall_performance: T::zero(),
@@ -584,7 +591,7 @@ impl<T: Float> Default for CoordinatorMetrics<T> {
     }
 }
 
-impl<T: Float> Default for ResourceUtilization<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for ResourceUtilization<T> {
     fn default() -> Self {
         Self {
             cpu_utilization: T::zero(),
@@ -595,7 +602,7 @@ impl<T: Float> Default for ResourceUtilization<T> {
     }
 }
 
-impl<T: Float> CoordinatorState<T> {
+impl<T: Float + Debug + Send + Sync + 'static> CoordinatorState<T> {
     pub fn new() -> Self {
         Self {
             current_metrics: CoordinatorMetrics::default(),
@@ -617,7 +624,7 @@ impl<T: Float> CoordinatorState<T> {
     }
 }
 
-impl<T: Float> OptimizationAnalyzer<T> {
+impl<T: Float + Debug + Send + Sync + 'static> OptimizationAnalyzer<T> {
     pub fn new() -> Result<Self> {
         Ok(Self {
             _phantom: std::marker::PhantomData,

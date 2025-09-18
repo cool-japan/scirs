@@ -15,7 +15,7 @@ use super::layer_state::KFACLayerState;
 
 /// Main K-FAC optimizer
 #[derive(Debug)]
-pub struct KFAC<T: Float> {
+pub struct KFAC<T: Float + Debug + Send + Sync + 'static> {
     /// Configuration
     config: KFACConfig<T>,
 

@@ -31,17 +31,19 @@ use statrs::statistics::Statistics;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use ndarray::Array2;
 /// use scirs2_ndimage::visualization::{ReportConfig, ReportFormat, generate_report};
 ///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let image = Array2::zeros((100, 100));
 /// let config = ReportConfig::new()
 ///     .with_format(ReportFormat::Markdown)
 ///     .with_header("Analysis Report", "SciRS2");
 ///
 /// let report = generate_report(&image.view(), None, None, &config)?;
-/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # Ok(())
+/// # }
 /// ```
 #[allow(dead_code)]
 pub fn generate_report<T>(

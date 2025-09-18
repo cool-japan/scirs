@@ -7,6 +7,7 @@ use crate::error::{OptimError, Result};
 use ndarray::{Array1, Array2};
 use num_traits::Float;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 pub mod actor_critic;
 pub mod natural_gradients;
@@ -21,7 +22,7 @@ pub use trust_region::{TrustRegionConfig, TrustRegionMethod, TrustRegionOptimize
 
 /// Reinforcement Learning optimization configuration
 #[derive(Debug, Clone)]
-pub struct RLOptimizerConfig<T: Float> {
+pub struct RLOptimizerConfig<T: Float + Debug + Send + Sync + 'static> {
     /// Policy learning rate
     pub policy_lr: T,
 
@@ -81,7 +82,7 @@ pub enum FisherApproximationMethod {
     LowRank,
 }
 
-impl<T: Float> Default for RLOptimizerConfig<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for RLOptimizerConfig<T> {
     fn default() -> Self {
         Self {
             policy_lr: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
@@ -103,7 +104,7 @@ impl<T: Float> Default for RLOptimizerConfig<T> {
 
 /// Trajectory data for RL optimization
 #[derive(Debug, Clone)]
-pub struct TrajectoryBatch<T: Float> {
+pub struct TrajectoryBatch<T: Float + Debug + Send + Sync + 'static> {
     /// Observations
     pub observations: Array2<T>,
 
@@ -129,7 +130,7 @@ pub struct TrajectoryBatch<T: Float> {
     pub returns: Array1<T>,
 }
 
-impl<T: Float + Send + Sync + num_traits::FromPrimitive> TrajectoryBatch<T> {
+impl<T: Float + Debug + Send + Sync + 'static + num_traits::FromPrimitive> TrajectoryBatch<T> {
     /// Create a new trajectory batch
     pub fn new(
         observations: Array2<T>,
@@ -290,7 +291,7 @@ pub trait ValueNetwork<T: Float> {
 
 /// Policy evaluation results
 #[derive(Debug, Clone)]
-pub struct PolicyEvaluation<T: Float> {
+pub struct PolicyEvaluation<T: Float + Debug + Send + Sync + 'static> {
     /// Log probabilities of actions
     pub log_probs: Array1<T>,
 
@@ -303,7 +304,7 @@ pub struct PolicyEvaluation<T: Float> {
 
 /// Action distribution representation
 #[derive(Debug, Clone)]
-pub struct ActionDistribution<T: Float> {
+pub struct ActionDistribution<T: Float + Debug + Send + Sync + 'static> {
     /// Mean of the distribution (for continuous actions)
     pub mean: Option<Array2<T>>,
 
@@ -335,7 +336,7 @@ pub enum DistributionType {
 
 /// Learning rate scheduling for RL optimizers
 #[derive(Debug, Clone)]
-pub struct RLScheduler<T: Float> {
+pub struct RLScheduler<T: Float + Debug + Send + Sync + 'static> {
     /// Initial learning rate
     pub initiallr: T,
 
@@ -377,7 +378,7 @@ pub enum ScheduleType {
     Adaptive,
 }
 
-impl<T: Float + Send + Sync> RLScheduler<T> {
+impl<T: Float + Debug + Send + Sync + 'static> RLScheduler<T> {
     /// Create a new learning rate scheduler
     pub fn new(initiallr: T, schedule: ScheduleType) -> Self {
         Self {
@@ -453,7 +454,7 @@ impl<T: Float + Send + Sync> RLScheduler<T> {
 
 /// RL optimization metrics
 #[derive(Debug, Clone)]
-pub struct RLOptimizationMetrics<T: Float> {
+pub struct RLOptimizationMetrics<T: Float + Debug + Send + Sync + 'static> {
     /// Policy loss
     pub policy_loss: T,
 
@@ -487,7 +488,7 @@ pub struct RLOptimizationMetrics<T: Float> {
     pub custom_metrics: HashMap<String, T>,
 }
 
-impl<T: Float> Default for RLOptimizationMetrics<T> {
+impl<T: Float + Debug + Send + Sync + 'static> Default for RLOptimizationMetrics<T> {
     fn default() -> Self {
         Self {
             policy_loss: T::zero(),

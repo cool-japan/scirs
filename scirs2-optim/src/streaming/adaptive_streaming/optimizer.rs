@@ -159,7 +159,7 @@ where
 
 impl<O, A, D> AdaptiveStreamingOptimizer<O, A, D>
 where
-    A: Float + Default + Clone + Send + Sync + std::iter::Sum + std::fmt::Debug,
+    A: Float + Default + Clone + Send + Sync + std::iter::Sum + std::fmt::Debug + 'static,
     D: Dimension,
     O: Clone,
 {

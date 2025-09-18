@@ -796,6 +796,8 @@ impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync + 'static> Anomal
                 timestamp: Instant::now(),
                 anomaly_type: ensemble_result
                     .anomaly_type
+                    .as_ref()
+                    .cloned()
                     .unwrap_or(AnomalyType::StatisticalOutlier),
                 severity: ensemble_result.severity.clone(),
                 confidence: ensemble_result.confidence,

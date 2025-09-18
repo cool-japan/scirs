@@ -11,6 +11,7 @@ use crate::error::Result;
 use crate::learned_optimizers::few_shot_optimizer::EvaluationMetric;
 use num_traits::Float;
 use std::collections::{HashMap, VecDeque};
+use std::fmt::Debug;
 use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +24,7 @@ use std::sync::{Arc, Mutex};
 /// - Resource management and monitoring
 /// - Progressive search coordination
 #[derive(Debug)]
-pub struct NeuralArchitectureSearch<T: Float> {
+pub struct NeuralArchitectureSearch<T: Float + Debug + Send + Sync + 'static> {
     /// NAS configuration
     config: NASConfig<T>,
 
@@ -108,7 +109,7 @@ pub trait ArchitectureController<T: Float>: Send + Sync {
 
 /// Performance evaluator for architectures
 #[derive(Debug)]
-pub struct PerformanceEvaluator<T: Float> {
+pub struct PerformanceEvaluator<T: Float + Debug + Send + Sync + 'static> {
     config: EvaluationConfig<T>,
     evaluation_cache: Arc<Mutex<HashMap<String, EvaluationResults<T>>>>,
     evaluation_count: usize,
@@ -116,7 +117,7 @@ pub struct PerformanceEvaluator<T: Float> {
 
 /// Progressive NAS implementation
 #[derive(Debug)]
-pub struct ProgressiveNAS<T: Float> {
+pub struct ProgressiveNAS<T: Float + Debug + Send + Sync + 'static> {
     stages: Vec<ProgressiveStage<T>>,
     current_stage: usize,
     stage_history: Vec<Vec<SearchResult<T>>>,
@@ -124,7 +125,7 @@ pub struct ProgressiveNAS<T: Float> {
 
 /// Progressive search stage
 #[derive(Debug, Clone)]
-pub struct ProgressiveStage<T: Float> {
+pub struct ProgressiveStage<T: Float + Debug + Send + Sync + 'static> {
     pub name: String,
     pub search_space: SearchSpaceConfig,
     pub duration_hours: T,
@@ -134,7 +135,7 @@ pub struct ProgressiveStage<T: Float> {
 
 /// Performance prediction system
 #[derive(Debug)]
-pub struct PerformancePredictor<T: Float> {
+pub struct PerformancePredictor<T: Float + Debug + Send + Sync + 'static> {
     model_type: PredictorType,
     training_data: Vec<(OptimizerArchitecture<T>, EvaluationResults<T>)>,
     prediction_accuracy: T,
@@ -152,7 +153,7 @@ pub enum PredictorType {
 
 /// Pareto front for multi-objective optimization
 #[derive(Debug, Clone)]
-pub struct ParetoFront<T: Float> {
+pub struct ParetoFront<T: Float + Debug + Send + Sync + 'static> {
     pub solutions: Vec<SearchResult<T>>,
     pub hypervolume: T,
     pub diversity_metrics: DiversityMetrics<T>,
@@ -161,7 +162,7 @@ pub struct ParetoFront<T: Float> {
 
 /// Diversity metrics for population
 #[derive(Debug, Clone)]
-pub struct DiversityMetrics<T: Float> {
+pub struct DiversityMetrics<T: Float + Debug + Send + Sync + 'static> {
     pub crowding_distance: Vec<T>,
     pub entropy: T,
     pub average_distance: T,
@@ -522,6 +523,10 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
             MultiObjectiveAlgorithm::MOEAD => Ok(Box::new(MOEADOptimizer::new(config)?)),
             MultiObjectiveAlgorithm::PAES => Ok(Box::new(PAESOptimizer::new(config)?)),
             MultiObjectiveAlgorithm::SPEA2 => Ok(Box::new(SPEA2Optimizer::new(config)?)),
+            MultiObjectiveAlgorithm::WeightedSum => Ok(Box::new(NSGA2Optimizer::new(config)?)), // Fallback to NSGA2
+            MultiObjectiveAlgorithm::EpsilonConstraint => Ok(Box::new(NSGA2Optimizer::new(config)?)), // Fallback to NSGA2
+            MultiObjectiveAlgorithm::GoalProgramming => Ok(Box::new(NSGA2Optimizer::new(config)?)), // Fallback to NSGA2
+            MultiObjectiveAlgorithm::Custom(_) => Ok(Box::new(NSGA2Optimizer::new(config)?)), // Fallback to NSGA2
         }
     }
 
@@ -692,26 +697,26 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
 }
 
 // Strategy implementations (placeholder structures for compilation)
-struct RandomStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct EvolutionaryStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct BayesianStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct ReinforcementStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct DifferentiableStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct ProgressiveStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct HybridStrategy<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct RandomStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct EvolutionaryStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct BayesianStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct ReinforcementStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct DifferentiableStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct ProgressiveStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct HybridStrategy<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
 
 // Multi-objective optimizer implementations (placeholder)
-struct NSGA2Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct NSGA3Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct MOEADOptimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct PAESOptimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
-struct SPEA2Optimizer<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct NSGA2Optimizer<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct NSGA3Optimizer<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct MOEADOptimizer<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct PAESOptimizer<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
+struct SPEA2Optimizer<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
 
 // Architecture controller implementation (placeholder)
-struct DefaultArchitectureController<T: Float + Send + Sync> { _phantom: std::marker::PhantomData<T> }
+struct DefaultArchitectureController<T: Float + Debug + Send + Sync + 'static> { _phantom: std::marker::PhantomData<T> }
 
 // Implementations for PerformanceEvaluator
-impl<T: Float> PerformanceEvaluator<T> {
+impl<T: Float + Debug + Send + Sync + 'static> PerformanceEvaluator<T> {
     pub fn new(config: EvaluationConfig<T>) -> Result<Self> {
         Ok(Self {
             config,
@@ -738,7 +743,7 @@ impl<T: Float> PerformanceEvaluator<T> {
 }
 
 // Implementations for ProgressiveNAS
-impl<T: Float> ProgressiveNAS<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ProgressiveNAS<T> {
     pub fn new(_config: &NASConfig<T>) -> Result<Self> {
         Ok(Self {
             stages: Vec::new(),
@@ -754,7 +759,7 @@ impl<T: Float> ProgressiveNAS<T> {
 }
 
 // Implementations for PerformancePredictor
-impl<T: Float> PerformancePredictor<T> {
+impl<T: Float + Debug + Send + Sync + 'static> PerformancePredictor<T> {
     pub fn new(_config: &EvaluationConfig<T>) -> Result<Self> {
         Ok(Self {
             model_type: PredictorType::NeuralNetwork,
@@ -790,13 +795,13 @@ impl<T: Float> PerformancePredictor<T> {
 // Placeholder implementations for strategy traits
 macro_rules! impl_search_strategy {
     ($strategy:ident) => {
-        impl<T: Float + Send + Sync> $strategy<T> {
+        impl<T: Float + Debug + Send + Sync + 'static> $strategy<T> {
             pub fn new(_config: &NASConfig<T>) -> Result<Self> {
                 Ok(Self { _phantom: std::marker::PhantomData })
             }
         }
 
-        impl<T: Float + Send + Sync> SearchStrategy<T> for $strategy<T> {
+        impl<T: Float + Debug + Send + Sync + 'static> SearchStrategy<T> for $strategy<T> {
             fn generate_candidates(&mut self, _history: &VecDeque<SearchResult<T>>) -> Result<Vec<OptimizerArchitecture<T>>> {
                 Ok(Vec::new())
             }
@@ -827,13 +832,13 @@ impl_search_strategy!(HybridStrategy);
 // Placeholder implementations for multi-objective optimizers
 macro_rules! impl_multi_objective_optimizer {
     ($optimizer:ident) => {
-        impl<T: Float + Send + Sync> $optimizer<T> {
+        impl<T: Float + Debug + Send + Sync + 'static> $optimizer<T> {
             pub fn new(_config: &MultiObjectiveConfig<T>) -> Result<Self> {
                 Ok(Self { _phantom: std::marker::PhantomData })
             }
         }
 
-        impl<T: Float + Send + Sync> MultiObjectiveOptimizer<T> for $optimizer<T> {
+        impl<T: Float + Debug + Send + Sync + 'static> MultiObjectiveOptimizer<T> for $optimizer<T> {
             fn update_pareto_front(&mut self, _results: &[SearchResult<T>]) -> Result<ParetoFront<T>> {
                 Ok(ParetoFront {
                     solutions: Vec::new(),
@@ -867,13 +872,13 @@ impl_multi_objective_optimizer!(PAESOptimizer);
 impl_multi_objective_optimizer!(SPEA2Optimizer);
 
 // Implementation for DefaultArchitectureController
-impl<T: Float + Send + Sync> DefaultArchitectureController<T> {
+impl<T: Float + Debug + Send + Sync + 'static> DefaultArchitectureController<T> {
     pub fn new(_config: &NASConfig<T>) -> Result<Self> {
         Ok(Self { _phantom: std::marker::PhantomData })
     }
 }
 
-impl<T: Float + Send + Sync> ArchitectureController<T> for DefaultArchitectureController<T> {
+impl<T: Float + Debug + Send + Sync + 'static> ArchitectureController<T> for DefaultArchitectureController<T> {
     fn generate_random(&mut self) -> Result<OptimizerArchitecture<T>> {
         Ok(OptimizerArchitecture {
             components: Vec::new(),

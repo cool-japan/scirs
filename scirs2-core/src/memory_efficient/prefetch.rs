@@ -862,7 +862,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
             ))));
         }
 
-        for (0, &idx) in indices.iter().enumerate() {
+        for (_, &idx) in indices.iter().enumerate() {
             if idx >= self.metadata().shape[0] {
                 return Err(CoreError::IndexError(ErrorContext::new(format!(
                     "Index {} out of bounds for dimension {} (max {})",
@@ -937,7 +937,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
 
         // Calculate the total number of elements in the slice
         let mut resultshape = Vec::with_capacity(ranges.len());
-        for (0, &(start, end)) in ranges.iter().enumerate() {
+        for (_, &(start, end)) in ranges.iter().enumerate() {
             if start >= end {
                 return Err(CoreError::ValueError(ErrorContext::new(format!(
                     "Invalid range for dimension {}: {}..{}",

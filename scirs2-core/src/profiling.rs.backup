@@ -1,9 +1,9 @@
-//! # Profiling (Alpha 6 Enhanced)
+//! # Profiling (Beta 2 Enhanced)
 //!
 //! This module provides comprehensive utilities for profiling computational performance in scientific applications
 //! with advanced features for detailed performance analysis and optimization.
 //!
-//! ## Enhanced Features (Alpha 6)
+//! ## Enhanced Features (Beta 2)
 //!
 //! * Function-level timing instrumentation
 //! * Memory allocation tracking
@@ -704,7 +704,7 @@ pub mod dashboards;
 #[path = "profiling/coverage.rs"]
 pub mod coverage;
 
-/// Advanced profiling capabilities for Alpha 6
+/// Advanced profiling capabilities for Beta 2
 pub mod advanced {
     use super::*;
     use std::collections::{BTreeMap, VecDeque};
@@ -1846,7 +1846,7 @@ mod tests {
     #[test]
     fn test_exportable_profiler() {
         let mut profiler = advanced::ExportableProfiler::new();
-        profiler.add_metadata("test_run".to_string(), "alpha6".to_string());
+        profiler.add_metadata("test_run".to_string(), "beta2".to_string());
 
         profiler.profiler().start();
 
