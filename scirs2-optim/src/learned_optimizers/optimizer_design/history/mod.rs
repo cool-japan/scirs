@@ -209,7 +209,7 @@ impl<T: num_traits::Float + Default + std::fmt::Debug + Clone> SearchHistory<T> 
         
         let improvement = recent_best - self.stats.convergence.last_improvement;
         
-        if improvement < T::from(config.threshold).unwrap() {
+        if improvement < num_traits::cast::cast(config.threshold).unwrap_or_else(|| T::zero()) {
             self.stats.convergence.stagnation_count += 1;
         } else {
             self.stats.convergence.stagnation_count = 0;

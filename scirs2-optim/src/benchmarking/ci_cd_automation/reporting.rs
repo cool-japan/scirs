@@ -489,10 +489,10 @@ impl ReportGenerator {
 
         // Write to file
         fs::create_dir_all(output_dir)
-            .map_err(|e| OptimError::IO(format!("Failed to create output directory: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to create output directory: {}", e)))?;
 
         fs::write(&report_path, styled_content)
-            .map_err(|e| OptimError::IO(format!("Failed to write HTML report: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to write HTML report: {}", e)))?;
 
         Ok(GeneratedReport {
             report_type: ReportType::HTML,
@@ -527,7 +527,7 @@ impl ReportGenerator {
             .map_err(|e| OptimError::Serialization(format!("Failed to serialize JSON report: {}", e)))?;
 
         fs::create_dir_all(output_dir)
-            .map_err(|e| OptimError::IO(format!("Failed to create output directory: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to create output directory: {}", e)))?;
 
         fs::write(&report_path, json_content)
             .map_err(|e| OptimError::IO(format!("Failed to write JSON report: {}", e)))?;
@@ -554,7 +554,7 @@ impl ReportGenerator {
         let xml_content = self.create_junit_xml(test_results, statistics)?;
 
         fs::create_dir_all(output_dir)
-            .map_err(|e| OptimError::IO(format!("Failed to create output directory: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to create output directory: {}", e)))?;
 
         fs::write(&report_path, xml_content)
             .map_err(|e| OptimError::IO(format!("Failed to write JUnit report: {}", e)))?;
@@ -581,7 +581,7 @@ impl ReportGenerator {
         let markdown_content = self.create_markdown_content(test_results, statistics)?;
 
         fs::create_dir_all(output_dir)
-            .map_err(|e| OptimError::IO(format!("Failed to create output directory: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to create output directory: {}", e)))?;
 
         fs::write(&report_path, markdown_content)
             .map_err(|e| OptimError::IO(format!("Failed to write Markdown report: {}", e)))?;
@@ -611,7 +611,7 @@ impl ReportGenerator {
         // In a real implementation, this would use a PDF generation library
         // For now, just write the HTML content with a .pdf extension as a placeholder
         fs::create_dir_all(output_dir)
-            .map_err(|e| OptimError::IO(format!("Failed to create output directory: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to create output directory: {}", e)))?;
 
         fs::write(&report_path, format!("<!-- PDF Report Content -->\n{}", html_content))
             .map_err(|e| OptimError::IO(format!("Failed to write PDF report: {}", e)))?;

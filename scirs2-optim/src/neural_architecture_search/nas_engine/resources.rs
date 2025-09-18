@@ -434,10 +434,10 @@ where
             cpu_time_seconds: num_traits::cast::cast(cpu_usage * 3600.0).unwrap_or_else(|| T::zero()), // Convert to CPU-hours equivalent
             gpu_time_seconds: num_traits::cast::cast(gpu_usage * 3600.0).unwrap_or_else(|| T::zero()), // Convert to GPU-hours equivalent
             energy_kwh: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()), // 0.25 kWh estimated
-            network_io_gb: T::from(1.0).unwrap_or_else(|| T::zero()), // 1 GB network I/O
-            disk_io_gb: T::from(2.0).unwrap_or_else(|| T::zero()), // 2 GB disk I/O
-            peak_memory_gb: T::from(used_memory * 1.2).unwrap_or_else(|| T::zero()), // 20% overhead
-            efficiency_score: T::from(0.8), // 80% efficiency
+            network_io_gb: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()), // 1 GB network I/O
+            disk_io_gb: num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()), // 2 GB disk I/O
+            peak_memory_gb: num_traits::cast::cast(used_memory * 1.2).unwrap_or_else(|| T::zero()), // 20% overhead
+            efficiency_score: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()), // 80% efficiency
         })
     }
 

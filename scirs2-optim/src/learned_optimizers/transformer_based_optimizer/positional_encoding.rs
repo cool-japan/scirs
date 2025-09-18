@@ -47,7 +47,7 @@ impl<T: Float> PositionalEncoding<T> {
         model_dimension: usize,
         encoding_type: PositionalEncodingType,
     ) -> Result<Self> {
-        let rope_base = T::from(10000.0).unwrap();
+        let rope_base = num_traits::cast::cast(10000.0).unwrap_or_else(|| T::zero());
         let mut encoding = Self {
             encoding_type,
             max_sequence_length,
@@ -75,12 +75,12 @@ impl<T: Float> PositionalEncoding<T> {
     fn initialize_sinusoidal(&mut self) -> Result<()> {
         for pos in 0..self.max_sequence_length {
             for i in 0..self.model_dimension {
-                let position = T::from(pos).unwrap();
-                let dimension = T::from(i).unwrap();
-                let model_dim = T::from(self.model_dimension).unwrap();
+                let position = num_traits::cast::cast(pos).unwrap_or_else(|| T::zero());
+                let dimension = num_traits::cast::cast(i).unwrap_or_else(|| T::zero());
+                let model_dim = num_traits::cast::cast(self.model_dimension).unwrap_or_else(|| T::zero());
 
-                let angle = position / T::from(10000.0).unwrap().powf(
-                    T::from(2.0).unwrap() * dimension / model_dim
+                let angle = position / num_traits::cast::cast(10000.0).unwrap_or_else(|| T::zero()).powf(
+                    num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * dimension / model_dim
                 );
 
                 if i % 2 == 0 {
@@ -107,7 +107,7 @@ impl<T: Float> PositionalEncoding<T> {
         // RoPE doesn't use a precomputed matrix, it's applied during attention
         // We'll store frequency inverse for each dimension pair
         for i in (0..self.model_dimension).step_by(2) {
-            let dim_pair = T::from(i).unwrap() / T::from(self.model_dimension).unwrap();
+            let dim_pair = num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(self.model_dimension).unwrap_or_else(|| T::zero());
             let freq = T::one() / self.rope_base.powf(dim_pair);
 
             if i < self.model_dimension {
@@ -192,7 +192,7 @@ impl<T: Float> PositionalEncoding<T> {
 
         for batch in 0..batch_size {
             for pos in 0..sequence_length {
-                let position = T::from(pos).unwrap();
+                let position = num_traits::cast::cast(pos).unwrap_or_else(|| T::zero());
 
                 for i in (0..self.model_dimension).step_by(2) {
                     if i + 1 < self.model_dimension {
@@ -305,12 +305,12 @@ impl<T: Float> PositionalEncoding<T> {
         // Reinitialize with custom base
         for pos in 0..max_sequence_length {
             for i in 0..model_dimension {
-                let position = T::from(pos).unwrap();
-                let dimension = T::from(i).unwrap();
-                let model_dim = T::from(model_dimension).unwrap();
+                let position = num_traits::cast::cast(pos).unwrap_or_else(|| T::zero());
+                let dimension = num_traits::cast::cast(i).unwrap_or_else(|| T::zero());
+                let model_dim = num_traits::cast::cast(model_dimension).unwrap_or_else(|| T::zero());
 
                 let angle = position / base.powf(
-                    T::from(2.0).unwrap() * dimension / model_dim
+                    num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * dimension / model_dim
                 );
 
                 if i % 2 == 0 {
@@ -384,14 +384,14 @@ impl<T: Float> RelativePositionalEncoding<T> {
 
         for i in 0..table_size {
             let relative_pos = i as i32 - self.max_relative_distance as i32;
-            let position = T::from(relative_pos).unwrap();
+            let position = num_traits::cast::cast(relative_pos).unwrap_or_else(|| T::zero());
 
             for j in 0..self.model_dimension {
-                let dimension = T::from(j).unwrap();
-                let model_dim = T::from(self.model_dimension).unwrap();
+                let dimension = num_traits::cast::cast(j).unwrap_or_else(|| T::zero());
+                let model_dim = num_traits::cast::cast(self.model_dimension).unwrap_or_else(|| T::zero());
 
-                let angle = position / T::from(10000.0).unwrap().powf(
-                    T::from(2.0).unwrap() * dimension / model_dim
+                let angle = position / num_traits::cast::cast(10000.0).unwrap_or_else(|| T::zero()).powf(
+                    num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * dimension / model_dim
                 );
 
                 if j % 2 == 0 {

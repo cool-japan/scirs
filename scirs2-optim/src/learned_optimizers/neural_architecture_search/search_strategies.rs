@@ -409,9 +409,9 @@ impl<T: Float> SurrogateModel<T> {
     pub fn predict(&self, _architecture: &str) -> Result<(T, T)> {
         // Return (mean, variance)
         if self.trained {
-            Ok((T::from(0.5).unwrap(), T::from(0.1).unwrap()))
+            Ok((num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())))
         } else {
-            Ok((T::from(0.0).unwrap(), T::from(1.0).unwrap()))
+            Ok((num_traits::cast::cast(0.0).unwrap_or_else(|| T::zero()), num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())))
         }
     }
 }
@@ -437,7 +437,7 @@ impl AcquisitionFunction {
                 Ok(mean + variance.sqrt())
             }
             AcquisitionFunction::UpperConfidenceBound => {
-                Ok(mean + T::from(2.0).unwrap() * variance.sqrt())
+                Ok(mean + num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * variance.sqrt())
             }
             AcquisitionFunction::ProbabilityOfImprovement => {
                 Ok(mean)

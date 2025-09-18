@@ -727,7 +727,7 @@ pub struct {}Config<T: Float> {{
 impl<T: Float> Default for {}Config<T> {{
     fn default() -> Self {{
         Self {{
-            learning_rate: T::from({}).unwrap(),
+            learning_rate: num_traits::cast::cast({}).unwrap_or_else(|| T::zero()),
         }}
     }}
 }}

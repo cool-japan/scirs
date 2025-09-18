@@ -198,7 +198,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
             _maxorder,
             mixed_mode: true,
             derivative_cache: HashMap::new(),
-            finite_diff_eps: T::from(1e-5).unwrap(),
+            finite_diff_eps: num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero()),
             parallel_computation: true,
             thread_pool_size: 4, // Conservative default
             adaptive_sparsity: true,
@@ -272,7 +272,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         if config.exact {
             for i in 0..n {
                 for j in i + 1..n {
-                    let avg = (hessian[[i, j]] + hessian[[j, i]]) / T::from(2.0).unwrap();
+                    let avg = (hessian[[i, j]] + hessian[[j, i]]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
                     hessian[[i, j]] = avg;
                     hessian[[j, i]] = avg;
                 }
@@ -309,7 +309,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
                 x_minus[j] = x_minus[j] - self.finite_diff_eps;
 
                 (function(&x_plus) - function(&x_minus))
-                    / (T::from(2.0).unwrap() * self.finite_diff_eps)
+                    / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * self.finite_diff_eps)
             };
 
             // Compute gradient of partial derivative
@@ -345,7 +345,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
             let f_minus = function(&x_minus);
 
             // Second derivative: f''(x) = (f(x+h) - 2f(x) + f(x-h)) / h^2
-            let second_deriv = (f_plus - T::from(2.0).unwrap() * f_center + f_minus)
+            let second_deriv = (f_plus - num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * f_center + f_minus)
                 / (self.finite_diff_eps * self.finite_diff_eps);
 
             hessian[[i, i]] = second_deriv;
@@ -367,7 +367,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         let mut cols = Vec::new();
         let mut values = Vec::new();
 
-        let threshold = T::from(config.sparsity_threshold).unwrap();
+        let threshold = num_traits::cast::cast(config.sparsity_threshold).unwrap_or_else(|| T::zero());
 
         for i in 0..dense_hessian.nrows() {
             for j in 0..dense_hessian.ncols() {
@@ -494,7 +494,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         let avg_error = self.compute_avg_error(computed_hessian, &fd_hessian);
         let relative_error = self.compute_relative_error(computed_hessian, &fd_hessian);
 
-        let is_accurate = max_error < T::from(1e-4).unwrap();
+        let is_accurate = max_error < num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero());
 
         Ok(DerivativeVerification {
             max_absolute_error: max_error,
@@ -636,7 +636,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
 
         let hvp_fn = move |v: &Array1<T>| -> Result<Array1<T>> {
             // Use finite differences as a fallback to avoid borrow conflicts
-            let eps = T::from(1e-6).unwrap();
+            let eps = num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero());
             let mut hvp = Array1::zeros(v.len());
 
             for i in 0..v.len() {
@@ -651,7 +651,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
                 let grad_minus = Self::finite_diff_gradient(&function_copy, &point_minus)?;
 
                 // Approximate Hessian-vector product
-                let hess_col = (&grad_plus - &grad_minus) / (T::from(2.0).unwrap() * eps);
+                let hess_col = (&grad_plus - &grad_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * eps);
                 hvp[i] = hess_col.dot(v);
             }
 
@@ -666,7 +666,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
     where
         F: Fn(&Array1<T>) -> T,
     {
-        let eps = T::from(1e-6).unwrap();
+        let eps = num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero());
         let mut gradient = Array1::zeros(point.len());
 
         for i in 0..point.len() {
@@ -679,7 +679,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
             let loss_plus = function(&point_plus);
             let loss_minus = function(&point_minus);
 
-            gradient[i] = (loss_plus - loss_minus) / (T::from(2.0).unwrap() * eps);
+            gradient[i] = (loss_plus - loss_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * eps);
         }
 
         Ok(gradient)
@@ -703,7 +703,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
             x_minus[i] = x_minus[i] - self.finite_diff_eps;
 
             gradient[i] = (function(&x_plus) - function(&x_minus))
-                / (T::from(2.0).unwrap() * self.finite_diff_eps);
+                / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * self.finite_diff_eps);
         }
 
         Ok(gradient)
@@ -722,7 +722,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         let grad_plus = grad_fn(&point_plus);
         let grad_minus = grad_fn(&point_minus);
 
-        Ok((grad_plus - grad_minus) / (T::from(2.0).unwrap() * eps))
+        Ok((grad_plus - grad_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * eps))
     }
 
     fn finite_difference_hessian(
@@ -748,7 +748,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
                     let f_center = function(point);
                     let f_minus = function(&x_minus);
 
-                    (f_plus - T::from(2.0).unwrap() * f_center + f_minus)
+                    (f_plus - num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * f_center + f_minus)
                         / (self.finite_diff_eps * self.finite_diff_eps)
                 } else {
                     // Off-diagonal element: f''_ij
@@ -771,7 +771,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
                     x_mm[j] = x_mm[j] - eps;
 
                     (function(&x_pp) - function(&x_pm) - function(&x_mp) + function(&x_mm))
-                        / (T::from(4.0).unwrap() * eps * eps)
+                        / (num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()) * eps * eps)
                 };
 
                 hessian[[i, j]] = second_deriv;
@@ -806,7 +806,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
 
         // Simplified third derivative approximation
         let third_deriv =
-            (function(&x_ppp) - function(&x_mmm)) / (T::from(8.0).unwrap() * eps * eps * eps);
+            (function(&x_ppp) - function(&x_mmm)) / (num_traits::cast::cast(8.0).unwrap_or_else(|| T::zero()) * eps * eps * eps);
 
         Ok(third_deriv)
     }
@@ -885,7 +885,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
 
             let mixed_partial = (function(&x_pp) - function(&x_pm) - function(&x_mp)
                 + function(&x_mm))
-                / (T::from(4.0).unwrap() * eps * eps);
+                / (num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()) * eps * eps);
 
             Ok(mixed_partial)
         } else {
@@ -896,7 +896,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
 
     fn verify_hessian_accuracy(&self, computed: &Array2<T>, reference: &Array2<T>) -> Result<()> {
         let max_error = self.compute_max_error(computed, reference);
-        let threshold = T::from(1e-3).unwrap();
+        let threshold = num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero());
 
         if max_error > threshold {
             return Err(OptimError::InvalidConfig(format!(
@@ -929,7 +929,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         a.iter()
             .zip(b.iter())
             .map(|(&x, &y)| {
-                if y.abs() > T::from(1e-12).unwrap() {
+                if y.abs() > num_traits::cast::cast(1e-12).unwrap_or_else(|| T::zero()) {
                     ((x - y) / y).abs()
                 } else {
                     (x - y).abs()
@@ -976,7 +976,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
     /// Apply adaptive sparsity to dense matrix
     #[allow(dead_code)]
     fn apply_adaptive_sparsity(&self, mut matrix: Array2<T>, threshold: f64) -> Result<Array2<T>> {
-        let sparsity_threshold = T::from(threshold).unwrap();
+        let sparsity_threshold = num_traits::cast::cast(threshold).unwrap_or_else(|| T::zero());
 
         for elem in matrix.iter_mut() {
             if elem.abs() < sparsity_threshold {
@@ -1018,7 +1018,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         let grad_plus = self.gradient_at_point(function, &point_plus)?;
         let grad_minus = self.gradient_at_point(function, &point_minus)?;
 
-        Ok((grad_plus - grad_minus) / (T::from(2.0).unwrap() * eps))
+        Ok((grad_plus - grad_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * eps))
     }
 
     /// Finite difference HVP implementation
@@ -1036,7 +1036,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
         let grad_plus = self.gradient_at_point(function, &point_plus)?;
         let grad_minus = self.gradient_at_point(function, &point_minus)?;
 
-        Ok((grad_plus - grad_minus) / (T::from(2.0).unwrap() * eps))
+        Ok((grad_plus - grad_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * eps))
     }
 
     /// Pearlman trick for quadratic functions
@@ -1229,7 +1229,7 @@ impl<T: Float + Default + Clone + 'static + std::iter::Sum + ndarray::ScalarOper
 
         // Simplified diagonal approximation
         for i in 0..n {
-            if matrix[[i, i]].abs() > T::from(1e-12).unwrap() {
+            if matrix[[i, i]].abs() > num_traits::cast::cast(1e-12).unwrap_or_else(|| T::zero()) {
                 result[i] = rhs[i] / matrix[[i, i]];
             } else {
                 result[i] = rhs[i];
@@ -1319,7 +1319,7 @@ impl<T: Float + Default> Default for HigherOrderConfig<T> {
         Self {
             _maxorder: 3,
             mixed_mode: true,
-            finite_diff_eps: T::from(1e-5).unwrap(),
+            finite_diff_eps: num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero()),
             parallel_computation: true,
             thread_pool_size: 4, // Conservative default
             adaptive_sparsity: true,

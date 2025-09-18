@@ -82,7 +82,7 @@ impl<T: Float> LayerNormalization<T> {
     pub fn new(dimension: usize) -> Result<Self> {
         let gamma = Array1::ones(dimension);
         let beta = Array1::zeros(dimension);
-        let epsilon = T::from(1e-5).unwrap();
+        let epsilon = num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero());
 
         Ok(Self {
             dimension,
@@ -162,7 +162,7 @@ impl DropoutLayer {
 
         let mut output = input.clone();
         let keep_prob = 1.0 - self.dropout_rate;
-        let scale = T::from(1.0 / keep_prob).unwrap();
+        let scale = num_traits::cast::cast(1.0 / keep_prob).unwrap_or_else(|| T::zero());
 
         for elem in output.iter_mut() {
             if rand::random::<f64>() < self.dropout_rate {
@@ -313,7 +313,7 @@ impl ActivationLayer {
             ActivationFunction::Swish => Self::swish(input),
             ActivationFunction::Tanh => Self::tanh(input),
             ActivationFunction::Sigmoid => Self::sigmoid(input),
-            ActivationFunction::LeakyReLU => Self::leaky_relu(input, T::from(0.01).unwrap()),
+            ActivationFunction::LeakyReLU => Self::leaky_relu(input, num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero())),
         }
     }
 
@@ -325,10 +325,10 @@ impl ActivationLayer {
     /// GELU activation (approximation)
     fn gelu<T: Float>(input: &Array2<T>) -> Array2<T> {
         input.map(|&x| {
-            let half = T::from(0.5).unwrap();
+            let half = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
             let one = T::one();
-            let sqrt_2_pi = T::from(0.797884560802865).unwrap(); // sqrt(2/π)
-            let coeff = T::from(0.044715).unwrap();
+            let sqrt_2_pi = num_traits::cast::cast(0.797884560802865).unwrap_or_else(|| T::zero()); // sqrt(2/π)
+            let coeff = num_traits::cast::cast(0.044715).unwrap_or_else(|| T::zero());
 
             let tanh_arg = sqrt_2_pi * (x + coeff * x * x * x);
             let tanh_val = tanh_arg.tanh();

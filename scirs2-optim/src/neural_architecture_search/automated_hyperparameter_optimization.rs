@@ -1250,7 +1250,7 @@ impl<T: Float + Send + Sync> HyperparameterOptimizer<T> {
 
     fn evaluate_configuration(&self, config: HyperparameterConfig<T>) -> Result<HyperOptResult<T>> {
         // Simplified evaluation - in practice would run actual optimization
-        let performance = T::from(0.8).unwrap(); // Placeholder
+        let performance = num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()); // Placeholder
 
         let evaluation = EvaluationResults {
             metric_scores: HashMap::new(),
@@ -1268,11 +1268,11 @@ impl<T: Float + Send + Sync> HyperparameterOptimizer<T> {
             constraint_violations: Vec::new(),
             resource_usage: ResourceUsage {
                 evaluation_time: Duration::from_secs(60),
-                memory_mb: T::from(1024.0).unwrap(),
-                cpu_hours: T::from(1.0).unwrap(),
+                memory_mb: num_traits::cast::cast(1024.0).unwrap_or_else(|| T::zero()),
+                cpu_hours: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
                 gpu_hours: T::zero(),
-                energy_kwh: T::from(0.1).unwrap(),
-                cost: T::from(1.0).unwrap(),
+                energy_kwh: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                cost: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             },
             eval_metadata: EvaluationMetadata {
                 timestamp: std::time::SystemTime::now(),

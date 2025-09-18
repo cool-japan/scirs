@@ -1478,8 +1478,8 @@ impl<T: Float> Default for EarlyStoppingCriteria<T> {
         Self {
             enabled: true,
             patience: 50,
-            min_improvement: T::from(0.001).unwrap(),
-            relative_improvement: T::from(0.01).unwrap(),
+            min_improvement: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            relative_improvement: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             target_performance: None,
             max_evaluations: Some(1000),
             max_time: Some(Duration::from_hours(24))}
@@ -1511,9 +1511,9 @@ impl Default for ParallelizationSettings {
 impl<T: Float> Default for ResourceConstraints<T> {
     fn default() -> Self {
         Self {
-            max_memory_gb: T::from(32.0).unwrap(),
-            max_time_hours: T::from(24.0).unwrap(),
-            max_cost: T::from(1000.0).unwrap(),
+            max_memory_gb: num_traits::cast::cast(32.0).unwrap_or_else(|| T::zero()),
+            max_time_hours: num_traits::cast::cast(24.0).unwrap_or_else(|| T::zero()),
+            max_cost: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()),
             compute_resources: ComputeResources::default()}
     }
 }
@@ -1769,7 +1769,7 @@ impl<T: Float + Send + Sync> HyperparameterOptimizationPipeline<T> {
         // Placeholder implementation
         Ok(ResourceRequirements {
             cpu_cores: 1,
-            memory_gb: T::from(4.0).unwrap(),
+            memory_gb: num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()),
             gpu_devices: 0,
             estimated_duration: Duration::from_secs(300)})
     }
@@ -2085,7 +2085,7 @@ impl<T: Float + Send + Sync> WeightAdaptationController<T> {
         Self {
             current_weights: Vec::new(),
             adaptation_strategy: EnsembleAdaptationStrategy::PerformanceBased,
-            adaptation_rate: T::from(0.1).unwrap(),
+            adaptation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             weight_constraints: WeightConstraints::default()}
     }
 }
@@ -2113,7 +2113,7 @@ impl<T: Float> Default for DatabaseStatistics<T> {
 impl<T: Float> Default for WeightConstraints<T> {
     fn default() -> Self {
         Self {
-            min_weight: T::from(0.01).unwrap(),
+            min_weight: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             max_weight: T::one(),
             sum_constraint: Some(T::one()),
             smoothness_constraint: None}

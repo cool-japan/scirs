@@ -685,7 +685,7 @@ impl<T: Float + Default + Clone> AdaptiveNASSystem<T> {
                 iterations_completed: 0,
                 evaluations_performed: 0,
                 total_search_time: T::zero(),
-                best_performance: T::from(f64::NEG_INFINITY).unwrap(),
+                best_performance: num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()),
                 performance_history: Vec::new(),
                 resource_stats: HashMap::new(),
                 strategy_stats: HashMap::new(),
@@ -979,7 +979,7 @@ impl<T: Float + Default + Clone> ArchitectureEvaluator<T> for CompositeEvaluator
         };
         
         // Simplified evaluation - in practice would use actual architecture data
-        metrics.insert("performance".to_string(), T::from(0.8).unwrap());
+        metrics.insert("performance".to_string(), num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()));
         
         Ok(EvaluationResult {
             architecture_id: architecture.id.clone(),
@@ -991,7 +991,7 @@ impl<T: Float + Default + Clone> ArchitectureEvaluator<T> for CompositeEvaluator
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs(),
-                duration: T::from(1.0).unwrap(),
+                duration: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
                 hardware_info: HashMap::new(),
                 context: HashMap::new(),
             },
@@ -1033,7 +1033,7 @@ impl<T: Float + Default + Clone> Default for AdaptiveNASConfig<T> {
                 hardware_aware: None,
                 early_stopping: EarlyStoppingConfig {
                     enabled: true,
-                    improvement_threshold: T::from(0.001).unwrap(),
+                    improvement_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
                     patience: 10,
                     min_evaluations: 5,
                 },
@@ -1049,14 +1049,14 @@ impl<T: Float + Default + Clone> Default for AdaptiveNASConfig<T> {
                 },
             },
             performance_requirements: PerformanceRequirements {
-                min_accuracy: Some(T::from(0.9).unwrap()),
-                max_training_time: Some(T::from(3600.0).unwrap()), // 1 hour
-                max_inference_latency: Some(T::from(100.0).unwrap()), // 100ms
+                min_accuracy: Some(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())),
+                max_training_time: Some(num_traits::cast::cast(3600.0).unwrap_or_else(|| T::zero())), // 1 hour
+                max_inference_latency: Some(num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())), // 100ms
                 max_memory_usage: Some(2_000_000_000), // 2GB
                 target_metrics: HashMap::new(),
             },
             resource_constraints: ResourceConstraints {
-                max_compute_budget: Some(T::from(1000.0).unwrap()),
+                max_compute_budget: Some(num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero())),
                 max_wall_time: Some(7200), // 2 hours
                 max_evaluations: Some(1000),
                 memory_limits: Some(4_000_000_000), // 4GB
@@ -1070,12 +1070,12 @@ impl<T: Float + Default + Clone> Default for AdaptiveNASConfig<T> {
                 max_iterations: Some(100),
                 max_evaluations: Some(1000),
                 max_time: Some(7200), // 2 hours
-                target_performance: Some(T::from(0.95).unwrap()),
+                target_performance: Some(num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero())),
                 convergence: Some(ConvergenceCriteria {
-                    improvement_threshold: T::from(0.001).unwrap(),
+                    improvement_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
                     patience: 10,
-                    diversity_threshold: Some(T::from(0.1).unwrap()),
-                    relative_tolerance: T::from(1e-6).unwrap(),
+                    diversity_threshold: Some(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())),
+                    relative_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
                 }),
             },
         }

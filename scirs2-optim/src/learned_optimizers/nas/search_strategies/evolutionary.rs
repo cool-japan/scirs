@@ -684,7 +684,7 @@ impl<T: Float + Default + Clone> EvolutionarySearcher<T> {
     /// Survivor selection (combine parents and offspring, keep best)
     fn survivor_selection(&mut self, offspring: &mut Vec<Individual<T>>) -> Result<()> {
         // Elitism: keep best individuals from current population
-        let elite_count = (self.config.elitism_ratio * T::from(self.config.population_size as f64).unwrap()).to_usize().unwrap_or(1);
+        let elite_count = (self.config.elitism_ratio * num_traits::cast::cast(self.config.population_size as f64).unwrap_or_else(|| T::zero())).to_usize().unwrap_or(1);
         
         let mut combined = self.population.clone();
         combined.append(offspring);
@@ -747,13 +747,13 @@ impl<T: Float + Default + Clone> EvolutionarySearcher<T> {
             }
         }
         
-        Ok(total_difference / T::from(comparisons as f64).unwrap())
+        Ok(total_difference / num_traits::cast::cast(comparisons as f64).unwrap_or_else(|| T::zero()))
     }
 
     /// Calculate difference between two architectures
     fn calculate_architecture_difference(&self, arch1: &ArchitectureSpecification<T>, arch2: &ArchitectureSpecification<T>) -> T {
         let layer_diff = T::from((arch1.layers.len() as i32 - arch2.layers.len() as i32).abs() as f64).unwrap();
-        let param_diff = T::from((arch1.parameter_count as i32 - arch2.parameter_count as i32).abs() as f64).unwrap() / T::from(1000.0).unwrap();
+        let param_diff = T::from((arch1.parameter_count as i32 - arch2.parameter_count as i32).abs() as f64).unwrap() / num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero());
         
         layer_diff + param_diff
     }
@@ -761,16 +761,16 @@ impl<T: Float + Default + Clone> EvolutionarySearcher<T> {
     /// Evaluate performance metrics for an architecture
     fn evaluate_performance_metrics(&self, architecture: &ArchitectureSpecification<T>) -> Result<PerformanceMetrics<T>> {
         // Simplified performance evaluation
-        let complexity = T::from(architecture.parameter_count as f64).unwrap() / T::from(1000000.0).unwrap(); // In millions
+        let complexity = num_traits::cast::cast(architecture.parameter_count as f64).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(1000000.0).unwrap_or_else(|| T::zero()); // In millions
         let efficiency = T::one() / (T::one() + complexity);
         
         Ok(PerformanceMetrics {
-            training_performance: T::from(0.8).unwrap() - complexity * T::from(0.1).unwrap(),
-            validation_performance: T::from(0.75).unwrap() - complexity * T::from(0.15).unwrap(),
+            training_performance: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()) - complexity * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            validation_performance: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()) - complexity * num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
             convergence_speed: efficiency,
             memory_efficiency: efficiency,
             computational_efficiency: efficiency,
-            generalization: T::from(0.7).unwrap(),
+            generalization: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         })
     }
 
@@ -819,11 +819,11 @@ impl<T: Float + Default + Clone> Default for EvolutionaryConfig<T> {
         Self {
             population_size: 50,
             num_generations: 100,
-            mutation_rate: T::from(0.1).unwrap(),
-            crossover_rate: T::from(0.7).unwrap(),
-            elitism_ratio: T::from(0.1).unwrap(),
+            mutation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            crossover_rate: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+            elitism_ratio: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             tournament_size: 3,
-            complexity_penalty: T::from(0.01).unwrap(),
+            complexity_penalty: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             max_depth: 10,
             max_parameters: 10_000_000,
         }

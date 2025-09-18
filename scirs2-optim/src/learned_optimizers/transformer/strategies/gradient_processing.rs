@@ -167,7 +167,7 @@ impl<T: Float + Default + Clone> GradientProcessor<T> {
         let mean_norm = self.gradient_stats.mean_magnitude;
         
         if mean_norm > T::zero() {
-            let adaptive_scale = T::from(0.9).unwrap() * mean_norm / current_norm + T::from(0.1).unwrap();
+            let adaptive_scale = num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()) * mean_norm / current_norm + num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
             Ok(gradients * adaptive_scale)
         } else {
             Ok(gradients.clone())
@@ -205,7 +205,7 @@ impl<T: Float + Default + Clone> GradientProcessor<T> {
         // Return accumulated gradients if we've reached the target steps
         if self.gradient_stats.update_count % self.processing_params.accumulation_steps == 0 {
             if let Some(accumulated) = self.accumulated_gradients.take() {
-                let scale = T::from(1.0 / self.processing_params.accumulation_steps as f64).unwrap();
+                let scale = num_traits::cast::cast(1.0 / self.processing_params.accumulation_steps as f64).unwrap_or_else(|| T::zero());
                 Ok(accumulated * scale)
             } else {
                 Ok(gradients.clone())
@@ -235,7 +235,7 @@ impl<T: Float + Default + Clone> GradientProcessor<T> {
     fn compress_gradients(&self, gradients: &Array1<T>) -> Result<Array1<T>> {
         let mut result = gradients.clone();
         let threshold = self.compute_gradient_norm(gradients) * 
-            T::from(self.processing_params.compression_ratio).unwrap();
+            num_traits::cast::cast(self.processing_params.compression_ratio).unwrap_or_else(|| T::zero());
         
         // Zero out small gradients
         for elem in result.iter_mut() {
@@ -283,7 +283,7 @@ impl<T: Float + Default + Clone> GradientStatistics<T> {
             mean_magnitude: T::zero(),
             var_magnitude: T::zero(),
             max_magnitude: T::zero(),
-            min_magnitude: T::from(f64::INFINITY).unwrap(),
+            min_magnitude: num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero()),
             update_count: 0,
             sparsity: T::zero(),
         }
@@ -294,7 +294,7 @@ impl<T: Float + Default + Clone> GradientStatistics<T> {
         let magnitude = gradients.iter().map(|&x| x * x).fold(T::zero(), |a, b| a + b).sqrt();
         
         self.update_count += 1;
-        let count = T::from(self.update_count as f64).unwrap();
+        let count = num_traits::cast::cast(self.update_count as f64).unwrap_or_else(|| T::zero());
         
         // Update running mean
         let delta = magnitude - self.mean_magnitude;
@@ -313,9 +313,9 @@ impl<T: Float + Default + Clone> GradientStatistics<T> {
         }
         
         // Update sparsity (fraction of near-zero elements)
-        let zero_count = gradients.iter().filter(|&&x| x.abs() < T::from(1e-8).unwrap()).count();
+        let zero_count = gradients.iter().filter(|&&x| x.abs() < num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero())).count();
         let current_sparsity = T::from(zero_count as f64 / gradients.len() as f64).unwrap();
-        let alpha = T::from(0.1).unwrap();
+        let alpha = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
         self.sparsity = self.sparsity * (T::one() - alpha) + current_sparsity * alpha;
     }
 
@@ -347,12 +347,12 @@ impl<T: Float + Default + Clone> GradientStatistics<T> {
 impl<T: Float + Default + Clone> Default for GradientProcessingParams<T> {
     fn default() -> Self {
         Self {
-            clip_threshold: T::from(1.0).unwrap(),
-            smoothing_factor: T::from(0.9).unwrap(),
+            clip_threshold: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            smoothing_factor: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             accumulation_steps: 4,
             dropout_prob: 0.1,
             compression_ratio: 0.1,
-            norm_eps: T::from(1e-8).unwrap(),
+            norm_eps: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
         }
     }
 }

@@ -1776,9 +1776,9 @@ impl<T: Float + Default + Clone> RecoveryManager<T> {
             recovered_state: None,
             metrics: RecoveryMetrics {
                 recovery_time: Duration::from_secs(1),
-                integrity_score: T::from(0.95).unwrap(),
-                completeness_score: T::from(1.0).unwrap(),
-                efficiency: T::from(0.9).unwrap(),
+                integrity_score: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+                completeness_score: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+                efficiency: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             },
             errors: Vec::new(),
             warnings: Vec::new(),

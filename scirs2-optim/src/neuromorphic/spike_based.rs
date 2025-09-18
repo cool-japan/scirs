@@ -131,12 +131,12 @@ pub struct SpikeNoiseConfig<T: Float> {
 impl<T: Float> Default for SpikingConfig<T> {
     fn default() -> Self {
         Self {
-            time_step: T::from(0.1).unwrap(),
-            simulation_time: T::from(1000.0).unwrap(),
+            time_step: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            simulation_time: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()),
             encoding_method: SpikeEncodingMethod::RateCoding,
             decoding_method: SpikeDecodingMethod::RateDecoding,
-            spike_learning_rate: T::from(0.01).unwrap(),
-            temporal_window: T::from(20.0).unwrap(),
+            spike_learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            temporal_window: num_traits::cast::cast(20.0).unwrap_or_else(|| T::zero()),
             lateral_inhibition: false,
             homeostatic_config: HomeostaticConfig::default(),
             noise_config: SpikeNoiseConfig::default()}
@@ -147,21 +147,21 @@ impl<T: Float> Default for HomeostaticConfig<T> {
     fn default() -> Self {
         Self {
             enable_homeostatic_scaling: false,
-            target_firing_rate: T::from(10.0).unwrap(),
-            scaling_time_constant: T::from(1000.0).unwrap(),
-            scaling_factor: T::from(0.01).unwrap(),
+            target_firing_rate: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
+            scaling_time_constant: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()),
+            scaling_factor: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             enable_intrinsic_plasticity: false,
-            threshold_adaptation_rate: T::from(0.001).unwrap()}
+            threshold_adaptation_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero())}
     }
 }
 
 impl<T: Float> Default for SpikeNoiseConfig<T> {
     fn default() -> Self {
         Self {
-            background_rate: T::from(1.0).unwrap(),
-            jitter_std: T::from(0.5).unwrap(),
+            background_rate: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            jitter_std: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             poisson_noise: false,
-            noise_amplitude: T::from(0.1).unwrap(),
+            noise_amplitude: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             correlation_noise: T::zero()}
     }
 }
@@ -222,8 +222,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
             current_time: T::zero(),
             spike_trains: HashMap::new(),
             membrane_potentials: Array1::from_elem(num_neurons, membrane_config.resting_potential),
-            synaptic_weights: Array2::ones((num_neurons, num_neurons)) * T::from(0.1).unwrap(),
-            last_spike_times: Array1::from_elem(num_neurons, T::from(-1000.0).unwrap()),
+            synaptic_weights: Array2::ones((num_neurons, num_neurons)) * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            last_spike_times: Array1::from_elem(num_neurons, num_traits::cast::cast(-1000.0).unwrap_or_else(|| T::zero())),
             refractory_until: Array1::zeros(num_neurons),
             homeostatic_scales: Array1::ones(num_neurons),
             spike_buffer: VecDeque::new(),
@@ -263,7 +263,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
     
     /// Rate encoding: firing rate proportional to input value
     fn rate_encode(&self, neuronid: usize, value: T) -> Result<SpikeTrain<T>> {
-        let max_rate = T::from(100.0).unwrap(); // 100 Hz max
+        let max_rate = num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()); // 100 Hz max
         let firing_rate = value.abs() * max_rate;
         
         let mut spike_times = Vec::new();
@@ -273,7 +273,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
         let mut time = T::zero();
         while time < total_time {
             // Poisson process: probability of spike in dt
-            let spike_prob = firing_rate * dt / T::from(1000.0).unwrap();
+            let spike_prob = firing_rate * dt / num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero());
             
             if fastrand::f64() < spike_prob.to_f64().unwrap_or(0.0) {
                 spike_times.push(time);
@@ -287,7 +287,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
     
     /// Temporal encoding: spike time inversely proportional to input value
     fn temporal_encode(&self, neuronid: usize, value: T) -> Result<SpikeTrain<T>> {
-        let max_delay = T::from(20.0).unwrap(); // 20 ms max delay
+        let max_delay = num_traits::cast::cast(20.0).unwrap_or_else(|| T::zero()); // 20 ms max delay
         let spike_time = if value > T::zero() {
             max_delay * (T::one() - value.min(T::one()))
         } else {
@@ -311,7 +311,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
     
     /// Sparse encoding: only strong inputs generate spikes
     fn sparse_encode(&self, neuronid: usize, value: T) -> Result<SpikeTrain<T>> {
-        let threshold = T::from(0.5).unwrap();
+        let threshold = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
         
         if value.abs() > threshold {
             self.rate_encode(neuron_id, value)
@@ -348,9 +348,9 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
     /// Rate decoding: spike count normalized by time window
     fn rate_decode(&self, spiketrain: &SpikeTrain<T>) -> Result<T> {
         let window_duration = self.config.temporal_window;
-        let spike_count = T::from(spike_train.spike_count).unwrap();
-        let rate = spike_count / (window_duration / T::from(1000.0).unwrap());
-        Ok(rate / T::from(100.0).unwrap()) // Normalize by max expected rate
+        let spike_count = num_traits::cast::cast(spike_train.spike_count).unwrap_or_else(|| T::zero());
+        let rate = spike_count / (window_duration / num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()));
+        Ok(rate / num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())) // Normalize by max expected rate
     }
     
     /// Temporal decoding: use first spike time
@@ -359,7 +359,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
             Ok(T::zero())
         } else {
             let first_spike = spike_train.spike_times[0];
-            let max_delay = T::from(20.0).unwrap();
+            let max_delay = num_traits::cast::cast(20.0).unwrap_or_else(|| T::zero());
             Ok(T::one() - (first_spike / max_delay).min(T::one()))
         }
     }
@@ -375,7 +375,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
         
         for &spike_time in &spike_train.spike_times {
             let time_diff = current_time - spike_time;
-            let weight = (-time_diff / T::from(10.0).unwrap()).exp(); // Exponential decay
+            let weight = (-time_diff / num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero())).exp(); // Exponential decay
             weighted_sum = weighted_sum + weight;
         }
         
@@ -463,8 +463,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
         let spike = Spike {
             neuron_id,
             time: self.current_time,
-            amplitude: T::from(1.0).unwrap(),
-            width: Some(T::from(1.0).unwrap()),
+            amplitude: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            width: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())),
             weight: T::one(),
             presynaptic_id: None,
             postsynaptic_id: None};
@@ -513,7 +513,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
                 if pre_id != post_id {
                     let pre_time = self.last_spike_times[pre_id];
                     
-                    if pre_time > T::from(-1000.0).unwrap() { // Valid spike time
+                    if pre_time > num_traits::cast::cast(-1000.0).unwrap_or_else(|| T::zero()) { // Valid spike time
                         let dt = post_time - pre_time;
                         let weight_change = self.compute_stdp_update(dt);
                         
@@ -604,7 +604,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikingO
     pub fn reset(&mut self) {
         self.current_time = T::zero();
         self.membrane_potentials.fill(self.membrane_config.resting_potential);
-        self.last_spike_times.fill(T::from(-1000.0).unwrap());
+        self.last_spike_times.fill(num_traits::cast::cast(-1000.0).unwrap_or_else(|| T::zero()));
         self.refractory_until.fill(T::zero());
         self.spike_trains.clear();
         self.spike_buffer.clear();
@@ -680,11 +680,11 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
         Self {
             config,
             pattern_templates: Vec::new(),
-            matching_threshold: T::from(0.8).unwrap(),
-            pattern_learning_rate: T::from(0.1).unwrap(),
+            matching_threshold: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            pattern_learning_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             temporal_kernel: TemporalKernel {
                 kernel_type: TemporalKernelType::Gaussian,
-                width: T::from(5.0).unwrap(),
+                width: num_traits::cast::cast(5.0).unwrap_or_else(|| T::zero()),
                 parameters: vec![T::one()]}}
     }
     
@@ -699,8 +699,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
     
     /// Extract patterns from a spike train
     fn extract_and_learn_patterns(&mut self, spiketrain: &SpikeTrain<T>) -> Result<()> {
-        let window_size = T::from(50.0).unwrap(); // 50 ms windows
-        let step_size = T::from(10.0).unwrap();   // 10 ms steps
+        let window_size = num_traits::cast::cast(50.0).unwrap_or_else(|| T::zero()); // 50 ms windows
+        let step_size = num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero());   // 10 ms steps
         
         let mut window_start = T::zero();
         
@@ -758,7 +758,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
         // Simplified similarity based on spike count and timing
         let count_diff = (pattern1.relative_spike_times.len() as i32 - 
                          pattern2.relative_spike_times.len() as i32).abs() as f64;
-        let count_similarity = T::one() - T::from(count_diff / max_spikes as f64).unwrap();
+        let count_similarity = T::one() - num_traits::cast::cast(count_diff / max_spikes as f64).unwrap_or_else(|| T::zero());
         
         // Add temporal similarity if both patterns have spikes
         if !pattern1.relative_spike_times.is_empty() && !pattern2.relative_spike_times.is_empty() {
@@ -766,7 +766,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
                 &pattern1.relative_spike_times,
                 &pattern2.relative_spike_times,
             );
-            (count_similarity + temporal_similarity) / T::from(2.0).unwrap()
+            (count_similarity + temporal_similarity) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
         } else {
             count_similarity
         }
@@ -776,8 +776,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
     fn compute_temporal_similarity(&self, spikes1: &[T], spikes2: &[T]) -> T {
         // Use cross-correlation or DTW-like measure
         let mut max_correlation = T::zero();
-        let max_shift = T::from(10.0).unwrap(); // 10 ms max shift
-        let shift_step = T::from(1.0).unwrap();
+        let max_shift = num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()); // 10 ms max shift
+        let shift_step = num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero());
         
         let mut shift = -max_shift;
         while shift <= max_shift {
@@ -797,7 +797,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
         for &t1 in spikes1 {
             for &t2 in spikes2 {
                 let dt = (t1 - (t2 + shift)).abs();
-                let kernel_value = (-dt * dt / (T::from(2.0).unwrap() * kernel_width * kernel_width)).exp();
+                let kernel_value = (-dt * dt / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * kernel_width * kernel_width)).exp();
                 correlation = correlation + kernel_value;
             }
         }
@@ -835,8 +835,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + std::fmt::Debug> SpikeTra
     /// Recognize patterns in new spike train
     pub fn recognize_patterns(&self, spiketrain: &SpikeTrain<T>) -> Result<Vec> {
         let mut recognized_patterns = Vec::new();
-        let window_size = T::from(50.0).unwrap();
-        let step_size = T::from(5.0).unwrap();
+        let window_size = num_traits::cast::cast(50.0).unwrap_or_else(|| T::zero());
+        let step_size = num_traits::cast::cast(5.0).unwrap_or_else(|| T::zero());
         
         let mut window_start = T::zero();
         

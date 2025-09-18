@@ -312,7 +312,7 @@ impl<T: Float + Default + std::fmt::Debug> EvolutionarySearchState<T> {
     /// Select parent for reproduction
     fn select_parent(&self, fitnesses: &[f64]) -> Result<usize, super::SearchError> {
         if let Some(selection_method) = self.selection_methods.first() {
-            let selected = selection_method.select(&self.population, &fitnesses.iter().map(|&f| T::from(f).unwrap()).collect::<Vec<_>>(), 1);
+            let selected = selection_method.select(&self.population, &fitnesses.iter().map(|&f| num_traits::cast::cast(f).unwrap_or_else(|| T::zero())).collect::<Vec<_>>(), 1);
             selected.first().copied().ok_or_else(|| {
                 super::SearchError::GenerationFailed("No parent selected".to_string())
             })

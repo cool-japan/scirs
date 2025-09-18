@@ -905,7 +905,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum> BatchCoordinator
                         }
 
                         // Divide by number of devices
-                        sum_array.mapv_inplace(|x| x / T::from(num_devices).unwrap());
+                        sum_array.mapv_inplace(|x| x / num_traits::cast::cast(num_devices).unwrap_or_else(|| T::zero()));
                         averaged.push(sum_array);
                     }
                 }

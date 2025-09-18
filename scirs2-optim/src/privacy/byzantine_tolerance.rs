@@ -541,7 +541,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> ByzantineTolerantAggregato
 
             let median = if coord_values.len() % 2 == 0 {
                 let mid = coord_values.len() / 2;
-                (coord_values[mid - 1] + coord_values[mid]) / T::from(2.0).unwrap()
+                (coord_values[mid - 1] + coord_values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
             } else {
                 coord_values[coord_values.len() / 2]
             };
@@ -717,7 +717,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> ByzantineTolerantAggregato
                 let change = self
                     .compute_euclidean_distance(&current, &new_estimate)
                     .unwrap_or(T::zero());
-                if change < T::from(1e-6).unwrap() {
+                if change < num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()) {
                     break;
                 }
 
@@ -898,7 +898,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> ByzantineTolerantAggregato
         for participant_id in gradients.keys() {
             // Use reputation score as initial weight
             let base_weight = if let Some(reputation) = self.reputation_scores.get(participant_id) {
-                T::from(reputation.score).unwrap()
+                num_traits::cast::cast(reputation.score).unwrap_or_else(|| T::zero())
             } else {
                 T::one()
             };
@@ -933,7 +933,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> ByzantineTolerantAggregato
             let mut to_remove = Vec::new();
             for (participant_id, gradient) in &unassigned {
                 let similarity = self.compute_cosine_similarity(&first_gradient, gradient)?;
-                if similarity > T::from(0.8).unwrap() {
+                if similarity > num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()) {
                     // Similarity threshold
                     current_cluster.insert(participant_id.clone(), gradient.clone());
                     to_remove.push(participant_id.clone());
@@ -1020,8 +1020,8 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> ByzantineTolerantAggregato
                 let mut max_iqr_score = 0.0;
 
                 for i in 0..gradient.len() {
-                    let q1 = stats.median[i] - stats.iqr[i] / T::from(2.0).unwrap();
-                    let q3 = stats.median[i] + stats.iqr[i] / T::from(2.0).unwrap();
+                    let q1 = stats.median[i] - stats.iqr[i] / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
+                    let q3 = stats.median[i] + stats.iqr[i] / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
 
                     if gradient[i] < q1 || gradient[i] > q3 {
                         let iqr_score = if gradient[i] < q1 {
@@ -1242,7 +1242,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> GradientStatistics<T> {
             self.mean = gradient.clone();
         } else if self.mean.len() == gradient.len() {
             // Update running mean
-            let alpha = T::from(0.01).unwrap(); // Learning rate for running average
+            let alpha = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()); // Learning rate for running average
             self.mean = &self.mean * (T::one() - alpha) + gradient * alpha;
         }
 
@@ -1279,7 +1279,7 @@ impl<T: Float + Send + Sync> PatternModel<T> {
         }
 
         // Normalize distance to [0,1] score
-        let max_expected_distance = T::from(10.0).unwrap(); // Tunable parameter
+        let max_expected_distance = num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()); // Tunable parameter
         let deviation_score = (min_distance / max_expected_distance).min(T::one());
 
         Ok(deviation_score.to_f64().unwrap_or(0.5))
@@ -1345,7 +1345,7 @@ impl<T: Float + Send + Sync> StatisticalAnalysis<T> {
             // Median
             median[i] = if values.len() % 2 == 0 {
                 let mid = values.len() / 2;
-                (values[mid - 1] + values[mid]) / T::from(2.0).unwrap()
+                (values[mid - 1] + values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
             } else {
                 values[values.len() / 2]
             };
@@ -1449,7 +1449,7 @@ impl<T: Float + Send + Sync> GradientProperties<T> {
     /// Create new gradient properties
     pub fn new() -> Self {
         Self {
-            norm_range: (T::zero(), T::from(100.0).unwrap()),
+            norm_range: (T::zero(), num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())),
             sparsity_threshold: 0.1,
             direction_consistency: 0.8,
         }

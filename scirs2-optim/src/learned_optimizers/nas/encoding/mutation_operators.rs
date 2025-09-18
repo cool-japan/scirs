@@ -790,7 +790,7 @@ impl<T: Float + Default + Clone> ArchitectureMutator<T> {
         if self.config.available_operators.contains(&MutationType::ModifyParameters) {
             let param_mutator = ParameterMutator {
                 strength: self.config.mutation_strength,
-                distribution: ParameterDistribution::Gaussian { std: T::from(0.1).unwrap() },
+                distribution: ParameterDistribution::Gaussian { std: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) },
                 selection_strategy: ParameterSelectionStrategy::Random,
             };
             self.operators.insert(MutationType::ModifyParameters, Box::new(param_mutator));
@@ -921,7 +921,7 @@ impl<T: Float + Default + Clone> ArchitectureMutator<T> {
         if result.is_valid {
             stats.successes += 1;
         }
-        stats.success_rate = T::from(stats.successes as f64 / stats.applications as f64).unwrap();
+        stats.success_rate = num_traits::cast::cast(stats.successes as f64 / stats.applications as f64).unwrap_or_else(|| T::zero());
         
         Ok(())
     }
@@ -941,7 +941,7 @@ impl<T: Float + Default + Clone> ArchitectureMutator<T> {
                 current_weight * (T::one() - params.failure_penalty)
             };
             
-            let clamped_weight = new_weight.max(T::from(0.1).unwrap()).min(T::from(10.0).unwrap());
+            let clamped_weight = new_weight.max(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())).min(num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()));
             self.config.operator_weights.insert(mutation_type, clamped_weight);
         }
         
@@ -1079,15 +1079,15 @@ impl<T: Float + Default + Clone> MutationOperator<T> for AddOperationMutator<T> 
     
     fn estimate_impact(&self, _architecture: &ArchitectureGenotype<T>) -> MutationImpact<T> {
         MutationImpact {
-            performance_delta: T::from(0.05).unwrap(), // Small positive impact
-            complexity_delta: T::from(0.1).unwrap(),   // Increased complexity
+            performance_delta: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()), // Small positive impact
+            complexity_delta: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),   // Increased complexity
             resource_delta: {
                 let mut resources = HashMap::new();
-                resources.insert("memory".to_string(), T::from(0.1).unwrap());
-                resources.insert("flops".to_string(), T::from(0.15).unwrap());
+                resources.insert("memory".to_string(), num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()));
+                resources.insert("flops".to_string(), num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()));
                 resources
             },
-            confidence: T::from(0.7).unwrap(),
+            confidence: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
             risk_level: RiskLevel::Low,
         }
     }
@@ -1152,15 +1152,15 @@ impl<T: Float + Default + Clone> MutationOperator<T> for RemoveOperationMutator<
     
     fn estimate_impact(&self, _architecture: &ArchitectureGenotype<T>) -> MutationImpact<T> {
         MutationImpact {
-            performance_delta: T::from(-0.1).unwrap(), // Potential negative impact
-            complexity_delta: T::from(-0.2).unwrap(),  // Reduced complexity
+            performance_delta: num_traits::cast::cast(-0.1).unwrap_or_else(|| T::zero()), // Potential negative impact
+            complexity_delta: num_traits::cast::cast(-0.2).unwrap_or_else(|| T::zero()),  // Reduced complexity
             resource_delta: {
                 let mut resources = HashMap::new();
-                resources.insert("memory".to_string(), T::from(-0.1).unwrap());
-                resources.insert("flops".to_string(), T::from(-0.15).unwrap());
+                resources.insert("memory".to_string(), num_traits::cast::cast(-0.1).unwrap_or_else(|| T::zero()));
+                resources.insert("flops".to_string(), num_traits::cast::cast(-0.15).unwrap_or_else(|| T::zero()));
                 resources
             },
-            confidence: T::from(0.6).unwrap(),
+            confidence: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
             risk_level: RiskLevel::Medium,
         }
     }
@@ -1194,11 +1194,11 @@ impl<T: Float + Default + Clone> MutationOperator<T> for ParameterMutator<T> {
         if let Some(current_value) = operation.parameters.get(param_key) {
             let new_value = match &self.distribution {
                 ParameterDistribution::Gaussian { std } => {
-                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *std * T::from(2.0).unwrap();
+                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *std * num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
                     *current_value + noise
                 }
                 ParameterDistribution::Uniform { range } => {
-                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *range * T::from(2.0).unwrap();
+                    let noise = T::from(rng.random::<f64>() - 0.5).unwrap() * *range * num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
                     *current_value + noise
                 }
                 _ => *current_value, // Fallback
@@ -1234,7 +1234,7 @@ impl<T: Float + Default + Clone> MutationOperator<T> for ParameterMutator<T> {
             performance_delta: T::zero(), // Neutral expected impact
             complexity_delta: T::zero(),  // No complexity change
             resource_delta: HashMap::new(),
-            confidence: T::from(0.8).unwrap(),
+            confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             risk_level: RiskLevel::VeryLow,
         }
     }
@@ -1296,7 +1296,7 @@ impl<T: Float + Default + Clone> PerformanceFeedback<T> {
             moving_average: T::zero(),
             trend: PerformanceTrend::Stable,
             stagnation_counter: 0,
-            best_performance: T::from(f64::NEG_INFINITY).unwrap(),
+            best_performance: num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1304,15 +1304,15 @@ impl<T: Float + Default + Clone> PerformanceFeedback<T> {
 impl<T: Float + Default + Clone> Default for MutationConfig<T> {
     fn default() -> Self {
         let mut operator_weights = HashMap::new();
-        operator_weights.insert(MutationType::AddOperation, T::from(0.3).unwrap());
-        operator_weights.insert(MutationType::RemoveOperation, T::from(0.2).unwrap());
-        operator_weights.insert(MutationType::ReplaceOperation, T::from(0.25).unwrap());
-        operator_weights.insert(MutationType::ModifyParameters, T::from(0.25).unwrap());
+        operator_weights.insert(MutationType::AddOperation, num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()));
+        operator_weights.insert(MutationType::RemoveOperation, num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()));
+        operator_weights.insert(MutationType::ReplaceOperation, num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()));
+        operator_weights.insert(MutationType::ModifyParameters, num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()));
         
         Self {
-            mutation_probability: T::from(0.1).unwrap(),
+            mutation_probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             max_mutations_per_arch: 3,
-            mutation_strength: T::from(0.5).unwrap(),
+            mutation_strength: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             available_operators: vec![
                 MutationType::AddOperation,
                 MutationType::RemoveOperation,
@@ -1321,12 +1321,12 @@ impl<T: Float + Default + Clone> Default for MutationConfig<T> {
             ],
             operator_weights,
             adaptive_params: Some(AdaptiveMutationParams {
-                adaptation_rate: T::from(0.1).unwrap(),
-                success_threshold: T::from(0.6).unwrap(),
-                failure_penalty: T::from(0.1).unwrap(),
+                adaptation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                success_threshold: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+                failure_penalty: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                 window_size: 10,
-                min_mutation_rate: T::from(0.01).unwrap(),
-                max_mutation_rate: T::from(0.5).unwrap(),
+                min_mutation_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+                max_mutation_rate: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             }),
             preserve_constraints: true,
             track_history: true,

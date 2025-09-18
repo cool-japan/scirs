@@ -727,9 +727,9 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
             component_type: ComponentType::Adam,
             hyperparameters: {
                 let mut params = HashMap::new();
-                params.insert("learning_rate".to_string(), T::from(0.001).unwrap());
-                params.insert("beta1".to_string(), T::from(0.9).unwrap());
-                params.insert("beta2".to_string(), T::from(0.999).unwrap());
+                params.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
+                params.insert("beta1".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+                params.insert("beta2".to_string(), num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()));
                 params
             },
             connections: Vec::new(),
@@ -1026,7 +1026,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
             convergence: T::zero(), // Would be calculated based on reference front
             num_solutions: self.pareto_front.solutions.len(),
             coverage: CoverageMetrics {
-                objective_space_coverage: T::from(0.5).unwrap(),
+                objective_space_coverage: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                 reference_distance: T::zero(),
                 epsilon_dominance: T::zero(),
             },
@@ -1052,7 +1052,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + PartialOrd + s
 
         for i in 0..bounds.max_values.len() {
             let range = bounds.max_values[i] - bounds.min_values[i];
-            volume = volume * range.max(T::from(1e-6).unwrap());
+            volume = volume * range.max(num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()));
         }
 
         volume * T::from(self.pareto_front.solutions.len() as f64).unwrap()
@@ -1356,7 +1356,7 @@ impl<T: Float + Default> Default for MultiObjectiveConfig<T> {
                     name: "performance".to_string(),
                     objective_type: ObjectiveType::Performance,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.6).unwrap(),
+                    weight: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::High,
                     tolerance: None,
                 },
@@ -1364,7 +1364,7 @@ impl<T: Float + Default> Default for MultiObjectiveConfig<T> {
                     name: "efficiency".to_string(),
                     objective_type: ObjectiveType::Efficiency,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.4).unwrap(),
+                    weight: num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
                     tolerance: None,
                 },

@@ -141,19 +141,19 @@ pub enum LoadBalancingStrategy {
 impl<T: Float> Default for EventDrivenConfig<T> {
     fn default() -> Self {
         let mut rate_limits = HashMap::new();
-        rate_limits.insert(EventType::Spike, T::from(1000.0).unwrap());
-        rate_limits.insert(EventType::WeightUpdate, T::from(100.0).unwrap());
-        rate_limits.insert(EventType::PlasticityEvent, T::from(50.0).unwrap());
+        rate_limits.insert(EventType::Spike, num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()));
+        rate_limits.insert(EventType::WeightUpdate, num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()));
+        rate_limits.insert(EventType::PlasticityEvent, num_traits::cast::cast(50.0).unwrap_or_else(|| T::zero()));
         
         Self {
             max_queue_size: 10000,
-            processing_timeout: T::from(1.0).unwrap(),
+            processing_timeout: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             priority_scheduling: true,
-            event_threshold: T::from(0.001).unwrap(),
+            event_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             event_batching: true,
             batch_size: 32,
             temporal_correlation: true,
-            correlation_window: T::from(10.0).unwrap(),
+            correlation_window: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
             adaptive_handling: true,
             rate_limits,
             event_compression: false,
@@ -331,7 +331,7 @@ impl<T: Float + Send + Sync> SpikeEventHandler<T> {
             if pre_neuron != post_neuron {
                 let pre_spike_time = state.last_spike_times[pre_neuron];
                 
-                if pre_spike_time > T::from(-1000.0).unwrap() {
+                if pre_spike_time > num_traits::cast::cast(-1000.0).unwrap_or_else(|| T::zero()) {
                     let dt = state.current_time - pre_spike_time;
                     let weight_change = self.compute_stdp_weight_change(dt);
                     
@@ -463,7 +463,7 @@ impl<T: Float + Send + Sync> EventRateLimiter<T> {
         
         if let Some(&limit) = self.rate_limits.get(&event_type) {
             let current_count = self.event_counts.get(&event_type).copied().unwrap_or(0);
-            if T::from(current_count).unwrap() < limit {
+            if num_traits::cast::cast(current_count).unwrap_or_else(|| T::zero()) < limit {
                 *self.event_counts.entry(event_type).or_insert(0) += 1;
                 true
             } else {
@@ -556,7 +556,7 @@ enum AdaptationStrategy {
 impl<T: Float + Send + Sync> AdaptiveEventHandler<T> {
     fn new() -> Self {
         Self {
-            adaptation_rate: T::from(0.1).unwrap(),
+            adaptation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             performance_history: VecDeque::new(),
             current_strategy: AdaptationStrategy::Balanced,
         }
@@ -570,18 +570,18 @@ impl<T: Float + Send + Sync> AdaptiveEventHandler<T> {
         }
         
         if self.performance_history.len() >= 10 {
-            let recent_avg = self.performance_history.iter().rev().take(10).cloned().sum::<T>() / T::from(10).unwrap();
+            let recent_avg = self.performance_history.iter().rev().take(10).cloned().sum::<T>() / num_traits::cast::cast(10).unwrap_or_else(|| T::zero());
             let older_avg = if self.performance_history.len() >= 20 {
-                self.performance_history.iter().rev().skip(10).take(10).cloned().sum::<T>() / T::from(10).unwrap()
+                self.performance_history.iter().rev().skip(10).take(10).cloned().sum::<T>() / num_traits::cast::cast(10).unwrap_or_else(|| T::zero())
             } else {
                 recent_avg
             };
             
             let performance_change = recent_avg - older_avg;
             
-            self.current_strategy = if performance_change > T::from(0.1).unwrap() {
+            self.current_strategy = if performance_change > num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) {
                 AdaptationStrategy::Aggressive
-            } else if performance_change < T::from(-0.1).unwrap() {
+            } else if performance_change < num_traits::cast::cast(-0.1).unwrap_or_else(|| T::zero()) {
                 AdaptationStrategy::Conservative
             } else {
                 AdaptationStrategy::Balanced
@@ -591,9 +591,9 @@ impl<T: Float + Send + Sync> AdaptiveEventHandler<T> {
     
     fn get_adaptation_factor(&self) -> T {
         match self.current_strategy {
-            AdaptationStrategy::Conservative => T::from(0.5).unwrap(),
+            AdaptationStrategy::Conservative => num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             AdaptationStrategy::Balanced => T::one(),
-            AdaptationStrategy::Aggressive => T::from(1.5).unwrap(),
+            AdaptationStrategy::Aggressive => num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -659,8 +659,8 @@ impl<T: Float + Send + Sync> EventDrivenOptimizer<T> {
             event_stats: HashMap::new(),
             system_state: SystemState {
                 membrane_potentials: Array1::from_elem(num_neurons, membrane_config.resting_potential),
-                synaptic_weights: Array2::ones((num_neurons, num_neurons)) * T::from(0.1).unwrap(),
-                last_spike_times: Array1::from_elem(num_neurons, T::from(-1000.0).unwrap()),
+                synaptic_weights: Array2::ones((num_neurons, num_neurons)) * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                last_spike_times: Array1::from_elem(num_neurons, num_traits::cast::cast(-1000.0).unwrap_or_else(|| T::zero())),
                 refractory_until: Array1::zeros(num_neurons),
                 current_time: T::zero(),
                 active_neurons: HashSet::new(),
@@ -755,7 +755,7 @@ impl<T: Float + Send + Sync> EventDrivenOptimizer<T> {
         self.apply_pending_updates()?;
         
         // Update adaptive processing
-        let processing_rate = T::from(processed_count).unwrap() / 
+        let processing_rate = num_traits::cast::cast(processed_count).unwrap_or_else(|| T::zero()) / 
             T::from(start_time.elapsed().as_millis()).unwrap();
         self.adaptive_handler.adapt_processing(processing_rate);
         
@@ -797,7 +797,7 @@ impl<T: Float + Send + Sync> EventDrivenOptimizer<T> {
         
         // Update statistics
         let processing_time = start_time.elapsed().as_nanos() as f64 / 1_000_000.0;
-        self.update_event_statistics(event.event_type, T::from(processing_time).unwrap());
+        self.update_event_statistics(event.event_type, num_traits::cast::cast(processing_time).unwrap_or_else(|| T::zero()));
         
         // Update energy consumption
         self.metrics.energy_consumption = self.metrics.energy_consumption + event.energy_cost;
@@ -858,13 +858,13 @@ impl<T: Float + Send + Sync> EventDrivenOptimizer<T> {
         stats.total_processed += 1;
         
         // Update average processing _time using exponential moving average
-        let alpha = T::from(0.1).unwrap();
+        let alpha = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
         stats.avg_processing_time = stats.avg_processing_time * (T::one() - alpha) + processing_time * alpha;
         
         // Update event rate
         let time_since_last = stats.last_update.elapsed().as_secs_f64();
         if time_since_last > 0.0 {
-            let current_rate = T::one() / T::from(time_since_last).unwrap();
+            let current_rate = T::one() / num_traits::cast::cast(time_since_last).unwrap_or_else(|| T::zero());
             stats.event_rate = stats.event_rate * (T::one() - alpha) + current_rate * alpha;
         }
         

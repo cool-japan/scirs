@@ -322,7 +322,7 @@ impl<T: Float + Default + std::fmt::Debug + Clone + From<f64> + Into<f64>> Neura
     /// Predict performance using predictor
     fn predict_performance(&self, _candidate: &ArchitectureCandidate) -> Result<T, NASError> {
         // Simplified prediction
-        Ok(T::from(0.7).unwrap()) // Placeholder
+        Ok(num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero())) // Placeholder
     }
 
     /// Full evaluation of architecture
@@ -336,7 +336,7 @@ impl<T: Float + Default + std::fmt::Debug + Clone + From<f64> + Into<f64>> Neura
         let efficiency_score = 1.0 / (layer_count as f64 / 10.0 + 1.0); // Prefer fewer layers
 
         let performance = 0.3 * capacity_score + 0.7 * efficiency_score;
-        Ok(T::from(performance).unwrap())
+        Ok(num_traits::cast::cast(performance).unwrap_or_else(|| T::zero()))
     }
 
     /// Check if should early stop

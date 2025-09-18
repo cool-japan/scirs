@@ -504,7 +504,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum + ndarray::Scalar
             }
 
             // Average
-            let averaged = sum_gradient / T::from(count).unwrap();
+            let averaged = sum_gradient / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
             aggregated_gradients.push(averaged);
         }
 
@@ -562,7 +562,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum + ndarray::Scalar
             for (device_id, gradients) in &device_gradients {
                 if let Some(&weight) = weights.get(device_id) {
                     if i < gradients.len() {
-                        let weight_t = T::from(weight).unwrap();
+                        let weight_t = num_traits::cast::cast(weight).unwrap_or_else(|| T::zero());
                         weighted_sum = weighted_sum + &(gradients[i].clone() * weight_t);
                         total_weight = total_weight + weight_t;
                     }
@@ -683,7 +683,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum + ndarray::Scalar
                         let (min_val, max_val) = self.config.quantization.range;
                         let scale = (max_val - min_val) / levels;
                         let quantized_val = ((x.to_f64().unwrap() - min_val) / scale).round() * scale + min_val;
-                        T::from(quantized_val).unwrap()
+                        num_traits::cast::cast(quantized_val).unwrap_or_else(|| T::zero())
                     });
                     quantized.push(quantized_grad);
                 }
@@ -713,7 +713,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum + ndarray::Scalar
             let mut sparse_grad = Array::zeros(gradient.dim());
 
             // For simplicity, just apply a threshold
-            let threshold = T::from(0.01).unwrap(); // Keep elements above threshold
+            let threshold = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()); // Keep elements above threshold
             sparse_grad.zip_mut_with(&gradient, |sparse_elem, &grad_elem| {
                 if grad_elem.abs() > threshold {
                     *sparse_elem = grad_elem;

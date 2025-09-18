@@ -550,12 +550,12 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
         let connection_count = T::from(architecture.connections.len()).unwrap();
 
         // Simple resource estimation model
-        let memory_gb = component_count * T::from(0.1).unwrap() + connection_count * T::from(0.05).unwrap();
-        let cpu_time = component_count * T::from(1.0).unwrap() + connection_count * T::from(0.5).unwrap();
-        let gpu_time = component_count * T::from(0.5).unwrap();
-        let energy_kwh = (cpu_time + gpu_time) * T::from(0.001).unwrap();
-        let cost_usd = energy_kwh * T::from(0.12).unwrap(); // $0.12 per kWh
-        let network_gb = T::from(0.01).unwrap(); // Minimal network usage
+        let memory_gb = component_count * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) + connection_count * num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero());
+        let cpu_time = component_count * num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()) + connection_count * num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
+        let gpu_time = component_count * num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
+        let energy_kwh = (cpu_time + gpu_time) * num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero());
+        let cost_usd = energy_kwh * num_traits::cast::cast(0.12).unwrap_or_else(|| T::zero()); // $0.12 per kWh
+        let network_gb = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()); // Minimal network usage
 
         Ok(ResourceUsage {
             memory_gb,
@@ -724,11 +724,11 @@ impl<T: Float> PerformanceEvaluator<T> {
         // Implementation would perform actual evaluation
         // For now, return dummy results
         let mut scores = HashMap::new();
-        scores.insert(EvaluationMetric::FinalPerformance, T::from(0.5).unwrap());
+        scores.insert(EvaluationMetric::FinalPerformance, num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
 
         Ok(EvaluationResults {
             metric_scores: scores,
-            overall_score: T::from(0.5).unwrap(),
+            overall_score: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             confidence_intervals: HashMap::new(),
             evaluation_time: Duration::from_secs(1),
             success: true,
@@ -759,19 +759,19 @@ impl<T: Float> PerformancePredictor<T> {
         Ok(Self {
             model_type: PredictorType::NeuralNetwork,
             training_data: Vec::new(),
-            prediction_accuracy: T::from(0.8).unwrap(),
-            confidence_threshold: T::from(0.7).unwrap(),
+            prediction_accuracy: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            confidence_threshold: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         })
     }
 
     pub fn predict(&mut self, _architecture: &OptimizerArchitecture<T>) -> Result<EvaluationResults<T>> {
         // Prediction logic would go here
         let mut scores = HashMap::new();
-        scores.insert(EvaluationMetric::FinalPerformance, T::from(0.6).unwrap());
+        scores.insert(EvaluationMetric::FinalPerformance, num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()));
 
         Ok(EvaluationResults {
             metric_scores: scores,
-            overall_score: T::from(0.6).unwrap(),
+            overall_score: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
             confidence_intervals: HashMap::new(),
             evaluation_time: Duration::from_millis(10),
             success: true,

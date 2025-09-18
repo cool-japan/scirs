@@ -444,31 +444,31 @@ impl<T: Float + Default + Clone> MultiObjectiveEvaluator<T> {
         match &objective.evaluator {
             ObjectiveEvaluator::Accuracy => {
                 let acc = data.get("accuracy").unwrap_or(&0.0);
-                Ok(T::from(*acc).unwrap())
+                Ok(num_traits::cast::cast(*acc).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::Latency => {
                 let latency = data.get("latency_ms").unwrap_or(&100.0);
-                Ok(T::from(*latency).unwrap())
+                Ok(num_traits::cast::cast(*latency).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::Memory => {
                 let memory = data.get("memory_mb").unwrap_or(&512.0);
-                Ok(T::from(*memory).unwrap())
+                Ok(num_traits::cast::cast(*memory).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::Energy => {
                 let energy = data.get("energy_j").unwrap_or(&10.0);
-                Ok(T::from(*energy).unwrap())
+                Ok(num_traits::cast::cast(*energy).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::ModelSize => {
                 let size = data.get("model_size_mb").unwrap_or(&50.0);
-                Ok(T::from(*size).unwrap())
+                Ok(num_traits::cast::cast(*size).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::FLOPS => {
                 let flops = data.get("flops").unwrap_or(&1e9);
-                Ok(T::from(*flops).unwrap())
+                Ok(num_traits::cast::cast(*flops).unwrap_or_else(|| T::zero()))
             }
             ObjectiveEvaluator::Custom(name) => {
                 let value = data.get(name).unwrap_or(&0.0);
-                Ok(T::from(*value).unwrap())
+                Ok(num_traits::cast::cast(*value).unwrap_or_else(|| T::zero()))
             }
         }
     }
@@ -701,7 +701,7 @@ impl<T: Float + Default + Clone> MultiObjectiveEvaluator<T> {
         stats.num_evaluations += 1;
         
         // Update running mean (simplified)
-        let n = T::from(stats.num_evaluations as f64).unwrap();
+        let n = num_traits::cast::cast(stats.num_evaluations as f64).unwrap_or_else(|| T::zero());
         stats.mean_value = (stats.mean_value * (n - T::one()) + value) / n;
         
         Ok(())
@@ -780,8 +780,8 @@ impl<T: Float + Default + Clone> MultiObjectiveEvaluator<T> {
             });
             
             // Set boundary solutions to infinite distance
-            self.archive.solutions[0].crowding_distance = T::from(f64::INFINITY).unwrap();
-            self.archive.solutions[n-1].crowding_distance = T::from(f64::INFINITY).unwrap();
+            self.archive.solutions[0].crowding_distance = num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero());
+            self.archive.solutions[n-1].crowding_distance = num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero());
             
             // Compute distances for interior solutions
             let obj_range = *self.archive.solutions[n-1].objective_values.get(&objective.id).unwrap_or(&T::zero()) -
@@ -848,10 +848,10 @@ impl<T: Float + Default + Clone> MultiObjectiveEvaluator<T> {
         }
         
         // Simplified diversity computation
-        let spacing = T::from(0.5).unwrap(); // Placeholder
-        let spread = T::from(0.8).unwrap(); // Placeholder
+        let spacing = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()); // Placeholder
+        let spread = num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()); // Placeholder
         let max_spread = T::one();
-        let diversity_index = T::from(0.7).unwrap(); // Placeholder
+        let diversity_index = num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()); // Placeholder
         
         Ok(DiversityMetrics {
             spacing,
@@ -969,7 +969,7 @@ impl<T: Float + Default + Clone> Default for MultiObjectiveConfig<T> {
                     id: "accuracy".to_string(),
                     name: "Validation Accuracy".to_string(),
                     direction: ObjectiveDirection::Maximize,
-                    weight: T::from(0.4).unwrap(),
+                    weight: num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero()),
                     priority: 1,
                     range: Some((T::zero(), T::one())),
                     constraint_type: ConstraintType::None,
@@ -979,22 +979,22 @@ impl<T: Float + Default + Clone> Default for MultiObjectiveConfig<T> {
                     id: "latency".to_string(),
                     name: "Inference Latency".to_string(),
                     direction: ObjectiveDirection::Minimize,
-                    weight: T::from(0.3).unwrap(),
+                    weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                     priority: 2,
-                    range: Some((T::zero(), T::from(1000.0).unwrap())),
-                    constraint_type: ConstraintType::Hard { threshold: T::from(100.0).unwrap() },
+                    range: Some((T::zero(), num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()))),
+                    constraint_type: ConstraintType::Hard { threshold: num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()) },
                     evaluator: ObjectiveEvaluator::Latency,
                 },
                 Objective {
                     id: "memory".to_string(),
                     name: "Memory Usage".to_string(),
                     direction: ObjectiveDirection::Minimize,
-                    weight: T::from(0.3).unwrap(),
+                    weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                     priority: 3,
-                    range: Some((T::zero(), T::from(2048.0).unwrap())),
+                    range: Some((T::zero(), num_traits::cast::cast(2048.0).unwrap_or_else(|| T::zero()))),
                     constraint_type: ConstraintType::Soft { 
-                        threshold: T::from(1024.0).unwrap(),
-                        penalty: T::from(0.1).unwrap()
+                        threshold: num_traits::cast::cast(1024.0).unwrap_or_else(|| T::zero()),
+                        penalty: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())
                     },
                     evaluator: ObjectiveEvaluator::Memory,
                 },
@@ -1004,7 +1004,7 @@ impl<T: Float + Default + Clone> Default for MultiObjectiveConfig<T> {
             num_reference_points: 100,
             population_size: 50,
             normalization_method: NormalizationMethod::MinMax,
-            constraint_handling: ConstraintHandling::Penalty { penalty_factor: T::from(2.0).unwrap() },
+            constraint_handling: ConstraintHandling::Penalty { penalty_factor: num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) },
         }
     }
 }

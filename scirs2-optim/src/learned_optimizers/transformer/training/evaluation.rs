@@ -400,7 +400,7 @@ impl<T: Float + Default + Clone> TransformerEvaluator<T> {
         
         // Compute convergence rate
         let convergence_rate = if loss_trajectory.len() > 1 {
-            let improvement = (initial_loss - final_loss) / initial_loss.max(T::from(1e-8).unwrap());
+            let improvement = (initial_loss - final_loss) / initial_loss.max(num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()));
             improvement / T::from(loss_trajectory.len() as f64).unwrap()
         } else {
             T::zero()
@@ -431,11 +431,11 @@ impl<T: Float + Default + Clone> TransformerEvaluator<T> {
             let prev_window = &loss_trajectory[i-window_size-1..i-1];
             
             let current_avg = current_window.iter().cloned().fold(T::zero(), |a, b| a + b) / 
-                T::from(window_size as f64).unwrap();
+                num_traits::cast::cast(window_size as f64).unwrap_or_else(|| T::zero());
             let prev_avg = prev_window.iter().cloned().fold(T::zero(), |a, b| a + b) / 
-                T::from(window_size as f64).unwrap();
+                num_traits::cast::cast(window_size as f64).unwrap_or_else(|| T::zero());
             
-            let change = (current_avg - prev_avg).abs() / prev_avg.max(T::from(1e-8).unwrap());
+            let change = (current_avg - prev_avg).abs() / prev_avg.max(num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()));
             
             if change < tolerance {
                 return Ok((true, Some(i)));
@@ -453,9 +453,9 @@ impl<T: Float + Default + Clone> TransformerEvaluator<T> {
         num_steps: usize
     ) -> Result<EfficiencyMetrics<T>> {
         let flops = (num_steps as u64) * 1000; // Simplified FLOP estimation
-        let parameter_efficiency = T::one() / (T::from(memory_usage as f64).unwrap() + T::one());
-        let sample_efficiency = T::from(num_steps as f64).unwrap() / (wall_time + T::one());
-        let energy_consumption = wall_time * T::from(memory_usage as f64).unwrap() * T::from(1e-9).unwrap();
+        let parameter_efficiency = T::one() / (num_traits::cast::cast(memory_usage as f64).unwrap_or_else(|| T::zero()) + T::one());
+        let sample_efficiency = num_traits::cast::cast(num_steps as f64).unwrap_or_else(|| T::zero()) / (wall_time + T::one());
+        let energy_consumption = wall_time * num_traits::cast::cast(memory_usage as f64).unwrap_or_else(|| T::zero()) * num_traits::cast::cast(1e-9).unwrap_or_else(|| T::zero());
         
         Ok(EfficiencyMetrics {
             wall_time,
@@ -475,11 +475,11 @@ impl<T: Float + Default + Clone> TransformerEvaluator<T> {
         // Simplified statistical significance computation
         // In practice, this would involve proper statistical tests
         
-        let p_value = T::from(0.05).unwrap(); // Placeholder
-        let effect_size = T::from(0.5).unwrap(); // Cohen's d
-        let confidence_interval = (T::from(0.1).unwrap(), T::from(0.9).unwrap());
-        let statistical_power = T::from(0.8).unwrap();
-        let test_statistic = T::from(2.0).unwrap();
+        let p_value = num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()); // Placeholder
+        let effect_size = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()); // Cohen's d
+        let confidence_interval = (num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+        let statistical_power = num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero());
+        let test_statistic = num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
         
         Ok(StatisticalSignificance {
             p_value,
@@ -573,7 +573,7 @@ impl<T: Float + Default + Clone> TransformerEvaluator<T> {
             let success_count = self.performance_history.iter()
                 .filter(|result| result.convergence_info.converged)
                 .count();
-            let success_rate = T::from(success_count as f64).unwrap() / 
+            let success_rate = num_traits::cast::cast(success_count as f64).unwrap_or_else(|| T::zero()) / 
                 T::from(self.performance_history.len() as f64).unwrap();
             summary.insert("success_rate".to_string(), success_rate);
         }
@@ -631,7 +631,7 @@ impl<T: Float + Default + Clone> MetricCalculator<T> {
                 Ok(self.historical_values.iter().cloned().fold(T::zero(), |a, b| a.max(b)))
             },
             AggregationMethod::Min => {
-                Ok(self.historical_values.iter().cloned().fold(T::from(f64::INFINITY).unwrap(), |a, b| a.min(b)))
+                Ok(self.historical_values.iter().cloned().fold(num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero()), |a, b| a.min(b)))
             },
             _ => Ok(self.historical_values.back().copied().unwrap_or(T::zero()))
         }
@@ -647,12 +647,12 @@ impl<T: Float + Default + Clone> Default for EvaluationParams<T> {
         Self {
             num_episodes: 10,
             eval_frequency: 100,
-            convergence_tolerance: T::from(1e-6).unwrap(),
+            convergence_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             max_eval_steps: 10000,
-            confidence_level: T::from(0.95).unwrap(),
+            confidence_level: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             bootstrap_samples: 1000,
             cv_folds: 5,
-            robustness_severity: T::from(0.1).unwrap(),
+            robustness_severity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
         }
     }
 }

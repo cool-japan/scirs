@@ -806,7 +806,7 @@ impl<T: Float + Send + Sync + Debug> StateManager<T> {
                 performance_delta: T::zero(), // Would be computed from actual performance
                 duration: Duration::from_secs(0),
                 reason: TransitionReason::AutomaticProgression,
-                confidence: T::from(1.0).unwrap(),
+                confidence: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             };
 
             self.record_transition(transition)?;
@@ -1013,7 +1013,7 @@ impl<T: Float> Default for OptimizationState<T> {
             current_iteration: 0,
             current_loss: T::zero(),
             gradient_norm: T::zero(),
-            step_size: T::from(0.01).unwrap(),
+            step_size: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             convergence_measure: T::zero(),
             current_parameters: None,
             velocity: None,
@@ -1028,13 +1028,13 @@ impl<T: Float> Default for ProblemCharacteristics<T> {
     fn default() -> Self {
         Self {
             dimensionality: 100,
-            conditioning: T::from(10.0).unwrap(),
-            noise_level: T::from(0.01).unwrap(),
-            multimodality: T::from(0.5).unwrap(),
-            convexity: T::from(0.5).unwrap(),
-            separability: T::from(0.5).unwrap(),
-            smoothness: T::from(0.8).unwrap(),
-            sparsity: T::from(0.1).unwrap(),
+            conditioning: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
+            noise_level: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            multimodality: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            convexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            separability: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            smoothness: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            sparsity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             problem_type: ProblemType::NonConvex,
             domain_features: HashMap::new(),
         }
@@ -1044,14 +1044,14 @@ impl<T: Float> Default for ProblemCharacteristics<T> {
 impl<T: Float> Default for ResourceConstraints<T> {
     fn default() -> Self {
         Self {
-            max_memory: T::from(8192.0).unwrap(), // 8GB
-            max_compute: T::from(1.0).unwrap(),
+            max_memory: num_traits::cast::cast(8192.0).unwrap_or_else(|| T::zero()), // 8GB
+            max_compute: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             max_time: Duration::from_secs(3600), // 1 hour
-            max_energy: T::from(1000.0).unwrap(),
+            max_energy: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()),
             available_cores: num_cpus::get(),
             available_gpus: 0,
-            network_bandwidth: T::from(1000.0).unwrap(), // 1Gbps
-            storage_limit: T::from(100000.0).unwrap(), // 100GB
+            network_bandwidth: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()), // 1Gbps
+            storage_limit: num_traits::cast::cast(100000.0).unwrap_or_else(|| T::zero()), // 100GB
         }
     }
 }
@@ -1087,13 +1087,13 @@ impl Default for ComputationalBudget {
 impl<T: Float> Default for ConvergenceCriteria<T> {
     fn default() -> Self {
         Self {
-            function_tolerance: T::from(1e-6).unwrap(),
-            parameter_tolerance: T::from(1e-8).unwrap(),
-            gradient_tolerance: T::from(1e-6).unwrap(),
+            function_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+            parameter_tolerance: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
+            gradient_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             max_iterations: 1000,
             stagnation_threshold: 50,
-            relative_improvement_threshold: T::from(1e-4).unwrap(),
-            absolute_improvement_threshold: T::from(1e-6).unwrap(),
+            relative_improvement_threshold: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
+            absolute_improvement_threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             target_objective: None,
         }
     }

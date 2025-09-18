@@ -657,7 +657,7 @@ impl<
     /// Sample from logits using temperature
     fn sample_from_logits(&self, logits: &Array1<T>) -> Result<usize> {
         // Apply temperature scaling
-        let scaled_logits = logits.mapv(|x| x / T::from(self.config.temperature).unwrap());
+        let scaled_logits = logits.mapv(|x| x / num_traits::cast::cast(self.config.temperature).unwrap_or_else(|| T::zero()));
 
         // Softmax
         let max_logit = scaled_logits
@@ -693,18 +693,18 @@ impl<
         // Set default hyperparameters based on component _type
         match component_type {
             ComponentType::Adam => {
-                hyperparameters.insert("learning_rate".to_string(), T::from(0.001).unwrap());
-                hyperparameters.insert("beta1".to_string(), T::from(0.9).unwrap());
-                hyperparameters.insert("beta2".to_string(), T::from(0.999).unwrap());
-                hyperparameters.insert("epsilon".to_string(), T::from(1e-8).unwrap());
+                hyperparameters.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
+                hyperparameters.insert("beta1".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+                hyperparameters.insert("beta2".to_string(), num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()));
+                hyperparameters.insert("epsilon".to_string(), num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()));
             }
             ComponentType::SGD => {
-                hyperparameters.insert("learning_rate".to_string(), T::from(0.01).unwrap());
-                hyperparameters.insert("momentum".to_string(), T::from(0.9).unwrap());
-                hyperparameters.insert("weight_decay".to_string(), T::from(0.0001).unwrap());
+                hyperparameters.insert("learning_rate".to_string(), num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()));
+                hyperparameters.insert("momentum".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+                hyperparameters.insert("weight_decay".to_string(), num_traits::cast::cast(0.0001).unwrap_or_else(|| T::zero()));
             }
             _ => {
-                hyperparameters.insert("learning_rate".to_string(), T::from(0.001).unwrap());
+                hyperparameters.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
             }
         }
 
@@ -930,9 +930,9 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum> ArchitectureCont
             component_type: ComponentType::Adam,
             hyperparameters: {
                 let mut params = HashMap::new();
-                params.insert("learning_rate".to_string(), T::from(0.001).unwrap());
-                params.insert("beta1".to_string(), T::from(0.9).unwrap());
-                params.insert("beta2".to_string(), T::from(0.999).unwrap());
+                params.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
+                params.insert("beta1".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+                params.insert("beta2".to_string(), num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()));
                 params
             },
             connections: Vec::new(),
@@ -1295,7 +1295,7 @@ impl<T: Float + Default + Clone> LayerNorm<T> {
         Ok(Self {
             scale: Array1::ones(dim),
             shift: Array1::zeros(dim),
-            eps: T::from(1e-6).unwrap(),
+            eps: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
         })
     }
 }

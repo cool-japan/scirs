@@ -248,7 +248,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum + ndarray::Scalar
 
             let median = if coord_values.len() % 2 == 0 {
                 let mid = coord_values.len() / 2;
-                (coord_values[mid - 1] + coord_values[mid]) / T::from(2.0).unwrap()
+                (coord_values[mid - 1] + coord_values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
             } else {
                 coord_values[coord_values.len() / 2]
             };
@@ -333,7 +333,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum> StatisticalAnaly
             }
 
             if count > 0 {
-                let avg_distance = total_distance / T::from(count).unwrap();
+                let avg_distance = total_distance / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
                 distances.insert(client_a, avg_distance);
             }
         }
@@ -350,7 +350,7 @@ impl<T: Float + Default + Clone + Send + Sync + std::iter::Sum> StatisticalAnaly
             }) / T::from(distances_vec.len()).unwrap();
 
             let std_dev = variance.sqrt();
-            let threshold = mean_distance + T::from(1.0).unwrap() * std_dev; // 1-sigma threshold (more sensitive)
+            let threshold = mean_distance + num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()) * std_dev; // 1-sigma threshold (more sensitive)
 
             for (client_id, &distance) in &distances {
                 let is_outlier = distance > threshold;

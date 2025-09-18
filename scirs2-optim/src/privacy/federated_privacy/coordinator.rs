@@ -335,7 +335,7 @@ impl<
         }
 
         if let Some(mut aggregate) = first_update {
-            let count_t = T::from(count).unwrap();
+            let count_t = num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
             for value in aggregate.iter_mut() {
                 *value = *value / count_t;
             }
@@ -549,7 +549,7 @@ impl<T: Float> ByzantineRobustAggregator<T> {
         }
 
         for value in result.iter_mut() {
-            *value = *value / T::from(count).unwrap();
+            *value = *value / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
         }
 
         Ok(result)
@@ -674,7 +674,7 @@ impl<T: Float> SecureAggregator<T> {
         }
 
         for value in result.iter_mut() {
-            *value = *value / T::from(count).unwrap();
+            *value = *value / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
         }
 
         Ok(result)

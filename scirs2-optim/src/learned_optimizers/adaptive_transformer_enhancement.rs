@@ -880,13 +880,13 @@ impl<T: Float> Default for AdaptiveConfig<T> {
             adaptive_sequence_length: true,
             max_sequence_length: 1024,
             min_sequence_length: 64,
-            attention_sparsity_threshold: T::from(0.1).unwrap(),
+            attention_sparsity_threshold: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             memory_budget: 8192, // 8GB
             dynamic_head_pruning: true,
             layer_adaptation: true,
             landscape_analysis_frequency: 100,
             prediction_horizon: 50,
-            adaptation_lr: T::from(0.001).unwrap(),
+            adaptation_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1180,7 +1180,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
 
         // Combined adaptive scaling
         let combined_scale =
-            sequence_scale * attention_scale * architecture_scale / T::from(3.0).unwrap();
+            sequence_scale * attention_scale * architecture_scale / num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero());
 
         // Apply scaled gradient updates
         for (i, (param, grad)) in parameters.iter_mut().zip(gradients.iter()).enumerate() {
@@ -1193,13 +1193,13 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
 
     /// Calculate adaptive learning rate for each parameter
     fn calculate_adaptive_learning_rate(&self, param_index: usize, basescale: T) -> Result<T> {
-        let base_lr = T::from(0.001).unwrap(); // Base learning rate
+        let base_lr = num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()); // Base learning rate
 
         // Parameter-specific adaptation
         let param_adaptation = if param_index % 2 == 0 {
-            T::from(1.1).unwrap() // Slightly higher for even indices
+            num_traits::cast::cast(1.1).unwrap_or_else(|| T::zero()) // Slightly higher for even indices
         } else {
-            T::from(0.9).unwrap() // Slightly lower for odd indices
+            num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()) // Slightly lower for odd indices
         };
 
         Ok(base_lr * basescale * param_adaptation)
@@ -1245,7 +1245,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
         let stability_measure = T::one() / (T::one() + variance);
 
         // Plateau detection
-        let plateau_threshold = T::from(0.001).unwrap();
+        let plateau_threshold = num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero());
         let plateau_detection = convergence_rate.abs() < plateau_threshold;
 
         // Oscillation measure (based on consecutive differences)
@@ -1318,7 +1318,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
                 / enhancement_result
                     .attention_optimization
                     .computational_speedup,
-            adaptation_time: T::from(0.1).unwrap(), // Placeholder
+            adaptation_time: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // Placeholder
         };
 
         self.architecture_adapter
@@ -1344,7 +1344,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
                 .sum();
             sum / T::from(self.landscape_analyzer.analysis_cache.len()).unwrap()
         } else {
-            T::from(0.5).unwrap()
+            num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())
         };
 
         let avg_performance = if !self.architecture_adapter.performance_history.is_empty() {
@@ -1356,15 +1356,15 @@ impl<T: Float + Send + Sync + std::iter::Sum> AdaptiveTransformerEnhancement<T> 
                 .sum();
             sum / T::from(self.architecture_adapter.performance_history.len()).unwrap()
         } else {
-            T::from(0.5).unwrap()
+            num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())
         };
 
         EnhancementStatistics {
             total_enhancements: self.landscape_analyzer.analysis_cache.len(),
             average_complexity: avg_complexity,
             average_performance: avg_performance,
-            memory_efficiency: T::from(0.8).unwrap(), // Placeholder
-            adaptation_success_rate: T::from(0.85).unwrap(), // Placeholder
+            memory_efficiency: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()), // Placeholder
+            adaptation_success_rate: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()), // Placeholder
         }
     }
 }
@@ -1375,7 +1375,7 @@ impl<T: Float + Send + Sync> AdaptiveSequenceProcessor<T> {
         Ok(Self {
             current_length: 512,
             importance_scores: VecDeque::new(),
-            compression_ratio: T::from(0.8).unwrap(),
+            compression_ratio: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             compressor: SequenceCompressor::new()?,
             windowing_strategy: WindowingStrategy::ImportanceBased,
         })
@@ -1403,13 +1403,13 @@ impl<T: Float + Send + Sync> AdaptiveSequenceProcessor<T> {
         // Adapt compression ratio based on difficulty
         let new_compression_ratio = if difficulty_factor > 0.6 {
             // High difficulty: reduce compression to preserve information
-            self.compression_ratio * T::from(0.9).unwrap()
+            self.compression_ratio * num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())
         } else {
             // Lower difficulty: increase compression for efficiency
-            self.compression_ratio * T::from(1.1).unwrap()
+            self.compression_ratio * num_traits::cast::cast(1.1).unwrap_or_else(|| T::zero())
         }
-        .min(T::from(0.95).unwrap())
-        .max(T::from(0.5).unwrap());
+        .min(num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()))
+        .max(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
 
         // Update internal state
         self.current_length = new_length;
@@ -1417,12 +1417,12 @@ impl<T: Float + Send + Sync> AdaptiveSequenceProcessor<T> {
 
         // Calculate information preservation based on compression ratio
         let information_preservation =
-            T::one() - (T::one() - new_compression_ratio) * T::from(0.5).unwrap();
+            T::one() - (T::one() - new_compression_ratio) * num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
 
         // Calculate efficiency gain
-        let length_efficiency = T::from(self.current_length as f64 / new_length as f64).unwrap();
+        let length_efficiency = num_traits::cast::cast(self.current_length as f64 / new_length as f64).unwrap_or_else(|| T::zero());
         let compression_efficiency = T::one() / new_compression_ratio;
-        let efficiency_gain = (length_efficiency + compression_efficiency) / T::from(2.0).unwrap();
+        let efficiency_gain = (length_efficiency + compression_efficiency) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
 
         // Update importance scores based on landscape
         self.update_importance_scores(analysis)?;
@@ -1437,9 +1437,9 @@ impl<T: Float + Send + Sync> AdaptiveSequenceProcessor<T> {
 
     fn update_importance_scores(&mut self, analysis: &LandscapeAnalysis<T>) -> Result<()> {
         // Generate importance scores based on landscape analysis
-        let base_importance = T::from(0.5).unwrap();
-        let complexity_boost = analysis.complexity * T::from(0.3).unwrap();
-        let difficulty_boost = analysis.difficulty * T::from(0.2).unwrap();
+        let base_importance = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
+        let complexity_boost = analysis.complexity * num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
+        let difficulty_boost = analysis.difficulty * num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero());
 
         let new_importance = base_importance + complexity_boost + difficulty_boost;
 
@@ -1484,10 +1484,10 @@ impl<T: Float + Send + Sync> MemoryEfficientAttentionManager<T> {
         // Calculate sparsity level based on landscape
         let sparsitylevel = if complexity > 0.7 {
             // High complexity: lower sparsity for more attention
-            T::from(0.05).unwrap()
+            num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero())
         } else {
             // Lower complexity: higher sparsity for efficiency
-            T::from(0.15).unwrap()
+            num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero())
         };
 
         // Apply sparsity mask
@@ -1513,7 +1513,7 @@ impl<T: Float + Send + Sync> MemoryEfficientAttentionManager<T> {
         let speedup_from_sparsity = T::one() / sparsitylevel;
         let speedup_from_dimensions = T::from(512.0 * 512.0 / (seq_len * seq_len) as f64).unwrap();
         let computational_speedup =
-            (speedup_from_sparsity + speedup_from_dimensions) / T::from(2.0).unwrap();
+            (speedup_from_sparsity + speedup_from_dimensions) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
 
         // Update memory tracker
         self.memory_tracker.current_usage += optimized_size;
@@ -1573,16 +1573,16 @@ impl<T: Float + Send + Sync> MemoryEfficientAttentionManager<T> {
                 for j in 0..seq_len {
                     // Generate attention weight based on position and analysis
                     let distance = ((i as i32 - j as i32).abs() as f64).sqrt();
-                    let base_attention = (-T::from(distance).unwrap()
-                        / (T::from(seq_len).unwrap() * T::from(0.1).unwrap()))
+                    let base_attention = (-num_traits::cast::cast(distance).unwrap_or_else(|| T::zero())
+                        / (num_traits::cast::cast(seq_len).unwrap_or_else(|| T::zero()) * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())))
                     .exp();
 
                     // Modulate based on landscape analysis
                     let complexity_factor = analysis.complexity.to_f64().unwrap_or(0.5);
                     let modulated_attention = base_attention
-                        * (T::one() + T::from(complexity_factor).unwrap() * T::from(0.3).unwrap());
+                        * (T::one() + num_traits::cast::cast(complexity_factor).unwrap_or_else(|| T::zero()) * num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()));
 
-                    patterns[[head, i, j]] = T::from(modulated_attention).unwrap();
+                    patterns[[head, i, j]] = num_traits::cast::cast(modulated_attention).unwrap_or_else(|| T::zero());
                 }
             }
         }
@@ -1624,8 +1624,8 @@ impl<T: Float + Send + Sync> DynamicArchitectureAdapter<T> {
         Ok(ArchitectureAdaptation {
             adapted_config: self.current_config.clone(),
             changes: vec![ArchitectureChange::LayerCountChange(6)],
-            expected_improvement: T::from(0.1).unwrap(),
-            confidence: T::from(0.8).unwrap(),
+            expected_improvement: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1648,10 +1648,10 @@ impl<T: Float + Send + Sync> OptimizationLandscapeAnalyzer<T> {
     ) -> Result<LandscapeAnalysis<T>> {
         // Simplified implementation
         Ok(LandscapeAnalysis {
-            complexity: T::from(0.5).unwrap(),
-            difficulty: T::from(0.3).unwrap(),
+            complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            difficulty: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
             recommended_strategies: vec![OptimizationStrategy::Adaptive],
-            confidence: T::from(0.9).unwrap(),
+            confidence: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1673,10 +1673,10 @@ impl<T: Float + Send + Sync> TransformerPerformancePredictor<T> {
     ) -> Result<PerformancePrediction<T>> {
         // Simplified implementation
         Ok(PerformancePrediction {
-            convergence_improvement: T::from(0.15).unwrap(),
-            final_performance: T::from(0.92).unwrap(),
-            confidence: T::from(0.85).unwrap(),
-            uncertainty: T::from(0.05).unwrap(),
+            convergence_improvement: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
+            final_performance: num_traits::cast::cast(0.92).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+            uncertainty: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1717,10 +1717,10 @@ impl MemoryUsageTracker {
 impl<T: Float + Send + Sync> ComplexityEstimator<T> {
     fn new() -> Self {
         Self {
-            computational_complexity: T::from(0.5).unwrap(),
-            sample_complexity: T::from(0.5).unwrap(),
-            model_complexity: T::from(0.5).unwrap(),
-            generalization_complexity: T::from(0.5).unwrap(),
+            computational_complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            sample_complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            model_complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            generalization_complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1790,9 +1790,9 @@ impl<T: Float + Send + Sync> PredictionCache<T> {
 impl<T: Float + Send + Sync> UncertaintyEstimator<T> {
     fn new(method: UncertaintyMethod) -> Self {
         Self {
-            epistemic_uncertainty: T::from(0.1).unwrap(),
-            aleatoric_uncertainty: T::from(0.05).unwrap(),
-            total_uncertainty: T::from(0.15).unwrap(),
+            epistemic_uncertainty: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            aleatoric_uncertainty: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            total_uncertainty: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
             estimation_method: method,
         }
     }
@@ -1801,7 +1801,7 @@ impl<T: Float + Send + Sync> UncertaintyEstimator<T> {
 impl<T: Float + Send + Sync> LocalMinimaDetector<T> {
     fn new() -> Self {
         Self {
-            threshold: T::from(1e-6).unwrap(),
+            threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             detected_minima: Vec::new(),
             algorithm: MinimaDetectionAlgorithm::GradientBased,
         }
@@ -1811,7 +1811,7 @@ impl<T: Float + Send + Sync> LocalMinimaDetector<T> {
 impl<T: Float + Send + Sync> SaddlePointDetector<T> {
     fn new() -> Self {
         Self {
-            threshold: T::from(1e-6).unwrap(),
+            threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             detected_saddles: Vec::new(),
             algorithm: SaddleDetectionAlgorithm::EigenvalueBased,
         }
@@ -1866,9 +1866,9 @@ impl<T: Float + Send + Sync> PatternRecognizer<T> {
 impl<T: Float> Default for LandscapeFeatures<T> {
     fn default() -> Self {
         Self {
-            smoothness: T::from(0.5).unwrap(),
-            multimodality: T::from(0.3).unwrap(),
-            noise_level: T::from(0.1).unwrap(),
+            smoothness: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            multimodality: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+            noise_level: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             curvature: CurvatureInfo::default(),
             gradient_characteristics: GradientCharacteristics::default(),
         }
@@ -1878,10 +1878,10 @@ impl<T: Float> Default for LandscapeFeatures<T> {
 impl<T: Float> Default for CurvatureInfo<T> {
     fn default() -> Self {
         Self {
-            mean_curvature: T::from(0.1).unwrap(),
-            gaussian_curvature: T::from(0.05).unwrap(),
-            principal_curvatures: vec![T::from(0.1).unwrap(), T::from(-0.05).unwrap()],
-            condition_number: T::from(10.0).unwrap(),
+            mean_curvature: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            gaussian_curvature: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            principal_curvatures: vec![num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), num_traits::cast::cast(-0.05).unwrap_or_else(|| T::zero())],
+            condition_number: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1889,10 +1889,10 @@ impl<T: Float> Default for CurvatureInfo<T> {
 impl<T: Float> Default for GradientCharacteristics<T> {
     fn default() -> Self {
         Self {
-            gradient_norm: T::from(0.1).unwrap(),
-            consistency: T::from(0.8).unwrap(),
-            noise_ratio: T::from(0.1).unwrap(),
-            correlation: T::from(0.7).unwrap(),
+            gradient_norm: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            consistency: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            noise_ratio: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            correlation: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1900,10 +1900,10 @@ impl<T: Float> Default for GradientCharacteristics<T> {
 impl<T: Float> Default for CompressionParams<T> {
     fn default() -> Self {
         Self {
-            target_ratio: T::from(0.5).unwrap(),
-            quality_threshold: T::from(0.95).unwrap(),
+            target_ratio: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            quality_threshold: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             max_time: 1000,
-            strength: T::from(1.0).unwrap(),
+            strength: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1911,9 +1911,9 @@ impl<T: Float> Default for CompressionParams<T> {
 impl<T: Float> Default for CompressionQualityMetrics<T> {
     fn default() -> Self {
         Self {
-            reconstruction_error: T::from(0.05).unwrap(),
-            information_loss: T::from(0.1).unwrap(),
-            compression_ratio: T::from(0.5).unwrap(),
+            reconstruction_error: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            information_loss: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            compression_ratio: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             compression_time: 100,
         }
     }

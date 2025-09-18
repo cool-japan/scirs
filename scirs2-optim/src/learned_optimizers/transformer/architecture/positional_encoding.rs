@@ -66,7 +66,7 @@ impl<T: Float + Default + Clone> PositionalEncoder<T> {
 
                 for pos in 0..max_seqlen {
                     for i in 0..modeldim {
-                        let angle = T::from(pos).unwrap()
+                        let angle = num_traits::cast::cast(pos).unwrap_or_else(|| T::zero())
                             / T::from(10000.0_f64.powf(2.0 * (i as f64) / modeldim as f64))
                                 .unwrap();
 
@@ -109,7 +109,7 @@ impl<T: Float + Default + Clone> PositionalEncoder<T> {
 
                 for pos in 0..max_seqlen {
                     for i in 0..modeldim {
-                        let angle = T::from(pos).unwrap()
+                        let angle = num_traits::cast::cast(pos).unwrap_or_else(|| T::zero())
                             / T::from(10000.0_f64.powf(2.0 * (i as f64) / modeldim as f64))
                                 .unwrap();
 
@@ -235,7 +235,7 @@ impl<T: Float + Default + Clone> PositionalEncoder<T> {
 
         let mut encoding = Array1::zeros(self.modeldim);
         for i in 0..self.modeldim {
-            let angle = T::from(position).unwrap()
+            let angle = num_traits::cast::cast(position).unwrap_or_else(|| T::zero())
                 / T::from(10000.0_f64.powf(2.0 * (i as f64) / self.modeldim as f64)).unwrap();
 
             if i % 2 == 0 {

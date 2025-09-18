@@ -274,7 +274,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
             let uncertainty = uncertainty_estimates.get(optimizer_id).cloned().unwrap_or(T::zero());
 
             // Conservative adjustment: reduce prediction confidence when uncertainty is high
-            let adjustment_factor = T::one() - uncertainty * T::from(0.1).unwrap();
+            let adjustment_factor = T::one() - uncertainty * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
             let adjusted_prediction = prediction * adjustment_factor;
 
             adjusted_predictions.insert(optimizer_id.clone(), adjusted_prediction);
@@ -323,19 +323,19 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
         // Optimizer-specific characteristics (simplified)
         match optimizer_id {
             "adam" => {
-                features.push(T::from(0.8).unwrap()); // Adaptive nature
-                features.push(T::from(0.9).unwrap()); // Momentum factor
-                features.push(T::from(0.1).unwrap()); // Noise sensitivity
+                features.push(num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero())); // Adaptive nature
+                features.push(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())); // Momentum factor
+                features.push(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())); // Noise sensitivity
             }
             "sgd_momentum" => {
-                features.push(T::from(0.3).unwrap()); // Adaptive nature
-                features.push(T::from(0.8).unwrap()); // Momentum factor
-                features.push(T::from(0.7).unwrap()); // Noise sensitivity
+                features.push(num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero())); // Adaptive nature
+                features.push(num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero())); // Momentum factor
+                features.push(num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero())); // Noise sensitivity
             }
             _ => {
-                features.push(T::from(0.5).unwrap());
-                features.push(T::from(0.5).unwrap());
-                features.push(T::from(0.5).unwrap());
+                features.push(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
+                features.push(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
+                features.push(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
             }
         }
 
@@ -371,12 +371,12 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
                 features.push(variance);
             } else {
                 // No history available
-                features.push(T::from(0.5).unwrap()); // Neutral values
+                features.push(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())); // Neutral values
                 features.push(T::zero());
                 features.push(T::zero());
             }
         } else {
-            features.push(T::from(0.5).unwrap());
+            features.push(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
             features.push(T::zero());
             features.push(T::zero());
         }
@@ -408,9 +408,9 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
     fn apply_optimizer_adjustments(&self, optimizer_id: &str, prediction: T) -> Result<T> {
         // Optimizer-specific adjustment factors (simplified)
         let adjustment_factor = match optimizer_id {
-            "adam" => T::from(1.1).unwrap(), // Slight boost for Adam
-            "sgd_momentum" => T::from(0.95).unwrap(), // Slight penalty for SGD
-            "learned_lstm" => T::from(1.15).unwrap(), // Boost for learned optimizers
+            "adam" => num_traits::cast::cast(1.1).unwrap_or_else(|| T::zero()), // Slight boost for Adam
+            "sgd_momentum" => num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()), // Slight penalty for SGD
+            "learned_lstm" => num_traits::cast::cast(1.15).unwrap_or_else(|| T::zero()), // Boost for learned optimizers
             _ => T::one(),
         };
 
@@ -445,7 +445,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> PerformancePredictor<T>
     fn get_recent_prediction(&self, model_id: &str, optimizer_id: &str) -> Option<T> {
         // This would retrieve the most recent prediction made by this model for this optimizer
         // Simplified implementation
-        Some(T::from(0.5).unwrap())
+        Some(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
     }
 
     /// Update performance history
@@ -632,7 +632,7 @@ impl<T: Float> PredictionModel<T> {
     // Simplified prediction implementations
     fn linear_predict(&self, features: &FeatureVector<T>) -> Result<T> {
         if self.parameters.is_empty() {
-            return Ok(T::from(0.5).unwrap());
+            return Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
         }
 
         let mut prediction = T::zero();
@@ -647,17 +647,17 @@ impl<T: Float> PredictionModel<T> {
 
     fn neural_predict(&self, _features: &FeatureVector<T>) -> Result<T> {
         // Simplified neural network prediction
-        Ok(T::from(0.6).unwrap())
+        Ok(num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()))
     }
 
     fn gp_predict(&self, _features: &FeatureVector<T>) -> Result<T> {
         // Simplified Gaussian process prediction
-        Ok(T::from(0.7).unwrap())
+        Ok(num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()))
     }
 
     fn rf_predict(&self, _features: &FeatureVector<T>) -> Result<T> {
         // Simplified random forest prediction
-        Ok(T::from(0.65).unwrap())
+        Ok(num_traits::cast::cast(0.65).unwrap_or_else(|| T::zero()))
     }
 
     fn ensemble_predict(&self, features: &FeatureVector<T>) -> Result<T> {
@@ -667,7 +667,7 @@ impl<T: Float> PredictionModel<T> {
         let gp = self.gp_predict(features)?;
         let rf = self.rf_predict(features)?;
 
-        Ok((linear + neural + gp + rf) / T::from(4.0).unwrap())
+        Ok((linear + neural + gp + rf) / num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()))
     }
 
     // Simplified training implementations
@@ -678,7 +678,7 @@ impl<T: Float> PredictionModel<T> {
 
         // Simple least squares (simplified)
         let feature_dim = self.training_data[0].0.len();
-        self.parameters = vec![T::from(0.1).unwrap(); feature_dim];
+        self.parameters = vec![num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()); feature_dim];
 
         // Gradient descent (simplified)
         for _ in 0..10 {
@@ -695,7 +695,7 @@ impl<T: Float> PredictionModel<T> {
                 }
             }
 
-            let learning_rate = T::from(0.01).unwrap() / T::from(self.training_data.len()).unwrap();
+            let learning_rate = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()) / T::from(self.training_data.len()).unwrap();
             for (param, grad) in self.parameters.iter_mut().zip(gradients.iter()) {
                 *param = *param - learning_rate * *grad;
             }
@@ -810,7 +810,7 @@ impl<T: Float> UncertaintyEstimator<T> {
         let mut uncertainties = HashMap::new();
 
         for optimizer_id in optimizers {
-            let prediction = predictions.get(optimizer_id).cloned().unwrap_or(T::from(0.5).unwrap());
+            let prediction = predictions.get(optimizer_id).cloned().unwrap_or(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
             let uncertainty = self.variance_model.predict_variance(features, prediction)?;
             uncertainties.insert(optimizer_id.clone(), uncertainty);
         }
@@ -843,7 +843,7 @@ impl<T: Float> VarianceModel<T> {
 
     pub fn predict_variance(&self, _features: &FeatureVector<T>, _prediction: T) -> Result<T> {
         // Simplified variance prediction
-        Ok(T::from(0.1).unwrap())
+        Ok(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()))
     }
 }
 
@@ -864,7 +864,7 @@ impl<T: Float> ModelEnsemble<T> {
 
     pub fn combine_predictions(&self, predictions: &HashMap<String, T>) -> Result<T> {
         if predictions.is_empty() {
-            return Ok(T::from(0.5).unwrap());
+            return Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
         }
 
         let mut weighted_sum = T::zero();
@@ -879,7 +879,7 @@ impl<T: Float> ModelEnsemble<T> {
         if total_weight > T::zero() {
             Ok(weighted_sum / total_weight)
         } else {
-            Ok(T::from(0.5).unwrap())
+            Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
         }
     }
 
@@ -1017,7 +1017,7 @@ macro_rules! impl_feature_extractor {
             ) -> Result<FeatureVector<T>> {
                 let mut features = FeatureVector::new();
                 for i in 0..$feature_count {
-                    features.push(T::from(i as f64 / $feature_count as f64).unwrap());
+                    features.push(num_traits::cast::cast(i as f64 / $feature_count as f64).unwrap_or_else(|| T::zero()));
                 }
                 Ok(features)
             }

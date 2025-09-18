@@ -45,7 +45,7 @@ impl<T: Float + 'static> PerformancePredictor<T> {
         }
 
         let features_f64 = self.feature_extractor.extract_features(architecture)?;
-        let features: Array1<T> = features_f64.mapv(|x| T::from(x).unwrap());
+        let features: Array1<T> = features_f64.mapv(|x| num_traits::cast::cast(x).unwrap_or_else(|| T::zero()));
         let prediction = self.model.predict(&features)?;
 
         let metrics = self.prediction_to_metrics(prediction)?;
@@ -78,7 +78,7 @@ impl<T: Float + 'static> PerformancePredictor<T> {
 
         for (architecture, metrics) in &self.training_data {
             let feature_vec_f64 = self.feature_extractor.extract_features(architecture)?;
-            let feature_vec: Array1<T> = feature_vec_f64.mapv(|x| T::from(x).unwrap());
+            let feature_vec: Array1<T> = feature_vec_f64.mapv(|x| num_traits::cast::cast(x).unwrap_or_else(|| T::zero()));
             let target_vec = self.metrics_to_target(metrics)?;
 
             features.push(feature_vec);
@@ -119,14 +119,14 @@ impl<T: Float + 'static> PerformancePredictor<T> {
     /// Convert evaluation metrics to target vector
     fn metrics_to_target(&self, metrics: &EvaluationMetrics) -> Result<Array1<T>> {
         let target = Array1::from(vec![
-            T::from(metrics.accuracy).unwrap(),
-            T::from(metrics.training_time_seconds).unwrap(),
-            T::from(metrics.inference_time_ms).unwrap(),
-            T::from(metrics.memory_usage_mb as f64).unwrap(),
-            T::from(metrics.flops as f64).unwrap(),
-            T::from(metrics.parameters as f64).unwrap(),
-            T::from(metrics.energy_consumption).unwrap(),
-            T::from(metrics.convergence_rate).unwrap(),
+            num_traits::cast::cast(metrics.accuracy).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.training_time_seconds).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.inference_time_ms).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.memory_usage_mb as f64).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.flops as f64).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.parameters as f64).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.energy_consumption).unwrap_or_else(|| T::zero()),
+            num_traits::cast::cast(metrics.convergence_rate).unwrap_or_else(|| T::zero()),
         ]);
 
         Ok(target)
@@ -201,7 +201,7 @@ impl<T: Float + 'static> PredictionModel<T> {
         let mut bias = Array1::<T>::zeros(output_dim);
 
         // Simple gradient descent (placeholder implementation)
-        let learning_rate = T::from(0.01).unwrap();
+        let learning_rate = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero());
         let epochs = 100;
 
         for _ in 0..epochs {
@@ -243,7 +243,7 @@ impl<T: Float + 'static> PredictionModel<T> {
 
     fn predict_random_forest(&self, features: &Array1<T>, _params: &ModelParameters<T>) -> Result<Array1<T>> {
         // Placeholder prediction
-        Ok(Array1::from(vec![T::from(0.5).unwrap(); 8]))
+        Ok(Array1::from(vec![num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()); 8]))
     }
 
     fn train_neural_network(&mut self, _features: Vec<Array1<T>>, _targets: Vec<Array1<T>>) -> Result<()> {
@@ -254,7 +254,7 @@ impl<T: Float + 'static> PredictionModel<T> {
 
     fn predict_neural_network(&self, features: &Array1<T>, _params: &ModelParameters<T>) -> Result<Array1<T>> {
         // Placeholder prediction
-        Ok(Array1::from(vec![T::from(0.6).unwrap(); 8]))
+        Ok(Array1::from(vec![num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()); 8]))
     }
 
     fn train_gaussian_process(&mut self, _features: Vec<Array1<T>>, _targets: Vec<Array1<T>>) -> Result<()> {
@@ -265,7 +265,7 @@ impl<T: Float + 'static> PredictionModel<T> {
 
     fn predict_gaussian_process(&self, features: &Array1<T>, _params: &ModelParameters<T>) -> Result<Array1<T>> {
         // Placeholder prediction
-        Ok(Array1::from(vec![T::from(0.7).unwrap(); 8]))
+        Ok(Array1::from(vec![num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()); 8]))
     }
 }
 

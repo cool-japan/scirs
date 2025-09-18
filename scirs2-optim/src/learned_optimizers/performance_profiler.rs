@@ -613,68 +613,68 @@ impl<T: Float + Default + Clone + std::fmt::Debug + 'static> AdvancedPerformance
         // This would extract metrics from the actual coordinator
         // For now, we'll return placeholder values
         Ok(OptimizerPerformanceMetrics {
-            convergence_rate: T::from(0.01).unwrap(),
-            current_loss: T::from(1.0).unwrap(),
-            loss_reduction_rate: T::from(0.001).unwrap(),
-            gradient_norm: T::from(0.1).unwrap(),
-            update_norm: T::from(0.01).unwrap(),
-            learning_rate: T::from(0.001).unwrap(),
-            step_efficiency: T::from(0.95).unwrap(),
-            stability_score: T::from(0.85).unwrap()})
+            convergence_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            current_loss: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            loss_reduction_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            gradient_norm: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            update_norm: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            step_efficiency: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            stability_score: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero())})
     }
 
     /// Extract learning progress metrics
     fn extract_learning_progress(&self, coordinator: &AdvancedCoordinator<T>) -> Result<LearningProgressMetrics<T>> {
         Ok(LearningProgressMetrics {
             total_steps: 1000,
-            steps_per_second: T::from(10.0).unwrap(),
+            steps_per_second: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
             estimated_time_to_convergence: Some(Duration::from_secs(300)),
-            learning_curve_smoothness: T::from(0.8).unwrap(),
-            progress_velocity: T::from(0.02).unwrap(),
-            adaptation_speed: T::from(0.15).unwrap()})
+            learning_curve_smoothness: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            progress_velocity: num_traits::cast::cast(0.02).unwrap_or_else(|| T::zero()),
+            adaptation_speed: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero())})
     }
 
     /// Extract resource utilization metrics
     fn extract_resource_metrics(&self) -> Result<ResourceUtilizationMetrics<T>> {
         // In practice, this would query actual system resources
         Ok(ResourceUtilizationMetrics {
-            cpu_usage: T::from(45.0).unwrap(),
-            memory_usage_mb: T::from(2048.0).unwrap(),
-            gpu_usage: Some(T::from(75.0).unwrap()),
-            gpu_memory_mb: Some(T::from(8192.0).unwrap()),
-            network_io_bps: T::from(1024.0).unwrap(),
-            disk_io_bps: T::from(512.0).unwrap(),
-            energy_consumption: Some(T::from(150.0).unwrap())})
+            cpu_usage: num_traits::cast::cast(45.0).unwrap_or_else(|| T::zero()),
+            memory_usage_mb: num_traits::cast::cast(2048.0).unwrap_or_else(|| T::zero()),
+            gpu_usage: Some(num_traits::cast::cast(75.0).unwrap_or_else(|| T::zero())),
+            gpu_memory_mb: Some(num_traits::cast::cast(8192.0).unwrap_or_else(|| T::zero())),
+            network_io_bps: num_traits::cast::cast(1024.0).unwrap_or_else(|| T::zero()),
+            disk_io_bps: num_traits::cast::cast(512.0).unwrap_or_else(|| T::zero()),
+            energy_consumption: Some(num_traits::cast::cast(150.0).unwrap_or_else(|| T::zero()))})
     }
 
     /// Extract architecture metrics
     fn extract_architecture_metrics(&self, coordinator: &AdvancedCoordinator<T>) -> Result<ArchitectureMetrics<T>> {
         Ok(ArchitectureMetrics {
-            complexity_score: T::from(0.6).unwrap(),
+            complexity_score: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
             parameter_count: 1000000,
-            capacity_utilization: T::from(0.8).unwrap(),
-            architecture_efficiency: T::from(0.85).unwrap(),
-            parallelization_effectiveness: T::from(0.9).unwrap()})
+            capacity_utilization: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            architecture_efficiency: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+            parallelization_effectiveness: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())})
     }
 
     /// Extract meta-learning metrics
     fn extract_meta_learning_metrics(&self, coordinator: &AdvancedCoordinator<T>) -> Result<MetaLearningMetrics<T>> {
         Ok(MetaLearningMetrics {
-            meta_gradient_norm: T::from(0.05).unwrap(),
-            task_adaptation_speed: T::from(0.2).unwrap(),
-            transfer_efficiency: T::from(0.75).unwrap(),
-            generalization_gap: T::from(0.1).unwrap(),
-            few_shot_performance: T::from(0.85).unwrap()})
+            meta_gradient_norm: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            task_adaptation_speed: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            transfer_efficiency: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
+            generalization_gap: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            few_shot_performance: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero())})
     }
 
     /// Extract system health metrics
     fn extract_system_health_metrics(&self) -> Result<SystemHealthMetrics<T>> {
         Ok(SystemHealthMetrics {
-            health_score: T::from(0.92).unwrap(),
-            performance_stability: T::from(0.88).unwrap(),
-            error_rate: T::from(0.001).unwrap(),
+            health_score: num_traits::cast::cast(0.92).unwrap_or_else(|| T::zero()),
+            performance_stability: num_traits::cast::cast(0.88).unwrap_or_else(|| T::zero()),
+            error_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             recovery_time: Some(Duration::from_millis(250)),
-            system_load: T::from(0.6).unwrap()})
+            system_load: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero())})
     }
 
     /// Detect anomalies in metrics
@@ -708,19 +708,19 @@ impl<T: Float + Default + Clone + std::fmt::Debug + 'static> AdvancedPerformance
     /// Calculate overall health score
     fn calculate_health_score(&self, metrics: &[AdvancedMetrics<T>]) -> Result<T> {
         if metrics.is_empty() {
-            return Ok(T::from(0.5).unwrap());
+            return Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()));
         }
         
         let latest = &metrics[metrics.len() - 1];
         
         // Weighted combination of health indicators
-        let performance_weight = T::from(0.3).unwrap();
-        let resource_weight = T::from(0.2).unwrap();
-        let stability_weight = T::from(0.25).unwrap();
-        let learning_weight = T::from(0.25).unwrap();
+        let performance_weight = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
+        let resource_weight = num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero());
+        let stability_weight = num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero());
+        let learning_weight = num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero());
         
         let performance_score = latest.optimizer_performance.stability_score;
-        let resource_score = T::one() - (latest.resource_utilization.cpu_usage / T::from(100.0).unwrap());
+        let resource_score = T::one() - (latest.resource_utilization.cpu_usage / num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()));
         let stability_score = latest.system_health.performance_stability;
         let learning_score = latest.meta_learning_metrics.transfer_efficiency;
         
@@ -756,30 +756,30 @@ impl<T: Float + Default + Clone + std::fmt::Debug + 'static> AdvancedPerformance
         
         if let Some(latest) = metrics.last() {
             // Check for high resource usage
-            if latest.resource_utilization.cpu_usage > T::from(90.0).unwrap() {
+            if latest.resource_utilization.cpu_usage > num_traits::cast::cast(90.0).unwrap_or_else(|| T::zero()) {
                 recommendations.push(OptimizationRecommendation {
                     category: RecommendationCategory::ResourceOptimization,
                     priority: RecommendationPriority::High,
                     description: "High CPU usage detected. Consider reducing batch size or enabling CPU-GPU load balancing.".to_string(),
-                    estimated_impact: T::from(0.2).unwrap()});
+                    estimated_impact: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero())});
             }
             
             // Check for poor convergence
-            if latest.optimizer_performance.convergence_rate < T::from(0.001).unwrap() {
+            if latest.optimizer_performance.convergence_rate < num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()) {
                 recommendations.push(OptimizationRecommendation {
                     category: RecommendationCategory::AlgorithmTuning,
                     priority: RecommendationPriority::Medium,
                     description: "Slow convergence detected. Consider adjusting learning rate or trying different optimizer architecture.".to_string(),
-                    estimated_impact: T::from(0.3).unwrap()});
+                    estimated_impact: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero())});
             }
             
             // Check for instability
-            if latest.system_health.performance_stability < T::from(0.7).unwrap() {
+            if latest.system_health.performance_stability < num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()) {
                 recommendations.push(OptimizationRecommendation {
                     category: RecommendationCategory::StabilityImprovement,
                     priority: RecommendationPriority::High,
                     description: "Performance instability detected. Enable gradient clipping and consider using more conservative learning rates.".to_string(),
-                    estimated_impact: T::from(0.25).unwrap()});
+                    estimated_impact: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero())});
             }
         }
         
@@ -889,14 +889,14 @@ impl<T: Float + Default> Default for AdvancedMetrics<T> {
 impl<T: Float + Default> Default for OptimizerPerformanceMetrics<T> {
     fn default() -> Self {
         Self {
-            convergence_rate: T::from(0.01).unwrap(),
-            current_loss: T::from(1.0).unwrap(),
-            loss_reduction_rate: T::from(0.001).unwrap(),
-            gradient_norm: T::from(0.1).unwrap(),
-            update_norm: T::from(0.01).unwrap(),
-            learning_rate: T::from(0.001).unwrap(),
-            step_efficiency: T::from(0.95).unwrap(),
-            stability_score: T::from(0.85).unwrap()}
+            convergence_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            current_loss: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            loss_reduction_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            gradient_norm: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            update_norm: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            step_efficiency: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            stability_score: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero())}
     }
 }
 
@@ -1113,14 +1113,14 @@ pub struct ResourceSummary<T: Float> {
 impl<T: Float + Default> Default for PerformanceMonitorConfig<T> {
     fn default() -> Self {
         let mut alert_thresholds = HashMap::new();
-        alert_thresholds.insert("cpu_usage".to_string(), T::from(90.0).unwrap());
-        alert_thresholds.insert("memory_usage".to_string(), T::from(85.0).unwrap());
-        alert_thresholds.insert("error_rate".to_string(), T::from(0.01).unwrap());
+        alert_thresholds.insert("cpu_usage".to_string(), num_traits::cast::cast(90.0).unwrap_or_else(|| T::zero()));
+        alert_thresholds.insert("memory_usage".to_string(), num_traits::cast::cast(85.0).unwrap_or_else(|| T::zero()));
+        alert_thresholds.insert("error_rate".to_string(), num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()));
 
         Self {
             monitoring_interval_ms: 1000,
             max_history_size: 10000,
-            anomaly_sensitivity: T::from(0.95).unwrap(),
+            anomaly_sensitivity: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             enable_predictive_analytics: true,
             enable_real_time_alerts: true,
             baseline_update_frequency: Duration::from_secs(3600),

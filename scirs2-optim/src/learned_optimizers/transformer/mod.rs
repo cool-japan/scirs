@@ -259,7 +259,7 @@ impl<T: Float + Default + Clone> TransformerOptimizer<T> {
         let gradient_processor = GradientProcessor::new(GradientProcessingStrategy::Adaptive);
         let lr_adapter = LearningRateAdapter::new(
             LearningRateAdaptationStrategy::TransformerPredicted, 
-            T::from(0.001).unwrap()
+            num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero())
         );
         let momentum_integrator = MomentumIntegrator::new(MomentumStrategy::TransformerPredicted);
         let regularizer = TransformerRegularizer::new(RegularizationStrategy::Adaptive);

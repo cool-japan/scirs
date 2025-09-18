@@ -93,12 +93,12 @@ pub struct AnomalyConfig<T: Float> {
 impl<T: Float> Default for AnomalyConfig<T> {
     fn default() -> Self {
         Self {
-            statistical_threshold: T::from(2.5).unwrap(),
-            trend_sensitivity: T::from(0.1).unwrap(),
+            statistical_threshold: num_traits::cast::cast(2.5).unwrap_or_else(|| T::zero()),
+            trend_sensitivity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             pattern_window: 50,
             baseline_window: 100,
             min_data_points: 10,
-            confidence_threshold: T::from(0.8).unwrap(),
+            confidence_threshold: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             enable_adaptive_thresholds: true,
             seasonal_analysis: false,
             outlier_methods: vec![
@@ -299,7 +299,7 @@ impl<T: Float> AnomalyDetector<T> {
 
     fn pattern_anomaly_detection(&self, value: T) -> AnomalyResult<T> {
         let pattern_score = self.pattern_memory.compute_pattern_score(value);
-        let threshold = T::from(0.3).unwrap(); // Pattern similarity threshold
+        let threshold = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()); // Pattern similarity threshold
         
         let is_anomaly = pattern_score < threshold;
         let confidence = if is_anomaly {
@@ -308,9 +308,9 @@ impl<T: Float> AnomalyDetector<T> {
             T::zero()
         };
 
-        let severity = if pattern_score < T::from(0.1).unwrap() {
+        let severity = if pattern_score < num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::High
-        } else if pattern_score < T::from(0.2).unwrap() {
+        } else if pattern_score < num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Medium
         } else {
             AnomalySeverity::Low
@@ -338,7 +338,7 @@ impl<T: Float> AnomalyDetector<T> {
         value: T,
     ) -> AnomalyResult<T> {
         // Weighted combination of results
-        let weights = [T::from(0.3).unwrap(), T::from(0.25).unwrap(), T::from(0.25).unwrap(), T::from(0.2).unwrap()];
+        let weights = [num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero())];
         let results = [&statistical, &trend, &pattern, &outlier];
 
         let combined_confidence = results.iter()
@@ -414,7 +414,7 @@ impl<T: Float> AnomalyDetector<T> {
         let sum_x = (T::zero()..n).fold(T::zero(), |acc, i| acc + i);
         let sum_y = values.iter().fold(T::zero(), |acc, &y| acc + y);
         let sum_xy = values.iter().enumerate()
-            .fold(T::zero(), |acc, (i, &y)| acc + T::from(i).unwrap() * y);
+            .fold(T::zero(), |acc, (i, &y)| acc + num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) * y);
         let sum_x2 = (T::zero()..n).fold(T::zero(), |acc, i| acc + i * i);
 
         let denominator = n * sum_x2 - sum_x * sum_x;
@@ -440,11 +440,11 @@ impl<T: Float> AnomalyDetector<T> {
         }
 
         let ratio = score / threshold;
-        if ratio > T::from(3.0).unwrap() {
+        if ratio > num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Critical
-        } else if ratio > T::from(2.0).unwrap() {
+        } else if ratio > num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::High
-        } else if ratio > T::from(1.5).unwrap() {
+        } else if ratio > num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Medium
         } else {
             AnomalySeverity::Low
@@ -454,7 +454,7 @@ impl<T: Float> AnomalyDetector<T> {
     fn get_statistical_actions(&self, z_score: T, threshold: T) -> Vec<String> {
         let mut actions = Vec::new();
         
-        if z_score > threshold * T::from(2.0).unwrap() {
+        if z_score > threshold * num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) {
             actions.push("Investigate data source for potential errors".to_string());
             actions.push("Check for system or measurement anomalies".to_string());
         } else if z_score > threshold {
@@ -480,7 +480,7 @@ impl<T: Float> AnomalyDetector<T> {
     fn get_pattern_actions(&self, pattern_score: T) -> Vec<String> {
         let mut actions = Vec::new();
         
-        if pattern_score < T::from(0.2).unwrap() {
+        if pattern_score < num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()) {
             actions.push("Investigate unusual behavioral patterns".to_string());
             actions.push("Check for optimization convergence issues".to_string());
         }
@@ -545,7 +545,7 @@ impl<T: Float> BaselineStats<T> {
         sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = sorted_values.len() / 2;
         self.median = if sorted_values.len() % 2 == 0 {
-            (sorted_values[mid - 1] + sorted_values[mid]) / T::from(2.0).unwrap()
+            (sorted_values[mid - 1] + sorted_values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
         } else {
             sorted_values[mid]
         };
@@ -578,7 +578,7 @@ impl<T: Float> PatternMemory<T> {
         // Update pattern weights based on anomaly feedback
         if is_anomaly && !self.pattern_weights.is_empty() {
             let last_idx = self.pattern_weights.len() - 1;
-            self.pattern_weights[last_idx] = self.pattern_weights[last_idx] * T::from(0.9).unwrap();
+            self.pattern_weights[last_idx] = self.pattern_weights[last_idx] * num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero());
         }
     }
 
@@ -624,10 +624,10 @@ struct AdaptiveThresholds<T: Float> {
 impl<T: Float> AdaptiveThresholds<T> {
     fn new() -> Self {
         Self {
-            statistical_threshold: T::from(2.5).unwrap(),
-            trend_threshold: T::from(0.1).unwrap(),
-            pattern_threshold: T::from(0.3).unwrap(),
-            adaptation_rate: T::from(0.01).unwrap(),
+            statistical_threshold: num_traits::cast::cast(2.5).unwrap_or_else(|| T::zero()),
+            trend_threshold: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            pattern_threshold: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+            adaptation_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             false_positive_count: 0,
             false_negative_count: 0,
         }
@@ -638,13 +638,13 @@ impl<T: Float> AdaptiveThresholds<T> {
         if detected_anomaly {
             self.statistical_threshold = self.statistical_threshold * (T::one() + self.adaptation_rate);
         } else {
-            self.statistical_threshold = self.statistical_threshold * (T::one() - self.adaptation_rate / T::from(2.0).unwrap());
+            self.statistical_threshold = self.statistical_threshold * (T::one() - self.adaptation_rate / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()));
         }
 
         // Keep thresholds within reasonable bounds
         self.statistical_threshold = self.statistical_threshold
-            .max(T::from(1.5).unwrap())
-            .min(T::from(4.0).unwrap());
+            .max(num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()))
+            .min(num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()));
     }
 
     fn get_statistical_threshold(&self) -> T {
@@ -759,7 +759,7 @@ impl<T: Float> TimeSeriesAnalyzer<T> {
             let start = i.saturating_sub(window_size / 2);
             let end = (i + window_size / 2 + 1).min(values.len());
             let window_mean = values[start..end].iter().fold(T::zero(), |acc, &x| acc + x) 
-                            / T::from(end - start).unwrap();
+                            / num_traits::cast::cast(end - start).unwrap_or_else(|| T::zero());
             trend.push(window_mean);
         }
 
@@ -802,11 +802,11 @@ impl<T: Float> TimeSeriesAnalyzer<T> {
         }
 
         let ratio = score / threshold;
-        if ratio > T::from(3.0).unwrap() {
+        if ratio > num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Critical
-        } else if ratio > T::from(2.0).unwrap() {
+        } else if ratio > num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::High
-        } else if ratio > T::from(1.5).unwrap() {
+        } else if ratio > num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Medium
         } else {
             AnomalySeverity::Low
@@ -845,7 +845,7 @@ impl<T: Float> FrequencyAnalyzer<T> {
 
         // Simplified frequency analysis using autocorrelation
         let autocorr = self.compute_autocorrelation(values);
-        let anomaly_threshold = T::from(0.1).unwrap();
+        let anomaly_threshold = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
 
         for (lag, &corr) in autocorr.iter().enumerate() {
             if corr.abs() > anomaly_threshold && lag > 0 {
@@ -863,7 +863,7 @@ impl<T: Float> FrequencyAnalyzer<T> {
                         deviation_magnitude: corr.abs(),
                         trend_deviation: T::zero(),
                         pattern_match_score: corr.abs(),
-                        historical_frequency: T::from(lag).unwrap(),
+                        historical_frequency: num_traits::cast::cast(lag).unwrap_or_else(|| T::zero()),
                     },
                     suggested_actions: vec![
                         format!("Investigate periodic pattern with lag {}", lag)
@@ -879,7 +879,7 @@ impl<T: Float> FrequencyAnalyzer<T> {
         let n = values.len();
         let mut autocorr = vec![T::zero(); n / 2];
         
-        let mean = values.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(n).unwrap();
+        let mean = values.iter().fold(T::zero(), |acc, &x| acc + x) / num_traits::cast::cast(n).unwrap_or_else(|| T::zero());
         
         for lag in 0..autocorr.len() {
             let mut sum = T::zero();
@@ -891,7 +891,7 @@ impl<T: Float> FrequencyAnalyzer<T> {
             }
             
             if count > 0 {
-                autocorr[lag] = sum / T::from(count).unwrap();
+                autocorr[lag] = sum / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
             }
         }
 
@@ -993,9 +993,9 @@ impl<T: Float> ClassificationModel<T> {
     fn new(anomaly_type: AnomalyType) -> Self {
         Self {
             anomaly_type,
-            weights: vec![T::from(0.1).unwrap(); 7], // 7 basic features
+            weights: vec![num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()); 7], // 7 basic features
             bias: T::zero(),
-            learning_rate: T::from(0.01).unwrap(),
+            learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             _phantom: PhantomData,
         }
     }
@@ -1133,7 +1133,7 @@ impl<T: Float> OutlierDetector<T> {
         
         let median = if sorted_values.len() % 2 == 0 {
             let mid = sorted_values.len() / 2;
-            (sorted_values[mid - 1] + sorted_values[mid]) / T::from(2.0).unwrap()
+            (sorted_values[mid - 1] + sorted_values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
         } else {
             sorted_values[sorted_values.len() / 2]
         };
@@ -1147,7 +1147,7 @@ impl<T: Float> OutlierDetector<T> {
             
             if sorted_deviations.len() % 2 == 0 {
                 let mid = sorted_deviations.len() / 2;
-                (sorted_deviations[mid - 1] + sorted_deviations[mid]) / T::from(2.0).unwrap()
+                (sorted_deviations[mid - 1] + sorted_deviations[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
             } else {
                 sorted_deviations[sorted_deviations.len() / 2]
             }
@@ -1157,10 +1157,10 @@ impl<T: Float> OutlierDetector<T> {
             return (false, T::zero(), T::zero());
         }
 
-        let modified_z = T::from(0.6745).unwrap() * (value - median).abs() / mad;
-        let is_outlier = modified_z > T::from(3.5).unwrap();
+        let modified_z = num_traits::cast::cast(0.6745).unwrap_or_else(|| T::zero()) * (value - median).abs() / mad;
+        let is_outlier = modified_z > num_traits::cast::cast(3.5).unwrap_or_else(|| T::zero());
         let confidence = if is_outlier {
-            (modified_z / T::from(3.5).unwrap()).min(T::one())
+            (modified_z / num_traits::cast::cast(3.5).unwrap_or_else(|| T::zero())).min(T::one())
         } else {
             T::zero()
         };
@@ -1180,8 +1180,8 @@ impl<T: Float> OutlierDetector<T> {
         let q3 = sorted_values[q3_idx];
         let iqr = q3 - q1;
         
-        let lower_bound = q1 - T::from(1.5).unwrap() * iqr;
-        let upper_bound = q3 + T::from(1.5).unwrap() * iqr;
+        let lower_bound = q1 - num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()) * iqr;
+        let upper_bound = q3 + num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()) * iqr;
         
         let is_outlier = value < lower_bound || value > upper_bound;
         let score = if value < lower_bound {
@@ -1211,7 +1211,7 @@ impl<T: Float> OutlierDetector<T> {
         
         let median = if sorted_values.len() % 2 == 0 {
             let mid = sorted_values.len() / 2;
-            (sorted_values[mid - 1] + sorted_values[mid]) / T::from(2.0).unwrap()
+            (sorted_values[mid - 1] + sorted_values[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
         } else {
             sorted_values[sorted_values.len() / 2]
         };
@@ -1225,7 +1225,7 @@ impl<T: Float> OutlierDetector<T> {
             
             if sorted_deviations.len() % 2 == 0 {
                 let mid = sorted_deviations.len() / 2;
-                (sorted_deviations[mid - 1] + sorted_deviations[mid]) / T::from(2.0).unwrap()
+                (sorted_deviations[mid - 1] + sorted_deviations[mid]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
             } else {
                 sorted_deviations[sorted_deviations.len() / 2]
             }
@@ -1236,7 +1236,7 @@ impl<T: Float> OutlierDetector<T> {
         }
 
         let hampel_score = (value - median).abs() / mad;
-        let threshold = T::from(3.0).unwrap();
+        let threshold = num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero());
         let is_outlier = hampel_score > threshold;
         let confidence = if is_outlier {
             (hampel_score / threshold).min(T::one())
@@ -1259,7 +1259,7 @@ impl<T: Float> OutlierDetector<T> {
         }
 
         let avg_score = random_scores.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(random_scores.len()).unwrap();
-        let threshold = T::from(0.6).unwrap();
+        let threshold = num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero());
         let is_outlier = avg_score > threshold;
         let confidence = if is_outlier { avg_score } else { T::zero() };
 
@@ -1268,31 +1268,31 @@ impl<T: Float> OutlierDetector<T> {
 
     fn isolation_tree_score(&self, value: T, values: &[T], max_depth: usize, current_depth: usize) -> T {
         if current_depth >= max_depth || values.len() <= 1 {
-            return T::from(current_depth).unwrap() / T::from(max_depth).unwrap();
+            return num_traits::cast::cast(current_depth).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(max_depth).unwrap_or_else(|| T::zero());
         }
 
         let min_val = values.iter().fold(T::infinity(), |acc, &x| acc.min(x));
         let max_val = values.iter().fold(T::neg_infinity(), |acc, &x| acc.max(x));
         
         if (max_val - min_val).abs() < T::epsilon() {
-            return T::from(current_depth).unwrap() / T::from(max_depth).unwrap();
+            return num_traits::cast::cast(current_depth).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(max_depth).unwrap_or_else(|| T::zero());
         }
 
-        let split_point = min_val + (max_val - min_val) / T::from(2.0).unwrap();
+        let split_point = min_val + (max_val - min_val) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
         
         if value <= split_point {
             let left_values: Vec<T> = values.iter().filter(|&&x| x <= split_point).cloned().collect();
             if !left_values.is_empty() {
                 self.isolation_tree_score(value, &left_values, max_depth, current_depth + 1)
             } else {
-                T::from(current_depth + 1).unwrap() / T::from(max_depth).unwrap()
+                num_traits::cast::cast(current_depth + 1).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(max_depth).unwrap_or_else(|| T::zero())
             }
         } else {
             let right_values: Vec<T> = values.iter().filter(|&&x| x > split_point).cloned().collect();
             if !right_values.is_empty() {
                 self.isolation_tree_score(value, &right_values, max_depth, current_depth + 1)
             } else {
-                T::from(current_depth + 1).unwrap() / T::from(max_depth).unwrap()
+                num_traits::cast::cast(current_depth + 1).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(max_depth).unwrap_or_else(|| T::zero())
             }
         }
     }
@@ -1329,7 +1329,7 @@ impl<T: Float> OutlierDetector<T> {
                 let mut sorted_neighbor_distances = neighbor_distances;
                 sorted_neighbor_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
                 let neighbor_k_distance = sorted_neighbor_distances[k.min(sorted_neighbor_distances.len() - 1)];
-                T::from(k).unwrap() / (neighbor_k_distance + T::epsilon())
+                num_traits::cast::cast(k).unwrap_or_else(|| T::zero()) / (neighbor_k_distance + T::epsilon())
             })
             .collect();
 
@@ -1342,7 +1342,7 @@ impl<T: Float> OutlierDetector<T> {
             T::one()
         };
 
-        let threshold = T::from(1.5).unwrap();
+        let threshold = num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero());
         let is_outlier = lof_score > threshold;
         let confidence = if is_outlier {
             ((lof_score - T::one()) / threshold).min(T::one())
@@ -1361,7 +1361,7 @@ impl<T: Float> OutlierDetector<T> {
         
         let current_distance = (value - mean).abs();
         let score = current_distance / (avg_distance + T::epsilon());
-        let threshold = T::from(2.0).unwrap();
+        let threshold = num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
         let is_outlier = score > threshold;
         let confidence = if is_outlier {
             (score / threshold).min(T::one())
@@ -1383,7 +1383,7 @@ impl<T: Float> OutlierDetector<T> {
             .collect();
 
         let is_outlier = neighbors.len() < min_points;
-        let score = T::from(min_points).unwrap() / (T::from(neighbors.len()).unwrap() + T::one());
+        let score = num_traits::cast::cast(min_points).unwrap_or_else(|| T::zero()) / (T::from(neighbors.len()).unwrap() + T::one());
         let confidence = if is_outlier { score.min(T::one()) } else { T::zero() };
 
         (is_outlier, confidence, score)
@@ -1404,7 +1404,7 @@ impl<T: Float> OutlierDetector<T> {
         distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let percentile_90 = distances[(distances.len() * 9 / 10).min(distances.len() - 1)];
         
-        percentile_90 / T::from(2.0).unwrap()
+        percentile_90 / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
     }
 
     fn combine_outlier_results(&self, results: Vec<(bool, T, T)>, value: T) -> AnomalyResult<T> {
@@ -1437,13 +1437,13 @@ impl<T: Float> OutlierDetector<T> {
         let avg_score = total_score / T::from(results.len()).unwrap();
         
         // Use majority voting
-        let is_anomaly = T::from(outlier_count).unwrap() > T::from(results.len()).unwrap() / T::from(2.0).unwrap();
+        let is_anomaly = num_traits::cast::cast(outlier_count).unwrap_or_else(|| T::zero()) > T::from(results.len()).unwrap() / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
         
-        let severity = if avg_score > T::from(3.0).unwrap() {
+        let severity = if avg_score > num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Critical
-        } else if avg_score > T::from(2.0).unwrap() {
+        } else if avg_score > num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::High
-        } else if avg_score > T::from(1.5).unwrap() {
+        } else if avg_score > num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()) {
             AnomalySeverity::Medium
         } else {
             AnomalySeverity::Low

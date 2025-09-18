@@ -502,14 +502,14 @@ impl<T: Float + Default + Clone> RLArchitectureAgent<T> {
         // Simplified policy loss computation
         // In practice, this would involve computing advantage estimates
         // and policy gradient loss
-        Ok(T::from(0.1).unwrap())
+        Ok(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()))
     }
 
     /// Compute value loss (simplified)
     fn compute_value_loss(&self, _batch: &[Experience<T>]) -> Result<T> {
         // Simplified value loss computation
         // In practice, this would compute temporal difference error
-        Ok(T::from(0.05).unwrap())
+        Ok(num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()))
     }
 
     /// Update policy network (simplified)
@@ -725,17 +725,17 @@ impl Default for ActionSpace {
 impl<T: Float + Default + Clone> Default for RLNASConfig<T> {
     fn default() -> Self {
         Self {
-            learning_rate: T::from(0.001).unwrap(),
-            discount_factor: T::from(0.99).unwrap(),
-            exploration_rate: T::from(1.0).unwrap(),
-            exploration_decay: T::from(0.995).unwrap(),
-            min_exploration_rate: T::from(0.01).unwrap(),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            discount_factor: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
+            exploration_rate: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            exploration_decay: num_traits::cast::cast(0.995).unwrap_or_else(|| T::zero()),
+            min_exploration_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             replay_buffer_size: 10000,
             batch_size: 32,
             num_episodes: 1000,
             max_steps_per_episode: 50,
             target_update_frequency: 100,
-            complexity_penalty: T::from(0.01).unwrap(),
+            complexity_penalty: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
         }
     }
 }

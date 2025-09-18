@@ -301,12 +301,12 @@ impl<T: Float + Default + Clone> FeedForwardNetwork<T> {
             ActivationFunction::GELU => {
                 // Approximate GELU: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
                 output.mapv_inplace(|x| {
-                    let sqrt_2_pi = T::from(0.7978845608).unwrap(); // sqrt(2/π)
-                    let coeff = T::from(0.044715).unwrap();
+                    let sqrt_2_pi = num_traits::cast::cast(0.7978845608).unwrap_or_else(|| T::zero()); // sqrt(2/π)
+                    let coeff = num_traits::cast::cast(0.044715).unwrap_or_else(|| T::zero());
                     let x_cubed = x * x * x;
                     let inner = sqrt_2_pi * (x + coeff * x_cubed);
                     let tanh_val = inner.tanh();
-                    T::from(0.5).unwrap() * x * (T::one() + tanh_val)
+                    num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * x * (T::one() + tanh_val)
                 });
             }
             ActivationFunction::Swish => {
@@ -315,23 +315,23 @@ impl<T: Float + Default + Clone> FeedForwardNetwork<T> {
             ActivationFunction::GLU => {
                 // For simplicity, treating as GELU for now
                 output.mapv_inplace(|x| {
-                    let sqrt_2_pi = T::from(0.7978845608).unwrap();
-                    let coeff = T::from(0.044715).unwrap();
+                    let sqrt_2_pi = num_traits::cast::cast(0.7978845608).unwrap_or_else(|| T::zero());
+                    let coeff = num_traits::cast::cast(0.044715).unwrap_or_else(|| T::zero());
                     let x_cubed = x * x * x;
                     let inner = sqrt_2_pi * (x + coeff * x_cubed);
                     let tanh_val = inner.tanh();
-                    T::from(0.5).unwrap() * x * (T::one() + tanh_val)
+                    num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * x * (T::one() + tanh_val)
                 });
             }
             ActivationFunction::GeGLU => {
                 // For simplicity, treating as GELU for now
                 output.mapv_inplace(|x| {
-                    let sqrt_2_pi = T::from(0.7978845608).unwrap();
-                    let coeff = T::from(0.044715).unwrap();
+                    let sqrt_2_pi = num_traits::cast::cast(0.7978845608).unwrap_or_else(|| T::zero());
+                    let coeff = num_traits::cast::cast(0.044715).unwrap_or_else(|| T::zero());
                     let x_cubed = x * x * x;
                     let inner = sqrt_2_pi * (x + coeff * x_cubed);
                     let tanh_val = inner.tanh();
-                    T::from(0.5).unwrap() * x * (T::one() + tanh_val)
+                    num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * x * (T::one() + tanh_val)
                 });
             }
         }
@@ -350,7 +350,7 @@ impl<T: Float + Default + Clone + std::iter::Sum> LayerNorm<T> {
         Self {
             gamma: Array1::ones(dim),
             beta: Array1::zeros(dim),
-            eps: T::from(1e-6).unwrap(),
+            eps: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             dim,
         }
     }
@@ -371,7 +371,7 @@ impl<T: Float + Default + Clone + std::iter::Sum> LayerNorm<T> {
             let row = input.slice(s![i, ..]);
 
             // Compute mean
-            let mean = row.iter().cloned().sum::<T>() / T::from(input_dim).unwrap();
+            let mean = row.iter().cloned().sum::<T>() / num_traits::cast::cast(input_dim).unwrap_or_else(|| T::zero());
 
             // Compute variance
             let variance = row
@@ -381,7 +381,7 @@ impl<T: Float + Default + Clone + std::iter::Sum> LayerNorm<T> {
                     diff * diff
                 })
                 .sum::<T>()
-                / T::from(input_dim).unwrap();
+                / num_traits::cast::cast(input_dim).unwrap_or_else(|| T::zero());
 
             let std = (variance + self.eps).sqrt();
 

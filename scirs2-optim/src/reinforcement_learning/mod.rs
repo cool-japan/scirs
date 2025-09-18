@@ -84,14 +84,14 @@ pub enum FisherApproximationMethod {
 impl<T: Float> Default for RLOptimizerConfig<T> {
     fn default() -> Self {
         Self {
-            policy_lr: T::from(3e-4).unwrap(),
-            value_lr: T::from(1e-3).unwrap(),
-            discount_factor: T::from(0.99).unwrap(),
-            gae_lambda: T::from(0.95).unwrap(),
-            clip_epsilon: T::from(0.2).unwrap(),
-            entropy_coeff: T::from(0.01).unwrap(),
-            value_loss_coeff: T::from(0.5).unwrap(),
-            max_grad_norm: T::from(0.5).unwrap(),
+            policy_lr: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
+            value_lr: num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero()),
+            discount_factor: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
+            gae_lambda: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            clip_epsilon: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            entropy_coeff: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            value_loss_coeff: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            max_grad_norm: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             n_epochs: 4,
             mini_batchsize: 64,
             trust_region_config: None,
@@ -188,9 +188,9 @@ impl<T: Float + Send + Sync + num_traits::FromPrimitive> TrajectoryBatch<T> {
                 self.values[t + 1]
             };
 
-            let delta = self.rewards[t] + gamma * next_val * T::from(!is_terminal as u8).unwrap()
+            let delta = self.rewards[t] + gamma * next_val * num_traits::cast::cast(!is_terminal as u8).unwrap_or_else(|| T::zero())
                 - self.values[t];
-            gae = delta + gamma * lambda * T::from(!is_terminal as u8).unwrap() * gae;
+            gae = delta + gamma * lambda * num_traits::cast::cast(!is_terminal as u8).unwrap_or_else(|| T::zero()) * gae;
 
             self.advantages[t] = gae;
             self.returns[t] = gae + self.values[t];
@@ -205,7 +205,7 @@ impl<T: Float + Send + Sync + num_traits::FromPrimitive> TrajectoryBatch<T> {
             .unwrap_or(T::one())
             .sqrt();
 
-        if std > T::from(1e-8).unwrap() {
+        if std > num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()) {
             self.advantages.mapv_inplace(|x| (x - mean) / std);
         }
 
@@ -383,7 +383,7 @@ impl<T: Float + Send + Sync> RLScheduler<T> {
         Self {
             initiallr,
             current_lr: initiallr,
-            decay_factor: T::from(0.99).unwrap(),
+            decay_factor: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
             schedule,
             update_count: 0,
             schedule_params: HashMap::new(),
@@ -403,8 +403,8 @@ impl<T: Float + Send + Sync> RLScheduler<T> {
                     .schedule_params
                     .get("decay_steps")
                     .copied()
-                    .unwrap_or(T::from(10000).unwrap());
-                let progress = T::from(self.update_count).unwrap() / decay_steps;
+                    .unwrap_or(num_traits::cast::cast(10000).unwrap_or_else(|| T::zero()));
+                let progress = num_traits::cast::cast(self.update_count).unwrap_or_else(|| T::zero()) / decay_steps;
                 self.current_lr = self.initiallr * (T::one() - progress).max(T::zero());
             }
             ScheduleType::Exponential => {
@@ -415,8 +415,8 @@ impl<T: Float + Send + Sync> RLScheduler<T> {
                     .schedule_params
                     .get("step_size")
                     .copied()
-                    .unwrap_or(T::from(1000).unwrap());
-                if T::from(self.update_count).unwrap() % step_size == T::zero() {
+                    .unwrap_or(num_traits::cast::cast(1000).unwrap_or_else(|| T::zero()));
+                if num_traits::cast::cast(self.update_count).unwrap_or_else(|| T::zero()) % step_size == T::zero() {
                     self.current_lr = self.current_lr * self.decay_factor;
                 }
             }
@@ -425,11 +425,11 @@ impl<T: Float + Send + Sync> RLScheduler<T> {
                     .schedule_params
                     .get("max_steps")
                     .copied()
-                    .unwrap_or(T::from(10000).unwrap());
-                let progress = T::from(self.update_count).unwrap() / max_steps;
-                let pi = T::from(std::f64::consts::PI).unwrap();
+                    .unwrap_or(num_traits::cast::cast(10000).unwrap_or_else(|| T::zero()));
+                let progress = num_traits::cast::cast(self.update_count).unwrap_or_else(|| T::zero()) / max_steps;
+                let pi = num_traits::cast::cast(std::f64::consts::PI).unwrap_or_else(|| T::zero());
                 self.current_lr =
-                    self.initiallr * (T::one() + (pi * progress).cos()) / T::from(2).unwrap();
+                    self.initiallr * (T::one() + (pi * progress).cos()) / num_traits::cast::cast(2).unwrap_or_else(|| T::zero());
             }
             ScheduleType::Adaptive => {
                 // Adaptive scheduling based on performance metrics
@@ -497,8 +497,8 @@ impl<T: Float> Default for RLOptimizationMetrics<T> {
             kl_divergence: None,
             explained_variance: T::zero(),
             clip_fraction: None,
-            policy_lr: T::from(3e-4).unwrap(),
-            value_lr: T::from(1e-3).unwrap(),
+            policy_lr: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
+            value_lr: num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero()),
             policy_grad_norm: T::zero(),
             value_grad_norm: T::zero(),
             custom_metrics: HashMap::new(),

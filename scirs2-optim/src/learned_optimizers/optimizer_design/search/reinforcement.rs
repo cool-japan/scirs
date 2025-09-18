@@ -626,7 +626,7 @@ impl<T: Float + Default> StateRepresentation<T> {
         ];
 
         // Update performance history
-        self.performance_history.push(T::from(performance).unwrap());
+        self.performance_history.push(num_traits::cast::cast(performance).unwrap_or_else(|| T::zero()));
         if self.performance_history.len() > 10 {
             self.performance_history.remove(0);
         }
@@ -645,10 +645,10 @@ impl<T: Float + Default> PolicyParameters<T> {
     pub fn default() -> Self {
         Self {
             policy_type: PolicyType::REINFORCE,
-            learning_rate: T::from(0.001).unwrap(),
-            gamma: T::from(0.99).unwrap(),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            gamma: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
             exploration: ExplorationParameters::default(),
-            entropy_weight: T::from(0.01).unwrap(),
+            entropy_weight: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -658,16 +658,16 @@ impl<T: Float + Default> ExplorationParameters<T> {
     pub fn default() -> Self {
         Self {
             strategy: ExplorationStrategy::EpsilonGreedy,
-            initial_rate: T::from(1.0).unwrap(),
-            final_rate: T::from(0.01).unwrap(),
+            initial_rate: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            final_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             decay_schedule: DecaySchedule::Exponential,
-            current_rate: T::from(1.0).unwrap(),
+            current_rate: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
         }
     }
 
     /// Update exploration rate
     pub fn update_rate(&mut self, step: usize, total_steps: usize) {
-        let progress = T::from(step as f64 / total_steps as f64).unwrap();
+        let progress = num_traits::cast::cast(step as f64 / total_steps as f64).unwrap_or_else(|| T::zero());
         
         self.current_rate = match self.decay_schedule {
             DecaySchedule::Linear => {

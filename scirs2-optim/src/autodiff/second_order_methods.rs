@@ -292,12 +292,12 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
         );
         
         let trust_region_state = TrustRegionState {
-            radius: T::from(config.trust_region_radius).unwrap(),
+            radius: num_traits::cast::cast(config.trust_region_radius).unwrap_or_else(|| T::zero()),
             radius_history: VecDeque::new(),
-            expand_threshold: T::from(0.75).unwrap(),
-            shrink_threshold: T::from(0.25).unwrap(),
-            expand_factor: T::from(2.0).unwrap(),
-            shrink_factor: T::from(0.5).unwrap()};
+            expand_threshold: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
+            shrink_threshold: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+            expand_factor: num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()),
+            shrink_factor: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())};
         
         Self {
             config,
@@ -359,7 +359,7 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
             match &hessian.full_matrix {
                 Some(h_matrix) => {
                     // Add damping for numerical stability
-                    let damped_hessian = h_matrix + &(Array2::eye(h_matrix.nrows()) * T::from(self.config.damping).unwrap());
+                    let damped_hessian = h_matrix + &(Array2::eye(h_matrix.nrows()) * num_traits::cast::cast(self.config.damping).unwrap_or_else(|| T::zero()));
                     
                     // Solve using conjugate gradient method
                     self.solve_cg(&damped_hessian, &(-gradients))
@@ -367,17 +367,17 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
                 None => {
                     // Use diagonal approximation or gradient descent
                     if let Some(ref diagonal) = hessian.diagonal {
-                        let inv_diag = diagonal.mapv(|x| T::one() / (x + T::from(self.config.damping).unwrap()));
+                        let inv_diag = diagonal.mapv(|x| T::one() / (x + num_traits::cast::cast(self.config.damping).unwrap_or_else(|| T::zero())));
                         Ok(&(-gradients) * &inv_diag)
                     } else {
                         // Fallback to gradient descent
-                        Ok(-gradients * T::from(self.config.learning_rate).unwrap())
+                        Ok(-gradients * num_traits::cast::cast(self.config.learning_rate).unwrap_or_else(|| T::zero()))
                     }
                 }
             }
         } else {
             // No Hessian available, use gradient descent
-            Ok(-gradients * T::from(self.config.learning_rate).unwrap())
+            Ok(-gradients * num_traits::cast::cast(self.config.learning_rate).unwrap_or_else(|| T::zero()))
         }
     }
     
@@ -398,7 +398,7 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
             
             let rsnew = r.dot(&r);
             
-            if rsnew.sqrt() < T::from(self.config.cg_tolerance).unwrap() {
+            if rsnew.sqrt() < num_traits::cast::cast(self.config.cg_tolerance).unwrap_or_else(|| T::zero()) {
                 break;
             }
             
@@ -437,7 +437,7 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
             }
             _ => {
                 // Fallback to fixed step size
-                Ok(T::from(self.config.line_search_config.initial_step).unwrap())
+                Ok(num_traits::cast::cast(self.config.line_search_config.initial_step).unwrap_or_else(|| T::zero()))
             }
         }
     }
@@ -449,9 +449,9 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
         direction: &Array1<T>,
         objective_fn: &impl Fn(&Array1<T>) -> T,
     ) -> Result<T> {
-        let mut step_size = T::from(self.config.line_search_config.initial_step).unwrap();
-        let c1 = T::from(self.config.line_search_config.c1).unwrap();
-        let reduction_factor = T::from(self.config.line_search_config.reduction_factor).unwrap();
+        let mut step_size = num_traits::cast::cast(self.config.line_search_config.initial_step).unwrap_or_else(|| T::zero());
+        let c1 = num_traits::cast::cast(self.config.line_search_config.c1).unwrap_or_else(|| T::zero());
+        let reduction_factor = num_traits::cast::cast(self.config.line_search_config.reduction_factor).unwrap_or_else(|| T::zero());
         
         let initial_value = objective_fn(params);
         let directional_derivative = T::zero(); // Would compute actual directional derivative
@@ -500,7 +500,7 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
             let delta = new_params - old_params;
             let grad_term = T::zero(); // Would use actual gradient
             let hess_term = if let Some(ref h_matrix) = hessian.full_matrix {
-                T::from(0.5).unwrap() * delta.dot(&h_matrix.dot(&delta))
+                num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * delta.dot(&h_matrix.dot(&delta))
             } else {
                 T::zero()
             };
@@ -549,8 +549,8 @@ impl<T: Float + Default + Clone> NewtonOptimizer<T> {
             None
         };
         
-        let converged = gradient_norm < T::from(1e-6).unwrap() 
-            && parameter_change_norm < T::from(1e-8).unwrap();
+        let converged = gradient_norm < num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()) 
+            && parameter_change_norm < num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero());
         
         let metrics = ConvergenceMetrics {
             iteration: self.iteration,
@@ -624,7 +624,7 @@ impl<T: Float + Default + Clone> QuasiNewtonOptimizer<T> {
         let step_size = if self.config.enable_line_search {
             self.line_search(params, &search_direction, &objective_fn)?
         } else {
-            T::from(self.config.learning_rate).unwrap()
+            num_traits::cast::cast(self.config.learning_rate).unwrap_or_else(|| T::zero())
         };
         
         let new_params = params + &(search_direction * step_size);
@@ -643,7 +643,7 @@ impl<T: Float + Default + Clone> QuasiNewtonOptimizer<T> {
     fn compute_lbfgs_direction(&self, gradients: &Array1<T>) -> Result<Array1<T>> {
         if self.bfgs_memory.s_history.is_empty() {
             // No history, use steepest descent
-            return Ok(-gradients * T::from(self.config.learning_rate).unwrap());
+            return Ok(-gradients * num_traits::cast::cast(self.config.learning_rate).unwrap_or_else(|| T::zero()));
         }
         
         let mut q = gradients.clone();
@@ -680,7 +680,7 @@ impl<T: Float + Default + Clone> QuasiNewtonOptimizer<T> {
         let sy = s.dot(y);
         
         // Skip update if curvature condition is not satisfied
-        if sy <= T::from(1e-10).unwrap() {
+        if sy <= num_traits::cast::cast(1e-10).unwrap_or_else(|| T::zero()) {
             return Ok(());
         }
         
@@ -716,7 +716,7 @@ impl<T: Float + Default + Clone> QuasiNewtonOptimizer<T> {
     ) -> Result<T> {
         // Simplified line search
         let mut step_size = T::one();
-        let reduction_factor = T::from(0.5).unwrap();
+        let reduction_factor = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
         
         let initial_value = objective_fn(params);
         
@@ -809,10 +809,10 @@ pub mod utils {
     ) -> T {
         if let Some(ref diagonal) = hessian.diagonal {
             let max_diag = diagonal.iter().fold(T::neg_infinity(), |a, &b| a.max(b));
-            let adaptive_damping = gradient_norm * T::from(0.01).unwrap();
-            adaptive_damping.max(max_diag * T::from(1e-6).unwrap())
+            let adaptive_damping = gradient_norm * num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero());
+            adaptive_damping.max(max_diag * num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()))
         } else {
-            gradient_norm * T::from(0.01).unwrap()
+            gradient_norm * num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero())
         }
     }
 }

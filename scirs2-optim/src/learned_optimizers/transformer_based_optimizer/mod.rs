@@ -196,7 +196,7 @@ impl<T: Float + ndarray::ScalarOperand + num_traits::FromPrimitive> TransformerO
         }
 
         let avg_loss = if batch_count > 0 {
-            total_loss / T::from(batch_count).unwrap()
+            total_loss / num_traits::cast::cast(batch_count).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };

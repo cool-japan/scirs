@@ -1477,8 +1477,8 @@ impl<T: Float + Default + Clone + Send + Sync + std::fmt::Debug + std::iter::Sum
         let std_dev = variance.sqrt();
 
         // Stability as inverse of coefficient of variation
-        let cv = std_dev / mean.abs().max(T::from(1e-6).unwrap());
-        Ok(T::one() / (cv + T::from(1e-6).unwrap()))
+        let cv = std_dev / mean.abs().max(num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()));
+        Ok(T::one() / (cv + num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero())))
     }
 
     fn compute_memory_efficiency(&self, results: &[TestResult<T>]) -> Result<T> {
@@ -1539,9 +1539,9 @@ impl<T: Float + Default> BenchmarkSuite<T> {
                 parameters: HashMap::new(),
                 dimensions: 10,
                 max_evaluations: 1000,
-                target_performance: Some(T::from(1e-6).unwrap()),
+                target_performance: Some(num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero())),
             },
-            expected_range: (T::from(1e-8).unwrap(), T::from(1e-2).unwrap()),
+            expected_range: (num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()), num_traits::cast::cast(1e-2).unwrap_or_else(|| T::zero())),
             difficulty: DifficultyLevel::Medium,
             resource_requirements: ResourceRequirements {
                 memory_mb: 100,
@@ -1561,9 +1561,9 @@ impl<T: Float + Default> BenchmarkSuite<T> {
                 parameters: HashMap::new(),
                 dimensions: 20,
                 max_evaluations: 500,
-                target_performance: Some(T::from(1e-8).unwrap()),
+                target_performance: Some(num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero())),
             },
-            expected_range: (T::from(1e-10).unwrap(), T::from(1e-4).unwrap()),
+            expected_range: (num_traits::cast::cast(1e-10).unwrap_or_else(|| T::zero()), num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero())),
             difficulty: DifficultyLevel::Easy,
             resource_requirements: ResourceRequirements {
                 memory_mb: 50,
@@ -1607,7 +1607,7 @@ impl<T: Float + Default> BenchmarkSuite<T> {
             }
             _ => {
                 // Default score
-                T::from(0.1).unwrap()
+                num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())
             }
         };
 
@@ -1617,14 +1617,14 @@ impl<T: Float + Default> BenchmarkSuite<T> {
             test_name: benchmark.name.clone(),
             score,
             normalized_score: score, // Simplified normalization
-            percentile_rank: T::from(0.5).unwrap(), // Simplified percentile
+            percentile_rank: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()), // Simplified percentile
             execution_time,
             resource_usage: ResourceUsage {
-                memory_gb: T::from(0.1).unwrap(),
+                memory_gb: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                 cpu_time_seconds: T::from(execution_time.as_secs_f64()).unwrap(),
                 gpu_time_seconds: T::zero(),
-                energy_kwh: T::from(0.001).unwrap(),
-                cost_usd: T::from(0.01).unwrap(),
+                energy_kwh: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+                cost_usd: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
                 network_gb: T::zero(),
             },
             metrics: HashMap::new(),
@@ -1650,7 +1650,7 @@ impl<T: Float + Default> PerformancePredictor<T> {
         // Simple placeholder implementation
         Ok(EvaluationResults {
             metric_scores: std::collections::HashMap::new(),
-            overall_score: T::from(0.5).unwrap(),
+            overall_score: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             confidence_intervals: std::collections::HashMap::new(),
             evaluation_time: std::time::Duration::from_millis(100),
             success: true,
@@ -1709,7 +1709,7 @@ impl<T: Float + Default + std::iter::Sum> StatisticalAnalyzer<T> {
             ],
             significance_thresholds: {
                 let mut thresholds = HashMap::new();
-                thresholds.insert("alpha".to_string(), T::from(0.05).unwrap());
+                thresholds.insert("alpha".to_string(), num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()));
                 thresholds
             },
             multiple_comparison: MultipleComparisonCorrection::BenjaminiHochberg,
@@ -1735,7 +1735,7 @@ impl<T: Float + Default + std::iter::Sum> StatisticalAnalyzer<T> {
 
             // 95% confidence interval (simplified)
             let margin =
-                std_dev * T::from(1.96).unwrap() / T::from((scores.len() as f64).sqrt()).unwrap();
+                std_dev * num_traits::cast::cast(1.96).unwrap_or_else(|| T::zero()) / T::from((scores.len() as f64).sqrt()).unwrap();
             intervals.insert(
                 EvaluationMetric::FinalPerformance,
                 (mean - margin, mean + margin),
@@ -1759,10 +1759,10 @@ impl<T: Float + Default> ResourceMonitor<T> {
             },
             usage_history: VecDeque::new(),
             limits: ResourceLimits {
-                max_memory_mb: T::from(8192.0).unwrap(),
-                max_cpu_percent: T::from(90.0).unwrap(),
-                max_gpu_memory_mb: T::from(16384.0).unwrap(),
-                max_evaluation_time_seconds: T::from(3600.0).unwrap(),
+                max_memory_mb: num_traits::cast::cast(8192.0).unwrap_or_else(|| T::zero()),
+                max_cpu_percent: num_traits::cast::cast(90.0).unwrap_or_else(|| T::zero()),
+                max_gpu_memory_mb: num_traits::cast::cast(16384.0).unwrap_or_else(|| T::zero()),
+                max_evaluation_time_seconds: num_traits::cast::cast(3600.0).unwrap_or_else(|| T::zero()),
             },
             config: MonitoringConfig {
                 monitoring_interval_ms: 1000,
@@ -1790,8 +1790,8 @@ impl<T: Float + Default> PredictorModel<T> {
                 hyperparameters: HashMap::new(),
                 regularization: RegularizationParameters {
                     l1_strength: T::zero(),
-                    l2_strength: T::from(0.01).unwrap(),
-                    dropout_prob: T::from(0.1).unwrap(),
+                    l2_strength: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+                    dropout_prob: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     batch_norm: true,
                 },
             },
@@ -1807,8 +1807,8 @@ impl<T: Float + Default> PredictorModel<T> {
                 validation_loss_history: Vec::new(),
                 learning_rate_schedule: LearningRateSchedule {
                     schedule_type: ScheduleType::Exponential,
-                    initial_lr: T::from(0.001).unwrap(),
-                    current_lr: T::from(0.001).unwrap(),
+                    initial_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+                    current_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
                     parameters: HashMap::new(),
                 },
                 early_stopping_state: EarlyStoppingState {
@@ -1907,8 +1907,8 @@ impl<T: Float + Default> UncertaintyEstimator<T> {
             model_ensemble: Vec::new(),
             parameters: UncertaintyParameters {
                 num_samples: 100,
-                confidence_level: T::from(0.95).unwrap(),
-                calibration_alpha: T::from(0.05).unwrap(),
+                confidence_level: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+                calibration_alpha: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
                 method_params: HashMap::new(),
             },
             calibration_data: CalibrationData {

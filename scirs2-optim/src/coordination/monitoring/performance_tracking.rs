@@ -1644,11 +1644,11 @@ impl<T: Float + Default + Clone> PerformanceTracker<T> {
                 custom: HashMap::new(),
             },
             quality: MetricsQuality {
-                completeness: T::from(0.95).unwrap(),
-                accuracy: T::from(0.9).unwrap(),
-                timeliness: T::from(0.98).unwrap(),
-                consistency: T::from(0.92).unwrap(),
-                overall_quality: T::from(0.94).unwrap(),
+                completeness: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+                accuracy: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                timeliness: num_traits::cast::cast(0.98).unwrap_or_else(|| T::zero()),
+                consistency: num_traits::cast::cast(0.92).unwrap_or_else(|| T::zero()),
+                overall_quality: num_traits::cast::cast(0.94).unwrap_or_else(|| T::zero()),
             },
         };
         
@@ -1684,22 +1684,22 @@ impl<T: Float + Default + Clone> MetricCollector<T> {
                 metrics: {
                     let mut metrics = HashMap::new();
                     metrics.insert(metric_name.clone(), MetricValue {
-                        value: T::from(0.5).unwrap(),
+                        value: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                         value_type: MetricType::Gauge,
                         unit: "unit".to_string(),
                         bounds: None,
-                        confidence: T::from(0.9).unwrap(),
+                        confidence: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                         tags: Vec::new(),
                     });
                     metrics
                 },
-                weight: T::from(1.0).unwrap(),
+                weight: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
                 status: CategoryStatus::Normal,
                 trends: CategoryTrends {
                     short_term: TrendDirection::Stable,
                     long_term: TrendDirection::Stable,
-                    trend_strength: T::from(0.1).unwrap(),
-                    trend_confidence: T::from(0.8).unwrap(),
+                    trend_strength: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                    trend_confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                     predictions: Vec::new(),
                 },
             };

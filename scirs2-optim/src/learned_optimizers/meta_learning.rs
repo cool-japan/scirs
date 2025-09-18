@@ -1215,8 +1215,8 @@ impl<
             MetaLearningAlgorithm::MAML => {
                 let maml_config = MAMLConfig {
                     second_order: config.second_order,
-                    inner_lr: T::from(config.inner_learning_rate).unwrap(),
-                    outer_lr: T::from(config.meta_learning_rate).unwrap(),
+                    inner_lr: num_traits::cast::cast(config.inner_learning_rate).unwrap_or_else(|| T::zero()),
+                    outer_lr: num_traits::cast::cast(config.meta_learning_rate).unwrap_or_else(|| T::zero()),
                     inner_steps: config.inner_steps,
                     allow_unused: true,
                     gradient_clip: Some(config.gradient_clip),
@@ -1228,8 +1228,8 @@ impl<
                 // Simplified for now
                 let maml_config = MAMLConfig {
                     second_order: false,
-                    inner_lr: T::from(config.inner_learning_rate).unwrap(),
-                    outer_lr: T::from(config.meta_learning_rate).unwrap(),
+                    inner_lr: num_traits::cast::cast(config.inner_learning_rate).unwrap_or_else(|| T::zero()),
+                    outer_lr: num_traits::cast::cast(config.meta_learning_rate).unwrap_or_else(|| T::zero()),
                     inner_steps: config.inner_steps,
                     allow_unused: true,
                     gradient_clip: Some(config.gradient_clip),
@@ -1398,7 +1398,7 @@ impl<
         meta_parameters: &mut HashMap<String, Array1<T>>,
         meta_gradients: &HashMap<String, Array1<T>>,
     ) -> Result<()> {
-        let meta_lr = T::from(self.config.meta_learning_rate).unwrap();
+        let meta_lr = num_traits::cast::cast(self.config.meta_learning_rate).unwrap_or_else(|| T::zero());
 
         for (name, gradient) in meta_gradients {
             if let Some(parameter) = meta_parameters.get_mut(name) {
@@ -1433,7 +1433,7 @@ impl<
             .fold(T::infinity(), |a, &b| a.min(b));
 
         let performance_range = max_recent - min_recent;
-        let threshold = T::from(1e-4).unwrap();
+        let threshold = num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero());
 
         performance_range < threshold
     }
@@ -1612,20 +1612,20 @@ impl<
             task_losses: task_losses.clone(),
             meta_gradients,
             metrics: MetaTrainingMetrics {
-                avg_adaptation_speed: T::from(2.0).unwrap(),
-                generalization_performance: T::from(0.85).unwrap(),
-                task_diversity: T::from(0.7).unwrap(),
-                gradient_alignment: T::from(0.9).unwrap(),
+                avg_adaptation_speed: num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()),
+                generalization_performance: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+                task_diversity: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+                gradient_alignment: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             },
             adaptation_stats: AdaptationStatistics {
                 convergence_steps: vec![self.config.inner_steps; task_batch.len()],
                 final_losses: task_losses.clone(),
-                adaptation_efficiency: T::from(0.8).unwrap(),
+                adaptation_efficiency: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                 stability_metrics: StabilityMetrics {
-                    parameter_stability: T::from(0.9).unwrap(),
-                    performance_stability: T::from(0.85).unwrap(),
-                    gradient_stability: T::from(0.92).unwrap(),
-                    forgetting_measure: T::from(0.1).unwrap(),
+                    parameter_stability: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                    performance_stability: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+                    gradient_stability: num_traits::cast::cast(0.92).unwrap_or_else(|| T::zero()),
+                    forgetting_measure: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                 },
             },
         })
@@ -1648,7 +1648,7 @@ impl<
             let gradients = self.compute_gradients(&adapted_parameters, loss)?;
 
             // Update _parameters
-            let learning_rate = T::from(self.config.inner_lr).unwrap();
+            let learning_rate = num_traits::cast::cast(self.config.inner_lr).unwrap_or_else(|| T::zero());
             for (name, param) in adapted_parameters.iter_mut() {
                 if let Some(grad) = gradients.get(name) {
                     for i in 0..param.len() {
@@ -1661,8 +1661,8 @@ impl<
             adaptation_trajectory.push(AdaptationStep {
                 step,
                 loss,
-                gradient_norm: T::from(1.0).unwrap(), // Placeholder
-                parameter_change_norm: T::from(0.1).unwrap(), // Placeholder
+                gradient_norm: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()), // Placeholder
+                parameter_change_norm: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // Placeholder
                 learning_rate,
             });
         }
@@ -1677,10 +1677,10 @@ impl<
             adaptation_trajectory,
             final_loss,
             metrics: TaskAdaptationMetrics {
-                convergence_speed: T::from(1.5).unwrap(),
-                final_performance: T::from(0.9).unwrap(),
-                efficiency: T::from(0.85).unwrap(),
-                robustness: T::from(0.8).unwrap(),
+                convergence_speed: num_traits::cast::cast(1.5).unwrap_or_else(|| T::zero()),
+                final_performance: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                efficiency: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+                robustness: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             },
         })
     }
@@ -1701,12 +1701,12 @@ impl<
             let loss = (prediction - *target) * (prediction - *target);
 
             predictions.push(prediction);
-            confidence_scores.push(T::from(0.9).unwrap()); // Placeholder
+            confidence_scores.push(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())); // Placeholder
             total_loss = total_loss + loss;
         }
 
         let query_loss = total_loss / T::from(task.query_set.features.len()).unwrap();
-        let accuracy = T::from(0.85).unwrap(); // Placeholder
+        let accuracy = num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()); // Placeholder
 
         Ok(QueryEvaluationResult {
             query_loss,
@@ -1716,8 +1716,8 @@ impl<
             metrics: QueryEvaluationMetrics {
                 mse: Some(query_loss),
                 classification_accuracy: Some(accuracy),
-                auc: Some(T::from(0.9).unwrap()),
-                uncertainty_quality: T::from(0.8).unwrap(),
+                auc: Some(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())),
+                uncertainty_quality: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             },
         })
     }
@@ -1895,7 +1895,7 @@ impl<T: Float + Default + Clone> ContinualLearningSystem<T> {
             // handle continual learning with catastrophic forgetting prevention
             let task_result = TaskResult {
                 task_id: task.id.clone(),
-                loss: T::from(0.1).unwrap(), // Placeholder loss
+                loss: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // Placeholder loss
                 metrics: HashMap::new(),
             };
             sequence_results.push(task_result);
@@ -1903,8 +1903,8 @@ impl<T: Float + Default + Clone> ContinualLearningSystem<T> {
 
         Ok(ContinualLearningResult {
             sequence_results,
-            forgetting_measure: T::from(0.05).unwrap(),
-            adaptation_efficiency: T::from(0.95).unwrap(),
+            forgetting_measure: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            adaptation_efficiency: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
         })
     }
 
@@ -1940,7 +1940,7 @@ impl<T: Float + Default + Clone> MultiTaskCoordinator<T> {
             // coordinate learning across multiple tasks simultaneously
             let task_result = TaskResult {
                 task_id: task.id.clone(),
-                loss: T::from(0.1).unwrap(), // Placeholder loss
+                loss: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // Placeholder loss
                 metrics: HashMap::new(),
             };
             task_results.push(task_result);
@@ -1948,7 +1948,7 @@ impl<T: Float + Default + Clone> MultiTaskCoordinator<T> {
 
         Ok(MultiTaskResult {
             task_results,
-            coordination_overhead: T::from(0.01).unwrap(),
+            coordination_overhead: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             convergence_status: "converged".to_string(),
         })
     }

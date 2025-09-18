@@ -734,7 +734,7 @@ impl<T: Float> ParameterStatistics<T> {
 
     pub fn update_with_snapshot(&mut self, snapshot: &ParameterSnapshot<T>) {
         self.total_snapshots += 1;
-        self.average_norm = (self.average_norm * T::from(self.total_snapshots - 1).unwrap() + snapshot.norm) / T::from(self.total_snapshots).unwrap();
+        self.average_norm = (self.average_norm * num_traits::cast::cast(self.total_snapshots - 1).unwrap_or_else(|| T::zero()) + snapshot.norm) / num_traits::cast::cast(self.total_snapshots).unwrap_or_else(|| T::zero());
         self.max_norm = self.max_norm.max(snapshot.norm);
         self.min_norm = self.min_norm.min(snapshot.norm);
     }
@@ -761,9 +761,9 @@ impl<T: Float> AdaptiveState<T> {
             m: Array1::zeros(parameter_count),
             v: Array1::zeros(parameter_count),
             step_count: 0,
-            beta1: T::from(0.9).unwrap(),
-            beta2: T::from(0.999).unwrap(),
-            epsilon: T::from(1e-8).unwrap(),
+            beta1: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+            beta2: num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()),
+            epsilon: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
         })
     }
 
@@ -818,7 +818,7 @@ impl<T: Float> ConvergenceTracker<T> {
     pub fn new() -> Self {
         Self {
             recent_losses: VecDeque::new(),
-            convergence_threshold: T::from(1e-6).unwrap(),
+            convergence_threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             stability_window: 10,
         }
     }
@@ -949,7 +949,7 @@ impl<T: Float> StateStatistics<T> {
         self.total_updates += 1;
         let magnitude = update.iter().map(|&x| x * x).fold(T::zero(), |acc, x| acc + x).sqrt();
         self.last_update_magnitude = magnitude;
-        self.average_update_magnitude = (self.average_update_magnitude * T::from(self.total_updates - 1).unwrap() + magnitude) / T::from(self.total_updates).unwrap();
+        self.average_update_magnitude = (self.average_update_magnitude * num_traits::cast::cast(self.total_updates - 1).unwrap_or_else(|| T::zero()) + magnitude) / num_traits::cast::cast(self.total_updates).unwrap_or_else(|| T::zero());
     }
 
     pub fn reset(&mut self) {
@@ -1046,7 +1046,7 @@ impl<T: Float> LearningSchedule<T> {
             initial_rate: initial_rate,
             current_rate: initial_rate,
             warmup_steps,
-            decay_factor: T::from(0.95).unwrap(),
+            decay_factor: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
         }
     }
 }

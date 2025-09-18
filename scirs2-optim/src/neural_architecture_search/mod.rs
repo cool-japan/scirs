@@ -222,7 +222,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::Adam,
                     enabled: true,
-                    probability: T::from(0.25).unwrap(),
+                    probability: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -230,7 +230,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::AdamW,
                     enabled: true,
-                    probability: T::from(0.25).unwrap(),
+                    probability: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -238,7 +238,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::SGD,
                     enabled: true,
-                    probability: T::from(0.15).unwrap(),
+                    probability: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -246,7 +246,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::RMSprop,
                     enabled: true,
-                    probability: T::from(0.15).unwrap(),
+                    probability: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -254,7 +254,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::Momentum,
                     enabled: true,
-                    probability: T::from(0.1).unwrap(),
+                    probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -262,7 +262,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::Nesterov,
                     enabled: true,
-                    probability: T::from(0.1).unwrap(),
+                    probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -275,7 +275,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
             allow_cycles: false,
             max_depth: 7,
             enable_skip_connections: true,
-            connection_probability: T::from(0.6).unwrap(),
+            connection_probability: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
         },
         evaluation_config: EvaluationConfig {
             metrics: vec![
@@ -287,13 +287,13 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
             ],
             num_trials: 10,
             max_iterations: 2000,
-            convergence_threshold: T::from(1e-6).unwrap(),
+            convergence_threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             stability_window: 100,
             timeout_seconds: 3600.0,
             parallel_trials: true,
             cache_results: true,
             early_termination: true,
-            confidence_level: T::from(0.95).unwrap(),
+            confidence_level: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             statistical_significance: true,
         },
         multi_objective_config: MultiObjectiveConfig {
@@ -302,25 +302,25 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "performance".to_string(),
                     objective_type: ObjectiveType::Performance,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.4).unwrap(),
+                    weight: num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::High,
-                    tolerance: Some(T::from(0.01).unwrap()),
+                    tolerance: Some(num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero())),
                 },
                 ObjectiveConfig {
                     name: "efficiency".to_string(),
                     objective_type: ObjectiveType::Efficiency,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.3).unwrap(),
+                    weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
-                    tolerance: Some(T::from(0.05).unwrap()),
+                    tolerance: Some(num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero())),
                 },
                 ObjectiveConfig {
                     name: "robustness".to_string(),
                     objective_type: ObjectiveType::Robustness,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.3).unwrap(),
+                    weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
-                    tolerance: Some(T::from(0.05).unwrap()),
+                    tolerance: Some(num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero())),
                 },
             ],
             algorithm: MultiObjectiveAlgorithm::NSGA3,
@@ -334,7 +334,7 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
         early_stopping: EarlyStoppingConfig {
             enabled: true,
             patience: 100,
-            min_improvement: T::from(0.001).unwrap(),
+            min_improvement: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             metric: EvaluationMetric::FinalPerformance,
             target_performance: None,
             convergence_detection: ConvergenceDetectionStrategy::RelativeImprovement,
@@ -347,10 +347,10 @@ pub fn create_production_nas_config<T: num_traits::Float>() -> NASConfig<T> {
         parallelization_factor: 8,
         auto_hyperparameter_tuning: true,
         resource_constraints: ResourceConstraints {
-            max_memory_gb: T::from(32.0).unwrap(),
-            max_computation_hours: T::from(48.0).unwrap(),
-            max_energy_kwh: T::from(200.0).unwrap(),
-            max_cost_usd: T::from(2000.0).unwrap(),
+            max_memory_gb: num_traits::cast::cast(32.0).unwrap_or_else(|| T::zero()),
+            max_computation_hours: num_traits::cast::cast(48.0).unwrap_or_else(|| T::zero()),
+            max_energy_kwh: num_traits::cast::cast(200.0).unwrap_or_else(|| T::zero()),
+            max_cost_usd: num_traits::cast::cast(2000.0).unwrap_or_else(|| T::zero()),
             hardware_resources: HardwareResources {
                 cpu_cores: 32,
                 ram_gb: 128,
@@ -374,7 +374,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::Adam,
                     enabled: true,
-                    probability: T::from(0.2).unwrap(),
+                    probability: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -382,7 +382,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::AdamW,
                     enabled: true,
-                    probability: T::from(0.2).unwrap(),
+                    probability: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -390,7 +390,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::SGD,
                     enabled: true,
-                    probability: T::from(0.15).unwrap(),
+                    probability: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -398,7 +398,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::RMSprop,
                     enabled: true,
-                    probability: T::from(0.15).unwrap(),
+                    probability: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -406,7 +406,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::AdaGrad,
                     enabled: true,
-                    probability: T::from(0.1).unwrap(),
+                    probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -414,7 +414,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::AdaDelta,
                     enabled: true,
-                    probability: T::from(0.1).unwrap(),
+                    probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -422,7 +422,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                 ComponentTypeConfig {
                     component_type: ComponentType::Custom,
                     enabled: true,
-                    probability: T::from(0.1).unwrap(),
+                    probability: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                     hyperparameter_ranges: std::collections::HashMap::new(),
                     constraints: ArchitectureConstraints::default(),
                     dependencies: Vec::new(),
@@ -435,7 +435,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
             allow_cycles: true,
             max_depth: 10,
             enable_skip_connections: true,
-            connection_probability: T::from(0.7).unwrap(),
+            connection_probability: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         },
         evaluation_config: EvaluationConfig {
             metrics: vec![
@@ -450,13 +450,13 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
             ],
             num_trials: 20,
             max_iterations: 5000,
-            convergence_threshold: T::from(1e-8).unwrap(),
+            convergence_threshold: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
             stability_window: 200,
             timeout_seconds: 7200.0,
             parallel_trials: true,
             cache_results: true,
             early_termination: false, // Don't terminate early for research
-            confidence_level: T::from(0.99).unwrap(),
+            confidence_level: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
             statistical_significance: true,
         },
         multi_objective_config: MultiObjectiveConfig {
@@ -465,7 +465,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "performance".to_string(),
                     objective_type: ObjectiveType::Performance,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.3).unwrap(),
+                    weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::High,
                     tolerance: None, // No tolerance for research
                 },
@@ -473,7 +473,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "convergence".to_string(),
                     objective_type: ObjectiveType::ConvergenceSpeed,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.2).unwrap(),
+                    weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
                     tolerance: None,
                 },
@@ -481,7 +481,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "efficiency".to_string(),
                     objective_type: ObjectiveType::Efficiency,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.2).unwrap(),
+                    weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
                     tolerance: None,
                 },
@@ -489,7 +489,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "robustness".to_string(),
                     objective_type: ObjectiveType::Robustness,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.15).unwrap(),
+                    weight: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Medium,
                     tolerance: None,
                 },
@@ -497,7 +497,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
                     name: "generalization".to_string(),
                     objective_type: ObjectiveType::Generalization,
                     direction: OptimizationDirection::Maximize,
-                    weight: T::from(0.15).unwrap(),
+                    weight: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
                     priority: ObjectivePriority::Low,
                     tolerance: None,
                 },
@@ -513,7 +513,7 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
         early_stopping: EarlyStoppingConfig {
             enabled: false, // Don't stop early for research
             patience: 200,
-            min_improvement: T::from(0.0001).unwrap(),
+            min_improvement: num_traits::cast::cast(0.0001).unwrap_or_else(|| T::zero()),
             metric: EvaluationMetric::FinalPerformance,
             target_performance: None,
             convergence_detection: ConvergenceDetectionStrategy::RelativeImprovement,
@@ -526,10 +526,10 @@ pub fn create_research_nas_config<T: num_traits::Float>() -> NASConfig<T> {
         parallelization_factor: 16,
         auto_hyperparameter_tuning: true,
         resource_constraints: ResourceConstraints {
-            max_memory_gb: T::from(64.0).unwrap(),
-            max_computation_hours: T::from(168.0).unwrap(), // 1 week
-            max_energy_kwh: T::from(1000.0).unwrap(),
-            max_cost_usd: T::from(10000.0).unwrap(),
+            max_memory_gb: num_traits::cast::cast(64.0).unwrap_or_else(|| T::zero()),
+            max_computation_hours: num_traits::cast::cast(168.0).unwrap_or_else(|| T::zero()), // 1 week
+            max_energy_kwh: num_traits::cast::cast(1000.0).unwrap_or_else(|| T::zero()),
+            max_cost_usd: num_traits::cast::cast(10000.0).unwrap_or_else(|| T::zero()),
             hardware_resources: HardwareResources {
                 cpu_cores: 64,
                 ram_gb: 256,

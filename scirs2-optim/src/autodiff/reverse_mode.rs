@@ -848,7 +848,7 @@ impl<T: Float + Default + Clone + std::iter::Sum + ndarray::ScalarOperand> Rever
                             input_val.mapv(|x| if x > T::zero() { T::one() } else { T::zero() })
                         }
                         ActivationFunction::LeakyReLU { alpha } => {
-                            let alpha_t = T::from(*alpha).unwrap();
+                            let alpha_t = num_traits::cast::cast(*alpha).unwrap_or_else(|| T::zero());
                             input_val.mapv(|x| if x > T::zero() { T::one() } else { alpha_t })
                         }
                     };
@@ -874,7 +874,7 @@ impl<T: Float + Default + Clone + std::iter::Sum + ndarray::ScalarOperand> Rever
                     }
                     ReductionType::Mean => {
                         // Mean: gradient divided by input size then broadcast
-                        let n = T::from(inputshape[0]).unwrap();
+                        let n = num_traits::cast::cast(inputshape[0]).unwrap_or_else(|| T::zero());
                         let _grad = Array1::from_elem(inputshape[0], output_grad[0] / n);
                         Ok(vec![_grad])
                     }
@@ -986,7 +986,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> GradientAccumulator<T>
             return HashMap::new();
         }
 
-        let count_t = T::from(self.count).unwrap();
+        let count_t = num_traits::cast::cast(self.count).unwrap_or_else(|| T::zero());
         self.gradients
             .iter()
             .map(|(name, grad)| (name.clone(), grad / count_t))

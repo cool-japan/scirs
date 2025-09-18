@@ -310,7 +310,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
             return Ok(EarlyStopDecision {
                 should_stop: true,
                 predicted_performance: predicted_perf,
-                prediction_confidence: T::from(0.9).unwrap(),
+                prediction_confidence: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                 stop_reason: StopReason::Converged,
                 decision_epoch: history.epochs.len(),
                 estimated_remaining_time: self.estimate_remaining_time(history)?,
@@ -323,7 +323,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
             return Ok(EarlyStopDecision {
                 should_stop: true,
                 predicted_performance: predicted_perf,
-                prediction_confidence: T::from(0.8).unwrap(),
+                prediction_confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                 stop_reason: StopReason::Plateau,
                 decision_epoch: history.epochs.len(),
                 estimated_remaining_time: self.estimate_remaining_time(history)?,
@@ -337,7 +337,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
             return Ok(EarlyStopDecision {
                 should_stop: true,
                 predicted_performance: predicted_perf,
-                prediction_confidence: T::from(0.7).unwrap(),
+                prediction_confidence: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
                 stop_reason: StopReason::Declining,
                 decision_epoch: history.epochs.len(),
                 estimated_remaining_time: self.estimate_remaining_time(history)?,
@@ -350,7 +350,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
             return Ok(EarlyStopDecision {
                 should_stop: true,
                 predicted_performance: predicted_perf,
-                prediction_confidence: T::from(0.6).unwrap(),
+                prediction_confidence: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
                 stop_reason: StopReason::BelowThreshold,
                 decision_epoch: history.epochs.len(),
                 estimated_remaining_time: self.estimate_remaining_time(history)?,
@@ -361,7 +361,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         Ok(EarlyStopDecision {
             should_stop: false,
             predicted_performance: predicted_perf,
-            prediction_confidence: T::from(0.5).unwrap(),
+            prediction_confidence: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             stop_reason: StopReason::Converged,
             decision_epoch: history.epochs.len(),
             estimated_remaining_time: self.estimate_remaining_time(history)?,
@@ -396,16 +396,16 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         let y_range = y_end - y_start;
         
         params[0] = y_range; // a
-        params[1] = T::from(-0.1).unwrap(); // b (decay rate)
+        params[1] = num_traits::cast::cast(-0.1).unwrap_or_else(|| T::zero()); // b (decay rate)
         params[2] = y_start; // c (offset)
         
         // Simple R² calculation
-        let mean_y = data.iter().cloned().fold(T::zero(), |acc, y| acc + y) / T::from(n as f64).unwrap();
+        let mean_y = data.iter().cloned().fold(T::zero(), |acc, y| acc + y) / num_traits::cast::cast(n as f64).unwrap_or_else(|| T::zero());
         let mut ss_tot = T::zero();
         let mut ss_res = T::zero();
         
         for (i, &y) in data.iter().enumerate() {
-            let x = T::from(i as f64).unwrap();
+            let x = num_traits::cast::cast(i as f64).unwrap_or_else(|| T::zero());
             let y_pred = params[0] * (params[1] * x).exp() + params[2];
             
             ss_tot = ss_tot + (y - mean_y) * (y - mean_y);
@@ -433,14 +433,14 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         let y_end = *data.last().unwrap();
         
         params[0] = y_start; // a
-        params[1] = T::from(0.5).unwrap(); // b (power)
+        params[1] = num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()); // b (power)
         params[2] = y_end - y_start; // c (offset)
         
         Ok(CurveFittingModel {
             model_type: CurveFittingMethod::PowerLaw,
             parameters: params,
-            r_squared: T::from(0.7).unwrap(), // Simplified
-            confidence: T::from(0.7).unwrap(),
+            r_squared: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()), // Simplified
+            confidence: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
             complexity: 3,
         })
     }
@@ -460,8 +460,8 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         Ok(CurveFittingModel {
             model_type: CurveFittingMethod::Logarithmic,
             parameters: params,
-            r_squared: T::from(0.6).unwrap(),
-            confidence: T::from(0.6).unwrap(),
+            r_squared: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
             complexity: 2,
         })
     }
@@ -479,14 +479,14 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         // Estimate parameters
         params[2] = y_start; // c
         params[1] = (y_mid - y_start) / T::from((n/2) as f64).unwrap(); // b
-        params[0] = (y_end - y_start - params[1] * T::from(n as f64).unwrap()) / 
-                   (T::from(n as f64).unwrap() * T::from(n as f64).unwrap()); // a
+        params[0] = (y_end - y_start - params[1] * num_traits::cast::cast(n as f64).unwrap_or_else(|| T::zero())) / 
+                   (num_traits::cast::cast(n as f64).unwrap_or_else(|| T::zero()) * num_traits::cast::cast(n as f64).unwrap_or_else(|| T::zero())); // a
         
         Ok(CurveFittingModel {
             model_type: CurveFittingMethod::Polynomial,
             parameters: params,
-            r_squared: T::from(0.8).unwrap(),
-            confidence: T::from(0.8).unwrap(),
+            r_squared: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             complexity: 3,
         })
     }
@@ -500,13 +500,13 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         let y_end = *data.last().unwrap();
         
         params[0] = y_end; // y_max
-        params[1] = T::from(0.1).unwrap(); // k (learning rate)
+        params[1] = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()); // k (learning rate)
         
         Ok(CurveFittingModel {
             model_type: CurveFittingMethod::LearningCurve,
             parameters: params,
-            r_squared: T::from(0.75).unwrap(),
-            confidence: T::from(0.75).unwrap(),
+            r_squared: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
             complexity: 2,
         })
     }
@@ -526,15 +526,15 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         Ok(CurveFittingModel {
             model_type: CurveFittingMethod::NeuralPredictor,
             parameters: params,
-            r_squared: T::from(0.85).unwrap(),
-            confidence: T::from(0.85).unwrap(),
+            r_squared: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
             complexity: input_size + output_size,
         })
     }
     
     /// Extrapolate performance using fitted model
     fn extrapolate_performance(&self, model: &CurveFittingModel<T>, target_epoch: usize) -> Result<T> {
-        let x = T::from(target_epoch as f64).unwrap();
+        let x = num_traits::cast::cast(target_epoch as f64).unwrap_or_else(|| T::zero());
         
         match model.model_type {
             CurveFittingMethod::Exponential => {
@@ -605,7 +605,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         }
         
         let recent = data.len().saturating_sub(3);
-        let slope = (data[data.len()-1] - data[recent]) / T::from(3.0).unwrap();
+        let slope = (data[data.len()-1] - data[recent]) / num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero());
         
         Ok(slope < -self.config.early_stop_threshold)
     }
@@ -621,7 +621,7 @@ impl<T: Float + Default + Clone> PerformanceEstimator<T> {
         
         let remaining_epochs = self.config.max_prediction_epochs.saturating_sub(history.epochs.len());
         
-        Ok(avg_epoch_time * T::from(remaining_epochs as f64).unwrap())
+        Ok(avg_epoch_time * num_traits::cast::cast(remaining_epochs as f64).unwrap_or_else(|| T::zero()))
     }
     
     /// Get prediction statistics
@@ -652,12 +652,12 @@ impl<T: Float + Default + Clone> Default for PerformanceEstimatorConfig<T> {
     fn default() -> Self {
         Self {
             min_epochs: 5,
-            early_stop_threshold: T::from(0.001).unwrap(),
+            early_stop_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             patience: 5,
             fitting_method: CurveFittingMethod::LearningCurve,
-            confidence_threshold: T::from(0.7).unwrap(),
+            confidence_threshold: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
             max_prediction_epochs: 100,
-            smoothing_factor: T::from(0.1).unwrap(),
+            smoothing_factor: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
         }
     }
 }

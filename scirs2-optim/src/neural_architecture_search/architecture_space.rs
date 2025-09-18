@@ -495,9 +495,9 @@ impl ArchitectureFactory {
     /// Create a simple SGD architecture
     pub fn create_sgd_architecture<T: Float>() -> OptimizerArchitecture<T> {
         let mut hyperparameters = HashMap::new();
-        hyperparameters.insert("learning_rate".to_string(), T::from(0.01).unwrap());
-        hyperparameters.insert("momentum".to_string(), T::from(0.9).unwrap());
-        hyperparameters.insert("weight_decay".to_string(), T::from(0.0001).unwrap());
+        hyperparameters.insert("learning_rate".to_string(), num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("momentum".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("weight_decay".to_string(), num_traits::cast::cast(0.0001).unwrap_or_else(|| T::zero()));
 
         OptimizerArchitecture {
             components: vec![OptimizerComponent {
@@ -513,11 +513,11 @@ impl ArchitectureFactory {
     /// Create an Adam architecture
     pub fn create_adam_architecture<T: Float>() -> OptimizerArchitecture<T> {
         let mut hyperparameters = HashMap::new();
-        hyperparameters.insert("learning_rate".to_string(), T::from(0.001).unwrap());
-        hyperparameters.insert("beta1".to_string(), T::from(0.9).unwrap());
-        hyperparameters.insert("beta2".to_string(), T::from(0.999).unwrap());
-        hyperparameters.insert("epsilon".to_string(), T::from(1e-7).unwrap()); // Within (1e-10, 1e-6) range
-        hyperparameters.insert("weight_decay".to_string(), T::from(1e-5).unwrap()); // Within (1e-8, 1e-2) range
+        hyperparameters.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("beta1".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("beta2".to_string(), num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("epsilon".to_string(), num_traits::cast::cast(1e-7).unwrap_or_else(|| T::zero())); // Within (1e-10, 1e-6) range
+        hyperparameters.insert("weight_decay".to_string(), num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero())); // Within (1e-8, 1e-2) range
 
         OptimizerArchitecture {
             components: vec![OptimizerComponent {
@@ -536,9 +536,9 @@ impl ArchitectureFactory {
 
         // Adam optimizer component
         let mut adam_params = HashMap::new();
-        adam_params.insert("learning_rate".to_string(), T::from(0.001).unwrap());
-        adam_params.insert("beta1".to_string(), T::from(0.9).unwrap());
-        adam_params.insert("beta2".to_string(), T::from(0.999).unwrap());
+        adam_params.insert("learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
+        adam_params.insert("beta1".to_string(), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()));
+        adam_params.insert("beta2".to_string(), num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()));
 
         components.push(OptimizerComponent {
             component_type: ComponentType::Adam,
@@ -548,8 +548,8 @@ impl ArchitectureFactory {
 
         // Cosine annealing scheduler
         let mut scheduler_params = HashMap::new();
-        scheduler_params.insert("t_max".to_string(), T::from(100.0).unwrap());
-        scheduler_params.insert("eta_min".to_string(), T::from(1e-6).unwrap());
+        scheduler_params.insert("t_max".to_string(), num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()));
+        scheduler_params.insert("eta_min".to_string(), num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()));
 
         components.push(OptimizerComponent {
             component_type: ComponentType::CosineAnnealingLR,
@@ -559,7 +559,7 @@ impl ArchitectureFactory {
 
         // L2 regularization
         let mut reg_params = HashMap::new();
-        reg_params.insert("lambda".to_string(), T::from(0.0001).unwrap());
+        reg_params.insert("lambda".to_string(), num_traits::cast::cast(0.0001).unwrap_or_else(|| T::zero()));
 
         components.push(OptimizerComponent {
             component_type: ComponentType::L2Regularizer,
@@ -595,10 +595,10 @@ impl ArchitectureFactory {
     /// Create an LSTM-based neural optimizer architecture
     pub fn create_lstm_optimizer_architecture<T: Float>() -> OptimizerArchitecture<T> {
         let mut hyperparameters = HashMap::new();
-        hyperparameters.insert("hidden_size".to_string(), T::from(256.0).unwrap());
-        hyperparameters.insert("num_layers".to_string(), T::from(2.0).unwrap());
-        hyperparameters.insert("dropout".to_string(), T::from(0.1).unwrap());
-        hyperparameters.insert("meta_learning_rate".to_string(), T::from(0.001).unwrap());
+        hyperparameters.insert("hidden_size".to_string(), num_traits::cast::cast(256.0).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("num_layers".to_string(), num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("dropout".to_string(), num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()));
+        hyperparameters.insert("meta_learning_rate".to_string(), num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
 
         OptimizerArchitecture {
             components: vec![OptimizerComponent {

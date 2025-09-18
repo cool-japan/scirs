@@ -153,7 +153,7 @@ impl<T: Float + Send + Sync> DistributedOptimizer<T> {
         for (name, param) in params.iter_mut() {
             if let Some(gradient) = self.gradient_buffers.get(name) {
                 // Scale gradients by world size for averaging
-                let scaled_gradient = gradient.mapv(|x| x / T::from(self.world_size).unwrap());
+                let scaled_gradient = gradient.mapv(|x| x / num_traits::cast::cast(self.world_size).unwrap_or_else(|| T::zero()));
 
                 // Apply optimizer step
                 self.local_optimizer
@@ -331,7 +331,7 @@ impl<T: Float + Send + Sync> DistributedOptimizer<T> {
         for (name, param) in params.iter_mut() {
             if let Some(gradient) = self.gradient_buffers.get(name) {
                 // Scale gradients by world size for averaging
-                let scaled_gradient = gradient.mapv(|x| x / T::from(self.world_size).unwrap());
+                let scaled_gradient = gradient.mapv(|x| x / num_traits::cast::cast(self.world_size).unwrap_or_else(|| T::zero()));
 
                 // Apply optimizer step
                 self.local_optimizer

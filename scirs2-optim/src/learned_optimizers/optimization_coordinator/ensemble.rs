@@ -60,7 +60,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
             selection_algorithm: OptimizerSelectionAlgorithm::MultiArmedBandit,
             performance_history: HashMap::new(),
             selection_stats: SelectionStatistics::new(),
-            ensemble_learning_rate: T::from(0.01).unwrap(),
+            ensemble_learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             weight_updater: WeightUpdateMechanism::new(),
         })
     }
@@ -339,7 +339,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
         let mut selected: Vec<String> = Vec::new();
 
         // Simple epsilon-greedy for MAB
-        let epsilon = T::from(0.1).unwrap();
+        let epsilon = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
 
         for _ in 0..num_select {
             if rand::random::<f64>() < epsilon.to_f64().unwrap() {
@@ -506,7 +506,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
             }
 
             let predicted_reward = self.predict_contextual_reward(optimizer_id, &context_vector);
-            if predicted_reward > T::from(0.5).unwrap() { // Threshold
+            if predicted_reward > num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) { // Threshold
                 selected.push(optimizer_id.clone());
             }
         }
@@ -553,7 +553,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
         _resources: &OptimizerResources<T>,
     ) -> Result<Array1<T>> {
         // Simplified optimization step - in practice, this would call the actual optimizer
-        let learning_rate = T::from(0.01).unwrap(); // Would be determined by the optimizer
+        let learning_rate = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()); // Would be determined by the optimizer
         let mut result = parameters.clone();
 
         for i in 0..result.len() {
@@ -566,7 +566,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
     fn update_optimizer_performance(&mut self, optimizer_id: &str, _elapsed: Duration) -> Result<()> {
         // Update performance score (simplified)
         let current_score = self.performance_scores.get(optimizer_id).cloned().unwrap_or(T::zero());
-        let improvement = T::from(0.01).unwrap(); // Would be calculated based on actual performance
+        let improvement = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()); // Would be calculated based on actual performance
         let new_score = current_score + improvement;
 
         self.performance_scores.insert(optimizer_id.to_string(), new_score);
@@ -613,12 +613,12 @@ impl<T: Float + std::fmt::Debug + Send + Sync + std::default::Default + 'static>
 
     fn extract_context_features(&self, _landscape_features: &LandscapeFeatures<T>, _context: &OptimizationContext<T>) -> Vec<T> {
         // Extract relevant features for contextual bandits
-        vec![T::from(0.5).unwrap(); 10] // Placeholder
+        vec![num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()); 10] // Placeholder
     }
 
     fn predict_contextual_reward(&self, _optimizer_id: &str, _context_vector: &[T]) -> T {
         // Predict reward based on context (simplified)
-        T::from(0.6).unwrap()
+        num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero())
     }
 
     /// Reset ensemble state
@@ -686,8 +686,8 @@ pub struct WeightUpdateMechanism<T: Float> {
 impl<T: Float> WeightUpdateMechanism<T> {
     pub fn new() -> Self {
         Self {
-            learning_rate: T::from(0.01).unwrap(),
-            momentum: T::from(0.9).unwrap(),
+            learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            momentum: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             previous_updates: HashMap::new(),
         }
     }
@@ -759,7 +759,7 @@ pub struct AdamOptimizer<T: Float> {
 impl<T: Float> AdamOptimizer<T> {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            learning_rate: T::from(0.001).unwrap(),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -815,7 +815,7 @@ impl<T: Float + std::fmt::Debug + Send + Sync + 'static> AdvancedOptimizer<T> fo
     }
 
     fn get_performance_score(&self) -> T {
-        T::from(0.8).unwrap()
+        num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero())
     }
 
     fn clone_optimizer(&self) -> Box<dyn AdvancedOptimizer<T>> {
@@ -836,7 +836,7 @@ macro_rules! impl_placeholder_optimizer {
         impl<T: Float> $name<T> {
             pub fn new() -> Result<Self> {
                 Ok(Self {
-                    learning_rate: T::from($lr).unwrap(),
+                    learning_rate: num_traits::cast::cast($lr).unwrap_or_else(|| T::zero()),
                 })
             }
         }
@@ -892,7 +892,7 @@ macro_rules! impl_placeholder_optimizer {
             }
 
             fn get_performance_score(&self) -> T {
-                T::from($lr).unwrap()
+                num_traits::cast::cast($lr).unwrap_or_else(|| T::zero())
             }
 
             fn clone_optimizer(&self) -> Box<dyn AdvancedOptimizer<T>> {

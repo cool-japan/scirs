@@ -84,7 +84,7 @@ impl<T: Float> Default for TransformerBasedOptimizerConfig<T> {
             feedforward_dimension: 2048,
             sequence_length: 128,
             dropout_rate: 0.1,
-            learning_rate: T::from(1e-4).unwrap(),
+            learning_rate: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             batch_size: 32,
             num_epochs: 100,
             activation_function: ActivationFunction::ReLU,
@@ -93,8 +93,8 @@ impl<T: Float> Default for TransformerBasedOptimizerConfig<T> {
             meta_learning_config: MetaLearningConfig::default(),
             performance_config: PerformanceConfig::default(),
             enable_gradient_clipping: true,
-            gradient_clip_value: T::from(1.0).unwrap(),
-            weight_decay: T::from(1e-5).unwrap(),
+            gradient_clip_value: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            weight_decay: num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero()),
             warmup_steps: 1000,
             enable_layer_norm: true,
             use_pre_norm: true,
@@ -135,10 +135,10 @@ impl<T: Float> TransformerBasedOptimizerConfig<T> {
         Self {
             batch_size: 64,
             num_epochs: 200,
-            learning_rate: T::from(2e-4).unwrap(),
+            learning_rate: num_traits::cast::cast(2e-4).unwrap_or_else(|| T::zero()),
             warmup_steps: 2000,
             enable_gradient_clipping: true,
-            weight_decay: T::from(1e-4).unwrap(),
+            weight_decay: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             ..Self::default()
         }
     }
@@ -334,9 +334,9 @@ pub struct MetaLearningConfig<T: Float> {
 impl<T: Float> Default for MetaLearningConfig<T> {
     fn default() -> Self {
         Self {
-            meta_learning_rate: T::from(1e-3).unwrap(),
+            meta_learning_rate: num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero()),
             inner_steps: 5,
-            inner_learning_rate: T::from(1e-2).unwrap(),
+            inner_learning_rate: num_traits::cast::cast(1e-2).unwrap_or_else(|| T::zero()),
             first_order: false,
             num_support: 5,
             num_query: 15,

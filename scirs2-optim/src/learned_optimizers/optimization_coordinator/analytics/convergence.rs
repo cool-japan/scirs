@@ -604,7 +604,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
             }
         }
 
-        let convergence_probability = T::from(converged_count).unwrap() / T::from(detections.len()).unwrap();
+        let convergence_probability = num_traits::cast::cast(converged_count).unwrap_or_else(|| T::zero()) / T::from(detections.len()).unwrap();
         let consensus_confidence = confidence_sum / T::from(detections.len()).unwrap();
         let method_agreement = self.calculate_method_agreement(&voting_results)?;
 
@@ -627,7 +627,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
         let agree_count = values.windows(2).filter(|w| w[0] == w[1]).count();
         let total_pairs = values.len() - 1;
 
-        Ok(T::from(agree_count).unwrap() / T::from(total_pairs).unwrap())
+        Ok(num_traits::cast::cast(agree_count).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(total_pairs).unwrap_or_else(|| T::zero()))
     }
 
     /// Generate analysis summary
@@ -637,7 +637,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
         consensus: &ConvergenceConsensus<T>,
     ) -> Result<ConvergenceAnalysisSummary<T>> {
         // Estimate convergence time
-        let estimated_convergence_time = if consensus.convergence_probability > T::from(0.8).unwrap() {
+        let estimated_convergence_time = if consensus.convergence_probability > num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()) {
             Some(Duration::from_secs(0)) // Already converged
         } else {
             self.estimate_convergence_time(detections)?
@@ -670,11 +670,11 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
         let mut recommendations = Vec::new();
 
         // High convergence probability
-        if consensus.convergence_probability > T::from(0.9).unwrap() {
+        if consensus.convergence_probability > num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()) {
             recommendations.push(ConvergenceRecommendation::EarlyStop);
         }
         // Low convergence probability
-        else if consensus.convergence_probability < T::from(0.3).unwrap() {
+        else if consensus.convergence_probability < num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()) {
             recommendations.push(ConvergenceRecommendation::ContinueTraining);
 
             // Check for oscillatory behavior
@@ -683,7 +683,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
             }
 
             // Check for slow convergence
-            if summary.performance_trajectory.convergence_rate < T::from(0.01).unwrap() {
+            if summary.performance_trajectory.convergence_rate < num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()) {
                 recommendations.push(ConvergenceRecommendation::AdjustLearningRate { factor: 1.5 });
             }
         }
@@ -697,7 +697,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
 
     /// Update convergence state
     fn update_convergence_state(&mut self, consensus: &ConvergenceConsensus<T>, step: usize) -> Result<()> {
-        let converged = consensus.convergence_probability > T::from(0.8).unwrap();
+        let converged = consensus.convergence_probability > num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero());
 
         if converged && !self.current_state.converged {
             // Newly converged
@@ -727,10 +727,10 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
     /// Assess stability
     fn assess_stability(&self, _detections: &[ConvergenceDetection<T>]) -> Result<StabilityAssessment<T>> {
         Ok(StabilityAssessment {
-            loss_stability: T::from(0.8).unwrap(),
-            gradient_stability: T::from(0.7).unwrap(),
-            parameter_stability: T::from(0.9).unwrap(),
-            overall_stability: T::from(0.8).unwrap(),
+            loss_stability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            gradient_stability: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+            parameter_stability: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+            overall_stability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             stability_trend: StabilityTrend::Stable,
         })
     }
@@ -739,8 +739,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceAnalyzer<T> {
     fn analyze_trajectory(&self) -> Result<TrajectoryAnalysis<T>> {
         Ok(TrajectoryAnalysis {
             trajectory_type: TrajectoryType::Monotonic,
-            convergence_rate: T::from(0.05).unwrap(),
-            trajectory_smoothness: T::from(0.8).unwrap(),
+            convergence_rate: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            trajectory_smoothness: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             phase_transitions: Vec::new(),
         })
     }
@@ -839,7 +839,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceDetector<T> {
             let evidence = ConvergenceEvidence {
                 loss_evidence: LossEvidence {
                     loss_change_rate: relative_change,
-                    loss_stability: T::from(0.8).unwrap(), // Simplified
+                    loss_stability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()), // Simplified
                     plateau_duration: 0,
                     relative_improvement: relative_change,
                     absolute_improvement: loss_change,
@@ -899,8 +899,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceDetector<T> {
                     gradient_evidence: GradientEvidence {
                         gradient_norm,
                         gradient_norm_change_rate: norm_change,
-                        gradient_stability: T::from(0.8).unwrap(),
-                        direction_consistency: T::from(0.9).unwrap(),
+                        gradient_stability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+                        direction_consistency: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                     },
                     parameter_evidence: ParameterEvidence::default(),
                     statistical_evidence: StatisticalEvidence::default(),
@@ -933,7 +933,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConvergenceDetector<T> {
         if let Some(val_loss) = snapshot.metrics.val_loss {
             // Simplified validation-based detection
             let converged = val_loss < self.parameters.loss_tolerance;
-            let confidence = if converged { T::from(0.8).unwrap() } else { T::from(0.2).unwrap() };
+            let confidence = if converged { num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()) } else { num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()) };
 
             let evidence = ConvergenceEvidence {
                 loss_evidence: LossEvidence::default(),

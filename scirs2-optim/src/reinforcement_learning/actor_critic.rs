@@ -150,12 +150,12 @@ impl<T: Float> Default for ActorCriticConfig<T> {
             td3_config: TD3Config::default(),
             ddpg_config: DDPGConfig::default(),
             use_target_networks: false,
-            target_update_rate: T::from(0.005).unwrap(),
+            target_update_rate: num_traits::cast::cast(0.005).unwrap_or_else(|| T::zero()),
             target_hard_update_freq: None,
             replay_buffer_size: 100000,
             prioritized_replay: false,
-            per_alpha: T::from(0.6).unwrap(),
-            per_beta: T::from(0.4).unwrap(),
+            per_alpha: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+            per_beta: num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero()),
             n_critics: 1,
         }
     }
@@ -164,10 +164,10 @@ impl<T: Float> Default for ActorCriticConfig<T> {
 impl<T: Float> Default for SACConfig<T> {
     fn default() -> Self {
         Self {
-            temperature: T::from(0.2).unwrap(),
+            temperature: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
             auto_entropy_tuning: true,
             target_entropy: None,
-            temperature_lr: T::from(3e-4).unwrap(),
+            temperature_lr: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
             use_reparameterization: true,
             policy_update_freq: 1,
             target_update_freq: 1,
@@ -178,11 +178,11 @@ impl<T: Float> Default for SACConfig<T> {
 impl<T: Float> Default for TD3Config<T> {
     fn default() -> Self {
         Self {
-            policy_noise: T::from(0.2).unwrap(),
-            noise_clip: T::from(0.5).unwrap(),
+            policy_noise: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            noise_clip: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             policy_delay: 2,
-            exploration_noise: T::from(0.1).unwrap(),
-            action_bounds: Some((T::from(-1.0).unwrap(), T::from(1.0).unwrap())),
+            exploration_noise: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            action_bounds: Some((num_traits::cast::cast(-1.0).unwrap_or_else(|| T::zero()), num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()))),
         }
     }
 }
@@ -190,10 +190,10 @@ impl<T: Float> Default for TD3Config<T> {
 impl<T: Float> Default for DDPGConfig<T> {
     fn default() -> Self {
         Self {
-            exploration_noise: T::from(0.1).unwrap(),
-            ou_noise_theta: T::from(0.15).unwrap(),
-            ou_noise_sigma: T::from(0.2).unwrap(),
-            action_bounds: Some((T::from(-1.0).unwrap(), T::from(1.0).unwrap())),
+            exploration_noise: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            ou_noise_theta: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
+            ou_noise_sigma: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            action_bounds: Some((num_traits::cast::cast(-1.0).unwrap_or_else(|| T::zero()), num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()))),
         }
     }
 }
@@ -551,7 +551,7 @@ impl<
                 // Add target policy smoothing noise (TD3 feature)
                 for action in target_actions.iter_mut() {
                     let noise = T::from(scirs2_core::random::rng().random_f64() - 0.5).unwrap()
-                        * T::from(2.0).unwrap()
+                        * num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
                         * self.config.td3_config.policy_noise;
                     let clipped_noise = noise
                         .max(-self.config.td3_config.noise_clip)
@@ -602,7 +602,7 @@ impl<
             let mut td_targets = Array1::zeros(rewards.len());
             for i in 0..rewards.len() {
                 td_targets[i] = rewards[i]
-                    + gamma * min_target_q[i] * T::from(if dones[i] { 0.0 } else { 1.0 }).unwrap();
+                    + gamma * min_target_q[i] * num_traits::cast::cast(if dones[i] { 0.0 } else { 1.0 }).unwrap_or_else(|| T::zero());
             }
 
             // Update both critics
@@ -667,7 +667,7 @@ impl<
         let mut td_targets = Array1::zeros(rewards.len());
         for i in 0..rewards.len() {
             td_targets[i] = rewards[i]
-                + gamma * targetq[i] * T::from(if dones[i] { 0.0 } else { 1.0 }).unwrap();
+                + gamma * targetq[i] * num_traits::cast::cast(if dones[i] { 0.0 } else { 1.0 }).unwrap_or_else(|| T::zero());
         }
 
         let q_values = self.compute_q_values(&self.critics[0], &states, &actions)?;
@@ -955,7 +955,7 @@ impl<
         let temp_lr = self.config.sac_config.temperature_lr;
         let temp_gradient = target_entropy - current_entropy;
         self.temperature =
-            (self.temperature - temp_lr * temp_gradient).max(T::from(0.001).unwrap());
+            (self.temperature - temp_lr * temp_gradient).max(num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()));
 
         Ok(temperature_loss)
     }
@@ -973,7 +973,7 @@ impl<
                     // Add Gaussian noise: action = mean + std * noise
                     for ((action, &m), &s) in actions.iter_mut().zip(mean.iter()).zip(std.iter()) {
                         let noise = T::from(scirs2_core::random::rng().random_f64() - 0.5).unwrap()
-                            * T::from(2.0).unwrap(); // Simplified noise
+                            * num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()); // Simplified noise
                         *action = m + s * noise;
                     }
 
@@ -1046,9 +1046,9 @@ impl<
                             // Log probability of Gaussian: -0.5 * ((x - μ) / σ)² - log(σ) - 0.5 * log(2π)
                             let normalized_diff = (action - mu) / sigma;
                             let log_prob_term =
-                                -T::from(0.5).unwrap() * normalized_diff * normalized_diff
+                                -num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * normalized_diff * normalized_diff
                                     - sigma.ln()
-                                    - T::from(0.5 * 2.0 * std::f64::consts::PI).unwrap().ln();
+                                    - num_traits::cast::cast(0.5 * 2.0 * std::f64::consts::PI).unwrap_or_else(|| T::zero()).ln();
                             log_prob = log_prob + log_prob_term;
                         }
 
@@ -1070,7 +1070,7 @@ impl<
                         // Find the action index (one-hot encoded)
                         let mut action_idx = 0;
                         for j in 0..actions.ncols() {
-                            if actions[[i, j]] > T::from(0.5).unwrap() {
+                            if actions[[i, j]] > num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) {
                                 action_idx = j;
                                 break;
                             }

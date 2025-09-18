@@ -51,13 +51,13 @@ pub struct ConvergenceCriteria<T: Float> {
 impl<T: Float> Default for ConvergenceCriteria<T> {
     fn default() -> Self {
         Self {
-            absolute_tolerance: T::from(1e-6).unwrap(),
-            relative_tolerance: T::from(1e-4).unwrap(),
+            absolute_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+            relative_tolerance: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             max_stagnation_iterations: 50,
-            min_improvement_rate: T::from(1e-8).unwrap(),
-            confidence_threshold: T::from(0.95).unwrap(),
+            min_improvement_rate: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
+            confidence_threshold: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             window_size: 20,
-            statistical_test_threshold: T::from(0.05).unwrap(),
+            statistical_test_threshold: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
             enable_adaptive_thresholds: true,
             early_stopping_patience: 100,
             min_iterations: 10,
@@ -91,7 +91,7 @@ impl<T: Float> ConvergenceState<T> {
             last_improvement_iteration: 0,
             current_iteration: 0,
             convergence_start: None,
-            adaptive_tolerance: T::from(1e-6).unwrap(),
+            adaptive_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             trend_buffer: VecDeque::with_capacity(window_size),
         }
     }
@@ -204,14 +204,14 @@ impl<T: Float> ConvergenceDetector<T> {
         
         // Adapt tolerance based on noise level and convergence progress
         let progress_factor = if self.state.stagnation_count > 0 {
-            T::one() + T::from(self.state.stagnation_count).unwrap() / T::from(100.0).unwrap()
+            T::one() + num_traits::cast::cast(self.state.stagnation_count).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())
         } else {
             T::one()
         };
 
         self.state.adaptive_tolerance = (noise_level * progress_factor)
-            .max(self.criteria.absolute_tolerance / T::from(10.0).unwrap())
-            .min(self.criteria.absolute_tolerance * T::from(10.0).unwrap());
+            .max(self.criteria.absolute_tolerance / num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()))
+            .min(self.criteria.absolute_tolerance * num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()));
     }
 
     fn compute_variance(&self, data: &VecDeque<T>) -> T {
@@ -229,9 +229,9 @@ impl<T: Float> ConvergenceDetector<T> {
 
     fn combine_confidences(&self, stat_conf: T, trend_conf: T, adapt_conf: T) -> T {
         // Weighted combination of different confidence measures
-        let stat_weight = T::from(0.4).unwrap();
-        let trend_weight = T::from(0.3).unwrap();
-        let adapt_weight = T::from(0.3).unwrap();
+        let stat_weight = num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero());
+        let trend_weight = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
+        let adapt_weight = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
         
         stat_conf * stat_weight + trend_conf * trend_weight + adapt_conf * adapt_weight
     }
@@ -445,12 +445,12 @@ impl<T: Float> ConvergenceAnalyzer<T> {
         let max_diff = self.compute_cdf_max_difference(&first_half, &second_half);
         
         // Convert to p-value approximation
-        let critical_value = T::from(1.36).unwrap() / (T::from(n).unwrap()).sqrt();
+        let critical_value = num_traits::cast::cast(1.36).unwrap_or_else(|| T::zero()) / (num_traits::cast::cast(n).unwrap_or_else(|| T::zero())).sqrt();
         
         if max_diff < critical_value {
-            T::from(0.95).unwrap() // High confidence of stationarity
+            num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()) // High confidence of stationarity
         } else {
-            T::from(0.05).unwrap() // Low confidence
+            num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()) // Low confidence
         }
     }
 
@@ -476,21 +476,21 @@ impl<T: Float> ConvergenceAnalyzer<T> {
         }
 
         // Normalize and convert to confidence
-        let variance = T::from(n * (n - 1) * (2 * n + 5)).unwrap() / T::from(18.0).unwrap();
+        let variance = T::from(n * (n - 1) * (2 * n + 5)).unwrap() / num_traits::cast::cast(18.0).unwrap_or_else(|| T::zero());
         let z = s.abs() / variance.sqrt();
         
         // Convert Z-score to confidence (simplified)
-        if z < T::from(1.96).unwrap() {
-            T::from(0.95).unwrap() // No significant trend
+        if z < num_traits::cast::cast(1.96).unwrap_or_else(|| T::zero()) {
+            num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()) // No significant trend
         } else {
-            T::from(0.05).unwrap() // Significant trend detected
+            num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()) // Significant trend detected
         }
     }
 
     fn anderson_darling_test(&self, state: &ConvergenceState<T>) -> T {
         // Simplified Anderson-Darling test for normality
         if state.gradients.len() < 3 {
-            return T::from(0.5).unwrap();
+            return num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
         }
 
         let gradients: Vec<T> = state.gradients.iter().cloned().collect();
@@ -500,7 +500,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
             .fold(T::zero(), |acc, x| acc + x) / T::from(gradients.len()).unwrap();
 
         if variance < T::epsilon() {
-            return T::from(0.95).unwrap(); // Perfect normality (no variation)
+            return num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()); // Perfect normality (no variation)
         }
 
         // Simplified normality assessment based on skewness and kurtosis
@@ -510,9 +510,9 @@ impl<T: Float> ConvergenceAnalyzer<T> {
 
         // Convert to confidence score
         let skew_score = (-skewness.abs()).exp();
-        let kurt_score = (-(kurtosis - T::from(3.0).unwrap()).abs()).exp();
+        let kurt_score = (-(kurtosis - num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero())).abs()).exp();
         
-        (skew_score + kurt_score) / T::from(2.0).unwrap()
+        (skew_score + kurt_score) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
     }
 
     fn compute_skewness(&self, data: &[T], mean: T, std_dev: T) -> T {
@@ -533,7 +533,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
 
     fn compute_kurtosis(&self, data: &[T], mean: T, std_dev: T) -> T {
         if std_dev < T::epsilon() {
-            return T::from(3.0).unwrap(); // Normal kurtosis
+            return num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero()); // Normal kurtosis
         }
 
         let n = T::from(data.len()).unwrap();
@@ -558,11 +558,11 @@ impl<T: Float> ConvergenceAnalyzer<T> {
         let max_val = first_sorted.last().unwrap().max(*second_sorted.last().unwrap());
 
         let steps = 20;
-        let step_size = (max_val - min_val) / T::from(steps).unwrap();
+        let step_size = (max_val - min_val) / num_traits::cast::cast(steps).unwrap_or_else(|| T::zero());
         let mut max_diff = T::zero();
 
         for i in 0..=steps {
-            let x = min_val + T::from(i).unwrap() * step_size;
+            let x = min_val + num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) * step_size;
             let cdf1 = self.empirical_cdf(&first_sorted, x);
             let cdf2 = self.empirical_cdf(&second_sorted, x);
             let diff = (cdf1 - cdf2).abs();
@@ -574,14 +574,14 @@ impl<T: Float> ConvergenceAnalyzer<T> {
 
     fn empirical_cdf(&self, sorted_data: &[T], x: T) -> T {
         let count = sorted_data.iter().filter(|&&val| val <= x).count();
-        T::from(count).unwrap() / T::from(sorted_data.len()).unwrap()
+        num_traits::cast::cast(count).unwrap_or_else(|| T::zero()) / T::from(sorted_data.len()).unwrap()
     }
 
     fn combine_statistical_tests(&self, ks: T, mk: T, ad: T) -> T {
         // Weighted combination of statistical test results
-        let ks_weight = T::from(0.4).unwrap();
-        let mk_weight = T::from(0.3).unwrap();
-        let ad_weight = T::from(0.3).unwrap();
+        let ks_weight = num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero());
+        let mk_weight = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
+        let ad_weight = num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
         
         ks * ks_weight + mk * mk_weight + ad * ad_weight
     }
@@ -589,30 +589,30 @@ impl<T: Float> ConvergenceAnalyzer<T> {
     fn assess_trend_convergence(&self, trend: &TrendAnalysis<T>) -> T {
         // Assess convergence based on trend characteristics
         let slope_score = (-trend.slope.abs()).exp();
-        let r_squared_penalty = if trend.r_squared > T::from(0.8).unwrap() {
-            T::from(0.5).unwrap() // Strong trend is bad for convergence
+        let r_squared_penalty = if trend.r_squared > num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()) {
+            num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) // Strong trend is bad for convergence
         } else {
             T::one()
         };
         let volatility_score = (-trend.volatility).exp();
         let momentum_score = (-trend.momentum.abs()).exp();
 
-        (slope_score * r_squared_penalty + volatility_score + momentum_score) / T::from(3.0).unwrap()
+        (slope_score * r_squared_penalty + volatility_score + momentum_score) / num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero())
     }
 
     fn compute_adaptive_score(&self, abs_conv: bool, rel_conv: bool, stag_conv: bool, state: &ConvergenceState<T>) -> T {
         let mut score = T::zero();
         
         if abs_conv {
-            score = score + T::from(0.4).unwrap();
+            score = score + num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero());
         }
         
         if rel_conv {
-            score = score + T::from(0.3).unwrap();
+            score = score + num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
         }
         
         if stag_conv {
-            score = score + T::from(0.3).unwrap();
+            score = score + num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero());
         }
 
         // Adjust score based on improvement history
@@ -624,7 +624,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
                 .count();
             
             if recent_improvements == 0 {
-                score = score + T::from(0.2).unwrap();
+                score = score + num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero());
             }
         }
 
@@ -640,7 +640,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
         let sum_x = (T::zero()..n).fold(T::zero(), |acc, i| acc + i);
         let sum_y = data.iter().fold(T::zero(), |acc, &y| acc + y);
         let sum_xy = data.iter().enumerate()
-            .fold(T::zero(), |acc, (i, &y)| acc + T::from(i).unwrap() * y);
+            .fold(T::zero(), |acc, (i, &y)| acc + num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) * y);
         let sum_x2 = (T::zero()..n).fold(T::zero(), |acc, i| acc + i * i);
 
         let denominator = n * sum_x2 - sum_x * sum_x;
@@ -655,7 +655,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
         let ss_tot = data.iter().fold(T::zero(), |acc, &y| acc + (y - mean_y) * (y - mean_y));
         let ss_res = data.iter().enumerate()
             .fold(T::zero(), |acc, (i, &y)| {
-                let predicted = slope * T::from(i).unwrap() + (sum_y - slope * sum_x) / n;
+                let predicted = slope * num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) + (sum_y - slope * sum_x) / n;
                 acc + (y - predicted) * (y - predicted)
             });
 
@@ -675,7 +675,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
 
         let mut accelerations = Vec::new();
         for i in 2..data.len() {
-            let accel = data[i] - T::from(2.0).unwrap() * data[i-1] + data[i-2];
+            let accel = data[i] - num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * data[i-1] + data[i-2];
             accelerations.push(accel);
         }
 
@@ -706,7 +706,7 @@ impl<T: Float> ConvergenceAnalyzer<T> {
             let start_idx = data.len() - recent_window;
             let end_val = data[data.len() - 1];
             let start_val = data[start_idx];
-            (end_val - start_val) / T::from(recent_window - 1).unwrap()
+            (end_val - start_val) / num_traits::cast::cast(recent_window - 1).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -791,7 +791,7 @@ impl<T: Float> ConvergenceMonitor<T> {
         }
 
         // Check for high volatility
-        if result.trend_analysis.volatility > T::from(0.1).unwrap() {
+        if result.trend_analysis.volatility > num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) {
             self.add_alert(ConvergenceAlertType::NoiseDetected,
                 "High volatility detected in optimization process".to_string(),
                 result.confidence);
@@ -888,7 +888,7 @@ impl<T: Float> ConvergenceIndicator<T> {
         let normalized_slope = (-trend.slope.abs()).exp();
         let r_squared_component = trend.r_squared;
         
-        (normalized_slope + r_squared_component) / T::from(2.0).unwrap()
+        (normalized_slope + r_squared_component) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
     }
 
     fn compute_stability_index(&self, state: &ConvergenceState<T>) -> T {

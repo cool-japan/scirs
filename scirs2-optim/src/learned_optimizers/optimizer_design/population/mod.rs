@@ -105,7 +105,7 @@ impl<T: num_traits::Float + Default + std::fmt::Debug> PopulationManager<T> {
         
         let fitnesses: Vec<T> = self.population
             .iter()
-            .map(|c| T::from(c.performance.optimization_performance).unwrap())
+            .map(|c| num_traits::cast::cast(c.performance.optimization_performance).unwrap_or_else(|| T::zero()))
             .collect();
         
         self.stats.best_fitness = fitnesses.iter().copied().fold(T::neg_infinity(), T::max);

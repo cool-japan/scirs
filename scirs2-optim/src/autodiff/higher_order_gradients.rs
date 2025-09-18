@@ -597,7 +597,7 @@ impl<T: Float + Default + Clone> HigherOrderGradients<T> {
         let kfac_factors = KFACFactors {
             a_factors: vec![a_factor],
             g_factors: vec![g_factor],
-            damping: T::from(1e-4).unwrap(),
+            damping: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             update_frequency: 100,
         };
         
@@ -631,7 +631,7 @@ impl<T: Float + Default + Clone> HigherOrderGradients<T> {
                 for k in 0..n {
                     // This would require triple differentiation
                     // Simplified implementation using finite differences
-                    let eps = T::from(1e-6).unwrap();
+                    let eps = num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero());
                     
                     // f(x+h, y+h, z+h) - f(x+h, y+h, z-h) - ... (8 terms total)
                     // Divided by 8*h^3 for third derivative approximation

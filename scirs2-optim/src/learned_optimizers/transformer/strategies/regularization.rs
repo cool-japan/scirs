@@ -194,7 +194,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
                 
                 // Compute L2 loss contribution
                 let l2_loss = param_values.iter().map(|&x| x * x).fold(T::zero(), |a, b| a + b);
-                total_reg_loss = total_reg_loss + l2_loss * self.regularization_params.l2_weight * T::from(0.5).unwrap();
+                total_reg_loss = total_reg_loss + l2_loss * self.regularization_params.l2_weight * num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
             }
         }
         
@@ -259,7 +259,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
         for (_param_name, grad) in gradients {
             // Compute gradient penalty (penalize large gradients)
             let grad_norm_squared = grad.iter().map(|&x| x * x).fold(T::zero(), |a, b| a + b);
-            let penalty_grad = grad * (T::from(2.0).unwrap() * self.regularization_params.gradient_penalty_weight);
+            let penalty_grad = grad * (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * self.regularization_params.gradient_penalty_weight);
             *grad = grad.clone() + &penalty_grad;
             
             total_penalty = total_penalty + grad_norm_squared * self.regularization_params.gradient_penalty_weight;
@@ -373,7 +373,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
                 
                 // Compute regularization loss
                 let reg_loss = param_values.iter().map(|&x| x * x).fold(T::zero(), |a, b| a + b);
-                total_reg_loss = total_reg_loss + reg_loss * adaptive_strength * T::from(0.5).unwrap();
+                total_reg_loss = total_reg_loss + reg_loss * adaptive_strength * num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero());
             }
         }
         
@@ -445,7 +445,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
         // Simplified diversity gradient computation
         for h in 0..num_heads {
             for i in 0..seq_len {
-                grad[[h, i]] = T::from(0.1).unwrap() * self.regularization_params.diversity_weight;
+                grad[[h, i]] = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()) * self.regularization_params.diversity_weight;
             }
         }
         
@@ -494,7 +494,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
                 for k in 0..n {
                     let wtw_ik = (0..n).map(|l| matrix[[l, i]] * matrix[[l, k]]).fold(T::zero(), |a, b| a + b);
                     let expected = if i == k { T::one() } else { T::zero() };
-                    grad_val = grad_val + T::from(4.0).unwrap() * (wtw_ik - expected) * matrix[[j, k]];
+                    grad_val = grad_val + num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()) * (wtw_ik - expected) * matrix[[j, k]];
                 }
                 grad[[j, i]] = grad_val * self.regularization_params.orthogonality_weight;
             }
@@ -516,7 +516,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
             .or_insert(ParameterStatistics::new());
         
         stats.update_count += 1;
-        let alpha = T::from(0.1).unwrap();
+        let alpha = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
         
         // Update running mean
         stats.mean_magnitude = stats.mean_magnitude * (T::one() - alpha) + param_magnitude * alpha;
@@ -539,7 +539,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
             
             // Adaptive strength based on parameter statistics
             let magnitude_factor = T::one() / (T::one() + stats.mean_magnitude);
-            let step_decay = decay_rate.powf(T::from(self.step_count as f64).unwrap());
+            let step_decay = decay_rate.powf(num_traits::cast::cast(self.step_count as f64).unwrap_or_else(|| T::zero()));
             
             Ok(base_strength * magnitude_factor * step_decay)
         } else {
@@ -612,7 +612,7 @@ impl<T: Float + Default + Clone> TransformerRegularizer<T> {
     pub fn get_statistics(&self) -> HashMap<String, T> {
         let mut stats = HashMap::new();
         
-        stats.insert("step_count".to_string(), T::from(self.step_count as f64).unwrap());
+        stats.insert("step_count".to_string(), num_traits::cast::cast(self.step_count as f64).unwrap_or_else(|| T::zero()));
         stats.insert("attention_history_length".to_string(), T::from(self.attention_history.len() as f64).unwrap());
         
         if let Some(ref spectral_state) = self.spectral_state {
@@ -658,15 +658,15 @@ impl<T: Float + Default + Clone> ParameterStatistics<T> {
 impl<T: Float + Default + Clone> Default for RegularizationParams<T> {
     fn default() -> Self {
         Self {
-            l2_weight: T::from(0.01).unwrap(),
-            l1_weight: T::from(0.001).unwrap(),
-            entropy_weight: T::from(0.1).unwrap(),
-            gradient_penalty_weight: T::from(0.01).unwrap(),
+            l2_weight: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            l1_weight: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            entropy_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            gradient_penalty_weight: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             spectral_iterations: 1,
-            diversity_weight: T::from(0.1).unwrap(),
-            orthogonality_weight: T::from(0.01).unwrap(),
-            adaptive_base_strength: T::from(0.01).unwrap(),
-            adaptive_decay_rate: T::from(0.99).unwrap(),
+            diversity_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            orthogonality_weight: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            adaptive_base_strength: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            adaptive_decay_rate: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
         }
     }
 }

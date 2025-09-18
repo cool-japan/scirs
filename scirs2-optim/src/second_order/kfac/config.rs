@@ -48,18 +48,18 @@ pub struct KFACConfig<T: Float> {
 impl<T: Float> Default for KFACConfig<T> {
     fn default() -> Self {
         Self {
-            learning_rate: T::from(0.001).unwrap(),
-            damping: T::from(0.001).unwrap(),
-            weight_decay: T::from(0.0).unwrap(),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            damping: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            weight_decay: num_traits::cast::cast(0.0).unwrap_or_else(|| T::zero()),
             cov_update_freq: 10,
             inv_update_freq: 100,
-            stat_decay: T::from(0.95).unwrap(),
-            min_eigenvalue: T::from(1e-7).unwrap(),
+            stat_decay: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            min_eigenvalue: num_traits::cast::cast(1e-7).unwrap_or_else(|| T::zero()),
             max_inv_iterations: 50,
-            inv_tolerance: T::from(1e-6).unwrap(),
+            inv_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             use_tikhonov: true,
             auto_damping: true,
-            target_acceptance_ratio: T::from(0.75).unwrap(),
+            target_acceptance_ratio: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -132,8 +132,8 @@ impl<T: Float> KFACConfig<T> {
         let mut config = Self::default();
         config.cov_update_freq = 20;
         config.inv_update_freq = 200;
-        config.stat_decay = T::from(0.99).unwrap();
-        config.damping = T::from(0.01).unwrap();
+        config.stat_decay = num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero());
+        config.damping = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero());
         config
     }
 
@@ -142,16 +142,16 @@ impl<T: Float> KFACConfig<T> {
         let mut config = Self::default();
         config.cov_update_freq = 5;
         config.inv_update_freq = 50;
-        config.stat_decay = T::from(0.9).unwrap();
-        config.damping = T::from(0.001).unwrap();
+        config.stat_decay = num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero());
+        config.damping = num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero());
         config
     }
 
     /// Create configuration with conservative damping for stability
     pub fn for_stability() -> Self {
         let mut config = Self::default();
-        config.damping = T::from(0.1).unwrap();
-        config.min_eigenvalue = T::from(1e-5).unwrap();
+        config.damping = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
+        config.min_eigenvalue = num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero());
         config.auto_damping = false;
         config.use_tikhonov = true;
         config

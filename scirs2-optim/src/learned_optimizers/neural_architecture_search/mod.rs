@@ -218,8 +218,8 @@ impl<T: Float + 'static> NeuralArchitectureSearch<T> {
 
         if let Some(current_best) = self.population_manager.get_best_performance() {
             if let Some(prev_best_f64) = recent_best {
-                let prev_best = T::from(prev_best_f64).unwrap();
-                return (current_best - prev_best).abs() < T::from(0.001).unwrap();
+                let prev_best = num_traits::cast::cast(prev_best_f64).unwrap_or_else(|| T::zero());
+                return (current_best - prev_best).abs() < num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero());
             }
         }
 

@@ -214,7 +214,7 @@ impl<T: Float + Send + Sync> ShamirSecretSharing<T> {
         // Evaluate polynomial at different points
         let mut shares = Vec::new();
         for i in 1..=self.num_shares {
-            let x = T::from(i).unwrap();
+            let x = num_traits::cast::cast(i).unwrap_or_else(|| T::zero());
             let y = self.evaluate_polynomial(x);
             shares.push((i, y));
         }
@@ -238,8 +238,8 @@ impl<T: Float + Send + Sync> ShamirSecretSharing<T> {
 
             for (j, &(xj, _)) in shares.iter().enumerate().take(self.threshold) {
                 if i != j {
-                    let xi_f = T::from(xi).unwrap();
-                    let xj_f = T::from(xj).unwrap();
+                    let xi_f = num_traits::cast::cast(xi).unwrap_or_else(|| T::zero());
+                    let xj_f = num_traits::cast::cast(xj).unwrap_or_else(|| T::zero());
                     lagrange_coeff = lagrange_coeff * (T::zero() - xj_f) / (xi_f - xj_f);
                 }
             }
@@ -389,7 +389,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand> CryptographicAggregator<T>
         }
 
         if count > 0 {
-            aggregate = aggregate / T::from(count).unwrap();
+            aggregate = aggregate / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
         }
 
         Ok(aggregate)
@@ -638,7 +638,7 @@ impl<T: Float + Send + Sync> HomomorphicEngine<T> {
         value_bytes.copy_from_slice(&encrypted[0..8]);
         let value = f64::from_le_bytes(value_bytes);
 
-        Ok(T::from(value).unwrap())
+        Ok(num_traits::cast::cast(value).unwrap_or_else(|| T::zero()))
     }
 
     /// Add encrypted values

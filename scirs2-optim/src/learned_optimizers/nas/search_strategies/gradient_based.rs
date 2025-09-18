@@ -568,7 +568,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
         let mut gradient = Array3::zeros(self.architecture_parameters.dim());
         
         // Finite difference approximation (simplified)
-        let epsilon = T::from(1e-4).unwrap();
+        let epsilon = num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero());
         
         for i in 0..gradient.shape()[0] {
             for j in 0..gradient.shape()[1] {
@@ -588,7 +588,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
                     let perf_minus = objective_fn(&arch_minus)?;
                     
                     // Gradient approximation
-                    gradient[[i, j, k]] = (perf_plus - perf_minus) / (T::from(2.0).unwrap() * epsilon);
+                    gradient[[i, j, k]] = (perf_plus - perf_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * epsilon);
                 }
             }
         }
@@ -603,7 +603,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
         let performance = objective_fn(&current_arch)?;
         
         // Return scalar gradient (in practice would be tensor)
-        Ok(performance * T::from(0.01).unwrap())
+        Ok(performance * num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()))
     }
     
     /// Update architecture parameters with gradient
@@ -655,7 +655,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
         let scaled_weights = weights.mapv(|w| w / temperature);
         
         // Compute softmax
-        let max_weight = scaled_weights.iter().cloned().fold(T::from(f64::NEG_INFINITY).unwrap(), T::max);
+        let max_weight = scaled_weights.iter().cloned().fold(num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()), T::max);
         let exp_weights = scaled_weights.mapv(|w| (w - max_weight).exp());
         let sum_exp = exp_weights.sum();
         
@@ -756,7 +756,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
         let noise = Array1::from_shape_fn(size, |_| {
             let u: f64 = rng.gen_range(1e-10..1.0);
             let gumbel = -(-u.ln()).ln();
-            T::from(gumbel).unwrap()
+            num_traits::cast::cast(gumbel).unwrap_or_else(|| T::zero())
         });
         
         Ok(noise)
@@ -845,7 +845,7 @@ impl<T: Float + Default + Clone> DARTSSearcher<T> {
             num_edges += 1;
         }
         
-        Ok(total_entropy / T::from(num_edges as f64).unwrap())
+        Ok(total_entropy / num_traits::cast::cast(num_edges as f64).unwrap_or_else(|| T::zero()))
     }
     
     /// Compute architecture complexity
@@ -948,18 +948,18 @@ impl<T: Float + Default + Clone> Default for PerformanceMetrics<T> {
 impl<T: Float + Default + Clone> Default for GradientBasedNASConfig<T> {
     fn default() -> Self {
         Self {
-            arch_learning_rate: T::from(3e-4).unwrap(),
-            weight_learning_rate: T::from(0.025).unwrap(),
-            arch_weight_decay: T::from(1e-3).unwrap(),
-            weight_decay: T::from(3e-4).unwrap(),
+            arch_learning_rate: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
+            weight_learning_rate: num_traits::cast::cast(0.025).unwrap_or_else(|| T::zero()),
+            arch_weight_decay: num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero()),
+            weight_decay: num_traits::cast::cast(3e-4).unwrap_or_else(|| T::zero()),
             search_epochs: 50,
             warmup_epochs: 15,
-            temperature: T::from(1.0).unwrap(),
-            temperature_decay: T::from(0.96).unwrap(),
-            min_temperature: T::from(0.1).unwrap(),
-            arch_regularization: T::from(1e-3).unwrap(),
+            temperature: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            temperature_decay: num_traits::cast::cast(0.96).unwrap_or_else(|| T::zero()),
+            min_temperature: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            arch_regularization: num_traits::cast::cast(1e-3).unwrap_or_else(|| T::zero()),
             early_stopping_patience: 10,
-            pruning_threshold: T::from(0.01).unwrap(),
+            pruning_threshold: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             num_candidate_ops: 8,
         }
     }

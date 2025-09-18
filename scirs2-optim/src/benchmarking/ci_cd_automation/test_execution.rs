@@ -802,7 +802,7 @@ impl PerformanceTestSuite {
             .arg("-c")
             .arg(command)
             .output()
-            .map_err(|e| OptimError::IO(format!("Failed to execute custom test: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to execute custom test: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout).to_string();
 
@@ -837,7 +837,7 @@ impl PerformanceTestSuite {
         }
 
         let output = cmd.output()
-            .map_err(|e| OptimError::IO(format!("Failed to execute Docker test: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to execute Docker test: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout).to_string();
         let measurements = self.parse_performance_output(&output_str, test_case)?;
@@ -851,7 +851,7 @@ impl PerformanceTestSuite {
         cmd.args(args);
 
         let output = cmd.output()
-            .map_err(|e| OptimError::IO(format!("Failed to execute external tool: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to execute external tool: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout).to_string();
         let measurements = self.parse_performance_output(&output_str, test_case)?;
@@ -866,7 +866,7 @@ impl PerformanceTestSuite {
         cmd.args(args);
 
         let output = cmd.output()
-            .map_err(|e| OptimError::IO(format!("Failed to execute Rust binary: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to execute Rust binary: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout).to_string();
         let measurements = self.parse_performance_output(&output_str, test_case)?;
@@ -881,7 +881,7 @@ impl PerformanceTestSuite {
         cmd.args(args);
 
         let output = cmd.output()
-            .map_err(|e| OptimError::IO(format!("Failed to execute Python script: {}", e)))?;
+            .map_err(|e| OptimError::InvalidConfig(format!("Failed to execute Python script: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout).to_string();
         let measurements = self.parse_performance_output(&output_str, test_case)?;
@@ -990,7 +990,7 @@ impl PerformanceTestSuite {
             ci_context: self.context.clone(),
             test_config: TestConfiguration {
                 test_name: test_case.name.clone(),
-                iterations: test_case.iterations,
+                iterations: Some(test_case.iterations),
                 warmup_iterations: test_case.warmup_iterations,
                 timeout: test_case.timeout.map(Duration::from_secs),
             },

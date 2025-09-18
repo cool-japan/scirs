@@ -1293,11 +1293,11 @@ impl<T: Float> Default for FewShotConfig<T> {
             query_size: 15,
             n_way: 5,
             n_shot: 1,
-            meta_learning_rate: T::from(0.001).unwrap(),
-            inner_learning_rate: T::from(0.01).unwrap(),
+            meta_learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            inner_learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             inner_steps: 5,
             second_order: false,
-            temperature: T::from(1.0).unwrap(),
+            temperature: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             prototype_update_method: PrototypeUpdateMethod::ExponentialMovingAverage,
             distance_metric: DistanceMetric::Euclidean,
             episodic_training: true,
@@ -1308,7 +1308,7 @@ impl<T: Float> Default for FewShotConfig<T> {
                 AugmentationStrategy::FeaturePerturbation,
             ],
             meta_regularization: true,
-            regularization_strength: T::from(0.01).unwrap(),
+            regularization_strength: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             task_specific_adaptation: true,
             adaptation_memory_size: 1000,
         }
@@ -1444,7 +1444,7 @@ impl<T: Float + Send + Sync> SimilarityMatcher<T> {
             similarity_computer: SimilarityComputer::new(),
             task_embeddings: HashMap::new(),
             similarity_cache: SimilarityCache::new(1000),
-            matching_threshold: T::from(0.8).unwrap(),
+            matching_threshold: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             similarity_metrics: vec![SimilarityMetric::Cosine, SimilarityMetric::Pearson],
         })
     }
@@ -1477,7 +1477,7 @@ impl<T: Float + Send + Sync> TaskDistributionAnalyzer<T> {
         Ok(TaskDistribution {
             parameters: HashMap::new(),
             distribution_type: DistributionType::Gaussian,
-            confidence_bounds: (T::from(0.1).unwrap(), T::from(0.9).unwrap()),
+            confidence_bounds: (num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())),
             sample_size: 100,
         })
     }
@@ -1487,7 +1487,7 @@ impl<T: Float + Send + Sync> AdaptationController<T> {
     fn new(config: &FewShotConfig<T>) -> Result<Self> {
         Ok(Self {
             strategy: AdaptationStrategy::new(AdaptationStrategyType::Balanced),
-            rate_controller: AdaptationRateController::new(T::from(0.01).unwrap()),
+            rate_controller: AdaptationRateController::new(num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero())),
             stopping_criterion: StoppingCriterion::default(),
             adaptation_memory: AdaptationMemory::new(1000),
             performance_monitor: AdaptationPerformanceMonitor::new(100),
@@ -1503,9 +1503,9 @@ impl<T: Float + Send + Sync> AdaptationController<T> {
         // Simplified implementation
         Ok(AdaptationResult {
             success: true,
-            improvement: T::from(0.15).unwrap(),
+            improvement: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
             adaptation_time: std::time::Duration::from_millis(100),
-            final_performance: T::from(0.85).unwrap(),
+            final_performance: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1561,8 +1561,8 @@ impl<T: Float> Default for SupportSetStatistics<T> {
     fn default() -> Self {
         Self {
             total_sets: 0,
-            average_quality: T::from(0.5).unwrap(),
-            quality_variance: T::from(0.1).unwrap(),
+            average_quality: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            quality_variance: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             size_distribution: vec![],
         }
     }
@@ -1678,7 +1678,7 @@ impl<T: Float + Send + Sync> TaskDistributionEstimator<T> {
         Self {
             distribution_model: DistributionModel::Gaussian(T::zero(), T::one()),
             parameter_estimates: HashMap::new(),
-            confidence: T::from(0.8).unwrap(),
+            confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             sample_history: VecDeque::new(),
         }
     }
@@ -1687,7 +1687,7 @@ impl<T: Float + Send + Sync> TaskDistributionEstimator<T> {
 impl<T: Float + Send + Sync> TaskNoveltyDetector<T> {
     fn new() -> Self {
         Self {
-            novelty_threshold: T::from(0.5).unwrap(),
+            novelty_threshold: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             reference_distribution: TaskDistribution {
                 parameters: HashMap::new(),
                 distribution_type: DistributionType::Gaussian,
@@ -1726,11 +1726,11 @@ impl<T: Float + Send + Sync> ConvergenceDetector<T> {
         Self {
             criteria: vec![ConvergenceCriterion {
                 criterion_type: ConvergenceCriterionType::GradientNorm,
-                threshold: T::from(1e-6).unwrap(),
+                threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
                 _windowsize: 10,
                 weight: T::one(),
             }],
-            threshold: T::from(1e-6).unwrap(),
+            threshold: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             history_window: 10,
             detection_history: VecDeque::new(),
         }
@@ -1836,11 +1836,11 @@ impl<T: Float + Send + Sync> DifficultyFeatureExtractor<T> {
 impl<T: Float> Default for FewShotMetrics<T> {
     fn default() -> Self {
         Self {
-            avg_performance: T::from(0.5).unwrap(),
-            performance_variance: T::from(0.1).unwrap(),
-            avg_adaptation_speed: T::from(1.0).unwrap(),
-            success_rate: T::from(0.8).unwrap(),
-            generalization_score: T::from(0.7).unwrap(),
+            avg_performance: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            performance_variance: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            avg_adaptation_speed: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            success_rate: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            generalization_score: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1849,9 +1849,9 @@ impl<T: Float> Default for PerformanceTrends<T> {
     fn default() -> Self {
         Self {
             trend_direction: TrendDirection::Stable,
-            trend_strength: T::from(0.1).unwrap(),
-            volatility: T::from(0.05).unwrap(),
-            confidence: T::from(0.8).unwrap(),
+            trend_strength: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            volatility: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1860,8 +1860,8 @@ impl<T: Float> Default for StoppingCriterion<T> {
     fn default() -> Self {
         Self {
             max_iterations: 1000,
-            performance_threshold: T::from(0.95).unwrap(),
-            improvement_threshold: T::from(0.001).unwrap(),
+            performance_threshold: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            improvement_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             time_budget: Some(std::time::Duration::from_secs(300)),
         }
     }
@@ -1881,9 +1881,9 @@ impl<T: Float> Default for AdaptationStatistics<T> {
     fn default() -> Self {
         Self {
             avg_adaptation_time: std::time::Duration::from_millis(100),
-            success_rate: T::from(0.8).unwrap(),
-            avg_improvement: T::from(0.1).unwrap(),
-            adaptation_variance: T::from(0.05).unwrap(),
+            success_rate: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            avg_improvement: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            adaptation_variance: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
         }
     }
 }

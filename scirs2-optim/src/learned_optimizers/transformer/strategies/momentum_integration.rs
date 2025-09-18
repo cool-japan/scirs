@@ -237,7 +237,7 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
             *v = v.clone() * beta2 + &grad_squared * (T::one() - beta2);
             
             // Bias correction
-            let step = T::from(self.step_count as f64).unwrap();
+            let step = num_traits::cast::cast(self.step_count as f64).unwrap_or_else(|| T::zero());
             let bias_correction1 = T::one() - beta1.powf(step);
             let bias_correction2 = T::one() - beta2.powf(step);
             
@@ -285,7 +285,7 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
         // This would use a separate network to predict optimal momentum coefficients
         // For now, use adaptive coefficients based on gradient properties
         let grad_norm = gradients.iter().map(|&x| x * x).fold(T::zero(), |a, b| a + b).sqrt();
-        let adaptive_beta = T::from(0.9).unwrap() * (T::one() / (T::one() + grad_norm));
+        let adaptive_beta = num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()) * (T::one() / (T::one() + grad_norm));
         
         if self.velocity.is_none() {
             self.velocity = Some(Array1::zeros(gradients.len()));
@@ -407,7 +407,7 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
             let mut scaling = Array1::zeros(seq_len);
             for i in 0..seq_len {
                 let column_sum = (0..num_heads).map(|h| attention_weights[[h, i]]).sum::<T>();
-                scaling[i] = column_sum / total_attention * T::from(seq_len as f64).unwrap();
+                scaling[i] = column_sum / total_attention * num_traits::cast::cast(seq_len as f64).unwrap_or_else(|| T::zero());
             }
             
             self.attention_scaling = Some(scaling);
@@ -432,8 +432,8 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
                 m: Array1::zeros(actual_size),
                 v: Array1::zeros(actual_size),
                 group_id: i,
-                group_beta1: self.momentum_params.beta1 * T::from(0.8 + 0.2 * i as f64 / num_groups as f64).unwrap(),
-                group_beta2: self.momentum_params.beta2 * T::from(0.9 + 0.1 * i as f64 / num_groups as f64).unwrap(),
+                group_beta1: self.momentum_params.beta1 * num_traits::cast::cast(0.8 + 0.2 * i as f64 / num_groups as f64).unwrap_or_else(|| T::zero()),
+                group_beta2: self.momentum_params.beta2 * num_traits::cast::cast(0.9 + 0.1 * i as f64 / num_groups as f64).unwrap_or_else(|| T::zero()),
             };
             
             self.hierarchical_moments.push(state);
@@ -462,8 +462,8 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
             MomentumStatistics {
                 avg_momentum_magnitude: magnitude,
                 momentum_variance: variance,
-                direction_consistency: T::from(0.8).unwrap(), // Placeholder
-                acceleration_magnitude: T::from(0.1).unwrap(), // Placeholder
+                direction_consistency: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()), // Placeholder
+                acceleration_magnitude: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // Placeholder
                 update_count: self.step_count,
             }
         } else {
@@ -502,13 +502,13 @@ impl<T: Float + Default + Clone> MomentumIntegrator<T> {
 impl<T: Float + Default + Clone> Default for MomentumParams<T> {
     fn default() -> Self {
         Self {
-            beta1: T::from(0.9).unwrap(),
-            beta2: T::from(0.999).unwrap(),
-            epsilon: T::from(1e-8).unwrap(),
-            decay_rate: T::from(0.99).unwrap(),
-            adaptive_scale: T::from(1.0).unwrap(),
-            attention_weight: T::from(0.1).unwrap(),
-            variance_weight: T::from(0.99).unwrap(),
+            beta1: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+            beta2: num_traits::cast::cast(0.999).unwrap_or_else(|| T::zero()),
+            epsilon: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
+            decay_rate: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
+            adaptive_scale: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
+            attention_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            variance_weight: num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero()),
         }
     }
 }

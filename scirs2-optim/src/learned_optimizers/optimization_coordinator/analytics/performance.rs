@@ -622,7 +622,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> PerformanceAnalyzer<T> {
             }
         }
 
-        Ok(T::from(improvement_count).unwrap() / T::from(snapshots.len() - 1).unwrap())
+        Ok(num_traits::cast::cast(improvement_count).unwrap_or_else(|| T::zero()) / T::from(snapshots.len() - 1).unwrap())
     }
 }
 
@@ -738,7 +738,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> PerformanceModel<T> {
         let trend = (recent_losses[0] - recent_losses[recent_losses.len() - 1]) /
                    T::from(recent_losses.len() - 1).unwrap();
 
-        Ok(recent_losses[0] + trend * T::from(steps_ahead).unwrap())
+        Ok(recent_losses[0] + trend * num_traits::cast::cast(steps_ahead).unwrap_or_else(|| T::zero()))
     }
 
     /// Predict accuracy for future step
@@ -778,7 +778,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ConfidenceEstimator<T> {
     /// Estimate confidence for predictions
     pub fn estimate_confidence(&self, _predictions: &[PerformanceSnapshot<T>]) -> Result<Vec<T>> {
         // Simplified confidence estimation
-        Ok(vec![T::from(0.8).unwrap(); _predictions.len()])
+        Ok(vec![num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()); _predictions.len()])
     }
 }
 

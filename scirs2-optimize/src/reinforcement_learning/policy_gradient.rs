@@ -1123,9 +1123,9 @@ mod tests {
     #[test]
     fn test_meta_optimization() {
         let config = RLOptimizationConfig {
-            num_episodes: 5,
-            max_steps_per_episode: 10,
-            learning_rate: 0.1,
+            num_episodes: 20,
+            max_steps_per_episode: 25,
+            learning_rate: 0.01,
             ..Default::default()
         };
 

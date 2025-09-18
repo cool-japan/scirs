@@ -214,7 +214,7 @@ impl<T: Float + Default + Clone> LayerNormalization<T> {
         Ok(Self {
             gamma: Array1::ones(features),
             beta: Array1::zeros(features),
-            epsilon: T::from(1e-5).unwrap(),
+            epsilon: num_traits::cast::cast(1e-5).unwrap_or_else(|| T::zero()),
         })
     }
 
@@ -1090,7 +1090,7 @@ impl<
             OutputTransform::Identity => lstm_output.clone(),
             OutputTransform::Tanh => lstm_output.mapv(|x| x.tanh()),
             OutputTransform::ScaledTanh { scale } => {
-                let scale_t = T::from(scale).unwrap();
+                let scale_t = num_traits::cast::cast(scale).unwrap_or_else(|| T::zero());
                 lstm_output.mapv(|x| x.tanh() * scale_t)
             }
             OutputTransform::AdaptiveScale => {
@@ -1356,11 +1356,11 @@ impl<T: Float + Default + Clone + 'static> LSTMNetwork<T> {
         // Simplified dropout implementation
         Ok(input.mapv(|x| {
             if T::from(scirs2_core::random::rng().gen_range(0.0..1.0)).unwrap()
-                < T::from(self.dropout_rate).unwrap()
+                < num_traits::cast::cast(self.dropout_rate).unwrap_or_else(|| T::zero())
             {
                 T::zero()
             } else {
-                x / T::from(1.0 - self.dropout_rate).unwrap()
+                x / num_traits::cast::cast(1.0 - self.dropout_rate).unwrap_or_else(|| T::zero())
             }
         }))
     }
@@ -1421,7 +1421,7 @@ impl<T: Float + Default + Clone + 'static> LSTMLayer<T> {
     fn xavier_init(rows: usize, cols: usize, scale: f64) -> Array2<T> {
         Array2::from_shape_fn((rows, cols), |_| {
             let val = (scirs2_core::random::rng().gen_range(0.0..1.0) - 0.5) * 2.0 * scale;
-            T::from(val).unwrap()
+            num_traits::cast::cast(val).unwrap_or_else(|| T::zero())
         })
     }
 
@@ -1494,7 +1494,7 @@ impl<T: Float + Default + Clone> HistoryBuffer<T> {
         let prev_loss = self.losses[self.losses.len() - 2];
 
         let loss_change = current_loss - prev_loss;
-        let loss_ratio = if prev_loss.abs() > T::from(1e-8).unwrap() {
+        let loss_ratio = if prev_loss.abs() > num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()) {
             current_loss / prev_loss
         } else {
             T::one()
@@ -1588,8 +1588,8 @@ impl<T: Float + Default + Clone> MetaLearner<T> {
             task_history: VecDeque::new(),
             meta_state: MetaLearningState {
                 meta_step: 0,
-                meta_lr: T::from(0.001).unwrap(),
-                adaptation_rate: T::from(0.1).unwrap(),
+                meta_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+                adaptation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                 meta_validation_performance: T::zero(),
                 adaptation_history: VecDeque::new(),
                 inner_loop_state: InnerLoopState {
@@ -1643,15 +1643,15 @@ impl<T: Float + Default + Clone> AdaptiveLearningRateController<T> {
     fn new(config: &LearnedOptimizerConfig) -> Result<Self> {
         // Placeholder implementation
         Ok(Self {
-            base_lr: T::from(0.001).unwrap(),
-            current_lr: T::from(0.001).unwrap(),
+            base_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
+            current_lr: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             adaptation_params: LRAdaptationParams {
-                momentum: T::from(0.9).unwrap(),
-                gradient_sensitivity: T::from(0.1).unwrap(),
-                loss_sensitivity: T::from(0.1).unwrap(),
-                min_lr: T::from(1e-6).unwrap(),
-                max_lr: T::from(0.1).unwrap(),
-                adaptation_rate: T::from(0.01).unwrap(),
+                momentum: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                gradient_sensitivity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                loss_sensitivity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                min_lr: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+                max_lr: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                adaptation_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             },
             lr_history: VecDeque::new(),
             performance_tracker: PerformanceTracker {

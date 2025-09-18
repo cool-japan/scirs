@@ -968,11 +968,11 @@ impl Default for ModelTrackingConfig {
 impl<T: Float> Default for ConvergenceParameters<T> {
     fn default() -> Self {
         Self {
-            loss_tolerance: T::from(1e-6).unwrap(),
-            gradient_tolerance: T::from(1e-8).unwrap(),
-            parameter_tolerance: T::from(1e-6).unwrap(),
+            loss_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+            gradient_tolerance: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
+            parameter_tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             window_size: 10,
-            min_improvement: T::from(1e-4).unwrap(),
+            min_improvement: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             patience: 10,
         }
     }
@@ -983,7 +983,7 @@ impl<T: Float> Default for EarlyStoppingConfig<T> {
         Self {
             enabled: true,
             monitor_metric: "val_loss".to_string(),
-            min_delta: T::from(1e-4).unwrap(),
+            min_delta: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             patience: 10,
             restore_best_weights: true,
             mode: EarlyStoppingMode::Min,

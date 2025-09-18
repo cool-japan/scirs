@@ -154,7 +154,7 @@ impl<T: Float> LinearLayer<T> {
 
     /// Create with He initialization (better for ReLU)
     pub fn new_he_init(input_dim: usize, output_dim: usize) -> Result<Self> {
-        let scale = T::from(2.0 / input_dim as f64).unwrap().sqrt();
+        let scale = num_traits::cast::cast(2.0 / input_dim as f64).unwrap_or_else(|| T::zero()).sqrt();
         let mut weight = Array2::zeros((input_dim, output_dim));
         let bias = Array1::zeros(output_dim);
 

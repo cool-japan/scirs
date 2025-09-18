@@ -428,7 +428,7 @@ impl<T: Float + Default + std::fmt::Debug> SurrogateModel<T> {
                     .fold(T::zero(), |acc, x| acc + x);
                 
                 // exp(-γ * ||x1 - x2||²)
-                let gamma = T::from(1.0).unwrap();
+                let gamma = num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero());
                 (-gamma * squared_distance).exp()
             }
             _ => T::one(), // Placeholder for other kernels

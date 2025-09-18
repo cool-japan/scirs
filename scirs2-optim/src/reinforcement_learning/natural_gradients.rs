@@ -78,12 +78,12 @@ impl<T: Float> Default for NaturalGradientConfig<T> {
         Self {
             base_config: RLOptimizerConfig::default(),
             fisher_method: FisherEstimationMethod::Empirical,
-            damping: T::from(1e-4).unwrap(),
+            damping: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             fisher_update_freq: 10,
             use_empirical_fisher: true,
             cg_iters: 10,
-            cg_tolerance: T::from(1e-8).unwrap(),
-            natural_grad_scale: T::from(1.0).unwrap(),
+            cg_tolerance: num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()),
+            natural_grad_scale: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             enable_preconditioning: true,
             diagonal_fisher: false,
             block_diagonal_fisher: false,
@@ -184,9 +184,9 @@ impl<T: Float + ScalarOperand + std::ops::AddAssign + std::iter::Sum, P: PolicyN
 
         let natural_grad_state = NaturalGradientState {
             prev_natural_grad: None,
-            momentum: T::from(0.9).unwrap(),
+            momentum: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             adaptive_scales: None,
-            trust_radius: T::from(1.0).unwrap(),
+            trust_radius: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             kl_history: Vec::new(),
         };
 
@@ -294,8 +294,8 @@ impl<T: Float + ScalarOperand + std::ops::AddAssign + std::iter::Sum, P: PolicyN
             diagonal = diagonal + log_prob_grad.mapv(|x| x * x);
         }
 
-        diagonal = diagonal / T::from(batch_size).unwrap();
-        diagonal = diagonal + T::from(self._config.damping).unwrap();
+        diagonal = diagonal / num_traits::cast::cast(batch_size).unwrap_or_else(|| T::zero());
+        diagonal = diagonal + num_traits::cast::cast(self._config.damping).unwrap_or_else(|| T::zero());
 
         self.fisher_diagonal = Some(diagonal);
 
@@ -458,7 +458,7 @@ impl<T: Float + ScalarOperand + std::ops::AddAssign + std::iter::Sum, P: PolicyN
 
         // Normalize by sample count
         let fisher = &self.empirical_fisher_accumulator.fisher_sum
-            / T::from(self.empirical_fisher_accumulator.sample_count).unwrap();
+            / num_traits::cast::cast(self.empirical_fisher_accumulator.sample_count).unwrap_or_else(|| T::zero());
 
         // Add damping for numerical stability
         let mut damped_fisher = fisher;

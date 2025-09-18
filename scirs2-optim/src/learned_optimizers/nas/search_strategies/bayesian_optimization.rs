@@ -368,7 +368,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
 
     /// Optimize acquisition function to find next candidate
     fn optimize_acquisition_function(&mut self) -> Result<ArchitectureRepresentation<T>> {
-        let mut best_acquisition_value = T::from(f64::NEG_INFINITY).unwrap();
+        let mut best_acquisition_value = num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero());
         let mut best_candidate = None;
 
         // Multiple random restarts
@@ -398,7 +398,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
             |_| T::from(rng.random::<f64>()).unwrap()
         );
 
-        let step_size = T::from(0.01).unwrap();
+        let step_size = num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero());
         let max_iterations = 100;
 
         // Simple gradient ascent (simplified)
@@ -433,7 +433,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
 
     /// Approximate gradient of acquisition function using finite differences
     fn approximate_acquisition_gradient(&self, features: &Array1<T>) -> Result<Array1<T>> {
-        let epsilon = T::from(1e-6).unwrap();
+        let epsilon = num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero());
         let mut gradient = Array1::zeros(features.len());
 
         for i in 0..features.len() {
@@ -445,7 +445,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
 
             let arch_plus = ArchitectureRepresentation {
                 features: features_plus,
-                complexity: T::from(0.5).unwrap(),
+                complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                 metadata: ArchitectureMetadata {
                     num_layers: 5,
                     num_parameters: 50000,
@@ -456,7 +456,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
 
             let arch_minus = ArchitectureRepresentation {
                 features: features_minus,
-                complexity: T::from(0.5).unwrap(),
+                complexity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                 metadata: ArchitectureMetadata {
                     num_layers: 5,
                     num_parameters: 50000,
@@ -468,7 +468,7 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
             let acq_plus = self.evaluate_acquisition_function(&arch_plus)?;
             let acq_minus = self.evaluate_acquisition_function(&arch_minus)?;
 
-            gradient[i] = (acq_plus - acq_minus) / (T::from(2.0).unwrap() * epsilon);
+            gradient[i] = (acq_plus - acq_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * epsilon);
         }
 
         Ok(gradient)
@@ -534,32 +534,32 @@ impl<T: Float + Default + Clone> BayesianArchitectureOptimizer<T> {
             let poi = self.standard_normal_cdf(z);
             Ok(poi)
         } else {
-            Ok(T::from(0.5).unwrap())
+            Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
         }
     }
 
     /// Standard normal PDF (simplified approximation)
     fn standard_normal_pdf(&self, x: T) -> T {
-        let pi = T::from(std::f64::consts::PI).unwrap();
-        let coefficient = T::one() / (T::from(2.0).unwrap() * pi).sqrt();
-        coefficient * (-x * x / T::from(2.0).unwrap()).exp()
+        let pi = num_traits::cast::cast(std::f64::consts::PI).unwrap_or_else(|| T::zero());
+        let coefficient = T::one() / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * pi).sqrt();
+        coefficient * (-x * x / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())).exp()
     }
 
     /// Standard normal CDF (simplified approximation)
     fn standard_normal_cdf(&self, x: T) -> T {
         // Using error function approximation
-        T::from(0.5).unwrap() * (T::one() + self.erf(x / T::from(2.0_f64.sqrt()).unwrap()))
+        num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()) * (T::one() + self.erf(x / T::from(2.0_f64.sqrt()).unwrap()))
     }
 
     /// Error function approximation
     fn erf(&self, x: T) -> T {
         // Abramowitz and Stegun approximation
-        let a1 = T::from(0.254829592).unwrap();
-        let a2 = T::from(-0.284496736).unwrap();
-        let a3 = T::from(1.421413741).unwrap();
-        let a4 = T::from(-1.453152027).unwrap();
-        let a5 = T::from(1.061405429).unwrap();
-        let p = T::from(0.3275911).unwrap();
+        let a1 = num_traits::cast::cast(0.254829592).unwrap_or_else(|| T::zero());
+        let a2 = num_traits::cast::cast(-0.284496736).unwrap_or_else(|| T::zero());
+        let a3 = num_traits::cast::cast(1.421413741).unwrap_or_else(|| T::zero());
+        let a4 = num_traits::cast::cast(-1.453152027).unwrap_or_else(|| T::zero());
+        let a5 = num_traits::cast::cast(1.061405429).unwrap_or_else(|| T::zero());
+        let p = num_traits::cast::cast(0.3275911).unwrap_or_else(|| T::zero());
 
         let sign = if x >= T::zero() { T::one() } else { -T::one() };
         let x_abs = x.abs();
@@ -689,7 +689,7 @@ impl<T: Float + Default + Clone> GaussianProcess<T> {
             k_star_star
         };
 
-        Ok((mean, variance.max(T::from(1e-6).unwrap())))
+        Ok((mean, variance.max(num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()))))
     }
 
     fn compute_covariance_matrix(&mut self) -> Result<()> {
@@ -705,7 +705,7 @@ impl<T: Float + Default + Clone> GaussianProcess<T> {
         }
 
         // Add noise to diagonal
-        let noise_var = T::from(1e-6).unwrap(); // Small noise for numerical stability
+        let noise_var = num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()); // Small noise for numerical stability
         for i in 0..n {
             cov_matrix[[i, i]] = cov_matrix[[i, i]] + noise_var;
         }
@@ -723,7 +723,7 @@ impl<T: Float + Default + Clone> GaussianProcess<T> {
             Kernel::RBF { length_scale } => {
                 let diff = x1 - x2;
                 let squared_distance = diff.iter().map(|&x| x * x).fold(T::zero(), |acc, x| acc + x);
-                Ok((-squared_distance / (T::from(2.0).unwrap() * *length_scale * *length_scale)).exp())
+                Ok((-squared_distance / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * *length_scale * *length_scale)).exp())
             }
             Kernel::Matern32 { length_scale } => {
                 let diff = x1 - x2;
@@ -735,7 +735,7 @@ impl<T: Float + Default + Clone> GaussianProcess<T> {
                 // Default to RBF
                 let diff = x1 - x2;
                 let squared_distance = diff.iter().map(|&x| x * x).fold(T::zero(), |acc, x| acc + x);
-                Ok((-squared_distance / T::from(2.0).unwrap()).exp())
+                Ok((-squared_distance / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())).exp())
             }
         }
     }
@@ -747,7 +747,7 @@ impl<T: Float + Default + Clone> GaussianProcess<T> {
         
         // Add small regularization to diagonal
         for i in 0..n {
-            result[[i, i]] = T::one() / (matrix[[i, i]] + T::from(1e-6).unwrap());
+            result[[i, i]] = T::one() / (matrix[[i, i]] + num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()));
         }
         
         Ok(result)
@@ -763,12 +763,12 @@ impl<T: Float + Default + Clone> ArchitectureEncoder<T> {
         // Initialize some default encodings
         layer_encodings.insert("dense".to_string(), Array1::ones(encoding_dim / 4));
         layer_encodings.insert("lstm".to_string(), Array1::zeros(encoding_dim / 4));
-        layer_encodings.insert("attention".to_string(), Array1::from_elem(encoding_dim / 4, T::from(0.5).unwrap()));
+        layer_encodings.insert("attention".to_string(), Array1::from_elem(encoding_dim / 4, num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())));
 
         connection_encodings.insert("sequential".to_string(), Array1::ones(encoding_dim / 4));
         connection_encodings.insert("skip".to_string(), Array1::zeros(encoding_dim / 4));
 
-        param_normalizers.insert("num_parameters".to_string(), (T::from(50000.0).unwrap(), T::from(25000.0).unwrap()));
+        param_normalizers.insert("num_parameters".to_string(), (num_traits::cast::cast(50000.0).unwrap_or_else(|| T::zero()), num_traits::cast::cast(25000.0).unwrap_or_else(|| T::zero())));
 
         Ok(Self {
             encoding_dim,
@@ -784,7 +784,7 @@ impl<T: Float + Default + Clone> AcquisitionOptimizer<T> {
         Ok(Self {
             bounds,
             num_restarts,
-            tolerance: T::from(1e-6).unwrap(),
+            tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
             max_iterations: 100,
         })
     }
@@ -812,10 +812,10 @@ impl<T: Float + Default + Clone> Default for BayesianOptConfig<T> {
             acquisition_function: AcquisitionFunction::ExpectedImprovement,
             kernel_type: KernelType::RBF,
             kernel_params,
-            noise_variance: T::from(1e-6).unwrap(),
-            exploration_weight: T::from(2.0).unwrap(),
+            noise_variance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+            exploration_weight: num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()),
             max_complexity: 1000000,
-            convergence_tolerance: T::from(1e-4).unwrap(),
+            convergence_tolerance: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             num_acquisition_restarts: 10,
         }
     }

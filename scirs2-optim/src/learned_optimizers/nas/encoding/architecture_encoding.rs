@@ -732,8 +732,8 @@ impl<T: Float + Default + Clone> ArchitectureEncoder<T> {
     fn apply_minmax_normalization(&self, data: &mut Array2<T>) -> Result<()> {
         for j in 0..data.ncols() {
             let mut col = data.column_mut(j);
-            let min_val = col.iter().cloned().fold(T::from(f64::INFINITY).unwrap(), T::min);
-            let max_val = col.iter().cloned().fold(T::from(f64::NEG_INFINITY).unwrap(), T::max);
+            let min_val = col.iter().cloned().fold(num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero()), T::min);
+            let max_val = col.iter().cloned().fold(num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()), T::max);
             
             if max_val > min_val {
                 let range = max_val - min_val;
@@ -807,16 +807,16 @@ impl<T: Float + Default + Clone> ArchitectureEncoder<T> {
         let stats = self.normalization_stats.entry(stats_key).or_insert_with(|| NormalizationStats {
             mean: Array1::zeros(encoded.primary_encoding.ncols()),
             std: Array1::ones(encoded.primary_encoding.ncols()),
-            min: Array1::from_elem(encoded.primary_encoding.ncols(), T::from(f64::INFINITY).unwrap()),
-            max: Array1::from_elem(encoded.primary_encoding.ncols(), T::from(f64::NEG_INFINITY).unwrap()),
+            min: Array1::from_elem(encoded.primary_encoding.ncols(), num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero())),
+            max: Array1::from_elem(encoded.primary_encoding.ncols(), num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero())),
             sample_count: 0,
         });
         
         // Update statistics
         for j in 0..encoded.primary_encoding.ncols() {
             let col = encoded.primary_encoding.column(j);
-            let col_min = col.iter().cloned().fold(T::from(f64::INFINITY).unwrap(), T::min);
-            let col_max = col.iter().cloned().fold(T::from(f64::NEG_INFINITY).unwrap(), T::max);
+            let col_min = col.iter().cloned().fold(num_traits::cast::cast(f64::INFINITY).unwrap_or_else(|| T::zero()), T::min);
+            let col_max = col.iter().cloned().fold(num_traits::cast::cast(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()), T::max);
             
             stats.min[j] = stats.min[j].min(col_min);
             stats.max[j] = stats.max[j].max(col_max);
@@ -871,7 +871,7 @@ impl<T: Float + Default + Clone> SequentialEncoder<T> {
         
         for pos in 0..max_length {
             for i in 0..(embedding_dim / 2) {
-                let angle = T::from(pos as f64).unwrap() / 
+                let angle = num_traits::cast::cast(pos as f64).unwrap_or_else(|| T::zero()) / 
                            T::from(10000.0_f64.powf(2.0 * i as f64 / embedding_dim as f64)).unwrap();
                 pos_encoding[[pos, 2 * i]] = angle.sin();
                 pos_encoding[[pos, 2 * i + 1]] = angle.cos();
@@ -921,10 +921,10 @@ impl<T: Float + Default + Clone> EncodingStrategy<T> for SequentialEncoder<T> {
                     .unwrap_or_default()
                     .as_secs(),
                 quality_metrics: EncodingQualityMetrics {
-                    information_preservation: T::from(0.9).unwrap(),
+                    information_preservation: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                     compression_ratio: T::from(seq_len as f64 / architecture.operations.len() as f64).unwrap(),
-                    stability: T::from(0.8).unwrap(),
-                    semantic_consistency: T::from(0.85).unwrap(),
+                    stability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+                    semantic_consistency: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
                 },
                 reconstruction_error: None,
                 version: "1.0".to_string(),
@@ -1026,7 +1026,7 @@ impl<T: Float + Default + Clone> EncodingStrategy<T> for GraphEncoder<T> {
         // Encode node features
         for (i, operation) in architecture.operations.iter().enumerate().take(num_nodes) {
             // Simple encoding - in practice would be more sophisticated
-            node_features[[i, 0]] = T::from(i as f64).unwrap(); // Node index
+            node_features[[i, 0]] = num_traits::cast::cast(i as f64).unwrap_or_else(|| T::zero()); // Node index
             node_features[[i, 1]] = T::from(operation.parameters.len() as f64).unwrap(); // Parameter count
         }
         
@@ -1036,7 +1036,7 @@ impl<T: Float + Default + Clone> EncodingStrategy<T> for GraphEncoder<T> {
             secondary_encodings: {
                 let mut secondary = HashMap::new();
                 secondary.insert("adjacency_matrix".to_string(), 
-                               architecture.connections.adjacency_matrix.mapv(|x| T::from(x).unwrap()));
+                               architecture.connections.adjacency_matrix.mapv(|x| num_traits::cast::cast(x).unwrap_or_else(|| T::zero())));
                 secondary
             },
             categorical_features: HashMap::new(),
@@ -1050,10 +1050,10 @@ impl<T: Float + Default + Clone> EncodingStrategy<T> for GraphEncoder<T> {
                     .unwrap_or_default()
                     .as_secs(),
                 quality_metrics: EncodingQualityMetrics {
-                    information_preservation: T::from(0.95).unwrap(),
+                    information_preservation: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
                     compression_ratio: T::from(num_nodes as f64 / architecture.operations.len() as f64).unwrap(),
-                    stability: T::from(0.9).unwrap(),
-                    semantic_consistency: T::from(0.9).unwrap(),
+                    stability: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                    semantic_consistency: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                 },
                 reconstruction_error: None,
                 version: "1.0".to_string(),

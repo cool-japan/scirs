@@ -123,7 +123,7 @@ impl<T: Float + Default + Clone> OutputProjectionLayer<T> {
             }
             OutputTransformation::LearnedActivation => {
                 // For now, use a simple learned scaling
-                output.mapv_inplace(|x| x * T::from(1.1).unwrap());
+                output.mapv_inplace(|x| x * num_traits::cast::cast(1.1).unwrap_or_else(|| T::zero()));
             }
             OutputTransformation::ParameterScaling => {
                 // Apply different scaling per parameter dimension

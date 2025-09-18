@@ -962,10 +962,10 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
             // Update existing pattern with new evidence
             existing_pattern.success_probability = (existing_pattern.success_probability
                 + pattern.success_probability)
-                / T::from(2.0).unwrap();
+                / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
             existing_pattern.performance_expectation = (existing_pattern.performance_expectation
                 + pattern.performance_expectation)
-                / T::from(2.0).unwrap();
+                / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
 
             // Merge recommended optimizers
             for optimizer in &pattern.recommended_optimizers {
@@ -996,8 +996,8 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         // Increase success probability for this pattern type
         if let Some(existing_pattern) = self.optimization_patterns.get_mut(&pattern.pattern_id) {
             existing_pattern.success_probability = (existing_pattern.success_probability
-                + T::from(0.1).unwrap())
-            .min(T::from(0.95).unwrap());
+                + num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()))
+            .min(num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()));
         }
 
         // Update best practices based on successful pattern
@@ -1015,8 +1015,8 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         // Decrease success probability
         if let Some(existing_pattern) = self.optimization_patterns.get_mut(&pattern.pattern_id) {
             existing_pattern.success_probability = (existing_pattern.success_probability
-                - T::from(0.05).unwrap())
-            .max(T::from(0.05).unwrap());
+                - num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()))
+            .max(num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()));
         }
 
         // Analyze failure and add to failure analysis database
@@ -1031,7 +1031,7 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         context: &OptimizationContext<T>,
     ) -> Result<Vec<OptimizationPattern<T>>> {
         let mut similar_patterns = Vec::new();
-        let similarity_threshold = T::from(0.8).unwrap();
+        let similarity_threshold = num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero());
 
         for pattern in self.optimization_patterns.values() {
             let similarity = self.compute_pattern_similarity(context, &pattern.characteristics)?;
@@ -1054,7 +1054,7 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
     pub fn prune_knowledge(&mut self) -> Result<()> {
         // Remove patterns with very low success probability
         self.optimization_patterns
-            .retain(|_, pattern| pattern.success_probability > T::from(0.1).unwrap());
+            .retain(|_, pattern| pattern.success_probability > num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()));
 
         // Limit knowledge base size
         if self.optimization_patterns.len() > self.config.max_patterns {
@@ -1092,15 +1092,15 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
             pattern_id: "default_convex".to_string(),
             characteristics: PatternCharacteristics {
                 pattern_type: PatternType::ConvergencePattern,
-                complexity: T::from(0.3).unwrap(),
-                frequency: T::from(0.7).unwrap(),
-                effectiveness: T::from(0.9).unwrap(),
+                complexity: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+                frequency: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+                effectiveness: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
                 domain: ProblemDomain::Optimization,
                 contextual_features: Array1::zeros(5),
             },
             recommended_optimizers: vec!["lbfgs_neural".to_string(), "adam_enhanced".to_string()],
-            success_probability: T::from(0.85).unwrap(),
-            performance_expectation: T::from(0.9).unwrap(),
+            success_probability: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+            performance_expectation: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
             usage_frequency: 0,
             last_updated: SystemTime::now(),
             metadata: HashMap::new(),
@@ -1113,15 +1113,15 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
             pattern_id: "default_nonconvex".to_string(),
             characteristics: PatternCharacteristics {
                 pattern_type: PatternType::PerformancePattern,
-                complexity: T::from(0.7).unwrap(),
-                frequency: T::from(0.6).unwrap(),
-                effectiveness: T::from(0.75).unwrap(),
+                complexity: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+                frequency: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+                effectiveness: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
                 domain: ProblemDomain::GeneralML,
                 contextual_features: Array1::zeros(5),
             },
             recommended_optimizers: vec!["lstm_advanced".to_string(), "meta_learner".to_string()],
-            success_probability: T::from(0.75).unwrap(),
-            performance_expectation: T::from(0.8).unwrap(),
+            success_probability: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
+            performance_expectation: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             usage_frequency: 0,
             last_updated: SystemTime::now(),
             metadata: HashMap::new(),
@@ -1172,7 +1172,7 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
             preconditions: vec!["High complexity".to_string()],
             indicators: Array1::zeros(3),
             frequency: 1,
-            severity: T::from(0.5).unwrap(),
+            severity: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         };
 
         self.failure_analysis
@@ -1190,7 +1190,7 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         characteristics: &PatternCharacteristics<T>,
     ) -> Result<T> {
         // Compute similarity based on problem characteristics
-        let complexity_similarity = T::from(1.0).unwrap()
+        let complexity_similarity = num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())
             - (characteristics.complexity
                 - T::from(context.dimensionality as f64 / 10000.0)
                     .unwrap())
@@ -1199,7 +1199,7 @@ impl<T: Float + Send + Sync + Debug> OptimizationKnowledgeBase<T> {
         let effectiveness_similarity = characteristics.effectiveness;
 
         // Simple weighted average
-        let similarity = (complexity_similarity + effectiveness_similarity) / T::from(2.0).unwrap();
+        let similarity = (complexity_similarity + effectiveness_similarity) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
 
         Ok(similarity)
     }
@@ -1337,7 +1337,7 @@ impl<T: Float + Send + Sync + Debug> KnowledgeIntegrationEngine<T> {
     pub fn new() -> Self {
         Self {
             integration_algorithms: vec!["consensus".to_string(), "weighted_voting".to_string()],
-            confidence_threshold: T::from(0.7).unwrap(),
+            confidence_threshold: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
             consensus_mechanisms: vec![ConsensusMechanism::WeightedVoting],
             integration_history: VecDeque::new(),
         }
@@ -1368,7 +1368,7 @@ impl<T: Float + Send + Sync + Debug> KnowledgeValidationSystem<T> {
     pub fn new() -> Self {
         Self {
             validation_rules: Vec::new(),
-            validation_threshold: T::from(0.8).unwrap(),
+            validation_threshold: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             cross_validation: CrossValidationSystem::new(),
             validation_history: Vec::new(),
         }

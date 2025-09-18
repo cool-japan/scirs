@@ -713,8 +713,8 @@ impl<T: Float> CommunicationManager<T> {
         }
 
         if active_count > 0 {
-            let avg_latency = total_latency / T::from(active_count).unwrap();
-            let avg_throughput = total_throughput / T::from(active_count).unwrap();
+            let avg_latency = total_latency / num_traits::cast::cast(active_count).unwrap_or_else(|| T::zero());
+            let avg_throughput = total_throughput / num_traits::cast::cast(active_count).unwrap_or_else(|| T::zero());
 
             self.statistics.insert("avg_latency_us".to_string(), avg_latency.to_f64().unwrap());
             self.statistics.insert("avg_throughput_mbps".to_string(), avg_throughput.to_f64().unwrap());

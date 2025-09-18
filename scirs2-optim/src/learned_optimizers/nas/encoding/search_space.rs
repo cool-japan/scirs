@@ -1228,7 +1228,7 @@ impl<T: Float + Default + Clone> SearchSpace<T> {
             architecture,
             parameters,
             is_valid: true, // Will be validated later
-            complexity: T::from(num_ops as f64).unwrap(),
+            complexity: num_traits::cast::cast(num_ops as f64).unwrap_or_else(|| T::zero()),
             estimated_performance: HashMap::new(),
             metadata: SamplingMetadata {
                 sampling_method: "random".to_string(),
@@ -1289,7 +1289,7 @@ impl<T: Float + Default + Clone> SearchSpace<T> {
     fn compute_statistics(&mut self) -> Result<()> {
         // Simplified statistics computation
         self.statistics.total_architectures = 1000000; // Estimate
-        self.statistics.avg_complexity = T::from(5.0).unwrap(); // Average depth
+        self.statistics.avg_complexity = num_traits::cast::cast(5.0).unwrap_or_else(|| T::zero()); // Average depth
         
         Ok(())
     }
@@ -1480,14 +1480,14 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
                         memory_estimator: MemoryEstimator {
                             base_memory: 1024,
                             input_scaling: T::one(),
-                            param_overhead: T::from(0.1).unwrap(),
+                            param_overhead: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
                         },
                         latency_estimator: LatencyEstimator {
-                            base_latency: T::from(10.0).unwrap(),
+                            base_latency: num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero()),
                             hardware_multipliers: HashMap::new(),
-                            batch_scaling: T::from(0.8).unwrap(),
+                            batch_scaling: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                         },
-                        parallelizability: T::from(0.8).unwrap(),
+                        parallelizability: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                         memory_pattern: MemoryAccessPattern::Sequential,
                     },
                     compatibility: CompatibilityConstraints {
@@ -1498,11 +1498,11 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
                         exclusion_constraints: Vec::new(),
                     },
                     performance_chars: PerformanceCharacteristics {
-                        accuracy_impact: T::from(0.7).unwrap(),
-                        stability_impact: T::from(0.8).unwrap(),
-                        convergence_impact: T::from(0.6).unwrap(),
-                        generalization_impact: T::from(0.7).unwrap(),
-                        efficiency_score: T::from(0.8).unwrap(),
+                        accuracy_impact: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+                        stability_impact: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+                        convergence_impact: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+                        generalization_impact: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
+                        efficiency_score: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
                     },
                 },
             ],
@@ -1517,8 +1517,8 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
                 max_parameters: Some(10_000_000),
                 max_flops: Some(1_000_000_000),
                 max_memory: Some(1_000_000_000), // 1GB
-                max_latency: Some(T::from(100.0).unwrap()), // 100ms
-                max_energy: Some(T::from(1.0).unwrap()), // 1J
+                max_latency: Some(num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())), // 100ms
+                max_energy: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())), // 1J
                 hardware_constraints: HashMap::new(),
             },
             domain_constraints: DomainConstraints {
@@ -1544,9 +1544,9 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
                     },
                 },
                 performance_requirements: PerformanceRequirements {
-                    min_accuracy: Some(T::from(0.9).unwrap()),
-                    max_inference_time: Some(T::from(100.0).unwrap()),
-                    min_throughput: Some(T::from(10.0).unwrap()),
+                    min_accuracy: Some(num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero())),
+                    max_inference_time: Some(num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())),
+                    min_throughput: Some(num_traits::cast::cast(10.0).unwrap_or_else(|| T::zero())),
                     real_time: false,
                 },
                 regulatory_constraints: RegulatoryConstraints {
@@ -1558,7 +1558,7 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
             },
             complexity_limits: ComplexityLimits {
                 max_space_size: 1_000_000_000,
-                max_arch_complexity: T::from(100.0).unwrap(),
+                max_arch_complexity: num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()),
                 sampling_limits: SamplingLimits {
                     max_samples_per_iteration: 100,
                     max_total_samples: 10000,
@@ -1567,14 +1567,14 @@ impl<T: Float + Default + Clone> Default for SearchSpaceConfig<T> {
                 search_constraints: SearchConstraints {
                     max_search_depth: 100,
                     convergence_criteria: ConvergenceCriteria {
-                        improvement_threshold: T::from(0.001).unwrap(),
+                        improvement_threshold: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
                         patience: 10,
                         min_iterations: 5,
                         max_iterations: 1000,
                     },
                     early_stopping: EarlyStoppingConditions {
-                        performance_threshold: Some(T::from(0.95).unwrap()),
-                        resource_threshold: Some(T::from(0.8).unwrap()),
+                        performance_threshold: Some(num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero())),
+                        resource_threshold: Some(num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero())),
                         time_limit: Some(7200), // 2 hours
                     },
                 },

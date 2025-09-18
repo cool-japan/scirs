@@ -1159,7 +1159,7 @@ impl<T: Float> Default for EarlyStoppingConfig<T> {
         Self {
             enabled: true,
             patience: 20,
-            min_improvement: T::from(0.001).unwrap(),
+            min_improvement: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             convergence_strategy: ConvergenceDetectionStrategy::BestScore,
             min_generations: 10,
         }

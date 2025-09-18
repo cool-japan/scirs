@@ -889,17 +889,17 @@ impl<T: Float> SearchStatistics<T> {
             return T::zero();
         }
 
-        let success_rate = T::from(self.successful_evaluations).unwrap() /
-                          T::from(self.total_architectures_evaluated).unwrap();
+        let success_rate = num_traits::cast::cast(self.successful_evaluations).unwrap_or_else(|| T::zero()) /
+                          num_traits::cast::cast(self.total_architectures_evaluated).unwrap_or_else(|| T::zero());
 
         let time_efficiency = if self.total_search_time.as_secs() > 0 {
-            T::from(self.successful_evaluations).unwrap() /
+            num_traits::cast::cast(self.successful_evaluations).unwrap_or_else(|| T::zero()) /
             T::from(self.total_search_time.as_secs()).unwrap()
         } else {
             T::zero()
         };
 
-        (success_rate + time_efficiency) / T::from(2.0).unwrap()
+        (success_rate + time_efficiency) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero())
     }
 
     /// Check if search has converged
@@ -924,8 +924,8 @@ impl<T: Float> SearchStatistics<T> {
         let recent_scores = &self.score_history[self.score_history.len() - window_size..];
         let older_scores = &self.score_history[self.score_history.len() - window_size * 2..self.score_history.len() - window_size];
 
-        let recent_mean = recent_scores.iter().fold(T::zero(), |a, &b| a + b) / T::from(window_size).unwrap();
-        let older_mean = older_scores.iter().fold(T::zero(), |a, &b| a + b) / T::from(window_size).unwrap();
+        let recent_mean = recent_scores.iter().fold(T::zero(), |a, &b| a + b) / num_traits::cast::cast(window_size).unwrap_or_else(|| T::zero());
+        let older_mean = older_scores.iter().fold(T::zero(), |a, &b| a + b) / num_traits::cast::cast(window_size).unwrap_or_else(|| T::zero());
 
         Some(recent_mean - older_mean)
     }

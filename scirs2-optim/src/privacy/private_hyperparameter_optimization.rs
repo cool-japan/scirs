@@ -1124,7 +1124,7 @@ impl<T: Float + 'static + Send + Sync> PrivateHyperparameterOptimizer<T> {
 
         let improvement = best_recent - best_overall;
 
-        Ok(improvement < T::from(self.config.early_stopping.min_improvement).unwrap())
+        Ok(improvement < num_traits::cast::cast(self.config.early_stopping.min_improvement).unwrap_or_else(|| T::zero()))
     }
 
     /// Compute optimization statistics
@@ -1286,7 +1286,7 @@ impl<T: Float + Send + Sync> NoisyOptimizer<T> for PrivateRandomSearch<T> {
                     let max = param_def
                         .bounds
                         .max
-                        .unwrap_or(T::from(100).unwrap())
+                        .unwrap_or(num_traits::cast::cast(100).unwrap_or_else(|| T::zero()))
                         .to_i64()
                         .unwrap_or(100);
                     ParameterValue::Integer(self.rng.gen_range(min..max + 1))
@@ -1375,7 +1375,7 @@ impl<T: Float + Send + Sync> NoisyOptimizer<T> for PrivateBayesianOptimization<T
                     }
                     _ => {
                         // Simplified for other types
-                        ParameterValue::Continuous(T::from(0.5).unwrap())
+                        ParameterValue::Continuous(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
                     }
                 };
                 values.insert(param_name.clone(), value);
@@ -1601,7 +1601,7 @@ impl<T: Float + Send + Sync> PrivateObjective<T> {
             .add_noise(objective_value, privacy_budget)?;
 
         Ok(HPOResult {
-            objective_value: T::from(noisy_value).unwrap(),
+            objective_value: num_traits::cast::cast(noisy_value).unwrap_or_else(|| T::zero()),
             standard_error: None,
             cv_scores: None,
             training_time: None,
@@ -1721,9 +1721,9 @@ impl<T: Float + Send + Sync> SearchStrategy<T> {
             exploration_factor: 0.1,
             convergence_criteria: ConvergenceCriteria {
                 max_iterations: 100,
-                tolerance: T::from(1e-6).unwrap(),
+                tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
                 patience: 10,
-                min_change: T::from(1e-4).unwrap(),
+                min_change: num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
             },
         }
     }
@@ -1834,7 +1834,7 @@ impl<T: Float + Send + Sync> ResultValidator<T> {
 impl<T: Float + Send + Sync> AnomalyDetector<T> {
     pub fn new() -> Self {
         Self {
-            threshold: T::from(3.0).unwrap(),
+            threshold: num_traits::cast::cast(3.0).unwrap_or_else(|| T::zero()),
             detection_method: AnomalyDetectionMethod::ZScore,
             baseline: None,
         }
@@ -1866,7 +1866,7 @@ impl<T: Float + Send + Sync> AcquisitionFunction<T> {
         Self {
             function_type: AcquisitionFunctionType::ExpectedImprovement,
             parameters: Vec::new(),
-            exploration_weight: T::from(0.1).unwrap(),
+            exploration_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
         }
     }
 }

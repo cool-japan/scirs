@@ -109,7 +109,7 @@ pub trait AdaptationTrigger<T: Float>: Send + Sync + Debug {
 
     /// Get the urgency level of this trigger (0.0 to 1.0)
     fn urgency(&self, context: &OptimizationContext<T>) -> T {
-        T::from(0.5).unwrap()
+        num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())
     }
 
     /// Get additional metadata for the trigger
@@ -466,7 +466,7 @@ impl<T: Float + Send + Sync + Debug + 'static> AdaptationController<T> {
             .count();
 
         let success_rate = if total_adaptations > 0 {
-            T::from(successful_adaptations as f64 / total_adaptations as f64).unwrap()
+            num_traits::cast::cast(successful_adaptations as f64 / total_adaptations as f64).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -479,7 +479,7 @@ impl<T: Float + Send + Sync + Debug + 'static> AdaptationController<T> {
                 .map(|after| after - self.adaptation_history[0].performance_before)
                 .fold(T::zero(), |acc, x| acc + x);
 
-            total_improvement / T::from(successful_adaptations).unwrap()
+            total_improvement / num_traits::cast::cast(successful_adaptations).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -504,11 +504,11 @@ impl<T: Float + Send + Sync + Debug + 'static> AdaptationController<T> {
     /// Setup default triggers
     pub fn setup_default_triggers(&mut self) -> Result<()> {
         // Add default performance degradation trigger
-        let degradation_trigger = Box::new(PerformanceDegradationTrigger::new(T::from(0.1).unwrap()));
+        let degradation_trigger = Box::new(PerformanceDegradationTrigger::new(num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())));
         self.triggers.push(degradation_trigger);
 
         // Add convergence stagnation trigger
-        let stagnation_trigger = Box::new(ConvergenceStagnationTrigger::new(T::from(0.01).unwrap()));
+        let stagnation_trigger = Box::new(ConvergenceStagnationTrigger::new(num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero())));
         self.triggers.push(stagnation_trigger);
 
         Ok(())
@@ -594,7 +594,7 @@ impl<T: Float> Default for AdaptationConfig<T> {
         Self {
             max_adaptations_per_window: 10,
             adaptation_window: Duration::from_secs(300), // 5 minutes
-            min_effectiveness_threshold: T::from(0.01).unwrap(),
+            min_effectiveness_threshold: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             failed_adaptation_cooldown: Duration::from_secs(60),
             conservative_mode: false,
         }
@@ -651,7 +651,7 @@ impl<T: Float + Send + Sync + Debug> AdaptationTrigger<T> for PerformanceDegrada
             let drop = (previous - recent).max(T::zero());
             (drop / self.threshold).min(T::one())
         } else {
-            T::from(0.5).unwrap()
+            num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero())
         }
     }
 }
@@ -660,9 +660,9 @@ impl<T: Float + Send + Sync> ResourceConstraintTrigger<T> {
     /// Create a new resource constraint trigger
     pub fn new() -> Self {
         Self {
-            memory_threshold: T::from(0.9).unwrap(),
-            cpu_threshold: T::from(0.95).unwrap(),
-            gpu_threshold: T::from(0.9).unwrap(),
+            memory_threshold: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+            cpu_threshold: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
+            gpu_threshold: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -722,9 +722,9 @@ impl<T: Float + Send + Sync> LearningRateAdaptationStrategy<T> {
     /// Create a new learning rate adaptation strategy
     pub fn new() -> Self {
         Self {
-            adaptation_factor: T::from(0.5).unwrap(),
-            min_learning_rate: T::from(1e-6).unwrap(),
-            max_learning_rate: T::from(1.0).unwrap(),
+            adaptation_factor: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            min_learning_rate: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
+            max_learning_rate: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -736,7 +736,7 @@ impl<T: Float + Send + Sync + Debug> AdaptationStrategy<T> for LearningRateAdapt
         _trigger_metadata: &HashMap<String, String>,
     ) -> Result<AdaptationResult<T>> {
         // Adapt learning rate based on performance trend
-        let improvement = self.adaptation_factor * T::from(0.1).unwrap();
+        let improvement = self.adaptation_factor * num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
 
         let mut configuration_changes = HashMap::new();
         configuration_changes.insert(
@@ -755,7 +755,7 @@ impl<T: Float + Send + Sync + Debug> AdaptationStrategy<T> for LearningRateAdapt
     }
 
     fn estimate_improvement(&self, _context: &OptimizationContext<T>) -> Result<T> {
-        Ok(T::from(0.05).unwrap())
+        Ok(num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()))
     }
 
     fn can_apply(&self, _context: &OptimizationContext<T>) -> bool {
@@ -777,9 +777,9 @@ impl<T: Float + Send + Sync> OptimizerSelectionStrategy<T> {
                 "lbfgs".to_string(),
             ],
             selection_criteria: SelectionCriteria {
-                performance_weight: T::from(0.5).unwrap(),
-                efficiency_weight: T::from(0.3).unwrap(),
-                robustness_weight: T::from(0.2).unwrap(),
+                performance_weight: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+                efficiency_weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+                robustness_weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
             },
         }
     }
@@ -791,7 +791,7 @@ impl<T: Float + Send + Sync + Debug> AdaptationStrategy<T> for OptimizerSelectio
         _context: &OptimizationContext<T>,
         _trigger_metadata: &HashMap<String, String>,
     ) -> Result<AdaptationResult<T>> {
-        let improvement = T::from(0.08).unwrap();
+        let improvement = num_traits::cast::cast(0.08).unwrap_or_else(|| T::zero());
 
         let mut configuration_changes = HashMap::new();
         configuration_changes.insert(
@@ -810,7 +810,7 @@ impl<T: Float + Send + Sync + Debug> AdaptationStrategy<T> for OptimizerSelectio
     }
 
     fn estimate_improvement(&self, _context: &OptimizationContext<T>) -> Result<T> {
-        Ok(T::from(0.08).unwrap())
+        Ok(num_traits::cast::cast(0.08).unwrap_or_else(|| T::zero()))
     }
 
     fn can_apply(&self, _context: &OptimizationContext<T>) -> bool {

@@ -409,11 +409,11 @@ impl<T: Float + Default + Clone> TransformerMetaLearner<T> {
             task_info: task_info.clone(),
             performance: MetaPerformanceMetrics {
                 final_performance: query_loss,
-                convergence_speed: T::from(1.0 / self.meta_params.inner_steps as f64).unwrap(),
+                convergence_speed: num_traits::cast::cast(1.0 / self.meta_params.inner_steps as f64).unwrap_or_else(|| T::zero()),
                 sample_efficiency: T::from(support_data.len() as f64).unwrap(),
                 generalization: T::one() / (T::one() + query_loss),
-                stability: T::from(0.9).unwrap(),
-                resource_usage: T::from(self.meta_params.inner_steps as f64).unwrap(),
+                stability: num_traits::cast::cast(0.9).unwrap_or_else(|| T::zero()),
+                resource_usage: num_traits::cast::cast(self.meta_params.inner_steps as f64).unwrap_or_else(|| T::zero()),
             },
             adaptation_steps: self.meta_params.inner_steps,
             timestamp: self.meta_history.len(),
@@ -437,7 +437,7 @@ impl<T: Float + Default + Clone> TransformerMetaLearner<T> {
         // Perform multiple gradient steps
         let mut final_loss = initial_loss;
         for _ in 0..self.meta_params.inner_steps {
-            final_loss = final_loss * T::from(0.95).unwrap(); // Simplified decay
+            final_loss = final_loss * num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()); // Simplified decay
         }
         
         Ok(final_loss)
@@ -479,7 +479,7 @@ impl<T: Float + Default + Clone> TransformerMetaLearner<T> {
     ) -> Result<T> {
         let support_loss = self.compute_support_loss(support_data)?;
         let query_loss = self.compute_query_loss(query_data)?;
-        Ok((support_loss + query_loss) / T::from(2.0).unwrap())
+        Ok((support_loss + query_loss) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()))
     }
 
     /// Compute loss on support set
@@ -619,7 +619,7 @@ impl<T: Float + Default + Clone> ContinualLearningState<T> {
     
     fn compute_forgetting_penalty(&self) -> Result<T> {
         // Simplified forgetting penalty
-        Ok(T::from(0.01).unwrap())
+        Ok(num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()))
     }
     
     fn reset(&mut self) {
@@ -660,12 +660,12 @@ impl<T: Float + Default + Clone> DistanceMetricLearner<T> {
 impl<T: Float + Default + Clone> Default for MetaLearningParams<T> {
     fn default() -> Self {
         Self {
-            meta_learning_rate: T::from(0.001).unwrap(),
+            meta_learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             inner_steps: 5,
             meta_batch_size: 32,
-            diversity_weight: T::from(0.1).unwrap(),
-            transfer_coefficient: T::from(0.5).unwrap(),
-            memory_retention: T::from(0.95).unwrap(),
+            diversity_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            transfer_coefficient: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+            memory_retention: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -675,8 +675,8 @@ impl<T: Float + Default + Clone> Default for FewShotParams<T> {
         Self {
             support_size: 5,
             query_size: 15,
-            adaptation_lr: T::from(0.01).unwrap(),
-            temperature: T::from(1.0).unwrap(),
+            adaptation_lr: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
+            temperature: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
         }
     }
 }

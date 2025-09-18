@@ -787,22 +787,22 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
             count += 1;
 
             // Check for bottlenecks (> 80% utilization)
-            if usage.utilization > T::from(80.0).unwrap() {
+            if usage.utilization > num_traits::cast::cast(80.0).unwrap_or_else(|| T::zero()) {
                 bottlenecks.push(*resource_type);
             }
         }
 
         let overall_load = if count > 0 {
-            total_utilization / T::from(count).unwrap() / T::from(100.0).unwrap()
+            total_utilization / num_traits::cast::cast(count).unwrap_or_else(|| T::zero()) / num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
 
-        let load_category = if overall_load < T::from(0.3).unwrap() {
+        let load_category = if overall_load < num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()) {
             LoadCategory::Light
-        } else if overall_load < T::from(0.6).unwrap() {
+        } else if overall_load < num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()) {
             LoadCategory::Moderate
-        } else if overall_load < T::from(0.85).unwrap() {
+        } else if overall_load < num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()) {
             LoadCategory::Heavy
         } else {
             LoadCategory::Critical
@@ -810,11 +810,11 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
 
         // Calculate balance score (lower variance = better balance)
         let variance = if count > 1 {
-            let mean = total_utilization / T::from(count).unwrap();
+            let mean = total_utilization / num_traits::cast::cast(count).unwrap_or_else(|| T::zero());
             let var_sum = usages.values()
                 .map(|u| (u.utilization - mean) * (u.utilization - mean))
                 .fold(T::zero(), |acc, x| acc + x);
-            var_sum / T::from(count).unwrap()
+            var_sum / num_traits::cast::cast(count).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -833,9 +833,9 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
     fn assess_performance_impact(&self, _usages: &HashMap<ResourceType, ResourceUsage<T>>) -> Result<PerformanceImpact<T>> {
         // Simplified implementation
         Ok(PerformanceImpact {
-            impact_score: T::from(0.3).unwrap(),
+            impact_score: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
             affected_components: vec!["training".to_string()],
-            degradation: T::from(0.1).unwrap(),
+            degradation: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             recovery_estimate: Duration::from_secs(60),
         })
     }
@@ -844,7 +844,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
     fn analyze_contention(&self, _usages: &HashMap<ResourceType, ResourceUsage<T>>) -> Result<ResourceContention<T>> {
         // Simplified implementation
         Ok(ResourceContention {
-            contention_level: T::from(0.2).unwrap(),
+            contention_level: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
             competing_processes: Vec::new(),
             contention_type: ContentionType::CPUBound,
             resolution_suggestions: vec![
@@ -862,7 +862,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
         // Update resource availability
         let mut resource_availability = HashMap::new();
         for (resource_type, usage) in &snapshot.resource_usages {
-            let availability = T::one() - usage.utilization / T::from(100.0).unwrap();
+            let availability = T::one() - usage.utilization / num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero());
             resource_availability.insert(*resource_type, availability);
         }
 
@@ -871,7 +871,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
             total_capacity: T::one(),
             used_capacity: snapshot.system_load.overall_load,
             available_capacity: T::one() - snapshot.system_load.overall_load,
-            reserved_capacity: T::from(0.1).unwrap(), // 10% reserved
+            reserved_capacity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), // 10% reserved
             efficiency: snapshot.system_load.balance_score,
         };
 
@@ -899,7 +899,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAnalyzer<T> {
         // Example opportunity: memory optimization
         opportunities.push(OptimizationOpportunity {
             opportunity_type: OpportunityType::MemoryOptimization,
-            potential_improvement: T::from(0.15).unwrap(),
+            potential_improvement: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
             implementation_effort: EffortLevel::Medium,
             risk_level: RiskLevel::Low,
             description: "Enable gradient checkpointing to reduce memory usage".to_string(),
@@ -958,8 +958,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceMonitor<T> {
             timestamp: SystemTime::now(),
             resource_type: self.resource_type,
             utilization,
-            absolute_usage: utilization * T::from(100.0).unwrap(),
-            total_available: T::from(100.0).unwrap(),
+            absolute_usage: utilization * num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()),
+            total_available: num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()),
             usage_rate: T::zero(),
             specific_metrics: ResourceSpecificMetrics::default_for_type(self.resource_type),
         })
@@ -977,7 +977,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceMonitor<T> {
         let avg = sum / T::from(utilizations.len()).unwrap();
 
         let max = utilizations.iter().fold(T::zero(), |acc, &x| if x > acc { x } else { acc });
-        let min = utilizations.iter().fold(T::from(100.0).unwrap(), |acc, &x| if x < acc { x } else { acc });
+        let min = utilizations.iter().fold(num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero()), |acc, &x| if x < acc { x } else { acc });
 
         // Calculate standard deviation
         let variance = utilizations.iter()
@@ -986,8 +986,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceMonitor<T> {
         let std_dev = variance.sqrt();
 
         // Calculate percentiles (simplified)
-        let p95 = max * T::from(0.95).unwrap();
-        let p99 = max * T::from(0.99).unwrap();
+        let p95 = max * num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero());
+        let p99 = max * num_traits::cast::cast(0.99).unwrap_or_else(|| T::zero());
 
         // Determine trend
         let trend_direction = if utilizations.len() >= 10 {
@@ -997,9 +997,9 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceMonitor<T> {
             let recent_avg = recent.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(recent.len()).unwrap();
             let older_avg = older.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(older.len()).unwrap();
 
-            if recent_avg > older_avg * T::from(1.05).unwrap() {
+            if recent_avg > older_avg * num_traits::cast::cast(1.05).unwrap_or_else(|| T::zero()) {
                 TrendDirection::Increasing
-            } else if recent_avg < older_avg * T::from(0.95).unwrap() {
+            } else if recent_avg < older_avg * num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()) {
                 TrendDirection::Decreasing
             } else {
                 TrendDirection::Stable
@@ -1048,13 +1048,13 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceAlertManager<T> {
     /// Check alerts for specific resource
     fn check_resource_alerts(&mut self, resource_type: ResourceType, usage: &ResourceUsage<T>) -> Result<()> {
         // Check high utilization
-        if usage.utilization > T::from(90.0).unwrap() {
+        if usage.utilization > num_traits::cast::cast(90.0).unwrap_or_else(|| T::zero()) {
             self.create_alert(
                 resource_type,
                 ResourceAlertType::HighUtilization,
                 AlertSeverity::High,
                 usage.utilization,
-                T::from(90.0).unwrap(),
+                num_traits::cast::cast(90.0).unwrap_or_else(|| T::zero()),
                 "High resource utilization detected".to_string(),
             )?;
         }
@@ -1166,8 +1166,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourcePerformanceCorrel
 
         let matrix = CorrelationMatrix {
             correlation_coefficient: correlation_coef,
-            p_value: T::from(0.05).unwrap(), // Simplified
-            confidence_interval: (correlation_coef - T::from(0.1).unwrap(), correlation_coef + T::from(0.1).unwrap()),
+            p_value: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()), // Simplified
+            confidence_interval: (correlation_coef - num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()), correlation_coef + num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())),
             sample_size: relevant_data.len(),
             r_squared: correlation_coef * correlation_coef,
         };
@@ -1221,7 +1221,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceOptimizationAdvis
                     TriggerCondition {
                         resource_type: ResourceType::Memory,
                         condition_type: ConditionType::GreaterThan,
-                        threshold: T::from(80.0).unwrap(),
+                        threshold: num_traits::cast::cast(80.0).unwrap_or_else(|| T::zero()),
                         duration: Duration::from_secs(60),
                     }
                 ],
@@ -1229,8 +1229,8 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceOptimizationAdvis
                     OptimizationAction::DecreaseBatchSize { factor: 0.8 },
                     OptimizationAction::UseMixedPrecision,
                 ],
-                expected_impact: T::from(0.3).unwrap(),
-                confidence: T::from(0.8).unwrap(),
+                expected_impact: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+                confidence: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
             },
             // Add more rules...
         ];
@@ -1271,7 +1271,7 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> ResourceOptimizationAdvis
             let resource_availability = system_state.resource_availability.get(&condition.resource_type)
                 .unwrap_or(&T::one());
             let utilization = T::one() - *resource_availability;
-            let utilization_percent = utilization * T::from(100.0).unwrap();
+            let utilization_percent = utilization * num_traits::cast::cast(100.0).unwrap_or_else(|| T::zero());
 
             match condition.condition_type {
                 ConditionType::GreaterThan => {
@@ -1311,9 +1311,9 @@ impl<T: Float + Send + Sync + Debug + Default + Clone> EffectivenessTracker<T> {
         let rule_name = result.recommendation_id.split('_').next().unwrap_or("unknown");
         let current_rate = self.success_rates.get(rule_name).unwrap_or(&T::zero());
         let new_rate = if result.success {
-            *current_rate + T::from(0.1).unwrap()
+            *current_rate + num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero())
         } else {
-            *current_rate - T::from(0.05).unwrap()
+            *current_rate - num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero())
         };
         self.success_rates.insert(rule_name.to_string(), new_rate.max(T::zero()).min(T::one()));
 

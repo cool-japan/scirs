@@ -270,22 +270,23 @@ impl<A: Float + Default + Clone + Send + Sync> EnhancedDriftDetector<A> {
         let reference_features = self.extract_reference_features()?;
 
         // Perform drift detection based on configured method
-        let drift_result = match &self.detection_method {
+        let detection_method = self.detection_method.clone();
+        let drift_result = match detection_method {
             DriftDetectionMethod::Statistical(method) => {
-                self.detect_statistical_drift(method, &reference_features, &current_features)?
+                self.detect_statistical_drift(&method, &reference_features, &current_features)?
             }
             DriftDetectionMethod::Distribution(method) => {
-                self.detect_distribution_drift(method, &reference_features, &current_features)?
+                self.detect_distribution_drift(&method, &reference_features, &current_features)?
             }
             DriftDetectionMethod::ModelBased(model_type) => {
-                self.detect_model_drift(model_type, batch)?
+                self.detect_model_drift(&model_type, batch)?
             }
             DriftDetectionMethod::Ensemble {
                 methods,
                 voting_strategy,
             } => self.detect_ensemble_drift(
-                methods,
-                voting_strategy,
+                &methods,
+                &voting_strategy,
                 &reference_features,
                 &current_features,
                 batch,

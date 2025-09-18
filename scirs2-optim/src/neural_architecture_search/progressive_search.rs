@@ -154,7 +154,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> ProgressiveNAS<T> {
             ProgressionStrategy::Adaptive => {
                 // Adaptive progression based on performance trends
                 if let Some(trend) = self.analyze_performance_trend() {
-                    if trend < T::from(0.01).unwrap() && self.current_phase != SearchPhase::Final {
+                    if trend < num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()) && self.current_phase != SearchPhase::Final {
                         self.advance_phase();
                     }
                 }
@@ -179,7 +179,7 @@ impl<T: Float + Send + Sync + std::iter::Sum> ProgressiveNAS<T> {
                 if let Some(latest_performance) =
                     self.architecture_progression.performance_trends.last()
                 {
-                    if *latest_performance > T::from(threshold).unwrap()
+                    if *latest_performance > num_traits::cast::cast(threshold).unwrap_or_else(|| T::zero())
                         && self.current_phase != SearchPhase::Final
                     {
                         self.advance_phase();
@@ -212,17 +212,17 @@ impl<T: Float + Send + Sync + std::iter::Sum> ProgressiveNAS<T> {
 
         // Calculate trend (simplified linear regression slope)
         let n = T::from(recent_trends.len()).unwrap();
-        let sum_x = n * (n - T::one()) / T::from(2).unwrap();
+        let sum_x = n * (n - T::one()) / num_traits::cast::cast(2).unwrap_or_else(|| T::zero());
         let sum_y = recent_trends.iter().cloned().sum::<T>();
         let sum_xy = recent_trends
             .iter()
             .enumerate()
-            .map(|(i, &y)| T::from(i).unwrap() * y)
+            .map(|(i, &y)| num_traits::cast::cast(i).unwrap_or_else(|| T::zero()) * y)
             .sum::<T>();
         let sum_x2 = recent_trends
             .iter()
             .enumerate()
-            .map(|(i, _)| T::from(i * i).unwrap())
+            .map(|(i, _)| num_traits::cast::cast(i * i).unwrap_or_else(|| T::zero()))
             .sum::<T>();
 
         let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x);
@@ -233,39 +233,39 @@ impl<T: Float + Send + Sync + std::iter::Sum> ProgressiveNAS<T> {
     pub fn get_current_search_config(&self) -> SearchPhaseConfig<T> {
         match self.current_phase {
             SearchPhase::Initial => SearchPhaseConfig {
-                complexity_limit: T::from(0.25).unwrap(),
+                complexity_limit: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
                 max_components: 2,
                 max_depth: 3,
-                exploration_factor: T::from(0.8).unwrap(),
-                mutation_rate: T::from(0.3).unwrap(),
-                population_diversity_weight: T::from(0.7).unwrap(),
+                exploration_factor: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+                mutation_rate: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+                population_diversity_weight: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
                 conservative_search: true,
             },
             SearchPhase::Intermediate => SearchPhaseConfig {
-                complexity_limit: T::from(0.5).unwrap(),
+                complexity_limit: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                 max_components: 4,
                 max_depth: 5,
-                exploration_factor: T::from(0.6).unwrap(),
-                mutation_rate: T::from(0.2).unwrap(),
-                population_diversity_weight: T::from(0.5).unwrap(),
+                exploration_factor: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
+                mutation_rate: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+                population_diversity_weight: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
                 conservative_search: false,
             },
             SearchPhase::Advanced => SearchPhaseConfig {
-                complexity_limit: T::from(0.75).unwrap(),
+                complexity_limit: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
                 max_components: 6,
                 max_depth: 7,
-                exploration_factor: T::from(0.4).unwrap(),
-                mutation_rate: T::from(0.15).unwrap(),
-                population_diversity_weight: T::from(0.3).unwrap(),
+                exploration_factor: num_traits::cast::cast(0.4).unwrap_or_else(|| T::zero()),
+                mutation_rate: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
+                population_diversity_weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
                 conservative_search: false,
             },
             SearchPhase::Final => SearchPhaseConfig {
                 complexity_limit: T::one(),
                 max_components: 8,
                 max_depth: 10,
-                exploration_factor: T::from(0.2).unwrap(),
-                mutation_rate: T::from(0.1).unwrap(),
-                population_diversity_weight: T::from(0.2).unwrap(),
+                exploration_factor: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+                mutation_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                population_diversity_weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
                 conservative_search: false,
             },
         }
@@ -335,9 +335,9 @@ impl<T: Float + Send + Sync> ComplexityScheduler<T> {
     /// Create new complexity scheduler
     pub fn new() -> Result<Self> {
         Ok(Self {
-            current_complexity: T::from(0.1).unwrap(),
+            current_complexity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             max_complexity: T::one(),
-            increase_rate: T::from(0.1).unwrap(),
+            increase_rate: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             strategy: SchedulingStrategy::Linear,
         })
     }
@@ -347,9 +347,9 @@ impl<T: Float + Send + Sync> ComplexityScheduler<T> {
         match self.strategy {
             SchedulingStrategy::Linear => {
                 let phase_factor = match phase {
-                    SearchPhase::Initial => T::from(0.25).unwrap(),
-                    SearchPhase::Intermediate => T::from(0.5).unwrap(),
-                    SearchPhase::Advanced => T::from(0.75).unwrap(),
+                    SearchPhase::Initial => num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+                    SearchPhase::Intermediate => num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
+                    SearchPhase::Advanced => num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
                     SearchPhase::Final => T::one(),
                 };
                 self.current_complexity = self.max_complexity * phase_factor;

@@ -109,7 +109,7 @@ impl<T: Float + Default + Clone> GradientAccumulator<T> {
         // Average gradients over accumulation steps
         let mut result = HashMap::new();
         for (name, accumulated) in self.accumulated_gradients.drain() {
-            let scale = T::one() / T::from(self.target_steps).unwrap();
+            let scale = T::one() / num_traits::cast::cast(self.target_steps).unwrap_or_else(|| T::zero());
             result.insert(name, accumulated * scale);
         }
 
@@ -157,7 +157,7 @@ impl<T: Float + Default + Clone> GradientAccumulator<T> {
         self.total_grad_norm = self.total_grad_norm.sqrt();
 
         // Apply clipping if necessary
-        let max_norm = T::from(self.gradient_clipping.max_norm).unwrap();
+        let max_norm = num_traits::cast::cast(self.gradient_clipping.max_norm).unwrap_or_else(|| T::zero());
         if self.total_grad_norm > max_norm {
             let clip_factor = max_norm / self.total_grad_norm;
             for gradients in self.accumulated_gradients.values_mut() {
@@ -554,7 +554,7 @@ impl<T: Float + Default + Clone> MixedPrecisionManager<T> {
         }
 
         // Scale gradients down by loss scale
-        let scale_factor = T::from(1.0 / self.loss_scale).unwrap();
+        let scale_factor = num_traits::cast::cast(1.0 / self.loss_scale).unwrap_or_else(|| T::zero());
 
         for (name, gradient) in gradients {
             if let Some(master_weight) = self.fp32_master_weights.get_mut(name) {

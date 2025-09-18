@@ -325,7 +325,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
             return self.compute_second_derivative_checkpointed(outputid, var1, var2);
         }
 
-        let eps = T::from(1e-8).unwrap();
+        let eps = num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero());
 
         // Finite difference approximation for now
         let original_val1 = self.graph[var1].value;
@@ -354,7 +354,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
         self.graph[var2].value = original_val2;
 
         // Second derivative approximation
-        let second_deriv = (f_pp - f_pm - f_mp + f_mm) / (T::from(4.0).unwrap() * eps * eps);
+        let second_deriv = (f_pp - f_pm - f_mp + f_mm) / (num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()) * eps * eps);
 
         Ok(second_deriv)
     }
@@ -367,7 +367,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
         var2: usize,
     ) -> Result<T> {
         let chunk_size = self.config.checkpoint_chunk_size;
-        let eps = T::from(1e-8).unwrap();
+        let eps = num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero());
 
         // Create checkpoint
         let checkpoint = self.create_checkpoint();
@@ -404,7 +404,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
         // Compute second derivative
         if results.len() >= 4 {
             let second_deriv = (results[0] - results[1] - results[2] + results[3])
-                / (T::from(4.0).unwrap() * eps * eps);
+                / (num_traits::cast::cast(4.0).unwrap_or_else(|| T::zero()) * eps * eps);
             Ok(second_deriv)
         } else {
             Err(OptimError::InvalidConfig(
@@ -498,7 +498,7 @@ impl<T: Float + Default + Clone + ndarray::ScalarOperand> AutodiffEngine<T> {
         let s = step; // Parameter update
 
         let sy = s.dot(&y);
-        if sy.abs() < T::from(1e-10).unwrap() {
+        if sy.abs() < num_traits::cast::cast(1e-10).unwrap_or_else(|| T::zero()) {
             return Ok(()); // Skip update if curvature condition not satisfied
         }
 
@@ -945,7 +945,7 @@ impl AutodiffUtils {
             let f_plus = forward_fn(&point_plus);
             let f_minus = forward_fn(&point_minus);
 
-            numerical_grad[i] = (f_plus - f_minus) / (T::from(2.0).unwrap() * epsilon);
+            numerical_grad[i] = (f_plus - f_minus) / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * epsilon);
         }
 
         // Compute relative error
@@ -954,7 +954,7 @@ impl AutodiffUtils {
 
         for i in 0..point.len() {
             let error = (analytical_grad[i] - numerical_grad[i]).abs();
-            let relative_error = if analytical_grad[i].abs() > T::from(1e-8).unwrap() {
+            let relative_error = if analytical_grad[i].abs() > num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero()) {
                 error / analytical_grad[i].abs()
             } else {
                 error
@@ -974,7 +974,7 @@ impl AutodiffUtils {
             numerical_gradient: numerical_grad,
             max_relative_error: max_error,
             avg_relative_error: avg_error,
-            is_correct: max_error < T::from(1e-4).unwrap(),
+            is_correct: max_error < num_traits::cast::cast(1e-4).unwrap_or_else(|| T::zero()),
         })
     }
 }

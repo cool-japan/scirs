@@ -31,7 +31,7 @@ impl KFACUtils {
 
         // Simple averaging across batch
         if batch_size > 0 {
-            let scale = T::one() / T::from(batch_size).unwrap();
+            let scale = T::one() / num_traits::cast::cast(batch_size).unwrap_or_else(|| T::zero());
             for i in 0..update.nrows() {
                 for j in 0..update.ncols() {
                     let input_idx = i % input_dim;
@@ -63,7 +63,7 @@ impl KFACUtils {
             return Ok((Array1::zeros(num_features), Array1::ones(num_features)));
         }
 
-        let batch_size_t = T::from(batch_size).unwrap();
+        let batch_size_t = num_traits::cast::cast(batch_size).unwrap_or_else(|| T::zero());
 
         // Compute mean
         let mean = input.mean_axis(ndarray::Axis(0)).unwrap();
@@ -125,7 +125,7 @@ impl KFACUtils {
 
         // Normalize by batch size
         if batch_size > 0 {
-            let scale = T::one() / T::from(batch_size).unwrap();
+            let scale = T::one() / num_traits::cast::cast(batch_size).unwrap_or_else(|| T::zero());
             result = result * scale;
         }
 
@@ -263,7 +263,7 @@ impl KFACUtils {
 
         for i in 0..n {
             for j in 0..n {
-                result[[i, j]] = (matrix[[i, j]] + matrix[[j, i]]) / T::from(2.0).unwrap();
+                result[[i, j]] = (matrix[[i, j]] + matrix[[j, i]]) / num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero());
             }
         }
 

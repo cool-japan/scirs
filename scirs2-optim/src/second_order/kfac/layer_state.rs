@@ -222,7 +222,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + num_traits::FromPrimitive
             return Array2::eye(data.ncols());
         }
 
-        let batch_size_t = T::from(batch_size).unwrap();
+        let batch_size_t = num_traits::cast::cast(batch_size).unwrap_or_else(|| T::zero());
 
         // Center the data
         let mean = data.mean_axis(ndarray::Axis(0)).unwrap();
@@ -247,7 +247,7 @@ impl<T: Float + Send + Sync + ndarray::ScalarOperand + num_traits::FromPrimitive
         let mut inv = Array2::eye(n);
 
         // Add small regularization to ensure numerical stability
-        let reg_term = T::from(1e-8).unwrap();
+        let reg_term = num_traits::cast::cast(1e-8).unwrap_or_else(|| T::zero());
         for i in 0..n {
             inv[[i, i]] = inv[[i, i]] + reg_term;
         }

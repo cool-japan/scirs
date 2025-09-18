@@ -82,7 +82,7 @@ impl<T: Float + 'static> MultiHeadAttention<T> {
         for i in 0..rows {
             for j in 0..cols {
                 let random_val = (rand::random::<f64>() - 0.5) * 2.0 * std;
-                weights[[i, j]] = T::from(random_val).unwrap();
+                weights[[i, j]] = num_traits::cast::cast(random_val).unwrap_or_else(|| T::zero());
             }
         }
 
@@ -299,7 +299,7 @@ impl<T: Float + 'static> MultiHeadAttention<T> {
 
             for j in 0..seq_length {
                 let exp_val = (scores[[i, j]] - max_score).to_f64().unwrap().exp();
-                exp_scores[j] = T::from(exp_val).unwrap();
+                exp_scores[j] = num_traits::cast::cast(exp_val).unwrap_or_else(|| T::zero());
                 exp_sum = exp_sum + exp_scores[j];
             }
 
@@ -468,7 +468,7 @@ impl<T: Float + 'static> AttentionVisualizer<T> {
                         let prob = attention_weights[[0, head, idx]]; // Use first batch
                         if prob > T::zero() {
                             let log_prob = prob.to_f64().unwrap().ln();
-                            entropy = entropy - prob * T::from(log_prob).unwrap();
+                            entropy = entropy - prob * num_traits::cast::cast(log_prob).unwrap_or_else(|| T::zero());
                         }
                     }
                 }
@@ -479,7 +479,7 @@ impl<T: Float + 'static> AttentionVisualizer<T> {
 
         AttentionPatterns {
             head_entropies,
-            attention_diversity: attention_diversity / T::from(num_heads).unwrap(),
+            attention_diversity: attention_diversity / num_traits::cast::cast(num_heads).unwrap_or_else(|| T::zero()),
             sequence_length: seq_length,
             num_heads,
         }

@@ -215,10 +215,10 @@ impl<T: Float> Default for MetaLearningConfig<T> {
     fn default() -> Self {
         Self {
             strategy: MetaLearningStrategy::Maml,
-            meta_learning_rate: T::from(0.001).unwrap(),
+            meta_learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             inner_steps: 5,
             meta_batch_size: 16,
-            gradient_clip: Some(T::from(1.0).unwrap()),
+            gradient_clip: Some(num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero())),
             second_order: false,
             adaptation: AdaptationConfig::default(),
             task_sampling: TaskSamplingConfig::default(),
@@ -268,11 +268,11 @@ impl<T: Float> Default for AdaptationConfig<T> {
     fn default() -> Self {
         Self {
             num_steps: 10,
-            learning_rate: T::from(0.01).unwrap(),
+            learning_rate: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             adaptive_lr: false,
             lr_schedule: LearningRateSchedule::Constant,
             early_stopping: false,
-            tolerance: T::from(1e-6).unwrap(),
+            tolerance: num_traits::cast::cast(1e-6).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -689,9 +689,9 @@ pub struct TrainingConfig<T: Float> {
 impl<T: Float> Default for TrainingConfig<T> {
     fn default() -> Self {
         Self {
-            learning_rate: T::from(0.001).unwrap(),
+            learning_rate: num_traits::cast::cast(0.001).unwrap_or_else(|| T::zero()),
             optimizer: OptimizerType::Adam,
-            weight_decay: T::from(0.01).unwrap(),
+            weight_decay: num_traits::cast::cast(0.01).unwrap_or_else(|| T::zero()),
             gradient_clipping: Some(GradientClippingConfig::default()),
             lr_schedule: LearningRateSchedule::Constant,
             warmup: None,
@@ -732,7 +732,7 @@ impl<T: Float> Default for GradientClippingConfig<T> {
     fn default() -> Self {
         Self {
             method: ClippingMethod::Norm,
-            threshold: T::from(1.0).unwrap(),
+            threshold: num_traits::cast::cast(1.0).unwrap_or_else(|| T::zero()),
             adaptive: false,
         }
     }

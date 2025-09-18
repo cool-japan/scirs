@@ -413,7 +413,7 @@ impl<T: Float + num_traits::FromPrimitive> OptimizationSequenceProcessor<T> {
     fn detect_change_points(&self, losses: &Array1<T>) -> Result<Vec<usize>> {
         let mut change_points = vec![0]; // Always include start
         let window_size = 5;
-        let threshold = T::from(0.1).unwrap();
+        let threshold = num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero());
 
         for i in window_size..losses.len() - window_size {
             let before_mean = losses.slice(s![i - window_size..i]).mean().unwrap();
@@ -771,7 +771,7 @@ impl<T: Float> StatisticsAccumulator<T> {
 
     pub fn mean(&self) -> T {
         if self.count > 0 {
-            self.sum / T::from(self.count).unwrap()
+            self.sum / num_traits::cast::cast(self.count).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         }
@@ -780,7 +780,7 @@ impl<T: Float> StatisticsAccumulator<T> {
     pub fn variance(&self) -> T {
         if self.count > 1 {
             let mean = self.mean();
-            (self.sum_sq / T::from(self.count).unwrap()) - (mean * mean)
+            (self.sum_sq / num_traits::cast::cast(self.count).unwrap_or_else(|| T::zero())) - (mean * mean)
         } else {
             T::zero()
         }

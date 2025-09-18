@@ -758,7 +758,7 @@ impl<T: Float + Default + Clone> PriorityCalculator<T> {
     }
     
     pub fn calculate_priority(&self, task: &ScheduledTask<T>) -> Result<TaskPriority<T>> {
-        let base_priority = T::from(task.priority.base_priority).unwrap();
+        let base_priority = num_traits::cast::cast(task.priority.base_priority).unwrap_or_else(|| T::zero());
         let urgency = self.calculate_urgency(task)?;
         let importance = self.calculate_importance(task)?;
         let efficiency = self.calculate_efficiency(task)?;
@@ -785,18 +785,18 @@ impl<T: Float + Default + Clone> PriorityCalculator<T> {
             let urgency = T::one() - T::from(time_to_deadline.as_secs_f64() / 3600.0).unwrap();
             Ok(urgency.max(T::zero()).min(T::one()))
         } else {
-            Ok(T::from(0.5).unwrap())
+            Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
         }
     }
     
     fn calculate_importance(&self, _task: &ScheduledTask<T>) -> Result<T> {
         // Simplified importance calculation
-        Ok(T::from(0.5).unwrap())
+        Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
     }
     
     fn calculate_efficiency(&self, _task: &ScheduledTask<T>) -> Result<T> {
         // Simplified efficiency calculation
-        Ok(T::from(0.5).unwrap())
+        Ok(num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()))
     }
 }
 
@@ -856,11 +856,11 @@ impl<T: Float + Default + Clone> TaskLoadBalancer<T> {
 impl<T: Float + Default> Default for PriorityWeights<T> {
     fn default() -> Self {
         Self {
-            base_weight: T::from(0.3).unwrap(),
-            urgency_weight: T::from(0.25).unwrap(),
-            importance_weight: T::from(0.25).unwrap(),
-            efficiency_weight: T::from(0.15).unwrap(),
-            history_weight: T::from(0.05).unwrap(),
+            base_weight: num_traits::cast::cast(0.3).unwrap_or_else(|| T::zero()),
+            urgency_weight: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+            importance_weight: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+            efficiency_weight: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
+            history_weight: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -894,7 +894,7 @@ impl<T: Float + Default> Default for EstimationAccuracyTracker<T> {
     fn default() -> Self {
         Self {
             task_accuracies: HashMap::new(),
-            overall_accuracy: T::from(0.5).unwrap(),
+            overall_accuracy: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             accuracy_trend: VecDeque::new(),
             improvement_rate: T::zero(),
         }
@@ -906,7 +906,7 @@ impl<T: Float + Default> Default for LoadPredictionModel<T> {
         Self {
             horizon: Duration::from_secs(300), // 5 minutes
             parameters: HashMap::new(),
-            accuracy: T::from(0.5).unwrap(),
+            accuracy: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
             update_frequency: Duration::from_secs(60),
         }
     }

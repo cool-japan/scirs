@@ -173,8 +173,8 @@ where
         }
 
         // Standard Gaussian mechanism: σ = √(2 ln(1.25/δ)) * Δ / ε
-        let ln_term = (T::one() + T::from(0.25).unwrap() / delta).ln();
-        let sigma = (T::from(2.0).unwrap() * ln_term).sqrt() * sensitivity / epsilon;
+        let ln_term = (T::one() + num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()) / delta).ln();
+        let sigma = (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * ln_term).sqrt() * sensitivity / epsilon;
 
         Ok(sigma)
     }
@@ -204,7 +204,7 @@ where
             let u1: f64 = self.rng.gen_range(0.0..1.0);
             let u2: f64 = self.rng.gen_range(0.0..1.0);
             let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-            let noise = T::from(z0 * sigma_f64).unwrap();
+            let noise = num_traits::cast::cast(z0 * sigma_f64).unwrap_or_else(|| T::zero());
             x + noise
         });
 
@@ -316,7 +316,7 @@ where
             } else {
                 -scale_f64 * (2.0 * (1.0 - u)).ln()
             };
-            let noise = T::from(laplace_sample).unwrap();
+            let noise = num_traits::cast::cast(laplace_sample).unwrap_or_else(|| T::zero());
             x + noise
         });
 
@@ -412,7 +412,7 @@ where
             .iter()
             .map(|&score| {
                 let normalized_score = score - max_score;
-                let exponent = epsilon * normalized_score / (T::from(2.0).unwrap() * sensitivity);
+                let exponent = epsilon * normalized_score / (num_traits::cast::cast(2.0).unwrap_or_else(|| T::zero()) * sensitivity);
                 exponent.to_f64().unwrap_or(0.0).exp()
             })
             .collect();
@@ -544,7 +544,7 @@ where
         }
 
         let mut current_level = values.to_vec();
-        let level_epsilon = epsilon / T::from(self.tree_height).unwrap();
+        let level_epsilon = epsilon / num_traits::cast::cast(self.tree_height).unwrap_or_else(|| T::zero());
 
         // Aggregate level by level
         for _level in 0..self.tree_height {
@@ -686,7 +686,7 @@ where
             }
             MechanismSelectionStrategy::Adaptive => {
                 // Choose based on sensitivity characteristics
-                if self.l2_sensitivity < self.l1_sensitivity * T::from(0.7).unwrap() {
+                if self.l2_sensitivity < self.l1_sensitivity * num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()) {
                     Box::new(GaussianMechanism::new())
                 } else {
                     Box::new(LaplaceMechanism::new())
@@ -831,7 +831,7 @@ where
             let u2: f64 = rng.gen_range(0.0..1.0);
             let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let gaussian_sample = z0 * scale_f64;
-            noise[[i, j]] = T::from(gaussian_sample).unwrap();
+            noise[[i, j]] = num_traits::cast::cast(gaussian_sample).unwrap_or_else(|| T::zero());
         }
     }
 

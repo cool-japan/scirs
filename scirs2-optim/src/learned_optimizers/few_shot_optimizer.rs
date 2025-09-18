@@ -1121,20 +1121,20 @@ impl<T: Float + Send + Sync> FastAdaptationEngine<T> {
                 },
             },
             performance: AdaptationPerformance {
-                query_performance: T::from(0.85).unwrap(),
-                support_performance: T::from(0.90).unwrap(),
+                query_performance: num_traits::cast::cast(0.85).unwrap_or_else(|| T::zero()),
+                support_performance: num_traits::cast::cast(0.90).unwrap_or_else(|| T::zero()),
                 adaptation_speed: 5,
-                final_loss: T::from(0.1).unwrap(),
-                improvement: T::from(0.25).unwrap(),
-                stability: T::from(0.95).unwrap(),
+                final_loss: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+                improvement: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+                stability: num_traits::cast::cast(0.95).unwrap_or_else(|| T::zero()),
             },
             task_representation: Array1::zeros(128),
             adaptation_trajectory: Vec::new(),
             resource_usage: ResourceUsage {
                 total_time: Duration::from_secs(15),
-                peak_memory_mb: T::from(256.0).unwrap(),
-                compute_cost: T::from(5.0).unwrap(),
-                energy_consumption: T::from(0.05).unwrap(),
+                peak_memory_mb: num_traits::cast::cast(256.0).unwrap_or_else(|| T::zero()),
+                compute_cost: num_traits::cast::cast(5.0).unwrap_or_else(|| T::zero()),
+                energy_consumption: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
             },
         })
     }

@@ -1592,7 +1592,7 @@ impl<T: Float + Default + Clone> PatternLearningSystem<T> {
             learning_algorithms: Vec::new(),
             learning_data: VecDeque::new(),
             learned_patterns: HashMap::new(),
-            effectiveness: T::from(0.5).unwrap(),
+            effectiveness: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1602,7 +1602,7 @@ impl<T: Float + Default + Clone> FeedbackIntegrationSystem<T> {
         Ok(Self {
             integration_strategies: Vec::new(),
             integration_results: HashMap::new(),
-            effectiveness: T::from(0.5).unwrap(),
+            effectiveness: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1613,7 +1613,7 @@ impl<T: Float + Default + Clone> AdjustmentLearningSystem<T> {
             learning_algorithms: Vec::new(),
             learning_data: VecDeque::new(),
             learned_models: HashMap::new(),
-            effectiveness: T::from(0.5).unwrap(),
+            effectiveness: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         })
     }
 }
@@ -1643,13 +1643,13 @@ impl<T: Float> AnalyticsDashboard<T> {
 impl<T: Float + Default> Default for PriorityWeights<T> {
     fn default() -> Self {
         Self {
-            base_weight: T::from(0.2).unwrap(),
-            urgency_weight: T::from(0.25).unwrap(),
-            importance_weight: T::from(0.2).unwrap(),
-            efficiency_weight: T::from(0.15).unwrap(),
-            cost_weight: T::from(0.1).unwrap(),
-            quality_weight: T::from(0.05).unwrap(),
-            deadline_weight: T::from(0.05).unwrap(),
+            base_weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            urgency_weight: num_traits::cast::cast(0.25).unwrap_or_else(|| T::zero()),
+            importance_weight: num_traits::cast::cast(0.2).unwrap_or_else(|| T::zero()),
+            efficiency_weight: num_traits::cast::cast(0.15).unwrap_or_else(|| T::zero()),
+            cost_weight: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
+            quality_weight: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
+            deadline_weight: num_traits::cast::cast(0.05).unwrap_or_else(|| T::zero()),
             dynamic_weights: HashMap::new(),
         }
     }
@@ -1662,7 +1662,7 @@ impl<T: Float + Default> Default for QueueStatistics<T> {
             average_length: T::zero(),
             average_wait_time: Duration::from_secs(0),
             throughput: T::zero(),
-            efficiency: T::from(0.5).unwrap(),
+            efficiency: num_traits::cast::cast(0.5).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1673,7 +1673,7 @@ impl<T: Float + Default> Default for QueueConfig<T> {
             max_size: Some(10000),
             update_frequency: Duration::from_secs(10),
             maintenance_interval: Duration::from_secs(60),
-            performance_threshold: T::from(0.8).unwrap(),
+            performance_threshold: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1692,9 +1692,9 @@ impl<T: Float + Default> Default for TrendAnalysisConfig<T> {
     fn default() -> Self {
         Self {
             window_size: Duration::from_secs(3600), // 1 hour
-            sensitivity: T::from(0.1).unwrap(),
+            sensitivity: num_traits::cast::cast(0.1).unwrap_or_else(|| T::zero()),
             prediction_horizon: Duration::from_secs(1800), // 30 minutes
-            confidence_threshold: T::from(0.7).unwrap(),
+            confidence_threshold: num_traits::cast::cast(0.7).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -1714,9 +1714,9 @@ impl<T: Float + Default> Default for PriorityManagerStatistics<T> {
         Self {
             total_updates: 0,
             average_update_latency: Duration::from_millis(5),
-            accuracy: T::from(0.8).unwrap(),
-            effectiveness: T::from(0.75).unwrap(),
-            learning_performance: T::from(0.6).unwrap(),
+            accuracy: num_traits::cast::cast(0.8).unwrap_or_else(|| T::zero()),
+            effectiveness: num_traits::cast::cast(0.75).unwrap_or_else(|| T::zero()),
+            learning_performance: num_traits::cast::cast(0.6).unwrap_or_else(|| T::zero()),
         }
     }
 }

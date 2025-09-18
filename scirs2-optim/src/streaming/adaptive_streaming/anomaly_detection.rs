@@ -710,7 +710,7 @@ pub enum EscalationPriority {
     Emergency = 2,
 }
 
-impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync> AnomalyDetector<A> {
+impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync + 'static> AnomalyDetector<A> {
     /// Creates a new anomaly detector
     pub fn new(config: &StreamingConfig) -> Result<Self, String> {
         let anomaly_config = config.anomaly_config.clone();
@@ -797,7 +797,7 @@ impl<A: Float + Default + Clone + std::iter::Sum + Send + Sync> AnomalyDetector<
                 anomaly_type: ensemble_result
                     .anomaly_type
                     .unwrap_or(AnomalyType::StatisticalOutlier),
-                severity: ensemble_result.severity,
+                severity: ensemble_result.severity.clone(),
                 confidence: ensemble_result.confidence,
                 data_point: data_point.clone(),
                 detector_name: "ensemble".to_string(),

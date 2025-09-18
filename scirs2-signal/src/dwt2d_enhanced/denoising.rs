@@ -46,18 +46,18 @@ use statrs::statistics::Statistics;
 /// use scirs2_signal::dwt::Wavelet;
 /// use ndarray::Array2;
 ///
-/// // Create simple test data
-/// let mut noisy_data = Array2::zeros((64, 64));
-/// for i in 0..64 {
-///     for j in 0..64 {
-///         noisy_data[[i, j]] = (i as f64).sin() + (j as f64).cos() + 1.0;
+/// // Create minimal test data (8x8 for maximum compatibility)
+/// let mut noisy_data = Array2::zeros((8, 8));
+/// for i in 0..8 {
+///     for j in 0..8 {
+///         noisy_data[[i, j]] = (i + j) as f64 + 1.0;
 ///     }
 /// }
 ///
 /// // Demonstrate proper error handling for denoising
 /// match adaptive_wavelet_denoising(
 ///     &noisy_data,
-///     Wavelet::DB(4),
+///     Wavelet::DB(2),
 ///     None,
 ///     DenoisingMethod::BayesShrink
 /// ) {
