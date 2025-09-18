@@ -118,7 +118,7 @@ impl CompressedMemMapBuilder {
     ///
     /// Larger blocks provide better compression but slower random access.
     pub fn with_block_size(mut self, blocksize: usize) -> Self {
-        self.block_size = block_size;
+        self.block_size = blocksize;
         self
     }
 
@@ -145,7 +145,7 @@ impl CompressedMemMapBuilder {
     /// Larger cache sizes allow for more decompressed blocks to be held in memory,
     /// potentially improving performance for repeated access patterns.
     pub fn with_cache_size(mut self, cachesize: usize) -> Self {
-        self.cache_size = cache_size;
+        self.cache_size = cachesize;
         self
     }
 
@@ -226,8 +226,8 @@ impl CompressedMemMapBuilder {
         let data_ptr = data.as_ptr() as *const u8;
         let mut current_offset = metadata_placeholder.len() as u64;
 
-        for block_idx in 0..num_blocks {
-            let start_element = block_idx * block_size;
+        for blockidx in 0..num_blocks {
+            let start_element = blockidx * block_size;
             let end_element = (start_element + block_size).min(num_elements);
             let block_elements = end_element - start_element;
             let uncompressed_size = block_elements * element_size;
@@ -476,30 +476,30 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
     ///
     /// # Arguments
     ///
-    /// * `block_idx` - The index of the block to load
+    /// * `blockidx` - The index of the block to load
     ///
     /// # Returns
     ///
     /// `Ok(())` if successful, or an error
     pub fn preload_block(&self, blockidx: usize) -> CoreResult<()> {
-        if block_idx >= self.metadata.num_blocks {
+        if blockidx >= self.metadata.num_blocks {
             return Err(CoreError::IndexError(ErrorContext::new(format!(
                 "Block index {} out of bounds (max {})",
-                block_idx,
+                blockidx,
                 self.metadata.num_blocks - 1
             ))));
         }
 
         // Check if the block is already cached
-        if self.block_cache.has_block(block_idx) {
+        if self.block_cache.has_block(blockidx) {
             return Ok(());
         }
 
         // Load and decompress the block
-        let block = self.load_block(block_idx)?;
+        let block = self.load_block(blockidx)?;
 
         // Add to cache
-        self.block_cache.put_block(block_idx, block);
+        self.block_cache.put_block(blockidx, block);
 
         Ok(())
     }
@@ -510,9 +510,9 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
         let mut file = File::open(&self.path)?;
 
         // Get block information
-        let offset = self.metadata.block_offsets[block_idx];
-        let compressed_size = self.metadata.block_compressed_sizes[block_idx];
-        let uncompressed_size = self.metadata.block_uncompressed_sizes[block_idx];
+        let offset = self.metadata.block_offsets[blockidx];
+        let compressed_size = self.metadata.block_compressed_sizes[blockidx];
+        let uncompressed_size = self.metadata.block_uncompressed_sizes[blockidx];
 
         // Read the compressed block
         file.seek(SeekFrom::Start(offset))?;
@@ -542,7 +542,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
         if block_bytes.len() != uncompressed_size {
             return Err(CoreError::ValueError(ErrorContext::new(format!(
                 "Block {} decompressed to {} bytes, expected {}",
-                block_idx,
+                blockidx,
                 block_bytes.len(),
                 uncompressed_size
             ))));
@@ -576,13 +576,13 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
 
         // Load each block and copy it into the result
         let mut offset = 0;
-        for block_idx in 0..self.metadata.num_blocks {
+        for blockidx in 0..self.metadata.num_blocks {
             // Get the block (from cache if available)
-            let block = match self.block_cache.get_block(block_idx) {
+            let block = match self.block_cache.get_block(blockidx) {
                 Some(block) => block,
                 None => {
-                    let block = self.load_block(block_idx)?;
-                    self.block_cache.put_block(block_idx, block.clone());
+                    let block = self.load_block(blockidx)?;
+                    self.block_cache.put_block(blockidx, block.clone());
                     block
                 }
             };
@@ -643,15 +643,15 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
         }
 
         // Calculate block index
-        let block_idx = flat_index / self.metadata.block_size;
+        let blockidx = flat_index / self.metadata.block_size;
         let block_offset = flat_index % self.metadata.block_size;
 
         // Get the block (from cache if available)
-        let block = match self.block_cache.get_block(block_idx) {
+        let block = match self.block_cache.get_block(blockidx) {
             Some(block) => block,
             None => {
-                let block = self.load_block(block_idx)?;
-                self.block_cache.put_block(block_idx, block.clone());
+                let block = self.load_block(blockidx)?;
+                self.block_cache.put_block(blockidx, block.clone());
                 block
             }
         };
@@ -663,7 +663,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
             Err(CoreError::IndexError(ErrorContext::new(format!(
                 "Block offset {} out of bounds for block {} (max {})",
                 block_offset,
-                block_idx,
+                blockidx,
                 block.len() - 1
             ))))
         }
@@ -734,15 +734,15 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
             }
 
             // Get the element from the source
-            let block_idx = source_flat_idx / self.metadata.block_size;
+            let blockidx = source_flat_idx / self.metadata.block_size;
             let block_offset = source_flat_idx % self.metadata.block_size;
 
             // Get the block (from cache if available)
-            let block = match self.block_cache.get_block(block_idx) {
+            let block = match self.block_cache.get_block(blockidx) {
                 Some(block) => block,
                 None => {
-                    let block = self.load_block(block_idx)?;
-                    self.block_cache.put_block(block_idx, block.clone());
+                    let block = self.load_block(blockidx)?;
+                    self.block_cache.put_block(blockidx, block.clone());
                     block
                 }
             };
@@ -875,16 +875,16 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
 
         // Serial processing
         (0..num_blocks)
-            .map(|block_idx| {
+            .map(|blockidx| {
                 // Calculate the range of elements for this block
-                let start = block_idx * block_size;
+                let start = blockidx * block_size;
                 let end = (start + block_size).min(num_elements);
 
                 // Load the elements for this block
                 let elements = self.load_elements(start, end)?;
 
                 // Apply the function to the block
-                Ok(f(&elements, block_idx))
+                Ok(f(&elements, blockidx))
             })
             .collect::<Result<Vec<R>, CoreError>>()
     }
@@ -912,9 +912,9 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
 
             return (0..num_blocks)
                 .into_par_iter()
-                .map(|block_idx| {
+                .map(|blockidx| {
                     // Calculate the range of elements for this block
-                    let start = block_idx * block_size;
+                    let start = blockidx * block_size;
                     let end = (start + block_size).min(num_elements);
 
                     // Load the elements for this block
@@ -924,23 +924,23 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
                     };
 
                     // Apply the function to the block
-                    Ok(f(&elements, block_idx))
+                    Ok(f(&elements, blockidx))
                 })
                 .collect::<Result<Vec<R>, CoreError>>();
         }
 
         // Serial processing (used when parallel=false)
         (0..num_blocks)
-            .map(|block_idx| {
+            .map(|blockidx| {
                 // Calculate the range of elements for this block
-                let start = block_idx * block_size;
+                let start = blockidx * block_size;
                 let end = (start + block_size).min(num_elements);
 
                 // Load the elements for this block
                 let elements = self.load_elements(start, end)?;
 
                 // Apply the function to the block
-                Ok(f(&elements, block_idx))
+                Ok(f(&elements, blockidx))
             })
             .collect::<Result<Vec<R>, CoreError>>()
     }
@@ -984,19 +984,19 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
         let mut result = Vec::with_capacity(end - start);
 
         // Load each required block
-        for block_idx in start_block..=end_block {
+        for blockidx in start_block..=end_block {
             // Get the block (from cache if available)
-            let block = match self.block_cache.get_block(block_idx) {
+            let block = match self.block_cache.get_block(blockidx) {
                 Some(block) => block,
                 None => {
-                    let block = self.load_block(block_idx)?;
-                    self.block_cache.put_block(block_idx, block.clone());
+                    let block = self.load_block(blockidx)?;
+                    self.block_cache.put_block(blockidx, block.clone());
                     block
                 }
             };
 
             // Calculate the range of elements we need from this block
-            let block_start = block_idx * self.metadata.block_size;
+            let block_start = blockidx * self.metadata.block_size;
             let block_end = block_start + block.len();
 
             let range_start = start.max(block_start) - block_start;
@@ -1054,7 +1054,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
     ///
     /// # Arguments
     ///
-    /// * `block_idx` - The index of the block to check
+    /// * `blockidx` - The index of the block to check
     ///
     /// # Returns
     ///
@@ -1063,7 +1063,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
         let cache = self.cache.read().unwrap();
 
         // Check if the block is in the cache
-        if let Some(cached) = cache.get(&block_idx) {
+        if let Some(cached) = cache.get(&blockidx) {
             // Check if the block has expired
             if let Some(ttl) = self.ttl {
                 if cached.timestamp.elapsed() > ttl {
@@ -1081,7 +1081,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
     ///
     /// # Arguments
     ///
-    /// * `block_idx` - The index of the block to get
+    /// * `blockidx` - The index of the block to get
     ///
     /// # Returns
     ///
@@ -1090,7 +1090,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
         let mut cache = self.cache.write().unwrap();
 
         // Check if the block is in the cache
-        if let Some(mut cached) = cache.remove(&block_idx) {
+        if let Some(mut cached) = cache.remove(&blockidx) {
             // Check if the block has expired
             if let Some(ttl) = self.ttl {
                 if cached.timestamp.elapsed() > ttl {
@@ -1103,7 +1103,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
 
             // Put the block back in the cache
             let data = cached.data.clone();
-            cache.insert(block_idx, cached);
+            cache.insert(blockidx, cached);
 
             Some(data)
         } else {
@@ -1115,13 +1115,13 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
     ///
     /// # Arguments
     ///
-    /// * `block_idx` - The index of the block to put
+    /// * `blockidx` - The index of the block to put
     /// * `block` - The block data
     fn put_block(&self, blockidx: usize, block: Vec<A>) {
         let mut cache = self.cache.write().unwrap();
 
         // Check if we need to evict a block
-        if cache.len() >= self.capacity && !cache.contains_key(&block_idx) {
+        if cache.len() >= self.capacity && !cache.contains_key(&blockidx) {
             // Find the least recently used block
             if let Some(lru_idx) = cache
                 .iter()
@@ -1134,7 +1134,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> BlockCache<A> {
 
         // Add the block to the cache
         cache.insert(
-            block_idx,
+            blockidx,
             CachedBlock {
                 data: block,
                 timestamp: Instant::now(),

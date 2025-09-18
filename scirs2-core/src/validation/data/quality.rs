@@ -245,12 +245,12 @@ impl QualityAnalyzer {
             .fold(finite_values[0], |acc, &x| if x > acc { x } else { acc });
 
         // Simple outlier detection using IQR method
-        let mut sorted_values = finite_values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let outliers = self.count_outliers_iqr(&sorted_values);
+        let mut sortedvalues = finite_values.to_vec();
+        sortedvalues.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let outliers = self.count_outliers_iqr(&sortedvalues);
 
         // Basic distribution detection
-        let distribution = self.detect_distribution(&sorted_values);
+        let distribution = self.detect_distribution(&sortedvalues);
 
         Ok(Some(StatisticalSummary {
             count: finite_values.len(),
@@ -268,19 +268,19 @@ impl QualityAnalyzer {
     where
         T: Float + Copy,
     {
-        if sorted_values.len() < 4 {
+        if sortedvalues.len() < 4 {
             return 0;
         }
 
-        let q1_index = sorted_values.len() / 4;
-        let q3_index = 3 * sorted_values.len() / 4;
-        let q1 = sorted_values[q1_index];
-        let q3 = sorted_values[q3_index];
+        let q1_index = sortedvalues.len() / 4;
+        let q3_index = 3 * sortedvalues.len() / 4;
+        let q1 = sortedvalues[q1_index];
+        let q3 = sortedvalues[q3_index];
         let iqr = q3 - q1;
         let lower_bound = q1 - iqr * num_traits::cast(1.5).unwrap_or(T::one());
         let upper_bound = q3 + iqr * num_traits::cast(1.5).unwrap_or(T::one());
 
-        sorted_values
+        sortedvalues
             .iter()
             .filter(|&&x| x < lower_bound || x > upper_bound)
             .count()
@@ -291,34 +291,34 @@ impl QualityAnalyzer {
     where
         T: Float + Copy + FromPrimitive,
     {
-        if sorted_values.len() < 10 {
+        if sortedvalues.len() < 10 {
             return None;
         }
 
         // Simple skewness calculation
-        let mean = sorted_values.iter().fold(T::zero(), |acc, &x| acc + x)
-            / num_traits::cast(sorted_values.len()).unwrap_or(T::one());
+        let mean = sortedvalues.iter().fold(T::zero(), |acc, &x| acc + x)
+            / num_traits::cast(sortedvalues.len()).unwrap_or(T::one());
 
-        let variance = sorted_values
+        let variance = sortedvalues
             .iter()
             .map(|&x| {
                 let diff = x - mean;
                 diff * diff
             })
             .fold(T::zero(), |acc, x| acc + x)
-            / num_traits::cast(sorted_values.len()).unwrap_or(T::one());
+            / num_traits::cast(sortedvalues.len()).unwrap_or(T::one());
 
         let std_dev = variance.sqrt();
 
         if std_dev > T::zero() {
-            let skewness = sorted_values
+            let skewness = sortedvalues
                 .iter()
                 .map(|&x| {
                     let diff = (x - mean) / std_dev;
                     diff * diff * diff
                 })
                 .fold(T::zero(), |acc, x| acc + x)
-                / num_traits::cast(sorted_values.len()).unwrap_or(T::one());
+                / num_traits::cast(sortedvalues.len()).unwrap_or(T::one());
 
             let skewness_f64: f64 = num_traits::cast(skewness).unwrap_or(0.0);
 

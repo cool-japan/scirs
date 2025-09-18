@@ -1555,13 +1555,13 @@ impl EcosystemTestRunner {
     }
 
     /// Calculate overall ecosystem health score
-    fn stability(&LongTermStabilityResults: &LongTermStabilityResults) -> f64 {
+    fn stability(ecosystem_results: &EcosystemTestResult) -> f64 {
         // Calculate compatibility score
-        let compatibility_score = if compatibilitymatrix.modules.is_empty() {
+        let compatibility_score = if ecosystem_results.compatibilitymatrix.modules.is_empty() {
             0.0
         } else {
-            let total_pairs = compatibilitymatrix.modules.len() * compatibilitymatrix.modules.len();
-            let compatible_pairs = compatibilitymatrix
+            let total_pairs = ecosystem_results.compatibilitymatrix.modules.len() * ecosystem_results.compatibilitymatrix.modules.len();
+            let compatible_pairs = ecosystem_results.compatibilitymatrix
                 .matrix
                 .iter()
                 .flat_map(|row| row.iter())
@@ -1619,18 +1619,18 @@ impl EcosystemTestRunner {
             ));
         }
 
-        if !compatibilitymatrix.failed_pairs.is_empty() {
+        if !ecosystem_results.compatibilitymatrix.failed_pairs.is_empty() {
             blocking_issues.push(format!(
                 "Module compatibility failures: {}",
-                compatibilitymatrix.failed_pairs.len()
+                ecosystem_results.compatibilitymatrix.failed_pairs.len()
             ));
         }
 
         // Check for warning issues
-        if !compatibilitymatrix.warning_pairs.is_empty() {
+        if !ecosystem_results.compatibilitymatrix.warning_pairs.is_empty() {
             warning_issues.push(format!(
                 "Module compatibility warnings: {}",
-                compatibilitymatrix.warning_pairs.len()
+                ecosystem_results.compatibilitymatrix.warning_pairs.len()
             ));
         }
 
@@ -1748,13 +1748,13 @@ impl EcosystemTestRunner {
         report.push_str(&format!(
             "- **Compatibility Score**: {:.1}%\n",
             latest
-                .compatibilitymatrix
+                .ecosystem_results.compatibilitymatrix
                 .matrix
                 .iter()
                 .flat_map(|row| row.iter())
                 .filter(|&&score| score >= 0.8)
                 .count() as f64
-                / latest.compatibilitymatrix.matrix.len().max(1) as f64
+                / latest.ecosystem_results.compatibilitymatrix.matrix.len().max(1) as f64
                 * 100.0
         ));
         report.push_str(&format!(
@@ -1948,9 +1948,9 @@ impl EcosystemTestRunner {
         ));
 
         // Compatibility Matrix Summary
-        if !latest.compatibilitymatrix.failed_pairs.is_empty() {
+        if !latest.ecosystem_results.compatibilitymatrix.failed_pairs.is_empty() {
             report.push_str("\n## Compatibility Issues\n\n");
-            for (mod1, mod2, reason) in &latest.compatibilitymatrix.failed_pairs {
+            for (mod1, mod2, reason) in &latest.ecosystem_results.compatibilitymatrix.failed_pairs {
                 report.push_str(&format!("- **{} ↔ {}**: {}\n", mod1, mod2, reason));
             }
         }

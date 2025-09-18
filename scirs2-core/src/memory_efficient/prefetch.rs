@@ -497,12 +497,13 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
         let (sender, receiver) = std::sync::mpsc::channel();
         self.prefetch_sender = Some(sender);
 
-        // Clone array for the thread
+        // Clone array and state for the thread
         let array = self.array.clone();
+        let prefetch_state = state.clone();
 
         // Get the timeout from the config
         let timeout = {
-            let guard = prefetch_state.lock().map_err(|_| {
+            let guard = self.prefetch_state.lock().map_err(|_| {
                 CoreError::MutexError(ErrorContext::new(
                     "Failed to lock prefetch _state".to_string(),
                 ))

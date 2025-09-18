@@ -380,7 +380,7 @@ impl MetalKernel {
     fn stub(device: Device, commandqueue: CommandQueue, name: String) -> Self {
         Self {
             device,
-            command_queue,
+            command_queue: commandqueue,
             pipeline: None,
             parameters: Arc::new(Mutex::new(KernelParameters {
                 buffers: HashMap::new(),
@@ -456,9 +456,9 @@ impl GpuKernelImpl for MetalKernel {
         // Dispatch the kernel
         let threads_per_threadgroup = MTLSize::new(256, 1, 1);
         let threadgroups = MTLSize::new(
-            work_groups[0] as u64,
-            work_groups[1] as u64,
-            work_groups[2] as u64,
+            workgroups[0] as u64,
+            workgroups[1] as u64,
+            workgroups[2] as u64,
         );
 
         encoder.dispatch_thread_groups(threadgroups, threads_per_threadgroup);

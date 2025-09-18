@@ -26,9 +26,9 @@ members = [
     # Temporarily disabled due to compilation errors:
     "scirs2-interpolate", # Needs debugging - enabling to fix
     # "scirs2-optimize", # 518+ compilation errors
-    "scirs2-stats", # Working on fixing compilation errors  
+    "scirs2-stats", # Working on fixing compilation errors
     "scirs2-cluster", # Re-enabled after fixing workspace conflict
-    "scirs2-optim", # Compilation errors - enabling to fix
+    # "scirs2-optim", # Moved to independent OptiRS project from v0.1.0-beta.2
     "scirs2-special", # Compilation errors - enabling to fix
 ]
 resolver = "2"
@@ -226,6 +226,7 @@ sysinfo = "0.35.2"
 # GPU backends
 metal = "0.31.0"
 objc2 = { version = "0.6.2"}
+objc2-foundation = "0.3.0"
 objc2-metal-performance-shaders = "0.3.0"
 cudarc = { version = "0.12", features = ["cuda-12000"] }
 opencl3 = { version = "0.11" }
@@ -307,7 +308,7 @@ scirs2-datasets = { version = "0.1.0-beta.2", path = "./scirs2-datasets" }
 
 # AI/ML modules
 scirs2-neural = { version = "0.1.0-beta.2", path = "./scirs2-neural" }
-scirs2-optim = { version = "0.1.0-beta.2", path = "./scirs2-optim" }
+# scirs2-optim moved to independent OptiRS project from v0.1.0-beta.2
 scirs2-graph = { version = "0.1.0-beta.2", path = "./scirs2-graph" }
 scirs2-transform = { version = "0.1.0-beta.2", path = "./scirs2-transform" }
 scirs2-metrics = { version = "0.1.0-beta.2", path = "./scirs2-metrics", default-features = false }

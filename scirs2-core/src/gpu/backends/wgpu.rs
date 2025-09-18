@@ -305,7 +305,7 @@ impl WebGPUContext {
                         binding: binding_index,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::Buffer {
-                            ty: BufferBindingType::Storage { read, only: true },
+                            ty: BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
@@ -334,7 +334,7 @@ impl WebGPUContext {
                 binding: 0,
                 visibility: ShaderStages::COMPUTE,
                 ty: BindingType::Buffer {
-                    ty: BufferBindingType::Storage { read, only: false },
+                    ty: BufferBindingType::Storage { read_only: false },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -653,11 +653,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
                     // }
 
                     // Dispatch the compute shader
-                    compute_pass.dispatch_workgroups(
-                        work_groups[0],
-                        work_groups[1],
-                        work_groups[2],
-                    );
+                    compute_pass.dispatch_workgroups(workgroups[0], workgroups[1], workgroups[2]);
                 }
 
                 // Submit the command buffer
@@ -666,7 +662,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
 
                 eprintln!(
                     "WebGPU compute shader {} dispatched with workgroups: {:?}",
-                    self.shader_name, work_groups
+                    self.shader_name, workgroups
                 );
             }
         }
@@ -674,7 +670,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
         {
             // Fallback implementation - just log the execution
             eprintln!("Executing WebGPU shader {} (simulated)", self.shader_name);
-            eprintln!("Work groups: {:?}", work_groups);
+            eprintln!("Work groups: {:?}", workgroups);
         }
     }
 }
@@ -890,7 +886,7 @@ impl WebGPUMemoryPool {
     fn new(totalsize: usize) -> Self {
         Self {
             available_buffers: HashMap::new(),
-            total_size,
+            total_size: totalsize,
             used_size: 0,
         }
     }

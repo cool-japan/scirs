@@ -1,97 +1,28 @@
+# ⚠️ MOVED: This crate has been moved to the independent OptiRS project
+#
+# New location: https://github.com/cool-japan/optirs
+# Use `optirs` crate instead of `scirs2-optim`
+
 [package]
 name = "scirs2-optim"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-description = "Machine Learning optimization module for SciRS2 (scirs2-optim)"
-license.workspace = true
-repository.workspace = true
-keywords = ["optimization", "machine-learning", "scientific", "sgd", "adam"]
-categories = ["science", "mathematics", "algorithms"]
-build = "build.rs"
-
-[lints]
-workspace = true
+version = "0.1.0-beta.2"
+edition = "2021"
+authors = ["SciRS2 Team"]
+description = "⚠️ MOVED: This crate has been moved to the independent OptiRS project. Use 'optirs' crate instead."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cool-japan/optirs"
+keywords = ["moved", "deprecated", "optimization", "optirs", "migration"]
+categories = ["science"]
+# Prevent this crate from being published since it's moved
+publish = false
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true }
-scirs2-linalg = { workspace = true }
-# scirs2-optimize = { workspace = true }
-scirs2-metrics = { workspace = true, optional = true, features = ["neural_common", "optim_integration"] }
-ndarray = { workspace = true }
-ndarray-rand = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
-thiserror = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
-sha2 = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-num_cpus = { workspace = true }
-rand_chacha = { workspace = true }
-uuid = { workspace = true, features = ["v4", "serde"] }
-futures = { workspace = true, features = ["executor"] }
-chrono = { workspace = true, features = ["serde"] }
-clap = { workspace = true, features = ["derive"] }
-regex = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-rsa = { workspace = true, optional = true }
-x509-parser = { workspace = true, optional = true }
-md5 = "0.8.0"
-fastrand.workspace = true
-log.workspace = true
-sysinfo.workspace = true
+# This crate is now empty - use OptiRS instead:
+# optirs = "0.1.0"
 
-[[bin]]
-name = "performance_regression_tester"
-path = "src/bin/performance_regression_tester.rs"
+[lib]
+name = "scirs2_optim"
+path = "src/lib.rs"
 
-[[bin]]
-name = "memory_leak_reporter"
-path = "src/bin/memory_leak_reporter.rs"
-
-[[bin]]
-name = "stress_test_analyzer"
-path = "src/bin/stress_test_analyzer.rs"
-
-[[bin]]
-name = "longrun_analyzer"
-path = "src/bin/longrun_analyzer.rs"
-
-[[bin]]
-name = "memory_pattern_analyzer"
-path = "src/bin/memory_pattern_analyzer.rs"
-
-[[bin]]
-name = "performance-regression-detector"
-path = "src/bin/performance_regression_detector.rs"
-
-[[bin]]
-name = "performance-baseline-manager"
-path = "src/bin/performance_baseline_manager.rs"
-
-[[bin]]
-name = "security-audit-scanner"
-path = "src/bin/security_audit_scanner.rs"
-
-[[bin]]
-name = "dependency-vulnerability-scanner"
-path = "src/bin/dependency_vulnerability_scanner.rs"
-
-
-[dev-dependencies]
-plotters = { workspace = true }
-approx = { workspace = true }
-tempfile = { workspace = true }
-
-[features]
-default = []
-# GPU acceleration support
-gpu = ["scirs2-core/gpu"]
-# Cryptographic functionality for plugin security
-crypto = ["dep:rsa", "dep:x509-parser"]
-# Temporarily removed optim_integration to avoid circular dependency
-metrics_integration = ["dep:scirs2-metrics", "scirs2-metrics/optim_integration"]
+# Make this an independent package (not part of SciRS2 workspace)
+[workspace]

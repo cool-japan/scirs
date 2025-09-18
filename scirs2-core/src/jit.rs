@@ -679,8 +679,9 @@ impl JitCompiler {
     }
 
     /// Execute a compiled kernel
-    pub fn id(
-        &str: &str,
+    pub fn execute_kernel(
+        &self,
+        kernel_id: &str,
         inputs: &[&dyn std::any::Any],
         outputs: &mut [&mut dyn std::any::Any],
     ) -> Result<(), JitError> {
@@ -720,7 +721,7 @@ impl JitCompiler {
     }
 
     /// Get kernel performance statistics
-    pub fn id_2(kernelid: &str) -> Option<KernelPerformance> {
+    pub fn get_kernel_performance(&self, kernel_id: &str) -> Option<KernelPerformance> {
         let mut cache = self.cache.write().unwrap();
         cache.get(kernel_id).map(|k| k.performance.clone())
     }
@@ -738,7 +739,7 @@ impl JitCompiler {
     }
 
     /// Optimize existing kernel
-    pub fn id_3(kernelid: &str) -> Result<String, JitError> {
+    pub fn optimize_kernel(&self, kernel_id: &str) -> Result<String, JitError> {
         let optimizer = self.adaptive_optimizer.lock().unwrap();
         optimizer.optimize_kernel(kernel_id, &self.config)
     }
@@ -765,19 +766,19 @@ impl KernelCache {
         Self {
             kernels: HashMap::new(),
             current_size: 0,
-            maxsize,
+            maxsize: value,
             access_counts: HashMap::new(),
             last_accessed: HashMap::new(),
         }
     }
 
     /// Check if kernel is cached
-    pub fn id(kernelid: &str) -> bool {
+    pub fn contains_kernel(&self, kernel_id: &str) -> bool {
         self.kernels.contains_key(kernel_id)
     }
 
     /// Get kernel from cache
-    pub fn id_2(kernelid: &str) -> Option<&CompiledKernel> {
+    pub fn get(&mut self, kernel_id: &str) -> Option<&CompiledKernel> {
         if let Some(kernel) = self.kernels.get(kernel_id) {
             // Update access tracking
             *self.access_counts.entry(kernel_id.to_string()).or_insert(0) += 1;
@@ -790,7 +791,7 @@ impl KernelCache {
     }
 
     /// Get a kernel from the cache without updating access tracking
-    pub fn id_3(&self, kernelid: &str) -> Option<&CompiledKernel> {
+    pub fn get_readonly(&self, kernel_id: &str) -> Option<&CompiledKernel> {
         self.kernels.get(kernel_id)
     }
 
@@ -812,7 +813,7 @@ impl KernelCache {
 
     /// Evict least recently used kernel
     fn evict_lru(&mut self) {
-        if let Some((lru_id_)) = self.last_accessed.iter().min_by_key(|(_, &time)| time) {
+        if let Some((lru_id, _)) = self.last_accessed.iter().min_by_key(|(_, &time)| time) {
             let lru_id = lru_id.clone();
             if let Some(kernel) = self.kernels.remove(&lru_id) {
                 self.current_size -= kernel.binary.len();
@@ -859,7 +860,7 @@ impl KernelCache {
 
 impl KernelProfiler {
     /// Create a new profiler
-    pub fn enabled(value: bool) -> Self {
+    pub fn new(enabled: bool) -> Self {
         Self {
             profiles: HashMap::new(),
             hw_counters: HardwareCounters::default(),
@@ -868,7 +869,7 @@ impl KernelProfiler {
     }
 
     /// Record kernel execution
-    pub fn id(&str: &str, profile: ExecutionProfile) {
+    pub fn record_execution(&mut self, kernel_id: &str, profile: ExecutionProfile) {
         if !self.enabled {
             return;
         }
@@ -881,7 +882,7 @@ impl KernelProfiler {
 
     /// Get profiling data for a kernel
     pub fn id_2(&self, kernelid: &str) -> Option<&Vec<ExecutionProfile>> {
-        self.profiles.get(kernel_id)
+        self.profiles.get(kernelid)
     }
 }
 
@@ -1048,7 +1049,7 @@ impl JitBackendImpl for InterpreterBackend {
                 binary_size: source.source.len(),
                 register_usage: None,
                 shared_memory_usage: None,
-                compiler_info: Interpreter.to_string(),
+                compiler_info: JitBackend::Interpreter.to_string(),
             },
             performance: KernelPerformance::default(),
         })
@@ -1097,7 +1098,10 @@ pub mod jit_dsl {
     use super::*;
 
     /// Create a simple arithmetic kernel
-    pub fn create_arithmetic_kernel(datatype: DataType) -> KernelSource {
+    pub fn create_arithmetic_kernel(operation: &str, input_type: DataType, output_type: DataType) -> KernelSource {
+        let input_type_str = format!("{input_type:?}").to_lowercase();
+        let output_type_str = format!("{output_type:?}").to_lowercase();
+
         let source = format!(
             r#"
 kernel void arithmetic_op(global {input_type}* input, global {output_type}* output, int size) {{
@@ -1107,8 +1111,8 @@ kernel void arithmetic_op(global {input_type}* input, global {output_type}* outp
     }}
 }}
 "#,
-            input_type = format!("{input_type:?}").to_lowercase(),
-            output_type = format!("{output_type:?}").to_lowercase(),
+            input_type = input_type_str,
+            output_type = output_type_str,
             operation = operation
         );
 
@@ -1116,7 +1120,7 @@ kernel void arithmetic_op(global {input_type}* input, global {output_type}* outp
             id: format!("{operation}"),
             source,
             language: KernelLanguage::OpenCl,
-            entry_point: arithmetic_op.to_string(),
+            entry_point: "arithmetic_op".to_string(),
             input_types: vec![input_type],
             output_types: vec![output_type],
             hints: CompilationHints::default(),
@@ -1124,18 +1128,20 @@ kernel void arithmetic_op(global {input_type}* input, global {output_type}* outp
     }
 
     /// Create a reduction kernel
-    pub fn create_reduction_kernel(datatype: DataType) -> KernelSource {
+    pub fn create_reduction_kernel(operation: &str, datatype: DataType) -> KernelSource {
+        let datatype_str = format!("{datatype:?}").to_lowercase();
+
         let source = format!(
             r#"
 kernel void reduction_op(global {datatype}* input, global {datatype}* output, int size) {{
     local {datatype} shared_data[256];
     int tid = get_local_id(0);
     int gid = get_global_id(0);
-    
+
     // Load data into shared memory
     shared_data[tid] = (gid < size) ? input[gid] : 0;
     barrier(CLK_LOCAL_MEM_FENCE);
-    
+
     // Perform reduction
     for (int stride = get_local_size(0) / 2; stride > 0; stride /= 2) {{
         if (tid < stride) {{
@@ -1143,21 +1149,22 @@ kernel void reduction_op(global {datatype}* input, global {datatype}* output, in
         }}
         barrier(CLK_LOCAL_MEM_FENCE);
     }}
-    
+
     // Write result
     if (tid == 0) {{
         output[get_group_id(0)] = shared_data[0];
     }}
 }}
 "#,
-            datatype = format!("{datatype:?}").to_lowercase()
+            datatype = datatype_str,
+            operation = operation
         );
 
         KernelSource {
             id: format!("{operation}"),
             source,
             language: KernelLanguage::OpenCl,
-            entry_point: reduction_op.to_string(),
+            entry_point: "reduction_op".to_string(),
             input_types: vec![datatype.clone()],
             output_types: vec![datatype.clone()],
             hints: CompilationHints {

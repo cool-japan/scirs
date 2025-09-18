@@ -41,7 +41,7 @@ scirs2-metrics = { workspace = true, optional = true, default-features = true }
 # Preview/experimental modules
 scirs2-ndimage = { workspace = true, optional = true }
 scirs2-neural = { workspace = true, optional = true }
-scirs2-optim = { workspace = true, optional = true }
+# scirs2-optim moved to independent OptiRS project from v0.1.0-beta.2
 scirs2-series = { workspace = true, optional = true }
 scirs2-text = { workspace = true, optional = true }
 scirs2-io = { workspace = true, optional = true }
@@ -76,9 +76,9 @@ standard = [
     "fft", "special", "signal", "sparse", "spatial", "cluster",
     "transform", "metrics"
 ]
-ai = ["neural", "optim", "autograd"]
+ai = ["neural", "autograd"]
 experimental = [
-    "ndimage", "neural", "optim", "series", "text",
+    "ndimage", "neural", "series", "text",
     "io", "datasets", "graph", "vision", "autograd"
 ]
 full = ["standard", "experimental"]
@@ -99,7 +99,7 @@ transform = ["dep:scirs2-transform"]
 metrics = ["dep:scirs2-metrics"]
 ndimage = ["dep:scirs2-ndimage"]
 neural = ["dep:scirs2-neural"]
-optim = ["dep:scirs2-optim"]
+# optim feature removed - moved to independent OptiRS project from v0.1.0-beta.2
 series = ["dep:scirs2-series"]
 text = ["dep:scirs2-text"]
 io = ["dep:scirs2-io"]

@@ -86,7 +86,7 @@ SciRS2 adopts a modular architecture with separate crates for different function
 
 # AI/ML Modules
 ├── scirs2-neural/            # Neural network building blocks
-├── scirs2-optim/             # ML-specific optimization algorithms
+# Note: scirs2-optim separated into independent OptiRS project from v0.1.0-beta.2
 ├── scirs2-graph/             # Graph processing algorithms
 ├── scirs2-transform/         # Data transformation utilities
 ├── scirs2-metrics/           # ML evaluation metrics
@@ -201,7 +201,7 @@ Each module has its own README with detailed documentation and is available on c
 
 ### AI/ML Modules
 - [**scirs2-neural**](scirs2-neural/README.md): Neural network building blocks [![crates.io](https://img.shields.io/crates/v/scirs2-neural.svg)](https://crates.io/crates/scirs2-neural)
-- [**scirs2-optim**](scirs2-optim/README.md): ML-specific optimization algorithms [![crates.io](https://img.shields.io/crates/v/scirs2-optim.svg)](https://crates.io/crates/scirs2-optim)
+- **⚠️ scirs2-optim**: **Separated to independent [OptiRS](https://github.com/cool-japan/optirs) project from v0.1.0-beta.2**
 - [**scirs2-graph**](scirs2-graph/README.md): Graph processing algorithms [![crates.io](https://img.shields.io/crates/v/scirs2-graph.svg)](https://crates.io/crates/scirs2-graph)
 - [**scirs2-transform**](scirs2-transform/README.md): Data transformation utilities [![crates.io](https://img.shields.io/crates/v/scirs2-transform.svg)](https://crates.io/crates/scirs2-transform)
 - [**scirs2-metrics**](scirs2-metrics/README.md): ML evaluation metrics [![crates.io](https://img.shields.io/crates/v/scirs2-metrics.svg)](https://crates.io/crates/scirs2-metrics)
@@ -305,6 +305,7 @@ scirs2-optimize = "0.1.0-beta.2"
 # AI/ML modules
 scirs2-neural = "0.1.0-beta.2"
 scirs2-autograd = "0.1.0-beta.2"
+# Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
 ### Example Usage
@@ -474,7 +475,7 @@ The following modules are in preview state and may undergo API changes:
 #### AI/ML Modules
 - **Automatic Differentiation** (`scirs2-autograd`): Tensor ops, neural network primitives
 - **Neural Networks** (`scirs2-neural`): Layers, activations, loss functions
-- **ML Optimization** (`scirs2-optim`): Optimizers, schedulers, regularization
+- **ML Optimization**: **Moved to independent [OptiRS](https://github.com/cool-japan/optirs) project**
 - **Graph Processing** (`scirs2-graph`): Graph algorithms and data structures
 - **Text Processing** (`scirs2-text`): Tokenization, vectorization, word embeddings
 - **Computer Vision** (`scirs2-vision`): Image processing, feature detection
@@ -542,9 +543,9 @@ Initial benchmarks on core operations show performance comparable to or exceedin
 
 **⚠️ Critical Update:** v0.1.0-beta.1 had compilation errors when downloaded from crates.io and has been **yanked**. Please use v0.1.0-beta.2 instead.
 
-### 🔧 v0.1.0-beta.2 (2025-09-16) - Compilation Fixes
+### 🔧 v0.1.0-beta.2 (2025-09-16) - Compilation Fixes & OptiRS Separation
 
-This hotfix release resolves all compilation errors that prevented v0.1.0-beta.1 from building successfully:
+This release resolves all compilation errors that prevented v0.1.0-beta.1 from building successfully:
 
 #### ✅ Fixed Issues:
 - **Variable name inconsistencies**: Resolved `chunk_size`/`chunksize`, `op_name`/`opname`, `target_unit`/`targetunit` mismatches
@@ -553,12 +554,20 @@ This hotfix release resolves all compilation errors that prevented v0.1.0-beta.1
 - **Function conflicts**: Resolved duplicate function definitions
 - **Type references**: Fixed field reference consistency
 
+#### 🔄 Project Restructure:
+- **⚠️ scirs2-optim separation**: The ML optimization module (470k+ lines) has been moved to the independent **[OptiRS](https://github.com/cool-japan/optirs)** project
+- **Simplified SciRS2**: Focus on core scientific computing with cleaner architecture
+- **Better modularity**: Allows independent development cycles for optimization research
+
 #### 📊 Results:
 - ✅ **100% Compilation Success**: All crates now compile without errors
 - ✅ **Zero Warnings**: Clean build across all feature combinations
-- ✅ **No API Changes**: Migration requires only version number updates
+- ✅ **Reduced complexity**: Main project is now more manageable
+- ✅ **No API Changes**: Existing scientific computing APIs unchanged
 
-**Migration:** Simply update your `Cargo.toml` from `0.1.0-beta.1` to `0.1.0-beta.2`.
+**Migration:**
+- Update `Cargo.toml` from `0.1.0-beta.1` to `0.1.0-beta.2`
+- For ML optimization features, add the independent `optirs` crate
 
 ## Known Limitations (Beta Release)
 

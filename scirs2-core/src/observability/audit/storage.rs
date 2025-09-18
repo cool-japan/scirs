@@ -597,7 +597,7 @@ impl LogFileManager {
 
             if result == 0 {
                 // Available space = available blocks * block size
-                Ok(stat.f_bavail * stat.f_frsize)
+                Ok(stat.f_bavail as u64 * stat.f_frsize)
             } else {
                 Err(CoreError::ComputationError(
                     crate::error::ErrorContext::new(

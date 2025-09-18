@@ -8,6 +8,7 @@
 
 use crate::gpu::{GpuBufferImpl, GpuError};
 use metal::{Buffer, CommandQueue, Device};
+use objc2_foundation::NSArray;
 use objc2_metal_performance_shaders::{
     MPSCNNConvolution, MPSCNNPoolingAverage, MPSCNNPoolingMax, MPSImageGaussianBlur, MPSMatrix,
     MPSMatrixDescriptor, MPSMatrixFindTopK, MPSMatrixMultiplication, MPSMatrixSoftMax,
@@ -23,7 +24,7 @@ pub struct MPSContext {
 
 impl MPSContext {
     /// Create a new MPS context
-    pub fn queue(CommandQueue: CommandQueue) -> Self {
+    pub fn new(device: Device, command_queue: CommandQueue) -> Self {
         Self {
             device,
             command_queue,
@@ -32,6 +33,7 @@ impl MPSContext {
 
     /// Create a matrix multiplication operation
     pub fn create_matmul(
+        &self,
         dimension: usize,
         alpha: f32,
         beta: f32,
@@ -45,11 +47,11 @@ impl MPSContext {
             MPSMatrixMultiplication::initWithDevice_transposeLeft_transposeRight_resultRows_resultColumns_interiorColumns_alpha_beta(
                 alloc,
                 &self.device,
-                transpose_left,
-                transpose_right,
-                result_rows,
-                result_cols,
-                inner_dimension,
+                false, // transpose_left
+                false, // transpose_right
+                dimension, // result_rows
+                dimension, // result_cols
+                dimension, // inner_dimension
                 alpha as f64,
                 beta as f64,
             )
@@ -64,7 +66,12 @@ impl MPSContext {
     }
 
     /// Create a matrix descriptor
-    pub fn creatematrix_descriptor(datatype: MPSDataType) -> Result<MPSMatrixDescriptor, GpuError> {
+    pub fn creatematrix_descriptor(
+        rows: usize,
+        columns: usize,
+        row_bytes: usize,
+        datatype: MPSDataType,
+    ) -> Result<MPSMatrixDescriptor, GpuError> {
         use objc2::rc::Retained;
         use objc2_metal_performance_shaders::MPSMatrixDescriptor;
 
@@ -209,7 +216,12 @@ impl MPSContext {
     }
 
     /// Create a 2D convolution operation
-    pub fn channels(usize: usize) -> Result<MPSCNNConvolution, GpuError> {
+    pub fn create_convolution(
+        kernel_width: usize,
+        kernel_height: usize,
+        input_channels: usize,
+        output_channels: usize,
+    ) -> Result<MPSCNNConvolution, GpuError> {
         use objc2_metal_performance_shaders::{MPSCNNConvolution, MPSCNNConvolutionDescriptor};
 
         // Create convolution descriptor
@@ -261,7 +273,13 @@ impl MPSContext {
     }
 
     /// Create a max pooling operation
-    pub fn y(usize: usize) -> Result<MPSCNNPoolingMax, GpuError> {
+    pub fn create_max_pooling(
+        &self,
+        kernel_width: usize,
+        kernel_height: usize,
+        stride_x: usize,
+        stride_y: usize,
+    ) -> Result<MPSCNNPoolingMax, GpuError> {
         use objc2_metal_performance_shaders::MPSCNNPoolingMax;
 
         // Create max pooling operation using proper objc2 patterns
@@ -286,7 +304,13 @@ impl MPSContext {
     }
 
     /// Create an average pooling operation
-    pub fn y_2(usize: usize) -> Result<MPSCNNPoolingAverage, GpuError> {
+    pub fn create_average_pooling(
+        &self,
+        kernel_width: usize,
+        kernel_height: usize,
+        stride_x: usize,
+        stride_y: usize,
+    ) -> Result<MPSCNNPoolingAverage, GpuError> {
         use objc2_metal_performance_shaders::MPSCNNPoolingAverage;
 
         // Create average pooling operation using proper objc2 patterns
@@ -367,7 +391,7 @@ impl MPSOperations {
     /// Create new MPS operations wrapper
     pub fn new(device: Device, commandqueue: CommandQueue) -> Self {
         Self {
-            context: MPSContext::new(device, command_queue),
+            context: MPSContext::new(device, commandqueue),
         }
     }
 
@@ -438,7 +462,7 @@ impl MPSOperations {
 
         // Perform the matrix multiplication
         self.context
-            .matrix_multiply(&matrix_a, &matrix_b, &matrix_c, &matmulop)?;
+            .matrix_multiply(&matrix_a, &matrix_b, &matrix_c, &matmul_op)?;
 
         Ok(())
     }
@@ -544,7 +568,7 @@ impl MPSOperations {
             unsafe {
                 sum_op.encodeToCommandBuffer_sourceMatrices_resultMatrix_scaleVector_offsetVector_biasVector_startIndex(
                     command_buffer,
-                    &objc2::runtime::NSArray::from_vec(vec![matrix_input.clone()]),
+                    &NSArray::from_vec(vec![matrix_input.clone()]),
                     &matrix_mean,
                     std::ptr::null(),
                     std::ptr::null(),
@@ -576,7 +600,14 @@ impl MPSOperations {
     }
 
     /// High-level interface for matrix operations on GPU arrays
-    pub fn data(&[f32]: &[f32], m: usize, n: usize, k: usize) -> Result<Vec<f32>, GpuError> {
+    pub fn matmul_data(
+        &self,
+        a_data: &[f32],
+        b_data: &[f32],
+        m: usize,
+        n: usize,
+        k: usize,
+    ) -> Result<Vec<f32>, GpuError> {
         use crate::gpu::backends::metal::{MetalBufferOptions, MetalContext};
 
         // Create Metal context for buffer operations
@@ -637,7 +668,7 @@ impl MPSOperations {
     }
 
     /// High-level interface for vector operations
-    pub fn vector_add(a_data: &[f32], bdata: &[f32]) -> Result<Vec<f32>, GpuError> {
+    pub fn vector_add(&self, a_data: &[f32], b_data: &[f32]) -> Result<Vec<f32>, GpuError> {
         use crate::gpu::backends::metal::{MetalBufferOptions, MetalContext};
 
         if a_data.len() != b_data.len() {

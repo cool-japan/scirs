@@ -622,7 +622,7 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {
@@ -684,7 +684,7 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {
@@ -738,7 +738,7 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {
@@ -776,7 +776,7 @@ pub mod reduction {
             }
             None => {
                 // Mean over all elements
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
                 let n = T::from_usize(rows * cols).unwrap();
                 let mut sum = T::zero();
 
@@ -804,12 +804,12 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {
                         // Variance along rows (result has length cols)
-                        let means = mean(_array, Some(0));
+                        let means = mean(array, Some(0));
                         let mut result = Array::<T, Ix1>::default(cols);
                         let n = T::from_usize(rows).unwrap();
 
@@ -826,7 +826,7 @@ pub mod reduction {
                     }
                     1 => {
                         // Variance along columns (result has length rows)
-                        let means = mean(_array, Some(1));
+                        let means = mean(array, Some(1));
                         let mut result = Array::<T, Ix1>::default(rows);
                         let n = T::from_usize(cols).unwrap();
 
@@ -846,11 +846,11 @@ pub mod reduction {
             }
             None => {
                 // Variance over all elements
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
                 let n = T::from_usize(rows * cols).unwrap();
 
                 // Compute the mean
-                let mean_val = mean(_array, None)[0].clone();
+                let mean_val = mean(array, None)[0].clone();
 
                 // Compute the sum of squared differences from the mean
                 let mut sum_sq_diff = T::zero();
@@ -878,7 +878,7 @@ pub mod reduction {
             + FromPrimitive
             + Float,
     {
-        let variances = var(_array, axis);
+        let variances = var(array, axis);
 
         variances.mapv(|x| x.sqrt())
     }
@@ -890,7 +890,7 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {
@@ -950,7 +950,7 @@ pub mod reduction {
     {
         match axis {
             Some(ax) => {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
+                let (rows, cols) = (array.shape()[0], array.shape()[1]);
 
                 match ax {
                     0 => {

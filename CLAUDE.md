@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust, providing SciPy-compatible APIs while leveraging Rust's performance, safety, and concurrency features. The project contains over 2 million lines of code across 24 modular crates.
+SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust, providing SciPy-compatible APIs while leveraging Rust's performance, safety, and concurrency features.
+
+**Note**: From v0.1.0-beta.2, the ML optimization module (scirs2-optim) has been separated into the independent [OptiRS](https://github.com/cool-japan/optirs) project for better modularity and focused development.
 
 ## Development Commands
 
@@ -78,7 +80,7 @@ scirs2/                  # Main integration crate (re-exports all modules)
 ├── scirs2-datasets/   # Sample datasets
 ├── scirs2-autograd/   # Automatic differentiation
 ├── scirs2-neural/     # Neural networks
-├── scirs2-optim/      # ML optimizers
+# Note: scirs2-optim moved to independent OptiRS project from beta.2
 ├── scirs2-graph/      # Graph processing
 ├── scirs2-transform/  # Data transformation
 ├── scirs2-metrics/    # ML metrics
@@ -220,6 +222,7 @@ The project uses GitHub Actions with:
 - Comprehensive test coverage
 
 ## Version Information
-- Current version: 0.1.0-beta.1
+- Current version: 0.1.0-beta.2
 - Repository: https://github.com/cool-japan/scirs
 - Main branch: master
+- ML Optimization: Independent [OptiRS](https://github.com/cool-japan/optirs) project

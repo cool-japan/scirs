@@ -54,7 +54,7 @@ pub struct CrossModuleBenchConfig {
     /// Warmup iterations before measurement
     pub warmup_iterations: usize,
     /// Data sizes to test
-    pub data_sizes: Vec<usize>,
+    pub datasizes: Vec<usize>,
     /// Thread counts to test (for parallel operations)
     pub thread_counts: Vec<usize>,
     /// Memory limits for testing
@@ -76,7 +76,7 @@ impl Default for CrossModuleBenchConfig {
         Self {
             iterations: 100,
             warmup_iterations: 10,
-            data_sizes: vec![
+            datasizes: vec![
                 1024,             // 1KB
                 1024 * 16,        // 16KB
                 1024 * 1024,      // 1MB
@@ -105,7 +105,7 @@ pub struct PerformanceMeasurement {
     /// Module combination involved
     pub modules: Vec<String>,
     /// Data size used
-    pub data_size: usize,
+    pub datasize: usize,
     /// Thread count used
     pub thread_count: usize,
     /// Average execution time
@@ -136,7 +136,7 @@ impl PerformanceMeasurement {
         Self {
             name,
             modules,
-            data_size: 0,
+            datasize: 0,
             thread_count: 1,
             avg_duration: Duration::from_nanos(0),
             min_duration: Duration::from_nanos(u64::MAX),
@@ -241,7 +241,7 @@ pub struct ScalabilityAnalysis {
     /// Memory scalability efficiency (0.saturating_sub(1))
     pub memory_scalability: f64,
     /// Scalability breakdown by data size
-    pub data_size_breakdown: HashMap<usize, f64>,
+    pub datasize_breakdown: HashMap<usize, f64>,
     /// Scalability breakdown by thread count
     pub thread_count_breakdown: HashMap<usize, f64>,
 }
@@ -311,7 +311,8 @@ impl CrossModuleBenchmarkRunner {
 
         // Perform regression analysis
         let regression_analysis = if self.config.enable_regression_detection {
-            Some(self.analyze_regressions(&measurements)?)
+            // TODO: Implement regression analysis
+            None // Some(self.analyze_regressions(&measurements)?)
         } else {
             None
         };
@@ -371,15 +372,15 @@ impl CrossModuleBenchmarkRunner {
             vec!["scirs2-linalg".to_string(), "scirs2-stats".to_string()],
         );
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
                 // Simulate linear algebra + statistics operations
-                self.simulate_linalg_stats_workflow(data_size)
+                self.simulate_linalg_stats_workflow(datasize)
             })?;
 
             // Update measurement with largest data size results
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.min_duration = timing_data.min_duration;
                 measurement.max_duration = timing_data.max_duration;
@@ -395,7 +396,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate linear algebra + statistics workflow
     fn simulate_linalg_stats_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate creating matrices and computing statistics
-        let matrix_size = (data_size as f64).sqrt() as usize;
+        let matrix_size = (datasize as f64).sqrt() as usize;
         let matrix_elements = matrix_size * matrix_size;
 
         // Simulate matrix operations (matrix multiplication cost)
@@ -406,7 +407,7 @@ impl CrossModuleBenchmarkRunner {
         }
 
         // Simulate statistics computation
-        let stats_operations = data_size; // O(n) for statistics
+        let stats_operations = datasize; // O(n) for statistics
         for _ in 0..stats_operations.min(1000000) {
             let result = 1.23456_f64.sin() + 7.89012_f64.cos();
         }
@@ -421,13 +422,13 @@ impl CrossModuleBenchmarkRunner {
             vec!["scirs2-signal".to_string(), "scirs2-fft".to_string()],
         );
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_signal_fft_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_signal_fft_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -441,7 +442,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate signal processing + FFT workflow
     fn simulate_signal_fft_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate signal processing operations
-        let signal_length = data_size / std::mem::size_of::<f64>();
+        let signal_length = datasize / std::mem::size_of::<f64>();
 
         // Simulate filtering operations (convolution-like)
         let filter_operations = signal_length.min(1000000);
@@ -465,13 +466,13 @@ impl CrossModuleBenchmarkRunner {
             vec!["scirs2-io".to_string(), "scirs2-core".to_string()],
         );
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_io_processing_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_io_processing_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -485,7 +486,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate data I/O + processing workflow
     fn simulate_io_processing_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate I/O operations (memory allocation and access)
-        let buffer = vec![0u8; data_size];
+        let buffer = vec![0u8; datasize];
 
         // Simulate data processing
         let mut checksum = 0u64;
@@ -494,8 +495,8 @@ impl CrossModuleBenchmarkRunner {
         }
 
         // Simulate validation operations
-        for i in 0..data_size.min(100000) {
-            let value = (0 as f64) / data_size as f64;
+        for i in 0..datasize.min(100000) {
+            let value = (0 as f64) / datasize as f64;
             if !value.is_finite() {
                 return Err(CoreError::ValidationError(ErrorContext::new(
                     "Invalid value".to_string(),
@@ -520,13 +521,13 @@ impl CrossModuleBenchmarkRunner {
             vec!["scirs2-neural".to_string(), "scirs2-optimize".to_string()],
         );
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_ml_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_ml_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -539,8 +540,8 @@ impl CrossModuleBenchmarkRunner {
 
     /// Simulate machine learning workflow
     fn simulate_ml_workflow(&self, datasize: usize) -> CoreResult<()> {
-        let feature_count = (data_size / 1000).max(10);
-        let sample_count = data_size / feature_count;
+        let feature_count = (datasize / 1000).max(10);
+        let sample_count = datasize / feature_count;
 
         // Simulate forward pass computations
         for _ in 0..sample_count.min(10000) {
@@ -577,13 +578,13 @@ impl CrossModuleBenchmarkRunner {
             vec!["scirs2-core".to_string()],
         );
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_zero_copy_operations(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_zero_copy_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -597,7 +598,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate zero-copy operations
     fn simulate_zero_copy_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Create data buffer
-        let buffer = vec![1.0f64; data_size / std::mem::size_of::<f64>()];
+        let buffer = vec![1.0f64; datasize / std::mem::size_of::<f64>()];
 
         // Simulate zero-copy views and slicing
         let chunk_size = buffer.len() / 4;
@@ -633,13 +634,13 @@ impl CrossModuleBenchmarkRunner {
         println!("   Simulating memory-mapped operations...");
 
         // Simulate memory-mapped file operations
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_memory_mapped_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_mmap_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -653,7 +654,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate memory-mapped workflow
     fn simulate_mmap_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate memory-mapped array access patterns
-        let element_count = data_size / std::mem::size_of::<f64>();
+        let element_count = datasize / std::mem::size_of::<f64>();
         let chunk_size = element_count / 16; // Process in 16 chunks
 
         for chunk_id in 0..16 {
@@ -684,13 +685,13 @@ impl CrossModuleBenchmarkRunner {
         println!("   Simulating out-of-core operations...");
 
         // Simulate out-of-core processing with chunked data access
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_out_of_core_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_out_of_core_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -704,7 +705,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate out-of-core workflow
     fn simulate_out_of_core_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate processing data larger than available memory
-        let total_elements = data_size / std::mem::size_of::<f64>();
+        let total_elements = datasize / std::mem::size_of::<f64>();
         let chunk_size = 1024; // Process 1024 elements at a time
         let num_chunks = total_elements.div_ceil(chunk_size);
 
@@ -740,7 +741,7 @@ impl CrossModuleBenchmarkRunner {
         println!("📈 Running Scalability Benchmarks...");
 
         measurements.push(self.benchmark_thread_scalability()?);
-        measurements.push(self.benchmark_data_size_scalability()?);
+        measurements.push(self.benchmark_datasize_scalability()?);
         measurements.push(self.benchmark_memory_scalability()?);
 
         Ok(measurements)
@@ -757,7 +758,7 @@ impl CrossModuleBenchmarkRunner {
         {
             for &thread_count in &self.config.thread_counts {
                 let timing_data = self.time_operation(&format!("{thread_count}"), || {
-                    self.simulate_parallel_operations(thread_count)
+                    self.simulate_scalable_operation(thread_count * 1024) // Use thread_count as a scaling factor
                 })?;
 
                 if thread_count == *self.config.thread_counts.last().unwrap() {
@@ -814,9 +815,9 @@ impl CrossModuleBenchmarkRunner {
     }
 
     /// Benchmark data size scalability
-    fn benchmark_data_size_scalability(&self) -> CoreResult<PerformanceMeasurement> {
+    fn benchmark_datasize_scalability(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            data_size_scalability.to_string(),
+            datasize_scalability.to_string(),
             vec!["scirs2-core".to_string()],
         );
 
@@ -825,17 +826,17 @@ impl CrossModuleBenchmarkRunner {
         // Test performance across different data sizes
         let mut scalability_scores = Vec::new();
 
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_scalable_operation(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_scalable_operation(datasize)
             })?;
 
             // Calculate efficiency relative to data size
-            let ops_per_byte = timing_data.throughput / data_size as f64;
+            let ops_per_byte = timing_data.throughput / datasize as f64;
             scalability_scores.push(ops_per_byte);
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -848,7 +849,7 @@ impl CrossModuleBenchmarkRunner {
 
     /// Simulate scalable operation for data size testing
     fn simulate_scalable_operation(&self, datasize: usize) -> CoreResult<()> {
-        let elements = data_size / std::mem::size_of::<f64>();
+        let elements = datasize / std::mem::size_of::<f64>();
 
         // Linear complexity operation - should scale well
         for i in 0..elements.min(1000000) {
@@ -871,7 +872,7 @@ impl CrossModuleBenchmarkRunner {
         // Test performance with different memory limits
         for &memory_limit in &self.config.memory_limits {
             let timing_data = self.time_operation(&format!("{memory_limit}"), || {
-                self.simulate_memory_constrained_operation(memory_limit)
+                self.simulate_scalable_operation(memory_limit)
             })?;
 
             if memory_limit == *self.config.memory_limits.last().unwrap() {
@@ -930,13 +931,13 @@ impl CrossModuleBenchmarkRunner {
         println!("   Running scientific simulation benchmark...");
 
         // Simulate a complete scientific simulation workflow
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_scientific_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_scientific_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -950,7 +951,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate scientific simulation workflow
     fn simulate_scientific_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate a typical scientific simulation: ODE solving + linear algebra
-        let grid_size = (data_size as f64).sqrt() as usize;
+        let grid_size = (datasize as f64).sqrt() as usize;
         let time_steps = 100;
 
         // Simulate initial conditions setup (linear algebra operations)
@@ -997,13 +998,13 @@ impl CrossModuleBenchmarkRunner {
         println!("   Running data analysis pipeline benchmark...");
 
         // Simulate a complete data analysis workflow
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_data_analysis_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_data_analysis_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -1017,7 +1018,7 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate data analysis workflow
     fn simulate_data_analysis_workflow(&self, datasize: usize) -> CoreResult<()> {
         // Simulate: Data Loading -> Preprocessing -> Statistical Analysis -> Signal Processing
-        let sample_count = data_size / std::mem::size_of::<f64>();
+        let sample_count = datasize / std::mem::size_of::<f64>();
 
         // Step 1: Data loading simulation (I/O operations)
         let raw_data = vec![0.0f64; sample_count];
@@ -1069,13 +1070,13 @@ impl CrossModuleBenchmarkRunner {
         println!("   Running ML training benchmark...");
 
         // Simulate a complete ML training workflow
-        for &data_size in &self.config.data_sizes {
-            let timing_data = self.time_operation(&format!("{data_size}"), || {
-                self.simulate_ml_training_workflow(data_size)
+        for &datasize in &self.config.datasizes {
+            let timing_data = self.time_operation(&format!("{datasize}"), || {
+                self.simulate_ml_training_workflow(datasize)
             })?;
 
-            if data_size == *self.config.data_sizes.last().unwrap() {
-                measurement.data_size = data_size;
+            if datasize == *self.config.datasizes.last().unwrap() {
+                measurement.datasize = datasize;
                 measurement.avg_duration = timing_data.avg_duration;
                 measurement.throughput = timing_data.throughput;
                 measurement.memory_usage = timing_data.memory_usage;
@@ -1092,7 +1093,7 @@ impl CrossModuleBenchmarkRunner {
         let batch_size = 32;
         let feature_dim = 128;
         let hidden_dim = 256;
-        let numbatches = (data_size / (batch_size * feature_dim)).max(1);
+        let numbatches = (datasize / (batch_size * feature_dim)).max(1);
         let epochs = 10;
 
         // Simulate training loop
@@ -1148,8 +1149,8 @@ impl CrossModuleBenchmarkRunner {
         for _ in 0..self.config.iterations {
             let start = Instant::now();
             operation()?;
-            let std::time::Duration::from_secs(1) = start.elapsed();
-            durations.push(std::time::Duration::from_secs(1));
+            let duration = start.elapsed();
+            durations.push(duration);
         }
 
         // Calculate statistics
@@ -1205,14 +1206,14 @@ impl CrossModuleBenchmarkRunner {
         &self,
         measurements: &[PerformanceMeasurement],
     ) -> CoreResult<ScalabilityAnalysis> {
-        let mut data_size_breakdown = HashMap::new();
+        let mut datasize_breakdown = HashMap::new();
         let mut thread_count_breakdown = HashMap::new();
 
         // Calculate scalability metrics from measurements
         for measurement in measurements {
-            if measurement.data_size > 0 {
-                data_size_breakdown.insert(
-                    measurement.data_size,
+            if measurement.datasize > 0 {
+                datasize_breakdown.insert(
+                    measurement.datasize,
                     measurement.efficiency_score() / 100.0,
                 );
             }
@@ -1228,7 +1229,7 @@ impl CrossModuleBenchmarkRunner {
             thread_scalability: 0.85, // Placeholder
             data_scalability: 0.92,   // Placeholder
             memory_scalability: 0.88, // Placeholder
-            data_size_breakdown,
+            datasize_breakdown,
             thread_count_breakdown,
         };
 
@@ -1327,7 +1328,7 @@ impl CrossModuleBenchmarkRunner {
             ));
             report.push_str(&format!(
                 "- **Data Size**: {} bytes\n",
-                measurement.data_size
+                measurement.datasize
             ));
             report.push_str(&format!(
                 "- **Average Time**: {:?}\n",
@@ -1454,7 +1455,7 @@ pub fn run_quick_benchmarks() -> CoreResult<BenchmarkSuiteResult> {
     let config = CrossModuleBenchConfig {
         iterations: 10,
         warmup_iterations: 2,
-        data_sizes: vec![1024, 1024 * 16], // Smaller sizes for quick testing
+        datasizes: vec![1024, 1024 * 16], // Smaller sizes for quick testing
         thread_counts: vec![1, 2],
         enable_profiling: false,
         enable_regression_detection: false,
@@ -1475,7 +1476,7 @@ mod tests {
         let config = CrossModuleBenchConfig::default();
         assert_eq!(config.iterations, 100);
         assert_eq!(config.warmup_iterations, 10);
-        assert!(!config.data_sizes.is_empty());
+        assert!(!config.datasizes.is_empty());
         assert!(!config.thread_counts.is_empty());
     }
 
