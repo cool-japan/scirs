@@ -108,21 +108,21 @@ fn demo_arbitrary_floats() -> CoreResult<()> {
 
     // Basic arithmetic with high precision
     let one_third =
-        ArbitraryFloat::from_f64_prec(1.0, prec)? / ArbitraryFloat::from_f64_prec(3.0, prec)?;
+        ArbitraryFloat::from_f64_withprecision(1.0, prec)? / ArbitraryFloat::from_f64_withprecision(3.0, prec)?;
     println!("1/3 with {} bits precision:", prec);
     println!("{}", one_third);
     println!(
         "Decimal precision: {} digits",
-        one_third.decimal_precision()
+        one_third.decimalprecision()
     );
 
     // Verify precision by multiplying back
-    let three = ArbitraryFloat::from_f64_prec(3.0, prec)?;
+    let three = ArbitraryFloat::from_f64_withprecision(3.0, prec)?;
     let result = one_third * three;
     println!("\n(1/3) * 3 = {}", result);
 
     // Transcendental functions
-    let x = ArbitraryFloat::from_f64_prec(0.5, prec)?;
+    let x = ArbitraryFloat::from_f64_withprecision(0.5, prec)?;
     println!("\nx = {}", x);
     println!("sin(x) = {}", x.sin());
     println!("cos(x) = {}", x.cos());
@@ -130,8 +130,8 @@ fn demo_arbitrary_floats() -> CoreResult<()> {
     println!("ln(exp(x)) = {}", x.exp().ln()?);
 
     // Demonstrate precision loss in subtraction
-    let a = ArbitraryFloat::from_f64_prec(1.0, prec)?;
-    let b = ArbitraryFloat::from_f64_prec(1.0 - 1e-50, prec)?;
+    let a = ArbitraryFloat::from_f64_withprecision(1.0, prec)?;
+    let b = ArbitraryFloat::from_f64_withprecision(1.0 - 1e-50, prec)?;
     let diff = a - b;
     println!("\nCatastrophic cancellation example:");
     println!("1.0 - (1.0 - 1e-50) = {}", diff);
@@ -178,8 +178,8 @@ fn demo_complex_numbers() -> CoreResult<()> {
     let prec = 128;
 
     // Create complex numbers
-    let z1 = ArbitraryComplex::from_f64_parts(3.0, 4.0);
-    let z2 = ArbitraryComplex::from_f64_parts(1.0, -2.0);
+    let z1 = ArbitraryComplex::re_2(3.0, 4.0);
+    let z2 = ArbitraryComplex::re_2(1.0, -2.0);
 
     println!("z1 = {}", z1);
     println!("z2 = {}", z2);
@@ -196,8 +196,8 @@ fn demo_complex_numbers() -> CoreResult<()> {
 
     // Euler's identity: e^(iπ) + 1 = 0
     let pi = utils::pi(prec)?;
-    let i_pi = ArbitraryComplex::from_parts(&ArbitraryFloat::from_f64_prec(0.0, prec)?, &pi);
-    let euler = i_pi.exp() + ArbitraryComplex::from_f64_parts(1.0, 0.0);
+    let i_pi = ArbitraryComplex::re(&ArbitraryFloat::from_f64_withprecision(0.0, prec)?, &pi);
+    let euler = i_pi.exp() + ArbitraryComplex::re_2(1.0, 0.0);
     println!("\nEuler's identity: e^(iπ) + 1 = {}", euler);
     println!("Magnitude: {}", euler.abs());
 
@@ -232,9 +232,9 @@ fn demo_constants() -> CoreResult<()> {
     println!("\nφ (golden ratio) = {}", phi);
 
     // Verify: φ = (1 + √5) / 2
-    let one = ArbitraryFloat::from_f64_prec(1.0, prec)?;
-    let five = ArbitraryFloat::from_f64_prec(5.0, prec)?;
-    let two = ArbitraryFloat::from_f64_prec(2.0, prec)?;
+    let one = ArbitraryFloat::from_f64_withprecision(1.0, prec)?;
+    let five = ArbitraryFloat::from_f64_withprecision(5.0, prec)?;
+    let two = ArbitraryFloat::from_f64_withprecision(2.0, prec)?;
     let phi_check = (one + five.sqrt()?) / two;
     println!("Verification: (1 + √5) / 2 = {}", phi_check);
 
@@ -261,7 +261,7 @@ fn demo_precision_builder() -> CoreResult<()> {
 
             // Compute π² / 6 (Basel problem)
             let pi = utils::pi(ctx.float_precision)?;
-            let six = ArbitraryFloat::from_f64_prec(6.0, ctx.float_precision)?;
+            let six = ArbitraryFloat::from_f64_withprecision(6.0, ctx.float_precision)?;
             let pi_squared = pi.clone() * pi;
             Ok(pi_squared / six)
         })?;
@@ -270,10 +270,10 @@ fn demo_precision_builder() -> CoreResult<()> {
 
     // The Basel problem: π²/6 = 1 + 1/4 + 1/9 + 1/16 + ...
     // Let's verify by computing the sum
-    let mut sum = ArbitraryFloat::from_f64_prec(0.0, 384)?;
+    let mut sum = ArbitraryFloat::from_f64_withprecision(0.0, 384)?;
     for n in 1..=1000 {
-        let n_float = ArbitraryFloat::from_f64_prec(n as f64, 384)?;
-        let term = ArbitraryFloat::from_f64_prec(1.0, 384)? / (n_float.clone() * n_float);
+        let n_float = ArbitraryFloat::from_f64_withprecision(n as f64, 384)?;
+        let term = ArbitraryFloat::from_f64_withprecision(1.0, 384)? / (n_float.clone() * n_float);
         sum = sum + term;
     }
     println!("Sum of 1/n² for n=1..1000 = {}", sum);
@@ -288,12 +288,12 @@ fn demo_numerical_analysis() -> CoreResult<()> {
 
     // Newton's method for square root
     println!("Newton's method for √2:");
-    let two = ArbitraryFloat::from_f64_prec(2.0, prec)?;
-    let mut x = ArbitraryFloat::from_f64_prec(1.5, prec)?; // Initial guess
+    let two = ArbitraryFloat::from_f64_withprecision(2.0, prec)?;
+    let mut x = ArbitraryFloat::from_f64_withprecision(1.5, prec)?; // Initial guess
 
     for i in 0..5 {
         let x_new =
-            (x.clone() + two.clone() / x.clone()) / ArbitraryFloat::from_f64_prec(2.0, prec)?;
+            (x.clone() + two.clone() / x.clone()) / ArbitraryFloat::from_f64_withprecision(2.0, prec)?;
         println!("Iteration {}: {}", i + 1, x_new);
         x = x_new;
     }
@@ -304,11 +304,11 @@ fn demo_numerical_analysis() -> CoreResult<()> {
     // Computing derivatives numerically with high precision
     println!("\nNumerical differentiation of sin(x) at x = π/4:");
     let pi = utils::pi(prec)?;
-    let four = ArbitraryFloat::from_f64_prec(4.0, prec)?;
+    let four = ArbitraryFloat::from_f64_withprecision(4.0, prec)?;
     let x = pi / four;
 
     // Use very small h for numerical derivative
-    let h = ArbitraryFloat::from_f64_prec(1e-50, prec)?;
+    let h = ArbitraryFloat::from_f64_withprecision(1e-50, prec)?;
     let f_x = x.sin();
     let f_x_plus_h = (x.clone() + h.clone()).sin();
     let derivative = (f_x_plus_h - f_x) / h;

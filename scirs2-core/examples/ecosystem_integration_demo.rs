@@ -20,9 +20,10 @@
 use scirs2_core::error::CoreResult;
 use scirs2_core::testing::ecosystem_integration::{
     create_ecosystem_test_suite, ApiComplianceLevel, DeploymentTarget, EcosystemTestConfig,
-    EcosystemTestRunner,
+    EcosystemTestResult, EcosystemTestRunner,
 };
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 #[allow(dead_code)]
 fn main() -> CoreResult<()> {

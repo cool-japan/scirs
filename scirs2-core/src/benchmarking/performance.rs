@@ -76,13 +76,13 @@ impl PerformanceTarget {
         );
 
         // Check execution time
-        if result.statistics.meanexecution_time > scaled_target_time {
+        if result.statistics.mean_execution_time > scaled_target_time {
             return false;
         }
 
         // Check throughput if specified
         if let Some(target_throughput) = self.target_throughput {
-            let actual_throughput = 1.0 / result.statistics.meanexecution_time.as_secs_f64();
+            let actual_throughput = 1.0 / result.statistics.mean_execution_time.as_secs_f64();
             if actual_throughput < target_throughput {
                 return false;
             }
@@ -127,7 +127,7 @@ impl PerformanceBenchmarkResult {
             (target.target_time.as_nanos() as f64 * input_scale.powf(target.scaling_factor)) as u64,
         );
 
-        let performance_ratio = benchmark_result.statistics.meanexecution_time.as_secs_f64()
+        let performance_ratio = benchmark_result.statistics.mean_execution_time.as_secs_f64()
             / scaled_target_time.as_secs_f64();
 
         Self {
@@ -308,12 +308,12 @@ impl PerformanceBenchmarker {
         let speedup = scalar_result
             .benchmark_result
             .statistics
-            .meanexecution_time
+            .mean_execution_time
             .as_secs_f64()
             / simd_result
                 .benchmark_result
                 .statistics
-                .meanexecution_time
+                .mean_execution_time
                 .as_secs_f64();
 
         Ok((simd_result, scalar_result, speedup))
@@ -357,12 +357,12 @@ impl PerformanceBenchmarker {
         let actual_speedup = sequential_result
             .benchmark_result
             .statistics
-            .meanexecution_time
+            .mean_execution_time
             .as_secs_f64()
             / parallel_result
                 .benchmark_result
                 .statistics
-                .meanexecution_time
+                .mean_execution_time
                 .as_secs_f64();
         let efficiency = actual_speedup / theoretical_speedup;
 
@@ -591,7 +591,7 @@ mod tests {
             )
             .unwrap();
 
-        assert!(result.benchmark_result.statistics.meanexecution_time > Duration::from_micros(50));
+        assert!(result.benchmark_result.statistics.mean_execution_time > Duration::from_micros(50));
         assert_eq!(result.target.category, BenchmarkCategory::Computation);
     }
 }

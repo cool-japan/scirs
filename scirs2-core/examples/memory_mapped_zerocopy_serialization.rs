@@ -40,8 +40,8 @@ impl Complex64 {
 
 // Implementation of ZeroCopySerializable for our custom type
 impl ZeroCopySerializable for Complex64 {
-    unsafe fn bytes(bytes: &[u8]) -> CoreResult<Self> {
-        if !Self::validate_bytes(_bytes) {
+    unsafe fn from_bytes(bytes: &[u8]) -> CoreResult<Self> {
+        if !Self::validate_bytes(bytes) {
             return Err(CoreError::ValidationError(
                 ErrorContext::new(format!(
                     "Invalid byte length for Complex64: expected {} got {}",
@@ -200,11 +200,11 @@ fn custom_type_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>>
     // Read and display metadata
     let loaded_metadata = MemoryMappedArray::<Complex64>::read_metadata(&file_path)?;
     println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata[description]);
-    println!("  Type: {}", loaded_metadata[type]);
+    println!("  Description: {}", loaded_metadata["description"]);
+    println!("  Type: {}", loaded_metadata["type"]);
     println!(
         "  Pattern: {}",
-        loaded_metadata[custom_properties]["pattern"]
+        loaded_metadata["custom_properties"]["pattern"]
     );
 
     Ok(())

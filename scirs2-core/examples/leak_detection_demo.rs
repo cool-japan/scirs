@@ -42,7 +42,7 @@ fn main() -> CoreResult<()> {
 
     // Demonstrate checkpoint-based leak detection
     println!("\n🎯 Creating memory checkpoint...");
-    let checkpoint = detector.create_checkpoint(demo_operation)?;
+    let checkpoint = detector.create_checkpoint("demo_operation")?;
     println!(
         "  ✅ Checkpoint '{}' created at {}",
         checkpoint.name,

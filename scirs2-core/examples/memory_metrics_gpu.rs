@@ -117,7 +117,9 @@ fn main() {
     println!("\nExample 3: Simulating a GPU Computation");
     println!("--------------------------------------");
 
-    simulatematrix_multiplication(&context);
+    // NOTE: simulatematrix_multiplication function not yet implemented
+    // simulatematrix_multiplication(&context);
+    println!("Matrix multiplication simulation not yet implemented");
 
     // Release all remaining buffers
     println!("\nReleasing all remaining buffers");

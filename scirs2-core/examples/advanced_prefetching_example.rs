@@ -372,7 +372,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..500 {
         for j in 0..500 {
             // Access matrix - this will trigger prefetching in other datasets
-            let dataset_key = matrix;
+            let dataset_key = "matrix";
             let indices = [i, j];
             // Note: dataset_manager.get() not available in current API
             let matrix_val = 0.0; // Placeholder

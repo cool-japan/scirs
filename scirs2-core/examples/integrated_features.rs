@@ -55,8 +55,8 @@ fn run_integrated_example() {
     use rand_distr::Normal;
 
     // Initialize logging
-    scirs2_core::logging::set_minlog_level(LogLevel::Debug);
-    let logger = Logger::new(integrated_example);
+    scirs2_core::logging::set_level(LogLevel::Debug);
+    let logger = Logger::new("integrated_example");
     logger.info("Starting integrated example");
 
     // Initialize profiling
@@ -67,7 +67,7 @@ fn run_integrated_example() {
     let mut progress = ProgressTracker::new("Processing Pipeline", 4);
 
     // Step 1: Generate random data
-    let timer_step1 = Timer::start(step1_generate_data);
+    let timer_step1 = Timer::start("step1_generate_data");
     logger.debug("Generating random data");
 
     let mut rng = Random::default();
@@ -90,7 +90,7 @@ fn run_integrated_example() {
     logger.info("Random data generation completed");
 
     // Step 2: Process the data
-    let timer_step2 = Timer::start(step2_process_data);
+    let timer_step2 = Timer::start("step2_process_data");
     logger.debug("Processing data");
 
     // Create a zero-copy view for efficient transformation
@@ -104,7 +104,7 @@ fn run_integrated_example() {
     logger.info("Data processing completed");
 
     // Step 3: Convert data types
-    let timer_step3 = Timer::start(step3_convert_types);
+    let timer_step3 = Timer::start("step3_convert_types");
     logger.debug("Converting data types");
 
     // Apply type conversions
@@ -138,7 +138,7 @@ fn run_integrated_example() {
     ));
 
     // Step 4: Clean up resources
-    let timer_step4 = Timer::start(step4_cleanup);
+    let timer_step4 = Timer::start("step4_cleanup");
     logger.debug("Cleaning up resources");
 
     // Return the buffer to the pool
@@ -162,7 +162,7 @@ fn run_integrated_example() {
     if let Some((calls, total, avg, max)) = Profiler::global()
         .lock()
         .unwrap()
-        .get_timing_stats(transform_data)
+        .get_timing_stats("transform_data")
     {
         logger.info(&format!(
             "Data transformation details: {} calls, {:.2}ms total, {:.2}ms average, {:.2}ms max",

@@ -9,6 +9,7 @@ use scirs2_core::gpu::{
     backends::{MetalBufferOptions, MetalContext, MetalStorageMode},
     GpuBackend, GpuContext, GpuError,
 };
+use std::sync::Arc;
 
 #[test]
 #[allow(dead_code)]
@@ -129,11 +130,11 @@ fn test_metal_kernel_compilation() {
     };
 
     // Test getting a kernel from the registry
-    let result = context.get_kernel(axpy);
+    let result = context.get_kernel("axpy");
     assert!(result.is_ok(), "Failed to get AXPY kernel");
 
     // Test complex number kernel
-    let complex_result = context.get_kernel(complex_multiply);
+    let complex_result = context.get_kernel("complex_multiply");
     assert!(
         complex_result.is_ok(),
         "Failed to get complex multiply kernel"
@@ -157,7 +158,7 @@ fn test_metal_kernel_execution() {
     let mut y_buffer = context.create_buffer_from_slice(&y);
 
     // Get AXPY kernel
-    let kernel = match context.get_kernel(axpy) {
+    let kernel = match context.get_kernel("axpy") {
         Ok(k) => k,
         Err(_) => return, // Skip if kernel not available
     };
@@ -210,7 +211,7 @@ fn test_metal_complex_operations() {
     let result_buffer = context.create_buffer::<f32>(8);
 
     // Get complex multiply kernel
-    let kernel = match context.get_kernel(complex_multiply) {
+    let kernel = match context.get_kernel("complex_multiply") {
         Ok(k) => k,
         Err(_) => return, // Skip if kernel not available
     };
@@ -282,7 +283,7 @@ fn test_metal_unified_memory() {
     println!("Unified Memory: {}", context.has_unified_memory());
 
     // On Apple Silicon, unified memory should be true
-    if context.device_name().contains(Apple) {
+    if context.device_name().contains("Apple") {
         assert!(
             context.has_unified_memory(),
             "Apple Silicon should have unified memory"
@@ -299,7 +300,7 @@ fn test_metalerror_handling() {
     };
 
     // Test invalid kernel name
-    let result = context.get_kernel(nonexistent_kernel);
+    let result = context.get_kernel("nonexistent_kernel");
     assert!(matches!(result, Err(GpuError::KernelNotFound(_))));
 
     // Test buffer size limits

@@ -92,7 +92,7 @@ fn showcase_neural_architecture_search() -> CoreResult<()> {
 fn showcase_jit_compilation() -> CoreResult<()> {
     println!("   Initializing JIT Compilation Framework...");
 
-    let jit_compiler = advancedJitCompiler::new()?;
+    let jit_compiler = AdvancedJitCompiler::new()?;
     println!("   ✓ JIT compiler initialized with LLVM backend");
 
     // Note: Actual compilation would require LLVM integration

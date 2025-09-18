@@ -51,7 +51,7 @@ impl ArrayValidator {
             if !self.validate_arrayshape(array, expectedshape)? {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::ShapeError,
-                    fieldpath: constraints.fieldname.clone().unwrap_or(array.to_string()),
+                    fieldpath: constraints.fieldname.clone().unwrap_or_else(|| "array".to_string()),
                     message: format!(
                         "Array shape {:?} does not match expected {:?}",
                         array.shape(),
@@ -59,7 +59,7 @@ impl ArrayValidator {
                     ),
                     expected: Some(format!("{expectedshape:?}")),
                     actual: Some(format!("{:?}", array.shape())),
-                    constraint: Some(expectedshape.to_string()),
+                    constraint: Some(format!("{:?}", expectedshape)),
                     severity: ErrorSeverity::Error,
                     context: HashMap::new(),
                 });
@@ -205,7 +205,7 @@ impl ArrayValidator {
         if nan_count > 0 {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::InvalidNumeric,
-                fieldpath: array.to_string(),
+                fieldpath: "array".to_string(),
                 message: format!(
                     "Found {} NaN values out of {} total",
                     nan_count, total_count
@@ -221,7 +221,7 @@ impl ArrayValidator {
         if inf_count > 0 {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::InvalidNumeric,
-                fieldpath: array.to_string(),
+                fieldpath: "array".to_string(),
                 message: format!(
                     "Found {} infinite values out of {} total",
                     inf_count, total_count
@@ -428,7 +428,7 @@ impl ArrayValidator {
         if invalid_count > 10 {
             errors.push(ValidationError {
                 errortype: ValidationErrorType::CustomRuleFailure,
-                fieldpath: array.to_string(),
+                fieldpath: "array".to_string(),
                 message: format!(
                     "Total of {} elements failed custom validation (showing first 10)",
                     invalid_count

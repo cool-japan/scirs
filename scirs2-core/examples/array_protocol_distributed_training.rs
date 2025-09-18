@@ -109,10 +109,10 @@ fn main() {
     // Create distributed training configuration
     let dist_config = DistributedTrainingConfig {
         strategy: DistributedStrategy::DataParallel,
-        num_workers: 4,
+        numworkers: 4,
         rank: 0,
         is_master: true,
-        sync_interval: 1,
+        syncinterval: 1,
         backend: "threaded".to_string(),
         mixed_precision: true,
         gradient_accumulation_steps: 2,
@@ -120,7 +120,7 @@ fn main() {
 
     println!("Created distributed training config with:");
     println!("  - Strategy: {:?}", dist_config.strategy);
-    println!("  - Workers: {}", dist_config.num_workers);
+    println!("  - Workers: {}", dist_config.numworkers);
     println!("  - Mixed precision: {}", dist_config.mixed_precision);
     println!(
         "  - Gradient accumulation steps: {}",
@@ -265,7 +265,7 @@ fn main() {
 
     println!(
         "Created distributed datasets with {} shards each",
-        dist_config.num_workers
+        dist_config.numworkers
     );
 
     // Create data loaders
@@ -346,7 +346,7 @@ fn main() {
 
     println!(
         "Created distributed trainer with {} workers",
-        dist_config.num_workers
+        dist_config.numworkers
     );
 
     // Add progress callback
@@ -365,7 +365,7 @@ fn main() {
 
     // Create a temporary directory for saving models
     let temp_dir = tempdir().unwrap();
-    let modeldir = temp_dir.path().join(models);
+    let modeldir = temp_dir.path().join("models");
 
     println!("Created model directory at: {}", modeldir.display());
 
@@ -387,7 +387,7 @@ fn main() {
     metrics.insert("accuracy".to_string(), 0.85);
 
     // Save checkpoint
-    let checkpoint_path = modeldir.join(checkpoint);
+    let checkpoint_path = modeldir.join("checkpoint");
     let result = save_checkpoint(
         &model,
         optimizer.as_ref(),
@@ -427,8 +427,8 @@ fn main() {
             println!("Model has {} layers", loadedmodel.layers().len());
             println!(
                 "Metrics: loss = {}, accuracy = {}",
-                loaded_metrics.get(loss).unwrap_or(&0.0),
-                loaded_metrics.get(accuracy).unwrap_or(&0.0)
+                loaded_metrics.get(\"loss\").unwrap_or(&0.0),
+                loaded_metrics.get(\"accuracy\").unwrap_or(&0.0)
             );
 
             // Create a new trainer with loaded model and optimizer

@@ -125,21 +125,24 @@ fn main() {
     // Perform operations with specific precision
     println!("\nOperations with specific precision:");
 
-    // Matrix multiplication with single precision
-    let result =
-        array_protocol::mixed_precision_ops::matmul(&mixed_f64, &mixed_f32, Precision::Single);
-    match result {
-        Ok(_) => println!("Matrix multiplication (single precision): succeeded"),
-        Err(e) => println!("Operation error: {}", e),
-    }
+    // NOTE: matmul is not yet implemented in mixed_precision module
+    // This is placeholder code showing the intended API
+    // // Matrix multiplication with single precision
+    // let result =
+    //     array_protocol::mixed_precision::matmul(&mixed_f64, &mixed_f32, Precision::Single);
+    // match result {
+    //     Ok(_) => println!("Matrix multiplication (single precision): succeeded"),
+    //     Err(e) => println!("Operation error: {}", e),
+    // }
 
-    // Matrix multiplication with double precision
-    let result =
-        array_protocol::mixed_precision_ops::matmul(&mixed_f64, &mixed_f32, Precision::Double);
-    match result {
-        Ok(_) => println!("Matrix multiplication (double precision): succeeded"),
-        Err(e) => println!("Operation error: {}", e),
-    }
+    // // Matrix multiplication with double precision
+    // let result =
+    //     array_protocol::mixed_precision::matmul(&mixed_f64, &mixed_f32, Precision::Double);
+    // match result {
+    //     Ok(_) => println!("Matrix multiplication (double precision): succeeded"),
+    //     Err(e) => println!("Operation error: {}", e),
+    // }
+    println!("Matrix multiplication operations not yet implemented");
 
     // Part 3: Combining Auto-Device and Mixed-Precision
     println!("\nPart 3: Combining Auto-Device and Mixed-Precision");

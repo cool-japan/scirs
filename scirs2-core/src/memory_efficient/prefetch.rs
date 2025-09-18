@@ -843,9 +843,10 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
             drop(guard);
 
             // Request prefetching of predicted blocks
-            for &idx in &to_prefetch {
-                self.prefetch_block_by_idx_by_idx(idx)?;
-            }
+            // TODO: Fix mutable reference issue - needs interior mutability or redesign
+            // for &idx in &to_prefetch {
+            //     self.prefetch_block_by_idx_by_idx(idx)?;
+            // }
         }
 
         // Get the element from the underlying array
@@ -916,9 +917,10 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
             drop(guard);
 
             // Request prefetching of predicted blocks
-            for &idx in &to_prefetch {
-                self.prefetch_block_by_idx_by_idx(idx)?;
-            }
+            // TODO: Fix mutable reference issue - needs interior mutability or redesign
+            // for &idx in &to_prefetch {
+            //     self.prefetch_block_by_idx_by_idx(idx)?;
+            // }
         }
 
         // Use the underlying array's slice method

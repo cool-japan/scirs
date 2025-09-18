@@ -60,10 +60,10 @@ fn main() {
     // Create distributed training configuration
     let dist_config = DistributedTrainingConfig {
         strategy: DistributedStrategy::DataParallel,
-        num_workers: 2,
+        numworkers: 2,
         rank: 0,         // This would be different for each worker
         is_master: true, // This would be different for each worker
-        sync_interval: 1,
+        syncinterval: 1,
         backend: "threaded".to_string(),
         mixed_precision: false,
         gradient_accumulation_steps: 1,
@@ -71,7 +71,7 @@ fn main() {
 
     println!(
         "Created distributed training config with {} workers using {} strategy",
-        dist_config.num_workers, dist_config.strategy
+        dist_config.numworkers, dist_config.strategy
     );
 
     // Create distributed dataset
@@ -130,7 +130,7 @@ fn main() {
 
     // Create a temporary directory for saving models
     let temp_dir = tempdir().unwrap();
-    let modeldir = temp_dir.path().join(models);
+    let modeldir = temp_dir.path().join("models");
 
     println!("Created model directory at: {}", modeldir.display());
 
@@ -170,7 +170,7 @@ fn main() {
     metrics.insert("accuracy".to_string(), 0.85);
 
     // Save checkpoint
-    let checkpoint_path = modeldir.join(checkpoint);
+    let checkpoint_path = modeldir.join(\"checkpoint\");
     let result = save_checkpoint(
         &model,
         optimizer.as_ref(),
@@ -193,8 +193,8 @@ fn main() {
             println!("Loaded model with {} layers", model.layers().len());
             println!(
                 "Metrics: loss = {}, accuracy = {}",
-                metrics.get(loss).unwrap_or(&0.0),
-                metrics.get(accuracy).unwrap_or(&0.0)
+                metrics.get(\"loss\").unwrap_or(&0.0),
+                metrics.get(\"accuracy\").unwrap_or(&0.0)
             );
         }
         Err(e) => println!("Error loading checkpoint: {e}"),

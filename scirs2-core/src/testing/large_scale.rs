@@ -530,7 +530,7 @@ impl LargeScaleProcessor {
 
             // Access chunk data from memory-mapped array
             let chunk_data = {
-                let array = mmap_array.asarray::<ndarray::Ix1>().map_err(|e| {
+                let array = mmap_array.as_array::<ndarray::Ix1>().map_err(|e| {
                     CoreError::ComputationError(ErrorContext::new(format!(
                         "Failed to access memory-mapped array: {:?}",
                         e

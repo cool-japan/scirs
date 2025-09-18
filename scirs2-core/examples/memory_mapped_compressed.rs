@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Open as standard memory-mapped array for comparison
-    let mmap = MemoryMappedArray::<f64>::open(&raw_file_path, &[size])?;
+    let mmap = MemoryMappedArray::<f64>::path(&raw_file_path, &[size])?;
 
     // Create a compressed memory-mapped array
     println!("\nCreating compressed memory-mapped arrays with different algorithms...");
@@ -248,7 +248,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let start = Instant::now();
-        let results = cmm.process_blocks(|block| block.iter().sum::<f64>())?;
+        let results = cmm.process_blocks(|block, _idx| block.iter().sum::<f64>())?;
         let cmm_sum: f64 = results.iter().sum();
         let elapsed = start.elapsed();
         println!(

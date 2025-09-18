@@ -104,11 +104,11 @@ fn main() {
         let json = report.to_json_2();
         println!("\nJSON Report Format (excerpt):");
         println!("{{");
-        println!("  \"total_current_usage\": {},", json[total_current_usage]);
-        println!("  \"total_peak_usage\": {},", json[total_peak_usage]);
+        println!("  \"total_current_usage\": {},", json["total_current_usage"]);
+        println!("  \"total_peak_usage\": {},", json["total_peak_usage"]);
         println!(
             "  \"total_allocation_count\": {}",
-            json[total_allocation_count]
+            json["total_allocation_count"]
         );
         println!("  ...");
         println!("}}");

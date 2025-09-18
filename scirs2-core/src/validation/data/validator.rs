@@ -208,7 +208,7 @@ impl Validator {
         }
 
         // Validate each field in the schema
-        self.validate_fields(data, schema, &mut errors, &mut warnings, &mut stats, 0)?;
+        self.validate_fields(data, schema, "", &mut errors, &mut warnings, &mut stats, 0)?;
 
         // Apply global constraints
         self.validate_global_constraints(data, schema, &mut errors, &mut warnings, &mut stats)?;
@@ -1105,7 +1105,7 @@ impl Validator {
                                     message: "Jagged arrays are not supported - all rows must have the same length".to_string(),
                                     expected: Some("rectangular array".to_string()),
                                     actual: Some("jagged array".to_string()),
-                                    constraint: Some(shape.to_string()),
+                                    constraint: Some(format!("{:?}", shape)),
                                     severity: ErrorSeverity::Error,
                                     context: HashMap::new(),
                                 });

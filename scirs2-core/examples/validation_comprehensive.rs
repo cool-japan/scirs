@@ -53,7 +53,7 @@ fn basic_validation_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a schema for user data
     let schema = ValidationSchema::new()
-        .name(user_profile)
+        .name(\"user_profile\")
         .require_field("username", DataType::String)
         .require_field("age", DataType::Integer)
         .require_field("email", DataType::String)
@@ -127,7 +127,7 @@ fn temporal_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         .disallow_duplicates();
 
     let schema = ValidationSchema::new()
-        .name(sensor_data)
+        .name("sensor_data")
         .require_field("timestamps", DataType::Array(Box::new(DataType::Float64)))
         .require_field("values", DataType::Array(Box::new(DataType::Float64)))
         .add_constraint("timestamps", Constraint::Temporal(time_constraints));
@@ -185,10 +185,10 @@ fn statistical_validation_example() -> Result<(), Box<dyn std::error::Error>> {
     let stats_constraints = StatisticalConstraints::new()
         .with_mean_range(20.0, 30.0)  // Expected temperature range
         .with_std_range(0.5, 5.0)     // Expected variability
-        .with_distribution(normal); // Expected distribution
+        .with_distribution(\"normal\"); // Expected distribution
 
     let schema = ValidationSchema::new()
-        .name(temperature_readings)
+        .name("temperature_readings")
         .require_field("measurements", DataType::Array(Box::new(DataType::Float64)))
         .add_constraint("measurements", Constraint::Statistical(stats_constraints));
 
@@ -451,7 +451,7 @@ fn custom_validation_example() -> Result<(), Box<dyn std::error::Error>> {
     struct EmailValidator;
 
     impl ValidationRule for EmailValidator {
-        fn validate_path(path: &str) -> Result<(), String> {
+        fn validate(&self, value: &JsonValue, _fieldpath: &str) -> Result<(), String> {
             if let Some(email) = value.as_str() {
                 if email.contains('@') && email.contains('.') {
                     Ok(())

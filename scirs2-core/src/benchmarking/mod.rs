@@ -312,7 +312,7 @@ impl BenchmarkResult {
 
     /// Get throughput in operations per second
     pub fn get_throughput(&self, operations_periteration: u64) -> f64 {
-        let avg_time_seconds = self.statistics.meanexecution_time.as_secs_f64();
+        let avg_time_seconds = self.statistics.mean_execution_time.as_secs_f64();
         operations_periteration as f64 / avg_time_seconds
     }
 
@@ -330,15 +330,15 @@ impl BenchmarkResult {
 #[derive(Debug, Clone, Default)]
 pub struct BenchmarkStatistics {
     /// Mean execution time
-    pub meanexecution_time: Duration,
+    pub mean_execution_time: Duration,
     /// Median execution time
-    pub medianexecution_time: Duration,
+    pub median_execution_time: Duration,
     /// Standard deviation of execution times
-    pub std_devexecution_time: Duration,
+    pub std_dev_execution_time: Duration,
     /// Minimum execution time
-    pub minexecution_time: Duration,
+    pub min_execution_time: Duration,
     /// Maximum execution time
-    pub maxexecution_time: Duration,
+    pub max_execution_time: Duration,
     /// Coefficient of variation for execution time
     pub coefficient_of_variation: f64,
     /// 95% confidence interval for mean
@@ -371,9 +371,9 @@ impl BenchmarkStatistics {
             .map(|d| d.as_nanos() as f64)
             .sum::<f64>()
             / execution_times.len() as f64;
-        let meanexecution_time = Duration::from_nanos(mean_nanos as u64);
+        let mean_execution_time = Duration::from_nanos(mean_nanos as u64);
 
-        let medianexecution_time = if execution_times.len() % 2 == 0 {
+        let median_execution_time = if execution_times.len() % 2 == 0 {
             let mid = execution_times.len() / 2;
             Duration::from_nanos(
                 ((execution_times[mid - 1].as_nanos() + execution_times[mid].as_nanos()) / 2)
@@ -391,10 +391,10 @@ impl BenchmarkStatistics {
             })
             .sum::<f64>()
             / execution_times.len() as f64;
-        let std_devexecution_time = Duration::from_nanos(variance.sqrt() as u64);
+        let std_dev_execution_time = Duration::from_nanos(variance.sqrt() as u64);
 
-        let minexecution_time = execution_times[0];
-        let maxexecution_time = execution_times[execution_times.len() - 1];
+        let min_execution_time = execution_times[0];
+        let max_execution_time = execution_times[execution_times.len() - 1];
 
         let coefficient_of_variation = if mean_nanos > 0.0 {
             (variance.sqrt()) / mean_nanos
@@ -427,11 +427,11 @@ impl BenchmarkStatistics {
             / measurements.len() as f64;
 
         Ok(BenchmarkStatistics {
-            meanexecution_time,
-            medianexecution_time,
-            std_devexecution_time,
-            minexecution_time,
-            maxexecution_time,
+            mean_execution_time,
+            median_execution_time,
+            std_dev_execution_time,
+            min_execution_time,
+            max_execution_time,
             coefficient_of_variation,
             confidence_interval,
             mean_memory_usage: mean_memory as usize,
@@ -752,7 +752,7 @@ impl BenchmarkSuite {
                 "{} {}: {:.3}ms (CV: {:.2}%)",
                 quality_indicator,
                 result.name,
-                result.statistics.meanexecution_time.as_millis(),
+                result.statistics.mean_execution_time.as_millis(),
                 result.statistics.coefficient_of_variation * 100.0
             );
 
@@ -1135,8 +1135,8 @@ mod tests {
         let stats = BenchmarkStatistics::from_measurements(&measurements).unwrap();
 
         assert_eq!(stats.sample_count, 4);
-        assert!(stats.meanexecution_time > Duration::from_millis(95));
-        assert!(stats.meanexecution_time < Duration::from_millis(110));
+        assert!(stats.mean_execution_time > Duration::from_millis(95));
+        assert!(stats.mean_execution_time < Duration::from_millis(110));
         assert!(stats.coefficient_of_variation > 0.0);
     }
 
@@ -1157,6 +1157,6 @@ mod tests {
 
         assert_eq!(result.name, "test_benchmark");
         assert_eq!(result.measurements.len(), 5);
-        assert!(result.statistics.meanexecution_time > Duration::from_micros(50));
+        assert!(result.statistics.mean_execution_time > Duration::from_micros(50));
     }
 }

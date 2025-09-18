@@ -5,7 +5,7 @@ use scirs2_core::ndarray_ext::{
     // Array manipulation operations
     manipulation::{concatenate_2d, flip_2d, pad_2d, repeat_2d, roll_2d, tile_2d, vstack_1d},
     // Matrix operations
-    matrix::{block_diag, diag, eye, kron, toeplitz, trace, tridiagonal},
+    matrix::{_diag as diag, block_diag, eye, kron, toeplitz, trace, tridiagonal},
 };
 use scirs2_core::ufuncs::{
     ceil,

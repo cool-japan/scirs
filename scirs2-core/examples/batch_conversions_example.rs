@@ -182,7 +182,7 @@ fn demo_parallel_conversions() -> CoreResult<()> {
     // Configure for parallel processing
     let parallel_config = BatchConversionConfig::default()
         .with_parallel(true)
-        .with_chunk_size(1000)
+        .size(1000)
         .with_parallel_threshold(10000);
     let parallel_converter = BatchConverter::new(parallel_config);
 
