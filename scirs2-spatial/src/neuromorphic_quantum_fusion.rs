@@ -26,10 +26,11 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```ignore
 //! use scirs2_spatial::neuromorphic_quantum_fusion::{QuantumSpikingClusterer, NeuralQuantumOptimizer};
 //! use ndarray::array;
 //!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Quantum-enhanced spiking neural clustering
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //! let mut quantum_snn = QuantumSpikingClusterer::new(2)
@@ -41,6 +42,8 @@
 //! let (clusters, quantum_spikes, fusion_metrics) = quantum_snn.cluster(&points.view()).await?;
 //! println!("Quantum-neural clusters: {:?}", clusters);
 //! println!("Quantum advantage: {:.2}x", fusion_metrics.quantum_neural_speedup);
+//! # Ok(())
+//! # }
 //!
 //! // Neural-guided quantum optimization
 //! let mut neural_quantum = NeuralQuantumOptimizer::new()

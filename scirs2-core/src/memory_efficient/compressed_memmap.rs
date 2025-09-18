@@ -813,7 +813,7 @@ impl<A: Clone + Copy + 'static + Send + Sync> CompressedMemMappedArray<A> {
         F: Fn(&[A], usize) -> R + Send + Sync + 'static,
         R: Send + 'static,
     {
-        self.process_blocks_internal(f, false, Some(block_size))
+        self.process_blocks_internal(f, false, Some(blocksize))
     }
 
     /// Process the array in blocks in parallel.

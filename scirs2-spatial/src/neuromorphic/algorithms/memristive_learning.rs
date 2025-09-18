@@ -26,8 +26,9 @@ use std::collections::VecDeque;
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array2;
-/// use scirs2_spatial::neuromorphic::algorithms::{AdvancedMemristiveLearning, MemristiveDeviceType};
+/// use ndarray::{Array1, Array2};
+/// use scirs2_spatial::neuromorphic::algorithms::AdvancedMemristiveLearning;
+/// use scirs2_spatial::neuromorphic::MemristiveDeviceType;
 ///
 /// let mut learning_system = AdvancedMemristiveLearning::new(4, 2, MemristiveDeviceType::TitaniumDioxide)
 ///     .with_forgetting_protection(true);

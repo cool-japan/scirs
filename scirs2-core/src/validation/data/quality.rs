@@ -574,7 +574,7 @@ impl DataQualityReport {
     pub fn get_issues_by_type(&self, issuetype: QualityIssueType) -> Vec<&QualityIssue> {
         self.issues
             .iter()
-            .filter(|issue| issue.issue_type == issue_type)
+            .filter(|issue| issue.issue_type == issuetype)
             .collect()
     }
 }

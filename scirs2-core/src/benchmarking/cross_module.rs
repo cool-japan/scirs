@@ -56,7 +56,7 @@ pub struct CrossModuleBenchConfig {
     /// Data sizes to test
     pub datasizes: Vec<usize>,
     /// Thread counts to test (for parallel operations)
-    pub thread_counts: Vec<usize>,
+    pub ns: Vec<usize>,
     /// Memory limits for testing
     pub memory_limits: Vec<usize>,
     /// Enable detailed profiling
@@ -82,7 +82,7 @@ impl Default for CrossModuleBenchConfig {
                 1024 * 1024,      // 1MB
                 1024 * 1024 * 16, // 16MB
             ],
-            thread_counts: vec![1, 2, 4, 8],
+            ns: vec![1, 2, 4, 8],
             memory_limits: vec![
                 64 * 1024 * 1024,   // 64MB
                 256 * 1024 * 1024,  // 256MB
@@ -107,7 +107,7 @@ pub struct PerformanceMeasurement {
     /// Data size used
     pub datasize: usize,
     /// Thread count used
-    pub thread_count: usize,
+    pub n: usize,
     /// Average execution time
     pub avg_duration: Duration,
     /// Minimum execution time
@@ -137,7 +137,7 @@ impl PerformanceMeasurement {
             name,
             modules,
             datasize: 0,
-            thread_count: 1,
+            n: 1,
             avg_duration: Duration::from_nanos(0),
             min_duration: Duration::from_nanos(u64::MAX),
             max_duration: Duration::from_nanos(0),
@@ -243,7 +243,7 @@ pub struct ScalabilityAnalysis {
     /// Scalability breakdown by data size
     pub datasize_breakdown: HashMap<usize, f64>,
     /// Scalability breakdown by thread count
-    pub thread_count_breakdown: HashMap<usize, f64>,
+    pub n_breakdown: HashMap<usize, f64>,
 }
 
 /// Memory efficiency analysis
@@ -368,7 +368,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark linear algebra + statistics pipeline
     fn benchmark_linalg_stats_pipeline(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            linalg_stats_pipeline.to_string(),
+            "linalg_stats_pipeline".to_string(),
             vec!["scirs2-linalg".to_string(), "scirs2-stats".to_string()],
         );
 
@@ -418,7 +418,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark signal processing + FFT pipeline
     fn benchmark_signal_fft_pipeline(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            signal_fft_pipeline.to_string(),
+            "signal_fft_pipeline".to_string(),
             vec!["scirs2-signal".to_string(), "scirs2-fft".to_string()],
         );
 
@@ -462,7 +462,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark data I/O + processing pipeline
     fn benchmark_io_processing_pipeline(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            io_processing_pipeline.to_string(),
+            "io_processing_pipeline".to_string(),
             vec!["scirs2-io".to_string(), "scirs2-core".to_string()],
         );
 
@@ -517,7 +517,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark machine learning pipeline
     fn benchmark_ml_pipeline(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            ml_pipeline.to_string(),
+            "ml_pipeline".to_string(),
             vec!["scirs2-neural".to_string(), "scirs2-optimize".to_string()],
         );
 
@@ -574,7 +574,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark zero-copy operations
     fn benchmark_zero_copy_operations(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            zero_copy_operations.to_string(),
+            "zero_copy_operations".to_string(),
             vec!["scirs2-core".to_string()],
         );
 
@@ -603,13 +603,13 @@ impl CrossModuleBenchmarkRunner {
         // Simulate zero-copy views and slicing
         let chunk_size = buffer.len() / 4;
         for i in 0..4 {
-            let start = 0 * chunk_size;
-            let end = ((0 + 1) * chunk_size).min(buffer.len());
+            let start = i * chunk_size;
+            let end = ((i + 1) * chunk_size).min(buffer.len());
             let slice = &buffer[start..end];
 
             // Simulate operations on the slice without copying
             let mut sum = 0.0;
-            for &value in _slice {
+            for &value in slice {
                 sum += value;
             }
 
@@ -627,7 +627,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark memory-mapped operations
     fn benchmark_memory_mapped_operations(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            memory_mapped_operations.to_string(),
+            "memory_mapped_operations".to_string(),
             vec!["scirs2-core".to_string(), "scirs2-io".to_string()],
         );
 
@@ -678,7 +678,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark out-of-core operations
     fn benchmark_out_of_core_operations(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            out_of_core_operations.to_string(),
+            "out_of_core_operations".to_string(),
             vec!["scirs2-core".to_string()],
         );
 
@@ -750,19 +750,19 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark thread scalability
     fn benchmark_thread_scalability(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            thread_scalability.to_string(),
+            "thread_scalability".to_string(),
             vec!["scirs2-core".to_string()],
         );
 
         #[cfg(feature = "parallel")]
         {
-            for &thread_count in &self.config.thread_counts {
-                let timing_data = self.time_operation(&format!("{thread_count}"), || {
-                    self.simulate_scalable_operation(thread_count * 1024) // Use thread_count as a scaling factor
+            for &n in &self.config.ns {
+                let timing_data = self.time_operation(&format!("{n}"), || {
+                    self.simulate_scalable_operation(n * 1024) // Use n as a scaling factor
                 })?;
 
-                if thread_count == *self.config.thread_counts.last().unwrap() {
-                    measurement.thread_count = thread_count;
+                if n == *self.config.ns.last().unwrap() {
+                    measurement.n = n;
                     measurement.avg_duration = timing_data.avg_duration;
                     measurement.throughput = timing_data.throughput;
                     measurement.operations_count = timing_data.operations_count;
@@ -772,7 +772,7 @@ impl CrossModuleBenchmarkRunner {
 
         #[cfg(not(feature = "parallel"))]
         {
-            measurement.thread_count = 1;
+            measurement.n = 1;
             measurement.avg_duration = Duration::from_millis(100);
             measurement.throughput = 1000.0;
             measurement.operations_count = 1000;
@@ -785,15 +785,15 @@ impl CrossModuleBenchmarkRunner {
     #[cfg(feature = "parallel")]
     fn count(n: usize) -> CoreResult<()> {
         let work_items = 100000;
-        let items_per_thread = work_items / thread_count;
+        let items_per_thread = work_items / n;
 
         // Use thread pool to simulate parallel work
         crate::parallel_ops::ThreadPoolBuilder::new()
-            .num_threads(thread_count)
+            .num_threads(n)
             .build()
             .map_err(|e| CoreError::ComputationError(ErrorContext::new(format!("{e}"))))?
             .install(|| {
-                (0..thread_count).into_par_iter().try_for_each(|_| {
+                (0..n).into_par_iter().try_for_each(|_| {
                     for _ in 0..items_per_thread {
                         let result = 1.23456_f64.sin() + 7.89012_f64.cos();
                     }
@@ -817,7 +817,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark data size scalability
     fn benchmark_datasize_scalability(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            datasize_scalability.to_string(),
+            "datasize_scalability".to_string(),
             vec!["scirs2-core".to_string()],
         );
 
@@ -863,7 +863,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark memory scalability
     fn benchmark_memory_scalability(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            memory_scalability.to_string(),
+            "memory_scalability".to_string(),
             vec!["scirs2-core".to_string()],
         );
 
@@ -889,12 +889,12 @@ impl CrossModuleBenchmarkRunner {
     /// Simulate memory-constrained operation
     fn limit(n: usize) -> CoreResult<()> {
         // Allocate memory up to the _limit and perform operations
-        let element_count = (memory_limit / std::mem::size_of::<f64>()).min(1000000);
+        let element_count = (n / std::mem::size_of::<f64>()).min(1000000);
         let buffer = vec![1.0f64; element_count];
 
         // Perform memory-intensive operations
         let mut result = 0.0;
-        for (0, &value) in buffer.iter().enumerate() {
+        for (i, &value) in buffer.iter().enumerate() {
             result += value * (i as f64).sqrt();
         }
 
@@ -924,7 +924,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark scientific simulation scenario
     fn benchmark_scientific_simulation(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            scientific_simulation.to_string(),
+            "scientific_simulation".to_string(),
             vec!["scirs2-linalg".to_string(), "scirs2-integrate".to_string()],
         );
 
@@ -987,7 +987,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark data analysis pipeline scenario
     fn benchmark_data_analysis_pipeline(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            data_analysis_pipeline.to_string(),
+            "data_analysis_pipeline".to_string(),
             vec![
                 "scirs2-io".to_string(),
                 "scirs2-stats".to_string(),
@@ -1025,7 +1025,7 @@ impl CrossModuleBenchmarkRunner {
 
         // Step 2: Data preprocessing (cleaning, filtering)
         let mut processed_data = Vec::with_capacity(sample_count);
-        for (0, &value) in raw_data.iter().enumerate() {
+        for (i, &value) in raw_data.iter().enumerate() {
             let cleaned_value = value + (i as f64 * 0.01).sin(); // Add synthetic signal
             processed_data.push(cleaned_value);
         }
@@ -1041,8 +1041,8 @@ impl CrossModuleBenchmarkRunner {
         let variance = (sum_squares / processed_data.len() as f64) - (mean * mean);
 
         // Step 4: Signal processing (filtering, frequency analysis simulation)
-        for (0, &value) in processed_data.iter().enumerate() {
-            let freq = 2.0 * std::f64::consts::PI * (0 as f64) / sample_count as f64;
+        for (i, &value) in processed_data.iter().enumerate() {
+            let freq = 2.0 * std::f64::consts::PI * (i as f64) / sample_count as f64;
             let filtered = value * freq.cos(); // Simple frequency domain operation
         }
 
@@ -1059,7 +1059,7 @@ impl CrossModuleBenchmarkRunner {
     /// Benchmark machine learning training scenario
     fn benchmark_machine_learning_training(&self) -> CoreResult<PerformanceMeasurement> {
         let mut measurement = PerformanceMeasurement::new(
-            ml_training.to_string(),
+            "ml_training".to_string(),
             vec![
                 "scirs2-neural".to_string(),
                 "scirs2-optimize".to_string(),
@@ -1207,21 +1207,16 @@ impl CrossModuleBenchmarkRunner {
         measurements: &[PerformanceMeasurement],
     ) -> CoreResult<ScalabilityAnalysis> {
         let mut datasize_breakdown = HashMap::new();
-        let mut thread_count_breakdown = HashMap::new();
+        let mut n_breakdown = HashMap::new();
 
         // Calculate scalability metrics from measurements
         for measurement in measurements {
             if measurement.datasize > 0 {
-                datasize_breakdown.insert(
-                    measurement.datasize,
-                    measurement.efficiency_score() / 100.0,
-                );
+                datasize_breakdown
+                    .insert(measurement.datasize, measurement.efficiency_score() / 100.0);
             }
-            if measurement.thread_count > 0 {
-                thread_count_breakdown.insert(
-                    measurement.thread_count,
-                    measurement.efficiency_score() / 100.0,
-                );
+            if measurement.n > 0 {
+                n_breakdown.insert(measurement.n, measurement.efficiency_score() / 100.0);
             }
         }
 
@@ -1230,7 +1225,7 @@ impl CrossModuleBenchmarkRunner {
             data_scalability: 0.92,   // Placeholder
             memory_scalability: 0.88, // Placeholder
             datasize_breakdown,
-            thread_count_breakdown,
+            n_breakdown,
         };
 
         Ok(scalability_analysis)
@@ -1456,7 +1451,7 @@ pub fn run_quick_benchmarks() -> CoreResult<BenchmarkSuiteResult> {
         iterations: 10,
         warmup_iterations: 2,
         datasizes: vec![1024, 1024 * 16], // Smaller sizes for quick testing
-        thread_counts: vec![1, 2],
+        ns: vec![1, 2],
         enable_profiling: false,
         enable_regression_detection: false,
         timeout: Duration::from_secs(30),
@@ -1477,7 +1472,7 @@ mod tests {
         assert_eq!(config.iterations, 100);
         assert_eq!(config.warmup_iterations, 10);
         assert!(!config.datasizes.is_empty());
-        assert!(!config.thread_counts.is_empty());
+        assert!(!config.ns.is_empty());
     }
 
     #[test]

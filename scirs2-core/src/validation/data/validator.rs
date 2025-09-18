@@ -198,8 +198,8 @@ impl Validator {
 
         // Check cache if enabled
         if self.config.enable_caching {
-            let cache_key = self.generate_cache_key(data, schema)?;
-            if let Some(mut cached_result) = self.get_cached_result(&cache_key)? {
+            let cachekey = self.generate_cachekey(data, schema)?;
+            if let Some(mut cached_result) = self.get_cached_result(&cachekey)? {
                 // Update cache hit rate
                 let cache_hit_rate = self.calculate_cache_hit_rate()?;
                 cached_result.stats.set_cache_hit_rate(cache_hit_rate);
@@ -234,8 +234,8 @@ impl Validator {
 
         // Cache result if enabled
         if self.config.enable_caching {
-            let cache_key = self.generate_cache_key(data, schema)?;
-            self.cache_result(&cache_key, result.clone())?;
+            let cachekey = self.generate_cachekey(data, schema)?;
+            self.cache_result(&cachekey, result.clone())?;
         }
 
         // Update cache hit rate
@@ -371,10 +371,10 @@ impl Validator {
     ///             if email.contains('@') {
     ///                 Ok(())
     ///             } else {
-    ///                 Err(format!("{field_path}"))
+    ///                 Err(format!("{fieldpath}"))
     ///             }
     ///         } else {
-    ///             Err(format!("{field_path}"))
+    ///             Err(format!("{fieldpath}"))
     ///         }
     ///     }
     ///
@@ -421,6 +421,7 @@ impl Validator {
         &self,
         data: &JsonValue,
         schema: &ValidationSchema,
+        fieldpath: &str,
         errors: &mut Vec<ValidationError>,
         warnings: &mut Vec<ValidationError>,
         stats: &mut ValidationStats,
@@ -429,7 +430,7 @@ impl Validator {
         if depth > self.config.max_depth {
             errors.push(ValidationError {
                 errortype: ValidationErrorType::SchemaError,
-                field_path: root.to_string(),
+                fieldpath: fieldpath.to_string(),
                 message: "Maximum validation _depth exceeded".to_string(),
                 expected: None,
                 actual: None,
@@ -445,9 +446,9 @@ impl Validator {
             _ => {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::TypeMismatch,
-                    field_path: root.to_string(),
+                    fieldpath: fieldpath.to_string(),
                     message: "Expected object".to_string(),
-                    expected: Some(object.to_string()),
+                    expected: Some("object".to_string()),
                     actual: Some(self.get_value_type_name(data)),
                     constraint: None,
                     severity: ErrorSeverity::Error,
@@ -460,7 +461,7 @@ impl Validator {
         for (fieldname, field_def) in &schema.fields {
             stats.add_field_validation();
 
-            let field_path = if depth == 0 {
+            let fieldpath = if depth == 0 {
                 fieldname.clone()
             } else {
                 format!("{fieldname}")
@@ -468,11 +469,11 @@ impl Validator {
 
             if let Some(field_value) = data_obj.get(fieldname) {
                 // Field exists, validate type and constraints
-                self.validate_field_type(field_value, &field_def.datatype, &field_path, errors)?;
+                self.validate_field_type(field_value, &field_def.datatype, &fieldpath, errors)?;
                 self.validate_field_constraints(
                     field_value,
                     &field_def.constraints,
-                    &field_path,
+                    &fieldpath,
                     errors,
                     warnings,
                     stats,
@@ -481,10 +482,10 @@ impl Validator {
                 // Validate custom rules
                 for rule_name in &field_def.validation_rules {
                     if let Some(rule) = self.custom_rules.get(rule_name) {
-                        if let Err(ruleerror) = rule.validate(field_value, &field_path) {
+                        if let Err(ruleerror) = rule.validate(field_value, &fieldpath) {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::CustomRuleFailure,
-                                field_path: field_path.clone(),
+                                fieldpath: fieldpath.clone(),
                                 message: ruleerror,
                                 expected: None,
                                 actual: None,
@@ -499,11 +500,11 @@ impl Validator {
                 // Required field is missing
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::MissingRequiredField,
-                    field_path,
+                    fieldpath,
                     message: format!("Required field '{}' is missing", fieldname),
                     expected: Some(format!("{:?}", field_def.datatype)),
-                    actual: Some(missing.to_string()),
-                    constraint: Some(required.to_string()),
+                    actual: Some("missing".to_string()),
+                    constraint: Some("required".to_string()),
                     severity: ErrorSeverity::Error,
                     context: HashMap::new(),
                 });
@@ -519,7 +520,7 @@ impl Validator {
         &self,
         value: &JsonValue,
         expected_type: &DataType,
-        field_path: &str,
+        fieldpath: &str,
         errors: &mut Vec<ValidationError>,
     ) -> Result<(), CoreError> {
         let type_matches = match expected_type {
@@ -536,7 +537,7 @@ impl Validator {
         if !type_matches {
             errors.push(ValidationError {
                 errortype: ValidationErrorType::TypeMismatch,
-                field_path: field_path.to_string(),
+                fieldpath: fieldpath.to_string(),
                 message: format!(
                     "Type mismatch: expected {:?}, got {}",
                     expected_type,
@@ -560,7 +561,7 @@ impl Validator {
         &self,
         value: &JsonValue,
         constraints: &[Constraint],
-        field_path: &str,
+        fieldpath: &str,
         errors: &mut Vec<ValidationError>,
         warnings: &mut Vec<ValidationError>,
         stats: &mut ValidationStats,
@@ -574,14 +575,14 @@ impl Validator {
                         if num < *min || num > *max {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::OutOfRange,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: format!(
                                     "Value {} is out of range [{}, {}]",
                                     num, min, max
                                 ),
                                 expected: Some(format!("[{}, {}]", min, max)),
                                 actual: Some(num.to_string()),
-                                constraint: Some(range.to_string()),
+                                constraint: Some("range".to_string()),
                                 severity: ErrorSeverity::Error,
                                 context: HashMap::new(),
                             });
@@ -594,14 +595,14 @@ impl Validator {
                         if len < *min || len > *max {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::ConstraintViolation,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: format!(
                                     "String length {} is out of range [{}, {}]",
                                     len, min, max
                                 ),
                                 expected: Some(format!("length in [{}, {}]", min, max)),
                                 actual: Some(len.to_string()),
-                                constraint: Some(length.to_string()),
+                                constraint: Some("length".to_string()),
                                 severity: ErrorSeverity::Error,
                                 context: HashMap::new(),
                             });
@@ -612,11 +613,11 @@ impl Validator {
                     if value.is_null() {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::ConstraintViolation,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: "Value cannot be null".to_string(),
                             expected: Some("non-null value".to_string()),
-                            actual: Some(null.to_string()),
-                            constraint: Some(not_null.to_string()),
+                            actual: Some("null".to_string()),
+                            constraint: Some("not_null".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -630,11 +631,11 @@ impl Validator {
                             if !seen.insert(item_str.clone()) {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::DuplicateValues,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!("{item_str}"),
                                     expected: Some("unique values".to_string()),
                                     actual: Some("duplicate found".to_string()),
-                                    constraint: Some(unique.to_string()),
+                                    constraint: Some("unique".to_string()),
                                     severity: ErrorSeverity::Error,
                                     context: HashMap::new(),
                                 });
@@ -650,7 +651,7 @@ impl Validator {
                                 if !re.is_match(s) {
                                     errors.push(ValidationError {
                                         errortype: ValidationErrorType::InvalidFormat,
-                                        field_path: field_path.to_string(),
+                                        fieldpath: fieldpath.to_string(),
                                         message: format!(
                                             "Value '{}' does not match pattern '{}'",
                                             s, pattern
@@ -668,7 +669,7 @@ impl Validator {
                         {
                             warnings.push(ValidationError {
                                 errortype: ValidationErrorType::SchemaError,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: "Pattern validation requires 'regex' feature".to_string(),
                                 expected: None,
                                 actual: None,
@@ -687,14 +688,14 @@ impl Validator {
                     if !allowed.contains(&value_str) {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::ConstraintViolation,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: format!(
                                 "Value '{}' is not in allowed values: {:?}",
                                 value_str, allowed
                             ),
                             expected: Some(format!("{allowed:?}")),
                             actual: Some(value_str),
-                            constraint: Some(allowed_values.to_string()),
+                            constraint: Some("allowed_values".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -708,7 +709,7 @@ impl Validator {
                             if actual_precision > *decimal_places {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::ConstraintViolation,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!(
                                         "Value {} has {} decimal places, expected at most {}",
                                         num, actual_precision, decimal_places
@@ -718,7 +719,7 @@ impl Validator {
                                         decimal_places
                                     )),
                                     actual: Some(format!("{} decimal places", actual_precision)),
-                                    constraint: Some(precision.to_string()),
+                                    constraint: Some("precision".to_string()),
                                     severity: ErrorSeverity::Error,
                                     context: HashMap::new(),
                                 });
@@ -732,14 +733,14 @@ impl Validator {
                         if size < *min || size > *max {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::ConstraintViolation,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: format!(
                                     "Array size {} is out of range [{}, {}]",
                                     size, min, max
                                 ),
                                 expected: Some(format!("size in [{}, {}]", min, max)),
                                 actual: Some(size.to_string()),
-                                constraint: Some(array_size.to_string()),
+                                constraint: Some("array_size".to_string()),
                                 severity: ErrorSeverity::Error,
                                 context: HashMap::new(),
                             });
@@ -749,7 +750,7 @@ impl Validator {
                 Constraint::ArrayElements(element_constraint) => {
                     if let Some(arr) = value.as_array() {
                         for (idx, element) in arr.iter().enumerate() {
-                            let element_path = format!("{}[{}]", field_path, idx);
+                            let element_path = format!("{}[{}]", fieldpath, idx);
                             self.validate_field_constraints(
                                 element,
                                 &[(**element_constraint).clone()],
@@ -779,11 +780,11 @@ impl Validator {
                             } else {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::TypeMismatch,
-                                    field_path: format!("{}[{}]", field_path, idx),
+                                    fieldpath: format!("{}[{}]", fieldpath, idx),
                                     message: format!("{val}"),
-                                    expected: Some(number.to_string()),
+                                    expected: Some("number".to_string()),
                                     actual: Some(val.to_string()),
-                                    constraint: Some(statistical.to_string()),
+                                    constraint: Some("statistical".to_string()),
                                     severity: ErrorSeverity::Error,
                                     context: HashMap::new(),
                                 });
@@ -794,12 +795,12 @@ impl Validator {
                         if numeric_values.is_empty() {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::ConstraintViolation,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: "Statistical validation requires numeric values"
                                     .to_string(),
                                 expected: Some("numeric array".to_string()),
                                 actual: Some("empty or non-numeric array".to_string()),
-                                constraint: Some(statistical.to_string()),
+                                constraint: Some("statistical".to_string()),
                                 severity: ErrorSeverity::Error,
                                 context: HashMap::new(),
                             });
@@ -821,7 +822,7 @@ impl Validator {
                                 if mean < min_mean {
                                     errors.push(ValidationError {
                                         errortype: ValidationErrorType::ConstraintViolation,
-                                        field_path: field_path.to_string(),
+                                        fieldpath: fieldpath.to_string(),
                                         message: format!(
                                             "Mean {:.4} is less than minimum {:.4}",
                                             mean, min_mean
@@ -839,7 +840,7 @@ impl Validator {
                                 if mean > max_mean {
                                     errors.push(ValidationError {
                                         errortype: ValidationErrorType::ConstraintViolation,
-                                        field_path: field_path.to_string(),
+                                        fieldpath: fieldpath.to_string(),
                                         message: format!(
                                             "Mean {:.4} exceeds maximum {:.4}",
                                             mean, max_mean
@@ -858,7 +859,7 @@ impl Validator {
                                 if std_dev < min_std {
                                     errors.push(ValidationError {
                                         errortype: ValidationErrorType::ConstraintViolation,
-                                        field_path: field_path.to_string(),
+                                        fieldpath: fieldpath.to_string(),
                                         message: format!(
                                             "Standard deviation {:.4} is less than minimum {:.4}",
                                             std_dev, min_std
@@ -876,7 +877,7 @@ impl Validator {
                                 if std_dev > max_std {
                                     errors.push(ValidationError {
                                         errortype: ValidationErrorType::ConstraintViolation,
-                                        field_path: field_path.to_string(),
+                                        fieldpath: fieldpath.to_string(),
                                         message: format!(
                                             "Standard deviation {:.4} exceeds maximum {:.4}",
                                             std_dev, max_std
@@ -895,7 +896,7 @@ impl Validator {
                                 // For now, just add a warning - full distribution testing would require more complex analysis
                                 warnings.push(ValidationError {
                                     errortype: ValidationErrorType::SchemaError,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!(
                                         "Distribution testing for '{}' not yet implemented",
                                         expected_dist
@@ -911,12 +912,12 @@ impl Validator {
                     } else {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::TypeMismatch,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: "Statistical constraints require an array of numeric values"
                                 .to_string(),
                             expected: Some("numeric array".to_string()),
                             actual: Some(format!("{value}")),
-                            constraint: Some(statistical.to_string()),
+                            constraint: Some("statistical".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -936,11 +937,11 @@ impl Validator {
                             } else {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::TypeMismatch,
-                                    field_path: format!("{}[{}]", field_path, idx),
+                                    fieldpath: format!("{}[{}]", fieldpath, idx),
                                     message: format!("{val}"),
                                     expected: Some("timestamp (integer or float)".to_string()),
                                     actual: Some(val.to_string()),
-                                    constraint: Some(temporal.to_string()),
+                                    constraint: Some("temporal".to_string()),
                                     severity: ErrorSeverity::Error,
                                     context: HashMap::new(),
                                 });
@@ -951,12 +952,12 @@ impl Validator {
                         if timestamps.len() < 2 {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::ConstraintViolation,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: "Temporal validation requires at least 2 timestamps"
                                     .to_string(),
                                 expected: Some("at least 2 timestamps".to_string()),
                                 actual: Some(format!("{} timestamps", timestamps.len())),
-                                constraint: Some(temporal.to_string()),
+                                constraint: Some("temporal".to_string()),
                                 severity: ErrorSeverity::Error,
                                 context: HashMap::new(),
                             });
@@ -965,15 +966,15 @@ impl Validator {
                             if time_constraints.require_monotonic {
                                 let mut _is_monotonic = true;
                                 for i in 1..timestamps.len() {
-                                    if timestamps[0] < timestamps[0.saturating_sub(1)] {
+                                    if timestamps[i] < timestamps[i.saturating_sub(1)] {
                                         _is_monotonic = false;
                                         errors.push(ValidationError {
                                             errortype: ValidationErrorType::ConstraintViolation,
-                                            field_path: field_path.to_string(),
+                                            fieldpath: fieldpath.to_string(),
                                             message: format!(
                                                 "Timestamps not monotonic: {} comes after {}",
-                                                timestamps[0],
-                                                timestamps[0.saturating_sub(1)]
+                                                timestamps[i],
+                                                timestamps[i.saturating_sub(1)]
                                             ),
                                             expected: Some(
                                                 "monotonic increasing timestamps".to_string(),
@@ -995,7 +996,7 @@ impl Validator {
                                     if !seen.insert(ts) {
                                         errors.push(ValidationError {
                                             errortype: ValidationErrorType::ConstraintViolation,
-                                            field_path: field_path.to_string(),
+                                            fieldpath: fieldpath.to_string(),
                                             message: format!("{ts}"),
                                             expected: Some("unique timestamps".to_string()),
                                             actual: Some("duplicate timestamps".to_string()),
@@ -1011,14 +1012,14 @@ impl Validator {
                             // Check interval constraints
                             for i in 1..timestamps.len() {
                                 let interval_ms =
-                                    (timestamps[0] - timestamps[0.saturating_sub(1)]).abs();
+                                    (timestamps[i] - timestamps[i.saturating_sub(1)]).abs();
                                 let interval = std::time::Duration::from_millis(interval_ms as u64);
 
                                 if let Some(min_interval) = &time_constraints.min_interval {
                                     if interval < *min_interval {
                                         errors.push(ValidationError {
                                             errortype: ValidationErrorType::ConstraintViolation,
-                                            field_path: field_path.to_string(),
+                                            fieldpath: fieldpath.to_string(),
                                             message: format!(
                                                 "Interval {:?} is less than minimum {:?}",
                                                 interval, min_interval
@@ -1040,7 +1041,7 @@ impl Validator {
                                     if interval > *max_interval {
                                         errors.push(ValidationError {
                                             errortype: ValidationErrorType::ConstraintViolation,
-                                            field_path: field_path.to_string(),
+                                            fieldpath: fieldpath.to_string(),
                                             message: format!(
                                                 "Interval {:?} exceeds maximum {:?}",
                                                 interval, max_interval
@@ -1062,12 +1063,12 @@ impl Validator {
                     } else {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::TypeMismatch,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: "Temporal constraints require an array of timestamps"
                                 .to_string(),
                             expected: Some("array of timestamps".to_string()),
                             actual: Some(format!("{value}")),
-                            constraint: Some(temporal.to_string()),
+                            constraint: Some("temporal".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -1100,7 +1101,7 @@ impl Validator {
                             } else {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::ShapeError,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: "Jagged arrays are not supported - all rows must have the same length".to_string(),
                                     expected: Some("rectangular array".to_string()),
                                     actual: Some("jagged array".to_string()),
@@ -1118,7 +1119,7 @@ impl Validator {
                             if shape.len() != expected_dims.len() {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::ShapeError,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!(
                                         "Array has {} dimensions, expected {}",
                                         shape.len(),
@@ -1132,27 +1133,30 @@ impl Validator {
                                 });
                             } else {
                                 // Check each dimension
-                                for (0, (actual_dim, expected_dim)) in
+                                for (idx, (actual_dim, expected_dim)) in
                                     shape.iter().zip(expected_dims.iter()).enumerate()
                                 {
                                     if let Some(expected) = expected_dim {
                                         if actual_dim != expected {
                                             errors.push(ValidationError {
                                                 errortype: ValidationErrorType::ShapeError,
-                                                field_path: field_path.to_string(),
+                                                fieldpath: fieldpath.to_string(),
                                                 message: format!(
                                                     "Dimension {} has size {}, expected {}",
-                                                    0, actual_dim, expected
+                                                    idx, actual_dim, expected
                                                 ),
                                                 expected: Some(format!(
                                                     "dimension {} = {}",
-                                                    0, expected
+                                                    idx, expected
                                                 )),
                                                 actual: Some(format!(
                                                     "dimension {} = {}",
-                                                    0, actual_dim
+                                                    idx, actual_dim
                                                 )),
-                                                constraint: Some(format!("shape.dimension[{}]", i)),
+                                                constraint: Some(format!(
+                                                    "shape.dimension[{}]",
+                                                    idx
+                                                )),
                                                 severity: ErrorSeverity::Error,
                                                 context: HashMap::new(),
                                             });
@@ -1169,7 +1173,7 @@ impl Validator {
                             if total_elements < min_elements {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::ShapeError,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!(
                                         "Array has {} elements, minimum required is {}",
                                         total_elements, min_elements
@@ -1187,7 +1191,7 @@ impl Validator {
                             if total_elements > max_elements {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::ShapeError,
-                                    field_path: field_path.to_string(),
+                                    fieldpath: fieldpath.to_string(),
                                     message: format!(
                                         "Array has {} elements, maximum allowed is {}",
                                         total_elements, max_elements
@@ -1208,7 +1212,7 @@ impl Validator {
                         {
                             errors.push(ValidationError {
                                 errortype: ValidationErrorType::ShapeError,
-                                field_path: field_path.to_string(),
+                                fieldpath: fieldpath.to_string(),
                                 message: format!(
                                     "Matrix must be square, but has shape {}x{}",
                                     shape[0], shape[1]
@@ -1223,11 +1227,11 @@ impl Validator {
                     } else {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::TypeMismatch,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: "Shape constraints require an array".to_string(),
-                            expected: Some(array.to_string()),
+                            expected: Some("array".to_string()),
                             actual: Some(format!("{value}")),
-                            constraint: Some(shape.to_string()),
+                            constraint: Some("shape".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -1239,8 +1243,9 @@ impl Validator {
                         self.validate_field_constraints(
                             value,
                             &[constraint.clone()],
-                            field_path,
-                            errors_warnings,
+                            fieldpath,
+                            errors,
+                            warnings,
                             stats,
                         )?;
                     }
@@ -1252,11 +1257,13 @@ impl Validator {
 
                     for constraint in constraints {
                         let mut constrainterrors = Vec::new();
+                        let mut constraintwarnings = Vec::new();
                         self.validate_field_constraints(
                             value,
                             &[constraint.clone()],
-                            field_path,
-                            &mut constrainterrors_warnings,
+                            fieldpath,
+                            &mut constrainterrors,
+                            &mut constraintwarnings,
                             stats,
                         )?;
 
@@ -1271,14 +1278,14 @@ impl Validator {
                     if !any_passed {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::ConstraintViolation,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: format!(
                                 "None of the OR constraints passed: {} errors",
                                 temperrors.len()
                             ),
                             expected: Some("at least one constraint to pass".to_string()),
                             actual: Some("all constraints failed".to_string()),
-                            constraint: Some(or.to_string()),
+                            constraint: Some("or".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -1287,22 +1294,24 @@ impl Validator {
                 Constraint::Not(constraint) => {
                     // Constraint must not pass
                     let mut temperrors = Vec::new();
+                    let mut temp_warnings = Vec::new();
                     self.validate_field_constraints(
                         value,
                         &[*constraint.clone()],
-                        field_path,
-                        &mut temperrors_warnings,
+                        fieldpath,
+                        &mut temperrors,
+                        &mut temp_warnings,
                         stats,
                     )?;
 
                     if temperrors.is_empty() {
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::ConstraintViolation,
-                            field_path: field_path.to_string(),
+                            fieldpath: fieldpath.to_string(),
                             message: "NOT constraint failed: inner constraint passed".to_string(),
                             expected: Some("constraint to fail".to_string()),
                             actual: Some("constraint passed".to_string()),
-                            constraint: Some(not.to_string()),
+                            constraint: Some("not".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -1315,11 +1324,13 @@ impl Validator {
                 } => {
                     // Conditional constraint
                     let mut conditionerrors = Vec::new();
+                    let mut condition_warnings = Vec::new();
                     self.validate_field_constraints(
                         value,
                         &[*condition.clone()],
-                        field_path,
-                        &mut conditionerrors_warnings,
+                        fieldpath,
+                        &mut conditionerrors,
+                        &mut condition_warnings,
                         stats,
                     )?;
 
@@ -1328,8 +1339,9 @@ impl Validator {
                         self.validate_field_constraints(
                             value,
                             &[*then_constraint.clone()],
-                            field_path,
-                            errors_warnings,
+                            fieldpath,
+                            errors,
+                            warnings,
                             stats,
                         )?;
                     } else if let Some(else_constraint) = else_constraint {
@@ -1337,8 +1349,9 @@ impl Validator {
                         self.validate_field_constraints(
                             value,
                             &[*else_constraint.clone()],
-                            field_path,
-                            errors_warnings,
+                            fieldpath,
+                            errors,
+                            warnings,
                             stats,
                         )?;
                     }
@@ -1378,7 +1391,7 @@ impl Validator {
                 if !schema.fields.contains_key(key) {
                     errors.push(ValidationError {
                         errortype: ValidationErrorType::SchemaError,
-                        field_path: key.clone(),
+                        fieldpath: key.clone(),
                         message: format!("Additional field '{}' not allowed", key),
                         expected: None,
                         actual: Some(key.clone()),
@@ -1413,7 +1426,7 @@ impl Validator {
 
     /// Generate cache key for validation result
 
-    fn generate_cache_key(
+    fn generate_cachekey(
         &self,
         data: &JsonValue,
         schema: &ValidationSchema,
@@ -1434,7 +1447,7 @@ impl Validator {
             ))
         })?;
 
-        if let Some(entry) = cache.get(cache_key) {
+        if let Some(entry) = cache.get(cachekey) {
             // Check if cache entry is still valid (for now, always valid)
             return Ok(Some(entry.result.clone()));
         }
@@ -1467,7 +1480,7 @@ impl Validator {
             hit_count: 0,
         };
 
-        cache.insert(cache_key.to_string(), entry);
+        cache.insert(cachekey.to_string(), entry);
         Ok(())
     }
 
@@ -1622,7 +1635,7 @@ mod tests {
         let schema = ValidationSchema::new()
             .name("test_schema")
             .optional_field("price", DataType::Float64)
-            .add_constraint("price", Constraint::Precision { decimalplaces: 2 });
+            .add_constraint("price", Constraint::Precision { decimal_places: 2 });
 
         let valid_data = serde_json::json!({
             "price": 19.99
@@ -1794,17 +1807,17 @@ mod tests {
 
         // Test empty AND constraint
         let schema = ValidationSchema::new()
-            .require_field(value, DataType::Float64)
-            .add_constraint(value, Constraint::And(vec![]));
+            .require_field("value", DataType::Float64)
+            .add_constraint("value", Constraint::And(vec![]));
 
-        let data = serde_json::json!({ value: 42.0 });
+        let data = serde_json::json!({ "value": 42.0 });
         let result = validator.validate(&data, &schema).unwrap();
         assert!(result.is_valid()); // Empty AND should pass
 
         // Test empty OR constraint
         let schema = ValidationSchema::new()
-            .require_field(value, DataType::Float64)
-            .add_constraint(value, Constraint::Or(vec![]));
+            .require_field("value", DataType::Float64)
+            .add_constraint("value", Constraint::Or(vec![]));
 
         let result = validator.validate(&data, &schema).unwrap();
         assert!(result.is_valid()); // Empty OR currently passes, but could be considered invalid
@@ -1845,9 +1858,9 @@ mod tests {
         // Note: This test shows a limitation - we need a way to reference other fields
         // For now, we'll test a simpler case where the condition is on the same field
         let schema = ValidationSchema::new()
-            .optional_field(value, DataType::Float64)
+            .optional_field("value", DataType::Float64)
             .add_constraint(
-                value,
+                "value",
                 Constraint::If {
                     condition: Box::new(Constraint::Range {
                         min: 1000.0,
@@ -1866,28 +1879,28 @@ mod tests {
 
         // High value (>= 1000) must be in range 1000-10000
         let valid_high = serde_json::json!({
-            value: 5000.0
+            "value": 5000.0
         });
         let result = validator.validate(&valid_high, &schema).unwrap();
         assert!(result.is_valid());
 
         // Low value (< 1000) must be in range 0-100
         let valid_low = serde_json::json!({
-            value: 50.0
+            "value": 50.0
         });
         let result = validator.validate(&valid_low, &schema).unwrap();
         assert!(result.is_valid());
 
         // High value out of allowed range (should fail)
         let invalid_high = serde_json::json!({
-            value: 15000.0
+            "value": 15000.0
         });
         let result = validator.validate(&invalid_high, &schema).unwrap();
         assert!(!result.is_valid());
 
         // Low value out of allowed range (should fail)
         let invalid_low = serde_json::json!({
-            value: 150.0
+            "value": 150.0
         });
         let result = validator.validate(&invalid_low, &schema).unwrap();
         assert!(!result.is_valid());
@@ -1898,8 +1911,8 @@ mod tests {
             .add_constraint(
                 "code",
                 Constraint::And(vec![
-                    Constraint::Not(Box::new(Constraint::Pattern(test.to_string()))),
-                    Constraint::Not(Box::new(Constraint::Pattern(debug.to_string()))),
+                    Constraint::Not(Box::new(Constraint::Pattern("test".to_string()))),
+                    Constraint::Not(Box::new(Constraint::Pattern("debug".to_string()))),
                     Constraint::Length { min: 3, max: 10 },
                 ]),
             );
@@ -1960,7 +1973,7 @@ mod tests {
         assert!(!result.is_valid());
 
         let errors = result.errors();
-        assert!(errors.iter().any(|e| e.field_path.contains("[2]")));
+        assert!(errors.iter().any(|e| e.fieldpath.contains("[2]")));
     }
 
     #[test]
@@ -1978,10 +1991,10 @@ mod tests {
         }
 
         let schema = ValidationSchema::new()
-            .require_field(value, DataType::Float64)
-            .add_constraint(value, constraint);
+            .require_field("value", DataType::Float64)
+            .add_constraint("value", constraint);
 
-        let data = serde_json::json!({ value: 50.0 });
+        let data = serde_json::json!({ "value": 50.0 });
         let result = validator.validate(&data, &schema).unwrap();
         assert!(result.is_valid());
 

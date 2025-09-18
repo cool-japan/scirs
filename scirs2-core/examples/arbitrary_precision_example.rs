@@ -143,8 +143,8 @@ fn demo_arbitrary_floats() -> CoreResult<()> {
 #[allow(dead_code)]
 fn demo_rational_arithmetic() -> CoreResult<()> {
     // Exact rational arithmetic
-    let r1 = ArbitraryRational::from_ratio(22, 7)?;
-    let r2 = ArbitraryRational::from_ratio(355, 113)?;
+    let r1 = ArbitraryRational::num(22, 7)?;
+    let r2 = ArbitraryRational::num(355, 113)?;
 
     println!("r1 = {} ≈ {:.10}", r1, r1.to_f64());
     println!("r2 = {} ≈ {:.10}", r2, r2.to_f64());
@@ -157,15 +157,15 @@ fn demo_rational_arithmetic() -> CoreResult<()> {
     println!("r1 * r2 = {}", product);
 
     // Working with fractions
-    let half = ArbitraryRational::from_ratio(1, 2)?;
-    let third = ArbitraryRational::from_ratio(1, 3)?;
-    let sixth = ArbitraryRational::from_ratio(1, 6)?;
+    let half = ArbitraryRational::num(1, 2)?;
+    let third = ArbitraryRational::num(1, 3)?;
+    let sixth = ArbitraryRational::num(1, 6)?;
 
     let result = half + third.clone() - sixth;
     println!("\n1/2 + 1/3 - 1/6 = {}", result);
 
     // Convert to high precision float
-    let pi_approx = ArbitraryRational::from_ratio(355, 113)?;
+    let pi_approx = ArbitraryRational::num(355, 113)?;
     let pi_float = pi_approx.to_arbitrary_float(256)?;
     println!("\n355/113 as 256-bit float: {}", pi_float);
 

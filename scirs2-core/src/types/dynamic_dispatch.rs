@@ -768,7 +768,7 @@ mod tests {
 
         let mut sum = 0i32;
         collection
-            .apply_to_type::<i32>(|value| {
+            .apply_to_type::<i32, _>(|value| {
                 sum += *value;
                 Ok(())
             })

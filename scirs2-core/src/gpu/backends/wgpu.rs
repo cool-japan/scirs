@@ -541,7 +541,12 @@ impl GpuCompilerImpl for WebGPUCompiler {
         }))
     }
 
-    fn compile_typed(&self, name: &str, _typeid: std::any::TypeId) -> Arc<dyn GpuKernelImpl> {
+    fn compile_typed(
+        &self,
+        name: &str,
+        _input_type: std::any::TypeId,
+        _output_type: std::any::TypeId,
+    ) -> Arc<dyn GpuKernelImpl> {
         Arc::new(WebGPUKernelHandle {
             shader_name: name.to_string(),
             compiled_shaders: Arc::clone(&self.context.compiled_shaders),

@@ -161,7 +161,7 @@ impl BenchmarkConfig {
     }
 
     /// Set sample sizes
-    pub fn with_sample_sizes(mut self, samplesizes: Vec<usize>) -> Self {
+    pub fn with_sample_sizes(mut self, sample_sizes: Vec<usize>) -> Self {
         self.sample_sizes = sample_sizes;
         self
     }
@@ -190,7 +190,7 @@ pub struct BenchmarkMeasurement {
 
 impl BenchmarkMeasurement {
     /// Create a new benchmark measurement
-    pub fn new(executiontime: Duration) -> Self {
+    pub fn new(execution_time: Duration) -> Self {
         Self {
             execution_time,
             duration: execution_time,
@@ -222,7 +222,7 @@ impl BenchmarkMeasurement {
     }
 
     /// Set input size
-    pub fn with_input_size(mut self, inputsize: usize) -> Self {
+    pub fn with_input_size(mut self, input_size: usize) -> Self {
         self.input_size = input_size;
         self
     }
@@ -313,7 +313,7 @@ impl BenchmarkResult {
     /// Get throughput in operations per second
     pub fn get_throughput(&self, operations_periteration: u64) -> f64 {
         let avg_time_seconds = self.statistics.meanexecution_time.as_secs_f64();
-        operations_per_iteration as f64 / avg_time_seconds
+        operations_periteration as f64 / avg_time_seconds
     }
 
     /// Get memory efficiency (operations per MB)
@@ -322,7 +322,7 @@ impl BenchmarkResult {
             return f64::INFINITY;
         }
         let memory_mb = self.statistics.mean_memory_usage as f64 / (1024.0 * 1024.0);
-        operations_per_iteration as f64 / memory_mb
+        operations_periteration as f64 / memory_mb
     }
 }
 
@@ -441,7 +441,7 @@ impl BenchmarkStatistics {
     }
 
     /// Check if the measurements are statistically reliable
-    pub fn is_reliable(&self, maxcv: f64) -> bool {
+    pub fn is_reliable(&self, max_cv: f64) -> bool {
         self.coefficient_of_variation <= max_cv && self.sample_count >= 10
     }
 
@@ -697,7 +697,7 @@ impl BenchmarkSuite {
     }
 
     /// Add a benchmark to the suite
-    pub fn add_benchmark<F>(&mut self, benchmarkfn: F)
+    pub fn add_benchmark<F>(&mut self, benchmark_fn: F)
     where
         F: Fn(&BenchmarkRunner) -> CoreResult<BenchmarkResult> + Send + Sync + 'static,
     {
@@ -719,8 +719,8 @@ impl BenchmarkSuite {
                     println!(
                         "  {} completed: {:.3}ms ± {:.3}ms",
                         result.name,
-                        result.statistics.meanexecution_time.as_millis(),
-                        result.statistics.std_devexecution_time.as_millis()
+                        result.statistics.mean_execution_time.as_millis(),
+                        result.statistics.std_dev_execution_time.as_millis()
                     );
                     results.push(result);
                 }
@@ -864,7 +864,7 @@ pub struct PerformanceBottleneck {
 impl PerformanceBottleneck {
     /// Create a new performance bottleneck
     #[allow(dead_code)]
-    pub fn new(bottlenecktype: BottleneckType) -> Self {
+    pub fn new(bottleneck_type: BottleneckType) -> Self {
         Self {
             bottleneck_type,
             severity: 0.0,
@@ -917,7 +917,7 @@ pub struct BenchmarkResults {
 impl BenchmarkResults {
     /// Create a new benchmark results
     #[allow(dead_code)]
-    pub fn new(operationname: String) -> Self {
+    pub fn new(operation_name: String) -> Self {
         Self {
             operation_name,
             measurements: Vec::new(),

@@ -26,13 +26,14 @@
 //! # Examples
 //!
 //! ```
-//! use scirs2_spatial::tensor_cores::{TensorCoreDistanceMatrix, TensorCoreClustering};
+//! use scirs2_spatial::tensor_cores::{TensorCoreDistanceMatrix, TensorCoreClustering, PrecisionMode};
 //! use ndarray::array;
 //!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Tensor core distance matrix computation
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //!
-//! let tensor_matrix = TensorCoreDistanceMatrix::new()?
+//! let mut tensor_matrix = TensorCoreDistanceMatrix::new()?
 //!     .with_precision_mode(PrecisionMode::Mixed16)
 //!     .with_tensor_layout_optimization(true)
 //!     .with_hierarchical_tiling(true);
@@ -41,13 +42,15 @@
 //! println!("Tensor core distance matrix: {:?}", distances);
 //!
 //! // Tensor core k-means clustering
-//! let tensor_kmeans = TensorCoreClustering::new(2)?
+//! let mut tensor_kmeans = TensorCoreClustering::new(2)?
 //!     .with_tensor_cores(true)
 //!     .with_mixed_precision(true)
 //!     .with_dynamic_precision_scaling(true);
 //!
 //! let (centroids, assignments) = tensor_kmeans.fit(&points.view()).await?;
 //! println!("Tensor core centroids: {:?}", centroids);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::{SpatialError, SpatialResult};

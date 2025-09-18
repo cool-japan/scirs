@@ -33,7 +33,7 @@ impl Default for RegressionConfig {
             min_historical_samples: 5,
             confidence_level: 0.95,
             auto_updatebaseline: false,
-            results_directory: PathBuf::from(benchmark_results),
+            results_directory: PathBuf::from("benchmark_results"),
         }
     }
 }
@@ -465,6 +465,9 @@ impl RegressionTestUtils {
     /// Run a complete regression test suite
     pub fn run_regression_tests(benchmark_names: &[&str]) -> CoreResult<Vec<RegressionAnalysis>> {
         let mut analyses = Vec::new();
+        let benchmark_runner =
+            BenchmarkRunner::new(crate::benchmarking::BenchmarkConfig::default());
+        let detector = RegressionDetector::new(RegressionConfig::default());
 
         for &name in benchmark_names {
             // Run benchmark (this is simplified - in practice you'd have the actual benchmark functions)
@@ -518,15 +521,15 @@ impl RegressionTestUtils {
         report.push_str(&format!("- Total benchmarks: {}\n", analyses.len()));
         report.push_str(&format!("- Regressions detected: {}\n", regressions.len()));
 
-        let improving = _analyses
+        let improving = analyses
             .iter()
             .filter(|a| a.trend == PerformanceTrend::Improving)
             .count();
-        let stable = _analyses
+        let stable = analyses
             .iter()
             .filter(|a| a.trend == PerformanceTrend::Stable)
             .count();
-        let degrading = _analyses
+        let degrading = analyses
             .iter()
             .filter(|a| a.trend == PerformanceTrend::Degrading)
             .count();
@@ -587,7 +590,7 @@ mod tests {
         ));
         result.finalize().unwrap();
 
-        let historical = HistoricalResult::from_benchmark_result(&result);
+        let historical = HistoricalResult::from_result(&result);
 
         assert_eq!(historical.benchmark_name, "test_benchmark");
         assert!(historical.mean_execution_time_nanos > 0);

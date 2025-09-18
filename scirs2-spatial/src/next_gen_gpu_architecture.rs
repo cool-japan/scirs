@@ -31,6 +31,7 @@
 //! use scirs2_spatial::next_gen_gpu_architecture::{QuantumGpuProcessor, PhotonicAccelerator};
 //! use ndarray::array;
 //!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Quantum-GPU hybrid processing
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //! let mut quantum_gpu = QuantumGpuProcessor::new()
@@ -42,13 +43,15 @@
 //! println!("Quantum-GPU distances: {:?}", quantum_distances);
 //!
 //! // Photonic computing acceleration
-//! let photonic = PhotonicAccelerator::new()
+//! let mut photonic = PhotonicAccelerator::new()
 //!     .with_optical_neural_networks(true)
 //!     .with_metamaterial_optimization(true)
 //!     .with_temporal_encoding(true);
 //!
 //! let optical_clusters = photonic.optical_clustering(&points.view(), 2).await?;
 //! println!("Photonic clusters: {:?}", optical_clusters);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::SpatialResult;

@@ -245,13 +245,13 @@ impl DataBatch {
     /// Extract feature matrix for ML processing
     pub fn extract_featurematrix(
         &self,
-        feature_names: &[String],
+        featurenames: &[String],
     ) -> Result<Vec<Vec<f64>>, MLPipelineError> {
         let mut matrix = Vec::new();
 
         for sample in &self.samples {
             let mut row = Vec::new();
-            for feature_name in feature_names {
+            for feature_name in featurenames {
                 if let Some(value) = sample.features.get(feature_name) {
                     if let Some(numeric_value) = value.as_f64() {
                         row.push(numeric_value);
@@ -727,7 +727,7 @@ impl ModelPredictor {
 
     /// Load model from serialized data
     pub fn loadmodel(&mut self, modeldata: Vec<u8>) -> Result<(), MLPipelineError> {
-        self.model_data = model_data;
+        self.model_data = modeldata;
         // In a real implementation, this would deserialize the model
         Ok(())
     }
@@ -869,7 +869,7 @@ pub struct MLPipeline {
 #[derive(Debug, Clone)]
 pub struct PipelineConfig {
     /// Maximum batch size for processing
-    pub max_batch_size: usize,
+    pub max_batchsize: usize,
     /// Timeout for node processing
     pub node_timeout: Duration,
     /// Whether to enable parallel processing
@@ -883,7 +883,7 @@ pub struct PipelineConfig {
 impl Default for PipelineConfig {
     fn default() -> Self {
         Self {
-            max_batch_size: 1000,
+            max_batchsize: 1000,
             node_timeout: Duration::from_secs(30),
             parallel_processing: true,
             error_strategy: ErrorStrategy::FailFast,
@@ -984,7 +984,7 @@ impl MLPipeline {
 
     /// Set dependencies between nodes
     pub fn set_dependencies(&mut self, nodename: String, dependencies: Vec<String>) {
-        self.node_dependencies.insert(node_name, dependencies);
+        self.node_dependencies.insert(nodename, dependencies);
     }
 
     /// Execute the pipeline on a batch of data
@@ -993,11 +993,11 @@ impl MLPipeline {
         let initial_size = batch.size();
 
         // Validate batch size
-        if batch.size() > self.config.max_batch_size {
+        if batch.size() > self.config.max_batchsize {
             return Err(MLPipelineError::ValidationError(format!(
                 "Batch size {} exceeds maximum {}",
                 batch.size(),
-                self.config.max_batch_size
+                self.config.max_batchsize
             )));
         }
 
@@ -1051,7 +1051,7 @@ impl MLPipeline {
 
         // Update pipeline metrics
         let total_time = start_time.elapsed();
-        self.update_pipeline_metrics(initial_size, total_time, true);
+        self.update_pipeline_metrics(total_time, true, initial_size, total_time);
 
         Ok(batch)
     }
@@ -1116,25 +1116,31 @@ impl MLPipeline {
                 "processing_time_ms".to_string(),
                 processing_time.as_millis() as f64,
             );
-            node_metrics.insert("batch_size".to_string(), batch_size as f64);
+            node_metrics.insert("batchsize".to_string(), batchsize as f64);
             node_metrics.insert(
                 "throughput".to_string(),
-                batch_size as f64 / processing_time.as_secs_f64(),
+                batchsize as f64 / processing_time.as_secs_f64(),
             );
         }
     }
 
     /// Update overall pipeline metrics
-    fn log_time(duration: Duration, success: bool) {
+    fn update_pipeline_metrics(
+        &self,
+        duration: Duration,
+        success: bool,
+        batchsize: usize,
+        processing_time: Duration,
+    ) {
         if let Ok(mut metrics) = self.pipeline_metrics.write() {
-            metrics.samples_processed += batch_size as u64;
+            metrics.samples_processed += batchsize as u64;
             metrics.total_processing_time += processing_time;
 
             if !success {
                 metrics.error_count += 1;
             }
 
-            let total_executions = metrics.samples_processed as f64 / batch_size as f64;
+            let total_executions = metrics.samples_processed as f64 / batchsize as f64;
             metrics.success_rate =
                 (total_executions - metrics.error_count as f64) / total_executions;
             metrics.throughput =
@@ -1173,7 +1179,7 @@ pub struct StreamingProcessor {
     pipeline: Arc<MLPipeline>,
     input_buffer: Arc<Mutex<VecDeque<DataSample>>>,
     output_buffer: Arc<Mutex<VecDeque<DataSample>>>,
-    batch_size: usize,
+    batchsize: usize,
     processing_interval: Duration,
     is_running: Arc<Mutex<bool>>,
 }
@@ -1181,12 +1187,16 @@ pub struct StreamingProcessor {
 #[cfg(feature = "async")]
 impl StreamingProcessor {
     /// Create a new streaming processor
-    pub fn with_interval(duration: Duration) -> Self {
+    pub fn with_interval(
+        processing_interval: Duration,
+        batchsize: usize,
+        pipeline: Arc<MLPipeline>,
+    ) -> Self {
         Self {
-            pipeline: Arc::new(_pipeline),
+            pipeline,
             input_buffer: Arc::new(Mutex::new(VecDeque::new())),
             output_buffer: Arc::new(Mutex::new(VecDeque::new())),
-            batch_size,
+            batchsize,
             processing_interval,
             is_running: Arc::new(Mutex::new(false)),
         }
@@ -1207,7 +1217,7 @@ impl StreamingProcessor {
         let pipeline = self.pipeline.clone();
         let input_buffer = self.input_buffer.clone();
         let output_buffer = self.output_buffer.clone();
-        let batch_size = self.batch_size;
+        let batchsize = self.batchsize;
         let processing_interval = self.processing_interval;
         let is_running = self.is_running.clone();
 
@@ -1226,7 +1236,7 @@ impl StreamingProcessor {
                 {
                     let mut input = input_buffer.lock().unwrap();
                     let mut count = 0;
-                    while count < batch_size && !input.is_empty() {
+                    while count < batchsize && !input.is_empty() {
                         if let Some(sample) = input.pop_front() {
                             batch.add_sample(sample);
                             count += 1;
@@ -1269,7 +1279,7 @@ impl StreamingProcessor {
         let mut samples = Vec::new();
         let mut _count = 0;
 
-        while _count < max_count && !output.is_empty() {
+        while _count < maxcount && !output.is_empty() {
             if let Some(sample) = output.pop_front() {
                 samples.push(sample);
                 _count += 1;
@@ -1299,8 +1309,8 @@ pub mod utils {
         let scaler = FeatureTransformer::new(
             "standard_scaler".to_string(),
             TransformType::StandardScaler,
-            feature_names.clone(),
-            feature_names.clone(),
+            featurenames.clone(),
+            featurenames.clone(),
         );
         pipeline.add_node(Box::new(scaler)).unwrap();
 
@@ -1335,7 +1345,7 @@ pub mod utils {
 
         for i in 0..size {
             let mut features = HashMap::new();
-            for (j, feature_name) in feature_names.iter().enumerate() {
+            for (j, feature_name) in featurenames.iter().enumerate() {
                 let value = (i * 10 + j) as f64 / 100.0; // Generate some sample data
                 features.insert(feature_name.clone(), FeatureValue::Float64(value));
             }
@@ -1410,11 +1420,11 @@ mod tests {
         assert!(batch.is_empty());
 
         let sample = DataSample {
-            id: test1.to_string(),
+            id: "test1".to_string(),
             features: {
                 let mut features = HashMap::new();
-                features.insert(feature1.to_string(), FeatureValue::Float64(1.0));
-                features.insert(feature2.to_string(), FeatureValue::Float64(2.0));
+                features.insert("feature1".to_string(), FeatureValue::Float64(1.0));
+                features.insert("feature2".to_string(), FeatureValue::Float64(2.0));
                 features
             },
             target: Some(FeatureValue::Float64(1.0)),
@@ -1427,8 +1437,8 @@ mod tests {
         assert!(!batch.is_empty());
 
         // Test feature matrix extraction
-        let feature_names = vec!["feature1".to_string(), "feature2".to_string()];
-        let matrix = batch.extract_featurematrix(&feature_names).unwrap();
+        let featurenames = vec!["feature1".to_string(), "feature2".to_string()];
+        let matrix = batch.extract_featurematrix(&featurenames).unwrap();
         assert_eq!(matrix.len(), 1);
         assert_eq!(matrix[0], vec![1.0, 2.0]);
     }
@@ -1449,10 +1459,10 @@ mod tests {
     #[test]
     fn test_model_predictor_creation() {
         let predictor = ModelPredictor::new(
-            test_model.to_string(),
+            "test_model".to_string(),
             ModelType::LinearRegression,
-            vec![feature1.to_string(), feature2.to_string()],
-            vec![prediction.to_string()],
+            vec!["feature1".to_string(), "feature2".to_string()],
+            vec!["prediction".to_string()],
             vec![1, 2, 3, 4], // Mock model data
         );
 
@@ -1462,7 +1472,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_creation_and_validation() {
-        let mut pipeline = MLPipeline::new(test_pipeline.to_string(), PipelineConfig::default());
+        let mut pipeline = MLPipeline::new("test_pipeline".to_string(), PipelineConfig::default());
 
         let transformer = FeatureTransformer::new(
             scaler.to_string(),
@@ -1477,7 +1487,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_execution_order() {
-        let mut pipeline = MLPipeline::new(test_pipeline.to_string(), PipelineConfig::default());
+        let mut pipeline = MLPipeline::new("test_pipeline".to_string(), PipelineConfig::default());
 
         // Add nodes
         let node1 = FeatureTransformer::new(
@@ -1505,8 +1515,8 @@ mod tests {
 
     #[test]
     fn test_utils_sample_batch_creation() {
-        let feature_names = vec!["feature1".to_string(), "feature2".to_string()];
-        let batch = utils::create_sample_batch(10, &feature_names);
+        let featurenames = vec!["feature1".to_string(), "feature2".to_string()];
+        let batch = utils::create_sample_batch(10, &featurenames);
 
         assert_eq!(batch.size(), 10);
         assert!(!batch.is_empty());
@@ -1521,8 +1531,8 @@ mod tests {
 
     #[test]
     fn test_feature_statistics() {
-        let feature_names = vec!["feature1".to_string()];
-        let batch = utils::create_sample_batch(100, &feature_names);
+        let featurenames = vec!["feature1".to_string()];
+        let batch = utils::create_sample_batch(100, &featurenames);
 
         let stats = utils::calculate_feature_statistics(&batch, "feature1").unwrap();
         let (mean, std_dev, min, max) = stats;
@@ -1535,7 +1545,7 @@ mod tests {
     #[test]
     fn test_pipeline_config_default() {
         let config = PipelineConfig::default();
-        assert_eq!(config.max_batch_size, 1000);
+        assert_eq!(config.max_batchsize, 1000);
         assert_eq!(config.node_timeout, Duration::from_secs(30));
         assert!(config.parallel_processing);
         assert!(matches!(config.error_strategy, ErrorStrategy::FailFast));

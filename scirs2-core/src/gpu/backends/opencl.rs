@@ -409,7 +409,12 @@ impl GpuCompilerImpl for OpenCLCompiler {
         }))
     }
 
-    fn compile_typed(&self, name: &str, _typeid: std::any::TypeId) -> Arc<dyn GpuKernelImpl> {
+    fn compile_typed(
+        &self,
+        name: &str,
+        _input_type: std::any::TypeId,
+        _output_type: std::any::TypeId,
+    ) -> Arc<dyn GpuKernelImpl> {
         Arc::new(OpenCLKernelHandle {
             kernel_name: name.to_string(),
             compiled_kernels: Arc::clone(&self.context.compiled_kernels),

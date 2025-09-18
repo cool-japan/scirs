@@ -32,7 +32,7 @@
 //! # Examples
 //!
 //! ```
-//! use scirs2_spatial::extreme_performance_optimization::{ExtremeOptimizer, AdvancedfastDistanceMatrix};
+//! use scirs2_spatial::extreme_performance_optimization::{ExtremeOptimizer, AdvancedfastDistanceMatrix, SelfOptimizingAlgorithm};
 //! use ndarray::array;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

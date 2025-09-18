@@ -20,6 +20,7 @@
 //! use scirs2_spatial::kdtree_advanced::{AdvancedKDTree, KDTreeConfig};
 //! use ndarray::array;
 //!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create advanced-optimized KD-Tree
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //!
@@ -34,6 +35,8 @@
 //! let query = array![0.5, 0.5];
 //! let (indices, distances) = kdtree.knn_search_advanced(&query.view(), 2)?;
 //! println!("Nearest neighbors: {:?}", indices);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::{SpatialError, SpatialResult};

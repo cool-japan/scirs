@@ -27,7 +27,7 @@
 //!
 //! // Create a validation schema
 //! let schema = ValidationSchema::new()
-//!     .require_field(name, DataType::String)
+//!     .require_field("name", DataType::String)
 //!     .require_field("age", DataType::Integer)
 //!     .add_constraint("age", Constraint::Range { min: 0.0, max: 150.0 })
 //!     .require_field("data", DataType::Array(Box::new(DataType::Float64)));
@@ -213,7 +213,7 @@ mod tests {
         // Test JSON validation functionality
         let schema = ValidationSchema::new()
             .name("test_schema")
-            .require_field(name, DataType::String)
+            .require_field("name", DataType::String)
             .require_field("age", DataType::Integer)
             .add_constraint(
                 "age",
@@ -315,11 +315,11 @@ mod tests {
         .with_severity(ErrorSeverity::Error);
 
         assert_eq!(error.errortype, ValidationErrorType::TypeMismatch);
-        assert_eq!(error.field_path, "test_field");
+        assert_eq!(error.fieldpath, "test_field");
         assert_eq!(error.message, "Type mismatch error");
 
         let formatted = error.formatted_message();
-        assert!(formatted.contains(test_field));
+        assert!(formatted.contains("test_field"));
         assert!(formatted.contains("Type mismatch error"));
     }
 
@@ -329,9 +329,9 @@ mod tests {
         let schema = ValidationSchema::new()
             .name("test_schema")
             .version("1.0.0")
-            .require_field(name, DataType::String)
+            .require_field("name", DataType::String)
             .optional_field("description", DataType::String)
-            .add_constraint(name, Constraint::Length { min: 1, max: 100 })
+            .add_constraint("name", Constraint::Length { min: 1, max: 100 })
             .allow_additional()
             .with_metadata("author", "test");
 
@@ -339,6 +339,6 @@ mod tests {
         assert_eq!(schema.version, "1.0.0");
         assert_eq!(schema.fields.len(), 2);
         assert!(schema.allow_additional_fields);
-        assert_eq!(schema.metadata.get(author), Some(&test.to_string()));
+        assert_eq!(schema.metadata.get("author"), Some(&"test".to_string()));
     }
 }

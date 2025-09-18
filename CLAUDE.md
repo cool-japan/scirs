@@ -166,9 +166,15 @@ use scirs2_core::parallel_ops::*;
 - Separate public API from implementation
 
 ### Naming Conventions
-- `mod.rs`: Public interface and re-exports
-- `implementation.rs`: Core implementation
-- `utils.rs`: Module-specific utilities
+- **Variables**: Use `snake_case` for all variables and function parameters
+- **Functions**: Use `snake_case` for all functions and methods
+- **Structs/Enums**: Use `PascalCase` for types
+- **Constants**: Use `SCREAMING_SNAKE_CASE` for constants
+- **Modules**: Use `snake_case` for module names
+- File conventions:
+  - `mod.rs`: Public interface and re-exports
+  - `implementation.rs`: Core implementation
+  - `utils.rs`: Module-specific utilities
 - Follow Rust naming conventions strictly
 
 ### Documentation Requirements

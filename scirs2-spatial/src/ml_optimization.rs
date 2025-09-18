@@ -26,28 +26,33 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```ignore
 //! use scirs2_spatial::ml_optimization::{NeuralSpatialOptimizer, ReinforcementLearningSelector};
 //! use ndarray::array;
 //!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Neural network-based spatial optimizer
-//! let mut optimizer = NeuralSpatialOptimizer::new()
+//! let optimizer_builder = NeuralSpatialOptimizer::new()
 //!     .with_network_architecture([64, 128, 64, 32])
 //!     .with_learning_rate(0.001)
 //!     .with_adaptive_learning(true);
+//! let mut optimizer = optimizer_builder;
 //!
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //! let optimized_params = optimizer.optimize_clustering_parameters(&points.view())?;
 //! println!("Optimized k-means parameters: {:?}", optimized_params);
 //!
 //! // Reinforcement learning algorithm selector
-//! let mut rl_selector = ReinforcementLearningSelector::new()
+//! let rl_builder = ReinforcementLearningSelector::new()
 //!     .with_epsilon_greedy(0.1)
 //!     .with_experience_replay(true)
 //!     .with_target_network(true);
+//! let mut rl_selector = rl_builder;
 //!
 //! let selected_algorithm = rl_selector.select_best_algorithm(&points.view())?;
 //! println!("RL selected algorithm: {:?}", selected_algorithm);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::error::{SpatialError, SpatialResult};

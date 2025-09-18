@@ -323,15 +323,17 @@ impl GpuCompilerImpl for MetalCompiler {
 
     fn compile_typed(
         &self,
-        _type_id: std::any::TypeId,
-    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
+        name: &str,
+        _input_type: std::any::TypeId,
+        _output_type: std::any::TypeId,
+    ) -> Arc<dyn GpuKernelImpl> {
         // For typed compilation, we would generate appropriate Metal shader code
         // based on the input/output types. For now, return a stub.
-        Ok(Arc::new(MetalKernel::stub(
+        Arc::new(MetalKernel::stub(
             self.device.clone(),
             self.command_queue.clone(),
-            "typed_kernel".to_string(),
-        )))
+            name.to_string(),
+        ))
     }
 }
 

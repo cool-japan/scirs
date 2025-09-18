@@ -17,7 +17,7 @@ pub struct ValidationError {
     /// Error type
     pub errortype: ValidationErrorType,
     /// Field path where error occurred
-    pub field_path: String,
+    pub fieldpath: String,
     /// Error message
     pub message: String,
     /// Expected value/type
@@ -37,7 +37,7 @@ impl ValidationError {
     pub fn new(errortype: ValidationErrorType, fieldpath: &str, message: &str) -> Self {
         Self {
             errortype,
-            field_path: field_path.to_string(),
+            fieldpath: fieldpath.to_string(),
             message: message.to_string(),
             expected: None,
             actual: None,
@@ -79,7 +79,7 @@ impl ValidationError {
 
     /// Get formatted error message
     pub fn formatted_message(&self) -> String {
-        let mut message = format!("{}, {}", self.field_path, self.message);
+        let mut message = format!("{}, {}", self.fieldpath, self.message);
 
         if let Some(expected) = &self.expected {
             message.push_str(&format!(" (expected: {expected})"));
@@ -318,7 +318,7 @@ impl ValidationResult {
     pub fn errors_for_field(&self, fieldpath: &str) -> Vec<&ValidationError> {
         self.errors
             .iter()
-            .filter(|e| e.field_path == field_path)
+            .filter(|e| e.fieldpath == fieldpath)
             .collect()
     }
 
@@ -326,7 +326,7 @@ impl ValidationResult {
     pub fn warnings_for_field(&self, fieldpath: &str) -> Vec<&ValidationError> {
         self.warnings
             .iter()
-            .filter(|w| w.field_path == field_path)
+            .filter(|w| w.fieldpath == fieldpath)
             .collect()
     }
 
@@ -417,7 +417,7 @@ mod tests {
         .with_context("line", "42");
 
         assert_eq!(error.errortype, ValidationErrorType::TypeMismatch);
-        assert_eq!(error.field_path, "test_field");
+        assert_eq!(error.fieldpath, "test_field");
         assert_eq!(error.message, "Type mismatch error");
         assert_eq!(error.expected, Some("string".to_string()));
         assert_eq!(error.actual, Some("integer".to_string()));

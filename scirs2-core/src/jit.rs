@@ -16,6 +16,7 @@ use crate::error::{CoreError, ErrorContext, ErrorLocation};
 #[allow(unused_imports)]
 use crate::gpu::{GpuBackend, GpuContext, GpuError};
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 use thiserror::Error;
@@ -111,6 +112,21 @@ pub enum JitBackend {
     NativeCode,
     /// Custom backend
     Custom(&'static str),
+}
+
+impl fmt::Display for JitBackend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JitBackend::Llvm => write!(f, "LLVM"),
+            JitBackend::Cuda => write!(f, "CUDA"),
+            JitBackend::OpenCl => write!(f, "OpenCL"),
+            JitBackend::Metal => write!(f, "Metal"),
+            JitBackend::WebGpu => write!(f, "WebGPU"),
+            JitBackend::Interpreter => write!(f, "Interpreter"),
+            JitBackend::NativeCode => write!(f, "NativeCode"),
+            JitBackend::Custom(name) => write!(f, "Custom({})", name),
+        }
+    }
 }
 
 /// JIT compilation target architectures
@@ -515,10 +531,10 @@ pub enum OptimizationStrategy {
 /// Machine learning model for optimization decisions
 pub trait OptimizationModel: Send + Sync + std::fmt::Debug {
     /// Predict optimal strategy for a kernel
-    fn features(features: &KernelFeatures) -> OptimizationStrategy;
+    fn predict(&self, features: &KernelFeatures) -> OptimizationStrategy;
 
     /// Update model with feedback
-    fn update_model(features: &KernelFeatures, result: &OptimizationResult);
+    fn update_model(&mut self, features: &KernelFeatures, result: &OptimizationResult);
 }
 
 /// Kernel feature extraction for ML optimization
@@ -634,7 +650,7 @@ impl JitCompiler {
             Box::new(InterpreterBackend::new()) as Box<dyn JitBackendImpl>,
         );
 
-        let cache = Arc::new(RwLock::new(KernelCache::new(config.max_cache_size)));
+        let cache = Arc::new(RwLock::new(KernelCache::size(config.max_cache_size)));
         let profiler = Arc::new(Mutex::new(KernelProfiler::new(config.enable_profiling)));
         let adaptive_optimizer = Arc::new(Mutex::new(AdaptiveOptimizer::new()));
 
@@ -654,7 +670,7 @@ impl JitCompiler {
         // Check cache first
         if self.config.enable_caching {
             let cache = self.cache.read().unwrap();
-            if cache.contains(&kernel_id) {
+            if cache.contains_kernel(&kernel_id) {
                 return Ok(kernel_id);
             }
         }
@@ -714,7 +730,7 @@ impl JitCompiler {
         // Update adaptive optimization
         if self.config.adaptive_optimization {
             let mut optimizer = self.adaptive_optimizer.lock().unwrap();
-            optimizer.update_performance_data(kernel_id, &kernel.performance);
+            optimizer.update_performance_data(&kernel.performance);
         }
 
         Ok(())
@@ -902,12 +918,12 @@ impl AdaptiveOptimizer {
     }
 
     /// Update performance data
-    pub fn performance(&mut self, data: &KernelPerformance) {
+    pub fn update_performance_data(&mut self, data: &KernelPerformance) {
         // Placeholder - would analyze _performance patterns and update optimization decisions
     }
 
     /// Optimize a kernel
-    pub fn id(&str: &str, config: &JitConfig) -> Result<String, JitError> {
+    pub fn optimize_kernel(&self, kernel_id: &str, config: &JitConfig) -> Result<String, JitError> {
         // Placeholder - would apply learned optimizations
         Err(JitError::OptimizationError("Not implemented".to_string()))
     }
@@ -1098,7 +1114,11 @@ pub mod jit_dsl {
     use super::*;
 
     /// Create a simple arithmetic kernel
-    pub fn create_arithmetic_kernel(operation: &str, input_type: DataType, output_type: DataType) -> KernelSource {
+    pub fn create_arithmetic_kernel(
+        operation: &str,
+        input_type: DataType,
+        output_type: DataType,
+    ) -> KernelSource {
         let input_type_str = format!("{input_type:?}").to_lowercase();
         let output_type_str = format!("{output_type:?}").to_lowercase();
 
@@ -1197,10 +1217,10 @@ mod tests {
     #[test]
     fn test_kernel_source_creation() {
         let source = KernelSource {
-            id: test_kernel.to_string(),
+            id: "test_kernel".to_string(),
             source: "kernel void test() {}".to_string(),
             language: KernelLanguage::OpenCl,
-            entry_point: test.to_string(),
+            entry_point: "test".to_string(),
             input_types: vec![DataType::F32],
             output_types: vec![DataType::F32],
             hints: CompilationHints::default(),
@@ -1229,10 +1249,10 @@ mod tests {
 
     #[test]
     fn test_kernel_cache() {
-        let mut cache = KernelCache::new(1024 * 1024); // 1MB cache
+        let mut cache = KernelCache::size(1024 * 1024); // 1MB cache
 
         let kernel = CompiledKernel {
-            id: test.to_string(),
+            id: "test".to_string(),
             binary: vec![0; 1024],
             backend: JitBackend::Interpreter,
             target_arch: TargetArchitecture::X86_64,
@@ -1243,14 +1263,14 @@ mod tests {
                 binary_size: 1024,
                 register_usage: None,
                 shared_memory_usage: None,
-                compiler_info: Test.to_string(),
+                compiler_info: "test".to_string(),
             },
             performance: KernelPerformance::default(),
         };
 
         cache.insert(kernel);
-        assert!(cache.contains(test));
-        assert!(cache.get(test).is_some());
+        assert!(cache.contains_kernel("test"));
+        assert!(cache.get("test").is_some());
     }
 
     #[test]
@@ -1273,10 +1293,10 @@ mod tests {
         let compiler = JitCompiler::new(config).unwrap();
 
         let source = KernelSource {
-            id: test_kernel.to_string(),
+            id: "test_kernel".to_string(),
             source: "void test() { /* test kernel */ }".to_string(),
             language: KernelLanguage::HighLevel,
-            entry_point: test.to_string(),
+            entry_point: "test".to_string(),
             input_types: vec![],
             output_types: vec![],
             hints: CompilationHints::default(),

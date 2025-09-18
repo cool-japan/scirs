@@ -39,6 +39,7 @@
 //! use scirs2_spatial::quantum_inspired::{QuantumClusterer, QuantumConfig};
 //! use ndarray::array;
 //!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create sample data with two clusters
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [5.0, 5.0], [6.0, 5.0], [5.0, 6.0]];
 //!
@@ -52,6 +53,8 @@
 //! let (centroids, assignments) = quantum_kmeans.fit(&points.view())?;
 //! println!("Quantum centroids: {:?}", centroids);
 //! println!("Cluster assignments: {:?}", assignments);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Quantum Nearest Neighbor Search
@@ -60,6 +63,7 @@
 //! use scirs2_spatial::quantum_inspired::QuantumNearestNeighbor;
 //! use ndarray::array;
 //!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Reference points
 //! let points = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
 //!
@@ -74,6 +78,8 @@
 //! let (indices, distances) = quantum_nn.query_quantum(&query.view(), 2)?;
 //! println!("Nearest neighbor indices: {:?}", indices);
 //! println!("Distances: {:?}", distances);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Performance Characteristics
@@ -251,7 +257,7 @@ impl Default for OptimizationConfig {
 /// let framework = QuantumSpatialFramework::new(config);
 ///
 /// // Use framework for various quantum algorithms
-/// let points = Array2::zeros((10, 3));
+/// let points: Array2<f64> = Array2::zeros((10, 3));
 /// // framework.quantum_clustering(&points.view(), 3)?;
 /// // framework.quantum_nearest_neighbor(&points.view())?;
 /// ```

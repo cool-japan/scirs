@@ -51,7 +51,7 @@ impl ArrayValidator {
             if !self.validate_arrayshape(array, expectedshape)? {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::ShapeError,
-                    field_path: constraints.fieldname.clone().unwrap_or(array.to_string()),
+                    fieldpath: constraints.fieldname.clone().unwrap_or(array.to_string()),
                     message: format!(
                         "Array shape {:?} does not match expected {:?}",
                         array.shape(),
@@ -59,7 +59,7 @@ impl ArrayValidator {
                     ),
                     expected: Some(format!("{expectedshape:?}")),
                     actual: Some(format!("{:?}", array.shape())),
-                    constraint: Some(shape.to_string()),
+                    constraint: Some(expectedshape.to_string()),
                     severity: ErrorSeverity::Error,
                     context: HashMap::new(),
                 });
@@ -205,14 +205,14 @@ impl ArrayValidator {
         if nan_count > 0 {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::InvalidNumeric,
-                field_path: array.to_string(),
+                fieldpath: array.to_string(),
                 message: format!(
                     "Found {} NaN values out of {} total",
                     nan_count, total_count
                 ),
                 expected: Some("finite values".to_string()),
                 actual: Some(format!("{} NaN values", nan_count)),
-                constraint: Some(numeric_quality.to_string()),
+                constraint: Some("numeric_quality".to_string()),
                 severity: ErrorSeverity::Warning,
                 context: HashMap::new(),
             });
@@ -221,14 +221,14 @@ impl ArrayValidator {
         if inf_count > 0 {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::InvalidNumeric,
-                field_path: array.to_string(),
+                fieldpath: array.to_string(),
                 message: format!(
                     "Found {} infinite values out of {} total",
                     inf_count, total_count
                 ),
                 expected: Some("finite values".to_string()),
                 actual: Some(format!("{} infinite values", inf_count)),
-                constraint: Some(numeric_quality.to_string()),
+                constraint: Some("numeric_quality".to_string()),
                 severity: ErrorSeverity::Warning,
                 context: HashMap::new(),
             });
@@ -264,7 +264,7 @@ impl ArrayValidator {
             if mean < min_mean_typed {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::ConstraintViolation,
-                    field_path: "array.mean".to_string(),
+                    fieldpath: "array.mean".to_string(),
                     message: format!("Mean {:?} is less than minimum {:?}", mean, min_mean),
                     expected: Some(format!("{min_mean}")),
                     actual: Some(format!("{mean:?}")),
@@ -280,7 +280,7 @@ impl ArrayValidator {
             if mean > max_mean_typed {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::ConstraintViolation,
-                    field_path: "array.mean".to_string(),
+                    fieldpath: "array.mean".to_string(),
                     message: format!("Mean {:?} is greater than maximum {:?}", mean, max_mean),
                     expected: Some(format!("{max_mean}")),
                     actual: Some(format!("{mean:?}")),
@@ -297,7 +297,7 @@ impl ArrayValidator {
             if std_dev < min_std_typed {
                 warnings.push(ValidationError {
                     errortype: ValidationErrorType::ConstraintViolation,
-                    field_path: "array.std".to_string(),
+                    fieldpath: "array.std".to_string(),
                     message: format!(
                         "Array standard deviation {:?} is below minimum {:?}",
                         std_dev, min_std
@@ -316,7 +316,7 @@ impl ArrayValidator {
             if std_dev > max_std_typed {
                 warnings.push(ValidationError {
                     errortype: ValidationErrorType::ConstraintViolation,
-                    field_path: "array.std".to_string(),
+                    fieldpath: "array.std".to_string(),
                     message: format!(
                         "Array standard deviation {:?} exceeds maximum {:?}",
                         std_dev, max_std
@@ -353,7 +353,7 @@ impl ArrayValidator {
         if element_count > LARGE_ARRAY_THRESHOLD {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::Performance,
-                field_path: "array.size".to_string(),
+                fieldpath: "array.size".to_string(),
                 message: format!(
                     "Large array detected: {} elements ({} bytes). Consider chunking for better performance.",
                     element_count, total_size
@@ -371,7 +371,7 @@ impl ArrayValidator {
         if total_size > LARGE_MEMORY_THRESHOLD {
             warnings.push(ValidationError {
                 errortype: ValidationErrorType::Performance,
-                field_path: "array.memory".to_string(),
+                fieldpath: "array.memory".to_string(),
                 message: format!(
                     "High memory usage: {} bytes. Consider memory-efficient operations.",
                     total_size
@@ -411,11 +411,11 @@ impl ArrayValidator {
                         // Limit error reports to first 10
                         errors.push(ValidationError {
                             errortype: ValidationErrorType::CustomRuleFailure,
-                            field_path: format!("array[{}]", index),
+                            fieldpath: format!("array[{}]", index),
                             message: format!("Element {:?} failed custom validation", element),
                             expected: Some("valid element".to_string()),
                             actual: Some(format!("{element:?}")),
-                            constraint: Some(custom_element_validator.to_string()),
+                            constraint: Some("custom_element_validator".to_string()),
                             severity: ErrorSeverity::Error,
                             context: HashMap::new(),
                         });
@@ -428,14 +428,14 @@ impl ArrayValidator {
         if invalid_count > 10 {
             errors.push(ValidationError {
                 errortype: ValidationErrorType::CustomRuleFailure,
-                field_path: array.to_string(),
+                fieldpath: array.to_string(),
                 message: format!(
                     "Total of {} elements failed custom validation (showing first 10)",
                     invalid_count
                 ),
                 expected: Some("all elements to pass validation".to_string()),
                 actual: Some(format!("{} failed elements", invalid_count)),
-                constraint: Some(custom_element_validator.to_string()),
+                constraint: Some("custom_element_validator".to_string()),
                 severity: ErrorSeverity::Error,
                 context: HashMap::new(),
             });

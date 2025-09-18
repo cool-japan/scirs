@@ -95,7 +95,7 @@ impl Default for PotentialConfig {
 
 impl PotentialConfig {
     /// Create a new default potential field configuration
-    pub fn new(&mut self) -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 

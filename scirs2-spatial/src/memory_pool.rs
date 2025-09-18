@@ -26,8 +26,7 @@
 //!
 //! // Use buffer for computations...
 //!
-//! // Return buffer to pool (automatic with RAII)
-//! pool.return_distance_buffer(buffer);
+//! // Buffer is automatically returned to pool when dropped (RAII)
 //! ```
 
 use ndarray::{Array2, ArrayViewMut1, ArrayViewMut2};

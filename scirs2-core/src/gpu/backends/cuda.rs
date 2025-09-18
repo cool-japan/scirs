@@ -653,7 +653,12 @@ impl GpuCompilerImpl for CudaCompiler {
         }))
     }
 
-    fn compile_typed(&self, name: &str, _typeid: std::any::TypeId) -> Arc<dyn GpuKernelImpl> {
+    fn compile_typed(
+        &self,
+        name: &str,
+        _input_type: std::any::TypeId,
+        _output_type: std::any::TypeId,
+    ) -> Arc<dyn GpuKernelImpl> {
         Arc::new(CudaKernelHandle {
             kernel_name: name.to_string(),
             compiled_kernels: Arc::clone(&self.compiled_kernels),

@@ -1410,7 +1410,7 @@ pub mod utils {
 
         loop {
             let result = client
-                .list_objects(prefix, Some(1000), continuation_token.as_deref())
+                .list_objects(prefix, continuation_token.as_deref())
                 .await?;
 
             for object in &result.objects {
@@ -1448,7 +1448,7 @@ mod tests {
     fn test_cloud_config_builders() {
         let creds = CloudCredentials::Anonymous;
 
-        let s3_config = CloudConfig::aws_s3("test-bucket".to_string(), creds.clone());
+        let s3_config = CloudConfig::new_bucket("test-bucket".to_string(), creds.clone());
         assert_eq!(s3_config.provider, CloudProvider::AwsS3);
         assert_eq!(s3_config.bucket, "test-bucket");
 
@@ -1478,7 +1478,8 @@ mod tests {
     #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_s3_backend_operations() {
-        let config = CloudConfig::aws_s3("test-bucket".to_string(), CloudCredentials::Anonymous);
+        let config =
+            CloudConfig::new_bucket("test-bucket".to_string(), CloudCredentials::Anonymous);
         let backend = S3Backend::new(config).unwrap();
 
         // Test metadata retrieval
@@ -1504,7 +1505,7 @@ mod tests {
         assert!(!downloaded.is_empty());
 
         // Test listing
-        let list_result = backend.list_objects(None, Some(5), None).await.unwrap();
+        let list_result = backend.list_objects(None, Some("5"), None).await.unwrap();
         assert!(!list_result.objects.is_empty());
         assert!(list_result.objects.len() <= 5);
 
@@ -1520,7 +1521,8 @@ mod tests {
     #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_cloud_storage_client() {
-        let config = CloudConfig::aws_s3("test-bucket".to_string(), CloudCredentials::Anonymous);
+        let config =
+            CloudConfig::new_bucket("test-bucket".to_string(), CloudCredentials::Anonymous);
         let client = CloudStorageClient::new(config).unwrap();
 
         // Test metadata with caching

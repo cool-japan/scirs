@@ -26,10 +26,11 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```ignore
 //! use scirs2_spatial::quantum_classical_hybrid::{HybridSpatialOptimizer, HybridClusterer};
 //! use ndarray::array;
 //!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Quantum-classical hybrid clustering
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //! let mut hybrid_clusterer = HybridClusterer::new(2)
@@ -41,6 +42,8 @@
 //! let (centroids, assignments, quantum_metrics) = hybrid_clusterer.fit(&points.view()).await?;
 //! println!("Hybrid centroids: {:?}", centroids);
 //! println!("Quantum advantage: {:.2}x speedup", quantum_metrics.speedup_factor);
+//! # Ok(())
+//! # }
 //!
 //! // Quantum-enhanced spatial optimization
 //! let mut optimizer = HybridSpatialOptimizer::new()

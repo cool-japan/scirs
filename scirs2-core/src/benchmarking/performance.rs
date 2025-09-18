@@ -41,7 +41,7 @@ pub struct PerformanceTarget {
 
 impl PerformanceTarget {
     /// Create a new performance target
-    pub fn new(category: BenchmarkCategory, targettime: Duration) -> Self {
+    pub fn new(category: BenchmarkCategory, target_time: Duration) -> Self {
         Self {
             category,
             target_time,
@@ -70,7 +70,7 @@ impl PerformanceTarget {
     }
 
     /// Check if benchmark result meets this target
-    pub fn is_met_by(&self, result: &BenchmarkResult, inputscale: f64) -> bool {
+    pub fn is_met_by(&self, result: &BenchmarkResult, input_scale: f64) -> bool {
         let scaled_target_time = Duration::from_nanos(
             (self.target_time.as_nanos() as f64 * input_scale.powf(self.scaling_factor)) as u64,
         );

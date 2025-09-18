@@ -34,7 +34,7 @@
 //! - Time Series: scirs2-series
 //! - Main Integration: scirs2
 
-use crate::error::{CoreError, CoreResult, ErrorContext};
+use crate::error::{CoreError, CoreResult, ErrorContext, ErrorLocation};
 use crate::testing::{TestConfig, TestResult, TestSuite};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -583,7 +583,7 @@ impl EcosystemTestRunner {
         }
 
         // Step 3: Build compatibility matrix
-        let compatibilitymatrix = self.build_compatibilitymatrix(&discovered_modules)?;
+        let compatibilitymatrix = self.build_compatibility_matrix(&discovered_modules)?;
 
         // Step 4: Run performance benchmarks
         let performance_results = if self.config.test_performance {
@@ -680,7 +680,7 @@ impl EcosystemTestRunner {
 
         // Step 7: Validate long-term stability
         let long_term_stability = if self.config.test_long_term_stability {
-            self.validate_long_term_stability(&discovered_modules)?
+            Self::validate_long_term_stability(&discovered_modules)?
         } else {
             LongTermStabilityResults {
                 stability_score: 0.0,
@@ -730,14 +730,14 @@ impl EcosystemTestRunner {
             health_score,
         );
 
-        let std::time::Duration::from_secs(1) = start_time.elapsed();
+        let test_duration = start_time.elapsed();
         let passed = health_score >= 80.0 && release_readiness.ready_for_release;
 
         let base_result = if passed {
-            TestResult::success(std::time::Duration::from_secs(1), discovered_modules.len())
+            TestResult::success(test_duration, discovered_modules.len())
         } else {
             TestResult::failure(
-                std::time::Duration::from_secs(1),
+                test_duration,
                 discovered_modules.len(),
                 format!(
                     "Ecosystem validation failed: health_score={:.1}, ready_for_release={}",
@@ -1023,8 +1023,31 @@ impl EcosystemTestRunner {
         }
     }
 
+    /// Calculate ecosystem health score
+    fn calculate_ecosystem_health_score(
+        &self,
+        _compatibility_matrix: &CompatibilityMatrix,
+        _performance_results: &EcosystemPerformanceResults,
+        _api_stability: &ApiStabilityResults,
+        _production_readiness: &ProductionReadinessResults,
+        _long_term_stability: &LongTermStabilityResults,
+    ) -> f64 {
+        // TODO: Implement health score calculation
+        // For now, return a placeholder score
+        75.0
+    }
+
+    /// Analyze a module
+    fn analyze_module(&self, _path: &std::path::Path) -> CoreResult<DiscoveredModule> {
+        // TODO: Implement module analysis
+        Err(CoreError::ComputationError(ErrorContext::new(
+            ErrorLocation::new(file!(), line!()),
+            "Module analysis not implemented",
+        )))
+    }
+
     /// Build compatibility matrix between modules
-    fn build_compatibilitymatrix(
+    fn build_compatibility_matrix(
         &self,
         modules: &[DiscoveredModule],
     ) -> CoreResult<CompatibilityMatrix> {
@@ -1182,7 +1205,9 @@ impl EcosystemTestRunner {
     }
 
     /// Measure cross-module performance
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<HashMap<String, f64>> {
+    fn measure_cross_module_performance(
+        modules: &[DiscoveredModule],
+    ) -> CoreResult<HashMap<String, f64>> {
         let mut performance = HashMap::new();
 
         // Simulate cross-module operation performance
@@ -1217,7 +1242,7 @@ impl EcosystemTestRunner {
     }
 
     /// Run throughput benchmarks
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<ThroughputBenchmarks> {
+    fn run_throughput_benchmarks(modules: &[DiscoveredModule]) -> CoreResult<ThroughputBenchmarks> {
         // These would be real benchmarks in production
         Ok(ThroughputBenchmarks {
             linalg_ops_per_sec: 1000000.0,
@@ -1229,7 +1254,7 @@ impl EcosystemTestRunner {
     }
 
     /// Measure scalability metrics
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<ScalabilityMetrics> {
+    fn measure_scalability_metrics(modules: &[DiscoveredModule]) -> CoreResult<ScalabilityMetrics> {
         Ok(ScalabilityMetrics {
             thread_scalability: 0.85,
             memory_scalability: 0.92,
@@ -1274,19 +1299,21 @@ impl EcosystemTestRunner {
     }
 
     /// Count stable APIs in a module
-    fn module(module: &DiscoveredModule) -> CoreResult<usize> {
+    fn count_stable_apis(module: &DiscoveredModule) -> CoreResult<usize> {
         // In production, this would analyze the actual API surface
         Ok(10) // Placeholder
     }
 
     /// Detect breaking changes in a module
-    fn module(module: &DiscoveredModule) -> CoreResult<Vec<BreakingChangeDetection>> {
+    fn detect_breaking_changes(
+        module: &DiscoveredModule,
+    ) -> CoreResult<Vec<BreakingChangeDetection>> {
         // In production, this would compare with previous versions
         Ok(Vec::new()) // No breaking changes detected
     }
 
     /// Detect deprecations in a module
-    fn module(module: &DiscoveredModule) -> CoreResult<Vec<DeprecationNotice>> {
+    fn detect_deprecations(module: &DiscoveredModule) -> CoreResult<Vec<DeprecationNotice>> {
         // In production, this would scan for deprecation attributes
         Ok(Vec::new()) // No deprecations found
     }
@@ -1379,7 +1406,7 @@ impl EcosystemTestRunner {
     }
 
     /// Assess security
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<SecurityAssessment> {
+    fn assess_security(modules: &[DiscoveredModule]) -> CoreResult<SecurityAssessment> {
         Ok(SecurityAssessment {
             score: 85.0,
             vulnerabilities: Vec::new(),
@@ -1410,7 +1437,7 @@ impl EcosystemTestRunner {
             (score, build_ratio)
         };
 
-        benchmark_results.insert(build_success_rate.to_string(), build_ratio * 100.0);
+        benchmark_results.insert("build_success_rate".to_string(), build_ratio * 100.0);
 
         if total_warnings > 10 {
             optimizations.push("Reduce build warnings across modules".to_string());
@@ -1438,7 +1465,7 @@ impl EcosystemTestRunner {
 
         let error_handling_quality = 0.85; // Placeholder
         let mut stability_metrics = HashMap::new();
-        stability_metrics.insert(test_pass_rate.to_string(), test_coverage);
+        stability_metrics.insert("test_pass_rate".to_string(), test_coverage);
 
         let score = (test_coverage + error_handling_quality * 100.0) / 2.0;
 
@@ -1461,7 +1488,7 @@ impl EcosystemTestRunner {
         // Count modules with examples
         let modules_with_examples = modules
             .iter()
-            .filter(|m| m.features.contains(&examples.to_string()))
+            .filter(|m| m.features.contains(&"examples".to_string()))
             .count();
 
         if !modules.is_empty() {
@@ -1486,7 +1513,9 @@ impl EcosystemTestRunner {
     }
 
     /// Assess deployment readiness
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<DeploymentReadiness> {
+    fn assess_deployment_readiness(
+        modules: &[DiscoveredModule],
+    ) -> CoreResult<DeploymentReadiness> {
         let mut platform_compatibility = HashMap::new();
 
         // Assume good compatibility for common platforms
@@ -1515,7 +1544,9 @@ impl EcosystemTestRunner {
     }
 
     /// Validate long-term stability
-    fn modules(modules: &[DiscoveredModule]) -> CoreResult<LongTermStabilityResults> {
+    fn validate_long_term_stability(
+        modules: &[DiscoveredModule],
+    ) -> CoreResult<LongTermStabilityResults> {
         let api_evolution = ApiEvolutionStrategy {
             approach: "Semantic Versioning with careful deprecation".to_string(),
             deprecation_policy: "6-month deprecation window".to_string(),
@@ -1560,8 +1591,10 @@ impl EcosystemTestRunner {
         let compatibility_score = if ecosystem_results.compatibilitymatrix.modules.is_empty() {
             0.0
         } else {
-            let total_pairs = ecosystem_results.compatibilitymatrix.modules.len() * ecosystem_results.compatibilitymatrix.modules.len();
-            let compatible_pairs = ecosystem_results.compatibilitymatrix
+            let total_pairs = ecosystem_results.compatibilitymatrix.modules.len()
+                * ecosystem_results.compatibilitymatrix.modules.len();
+            let compatible_pairs = ecosystem_results
+                .compatibilitymatrix
                 .matrix
                 .iter()
                 .flat_map(|row| row.iter())
@@ -1571,31 +1604,50 @@ impl EcosystemTestRunner {
         };
 
         // Calculate performance score
-        let performance_score = if performance_results.module_performance.is_empty() {
+        let performance_score = if ecosystem_results
+            .performance_results
+            .module_performance
+            .is_empty()
+        {
             0.0
         } else {
-            let avg_perf: f64 = performance_results
+            let avg_perf: f64 = ecosystem_results
+                .performance_results
                 .module_performance
                 .values()
                 .map(|p| p.performance_score)
                 .sum::<f64>()
-                / performance_results.module_performance.len() as f64;
+                / ecosystem_results
+                    .performance_results
+                    .module_performance
+                    .len() as f64;
             avg_perf
         };
 
         // Calculate API _stability score
-        let api_score = api_stability.api_coverage * 100.0;
+        let api_score = ecosystem_results.api_stability.api_coverage * 100.0;
 
         // Overall health score (weighted average)
-        compatibility_score * 0.3
-            + performancescore * 0.25
+        let health_score = compatibility_score * 0.3
+            + performance_score * 0.25
             + api_score * 0.2
-            + production_readiness.readiness_score * 0.15
-            + long_term_stability.stability_score * 0.1
+            + ecosystem_results.production_readiness.readiness_score * 0.15
+            + ecosystem_results.long_term_stability.stability_score * 0.1;
+
+        health_score
     }
 
     /// Assess 1.0 release readiness
-    fn score(f64: f64) -> ReleaseReadinessAssessment {
+    fn assess_release_readiness(
+        &self,
+        discovered_modules: &[DiscoveredModule],
+        compatibilitymatrix: &CompatibilityMatrix,
+        performance_results: &EcosystemPerformanceResults,
+        api_stability: &ApiStabilityResults,
+        production_readiness: &ProductionReadinessResults,
+        long_term_stability: &LongTermStabilityResults,
+        health_score: f64,
+    ) -> ReleaseReadinessAssessment {
         let mut blocking_issues = Vec::new();
         let mut warning_issues = Vec::new();
         let mut recommendations = Vec::new();
@@ -1619,22 +1671,25 @@ impl EcosystemTestRunner {
             ));
         }
 
-        if !ecosystem_results.compatibilitymatrix.failed_pairs.is_empty() {
+        if !compatibilitymatrix.failed_pairs.is_empty() {
             blocking_issues.push(format!(
                 "Module compatibility failures: {}",
-                ecosystem_results.compatibilitymatrix.failed_pairs.len()
+                compatibilitymatrix.failed_pairs.len()
             ));
         }
 
         // Check for warning issues
-        if !ecosystem_results.compatibilitymatrix.warning_pairs.is_empty() {
+        if !compatibilitymatrix.warning_pairs.is_empty() {
             warning_issues.push(format!(
                 "Module compatibility warnings: {}",
-                ecosystem_results.compatibilitymatrix.warning_pairs.len()
+                compatibilitymatrix.warning_pairs.len()
             ));
         }
 
-        let failed_builds = modules.iter().filter(|m| !m.build_status.builds).count();
+        let failed_builds = discovered_modules
+            .iter()
+            .filter(|m| !m.build_status.builds)
+            .count();
         if failed_builds > 0 {
             warning_issues.push(format!("{failed_builds}"));
         }
@@ -1748,13 +1803,18 @@ impl EcosystemTestRunner {
         report.push_str(&format!(
             "- **Compatibility Score**: {:.1}%\n",
             latest
-                .ecosystem_results.compatibilitymatrix
+                .compatibilitymatrix
                 .matrix
                 .iter()
                 .flat_map(|row| row.iter())
                 .filter(|&&score| score >= 0.8)
                 .count() as f64
-                / latest.ecosystem_results.compatibilitymatrix.matrix.len().max(1) as f64
+                / latest
+                    .ecosystem_results
+                    .compatibilitymatrix
+                    .matrix
+                    .len()
+                    .max(1) as f64
                 * 100.0
         ));
         report.push_str(&format!(
@@ -1948,9 +2008,9 @@ impl EcosystemTestRunner {
         ));
 
         // Compatibility Matrix Summary
-        if !latest.ecosystem_results.compatibilitymatrix.failed_pairs.is_empty() {
+        if !latest.compatibilitymatrix.failed_pairs.is_empty() {
             report.push_str("\n## Compatibility Issues\n\n");
-            for (mod1, mod2, reason) in &latest.ecosystem_results.compatibilitymatrix.failed_pairs {
+            for (mod1, mod2, reason) in &latest.compatibilitymatrix.failed_pairs {
                 report.push_str(&format!("- **{} ↔ {}**: {}\n", mod1, mod2, reason));
             }
         }
@@ -2051,6 +2111,6 @@ mod tests {
         assert!(runner.is_semver_compliant("1.0.0"));
         assert!(runner.is_semver_compliant("0.1.0"));
         assert!(!runner.is_semver_compliant("1.0"));
-        assert!(!runner.is_semver_compliant(invalid));
+        assert!(!runner.is_semver_compliant("invalid"));
     }
 }

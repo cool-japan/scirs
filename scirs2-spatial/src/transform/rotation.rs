@@ -84,7 +84,7 @@ impl EulerConvention {
 ///
 /// // Apply the rotation to a vector
 /// let vec = array![0.0, 1.0, 0.0];
-/// let rotated = rot.apply(&vec.view());
+/// let rotated = rot.apply(&vec.view()).unwrap();
 ///
 /// // Verify the result (should be approximately [0, 0, 1])
 /// assert!((rotated[0]).abs() < 1e-10);
@@ -265,6 +265,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// // Create a rotation using Euler angles in the XYZ convention
     /// let angles = array![PI/2.0, 0.0, 0.0]; // 90 degrees around X
@@ -379,6 +380,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// // Create a rotation for a 90-degree rotation around the x-axis
     /// let rotvec = array![PI/2.0, 0.0, 0.0];
@@ -433,6 +435,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let angles = array![0.0, 0.0, PI/2.0];
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
@@ -480,6 +483,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let rot = Rotation::from_rotvec(&array![PI/2.0, 0.0, 0.0].view()).unwrap();
     /// let angles = rot.as_euler("xyz").unwrap();
@@ -630,6 +634,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let angles = array![PI/2.0, 0.0, 0.0];
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
@@ -700,6 +705,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let angles = array![0.0, 0.0, PI/4.0];
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
@@ -730,6 +736,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let angles = array![0.0, 0.0, PI/2.0];
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
@@ -764,6 +771,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let angles = array![0.0, 0.0, PI/2.0];
     /// let rot = Rotation::from_euler(&angles.view(), "xyz").unwrap();
@@ -798,6 +806,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// // Rotate 90 degrees around X, then 90 degrees around Y
     /// let angles1 = array![PI/2.0, 0.0, 0.0];
@@ -869,7 +878,7 @@ impl Rotation {
     ///
     /// let random_rot = Rotation::random();
     /// ```
-    pub fn random(&self) -> Rotation {
+    pub fn random() -> Rotation {
         use rand::Rng;
         let mut rng = rand::rng();
 
@@ -910,6 +919,7 @@ impl Rotation {
     /// ```
     /// use scirs2_spatial::transform::Rotation;
     /// use ndarray::array;
+    /// use std::f64::consts::PI;
     ///
     /// let rot1 = Rotation::identity();
     /// let rot2 = Rotation::from_euler(&array![0.0, 0.0, PI/2.0].view(), "xyz").unwrap();

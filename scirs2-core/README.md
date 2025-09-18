@@ -416,6 +416,42 @@ cargo test --all-features
 - All public APIs must have documentation and examples
 - Performance regressions are not acceptable
 
+### 🐍 **CRITICAL: Use snake_case for ALL Variables and Functions**
+
+**⚠️ IMPORTANT FOR ALL DEVELOPERS:** To prevent compilation errors and maintain code consistency, **always use snake_case naming convention** for variables, functions, and struct fields:
+
+```rust
+// ✅ CORRECT - Use snake_case
+let target_time = Duration::from_secs(5);
+let input_scale = 1.0;
+let benchmark_results = Vec::new();
+let memory_limit = 1024;
+
+// ❌ WRONG - Avoid camelCase or mixed naming
+let targetTime = Duration::from_secs(5);    // Causes compilation errors
+let inputScale = 1.0;                       // Variable not found errors
+let benchmarkResults = Vec::new();          // Scope resolution failures
+let memorylimit = 1024;                     // Inconsistent with field names
+```
+
+**Why This Matters:**
+- **Compilation Success**: Prevents E0425 "cannot find value" errors
+- **Code Consistency**: Matches Rust conventions and struct field names
+- **Team Productivity**: Reduces debugging time from naming mismatches
+- **Maintainability**: Makes code easier to read and refactor
+
+**Examples from Recent Fixes:**
+```rust
+// Fixed naming issues in v0.1.0-beta.2:
+target_time   // ✅ (was: targettime)
+input_scale   // ✅ (was: inputscale)
+chunk_size    // ✅ (was: chunksize)
+memory_limit  // ✅ (was: memorylimit)
+field_path    // ✅ (was: fieldpath)
+```
+
+**Enforcement:** All PRs must pass `cargo clippy` which will catch naming inconsistencies. Use `snake_case` consistently to avoid compilation failures.
+
 ## ⚖️ License
 
 This project is dual-licensed under either:
