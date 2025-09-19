@@ -961,7 +961,7 @@ impl ResourceMonitor {
             // On macOS, use system_profiler or sysctl for cache information
             use std::process::Command;
             if let Ok(output) = Command::new("sysctl")
-                .args(&["hw.cacheconfig", "hw.cachesize"])
+                .args(["hw.cacheconfig", "hw.cachesize"])
                 .output()
             {
                 if output.status.success() {

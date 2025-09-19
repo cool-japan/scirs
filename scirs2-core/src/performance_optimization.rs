@@ -615,14 +615,8 @@ impl AdaptiveOptimizer {
         }
         #[cfg(target_arch = "aarch64")]
         {
-            // Enhanced ARM64 detection
-            if is_apple_silicon() {
-                128 // Apple M1/M2/M3 optimized
-            } else if is_neoverse_or_newer() {
-                128 // ARM Neoverse optimized
-            } else {
-                128 // Standard ARM64
-            }
+            // ARM64 optimized value (Apple Silicon, Neoverse, and standard ARM64)
+            128
         }
         #[cfg(target_arch = "riscv64")]
         {

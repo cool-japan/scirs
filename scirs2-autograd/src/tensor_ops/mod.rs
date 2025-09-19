@@ -17,6 +17,201 @@ use crate::tensor::{AsTensor, Tensor};
 use crate::Float;
 use rand::Rng;
 
+// Temporary compatibility shims for removed BLAS FFI
+// These provide fallback implementations while transitioning to scirs2-core
+pub(crate) type BlasIF = i32;
+pub(crate) type MklInt = BlasIF;
+
+// CBLAS constants for compatibility
+#[allow(dead_code)]
+pub(crate) const CblasRowMajor: i32 = 101;
+#[allow(dead_code)]
+pub(crate) const CblasNoTrans: i32 = 111;
+#[allow(dead_code)]
+pub(crate) const CblasTrans: i32 = 112;
+
+// Fallback implementations for CBLAS operations
+#[allow(dead_code)]
+pub(crate) unsafe fn cblas_sgemm(
+    _layout: i32,
+    _transa: i32,
+    _transb: i32,
+    m: BlasIF,
+    n: BlasIF,
+    k: BlasIF,
+    alpha: f32,
+    a: *const f32,
+    lda: BlasIF,
+    b: *const f32,
+    ldb: BlasIF,
+    beta: f32,
+    c: *mut f32,
+    ldc: BlasIF,
+) {
+    // Fallback GEMM implementation using ndarray
+    let a_slice = std::slice::from_raw_parts(a, (m * k) as usize);
+    let b_slice = std::slice::from_raw_parts(b, (k * n) as usize);
+    let c_slice = std::slice::from_raw_parts_mut(c, (m * n) as usize);
+
+    // Convert to ndarray matrices
+    let a_mat = ndarray::ArrayView2::from_shape((m as usize, k as usize), a_slice).unwrap();
+    let b_mat = ndarray::ArrayView2::from_shape((k as usize, n as usize), b_slice).unwrap();
+    let mut c_mat = ndarray::ArrayViewMut2::from_shape((m as usize, n as usize), c_slice).unwrap();
+
+    // Perform matrix multiplication: C = alpha * A * B + beta * C
+    if beta == 0.0 {
+        c_mat.fill(0.0);
+    } else if beta != 1.0 {
+        c_mat.mapv_inplace(|x| x * beta);
+    }
+
+    let result = alpha * a_mat.dot(&b_mat);
+    c_mat += &result;
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn cblas_dgemm(
+    _layout: i32,
+    _transa: i32,
+    _transb: i32,
+    m: BlasIF,
+    n: BlasIF,
+    k: BlasIF,
+    alpha: f64,
+    a: *const f64,
+    lda: BlasIF,
+    b: *const f64,
+    ldb: BlasIF,
+    beta: f64,
+    c: *mut f64,
+    ldc: BlasIF,
+) {
+    // Fallback GEMM implementation using ndarray
+    let a_slice = std::slice::from_raw_parts(a, (m * k) as usize);
+    let b_slice = std::slice::from_raw_parts(b, (k * n) as usize);
+    let c_slice = std::slice::from_raw_parts_mut(c, (m * n) as usize);
+
+    // Convert to ndarray matrices
+    let a_mat = ndarray::ArrayView2::from_shape((m as usize, k as usize), a_slice).unwrap();
+    let b_mat = ndarray::ArrayView2::from_shape((k as usize, n as usize), b_slice).unwrap();
+    let mut c_mat = ndarray::ArrayViewMut2::from_shape((m as usize, n as usize), c_slice).unwrap();
+
+    // Perform matrix multiplication: C = alpha * A * B + beta * C
+    if beta == 0.0 {
+        c_mat.fill(0.0);
+    } else if beta != 1.0 {
+        c_mat.mapv_inplace(|x| x * beta);
+    }
+
+    let result = alpha * a_mat.dot(&b_mat);
+    c_mat += &result;
+}
+
+// Vectorized math function fallbacks
+#[allow(dead_code)]
+pub(crate) unsafe fn vsAdd(n: MklInt, a: *const f32, b: *const f32, y: *mut f32) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let b_slice = std::slice::from_raw_parts(b, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i] + b_slice[i];
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vdAdd(n: MklInt, a: *const f64, b: *const f64, y: *mut f64) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let b_slice = std::slice::from_raw_parts(b, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i] + b_slice[i];
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vsMul(n: MklInt, a: *const f32, b: *const f32, y: *mut f32) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let b_slice = std::slice::from_raw_parts(b, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i] * b_slice[i];
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vdMul(n: MklInt, a: *const f64, b: *const f64, y: *mut f64) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let b_slice = std::slice::from_raw_parts(b, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i] * b_slice[i];
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vsExp(n: MklInt, a: *const f32, y: *mut f32) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].exp();
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vdExp(n: MklInt, a: *const f64, y: *mut f64) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].exp();
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vsLn(n: MklInt, a: *const f32, y: *mut f32) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].ln();
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vdLn(n: MklInt, a: *const f64, y: *mut f64) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].ln();
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vsTanh(n: MklInt, a: *const f32, y: *mut f32) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].tanh();
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn vdTanh(n: MklInt, a: *const f64, y: *mut f64) {
+    let a_slice = std::slice::from_raw_parts(a, n as usize);
+    let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
+
+    for i in 0..n as usize {
+        y_slice[i] = a_slice[i].tanh();
+    }
+}
+
 // Submodules
 pub mod activation;
 pub mod arithmetic;

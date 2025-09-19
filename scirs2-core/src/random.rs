@@ -50,7 +50,7 @@ use std::cell::RefCell;
 pub use rand::{Rng, RngCore, SeedableRng};
 
 // Re-export for compatibility with optirs-core
-pub use rand::prelude;
+pub use rand::prelude as rand_prelude;
 pub use rand::rngs;
 pub use rand_distr as distributions;
 

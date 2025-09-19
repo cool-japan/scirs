@@ -476,21 +476,21 @@ impl DatabaseConnector {
     pub fn connect(config: &DatabaseConfig) -> Result<Box<dyn DatabaseConnection>> {
         match config.db_type {
             #[cfg(feature = "sqlite")]
-            DatabaseType::SQLite => Ok(Box::new(SQLiteConnection::new(_config)?)),
+            DatabaseType::SQLite => Ok(Box::new(SQLiteConnection::new(config)?)),
             #[cfg(not(feature = "sqlite"))]
             DatabaseType::SQLite => Err(IoError::UnsupportedFormat(
                 "SQLite support not enabled. Enable 'sqlite' feature.".to_string(),
             )),
 
             #[cfg(feature = "postgres")]
-            DatabaseType::PostgreSQL => Ok(Box::new(PostgreSQLConnection::new(_config)?)),
+            DatabaseType::PostgreSQL => Ok(Box::new(PostgreSQLConnection::new(config)?)),
             #[cfg(not(feature = "postgres"))]
             DatabaseType::PostgreSQL => Err(IoError::UnsupportedFormat(
                 "PostgreSQL support not enabled. Enable 'postgres' feature.".to_string(),
             )),
 
             #[cfg(feature = "mysql")]
-            DatabaseType::MySQL => Ok(Box::new(MySQLConnection::new(_config)?)),
+            DatabaseType::MySQL => Ok(Box::new(MySQLConnection::new(config)?)),
             #[cfg(not(feature = "mysql"))]
             DatabaseType::MySQL => Err(IoError::UnsupportedFormat(
                 "MySQL support not enabled. Enable 'mysql' feature.".to_string(),
@@ -532,7 +532,7 @@ impl SQLiteConnection {
 
     /// Convert DataType enum to SQL type string
     fn data_type_to_sql(&self, datatype: &DataType) -> &'static str {
-        match data_type {
+        match datatype {
             DataType::Integer => "INTEGER",
             DataType::BigInt => "BIGINT",
             DataType::Float => "REAL",
@@ -550,7 +550,7 @@ impl SQLiteConnection {
 
     /// Convert SQL type string to DataType enum
     fn sql_type_to_data_type(&self, sqltype: &str) -> DataType {
-        let sql_upper = sql_type.to_uppercase();
+        let sql_upper = sqltype.to_uppercase();
 
         if sql_upper.contains("INT") {
             if sql_upper.contains("BIG") {

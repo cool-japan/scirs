@@ -324,7 +324,10 @@ impl V73MatFile {
         dt_array: &DateTimeArray,
     ) -> Result<()> {
         // Create dataset for datetime data
-        file.create_dataset_from_array(name, &dt_array.data, self.compression.clone())?;
+        file.create_dataset_from_array(name, &dt_array.data, Some(DatasetOptions {
+            compression: self.compression.clone().unwrap_or_default(),
+            ..Default::default()
+        }))?;
 
         file.set_attribute(
             name,
@@ -483,12 +486,18 @@ impl V73MatFile {
         file.create_dataset_from_array(
             &format!("{}/real", name),
             &real_part,
-            self.compression.clone(),
+            Some(DatasetOptions {
+                compression: self.compression.clone().unwrap_or_default(),
+                ..Default::default()
+            }),
         )?;
         file.create_dataset_from_array(
             &format!("{}/imag", name),
             &imag_part,
-            self.compression.clone(),
+            Some(DatasetOptions {
+                compression: self.compression.clone().unwrap_or_default(),
+                ..Default::default()
+            }),
         )?;
 
         Ok(())
@@ -519,12 +528,18 @@ impl V73MatFile {
         file.create_dataset_from_array(
             &format!("{}/real", name),
             &real_part,
-            self.compression.clone(),
+            Some(DatasetOptions {
+                compression: self.compression.clone().unwrap_or_default(),
+                ..Default::default()
+            }),
         )?;
         file.create_dataset_from_array(
             &format!("{}/imag", name),
             &imag_part,
-            self.compression.clone(),
+            Some(DatasetOptions {
+                compression: self.compression.clone().unwrap_or_default(),
+                ..Default::default()
+            }),
         )?;
 
         Ok(())

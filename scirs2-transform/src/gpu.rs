@@ -6,7 +6,7 @@
 use crate::error::{Result, TransformError};
 use ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::gpu::{GpuBackend, GpuContext};
-use scirs2_core::validation::{checkarray_finite, check_not_empty, check_positive};
+use scirs2_core::validation::{check_not_empty, check_positive, checkarray_finite};
 
 /// GPU-accelerated Principal Component Analysis
 #[cfg(feature = "gpu")]

@@ -98,8 +98,9 @@ impl ModuleCommunicationHub {
     /// Receive messages for a specific module
     pub fn receive_messages(&mut self, module_name: &str) -> Vec<InterModuleMessage> {
         if let Some(queue) = self.message_queues.get_mut(module_name) {
-            let messages = queue.drain(..).collect();
-            self.comm_stats.messages_received += queue.len() as u64;
+            let message_count = queue.len();
+            let messages = std::mem::take(queue);
+            self.comm_stats.messages_received += message_count as u64;
             messages
         } else {
             Vec::new()
@@ -138,7 +139,7 @@ impl ModuleCommunicationHub {
     pub fn add_route(&mut self, source: String, destination: String) {
         self.routing_table
             .entry(source)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(destination);
     }
 

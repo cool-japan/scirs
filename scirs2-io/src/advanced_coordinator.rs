@@ -15,7 +15,7 @@
 
 use crate::error::{IoError, Result};
 #[cfg(feature = "gpu")]
-use crate::gpu_io::GpuIoProcessor;
+use crate::gpu::GpuIoProcessor;
 use crate::neural_adaptive_io::{
     AdvancedIoProcessor, NeuralAdaptiveIoController, PerformanceFeedback, SystemMetrics,
 };

@@ -68,7 +68,7 @@ use url;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 #[cfg(all(feature = "sse", feature = "async"))]
-use futures::StreamExt;
+// StreamExt already imported above
 
 /// Streaming protocol types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

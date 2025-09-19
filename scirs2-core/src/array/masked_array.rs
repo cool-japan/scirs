@@ -751,7 +751,7 @@ where
     F: Fn(&A) -> bool,
 {
     // Create a mask by applying the condition function to each element
-    let mask = data.map(|x| condition(x));
+    let mask = data.map(condition);
 
     // Use provided fill value or create a default
     let fill_value = fill_value.map_or_else(|| default_fill_value(&data), |v| v);

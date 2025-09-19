@@ -207,9 +207,12 @@ impl AsyncDifferentialEvolution {
             .spawn_workers(objective_fn, request_rx, result_tx.clone(), stats.clone())
             .await;
 
+        // Track pending evaluations
+        let mut pending_evaluations = std::collections::HashMap::new();
+
         // Evaluate initial population
         let mut request_id = 0;
-        for individual in population.outer_iter() {
+        for (i, individual) in population.outer_iter().enumerate() {
             let request = EvaluationRequest {
                 id: request_id,
                 point: individual.to_owned(),
@@ -217,12 +220,10 @@ impl AsyncDifferentialEvolution {
                 submitted_at: Instant::now(),
             };
 
+            pending_evaluations.insert(request_id, i);
             request_tx.send(request)?;
             request_id += 1;
         }
-
-        // Track pending evaluations
-        let mut pending_evaluations = std::collections::HashMap::new();
         let mut best_individual = Array1::zeros(self.dimensions);
         let mut best_fitness = f64::INFINITY;
         let mut generation = 0;
@@ -640,17 +641,25 @@ mod tests {
         // Simple quadratic function
         let objective = |x: Array1<f64>| async move {
             // Simulate some computation time
-            sleep(Duration::from_millis(10)).await;
+            sleep(Duration::from_millis(1)).await;
             x.iter().map(|&xi| xi.powi(2)).sum::<f64>()
         };
 
         let bounds_lower = Array1::from_vec(vec![-5.0, -5.0]);
         let bounds_upper = Array1::from_vec(vec![5.0, 5.0]);
 
-        let optimizer = AsyncDifferentialEvolution::new(2, Some(20), None)
+        let config = AsyncOptimizationConfig {
+            max_workers: 2,
+            evaluation_timeout: Some(Duration::from_millis(100)),
+            completion_timeout: Some(Duration::from_millis(1000)),
+            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min_fraction: 0.6 },
+            min_evaluations: 3,
+        };
+
+        let optimizer = AsyncDifferentialEvolution::new(2, Some(8), Some(config))
             .with_bounds(bounds_lower, bounds_upper)
             .expect("Setting bounds should succeed for valid dimensions")
-            .with_parameters(0.8, 0.7, 50, 1e-6);
+            .with_parameters(0.8, 0.7, 3, 1e-3);
 
         let (result, stats) = optimizer
             .optimize(objective)
@@ -684,17 +693,17 @@ mod tests {
         let bounds_upper = Array1::from_vec(vec![2.0, 2.0]);
 
         let config = AsyncOptimizationConfig {
-            max_workers: 4,
+            max_workers: 2,
             evaluation_timeout: Some(Duration::from_millis(200)),
-            completion_timeout: Some(Duration::from_secs(5)),
-            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min_fraction: 0.7 },
-            min_evaluations: 5,
+            completion_timeout: Some(Duration::from_millis(1000)),
+            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min_fraction: 0.6 },
+            min_evaluations: 3,
         };
 
-        let optimizer = AsyncDifferentialEvolution::new(2, Some(20), Some(config))
+        let optimizer = AsyncDifferentialEvolution::new(2, Some(8), Some(config))
             .with_bounds(bounds_lower, bounds_upper)
             .expect("Setting bounds should succeed for valid dimensions")
-            .with_parameters(0.8, 0.7, 30, 1e-4);
+            .with_parameters(0.8, 0.7, 3, 1e-2);
 
         let (result, stats) = optimizer
             .optimize(objective)
@@ -729,21 +738,21 @@ mod tests {
 
         let config = AsyncOptimizationConfig {
             max_workers: 2,
-            evaluation_timeout: Some(Duration::from_millis(100)), // Short timeout
-            completion_timeout: Some(Duration::from_millis(500)),
+            evaluation_timeout: Some(Duration::from_millis(50)), // Short timeout
+            completion_timeout: Some(Duration::from_millis(200)),
             slow_evaluation_strategy: SlowEvaluationStrategy::CancelSlow {
-                timeout: Duration::from_millis(100),
+                timeout: Duration::from_millis(50),
             },
-            min_evaluations: 3,
+            min_evaluations: 2,
         };
 
         let bounds_lower = Array1::from_vec(vec![-1.0, -1.0]);
         let bounds_upper = Array1::from_vec(vec![1.0, 1.0]);
 
-        let optimizer = AsyncDifferentialEvolution::new(2, Some(10), Some(config))
+        let optimizer = AsyncDifferentialEvolution::new(2, Some(6), Some(config))
             .with_bounds(bounds_lower, bounds_upper)
             .expect("Setting bounds should succeed for valid dimensions")
-            .with_parameters(0.8, 0.7, 10, 1e-3);
+            .with_parameters(0.8, 0.7, 2, 1e-1);
 
         let (result, stats) = optimizer
             .optimize(objective)

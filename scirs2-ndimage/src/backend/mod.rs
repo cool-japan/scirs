@@ -117,7 +117,7 @@ pub struct BackendExecutor {
 impl BackendExecutor {
     pub fn new(config: BackendConfig) -> NdimageResult<Self> {
         #[cfg(feature = "gpu")]
-        let gpu_context = match config.backend {
+        let gpu_context: Option<Arc<dyn GpuContext>> = match config.backend {
             #[cfg(feature = "cuda")]
             Backend::Cuda => Some(Arc::new(CudaContext::new(config.device_id)?)),
             #[cfg(feature = "opencl")]

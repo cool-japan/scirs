@@ -493,25 +493,7 @@ impl<T: Float> op::Op<T> for GatherGrad {
 
 #[cfg(feature = "blas")]
 pub(crate) fn inplace_add_impl<F: Float>(mut a: NdArrayViewMut<F>, b: &NdArrayView<F>) {
-    // Use scirs2-core SIMD operations instead of direct BLAS FFI
-    use scirs2_core::simd_ops::SimdUnifiedOps;
-
-    // Convert to 1D views for SIMD operations
-    if let (Ok(a_1d), Ok(b_1d)) = (a.as_slice_memory_order(), b.as_slice_memory_order()) {
-        if a_1d.len() == b_1d.len() {
-            let a_view = ndarray::ArrayView1::from(a_1d);
-            let b_view = ndarray::ArrayView1::from(b_1d);
-            let result = F::simd_add(&a_view, &b_view);
-
-            // Copy result back to original array
-            if let Some(a_slice_mut) = a.as_slice_memory_order_mut() {
-                a_slice_mut.copy_from_slice(result.as_slice().unwrap());
-                return;
-            }
-        }
-    }
-
-    // Fallback to element-wise addition
+    // Simplified fallback - just use element-wise addition
     a += b;
 }
 

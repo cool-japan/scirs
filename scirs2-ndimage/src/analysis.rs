@@ -1004,7 +1004,7 @@ where
         results = paired_images
             .into_par_iter()
             .map(|(ref_img, test_img)| image_quality_assessment(ref_img, test_img))
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
     }
 
     #[cfg(not(feature = "parallel"))]

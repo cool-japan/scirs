@@ -485,7 +485,7 @@ pub fn design_fir_filter(filter_spec: &FilterSpec) -> FFTResult<Vec<f64>> {
             }
         }
         FilterWindow::Kaiser => {
-            let beta = filterspec.kaiser_beta.unwrap_or(3.0);
+            let beta = filter_spec.kaiser_beta.unwrap_or(3.0);
             for i in 0..adjusted_order {
                 let x = 2.0 * i as f64 / (adjusted_order - 1) as f64 - 1.0;
                 window[i] = bessel_i0(beta * (1.0 - x * x).sqrt()) / bessel_i0(beta);

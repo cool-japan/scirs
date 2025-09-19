@@ -358,39 +358,9 @@ macro_rules! impl_bin_op_forward {
                         }
                     }
 
-                    // Use scirs2-core SIMD operations if available
+                    // Use element-wise fallback for same-shape tensors
                     #[cfg(feature = "blas")]
                     {
-                        use scirs2_core::simd_ops::SimdUnifiedOps;
-
-                        // Try to use SIMD operations for same-shape tensors
-                        if shape0 == shape1 {
-                            if let (Ok(x0_slice), Ok(x1_slice)) = (
-                                x0.as_slice_memory_order(),
-                                x1.as_slice_memory_order()
-                            ) {
-                                let x0_view = ndarray::ArrayView1::from(x0_slice);
-                                let x1_view = ndarray::ArrayView1::from(x1_slice);
-
-                                // Use the appropriate SIMD operation based on the binary op
-                                stringify!($bin_op); // This will be evaluated at compile time
-                                let result_1d = match stringify!($bin_op) {
-                                    "+" => T::simd_add(&x0_view, &x1_view),
-                                    "*" => T::simd_mul(&x0_view, &x1_view),
-                                    "-" => T::simd_sub(&x0_view, &x1_view),
-                                    "/" => T::simd_div(&x0_view, &x1_view),
-                                    _ => {
-                                        // Fallback for other operations
-                                        return x0 $bin_op x1;
-                                    }
-                                };
-
-                                // Reshape result back to original shape
-                                return result_1d.into_shape(shape0).unwrap().into_dyn();
-                            }
-                        }
-
-                        // Fallback if SIMD optimization fails
                         x0 $bin_op x1
                     }
                     #[cfg(not(feature = "blas"))] {

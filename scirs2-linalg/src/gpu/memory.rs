@@ -241,11 +241,13 @@ impl MemoryOptimizer {
 
         // Score based on reasonable utilization (30-70% is good)
         if utilization < 0.3 {
-            utilization * 100.0 / 0.3 * 50.0
+            (utilization / 0.3) * 50.0
         } else if utilization <= 0.7 {
             100.0
+        } else if utilization <= 1.0 {
+            100.0 - ((utilization - 0.7) / 0.3) * 50.0
         } else {
-            100.0 - (utilization - 0.7) * 100.0 / 0.3 * 50.0
+            0.0  // Over 100% utilization
         }
     }
 }

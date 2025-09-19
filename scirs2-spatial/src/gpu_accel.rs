@@ -47,9 +47,9 @@
 use crate::error::SpatialResult;
 use crate::memory_pool::DistancePool;
 use ndarray::{Array1, Array2, ArrayView2};
-use std::sync::Arc;
-use std::process::Command;
 use std::path::Path;
+use std::process::Command;
+use std::sync::Arc;
 
 // Type alias for complex return types
 type GpuDeviceInfoResult = Result<(Vec<String>, Vec<(usize, usize)>), Box<dyn std::error::Error>>;
@@ -269,7 +269,6 @@ impl GpuDevice {
     // GPU backend detection implementations
     #[cfg(feature = "cuda")]
     fn check_cuda_available() -> bool {
-
         // Check for NVIDIA driver and CUDA runtime
         if let Ok(output) = Command::new("nvidia-smi")
             .arg("--query-gpu=count")

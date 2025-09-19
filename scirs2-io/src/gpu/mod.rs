@@ -11,7 +11,7 @@ pub mod memory_management;
 
 // Re-export key types for easy access
 pub use backend_management::{
-    BackendCapabilities, BackendPerformanceProfile, FragmentationTrend, GpuIoProcessor,
+    BackendCapabilities, BackendPerformanceProfile, GpuIoProcessor,
     GpuWorkloadType,
 };
 

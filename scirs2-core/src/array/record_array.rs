@@ -274,7 +274,7 @@ impl RecordArray {
 
         // Create field index map
         let mut field_indices = HashMap::new();
-        for (_i, name) in names.iter().enumerate() {
+        for name in names.iter() {
             field_indices.insert(name.clone(), 0);
         }
 

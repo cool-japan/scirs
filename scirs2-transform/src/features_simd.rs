@@ -30,7 +30,8 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         Ok(SimdPolynomialFeatures {
             degree,
             include_bias,
-            interaction_only_phantom: std::marker::PhantomData,
+            interaction_only: interactiononly,
+            _phantom: std::marker::PhantomData,
         })
     }
 
@@ -138,7 +139,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
     /// Adds polynomial terms using SIMD operations where possible
     fn add_polynomial_terms(
         &self,
-        sample: &Array1<F>,
+        sample: &ArrayView1<F>,
         output: &mut Array1<F>,
         mut output_idx: usize,
     ) -> Result<usize> {
@@ -185,7 +186,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
     /// Adds interaction terms only
     fn add_interaction_terms(
         &self,
-        sample: &Array1<F>,
+        sample: &ArrayView1<F>,
         output: &mut Array1<F>,
         mut output_idx: usize,
         degree: usize,
@@ -492,7 +493,8 @@ where
     } else {
         // General case: use vectorized exponentiation
         let exponent_array = Array1::from_elem(n, exponent);
-        result = F::simd_pow(&data.view(), &exponent_array.view());
+        // Fallback: element-wise power operation since simd_pow is not available
+        result = data.mapv(|x| x.powf(exponent));
 
         // Validate results
         for &val in result.iter() {
@@ -549,7 +551,8 @@ where
             let threshold_array = Array1::from_elem(chunk_size, threshold);
 
             // Use SIMD comparison where available
-            let comparison_result = F::simd_greater_than(&chunk_slice, &threshold_array.view());
+            // Fallback: element-wise comparison since simd_greater_than is not available
+            let comparison_result = chunk_slice.mapv(|x| if x > threshold { F::one() } else { F::zero() });
 
             for (j, &cmp_result) in comparison_result.iter().enumerate() {
                 result[[i, chunk_start + j]] = if cmp_result > F::zero() {

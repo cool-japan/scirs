@@ -118,7 +118,7 @@ impl AsyncStreamingConfig {
 
     /// Set operation timeout
     pub fn timeout(mut self, timeoutms: u64) -> Self {
-        self.operation_timeout_ms = Some(timeout_ms);
+        self.operation_timeout_ms = Some(timeoutms);
         self
     }
 

@@ -144,8 +144,10 @@ impl HfHub {
   "intermediate_size": 3072,
   "num_hidden_layers": 12,
   "vocab_size": 30522,
-  "max_position_embeddings": 512
-}"#.to_string()
+  "max_position_embeddings": 512,
+  "extraconfig": {}
+}"#
+                    .to_string()
                 } else {
                     format!("# Placeholder {file} for {model_id}")
                 };

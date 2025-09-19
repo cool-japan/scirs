@@ -662,7 +662,7 @@ impl CudaOperations {
         sigma: [T; 2],
     ) -> NdimageResult<Array<T, ndarray::Ix2>>
     where
-        T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+        T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
         crate::backend::kernels::gpu_gaussian_filter_2d(input, sigma, &self.executor)
     }
@@ -674,7 +674,7 @@ impl CudaOperations {
         kernel: &ArrayView2<T>,
     ) -> NdimageResult<Array<T, ndarray::Ix2>>
     where
-        T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+        T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
         crate::backend::kernels::gpu_convolve_2d(input, kernel, &self.executor)
     }
@@ -686,7 +686,7 @@ impl CudaOperations {
         size: [usize; 2],
     ) -> NdimageResult<Array<T, ndarray::Ix2>>
     where
-        T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+        T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
         crate::backend::kernels::gpu_median_filter_2d(input, size, &self.executor)
     }
@@ -698,7 +698,7 @@ impl CudaOperations {
         structure: &ArrayView2<bool>,
     ) -> NdimageResult<Array<T, ndarray::Ix2>>
     where
-        T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+        T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
         crate::backend::kernels::gpu_erosion_2d(input, structure, &self.executor)
     }
@@ -708,7 +708,7 @@ impl CudaOperations {
 #[allow(dead_code)]
 pub fn allocate_gpu_buffer<T>(data: &[T]) -> NdimageResult<Box<dyn GpuBuffer<T>>>
 where
-    T: 'static,
+    T: Send + Sync + 'static,
 {
     Ok(Box::new(CudaBuffer::from_host_data(data)?))
 }
@@ -717,7 +717,7 @@ where
 #[allow(dead_code)]
 pub fn allocate_gpu_buffer_empty<T>(size: usize) -> NdimageResult<Box<dyn GpuBuffer<T>>>
 where
-    T: 'static,
+    T: Send + Sync + 'static,
 {
     Ok(Box::new(CudaBuffer::<T>::new(size)?))
 }

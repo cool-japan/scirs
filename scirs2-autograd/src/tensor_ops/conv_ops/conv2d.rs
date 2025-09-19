@@ -1,5 +1,6 @@
 use super::*;
 use crate::tensor_ops::*;
+use crate::tensor_ops::{BlasIF, CblasRowMajor, CblasNoTrans, CblasTrans, cblas_sgemm, cblas_dgemm};
 use ndarray::IxDyn;
 use std::slice;
 
