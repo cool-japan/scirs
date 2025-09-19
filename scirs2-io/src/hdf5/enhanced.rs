@@ -154,7 +154,7 @@ impl EnhancedHDF5File {
     ) -> Result<()>
     where
         A: ndarray::Data,
-        A::Elem: Clone + Into<f64>,
+        A::Elem: Clone + Into<f64> + std::fmt::Debug,
         D: ndarray::Dimension,
     {
         let _lock = self.file_lock.write().unwrap();
@@ -468,7 +468,7 @@ impl EnhancedHDF5File {
     ) -> Result<()>
     where
         A: ndarray::Data,
-        A::Elem: Clone + Into<f64>,
+        A::Elem: Clone + Into<f64> + std::fmt::Debug,
         D: ndarray::Dimension,
     {
         // For now, delegate to the base implementation

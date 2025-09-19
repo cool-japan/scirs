@@ -276,7 +276,7 @@ serde-wasm-bindgen = { version = "0.6" }
 console_error_panic_hook = { version = "0.1" }
 
 # Machine learning
-tch = { version = "0.13" }
+tch = { version = "0.18" }
 
 # Monitoring
 prometheus = { version = "0.13" }

@@ -433,7 +433,7 @@ impl NetCDFFile {
     /// # Returns
     ///
     /// * `Result<()>` - Success or an error
-    pub fn write_variable<T: Clone + Into<f64>, D: Dimension>(
+    pub fn write_variable<T: Clone + Into<f64> + std::fmt::Debug, D: Dimension>(
         &mut self,
         name: &str,
         data: &Array<T, D>,
@@ -820,7 +820,7 @@ impl NetCDFFile {
     /// # Returns
     ///
     /// * `Result<()>` - Success or error
-    pub fn write_array<T: Clone + Into<f64>, D: Dimension>(
+    pub fn write_array<T: Clone + Into<f64> + std::fmt::Debug, D: Dimension>(
         &mut self,
         name: &str,
         data: &Array<T, D>,

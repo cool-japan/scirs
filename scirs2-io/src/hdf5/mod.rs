@@ -795,10 +795,13 @@ impl HDF5File {
 
         // Convert array to dataset - handle different types
         let shape: Vec<usize> = array.shape().to_vec();
-        let flat_data: Vec<f64> = array.iter().map(|x| {
-            // Convert to f64 using format and parse as a workaround for generic types
-            format!("{:?}", x).parse::<f64>().unwrap_or(0.0)
-        }).collect();
+        let flat_data: Vec<f64> = array
+            .iter()
+            .map(|x| {
+                // Convert to f64 using format and parse as a workaround for generic types
+                format!("{:?}", x).parse::<f64>().unwrap_or(0.0)
+            })
+            .collect();
 
         let dataset = Dataset {
             name: dataset_name.to_string(),
@@ -868,21 +871,11 @@ impl HDF5File {
         #[cfg(feature = "hdf5")]
         {
             if let Some(ref file) = self.native_file {
-                // Handle nested groups properly by navigating the full path
-                let mut current_group = file.clone();
+                // Build the full path for direct dataset access
+                let full_path = parts.join("/");
 
-                // Navigate to the parent group
-                for &group_name in &parts[..parts.len() - 1] {
-                    current_group = current_group.group(group_name).map_err(|e| {
-                        IoError::FormatError(format!(
-                            "Failed to open HDF5 group '{}': {}",
-                            group_name, e
-                        ))
-                    })?;
-                }
-
-                // Read the dataset from the correct group
-                if let Ok(h5_dataset) = current_group.dataset(dataset_name) {
+                // Try to read the dataset directly using the full path
+                if let Ok(h5_dataset) = file.dataset(&full_path) {
                     let data: Vec<f64> = h5_dataset.read_raw().map_err(|e| {
                         IoError::FormatError(format!("Failed to read HDF5 dataset: {e}"))
                     })?;
@@ -1142,7 +1135,12 @@ impl HDF5File {
     }
 
     /// Read a slice of data from a dataset
-    pub fn read_dataset_slice<T>(&self, name: &str, shape: &[usize], offset: &[usize]) -> Result<Vec<T>>
+    pub fn read_dataset_slice<T>(
+        &self,
+        name: &str,
+        shape: &[usize],
+        offset: &[usize],
+    ) -> Result<Vec<T>>
     where
         T: Clone + Default,
     {
@@ -1182,7 +1180,12 @@ impl HDF5File {
     }
 
     /// Create a dataset with specified type
-    pub fn create_dataset<T>(&mut self, path: &str, shape: &[usize], _options: Option<DatasetOptions>) -> Result<()>
+    pub fn create_dataset<T>(
+        &mut self,
+        path: &str,
+        shape: &[usize],
+        _options: Option<DatasetOptions>,
+    ) -> Result<()>
     where
         T: Clone + Default + std::fmt::Debug,
     {

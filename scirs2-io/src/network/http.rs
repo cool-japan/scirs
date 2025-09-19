@@ -95,7 +95,7 @@ impl HttpClient {
         let mut headers = reqwest::header::HeaderMap::new();
         for (key, value) in &self.config.headers {
             if let (Ok(header_name), Ok(header_value)) = (
-                reqwest::header::HeaderName::frombytes(key.asbytes()),
+                reqwest::header::HeaderName::from_bytes(key.as_bytes()),
                 reqwest::header::HeaderValue::from_str(value),
             ) {
                 headers.insert(header_name, header_value);

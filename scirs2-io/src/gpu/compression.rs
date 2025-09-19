@@ -108,7 +108,7 @@ impl GpuCompressionProcessor {
         algorithm: CompressionAlgorithm,
         level: Option<u32>,
     ) -> Result<Vec<u8>> {
-        let capabilities = self.gpu_processor.capabilities;
+        let capabilities = &self.gpu_processor.capabilities;
 
         // Convert array data to bytes for compression
         let data_bytes = unsafe {
@@ -191,7 +191,7 @@ impl GpuCompressionProcessor {
         algorithm: CompressionAlgorithm,
         level: Option<u32>,
     ) -> Result<Vec<u8>> {
-        let capabilities = self.gpu_processor.capabilities;
+        let capabilities = &self.gpu_processor.capabilities;
 
         // Convert to bytes
         let data_bytes = unsafe {
@@ -269,7 +269,7 @@ impl GpuCompressionProcessor {
         algorithm: CompressionAlgorithm,
         level: Option<u32>,
     ) -> Result<Vec<u8>> {
-        let capabilities = self.gpu_processor.capabilities;
+        let capabilities = &self.gpu_processor.capabilities;
 
         // Convert to bytes
         let data_bytes = unsafe {

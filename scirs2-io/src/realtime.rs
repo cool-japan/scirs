@@ -643,7 +643,7 @@ impl StreamConnection for WebSocketConnection {
 
         if let Some(ws_stream) = &mut self.ws_stream {
             let _ = ws_stream.send(Message::Close(None)).await;
-            let _ = ws_stream.close().await;
+            let _ = ws_stream.close(None).await;
         }
         self.ws_stream = None;
         self.connected = false;
@@ -804,18 +804,23 @@ impl StreamConnection for SSEConnection {
 
             let (sender, receiver) = mpsc::channel(self.config.buffer_size);
 
-            let client = Client::for_url(&url.to_string())
+            let client = eventsource_client::ClientBuilder::for_url(&url.to_string())
                 .map_err(|e| IoError::NetworkError(format!("SSE client creation failed: {}", e)))?
                 .header("Cache-Control", "no-cache")
+                .map_err(|e| {
+                    IoError::NetworkError(format!("Failed to set Cache-Control header: {}", e))
+                })?
                 .header("Accept", "text/event-stream")
+                .map_err(|e| IoError::NetworkError(format!("Failed to set Accept header: {}", e)))?
                 .reconnect(
                     eventsource_client::ReconnectOptions::reconnect(true)
                         .retry_initial(true)
                         .delay(self.config.backoff.initial_delay)
                         .backoff_factor(self.config.backoff.multiplier)
-                        .delay_max(self.config.backoff.max_delay)
-                        .max_retries(self.config.backoff.max_retries),
-                );
+                        .delay_max(self.config.backoff.max_delay),
+                    // .max_retries(self.config.backoff.max_retries), // Method doesn't exist in current API
+                )
+                .build();
 
             // Start the SSE stream
             let stream = client.stream();

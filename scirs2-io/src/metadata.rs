@@ -1231,7 +1231,7 @@ pub struct MetadataRepository {
 impl MetadataRepository {
     pub fn new(url: impl Into<String>) -> Self {
         Self {
-            _url: url.into(),
+            url: url.into(),
             cache: Arc::new(RwLock::new(HashMap::new())),
             client: reqwest::blocking::Client::new(),
         }
