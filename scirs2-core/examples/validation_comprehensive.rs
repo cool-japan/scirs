@@ -11,9 +11,9 @@
 #[cfg(feature = "data_validation")]
 use scirs2_core::validation::data::*;
 #[cfg(feature = "data_validation")]
-use std::time::Duration;
-#[cfg(feature = "data_validation")]
 use serde_json::Value as JsonValue;
+#[cfg(feature = "data_validation")]
+use std::time::Duration;
 
 #[cfg(feature = "data_validation")]
 #[allow(dead_code)]

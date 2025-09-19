@@ -127,7 +127,10 @@ impl PerformanceBenchmarkResult {
             (target.target_time.as_nanos() as f64 * input_scale.powf(target.scaling_factor)) as u64,
         );
 
-        let performance_ratio = benchmark_result.statistics.mean_execution_time.as_secs_f64()
+        let performance_ratio = benchmark_result
+            .statistics
+            .mean_execution_time
+            .as_secs_f64()
             / scaled_target_time.as_secs_f64();
 
         Self {

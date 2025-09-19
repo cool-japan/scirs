@@ -125,13 +125,12 @@ impl ArrayProtocol for SparseArray {
                 let other = if let Some(sparse) = args[1].downcast_ref::<&dyn ArrayProtocol>() {
                     if let Some(sparse_array) = sparse.as_any().downcast_ref::<SparseArray>() {
                         sparse_array
-                    } else if let Some(ndarray_wrapper) =
-                        sparse.as_any().downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                    } else if let Some(ndarray_wrapper) = sparse
+                        .as_any()
+                        .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
                     {
                         // Convert ndarray to sparse array (simplified for example)
-                        return Ok(Box::new(SparseArray::array(
-                            ndarray_wrapper.as_array(),
-                        )));
+                        return Ok(Box::new(SparseArray::array(ndarray_wrapper.as_array())));
                     } else {
                         return Err(NotImplemented);
                     }

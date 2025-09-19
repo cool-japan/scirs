@@ -1104,8 +1104,8 @@ impl CrossModuleBenchmarkRunner {
                     for j in 0..hidden_dim {
                         let mut activation = 0.0;
                         for k in 0..feature_dim {
-                            let weight = ((0 + j + k) as f64) * 0.01;
-                            let input = ((0 * k) as f64) * 0.001;
+                            let weight = ((i + j + k) as f64) * 0.01;
+                            let input = ((i * k) as f64) * 0.001;
                             activation += weight * input;
                         }
                         // Apply activation function
@@ -1116,7 +1116,7 @@ impl CrossModuleBenchmarkRunner {
                 // Backward pass simulation (gradient computation)
                 for i in 0..hidden_dim {
                     for j in 0..feature_dim {
-                        let gradient = ((0 + j) as f64) * 0.001;
+                        let gradient = ((i + j) as f64) * 0.001;
                         let weight_update = gradient * 0.01; // Learning rate = 0.01
                     }
                 }

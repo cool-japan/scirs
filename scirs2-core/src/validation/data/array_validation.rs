@@ -51,7 +51,10 @@ impl ArrayValidator {
             if !self.validate_arrayshape(array, expectedshape)? {
                 errors.push(ValidationError {
                     errortype: ValidationErrorType::ShapeError,
-                    fieldpath: constraints.fieldname.clone().unwrap_or_else(|| "array".to_string()),
+                    fieldpath: constraints
+                        .fieldname
+                        .clone()
+                        .unwrap_or_else(|| "array".to_string()),
                     message: format!(
                         "Array shape {:?} does not match expected {:?}",
                         array.shape(),

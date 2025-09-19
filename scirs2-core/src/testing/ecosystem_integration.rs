@@ -1256,7 +1256,10 @@ impl EcosystemTestRunner {
     }
 
     /// Run throughput benchmarks
-    fn run_throughput_benchmarks(&self, modules: &[DiscoveredModule]) -> CoreResult<ThroughputBenchmarks> {
+    fn run_throughput_benchmarks(
+        &self,
+        modules: &[DiscoveredModule],
+    ) -> CoreResult<ThroughputBenchmarks> {
         // These would be real benchmarks in production
         Ok(ThroughputBenchmarks {
             linalg_ops_per_sec: 1000000.0,
@@ -1268,7 +1271,10 @@ impl EcosystemTestRunner {
     }
 
     /// Measure scalability metrics
-    fn measure_scalability_metrics(&self, modules: &[DiscoveredModule]) -> CoreResult<ScalabilityMetrics> {
+    fn measure_scalability_metrics(
+        &self,
+        modules: &[DiscoveredModule],
+    ) -> CoreResult<ScalabilityMetrics> {
         Ok(ScalabilityMetrics {
             thread_scalability: 0.85,
             memory_scalability: 0.92,
@@ -1843,11 +1849,7 @@ impl EcosystemTestRunner {
                 .flat_map(|row| row.iter())
                 .filter(|&&score| score >= 0.8)
                 .count() as f64
-                / latest
-                    .compatibilitymatrix
-                    .matrix
-                    .len()
-                    .max(1) as f64
+                / latest.compatibilitymatrix.matrix.len().max(1) as f64
                 * 100.0
         ));
         report.push_str(&format!(
@@ -2134,7 +2136,10 @@ mod tests {
             ModuleType::MachineLearning
         );
         assert_eq!(runner.classify_module_type("scirs2-io"), ModuleType::DataIO);
-        assert_eq!(runner.classify_module_type("scirs2"), ModuleType::Integration);
+        assert_eq!(
+            runner.classify_module_type("scirs2"),
+            ModuleType::Integration
+        );
     }
 
     #[test]

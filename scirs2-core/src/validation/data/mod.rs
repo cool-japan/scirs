@@ -298,7 +298,10 @@ mod tests {
         assert_eq!(constraints.max_mean, Some(10.0));
         assert_eq!(constraints.min_std, Some(1.0));
         assert_eq!(constraints.max_std, Some(5.0));
-        assert_eq!(constraints.expected_distribution, Some("normal".to_string()));
+        assert_eq!(
+            constraints.expected_distribution,
+            Some("normal".to_string())
+        );
     }
 
     #[test]

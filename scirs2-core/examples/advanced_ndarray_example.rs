@@ -1,7 +1,6 @@
 // Example demonstrating the enhanced ndarray extensions and ufuncs functionality
 
 use ndarray::{array, Array, Array2};
-use std::f64::consts::PI;
 use scirs2_core::ndarray_ext::{
     // Array manipulation operations
     manipulation::{concatenate_2d, flip_2d, pad_2d, repeat_2d, roll_2d, tile_2d, vstack_1d},
@@ -28,6 +27,7 @@ use scirs2_core::ufuncs::{
     square,
     std,
 };
+use std::f64::consts::PI;
 
 #[allow(dead_code)]
 fn print_title(title: &str) {

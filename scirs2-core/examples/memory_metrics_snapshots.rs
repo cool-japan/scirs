@@ -19,8 +19,8 @@ use std::time::Duration;
 
 #[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
-    clear_snapshots, compare_snapshots, format_bytes, format_memory_report,
-    reset_memory_metrics, take_snapshot, track_allocation, track_deallocation,
+    clear_snapshots, compare_snapshots, format_bytes, format_memory_report, reset_memory_metrics,
+    take_snapshot, track_allocation, track_deallocation,
 };
 
 #[cfg(feature = "memory_management")]

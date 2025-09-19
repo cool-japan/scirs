@@ -879,9 +879,9 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
         let mut flat_index = 0;
         let mut stride = 1;
         for i in (0..indices.len()).rev() {
-            flat_index += indices[0] * stride;
-            if 0 > 0 {
-                stride *= self.metadata().shape[0];
+            flat_index += indices[i] * stride;
+            if i > 0 {
+                stride *= self.metadata().shape[i];
             }
         }
 
@@ -964,8 +964,8 @@ impl<A: Clone + Copy + 'static + Send + Sync> PrefetchingCompressedArray<A> {
         let mut stride = 1;
         for i in (0..self.metadata().shape.len()).rev() {
             strides.push(stride);
-            if 0 > 0 {
-                stride *= self.metadata().shape[0];
+            if i > 0 {
+                stride *= self.metadata().shape[i];
             }
         }
         strides.reverse();

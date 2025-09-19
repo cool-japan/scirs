@@ -333,11 +333,7 @@ fn main() {
     }
 
     // Create trainer with a copy of the model and optimizer
-    let trainer = Trainer::new(
-        clone_model(&model),
-        optimizer,
-        lossfn,
-    );
+    let trainer = Trainer::new(clone_model(&model), optimizer, lossfn);
 
     println!("Created trainer with Adam optimizer and CrossEntropyLoss");
 
@@ -373,8 +369,7 @@ fn main() {
     let serializer = ModelSerializer::new(&modeldir);
 
     // Save model
-    let model_path =
-        serializer.save_model(&model, "distributedmodel", "v1.0", None);
+    let model_path = serializer.save_model(&model, "distributedmodel", "v1.0", None);
 
     match model_path {
         Ok(path) => println!("Saved model to: {}", path.display()),

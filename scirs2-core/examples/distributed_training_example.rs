@@ -12,9 +12,9 @@
 
 //! Example demonstrating distributed training and model serialization with the array protocol.
 
+use scirs2_core::ndarray_ext::stats::mean;
 use std::collections::HashMap;
 use tempfile::tempdir;
-use scirs2_core::ndarray_ext::stats::mean;
 
 use ndarray::Array2;
 use scirs2_core::array_protocol::{

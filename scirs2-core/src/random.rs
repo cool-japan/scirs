@@ -50,9 +50,9 @@ use std::cell::RefCell;
 pub use rand::{Rng, RngCore, SeedableRng};
 
 // Re-export for compatibility with optirs-core
+pub use rand::prelude;
 pub use rand::rngs;
 pub use rand_distr as distributions;
-pub use rand::prelude;
 
 // Re-export ndarray-rand RandomExt trait if available
 #[cfg(feature = "random")]
@@ -61,7 +61,11 @@ pub use ndarray_rand::RandomExt;
 // When random feature is not available, provide a minimal RandomExt trait
 #[cfg(not(feature = "random"))]
 pub trait RandomExt<T, D> {
-    fn random_using<R: rand::Rng>(shape: D, distribution: impl Distribution<T>, rng: &mut R) -> Self;
+    fn random_using<R: rand::Rng>(
+        shape: D,
+        distribution: impl Distribution<T>,
+        rng: &mut R,
+    ) -> Self;
 }
 
 #[cfg(not(feature = "random"))]
@@ -69,7 +73,11 @@ impl<T, D> RandomExt<T, D> for ndarray::ArrayBase<ndarray::OwnedRepr<T>, D>
 where
     D: ndarray::Dimension,
 {
-    fn random_using<R: rand::Rng>(shape: D, distribution: impl Distribution<T>, rng: &mut R) -> Self {
+    fn random_using<R: rand::Rng>(
+        shape: D,
+        distribution: impl Distribution<T>,
+        rng: &mut R,
+    ) -> Self {
         let size = shape.size();
         let mut data = Vec::with_capacity(size);
         for _ in 0..size {
@@ -101,7 +109,6 @@ pub fn f32() -> f32 {
 pub fn usize(range: std::ops::Range<usize>) -> usize {
     rand::thread_rng().gen_range(range)
 }
-
 
 /// Wrapper around the rand crate's RNG for a consistent interface
 #[derive(Debug)]

@@ -107,14 +107,11 @@ fn demo_arbitrary_floats() -> CoreResult<()> {
     let prec = 256;
 
     // Basic arithmetic with high precision
-    let one_third =
-        ArbitraryFloat::from_f64_withprecision(1.0, prec)? / ArbitraryFloat::from_f64_withprecision(3.0, prec)?;
+    let one_third = ArbitraryFloat::from_f64_withprecision(1.0, prec)?
+        / ArbitraryFloat::from_f64_withprecision(3.0, prec)?;
     println!("1/3 with {} bits precision:", prec);
     println!("{}", one_third);
-    println!(
-        "Decimal precision: {} digits",
-        one_third.decimalprecision()
-    );
+    println!("Decimal precision: {} digits", one_third.decimalprecision());
 
     // Verify precision by multiplying back
     let three = ArbitraryFloat::from_f64_withprecision(3.0, prec)?;
@@ -292,8 +289,8 @@ fn demo_numerical_analysis() -> CoreResult<()> {
     let mut x = ArbitraryFloat::from_f64_withprecision(1.5, prec)?; // Initial guess
 
     for i in 0..5 {
-        let x_new =
-            (x.clone() + two.clone() / x.clone()) / ArbitraryFloat::from_f64_withprecision(2.0, prec)?;
+        let x_new = (x.clone() + two.clone() / x.clone())
+            / ArbitraryFloat::from_f64_withprecision(2.0, prec)?;
         println!("Iteration {}: {}", i + 1, x_new);
         x = x_new;
     }

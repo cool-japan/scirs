@@ -314,7 +314,10 @@ fn metadata_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("\nMetadata before update:");
     println!("  Description: {}", metadata["description"]);
     println!("  Version: {}", metadata["version"]);
-    println!("  Sampling rate: {}", metadata["properties"]["samplingrate"]);
+    println!(
+        "  Sampling rate: {}",
+        metadata["properties"]["samplingrate"]
+    );
 
     // Update metadata (without rewriting the entire array)
     println!("\nUpdating metadata...");
