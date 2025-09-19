@@ -19,8 +19,8 @@ use std::time::Duration;
 
 #[cfg(feature = "memory_management")]
 use scirs2_core::memory::metrics::{
-    clear_snapshots, compare_snapshots, format_bytes, format_memory_report, load_snapshots,
-    reset_memory_metrics, save_snapshots, take_snapshot, track_allocation, track_deallocation,
+    clear_snapshots, compare_snapshots, format_bytes, format_memory_report,
+    reset_memory_metrics, take_snapshot, track_allocation, track_deallocation,
 };
 
 #[cfg(feature = "memory_management")]
@@ -117,10 +117,12 @@ fn main() {
 
     // Save all snapshots
     println!("Saving snapshots to {:?}...", snapshot_dir);
-    match save_snapshots(snapshot_dir) {
-        Ok(_) => println!("  Snapshots saved successfully"),
-        Err(e) => println!("  Error saving snapshots: {}", e),
-    }
+    // Note: save_snapshots is not yet implemented
+    // match save_snapshots(snapshot_dir) {
+    //     Ok(_) => println!("  Snapshots saved successfully"),
+    //     Err(e) => println!("  Error saving snapshots: {}", e),
+    // }
+    println!("  (save_snapshots not yet implemented)");
 
     // Clear existing snapshots
     clear_snapshots();
@@ -128,10 +130,12 @@ fn main() {
 
     // Load snapshots
     println!("\nLoading snapshots from {:?}...", snapshot_dir);
-    match load_snapshots(snapshot_dir) {
-        Ok(_) => println!("  Snapshots loaded successfully"),
-        Err(e) => println!("  Error loading snapshots: {}", e),
-    }
+    // Note: load_snapshots is not yet implemented
+    // match load_snapshots(snapshot_dir) {
+    //     Ok(_) => println!("  Snapshots loaded successfully"),
+    //     Err(e) => println!("  Error loading snapshots: {}", e),
+    // }
+    println!("  (load_snapshots not yet implemented)");
 
     // Check if we can still access the snapshots
     let diff = compare_snapshots("baseline", "allocated");

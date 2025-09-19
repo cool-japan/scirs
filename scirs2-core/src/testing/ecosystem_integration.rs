@@ -2134,7 +2134,7 @@ mod tests {
             ModuleType::MachineLearning
         );
         assert_eq!(runner.classify_module_type("scirs2-io"), ModuleType::DataIO);
-        assert_eq!(runner.classify_module_type(scirs2), ModuleType::Integration);
+        assert_eq!(runner.classify_module_type("scirs2"), ModuleType::Integration);
     }
 
     #[test]

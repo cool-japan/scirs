@@ -246,9 +246,9 @@ fn demo_constants() -> CoreResult<()> {
 fn demo_precision_builder() -> CoreResult<()> {
     // Use the builder pattern for custom precision settings
     let calc = ArbitraryPrecisionBuilder::new()
-        .decimal_precision(100)  // 100 decimal digits
+        .decimalprecision(100)  // 100 decimal digits
         .rounding(RoundingMode::Nearest)
-        .track_precision(true)
+        .trackprecision(true)
         .build_float();
 
     println!("Built float with {} bits precision", calc.precision());
@@ -257,11 +257,11 @@ fn demo_precision_builder() -> CoreResult<()> {
     let result: ArbitraryFloat = ArbitraryPrecisionBuilder::new()
         .precision(384)  // 384 bits
         .calculate(|ctx| -> CoreResult<ArbitraryFloat> {
-            println!("Calculating with {} bits precision", ctx.float_precision);
+            println!("Calculating with {} bits precision", ctx.floatprecision);
 
             // Compute π² / 6 (Basel problem)
-            let pi = utils::pi(ctx.float_precision)?;
-            let six = ArbitraryFloat::from_f64_withprecision(6.0, ctx.float_precision)?;
+            let pi = utils::pi(ctx.floatprecision)?;
+            let six = ArbitraryFloat::from_f64_withprecision(6.0, ctx.floatprecision)?;
             let pi_squared = pi.clone() * pi;
             Ok(pi_squared / six)
         })?;

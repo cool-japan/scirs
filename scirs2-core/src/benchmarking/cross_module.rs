@@ -1478,8 +1478,8 @@ mod tests {
     #[test]
     fn test_performance_measurement_creation() {
         let measurement = PerformanceMeasurement::new(
-            test_benchmark.to_string(),
-            vec![module1.to_string(), module2.to_string()],
+            "test_benchmark".to_string(),
+            vec!["module1".to_string(), "module2".to_string()],
         );
 
         assert_eq!(measurement.name, "test_benchmark");

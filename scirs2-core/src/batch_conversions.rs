@@ -84,7 +84,7 @@ impl BatchConversionConfig {
     }
 
     /// Set the chunk size for parallel processing
-    pub fn size(mut self, chunksize: usize) -> Self {
+    pub fn with_chunk_size(mut self, chunksize: usize) -> Self {
         self.parallel_chunk_size = chunksize;
         self
     }

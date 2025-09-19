@@ -299,7 +299,7 @@ fn main() {
     }
 
     // Create loss function
-    let lossfn = Box::new(CrossEntropyLoss::new(Some(mean)));
+    let lossfn = Box::new(CrossEntropyLoss::new(Some("mean")));
 
     // Create a helper function to work around the missing Clone implementation for Sequential
     fn clone_model(original: &Sequential) -> Sequential {
@@ -427,15 +427,15 @@ fn main() {
             println!("Model has {} layers", loadedmodel.layers().len());
             println!(
                 "Metrics: loss = {}, accuracy = {}",
-                loaded_metrics.get(\"loss\").unwrap_or(&0.0),
-                loaded_metrics.get(\"accuracy\").unwrap_or(&0.0)
+                loaded_metrics.get("loss").unwrap_or(&0.0),
+                loaded_metrics.get("accuracy").unwrap_or(&0.0)
             );
 
             // Create a new trainer with loaded model and optimizer
             let resume_trainer = Trainer::new(
                 loadedmodel,
                 loaded_optimizer,
-                Box::new(CrossEntropyLoss::new(Some(mean))),
+                Box::new(CrossEntropyLoss::new(Some("mean"))),
             );
 
             // Create a new distributed trainer

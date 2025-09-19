@@ -1017,6 +1017,7 @@ pub use reduction::{max, mean, min, product, std, sum, var};
 mod tests {
     use super::*;
     use ndarray::array;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_math_unary() {

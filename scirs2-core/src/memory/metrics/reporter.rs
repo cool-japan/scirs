@@ -348,10 +348,10 @@ mod tests {
         #[cfg(feature = "memory_metrics")]
         {
             let json = report.to_json();
-            assert_eq!(json[total_current_usage], 1024);
-            assert_eq!(json[total_peak_usage], 2048);
-            assert_eq!(json[total_allocation_count], 10);
-            assert_eq!(json[components][Component1][current_usage], 1024);
+            assert_eq!(json["total_current_usage"], 1024);
+            assert_eq!(json["total_peak_usage"], 2048);
+            assert_eq!(json["total_allocation_count"], 10);
+            assert_eq!(json["components"]["Component1"]["current_usage"], 1024);
         }
 
         #[cfg(not(feature = "memory_metrics"))]

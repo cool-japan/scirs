@@ -57,7 +57,7 @@ fn numeric_conversion_example() {
 fn numeric_conversionerror_example() {
     // Try to convert a value that's too large for the target type
     let large_value: f64 = 1e20;
-    let result: Result<i32_> = large_value.to_numeric();
+    let result = large_value.to_numeric::<i32>();
 
     match result {
         Ok(value) => println!("Conversion succeeded: {}", value),
@@ -66,7 +66,7 @@ fn numeric_conversionerror_example() {
 
     // Try to convert a negative value to an unsigned type
     let negative_value: i32 = -5;
-    let result: Result<u32_> = negative_value.to_numeric();
+    let result = negative_value.to_numeric::<u32>();
 
     match result {
         Ok(value) => println!("Conversion succeeded: {}", value),
@@ -75,7 +75,7 @@ fn numeric_conversionerror_example() {
 
     // Try to convert a float with fractional part to an integer
     let fraction_value: f64 = 42.75;
-    let result: Result<i32_> = fraction_value.to_numeric();
+    let result = fraction_value.to_numeric::<i32>();
 
     match result {
         Ok(value) => println!("Conversion succeeded: {}", value),

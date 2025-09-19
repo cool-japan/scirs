@@ -1452,10 +1452,10 @@ mod tests {
         assert_eq!(s3_config.provider, CloudProvider::AwsS3);
         assert_eq!(s3_config.bucket, "test-bucket");
 
-        let gcs_config = CloudConfig::google_cloud("test-bucket".to_string(), creds.clone());
+        let gcs_config = CloudConfig::new_bucket("test-bucket".to_string(), creds.clone());
         assert_eq!(gcs_config.provider, CloudProvider::GoogleCloud);
 
-        let azure_config = CloudConfig::azure_blob("test-container".to_string(), creds);
+        let azure_config = CloudConfig::container("test-container".to_string(), creds);
         assert_eq!(azure_config.provider, CloudProvider::AzureBlob);
     }
 

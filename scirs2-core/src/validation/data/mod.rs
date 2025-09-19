@@ -168,7 +168,7 @@ mod tests {
         // Test array validation
         let constraints = ArrayValidationConstraints::new()
             .withshape(vec![6, 2])
-            .with_fieldname(test_data)
+            .with_fieldname("test_data")
             .check_numeric_quality();
 
         let config = ValidationConfig::default();
@@ -227,7 +227,7 @@ mod tests {
         let validator = Validator::new(config).unwrap();
 
         let data = serde_json::json!({
-            name: "Test User",
+            "name": "Test User",
             "age": 25
         });
 
@@ -292,13 +292,13 @@ mod tests {
         let constraints = StatisticalConstraints::new()
             .with_mean_range(0.0, 10.0)
             .with_std_range(1.0, 5.0)
-            .with_distribution(normal);
+            .with_distribution("normal");
 
         assert_eq!(constraints.min_mean, Some(0.0));
         assert_eq!(constraints.max_mean, Some(10.0));
         assert_eq!(constraints.min_std, Some(1.0));
         assert_eq!(constraints.max_std, Some(5.0));
-        assert_eq!(constraints.expected_distribution, Some(normal.to_string()));
+        assert_eq!(constraints.expected_distribution, Some("normal".to_string()));
     }
 
     #[test]
@@ -309,9 +309,9 @@ mod tests {
             "test_field",
             "Type mismatch error",
         )
-        .with_expected(string)
-        .with_actual(integer)
-        .with_constraint(type_check)
+        .with_expected("string")
+        .with_actual("integer")
+        .with_constraint("type_check")
         .with_severity(ErrorSeverity::Error);
 
         assert_eq!(error.errortype, ValidationErrorType::TypeMismatch);

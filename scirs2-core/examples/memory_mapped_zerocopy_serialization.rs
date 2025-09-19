@@ -131,7 +131,7 @@ fn custom_type_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>>
     }
 
     // Save with metadata
-    let file_path = temp_dir.join("complex_array.bin");
+    let file_path = tempdir.join("complex_array.bin");
 
     let metadata = json!({
         "description": "Complex number array with spiral pattern",
@@ -222,7 +222,7 @@ fn basic_serialization_example(tempdir: &Path) -> Result<(), Box<dyn std::error:
     println!("Created a 1D array with {} elements", size);
 
     // Set up file path for saving
-    let file_path = temp_dir.join("basic_example.bin");
+    let file_path = tempdir.join("basic_example.bin");
 
     // Create metadata for the array
     let metadata = json!({
@@ -268,10 +268,10 @@ fn basic_serialization_example(tempdir: &Path) -> Result<(), Box<dyn std::error:
     // Read metadata
     let loaded_metadata = MemoryMappedArray::<f64>::read_metadata(&file_path)?;
     println!("\nMetadata from file:");
-    println!("  Description: {}", loaded_metadata[description]);
-    println!("  Created: {}", loaded_metadata[created]);
-    println!("  Elements: {}", loaded_metadata[elements]);
-    println!("  Element type: {}", loaded_metadata[element_type]);
+    println!("  Description: {}", loaded_metadata["description"]);
+    println!("  Created: {}", loaded_metadata["created"]);
+    println!("  Elements: {}", loaded_metadata["elements"]);
+    println!("  Element type: {}", loaded_metadata["element_type"]);
 
     Ok(())
 }
@@ -287,7 +287,7 @@ fn metadata_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Created a small array with 100 elements");
 
     // Set up file path for saving
-    let file_path = temp_dir.join("metadata_example.bin");
+    let file_path = tempdir.join("metadata_example.bin");
 
     // Create rich metadata for the array
     let initial_metadata = json!({
@@ -312,9 +312,9 @@ fn metadata_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // Read metadata without loading the array
     let metadata = MemoryMappedArray::<f32>::read_metadata(&file_path)?;
     println!("\nMetadata before update:");
-    println!("  Description: {}", metadata[description]);
-    println!("  Version: {}", metadata[version]);
-    println!("  Sampling rate: {}", metadata[properties]["samplingrate"]);
+    println!("  Description: {}", metadata["description"]);
+    println!("  Version: {}", metadata["version"]);
+    println!("  Sampling rate: {}", metadata["properties"]["samplingrate"]);
 
     // Update metadata (without rewriting the entire array)
     println!("\nUpdating metadata...");
@@ -339,14 +339,14 @@ fn metadata_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // Read updated metadata
     let updated = MemoryMappedArray::<f32>::read_metadata(&file_path)?;
     println!("\nMetadata after update:");
-    println!("  Description: {}", updated[description]);
-    println!("  Version: {}", updated[version]);
+    println!("  Description: {}", updated["description"]);
+    println!("  Version: {}", updated["version"]);
     println!("  Updated: {}", updated[updated]);
     println!(
         "  Calibration factor: {}",
-        updated[properties]["calibration_factor"]
+        updated["properties"]["calibration_factor"]
     );
-    println!("  Processing: {}", updated[properties]["processing"]);
+    println!("  Processing: {}", updated["properties"]["processing"]);
     println!("  Tags: {}", updated[tags]);
 
     // Load the array and verify data wasn't affected by metadata update

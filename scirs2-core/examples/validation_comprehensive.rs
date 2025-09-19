@@ -12,6 +12,8 @@
 use scirs2_core::validation::data::*;
 #[cfg(feature = "data_validation")]
 use std::time::Duration;
+#[cfg(feature = "data_validation")]
+use serde_json::Value as JsonValue;
 
 #[cfg(feature = "data_validation")]
 #[allow(dead_code)]
@@ -261,7 +263,7 @@ fn shape_validation_example() -> Result<(), Box<dyn std::error::Error>> {
             .require_square();
 
         let schema_3x3 = ValidationSchema::new()
-            .name(smallmatrix)
+            .name("smallmatrix")
             .require_field(
                 "matrix",
                 DataType::Array(Box::new(DataType::Array(Box::new(DataType::Float64)))),
@@ -329,7 +331,7 @@ fn complex_schema_example() -> Result<(), Box<dyn std::error::Error>> {
         .with_std_range(0.1, 50.0);
 
     let schema = ValidationSchema::new()
-        .name(experiment_data)
+        .name("experiment_data")
         .require_field("experiment_id", DataType::String)
         .require_field("timestamps", DataType::Array(Box::new(DataType::Float64)))
         .require_field("measurements", DataType::Array(Box::new(DataType::Float64)))
@@ -480,12 +482,12 @@ fn custom_validation_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a schema that uses the custom rule
     // Note: Custom rules need to be added through field definition, not constraints
-    let mut schema = ValidationSchema::new().name(contact_info);
+    let mut schema = ValidationSchema::new().name("contact_info");
 
     // Add the email field with custom validation rule
     let email_field = FieldDefinition::new(DataType::String)
         .required()
-        .with_validation_rule(email_format);
+        .with_validation_rule("email_format");
 
     // Add the field to the schema
     schema.fields.insert("email".to_string(), email_field);

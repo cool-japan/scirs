@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn test_historical_result() {
         let benchmark_config = crate::benchmarking::BenchmarkConfig::default();
-        let mut result = BenchmarkResult::new(test_benchmark.to_string(), benchmark_config);
+        let mut result = BenchmarkResult::new("test_benchmark".to_string(), benchmark_config);
         result.add_measurement(crate::benchmarking::BenchmarkMeasurement::new(
             Duration::from_millis(100),
         ));
@@ -608,7 +608,7 @@ mod tests {
 
         // Create a test benchmark result
         let benchmark_config = crate::benchmarking::BenchmarkConfig::default();
-        let mut result = BenchmarkResult::new(test_regression.to_string(), benchmark_config);
+        let mut result = BenchmarkResult::new("test_regression".to_string(), benchmark_config);
         result.add_measurement(crate::benchmarking::BenchmarkMeasurement::new(
             Duration::from_millis(100),
         ));

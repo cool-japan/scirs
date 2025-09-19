@@ -101,7 +101,7 @@ fn main() {
     #[cfg(feature = "memory_metrics")]
     {
         // If memory_metrics feature is enabled, we get a serde_json::Value
-        let json = report.to_json_2();
+        let json = report.to_json();
         println!("\nJSON Report Format (excerpt):");
         println!("{{");
         println!("  \"total_current_usage\": {},", json["total_current_usage"]);
@@ -117,7 +117,7 @@ fn main() {
     #[cfg(not(feature = "memory_metrics"))]
     {
         // If memory_metrics feature is disabled, we get a String
-        let json = report.to_json_2();
+        let json = report.to_json();
         println!("\nJSON Report Format (feature disabled):");
         println!("{}", json);
     }

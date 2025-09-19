@@ -1446,7 +1446,7 @@ mod tests {
     #[test]
     fn test_feature_transformer_creation() {
         let transformer = FeatureTransformer::new(
-            test_scaler.to_string(),
+            "test_scaler".to_string(),
             TransformType::StandardScaler,
             vec!["feature1".to_string()],
             vec!["feature1_scaled".to_string()],
@@ -1475,7 +1475,7 @@ mod tests {
         let mut pipeline = MLPipeline::new("test_pipeline".to_string(), PipelineConfig::default());
 
         let transformer = FeatureTransformer::new(
-            scaler.to_string(),
+            "scaler".to_string(),
             TransformType::StandardScaler,
             vec!["feature1".to_string()],
             vec!["feature1_scaled".to_string()],
@@ -1523,8 +1523,8 @@ mod tests {
 
         // Check that all samples have the required features
         for sample in &batch.samples {
-            assert!(sample.features.contains_key(feature1));
-            assert!(sample.features.contains_key(feature2));
+            assert!(sample.features.contains_key("feature1"));
+            assert!(sample.features.contains_key("feature2"));
             assert!(sample.target.is_some());
         }
     }

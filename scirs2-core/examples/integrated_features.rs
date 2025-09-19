@@ -85,7 +85,7 @@ fn run_integrated_example() {
     // Create a 2D array from the buffer
     let array_data = normal_distribution.random_array(&mut rng, IxDyn(&[100, 100]));
 
-    progress.update_model(1);
+    progress.update(1);
     timer_step1.stop();
     logger.info("Random data generation completed");
 
@@ -99,7 +99,7 @@ fn run_integrated_example() {
     // Process the data without copying
     let squared_data = Timer::time_function("transform_data", || array_view.transform(|&x| x * x));
 
-    progress.update_model(2);
+    progress.update(2);
     timer_step2.stop();
     logger.info("Data processing completed");
 
@@ -130,7 +130,7 @@ fn run_integrated_example() {
         (success_count, clamped_count, error_count)
     });
 
-    progress.update_model(3);
+    progress.update(3);
     timer_step3.stop();
     logger.info(&format!(
         "Type conversion completed: {} successful, {} clamped, {} errors",
@@ -147,7 +147,7 @@ fn run_integrated_example() {
     // Simulate some cleanup work
     thread::sleep(Duration::from_millis(200));
 
-    progress.update_model(4);
+    progress.update(4);
     timer_step4.stop();
     logger.info("Resource cleanup completed");
 

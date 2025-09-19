@@ -348,7 +348,7 @@ fn main() {
     );
 
     // Create loss function
-    let lossfn = MSELoss::new(Some(mean));
+    let lossfn = MSELoss::new(Some("mean"));
 
     // Training loop with automatic backpropagation
     println!("\nTraining with automatic backpropagation (10 epochs):");
@@ -606,7 +606,7 @@ impl GradientTensorExt for GradientTensor {
 
             // Compute mean
             let mean_val = ndarray.mean();
-            let result = Array1::from_elem(1, mean);
+            let result = Array1::from_elem(1, mean_val);
 
             // Create a new gradient tensor with the result
             // In a real implementation, this would also record the operation for backpropagation
