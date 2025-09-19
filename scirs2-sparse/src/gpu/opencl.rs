@@ -129,7 +129,8 @@ impl OpenCLSpMatVec {
     pub fn new() -> SparseResult<Self> {
         // Try to create OpenCL context
         #[cfg(feature = "gpu")]
-        let context = match scirs2_core::gpu::GpuContext::new(scirs2_core::gpu::GpuBackend::OpenCL) {
+        let context = match scirs2_core::gpu::GpuContext::new(scirs2_core::gpu::GpuBackend::OpenCL)
+        {
             Ok(ctx) => Some(ctx),
             Err(_) => None, // OpenCL not available, will use CPU fallback
         };
@@ -311,15 +312,19 @@ impl OpenCLSpMatVec {
 
         if let Some(ref context) = self.context {
             // Upload data to GPU using context
-            let indptr_gpu = context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
-            let indices_gpu = context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+            let indptr_gpu =
+                context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+            let indices_gpu =
+                context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
             let data_gpu = context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
             let vector_gpu = context.create_buffer_from_slice(vector.as_slice().unwrap());
             let result_gpu = context.create_buffer::<T>(rows);
 
             // Configure work group parameters based on optimization level
             let (work_group_size, _local_memory_size) = match optimization_level {
-                OpenCLOptimizationLevel::Basic => (self.platform_info.max_work_group_size.min(64), 0),
+                OpenCLOptimizationLevel::Basic => {
+                    (self.platform_info.max_work_group_size.min(64), 0)
+                }
                 OpenCLOptimizationLevel::Workgroup => {
                     let wg_size = self.platform_info.max_work_group_size.min(128);
                     (wg_size, wg_size * std::mem::size_of::<f32>())
@@ -329,12 +334,11 @@ impl OpenCLSpMatVec {
                 }
             };
 
-            let global_work_size = ((rows + work_group_size - 1) / work_group_size) * work_group_size;
+            let global_work_size =
+                ((rows + work_group_size - 1) / work_group_size) * work_group_size;
 
             // Launch kernel using context
-            let args = vec![
-                scirs2_core::gpu::DynamicKernelArg::U32(rows as u32),
-            ];
+            let args = vec![scirs2_core::gpu::DynamicKernelArg::U32(rows as u32)];
 
             // Use appropriate kernel based on optimization level
             let kernel_name = match optimization_level {
@@ -343,17 +347,25 @@ impl OpenCLSpMatVec {
                 OpenCLOptimizationLevel::Vectorized => "spmv_csr_vectorized_kernel",
             };
 
-            context.launch_kernel(
-                kernel_name,
-                (global_work_size, 1, 1),
-                (work_group_size, 1, 1),
-                &args,
-            ).map_err(|e| SparseError::ComputationError(format!("OpenCL kernel execution failed: {:?}", e)))?;
+            context
+                .launch_kernel(
+                    kernel_name,
+                    (global_work_size, 1, 1),
+                    (work_group_size, 1, 1),
+                    &args,
+                )
+                .map_err(|e| {
+                    SparseError::ComputationError(format!(
+                        "OpenCL kernel execution failed: {:?}",
+                        e
+                    ))
+                })?;
 
             // Download result
             let mut result_vec = vec![T::zero(); rows];
-            result_gpu.copy_to_host(&mut result_vec)
-                .map_err(|e| SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e)))?;
+            result_gpu.copy_to_host(&mut result_vec).map_err(|e| {
+                SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e))
+            })?;
             Ok(Array1::from_vec(result_vec))
         } else {
             // Fallback to CPU implementation

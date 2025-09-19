@@ -232,7 +232,23 @@ where
         GpuSpMatVec::new()?
     };
 
-    gpu_handler.spmv(matrix, vector, None)
+    // For Metal backend on macOS, create a dummy device
+    #[cfg(all(target_os = "macos", feature = "gpu"))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        Some(GpuDevice::new(GpuBackend::Metal, 0))
+    } else {
+        None
+    };
+    #[cfg(all(target_os = "macos", not(feature = "gpu")))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        GpuDevice::new(GpuBackend::Metal).ok()
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "macos"))]
+    let device = None;
+
+    gpu_handler.spmv(matrix, vector, device.as_ref())
 }
 
 /// GPU symmetric sparse matrix-vector multiplication (legacy interface)
@@ -251,7 +267,23 @@ where
         GpuSpMatVec::new()?
     };
 
-    gpu_handler.spmv(matrix, vector, None)
+    // For Metal backend on macOS, create a dummy device
+    #[cfg(all(target_os = "macos", feature = "gpu"))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        Some(GpuDevice::new(GpuBackend::Metal, 0))
+    } else {
+        None
+    };
+    #[cfg(all(target_os = "macos", not(feature = "gpu")))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        GpuDevice::new(GpuBackend::Metal).ok()
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "macos"))]
+    let device = None;
+
+    gpu_handler.spmv(matrix, vector, device.as_ref())
 }
 
 /// Advanced GPU sparse matrix-vector multiplication with optimization hints
@@ -271,7 +303,23 @@ where
         GpuSpMatVec::new()?
     };
 
-    gpu_handler.spmv_optimized(matrix, vector, None, optimization)
+    // For Metal backend on macOS, create a dummy device
+    #[cfg(all(target_os = "macos", feature = "gpu"))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        Some(GpuDevice::new(GpuBackend::Metal, 0))
+    } else {
+        None
+    };
+    #[cfg(all(target_os = "macos", not(feature = "gpu")))]
+    let device = if matches!(backend, Some(GpuBackend::Metal) | None) {
+        GpuDevice::new(GpuBackend::Metal).ok()
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "macos"))]
+    let device = None;
+
+    gpu_handler.spmv_optimized(matrix, vector, device.as_ref(), optimization)
 }
 
 // Legacy kernel and device management structures
@@ -282,7 +330,12 @@ pub struct SpMVKernel {
 
 impl SpMVKernel {
     pub fn new(_device: &GpuDevice, _workgroupsize: [u32; 3]) -> Result<Self, GpuError> {
-        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::other(format!("{:?}", e)))?;
+        let gpu_handler = GpuSpMatVec::new().map_err(|e| {
+            #[cfg(feature = "gpu")]
+            return GpuError::Other(format!("{:?}", e));
+            #[cfg(not(feature = "gpu"))]
+            return GpuError::other(format!("{:?}", e));
+        })?;
         Ok(Self { gpu_handler })
     }
 
@@ -297,7 +350,12 @@ impl SpMVKernel {
     {
         self.gpu_handler
             .spmv(matrix, vector, Some(device))
-            .map_err(|e| GpuError::other(format!("{:?}", e)))
+            .map_err(|e| {
+                #[cfg(feature = "gpu")]
+                return GpuError::Other(format!("{:?}", e));
+                #[cfg(not(feature = "gpu"))]
+                return GpuError::other(format!("{:?}", e));
+            })
     }
 }
 
@@ -317,9 +375,14 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
         if range.end <= full_data.len() {
             Ok(full_data[range].to_vec())
         } else {
-            Err(GpuError::invalid_parameter(
+            #[cfg(feature = "gpu")]
+            return Err(GpuError::InvalidParameter(
                 "Range out of bounds".to_string(),
-            ))
+            ));
+            #[cfg(not(feature = "gpu"))]
+            return Err(GpuError::invalid_parameter(
+                "Range out of bounds".to_string(),
+            ));
         }
     }
 }
@@ -341,10 +404,16 @@ mod tests {
 
         // Test with automatic backend selection
         let result = gpu_sparse_matvec(&matrix, &vector.view(), None);
+        if let Err(e) = &result {
+            eprintln!("Error from gpu_sparse_matvec: {:?}", e);
+        }
         assert!(result.is_ok());
 
         // Test with specific backend
         let result = gpu_sparse_matvec(&matrix, &vector.view(), Some(GpuBackend::Cpu));
+        if let Err(e) = &result {
+            eprintln!("Error from gpu_sparse_matvec with CPU backend: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 

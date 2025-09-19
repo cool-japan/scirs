@@ -7,9 +7,9 @@
 
 #[allow(unused_imports)]
 use crate::gpu_ops::{GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle};
+use num_traits::Float;
 #[cfg(feature = "gpu")]
 use scirs2_core::gpu::GpuContext;
-use num_traits::Float;
 use scirs2_core::GpuDataType;
 use std::fmt::Debug;
 
@@ -419,7 +419,7 @@ where
 
     // Metal threadgroup sizing (optimal for Apple GPU architectures)
     let simdgroup_size = 32; // Apple GPU simdgroup size
-    // let max_threads_per_group = device.get_max_threads_per_threadgroup().unwrap_or(1024);
+                             // let max_threads_per_group = device.get_max_threads_per_threadgroup().unwrap_or(1024);
     let optimal_threadgroup_size = local_size[0].min(1024); // Use default max threads per threadgroup
 
     // Align with simdgroup boundaries for optimal performance
@@ -718,6 +718,11 @@ where
         if diag_val != T::zero() {
             x[i] = (b[i] - sum) / diag_val;
         } else {
+            #[cfg(feature = "gpu")]
+            return Err(GpuError::InvalidParameter(
+                "Singular matrix in triangular solve".to_string(),
+            ));
+            #[cfg(not(feature = "gpu"))]
             return Err(GpuError::invalid_parameter(
                 "Singular matrix in triangular solve".to_string(),
             ));
@@ -855,7 +860,9 @@ impl GpuMemoryManager {
             buffer
         } else {
             // Cannot create GPU buffer without context when GPU feature is enabled
-            return Err(GpuError::BackendNotAvailable("No GPU context available".to_string()));
+            return Err(GpuError::BackendNotAvailable(
+                "No GPU context available".to_string(),
+            ));
         };
 
         #[cfg(not(feature = "gpu"))]
@@ -949,11 +956,17 @@ impl GpuMemoryManager {
 
         let buffer = match self.device.backend() {
             #[cfg(feature = "gpu")]
-            GpuBackend::Cuda => self.transfer_data_cuda_optimized(host_data, transfer_size, _priority),
+            GpuBackend::Cuda => {
+                self.transfer_data_cuda_optimized(host_data, transfer_size, _priority)
+            }
             #[cfg(feature = "gpu")]
-            GpuBackend::OpenCL => self.transfer_data_opencl_optimized(host_data, transfer_size, _priority),
+            GpuBackend::OpenCL => {
+                self.transfer_data_opencl_optimized(host_data, transfer_size, _priority)
+            }
             #[cfg(feature = "gpu")]
-            GpuBackend::Metal => self.transfer_data_metal_optimized(host_data, transfer_size, _priority),
+            GpuBackend::Metal => {
+                self.transfer_data_metal_optimized(host_data, transfer_size, _priority)
+            }
             _ => {
                 // Standard transfer for CPU or when GPU not available
                 #[cfg(feature = "gpu")]
@@ -963,7 +976,9 @@ impl GpuMemoryManager {
                         Ok(buffer)
                     } else {
                         // Cannot create GPU buffer without context when GPU feature is enabled
-                        Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
+                        Err(GpuError::BackendNotAvailable(
+                            "No GPU context available".to_string(),
+                        ))
                     }
                 }
                 #[cfg(not(feature = "gpu"))]
@@ -994,8 +1009,10 @@ impl GpuMemoryManager {
     {
         // Create buffer based on priority and size
         if let Some(ref context) = self.context {
-            if matches!(priority, TransferPriority::High | TransferPriority::Critical)
-                && transfer_size > 4 * 1024 * 1024
+            if matches!(
+                priority,
+                TransferPriority::High | TransferPriority::Critical
+            ) && transfer_size > 4 * 1024 * 1024
             {
                 // Use pinned host memory for faster transfers
                 // In real implementation, would use cudaHostAlloc
@@ -1009,7 +1026,9 @@ impl GpuMemoryManager {
             }
         } else {
             // Cannot create GPU buffer without context when GPU feature is enabled
-            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
+            Err(GpuError::BackendNotAvailable(
+                "No GPU context available".to_string(),
+            ))
         }
     }
 
@@ -1033,7 +1052,9 @@ impl GpuMemoryManager {
             }
         } else {
             // Cannot create GPU buffer without context when GPU feature is enabled
-            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
+            Err(GpuError::BackendNotAvailable(
+                "No GPU context available".to_string(),
+            ))
         }
     }
 
@@ -1058,7 +1079,9 @@ impl GpuMemoryManager {
             }
         } else {
             // Cannot create GPU buffer without context when GPU feature is enabled
-            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
+            Err(GpuError::BackendNotAvailable(
+                "No GPU context available".to_string(),
+            ))
         }
     }
 

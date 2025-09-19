@@ -207,8 +207,9 @@ impl MetalSpMatVec {
 
                 // Neural Engine kernel would compile the same shader separately
                 if self.device_info.has_neural_engine {
-                    self.neural_engine_kernel = context
-                        .execute(|compiler| compiler.compile(METAL_APPLE_SILICON_SHADER_SOURCE).ok());
+                    self.neural_engine_kernel = context.execute(|compiler| {
+                        compiler.compile(METAL_APPLE_SILICON_SHADER_SOURCE).ok()
+                    });
                 }
             }
 
@@ -378,15 +379,19 @@ impl MetalSpMatVec {
 
         if let Some(ref context) = self.context {
             // Upload data to GPU using context
-            let indptr_gpu = context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
-            let indices_gpu = context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+            let indptr_gpu =
+                context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+            let indices_gpu =
+                context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
             let data_gpu = context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
             let vector_gpu = context.create_buffer_from_slice(vector.as_slice().unwrap());
             let result_gpu = context.create_buffer::<T>(rows);
 
             // Configure launch parameters based on optimization level
             let (threadgroup_size, _uses_shared_memory) = match optimization_level {
-                MetalOptimizationLevel::Basic => (self.device_info.max_threadgroup_size.min(64), false),
+                MetalOptimizationLevel::Basic => {
+                    (self.device_info.max_threadgroup_size.min(64), false)
+                }
                 MetalOptimizationLevel::SimdGroup => {
                     (self.device_info.max_threadgroup_size.min(128), false)
                 }
@@ -402,9 +407,7 @@ impl MetalSpMatVec {
             let grid_size = (rows + threadgroup_size - 1) / threadgroup_size;
 
             // Launch kernel using context
-            let args = vec![
-                scirs2_core::gpu::DynamicKernelArg::U32(rows as u32),
-            ];
+            let args = vec![scirs2_core::gpu::DynamicKernelArg::U32(rows as u32)];
 
             // Use appropriate kernel based on optimization level
             let kernel_name = match optimization_level {
@@ -414,17 +417,22 @@ impl MetalSpMatVec {
                 MetalOptimizationLevel::NeuralEngine => "spmv_csr_neural_engine_kernel",
             };
 
-            context.launch_kernel(
-                kernel_name,
-                (grid_size, 1, 1),
-                (threadgroup_size, 1, 1),
-                &args,
-            ).map_err(|e| SparseError::ComputationError(format!("Metal kernel execution failed: {:?}", e)))?;
+            context
+                .launch_kernel(
+                    kernel_name,
+                    (grid_size, 1, 1),
+                    (threadgroup_size, 1, 1),
+                    &args,
+                )
+                .map_err(|e| {
+                    SparseError::ComputationError(format!("Metal kernel execution failed: {:?}", e))
+                })?;
 
             // Download result
             let mut result_vec = vec![T::zero(); rows];
-            result_gpu.copy_to_host(&mut result_vec)
-                .map_err(|e| SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e)))?;
+            result_gpu.copy_to_host(&mut result_vec).map_err(|e| {
+                SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e))
+            })?;
             Ok(Array1::from_vec(result_vec))
         } else {
             // Fallback to CPU implementation
