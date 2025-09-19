@@ -5,7 +5,8 @@
 //! - Kernel optimization and compilation
 //! - Performance modeling and prediction
 
-use super::{GpuBackend, GpuContext, GpuDeviceType, operations::GpuKernelManager};
+use crate::gpu::{GpuBackend, GpuContext, GpuDeviceType};
+use crate::gpu::operations::kernels::GpuKernelManager;
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, NumAssign, Zero};

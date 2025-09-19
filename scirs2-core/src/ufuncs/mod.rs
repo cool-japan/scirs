@@ -1016,7 +1016,7 @@ pub use math2d::{
 };
 
 // Export reduction operations directly from the external module
-pub use reduction::{sum, mean, product, std, var, min, max};
+pub use reduction::{max, mean, min, product, std, sum, var};
 
 #[cfg(test)]
 mod tests {

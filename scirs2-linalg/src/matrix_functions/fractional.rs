@@ -4,7 +4,7 @@ use ndarray::{Array2, ArrayView2};
 use num_traits::{Float, NumAssign, One};
 use std::iter::Sum;
 
-use crate::eigen::eig;
+use crate::eigen::eigh;
 use crate::error::{LinalgError, LinalgResult};
 use crate::solve::solve_multiple;
 use crate::validation::validate_decomposition;
@@ -281,24 +281,23 @@ where
 
     // For general SPD matrices, use eigendecomposition
     // Note: For real symmetric matrices, eigenvalues are real
-    let (eigenvalues, eigenvectors) = eig(a, true)?;
+    let (eigenvalues, eigenvectors) = eigh(a, None)?;
 
     // Apply function to eigenvalues
     let mut diag = Array2::zeros((n, n));
     for i in 0..n {
-        let eigenval = eigenvalues[i].re;
+        let eigenval = eigenvalues[i];
         if check_spd && eigenval <= F::zero() {
             return Err(LinalgError::InvalidInputError(
                 "Matrix is not positive definite (negative eigenvalue found)".to_string(),
             ));
         }
-        diag[[i, i]] = f(F::from(eigenval).unwrap_or(F::zero()));
+        diag[[i, i]] = f(eigenval);
     }
 
     // Reconstruct: A_f = V * diag(f(λ)) * V^T
-    let v_real = eigenvectors.mapv(|x| F::from(x.re).unwrap_or(F::zero()));
-    let temp = v_real.dot(&diag);
-    let v_t = v_real.t();
+    let temp = eigenvectors.dot(&diag);
+    let v_t = eigenvectors.t();
     let result = temp.dot(&v_t);
 
     Ok(result)

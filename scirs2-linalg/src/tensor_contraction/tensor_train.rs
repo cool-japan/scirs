@@ -266,7 +266,7 @@ where
                         let mut idx = 0;
                         let mut stride = 1;
 
-                        for i in (0.._indices.len()).rev() {
+                        for i in (0..indices.len()).rev() {
                             idx += indices[i] * stride;
                             if i > 0 {
                                 stride *= shape[i];
@@ -333,7 +333,7 @@ where
                 // Recursively process each index at the current depth
                 for i in 0..shape[depth] {
                     current_idx.push(i);
-                    set_values(_result, final_result, current_idx, shape, depth + 1);
+                    set_values(result, final_result, current_idx, shape, depth + 1);
                     current_idx.pop();
                 }
             }
@@ -764,12 +764,12 @@ where
     let (u, s, vt) = svd(matrix)?;
 
     // Compute the _rank to use (minimum of max_rank and the number of singular values)
-    let _rank = max_rank.min(s.len());
+    let rank = max_rank.min(s.len());
 
     // Truncate the matrices
-    let u_trunc = u.slice(ndarray::s![.., .._rank]).to_owned();
-    let s_trunc = s.slice(ndarray::s![.._rank]).to_owned();
-    let vt_trunc = vt.slice(ndarray::s![.._rank, ..]).to_owned();
+    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = s.slice(ndarray::s![..rank]).to_owned();
+    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }
@@ -803,25 +803,25 @@ where
     };
 
     // Find the number of singular values to keep based on epsilon
-    let mut _rank = 0;
+    let mut rank = 0;
     for (i, &val) in s_norm.iter().enumerate() {
         if val < epsilon {
-            _rank = i;
+            rank = i;
             break;
         }
-        _rank = i + 1;
+        rank = i + 1;
     }
 
     // Ensure at least one singular value is kept
-    _rank = rank.max(1);
+    rank = rank.max(1);
 
     // Apply max_rank constraint
-    _rank = rank.min(max_rank);
+    rank = rank.min(max_rank);
 
     // Truncate the matrices
-    let u_trunc = u.slice(ndarray::s![.., .._rank]).to_owned();
-    let s_trunc = s.slice(ndarray::s![.._rank]).to_owned();
-    let vt_trunc = vt.slice(ndarray::s![.._rank, ..]).to_owned();
+    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = s.slice(ndarray::s![..rank]).to_owned();
+    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }

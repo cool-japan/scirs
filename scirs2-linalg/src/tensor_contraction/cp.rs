@@ -240,21 +240,21 @@ where
         let current_rank = self.factors[0].shape()[1];
 
         // Validate new _rank
-        if new_rank > current_rank {
+        if newrank > current_rank {
             return Err(LinalgError::ValueError(format!(
                 "New _rank ({}) must be less than or equal to current _rank ({})",
-                new_rank, current_rank
+                newrank, current_rank
             )));
         }
 
-        if new_rank == 0 {
+        if newrank == 0 {
             return Err(LinalgError::ValueError(
                 "New _rank must be at least 1".to_string(),
             ));
         }
 
         // If no compression needed, return a clone
-        if new_rank == current_rank {
+        if newrank == current_rank {
             return Ok(self.clone());
         }
 
@@ -262,14 +262,14 @@ where
         let compressed_factors: Vec<Array2<A>> = self
             .factors
             .iter()
-            .map(|factor| factor.slice(ndarray::s![.., ..new_rank]).to_owned())
+            .map(|factor| factor.slice(ndarray::s![.., ..newrank]).to_owned())
             .collect();
 
         // Truncate weights if present
         let compressed_weights = self
             .weights
             .as_ref()
-            .map(|w| w.slice(ndarray::s![..new_rank]).to_owned());
+            .map(|w| w.slice(ndarray::s![..newrank]).to_owned());
 
         // Create new CP decomposition
         CanonicalPolyadic::new(
@@ -438,7 +438,7 @@ where
     let other_dims_prod: usize = shape
         .iter()
         .enumerate()
-        .filter(|&(i_)| i != mode)
+        .filter(|&(i, _)| i != mode)
         .map(|(_, &dim)| dim)
         .product();
 
@@ -473,7 +473,7 @@ where
 
 // Computes the Khatri-Rao product (columnwise Kronecker product) of all factors except one
 #[allow(dead_code)]
-fn khatri_rao_product<A>(_factors: &[Array2<A>], skipmode: usize) -> LinalgResult<Array2<A>>
+fn khatri_rao_product<A>(factors: &[Array2<A>], skipmode: usize) -> LinalgResult<Array2<A>>
 where
     A: Clone + Float + NumAssign + Zero + Debug + Send + Sync + 'static,
 {
@@ -488,16 +488,16 @@ where
     let rank = factors[0].shape()[1];
 
     // If we're skipping all but one matrix, return that matrix
-    if n_modes == 2 && skip_mode < n_modes {
-        let other_mode = if skip_mode == 0 { 1 } else { 0 };
-        return Ok(_factors[other_mode].clone());
+    if n_modes == 2 && skipmode < n_modes {
+        let other_mode = if skipmode == 0 { 1 } else { 0 };
+        return Ok(factors[other_mode].clone());
     }
 
     // Determine the number of rows in the result
-    let _n_rows: usize = _factors
+    let _n_rows: usize = factors
         .iter()
         .enumerate()
-        .filter(|&(i_)| i != skip_mode)
+        .filter(|&(i, _)| i != skipmode)
         .map(|(_, f)| f.shape()[0])
         .product();
 
@@ -507,7 +507,7 @@ where
 
     // Compute the Khatri-Rao product
     for (_mode, factor) in factors.iter().enumerate() {
-        if _mode == skip_mode {
+        if _mode == skipmode {
             continue;
         }
 
@@ -545,7 +545,7 @@ where
 
 // Computes the Gram matrix for ALS update
 #[allow(dead_code)]
-fn compute_grammatrix<A>(_factors: &[Array2<A>], skipmode: usize) -> LinalgResult<Array2<A>>
+fn compute_grammatrix<A>(factors: &[Array2<A>], skipmode: usize) -> LinalgResult<Array2<A>>
 where
     A: Clone + Float + NumAssign + Zero + Debug + Send + Sync + 'static,
 {
@@ -557,7 +557,7 @@ where
 
     // Compute the Gram matrix as the Hadamard product of all factor Gram matrices
     for (_mode, factor) in factors.iter().enumerate() {
-        if _mode == skip_mode {
+        if _mode == skipmode {
             continue;
         }
 
@@ -758,9 +758,9 @@ mod tests {
 
         // Create factor matrices for the CP decomposition
         let factors = vec![
-            Array2::from_shape_fn((2, 1), |(i_)| a[i]),
-            Array2::from_shape_fn((3, 1), |(j_)| b[j]),
-            Array2::from_shape_fn((2, 1), |(k_)| c[k]),
+            Array2::from_shape_fn((2, 1), |(i, _)| a[i]),
+            Array2::from_shape_fn((3, 1), |(j, _)| b[j]),
+            Array2::from_shape_fn((2, 1), |(k, _)| c[k]),
         ];
 
         // Create CP decomposition

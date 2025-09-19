@@ -5,7 +5,7 @@
 
 use ndarray::{Array1, Array2};
 use scirs2_linalg::quantization::simd::{simd_quantized_matmul, simd_quantized_matvec};
-use scirs2_linalg::quantization::{quantize_matrix, quantize_vector, QuantizationMethod};
+use scirs2_linalg::quantization::{quantize_matrix, QuantizationMethod};
 use std::time::Instant;
 
 #[allow(dead_code)]
@@ -61,9 +61,7 @@ fn main() {
     let ref_time = start.elapsed();
     println!("Reference matvec time: {:?}", ref_time);
 
-    // Test with 8-bit symmetric quantization for matrix and vector
-    let _v_q_v_params = quantize_vector(&v.view(), 8, QuantizationMethod::Symmetric);
-
+    // Test with 8-bit symmetric quantization for matrix
     let start = Instant::now();
     let r_q_simd = simd_quantized_matvec(&a_q, &a_params, &v.view()).unwrap();
     let simd_time = start.elapsed();

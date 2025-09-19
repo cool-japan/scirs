@@ -5,7 +5,7 @@
 //! and common data structures.
 
 // Re-export traits and types that all backends need
-pub use super::{GpuBackend, GpuBuffer, GpuContext, GpuContextAlloc, GpuDeviceInfo, GpuDeviceType};
+pub use crate::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuContextAlloc, GpuDeviceInfo, GpuDeviceType};
 pub use crate::error::{LinalgError, LinalgResult};
 pub use std::collections::HashMap;
 

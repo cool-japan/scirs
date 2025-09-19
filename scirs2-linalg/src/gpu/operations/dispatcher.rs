@@ -197,6 +197,7 @@ where
     }
 
     fn gpu_elementwise_add(
+        &self,
         ctx: &dyn GpuContext,
         a: &ArrayView2<T>,
         b: &ArrayView2<T>,
@@ -214,6 +215,7 @@ where
     }
 
     fn gpu_elementwise_mul(
+        &self,
         ctx: &dyn GpuContext,
         a: &ArrayView2<T>,
         b: &ArrayView2<T>,

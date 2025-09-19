@@ -57,8 +57,8 @@ using namespace metal;
 struct complex_f32 {
     float real;
     float imag;
-    
-    complex_f32(float r = 0.0f, float i = 0.0f) : real(r), imag(0) {}
+
+    complex_f32(float r = 0.0f, float i = 0.0f) : real(r), imag(i) {}
 };
 
 // Complex multiplication

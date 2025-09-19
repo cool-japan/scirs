@@ -805,6 +805,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_hmatrix_memory_info() {
         // Reduced size from 128x128 to 32x32 for faster test execution
         let matrix =

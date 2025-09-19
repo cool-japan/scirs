@@ -121,7 +121,7 @@ where
     /// Create framework with custom configuration
     pub fn with_config(config: AccelerationConfig) -> LinalgResult<Self> {
         let backend_manager = Arc::new(Mutex::new(super::initialize_gpu_manager()?));
-        let dispatcher = GpuOperationDispatcher::with_threshold(_config.min_gpusize);
+        let dispatcher = GpuOperationDispatcher::with_threshold(config.min_gpusize);
         let advanced_ops = AdvancedGpuOperations::new();
         let kernel_manager = Arc::new(Mutex::new(GpuKernelManager::new()));
 
@@ -250,7 +250,7 @@ where
             matrices_a
                 .iter()
                 .zip(matrices_b.iter())
-                .map(|(_a, b)| self.accelerated_matmul(_a_b))
+                .map(|(a, b)| self.accelerated_matmul(a, b))
                 .collect()
         }
     }
@@ -893,7 +893,8 @@ where
 
     /// Asynchronous matrix operations with streaming
     pub fn async_matmul_streamed(
-        &mut self_context: &dyn super::GpuContext,
+        &mut self,
+        context: &dyn super::GpuContext,
         a: &ArrayView2<T>,
         b: &ArrayView2<T>,
     ) -> LinalgResult<StreamHandle<Array2<T>>> {
@@ -929,7 +930,7 @@ where
     }
 
     /// Optimize memory layout for better performance
-    pub fn optimize_memory_layout(&mut selfcontext: &dyn super::GpuContext) -> LinalgResult<()> {
+    pub fn optimize_memory_layout(&mut self, context: &dyn super::GpuContext) -> LinalgResult<()> {
         // Implement memory defragmentation and layout optimization
         for (_, pool) in self.memory_pools.iter_mut() {
             pool.defragment()?;

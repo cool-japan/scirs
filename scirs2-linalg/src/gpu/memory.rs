@@ -25,7 +25,7 @@ pub struct MemoryPool<T> {
 
 impl<T: Clone + Send + Sync + Copy + 'static + std::fmt::Debug> MemoryPool<T> {
     /// Create a new memory pool
-    pub fn new(_max_poolsize: usize) -> Self {
+    pub fn new(max_poolsize: usize) -> Self {
         Self {
             buffers: Vec::new(),
             max_poolsize,
@@ -198,15 +198,15 @@ impl MemoryOptimizer {
 
     /// Record memory usage
     pub fn record_usage(&mut self, usagebytes: usize) {
-        self.usage_history.push(usage_bytes);
-        self.peak_usage = self.peak_usage.max(usage_bytes);
+        self.usage_history.push(usagebytes);
+        self.peak_usage = self.peak_usage.max(usagebytes);
     }
 
     /// Get optimization suggestions based on usage patterns
     pub fn get_suggestions(&self, devicememory: usize) -> Vec<String> {
         let mut suggestions = Vec::new();
 
-        if self.peak_usage > device_memory / 2 {
+        if self.peak_usage > devicememory / 2 {
             suggestions
                 .push("Consider using _memory pooling to reduce allocation overhead".to_string());
         }
@@ -222,7 +222,7 @@ impl MemoryOptimizer {
             }
         }
 
-        if self.peak_usage > device_memory * 3 / 4 {
+        if self.peak_usage > devicememory * 3 / 4 {
             suggestions
                 .push("High _memory usage detected - consider out-of-core algorithms".to_string());
         }
@@ -237,7 +237,7 @@ impl MemoryOptimizer {
         }
 
         let avg_usage = self.usage_history.iter().sum::<usize>() / self.usage_history.len();
-        let utilization = avg_usage as f64 / device_memory as f64;
+        let utilization = avg_usage as f64 / devicememory as f64;
 
         // Score based on reasonable utilization (30-70% is good)
         if utilization < 0.3 {

@@ -172,6 +172,23 @@ pub enum MemoryAccessPattern {
     Broadcast,
 }
 
+/// Tensor core precision modes
+#[derive(Debug, Clone)]
+pub enum TensorCorePrecision {
+    /// FP16 mixed precision
+    FP16,
+    /// BF16 mixed precision
+    BF16,
+    /// FP32 single precision
+    FP32,
+    /// FP64 double precision
+    FP64,
+    /// TF32 TensorFloat
+    TF32,
+    /// INT8 quantized
+    INT8,
+}
+
 impl GpuMemoryManager {
     /// Create a new GPU memory manager
     pub fn new(gpu_id: usize) -> LinalgResult<Self> {
@@ -190,33 +207,36 @@ impl GpuMemoryManager {
 
     /// Allocate memory using the current strategy
     pub fn allocate(&mut self, size: usize, pool_type: MemoryPoolType) -> LinalgResult<MemoryBlock> {
-        // Find appropriate pool
-        let pool = self.memory_pools
-            .iter_mut()
-            .find(|p| p.pool_type == pool_type)
+        // Find appropriate pool index
+        let pool_index = self.memory_pools
+            .iter()
+            .position(|p| p.pool_type == pool_type)
             .ok_or_else(|| LinalgError::ComputationError(
                 format!("No pool found for type {:?}", pool_type)
             ))?;
 
         // Apply allocation strategy
+        let pool = &mut self.memory_pools[pool_index];
         match self.allocation_strategy {
-            MemoryAllocationStrategy::FirstFit => self.allocate_first_fit(pool, size),
-            MemoryAllocationStrategy::BestFit => self.allocate_best_fit(pool, size),
-            MemoryAllocationStrategy::WorstFit => self.allocate_worst_fit(pool, size),
-            MemoryAllocationStrategy::Buddy => self.allocate_buddy(pool, size),
-            MemoryAllocationStrategy::Segregated => self.allocate_segregated(pool, size),
-            MemoryAllocationStrategy::Predictive => self.allocate_predictive(pool, size),
+            MemoryAllocationStrategy::FirstFit => Self::allocate_first_fit(pool, size),
+            MemoryAllocationStrategy::BestFit => Self::allocate_best_fit(pool, size),
+            MemoryAllocationStrategy::WorstFit => Self::allocate_worst_fit(pool, size),
+            MemoryAllocationStrategy::Buddy => Self::allocate_buddy(pool, size),
+            MemoryAllocationStrategy::Segregated => Self::allocate_segregated(pool, size),
+            MemoryAllocationStrategy::Predictive => Self::allocate_predictive(pool, size),
         }
     }
 
     /// Deallocate memory
     pub fn deallocate(&mut self, block: MemoryBlock, pool_type: MemoryPoolType) -> LinalgResult<()> {
-        let pool = self.memory_pools
-            .iter_mut()
-            .find(|p| p.pool_type == pool_type)
+        let pool_index = self.memory_pools
+            .iter()
+            .position(|p| p.pool_type == pool_type)
             .ok_or_else(|| LinalgError::ComputationError(
                 format!("No pool found for type {:?}", pool_type)
             ))?;
+
+        let pool = &mut self.memory_pools[pool_index];
 
         // Remove from allocated blocks
         pool.allocated_blocks.retain(|b| b.start != block.start);
@@ -228,7 +248,7 @@ impl GpuMemoryManager {
         pool.free_blocks.push(free_block);
 
         // Coalesce free blocks
-        self.coalesce_free_blocks(pool);
+        Self::coalesce_free_blocks(pool);
 
         Ok(())
     }
@@ -239,7 +259,7 @@ impl GpuMemoryManager {
         let mut total_reclaimed = 0;
 
         for pool in &mut self.memory_pools {
-            total_reclaimed += self.collect_pool_garbage(pool)?;
+            total_reclaimed += Self::collect_pool_garbage(pool)?;
         }
 
         let gc_time = start_time.elapsed().as_millis() as f64;
@@ -277,7 +297,7 @@ impl GpuMemoryManager {
     }
 
     // Private allocation methods
-    fn allocate_first_fit(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_first_fit(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         for (i, block) in pool.free_blocks.iter().enumerate() {
             if block.size >= size {
                 let mut allocated_block = block.clone();
@@ -306,7 +326,7 @@ impl GpuMemoryManager {
         Err(LinalgError::ComputationError("No suitable block found".to_string()))
     }
 
-    fn allocate_best_fit(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_best_fit(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         let mut best_fit_index = None;
         let mut best_fit_size = usize::MAX;
 
@@ -344,27 +364,27 @@ impl GpuMemoryManager {
         }
     }
 
-    fn allocate_worst_fit(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_worst_fit(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         // Implementation for worst fit
-        self.allocate_first_fit(pool, size) // Simplified
+        Self::allocate_first_fit(pool, size) // Simplified
     }
 
-    fn allocate_buddy(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_buddy(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         // Implementation for buddy allocation
-        self.allocate_first_fit(pool, size) // Simplified
+        Self::allocate_first_fit(pool, size) // Simplified
     }
 
-    fn allocate_segregated(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_segregated(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         // Implementation for segregated allocation
-        self.allocate_first_fit(pool, size) // Simplified
+        Self::allocate_first_fit(pool, size) // Simplified
     }
 
-    fn allocate_predictive(&mut self, pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
+    fn allocate_predictive(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
         // Implementation for predictive allocation
-        self.allocate_best_fit(pool, size) // Simplified
+        Self::allocate_best_fit(pool, size) // Simplified
     }
 
-    fn coalesce_free_blocks(&mut self, pool: &mut MemoryPool) {
+    fn coalesce_free_blocks(pool: &mut MemoryPool) {
         // Sort free blocks by start address
         pool.free_blocks.sort_by_key(|b| b.start);
 
@@ -383,7 +403,7 @@ impl GpuMemoryManager {
         }
     }
 
-    fn collect_pool_garbage(&mut self, pool: &mut MemoryPool) -> LinalgResult<usize> {
+    fn collect_pool_garbage(pool: &mut MemoryPool) -> LinalgResult<usize> {
         let before_count = pool.allocated_blocks.len();
 
         // Remove blocks allocated too long ago (simplified GC)

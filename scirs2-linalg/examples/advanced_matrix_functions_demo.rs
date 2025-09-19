@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 2: Polar Decomposition
     println!("\n🔄 Example 2: Polar Decomposition A = UH");
     let matrix_b = array![[2.0_f64, 1.0], [1.0, 2.0]];
-    let (u, h) = polar_decomposition(&matrix_b.view(), None)?;
+    let (u, h) = polar_decomposition(&matrix_b.view(), "right")?;
 
     println!("Matrix B:");
     println!("{:8.3}", matrix_b);
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let spd_a = array![[4.0_f64, 0.0], [0.0, 1.0]];
     let spd_b = array![[1.0_f64, 0.0], [0.0, 4.0]];
 
-    let geom_mean = geometric_mean_spd(&spd_a.view(), &spd_b.view(), None)?;
+    let geom_mean = geometric_mean_spd(&spd_a.view(), &spd_b.view(), 0.5)?;
 
     println!("SPD Matrix A:");
     println!("{:8.3}", spd_a);

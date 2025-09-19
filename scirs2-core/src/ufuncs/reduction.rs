@@ -4,8 +4,8 @@
 //! (sum, mean, etc.) as universal functions for efficient
 //! array reductions along specified axes.
 
+use crate::ufuncs::core::{apply_reduction, register_ufunc, UFunc, UFuncKind};
 use ndarray::{Array, Array1, ArrayView, ArrayViewMut, Axis, Dimension, Ix1, IxDyn, ShapeBuilder};
-use crate::ufuncs::core::{UFunc, UFuncKind, apply_reduction, register_ufunc};
 use std::sync::Once;
 
 static INIT: Once = Once::new();
@@ -39,7 +39,11 @@ impl UFunc for SumUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Sum requires exactly one input array");
         }
@@ -75,7 +79,11 @@ impl UFunc for ProductUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Product requires exactly one input array");
         }
@@ -111,7 +119,11 @@ impl UFunc for MeanUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Mean requires exactly one input array");
         }
@@ -153,7 +165,11 @@ impl UFunc for StdUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Std requires exactly one input array");
         }
@@ -200,7 +216,11 @@ impl UFunc for VarUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Var requires exactly one input array");
         }
@@ -247,7 +267,11 @@ impl UFunc for MinUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Min requires exactly one input array");
         }
@@ -289,7 +313,11 @@ impl UFunc for MaxUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
+    fn apply(
+        &self,
+        inputs: &[ArrayView<f64, IxDyn>],
+        output: &mut ArrayViewMut<f64, IxDyn>,
+    ) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Max requires exactly one input array");
         }
@@ -321,7 +349,10 @@ impl UFunc for MaxUFunc {
 
 // Helper function to prepare the output array for reduction
 #[allow(dead_code)]
-fn prepare_reduction_output<D>(input: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> (Array<f64, Ix1>, Vec<usize>)
+fn prepare_reduction_output<D>(
+    input: &ndarray::ArrayView<f64, D>,
+    axis: Option<usize>,
+) -> (Array<f64, Ix1>, Vec<usize>)
 where
     D: Dimension,
 {
@@ -343,11 +374,11 @@ where
                 }
             }
 
-            (Array::<f64>::zeros(outputsize), outshape)
-        },
+            (Array::<f64, Ix1>::zeros(outputsize), outshape)
+        }
         None => {
             // For reduction over the entire array, the output shape is [1]
-            (Array::<f64>::zeros(1), vec![1])
+            (Array::<f64, Ix1>::zeros(1), vec![1])
         }
     }
 }
@@ -398,7 +429,7 @@ where
             let result = array.sum_axis(Axis(ax));
             // Convert to 1D array
             Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
-        },
+        }
         None => {
             // Sum all elements
             let total = array.iter().sum::<f64>();
@@ -451,7 +482,7 @@ where
             let result = array.map_axis(Axis(ax), |lane| lane.iter().product());
             // Convert to 1D array
             Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
-        },
+        }
         None => {
             // Product of all elements
             let total = array.iter().product::<f64>();
@@ -506,7 +537,7 @@ where
             // Divide by the length of the specified axis
             let axis_len = array.len_of(ndarray::Axis(ax)) as f64;
             sum_result.map(|&x| x / axis_len)
-        },
+        }
         None => {
             // Divide by the total number of elements
             let total_elements = array.len() as f64;
@@ -599,14 +630,12 @@ where
             });
             // Convert to 1D array
             Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
-        },
+        }
         None => {
             // Variance of all elements
             let mean_val = array.mean().unwrap_or(0.0);
             let n = array.len() as f64;
-            let var_val = array.iter()
-                .map(|&x| (x - mean_val).powi(2))
-                .sum::<f64>() / n;
+            let var_val = array.iter().map(|&x| (x - mean_val).powi(2)).sum::<f64>() / n;
             Array::from_elem(1, var_val)
         }
     }
@@ -656,16 +685,18 @@ where
         Some(ax) => {
             // Min along a specific axis
             let result = array.map_axis(Axis(ax), |lane| {
-                *lane.iter()
+                *lane
+                    .iter()
                     .min_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap_or(&f64::INFINITY)
             });
             // Convert to 1D array
             Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
-        },
+        }
         None => {
             // Min of all elements
-            let min_val = array.iter()
+            let min_val = array
+                .iter()
                 .min_by(|a, b| a.partial_cmp(b).unwrap())
                 .copied()
                 .unwrap_or(f64::INFINITY);
@@ -718,16 +749,18 @@ where
         Some(ax) => {
             // Max along a specific axis
             let result = array.map_axis(Axis(ax), |lane| {
-                *lane.iter()
+                *lane
+                    .iter()
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap_or(&f64::NEG_INFINITY)
             });
             // Convert to 1D array
             Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
-        },
+        }
         None => {
             // Max of all elements
-            let max_val = array.iter()
+            let max_val = array
+                .iter()
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .copied()
                 .unwrap_or(f64::NEG_INFINITY);
@@ -796,9 +829,10 @@ mod tests {
     fn test_std() {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        // Standard deviation over all elements
+        // Standard deviation over all elements (population standard deviation)
         let result = std(&a.view(), None);
-        assert!((result[0] - 1.870829).abs() < 1e-6);
+        // sqrt(35/12) = 1.7078251...
+        assert!((result[0] - (35.0_f64 / 12.0).sqrt()).abs() < 1e-6);
 
         // Standard deviation along axis 0 (columns)
         let result = std(&a.view(), Some(0));
@@ -811,9 +845,10 @@ mod tests {
     fn test_var() {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        // Variance over all elements
+        // Variance over all elements (population variance)
         let result = var(&a.view(), None);
-        assert!((result[0] - 3.5).abs() < 1e-10);
+        // Mean is 3.5, variance should be 2.9166666...
+        assert!((result[0] - 35.0 / 12.0).abs() < 1e-10);
 
         // Variance along axis 0 (columns)
         let result = var(&a.view(), Some(0));

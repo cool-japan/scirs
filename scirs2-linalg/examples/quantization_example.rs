@@ -5,8 +5,11 @@
 
 use ndarray::{Array1, Array2};
 use scirs2_linalg::quantization::{
-    dequantize_matrix, dequantize_vector, fake_quantize, quantize_matrix, quantize_vector,
-    quantized_dot, quantized_matmul, quantized_matvec, QuantizationMethod, QuantizedData2D,
+    dequantize_matrix, quantize_matrix,
+    quantized_matmul, QuantizationMethod, QuantizedData2D,
+    // TODO: The following are not yet implemented:
+    // dequantize_vector, fake_quantize, quantize_vector,
+    // quantized_dot, quantized_matvec,
 };
 
 #[allow(dead_code)]
@@ -251,6 +254,8 @@ fn main() {
         rel_error
     );
 
+    // TODO: quantize_vector and quantized_matvec are not yet implemented
+    /*
     // Regular matrix-vector multiplication
     println!("Regular Matrix-Vector Multiplication A * x:");
     let y = a.dot(&x);
@@ -271,7 +276,10 @@ fn main() {
         "Relative Error for Matrix-Vector Multiplication: {:.6}\n",
         rel_error
     );
+    */
 
+    // TODO: quantized_dot is not yet implemented
+    /*
     // Regular dot product
     println!("Regular Dot Product x . x:");
     let dot = x.dot(&x);
@@ -288,7 +296,10 @@ fn main() {
     // Calculate relative error
     let rel_error = (dot - dot_q).abs() / dot;
     println!("Relative Error for Dot Product: {:.6}\n", rel_error);
+    */
 
+    // TODO: fake_quantize is not yet implemented
+    /*
     // Fake Quantization Example
     println!("Fake Quantization Example");
     println!("------------------------");
@@ -309,6 +320,7 @@ fn main() {
         let mse = (&a - &a_fake_q).mapv(|x| x * x).sum() / a.len() as f32;
         println!("Mean Squared Error: {:.6}\n", mse);
     }
+    */
 
     // Comparison across different quantization methods and bit widths
     println!("Quantization Comparison");
@@ -361,9 +373,11 @@ fn main() {
                 _ => bits,
             };
 
-            let a_fake_q = fake_quantize(&a.view(), effective_bits, method);
-            let mse = (&a - &a_fake_q).mapv(|x| x * x).sum() / a.len() as f32;
-            print!("{:<12.6}", mse);
+            // TODO: fake_quantize is not yet implemented
+            // let a_fake_q = fake_quantize(&a.view(), effective_bits, method);
+            // let mse = (&a - &a_fake_q).mapv(|x| x * x).sum() / a.len() as f32;
+            // print!("{:<12.6}", mse);
+            print!("{:<12}", "N/A");
         }
 
         println!();
@@ -393,6 +407,8 @@ fn main() {
     println!("Original values with wide dynamic range:");
     println!("{:?}\n", wide_range);
 
+    // TODO: quantize_vector and dequantize_vector are not yet implemented
+    /*
     // Test float16 precision
     let (f16_quantized, f16_params) =
         quantize_vector(&wide_range.view(), 16, QuantizationMethod::Float16);
@@ -450,6 +466,7 @@ fn main() {
         }
     }
     println!();
+    */
 
     // Demonstrate matrix operations with float16
     println!("Float16 Matrix Operations");

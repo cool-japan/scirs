@@ -529,7 +529,7 @@ pub mod matrix_functions {
         ) -> LinalgResult<Array2<F>>;
 
         /// Compute the gradient (if the function is scalar-valued)
-        fn gradient(selfx: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
+        fn gradient(&self, x: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
             Err(LinalgError::NotImplementedError(
                 "Gradient not implemented for this matrix function".to_string(),
             ))

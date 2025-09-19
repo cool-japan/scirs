@@ -106,8 +106,8 @@ where
     }
 
     // Determine the axes that are not contracted
-    let free_axes_a: Vec<usize> = (0.._a.ndim()).filter(|&ax| !axes_a.contains(&ax)).collect();
-    let free_axes_b: Vec<usize> = (0.._b.ndim()).filter(|&ax| !axes_b.contains(&ax)).collect();
+    let free_axes_a: Vec<usize> = (0..a.ndim()).filter(|&ax| !axes_a.contains(&ax)).collect();
+    let free_axes_b: Vec<usize> = (0..b.ndim()).filter(|&ax| !axes_b.contains(&ax)).collect();
 
     // Determine the shape of the result tensor
     let mut resultshape = Vec::with_capacity(free_axes_a.len() + free_axes_b.len());
@@ -115,13 +115,13 @@ where
     let mut free_dims_b = Vec::with_capacity(free_axes_b.len());
 
     for &ax in &free_axes_a {
-        resultshape.push(_a.shape()[ax]);
-        free_dims_a.push(_a.shape()[ax]);
+        resultshape.push(a.shape()[ax]);
+        free_dims_a.push(a.shape()[ax]);
     }
 
     for &ax in &free_axes_b {
-        resultshape.push(_b.shape()[ax]);
-        free_dims_b.push(_b.shape()[ax]);
+        resultshape.push(b.shape()[ax]);
+        free_dims_b.push(b.shape()[ax]);
     }
 
     // Convert to dynamic array views
@@ -189,10 +189,10 @@ where
 
             // Recursively compute the contraction for all contracted indices
             fn accumulate_sum<A>(
-                _a: &ArrayViewD<A>,
-                _b: &ArrayViewD<A>,
-                _a_idx: &mut Vec<usize>,
-                _b_idx: &mut Vec<usize>,
+                a: &ArrayViewD<A>,
+                b: &ArrayViewD<A>,
+                a_idx: &mut Vec<usize>,
+                b_idx: &mut Vec<usize>,
                 axes_a: &[usize],
                 axes_b: &[usize],
                 depth: usize,
@@ -213,7 +213,7 @@ where
                 for i in 0..dim {
                     a_idx[ax_a] = i;
                     b_idx[ax_b] = i;
-                    accumulate_sum(_a, b, a_idx, b_idx, axes_a, axes_b, depth + 1, sum);
+                    accumulate_sum(a, b, a_idx, b_idx, axes_a, axes_b, depth + 1, sum);
                 }
             }
 
@@ -346,15 +346,15 @@ where
         max_depth: usize,
         all_indices: &mut Vec<Vec<usize>>,
     ) {
-        if _depth == max_depth {
+        if depth == max_depth {
             all_indices.push(current);
             return;
         }
 
         let mut current = current;
-        for i in 0..shape[_depth] {
+        for i in 0..shape[depth] {
             current.push(i);
-            generate_batch_indices(shape, current.clone(), _depth + 1, max_depth, all_indices);
+            generate_batch_indices(shape, current.clone(), depth + 1, max_depth, all_indices);
             current.pop();
         }
     }
@@ -528,7 +528,7 @@ where
 
         // Skip mode dimension
         if depth == mode {
-            generate_indices_without_mode(shape, current, depth + 1, mode_mode_dim, all_indices);
+            generate_indices_without_mode(shape, current, depth + 1, _mode_dim, all_indices);
             return;
         }
 
@@ -542,7 +542,7 @@ where
                 shape,
                 current.clone(),
                 depth + 1,
-                mode_mode_dim,
+                _mode_dim,
                 all_indices,
             );
             current.pop();
@@ -646,9 +646,9 @@ where
     A: Clone + Float + NumAssign + Zero + Send + Sync + Sum + Debug + 'static,
 {
     // Parse the einsum string
-    fn parse_einsum_notation(_einsumstr: &_str) -> LinalgResult<(Vec<Vec<char>>, Vec<char>)> {
+    fn parse_einsum_notation(einsumstr: &str) -> LinalgResult<(Vec<Vec<char>>, Vec<char>)> {
         // Split the string into input and output parts
-        let parts: Vec<&_str> = einsum_str.split("->").collect();
+        let parts: Vec<&str> = einsumstr.split("->").collect();
         if parts.len() != 2 {
             return Err(LinalgError::ValueError(
                 "Einsum string must contain exactly one '->'".to_string(),
@@ -656,7 +656,7 @@ where
         }
 
         // Parse input indices
-        let inputs: Vec<&_str> = parts[0].split(',').collect();
+        let inputs: Vec<&str> = parts[0].split(',').collect();
         let mut input_indices = Vec::with_capacity(inputs.len());
         for input in inputs {
             let indices: Vec<char> = input.trim().chars().collect();
@@ -796,12 +796,12 @@ where
                     // Compute product of tensor elements
                     let mut product = A::one();
 
-                    for (tensor_indices) in tensors.iter().zip(input_indices.iter()) {
+                    for (tensor, indices) in tensors.iter().zip(input_indices.iter()) {
                         // Create index array for this tensor
                         let tensor_indices: Vec<usize> =
                             indices.iter().map(|&idx| index_values[&idx]).collect();
 
-                        // Multiply by tensor element at these _indices
+                        // Multiply by tensor element at these indices
                         product *= tensor[tensor_indices.as_slice()];
                     }
 
@@ -978,7 +978,7 @@ where
     let other_dims_prod: usize = shape
         .iter()
         .enumerate()
-        .filter(|&(i_)| i != mode)
+        .filter(|&(i, _)| i != mode)
         .map(|(_, &dim)| dim)
         .product();
 

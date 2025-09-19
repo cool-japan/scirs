@@ -7,8 +7,9 @@
 
 use crate::gpu::{GpuBufferImpl, GpuCompilerImpl, GpuContextImpl, GpuError, GpuKernelImpl};
 use metal::{
-    Buffer, CommandQueue, ComputePipelineDescriptor, ComputePipelineState, Library,
-    MTLCPUCacheMode, MTLHazardTrackingMode, MTLResourceOptions, MTLSize,
+    Buffer, CommandQueue, ComputeCommandEncoderRef, ComputePipelineDescriptor,
+    ComputePipelineState, Library, MTLCPUCacheMode, MTLHazardTrackingMode, MTLResourceOptions,
+    MTLSize,
 };
 // Import Device directly from the re-export
 pub use metal::Device;
@@ -408,6 +409,24 @@ impl MetalKernel {
             })),
         }
     }
+
+    /// Helper to create and bind a scalar value as a constant buffer
+    fn create_and_bind_scalar(
+        &self,
+        encoder: &ComputeCommandEncoderRef,
+        index: usize,
+        bytes: &[u8],
+    ) {
+        // Create a buffer for the scalar value - use new_buffer_with_data to copy the bytes
+        let buffer = self.device.new_buffer_with_data(
+            bytes.as_ptr() as *const std::ffi::c_void,
+            bytes.len() as u64,
+            MTLResourceOptions::StorageModeShared,
+        );
+
+        // Bind the buffer to the encoder
+        encoder.set_buffer(index as u64, Some(&buffer), 0);
+    }
 }
 
 impl GpuKernelImpl for MetalKernel {
@@ -460,18 +479,60 @@ impl GpuKernelImpl for MetalKernel {
         // Bind parameters
         let params = self.parameters.lock().unwrap();
 
-        // Bind buffers (assuming standard binding indices for now)
+        // Bind buffers in a specific order based on common kernel conventions
+        // For AXPY: x at index 0, y at index 1
+        let buffer_names = ["x", "y", "a", "b", "result", "output"];
         let mut buffer_index = 0;
-        for (name, buffer) in &params.buffers {
-            // Downcast to MetalBuffer to get the underlying Metal buffer
-            if let Some(metal_buffer) = buffer.as_any().downcast_ref::<MetalBuffer>() {
-                encoder.set_buffer(buffer_index, Some(metal_buffer.metal_buffer()), 0);
-                buffer_index += 1;
+
+        for name in &buffer_names {
+            if let Some(buffer) = params.buffers.get(*name) {
+                if let Some(metal_buffer) = buffer.as_any().downcast_ref::<MetalBuffer>() {
+                    encoder.set_buffer(buffer_index, Some(metal_buffer.metal_buffer()), 0);
+                    buffer_index += 1;
+                }
             }
         }
 
-        // For scalar parameters, we would typically pack them into a constant buffer
-        // For now, we'll skip this part as it requires more sophisticated parameter layout
+        // Bind any remaining buffers not in the standard list
+        for (name, buffer) in &params.buffers {
+            if !buffer_names.contains(&name.as_str()) {
+                if let Some(metal_buffer) = buffer.as_any().downcast_ref::<MetalBuffer>() {
+                    encoder.set_buffer(buffer_index, Some(metal_buffer.metal_buffer()), 0);
+                    buffer_index += 1;
+                }
+            }
+        }
+
+        // Bind scalar parameters as constant buffers
+        // Try to bind scalars in a specific order for known kernels
+        let scalar_order = ["alpha", "beta", "n", "m", "k"];
+        let mut current_index = buffer_index;
+
+        for param_name in &scalar_order {
+            if let Some(value) = params.scalars.get(*param_name) {
+                // Create a small buffer for the scalar value
+                match value {
+                    ScalarValue::U32(v) => {
+                        let bytes = v.to_ne_bytes();
+                        self.create_and_bind_scalar(&encoder, current_index as usize, &bytes);
+                    }
+                    ScalarValue::I32(v) => {
+                        // Convert i32 to u32 for Metal (both are 4 bytes)
+                        let bytes = (*v as u32).to_ne_bytes();
+                        self.create_and_bind_scalar(&encoder, current_index as usize, &bytes);
+                    }
+                    ScalarValue::F32(v) => {
+                        let bytes = v.to_ne_bytes();
+                        self.create_and_bind_scalar(&encoder, current_index as usize, &bytes);
+                    }
+                    ScalarValue::F64(v) => {
+                        let bytes = v.to_ne_bytes();
+                        self.create_and_bind_scalar(&encoder, current_index as usize, &bytes);
+                    }
+                };
+                current_index += 1;
+            }
+        }
 
         // Dispatch the kernel
         let threads_per_threadgroup = MTLSize::new(256, 1, 1);

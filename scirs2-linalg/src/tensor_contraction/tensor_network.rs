@@ -103,16 +103,16 @@ where
     /// * If `new_order` does not contain all the indices of the tensor node
     pub fn transpose(&self, neworder: &[String]) -> LinalgResult<Self> {
         // Check that the number of indices in new_order matches the number of dimensions
-        if new_order.len() != self.ndim() {
+        if neworder.len() != self.ndim() {
             return Err(LinalgError::ShapeError(format!(
                 "Number of indices in new_order ({}) does not match number of tensor dimensions ({})",
-                new_order.len(),
+                neworder.len(),
                 self.ndim()
             )));
         }
 
         // Check that all indices in new_order are present in the tensor node
-        let unique_new_indices: HashSet<_> = new_order.iter().collect();
+        let unique_new_indices: HashSet<_> = neworder.iter().collect();
         let current_indices: HashSet<_> = self.indices.iter().collect();
         if unique_new_indices != current_indices {
             return Err(LinalgError::ValueError(
@@ -130,7 +130,7 @@ where
 
         // Create the permutation
         let mut permutation = Vec::with_capacity(self.ndim());
-        for idx in new_order {
+        for idx in neworder {
             permutation.push(index_positions[idx.as_str()]);
         }
 
@@ -138,7 +138,7 @@ where
         let permuted_data = self.data.clone().permuted_axes(permutation.as_slice());
 
         // Create the new tensor node
-        TensorNode::new(permuted_data, new_order.to_vec())
+        TensorNode::new(permuted_data, neworder.to_vec())
     }
 
     /// Contracts this tensor node with another tensor node along shared indices.
@@ -465,12 +465,12 @@ where
     /// * If the index does not exist in the tensor
     pub fn remove_index(&self, indexname: &str) -> LinalgResult<TensorNode<A>> {
         // Find the position of the index
-        let position = match self.indices.iter().position(|x| x == index_name) {
+        let position = match self.indices.iter().position(|x| x == indexname) {
             Some(p) => p,
             None => {
                 return Err(LinalgError::ValueError(format!(
                     "Index '{}' not found in tensor",
-                    index_name
+                    indexname
                 )))
             }
         };
@@ -511,7 +511,7 @@ where
     ///
     /// * `TensorNetwork` - A new tensor network
     pub fn new(nodes: Vec<TensorNode<A>>) -> Self {
-        TensorNetwork { _nodes }
+        TensorNetwork { nodes }
     }
 
     /// Adds a tensor node to the network.

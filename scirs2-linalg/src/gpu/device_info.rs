@@ -50,20 +50,20 @@ pub struct ExtendedDeviceInfo {
 
 impl ExtendedDeviceInfo {
     /// Create extended device info from basic info
-    pub fn from_basic(_basicinfo: GpuDeviceInfo) -> Self {
+    pub fn from_basic(basicinfo: GpuDeviceInfo) -> Self {
         // Estimate capabilities and performance based on device type
-        let (capabilities, performance) = match basic_info.device_type {
-            GpuDeviceType::Cuda => estimate_cuda_specs(&_basic_info),
-            GpuDeviceType::OpenCl => estimate_opencl_specs(&_basic_info),
-            GpuDeviceType::Rocm => estimate_rocm_specs(&_basic_info),
-            GpuDeviceType::Vulkan => estimate_vulkan_specs(&_basic_info),
-            GpuDeviceType::Metal => estimate_metal_specs(&_basic_info),
-            GpuDeviceType::OneApi => estimate_oneapi_specs(&_basic_info),
-            GpuDeviceType::WebGpu => estimate_webgpu_specs(&_basic_info),
+        let (capabilities, performance) = match basicinfo.device_type {
+            GpuDeviceType::Cuda => estimate_cuda_specs(&basicinfo),
+            GpuDeviceType::OpenCl => estimate_opencl_specs(&basicinfo),
+            GpuDeviceType::Rocm => estimate_rocm_specs(&basicinfo),
+            GpuDeviceType::Vulkan => estimate_vulkan_specs(&basicinfo),
+            GpuDeviceType::Metal => estimate_metal_specs(&basicinfo),
+            GpuDeviceType::OneApi => estimate_oneapi_specs(&basicinfo),
+            GpuDeviceType::WebGpu => estimate_webgpu_specs(&basicinfo),
         };
 
         Self {
-            basic_info,
+            basic_info: basicinfo,
             capabilities,
             performance,
         }
@@ -73,14 +73,14 @@ impl ExtendedDeviceInfo {
     pub fn is_suitable_for_workload(&self, elements: usize, requiresfp64: bool) -> bool {
         // Check memory requirements (assume 8 bytes per element for safety)
         let memory_required = elements * 8;
-        let memory_available = self.basic_info.total_memory;
+        let memory_available = self.basicinfo.total_memory;
 
         if memory_required > memory_available / 2 {
             return false; // Need at least 50% memory available
         }
 
         // Check precision requirements
-        if requires_fp64 && !self.capabilities.supports_fp64 {
+        if requiresfp64 && !self.capabilities.supports_fp64 {
             return false;
         }
 
@@ -98,7 +98,7 @@ impl ExtendedDeviceInfo {
 
     /// Get recommended block size for this device
     pub fn recommended_blocksize(&self) -> (usize, usize) {
-        match self.basic_info.device_type {
+        match self.basicinfo.device_type {
             GpuDeviceType::Cuda => (32, 32),   // Common CUDA block size
             GpuDeviceType::OpenCl => (16, 16), // Conservative OpenCL size
             GpuDeviceType::Rocm => (32, 32),   // Similar to CUDA
@@ -127,7 +127,7 @@ fn estimate_cuda_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePerfo
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 10.0, // Rough estimate
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 10.0, // Rough estimate
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.5, // Typical ratio
         memory_latency_ns: 400.0,
@@ -153,7 +153,7 @@ fn estimate_opencl_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePer
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 8.0,
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 8.0,
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.25, // More conservative
         memory_latency_ns: 500.0,
@@ -179,7 +179,7 @@ fn estimate_rocm_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePerfo
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 12.0, // AMD typically good bandwidth
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 12.0, // AMD typically good bandwidth
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.5,
         memory_latency_ns: 350.0,
@@ -206,7 +206,7 @@ fn estimate_vulkan_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePer
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 6.0,
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 6.0,
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.25,
         memory_latency_ns: 600.0,
@@ -232,7 +232,7 @@ fn estimate_metal_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePerf
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 15.0, // Apple's unified memory is fast
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 15.0, // Apple's unified memory is fast
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.5,
         memory_latency_ns: 200.0, // Unified memory has lower latency
@@ -258,7 +258,7 @@ fn estimate_oneapi_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePer
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 2.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 8.0,
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 8.0,
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: peak_gflops * 0.5,
         memory_latency_ns: 300.0,
@@ -284,7 +284,7 @@ fn estimate_webgpu_specs(info: &GpuDeviceInfo) -> (DeviceCapabilities, DevicePer
     let peak_gflops = estimated_cores as f64 * info.clock_frequency as f64 * 1.0 / 1000.0;
 
     let performance = DevicePerformance {
-        memory_bandwidth: (_info.total_memory as f64 / 1e9) * 2.0, // Limited by web APIs
+        memory_bandwidth: (info.total_memory as f64 / 1e9) * 2.0, // Limited by web APIs
         peak_gflops_fp32: peak_gflops,
         peak_gflops_fp64: 0.0,     // No fp64 support
         memory_latency_ns: 1000.0, // Higher latency in web environment
@@ -334,7 +334,7 @@ mod tests {
 
         let extended_info = ExtendedDeviceInfo::from_basic(basic_info);
 
-        assert_eq!(extended_info.basic_info.device_type, GpuDeviceType::Cuda);
+        assert_eq!(extended_info.basicinfo.device_type, GpuDeviceType::Cuda);
         assert_eq!(extended_info.capabilities.warpsize, 32);
         assert!(extended_info.performance.peak_gflops_fp32 > 0.0);
     }
