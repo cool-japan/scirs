@@ -207,7 +207,8 @@ fn main() {
 
     // Export model to ONNX
     let onnx_path = modeldir.join("model.onnx");
-    let result = OnnxExporter::export(&model, &onnx_path, &[1, 3, 224, 224]);
+    let exporter = OnnxExporter;
+    let result = exporter.export(&model, &onnx_path, &[1, 3, 224, 224]);
 
     match result {
         Ok(()) => println!("Exported model to ONNX format at: {}", onnx_path.display()),

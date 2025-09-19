@@ -1516,7 +1516,7 @@ mod tests {
     #[test]
     fn test_utils_sample_batch_creation() {
         let featurenames = vec!["feature1".to_string(), "feature2".to_string()];
-        let batch = utils::create_sample_batch(10, &featurenames);
+        let batch = utils::create_sample_batch(&featurenames, 10);
 
         assert_eq!(batch.size(), 10);
         assert!(!batch.is_empty());
@@ -1532,7 +1532,7 @@ mod tests {
     #[test]
     fn test_feature_statistics() {
         let featurenames = vec!["feature1".to_string()];
-        let batch = utils::create_sample_batch(100, &featurenames);
+        let batch = utils::create_sample_batch(&featurenames, 100);
 
         let stats = utils::calculate_feature_statistics(&batch, "feature1").unwrap();
         let (mean, std_dev, min, max) = stats;

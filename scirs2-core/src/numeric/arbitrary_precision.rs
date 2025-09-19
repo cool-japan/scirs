@@ -1243,7 +1243,7 @@ mod tests {
 
     #[test]
     fn test_arbitrary_complex() {
-        let z = ArbitraryComplex::from_f64_parts(3.0, 4.0);
+        let z = ArbitraryComplex::re_2(3.0, 4.0);
         let mag = z.abs();
         assert!((mag.to_f64() - 5.0).abs() < 1e-10);
 

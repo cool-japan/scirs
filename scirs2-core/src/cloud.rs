@@ -1488,7 +1488,7 @@ mod tests {
         assert!(metadata.size > 0);
 
         // Test existence check
-        let exists = backend.exists("test-key").await.unwrap();
+        let exists = backend.object_exists("test-key").await.unwrap();
         assert!(exists);
 
         // Test data upload
@@ -1501,11 +1501,11 @@ mod tests {
         assert_eq!(result.size, data.len() as u64);
 
         // Test data download
-        let downloaded = backend.download_data("test-key").await.unwrap();
+        let downloaded = backend.get_object("test-key").await.unwrap();
         assert!(!downloaded.is_empty());
 
         // Test listing
-        let list_result = backend.list_objects(None, Some("5"), None).await.unwrap();
+        let list_result = backend.list_objects(None, Some("5")).await.unwrap();
         assert!(!list_result.objects.is_empty());
         assert!(list_result.objects.len() <= 5);
 

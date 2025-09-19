@@ -148,7 +148,7 @@ impl ArrayProtocol for SparseArray {
                 let a_dense = self.to_dense();
                 let b_dense = other.to_dense();
                 let result_dense = a_dense.dot(&b_dense);
-                let result = SparseArray::from_dense(&result_dense);
+                let result = SparseArray::array(&result_dense);
 
                 Ok(Box::new(result))
             }
@@ -178,7 +178,7 @@ impl ArrayProtocol for SparseArray {
                 let a_dense = self.to_dense();
                 let b_dense = other.to_dense();
                 let result_dense = &a_dense + &b_dense;
-                let result = SparseArray::from_dense(&result_dense);
+                let result = SparseArray::array(&result_dense);
 
                 Ok(Box::new(result))
             }
@@ -194,7 +194,7 @@ impl ArrayProtocol for SparseArray {
                         let dense = self.to_dense();
                         let result = dense.sum_axis(ndarray::Axis(*axis));
                         let sparse_result =
-                            SparseArray::from_dense(&result.into_dimensionality().unwrap());
+                            SparseArray::array(&result.into_dimensionality().unwrap());
                         return Ok(Box::new(sparse_result));
                     }
                 }
@@ -243,7 +243,7 @@ fn main() {
     dense[[4, 4]] = 5.0;
 
     // Create a sparse array from the dense array
-    let sparse = SparseArray::from_dense(&dense);
+    let sparse = SparseArray::array(&dense);
 
     println!("\nOriginal sparse array:");
     println!("{:?}", sparse);

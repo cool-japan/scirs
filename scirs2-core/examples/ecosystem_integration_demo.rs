@@ -84,7 +84,7 @@ fn main() -> CoreResult<()> {
             println!("═══════════════════════════════════════════════════════");
 
             // Display summary results
-            display_ecosystem_summary(result);
+            display_ecosystem_summary(&result);
 
             // Generate and display comprehensive report
             println!("\n📋 Generating Comprehensive Ecosystem Report...");
@@ -98,7 +98,7 @@ fn main() -> CoreResult<()> {
             }
 
             // Display final assessment
-            display_release_assessment(result);
+            display_release_assessment(&result);
         }
         Err(e) => {
             println!("\n❌ Ecosystem Integration Testing Failed: {:?}", e);
@@ -145,7 +145,7 @@ fn main() -> CoreResult<()> {
 
 /// Display ecosystem summary results
 #[allow(dead_code)]
-fn display_ecosystem_summary(result: EcosystemTestResult) {
+fn display_ecosystem_summary(result: &EcosystemTestResult) {
     println!("📈 ECOSYSTEM HEALTH SUMMARY");
     println!("   Overall Health Score: {:.1}/100", result.health_score);
     println!("   Modules Discovered: {}", result.discovered_modules.len());
@@ -310,7 +310,7 @@ fn display_ecosystem_summary(result: EcosystemTestResult) {
 
 /// Display final 1.0 release assessment
 #[allow(dead_code)]
-fn display_release_assessment(result: EcosystemTestResult) {
+fn display_release_assessment(result: &EcosystemTestResult) {
     println!("\n🎯 1.0 RELEASE READINESS ASSESSMENT");
     println!("═══════════════════════════════════════");
 
