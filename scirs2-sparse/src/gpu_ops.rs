@@ -92,6 +92,10 @@ pub struct GpuBuffer<T> {
 
 #[cfg(not(feature = "gpu"))]
 impl<T: Clone + Copy> GpuBuffer<T> {
+    pub fn from_vec(data: Vec<T>) -> Self {
+        Self { data }
+    }
+
     pub fn as_slice(&self) -> &[T] {
         &self.data
     }
@@ -278,7 +282,7 @@ pub struct SpMVKernel {
 
 impl SpMVKernel {
     pub fn new(_device: &GpuDevice, _workgroupsize: [u32; 3]) -> Result<Self, GpuError> {
-        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::Other(format!("{:?}", e)))?;
+        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::other(format!("{:?}", e)))?;
         Ok(Self { gpu_handler })
     }
 
@@ -293,7 +297,7 @@ impl SpMVKernel {
     {
         self.gpu_handler
             .spmv(matrix, vector, Some(device))
-            .map_err(|e| GpuError::Other(format!("{:?}", e)))
+            .map_err(|e| GpuError::other(format!("{:?}", e)))
     }
 }
 
@@ -313,7 +317,7 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
         if range.end <= full_data.len() {
             Ok(full_data[range].to_vec())
         } else {
-            Err(GpuError::InvalidParameter(
+            Err(GpuError::invalid_parameter(
                 "Range out of bounds".to_string(),
             ))
         }

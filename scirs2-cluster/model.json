@@ -23,7 +23,7 @@
   "metadata": {
     "format_version": "1.0.0",
     "library_version": "0.1.0-beta.2",
-    "created_timestamp": 1758289956,
+    "created_timestamp": 1758294261,
     "algorithm_signature": "kmeans",
     "training_metrics": {
       "training_time_ms": 0,

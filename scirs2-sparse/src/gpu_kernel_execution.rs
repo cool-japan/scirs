@@ -718,7 +718,7 @@ where
         if diag_val != T::zero() {
             x[i] = (b[i] - sum) / diag_val;
         } else {
-            return Err(GpuError::InvalidParameter(
+            return Err(GpuError::invalid_parameter(
                 "Singular matrix in triangular solve".to_string(),
             ));
         }
@@ -790,7 +790,10 @@ pub enum MemoryLayout {
 
 impl GpuMemoryManager {
     pub fn new(backend: GpuBackend) -> Result<Self, GpuError> {
+        #[cfg(feature = "gpu")]
         let device = GpuDevice::new(backend, 0);
+        #[cfg(not(feature = "gpu"))]
+        let device = GpuDevice::new(backend)?;
 
         let alignment_preference = match backend {
             GpuBackend::Cuda => 128,  // CUDA prefers 128-byte alignment
@@ -856,9 +859,7 @@ impl GpuMemoryManager {
         };
 
         #[cfg(not(feature = "gpu"))]
-        let buffer = GpuBuffer {
-            data: vec![T::default(); aligned_size],
-        };
+        let buffer = GpuBuffer::from_vec(vec![T::default(); aligned_size]);
 
         // Update memory statistics
         let allocation_size = aligned_size * std::mem::size_of::<T>();
@@ -966,9 +967,7 @@ impl GpuMemoryManager {
                     }
                 }
                 #[cfg(not(feature = "gpu"))]
-                Ok(GpuBuffer {
-                    data: host_data.to_vec(),
-                })
+                Ok(GpuBuffer::from_vec(host_data.to_vec()))
             }
         }?;
 
