@@ -178,7 +178,12 @@ where
         Ok(result_array)
     }
 
-    fn gpu_dot(ctx: &dyn GpuContext, x: &ArrayView1<T>, y: &ArrayView1<T>) -> LinalgResult<T> {
+    fn gpu_dot(
+        &self,
+        ctx: &dyn GpuContext,
+        x: &ArrayView1<T>,
+        y: &ArrayView1<T>,
+    ) -> LinalgResult<T> {
         if x.len() != y.len() {
             return Err(LinalgError::ShapeError(format!(
                 "Vector lengths must match: {} != {}",
@@ -191,7 +196,7 @@ where
         Ok(Self::cpu_dot_static(x, y))
     }
 
-    fn gpu_norm(ctx: &dyn GpuContext, x: &ArrayView1<T>) -> LinalgResult<T> {
+    fn gpu_norm(&self, ctx: &dyn GpuContext, x: &ArrayView1<T>) -> LinalgResult<T> {
         // For now, fall back to CPU implementation
         Ok(Self::cpu_norm_static(x))
     }

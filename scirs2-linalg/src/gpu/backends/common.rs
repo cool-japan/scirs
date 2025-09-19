@@ -5,12 +5,22 @@
 //! and common data structures.
 
 // Re-export traits and types that all backends need
-pub use crate::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuContextAlloc, GpuDeviceInfo, GpuDeviceType};
 pub use crate::error::{LinalgError, LinalgResult};
+pub use crate::gpu::{
+    GpuBackend, GpuBuffer, GpuContext, GpuContextAlloc, GpuDeviceInfo, GpuDeviceType,
+};
 pub use std::collections::HashMap;
 
 /// External dependencies commonly used by CPU fallback functionality
-#[cfg(any(feature = "cpu-fallback", not(any(feature = "cuda", feature = "opencl", feature = "metal", feature = "rocm"))))]
+#[cfg(any(
+    feature = "cpu-fallback",
+    not(any(
+        feature = "cuda",
+        feature = "opencl",
+        feature = "metal",
+        feature = "rocm"
+    ))
+))]
 pub use num_cpus;
 
 /// Common result type for backend operations

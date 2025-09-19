@@ -11,22 +11,21 @@
 //! * Per-channel calibration strategies
 //! * Dynamic calibration based on data statistics
 
-mod types;
 mod matrix_calibration;
-mod vector_calibration;
+mod types;
 mod utils;
+mod vector_calibration;
 
 // Re-export the main types and functions to maintain backward compatibility
 pub use types::{
-    CalibrationMethod, CalibrationConfig,
-    calibrate_matrix, calibrate_vector,
-    get_weight_calibration_config, get_activation_calibration_config
+    calibrate_matrix, calibrate_vector, get_activation_calibration_config,
+    get_weight_calibration_config, CalibrationConfig, CalibrationMethod,
 };
 
 // Re-export utility functions that were previously public
-pub use utils::{find_min_max, find_min_max_vec, create_params_from_range, determine_data_type};
+pub use utils::{create_params_from_range, determine_data_type, find_min_max, find_min_max_vec};
 
 // Import all internal functions for cross-module usage
 pub(super) use matrix_calibration::*;
-pub(super) use vector_calibration::*;
 pub(super) use utils::*;
+pub(super) use vector_calibration::*;

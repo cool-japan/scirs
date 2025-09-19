@@ -963,7 +963,8 @@ where
     }
 
     fn gpu_tile_matmul(
-        self_context: &dyn super::GpuContext,
+        &self,
+        context: &dyn super::GpuContext,
         a: &Array2<T>,
         b: &Array2<T>,
     ) -> LinalgResult<Array2<T>> {
@@ -1019,9 +1020,10 @@ pub struct StreamHandle<T> {
 }
 
 impl<T> StreamHandle<T> {
-    fn new(_streamid: String) -> Self {
+    fn new(stream_id: String) -> Self {
         Self {
-            stream_id_phantom: std::marker::PhantomData,
+            stream_id,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -1174,7 +1176,7 @@ impl PredictionModel {
         }
     }
 
-    fn update_enabled(&mut selfenable: bool) {
+    fn update_enabled(&mut self, enable: bool) {
         // Update prediction model state
     }
 }
@@ -1199,7 +1201,8 @@ pub struct MockGpuBuffer<T> {
 impl<T> MockGpuBuffer<T> {
     pub fn new(size: usize) -> Self {
         Self {
-            size_phantom: std::marker::PhantomData,
+            size,
+            phantom: std::marker::PhantomData,
         }
     }
 }
@@ -1212,11 +1215,11 @@ where
         self.size
     }
 
-    fn copy_from_host(&mut selfdata: &[T]) -> LinalgResult<()> {
+    fn copy_from_host(&mut self, data: &[T]) -> LinalgResult<()> {
         Ok(())
     }
 
-    fn copy_to_host(selfdata: &mut [T]) -> LinalgResult<()> {
+    fn copy_to_host(&self, data: &mut [T]) -> LinalgResult<()> {
         Ok(())
     }
 

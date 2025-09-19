@@ -160,27 +160,26 @@ where
 
     scheduler.submit_work(work_items)?;
 
-    let results =
-        scheduler.execute(move |(i_start, j_start, i_end, j_end, a_copy, b_copy)| {
-            let mut block_result = Array2::zeros((i_end - i_start, j_end - j_start));
+    let results = scheduler.execute(move |(i_start, j_start, i_end, j_end, a_copy, b_copy)| {
+        let mut block_result = Array2::zeros((i_end - i_start, j_end - j_start));
 
-            // Block multiplication with cache-friendly access pattern
-            for k in (0..k1).step_by(optimal_blocksize) {
-                let k_end = (k + optimal_blocksize).min(k1);
+        // Block multiplication with cache-friendly access pattern
+        for k in (0..k1).step_by(optimal_blocksize) {
+            let k_end = (k + optimal_blocksize).min(k1);
 
-                for i in 0..(i_end - i_start) {
-                    for j in 0..(j_end - j_start) {
-                        let mut sum = F::zero();
-                        for kk in k..k_end {
-                            sum += a_copy[(i_start + i, kk)] * b_copy[(kk, j_start + j)];
-                        }
-                        block_result[(i, j)] += sum;
+            for i in 0..(i_end - i_start) {
+                for j in 0..(j_end - j_start) {
+                    let mut sum = F::zero();
+                    for kk in k..k_end {
+                        sum += a_copy[(i_start + i, kk)] * b_copy[(kk, j_start + j)];
                     }
+                    block_result[(i, j)] += sum;
                 }
             }
+        }
 
-            (i_start, j_start, i_end, j_end, block_result)
-        })?;
+        (i_start, j_start, i_end, j_end, block_result)
+    })?;
 
     // Assemble final result
     for (i_start, j_start, i_end, j_end, block_result) in results {

@@ -145,7 +145,9 @@ where
             workload_analyzer: Arc::new(Mutex::new(WorkloadAnalyzer::new())),
             threshold_optimizer: Arc::new(Mutex::new(AdaptiveThresholdOptimizer::new())),
             performance_metrics: Arc::new(RwLock::new(MultiDimensionalMetrics::new())),
-            hardware_profiler: Arc::new(Mutex::new(super::hardware::HardwareCapabilityProfiler::new())),
+            hardware_profiler: Arc::new(Mutex::new(
+                super::hardware::HardwareCapabilityProfiler::new(),
+            )),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -378,7 +380,11 @@ where
         }
     }
 
-    fn estimate_cache_efficiency(&self, shape: (usize, usize), pattern: &MemoryAccessPattern) -> f64 {
+    fn estimate_cache_efficiency(
+        &self,
+        shape: (usize, usize),
+        pattern: &MemoryAccessPattern,
+    ) -> f64 {
         match pattern {
             MemoryAccessPattern::Sequential => 0.9,
             MemoryAccessPattern::Blocked(_, _) => 0.8,

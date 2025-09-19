@@ -751,7 +751,8 @@ mod tests {
         // Simple diagonal matrix with known eigenvalues
         let a = array![[4.0f32, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 1.0]];
 
-        let (eigenvalues, eigenvectors) = advanced_precision_eigh::<_, f64>(&a.view(), None, None, true).unwrap();
+        let (eigenvalues, eigenvectors) =
+            advanced_precision_eigh::<_, f64>(&a.view(), None, None, true).unwrap();
 
         // For a diagonal matrix, sort the eigenvalues
         let mut sorted_indices = (0..eigenvalues.len()).collect::<Vec<_>>();
@@ -794,11 +795,19 @@ mod tests {
         // Identity matrix should have condition number 1
         let identity = array![[1.0f32, 0.0], [0.0, 1.0]];
         let cond = estimate_condition_number(&identity.view()).unwrap();
-        assert!(cond >= 0.5 && cond <= 2.0, "Expected condition number ~1, got {}", cond);
+        assert!(
+            cond >= 0.5 && cond <= 2.0,
+            "Expected condition number ~1, got {}",
+            cond
+        );
 
         // Well-conditioned matrix
         let well_cond = array![[2.0f32, 1.0], [1.0, 2.0]];
         let cond = estimate_condition_number(&well_cond.view()).unwrap();
-        assert!(cond > 0.0 && cond < 100.0, "Expected reasonable condition number, got {}", cond);
+        assert!(
+            cond > 0.0 && cond < 100.0,
+            "Expected reasonable condition number, got {}",
+            cond
+        );
     }
 }

@@ -408,10 +408,15 @@ pub mod prelude {
         simd_quantized_dot, simd_quantized_matmul, simd_quantized_matvec,
     };
     pub use super::quantization::{
-        dequantize_matrix, quantize_matrix,
-        quantize_matrix_per_channel, quantized_matmul,
-        QuantizationMethod, QuantizationParams, QuantizedDataType,
-        QuantizedMatrix, QuantizedVector,
+        dequantize_matrix,
+        quantize_matrix,
+        quantize_matrix_per_channel,
+        quantized_matmul,
+        QuantizationMethod,
+        QuantizationParams,
+        QuantizedDataType,
+        QuantizedMatrix,
+        QuantizedVector,
         // TODO: Re-enable these when implemented:
         // dequantize_vector, fake_quantize, quantize_vector,
         // quantized_dot, quantized_matvec,

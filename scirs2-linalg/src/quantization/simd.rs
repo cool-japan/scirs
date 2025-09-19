@@ -7,8 +7,14 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use crate::quantization::{
-    dequantize_matrix, get_quantized_vector_1d_i8, get_quantizedmatrix_2d_i8,
-    QuantizationMethod, QuantizationParams, QuantizedData2D, QuantizedDataType, QuantizedMatrix,
+    dequantize_matrix,
+    get_quantized_vector_1d_i8,
+    get_quantizedmatrix_2d_i8,
+    QuantizationMethod,
+    QuantizationParams,
+    QuantizedData2D,
+    QuantizedDataType,
+    QuantizedMatrix,
     QuantizedVector,
     // TODO: Add dequantize_vector when implemented
 };
@@ -704,7 +710,9 @@ pub fn simd_quantized_dot(
 mod tests {
     use super::*;
     use crate::quantization::{
-        quantize_matrix, quantize_matrix_per_channel, QuantizationMethod,
+        quantize_matrix,
+        quantize_matrix_per_channel,
+        QuantizationMethod,
         // TODO: Add quantize_vector when implemented
     };
     use approx::assert_relative_eq;

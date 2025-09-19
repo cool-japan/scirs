@@ -342,7 +342,7 @@ impl GpuManager {
     }
 
     /// Get device information for a specific device
-    pub fn device_info(&self, deviceid: usize) -> Option<&GpuDeviceInfo> {
+    pub fn device_info(&self, device_id: usize) -> Option<&GpuDeviceInfo> {
         self.devices.get(device_id).map(|d| d.device_info())
     }
 
@@ -374,7 +374,7 @@ impl GpuManager {
             .iter()
             .enumerate()
             .filter(|(_, device)| device.device_info().total_memory > memory_required)
-            .map(|(idx_)| idx)
+            .map(|(idx, _)| idx)
             .collect();
 
         if suitable_devices.is_empty() {
@@ -561,7 +561,7 @@ pub trait GpuBackend: Send + Sync {
             .iter()
             .enumerate()
             .max_by_key(|(_, device)| device.total_memory)
-            .map(|(idx_)| idx)
+            .map(|(idx, _)| idx)
             .unwrap();
 
         self.create_context(best_device)

@@ -94,7 +94,13 @@ impl MultiDimensionalMetrics {
     }
 
     /// Record execution time metrics for an operation
-    pub fn record_execution_time(&mut self, operation: &str, cpu_time: f64, gpu_time: f64, transfer_time: f64) {
+    pub fn record_execution_time(
+        &mut self,
+        operation: &str,
+        cpu_time: f64,
+        gpu_time: f64,
+        transfer_time: f64,
+    ) {
         let metrics = self
             .execution_times
             .entry(operation.to_string())
@@ -110,7 +116,13 @@ impl MultiDimensionalMetrics {
     }
 
     /// Record memory metrics for an operation
-    pub fn record_memory_metrics(&mut self, operation: &str, peak_usage: f64, transfer_volume: f64, bandwidth_utilization: f64) {
+    pub fn record_memory_metrics(
+        &mut self,
+        operation: &str,
+        peak_usage: f64,
+        transfer_volume: f64,
+        bandwidth_utilization: f64,
+    ) {
         let metrics = self
             .memory_metrics
             .entry(operation.to_string())
@@ -142,7 +154,13 @@ impl MultiDimensionalMetrics {
     }
 
     /// Record throughput metrics for an operation
-    pub fn record_throughput_metrics(&mut self, operation: &str, ops_per_sec: f64, flops: f64, memory_bandwidth: f64) {
+    pub fn record_throughput_metrics(
+        &mut self,
+        operation: &str,
+        ops_per_sec: f64,
+        flops: f64,
+        memory_bandwidth: f64,
+    ) {
         let metrics = self
             .throughput_metrics
             .entry(operation.to_string())

@@ -349,16 +349,16 @@ pub mod differential_operators {
     where
         F: Float + Copy,
     {
-        let (nx, ny_) = field.dim();
+        let (nx, ny, _) = field.dim();
         let mut result = Array2::zeros((nx, ny));
 
         // Compute divergence using finite differences
         for i in 1..(nx - 1) {
             for j in 1..(ny - 1) {
                 // ∂F_xx/∂x + ∂F_yy/∂y (diagonal terms)
-                let df_xx_dx = (_field[[i + 1, j, 0]] - field[[i - 1, j, 0]])
+                let df_xx_dx = (field[[i + 1, j, 0]] - field[[i - 1, j, 0]])
                     / (F::from(2.0).unwrap() * spacing);
-                let df_yy_dy = (_field[[i, j + 1, 3]] - field[[i, j - 1, 3]])
+                let df_yy_dy = (field[[i, j + 1, 3]] - field[[i, j - 1, 3]])
                     / (F::from(2.0).unwrap() * spacing);
 
                 result[[i, j]] = df_xx_dx + df_yy_dy;
@@ -398,30 +398,30 @@ pub mod differential_operators {
         for i in 1..(nx - 1) {
             for j in 1..(ny - 1) {
                 // Component (0,0): ∂F12/∂x - ∂F11/∂y
-                let df12_dx = (_field[[i + 1, j, 1]] - field[[i - 1, j, 1]])
+                let df12_dx = (field[[i + 1, j, 1]] - field[[i - 1, j, 1]])
                     / (F::from(2.0).unwrap() * spacing);
-                let df11_dy = (_field[[i, j + 1, 0]] - field[[i, j - 1, 0]])
+                let df11_dy = (field[[i, j + 1, 0]] - field[[i, j - 1, 0]])
                     / (F::from(2.0).unwrap() * spacing);
                 result[[i, j, 0]] = df12_dx - df11_dy;
 
                 // Component (0,1): ∂F22/∂x - ∂F21/∂y
-                let df22_dx = (_field[[i + 1, j, 3]] - field[[i - 1, j, 3]])
+                let df22_dx = (field[[i + 1, j, 3]] - field[[i - 1, j, 3]])
                     / (F::from(2.0).unwrap() * spacing);
-                let df21_dy = (_field[[i, j + 1, 2]] - field[[i, j - 1, 2]])
+                let df21_dy = (field[[i, j + 1, 2]] - field[[i, j - 1, 2]])
                     / (F::from(2.0).unwrap() * spacing);
                 result[[i, j, 1]] = df22_dx - df21_dy;
 
                 // Component (1,0): ∂F11/∂x - ∂F12/∂y
-                let df11_dx = (_field[[i + 1, j, 0]] - field[[i - 1, j, 0]])
+                let df11_dx = (field[[i + 1, j, 0]] - field[[i - 1, j, 0]])
                     / (F::from(2.0).unwrap() * spacing);
-                let df12_dy = (_field[[i, j + 1, 1]] - field[[i, j - 1, 1]])
+                let df12_dy = (field[[i, j + 1, 1]] - field[[i, j - 1, 1]])
                     / (F::from(2.0).unwrap() * spacing);
                 result[[i, j, 2]] = df11_dx - df12_dy;
 
                 // Component (1,1): ∂F21/∂x - ∂F22/∂y
-                let df21_dx = (_field[[i + 1, j, 2]] - field[[i - 1, j, 2]])
+                let df21_dx = (field[[i + 1, j, 2]] - field[[i - 1, j, 2]])
                     / (F::from(2.0).unwrap() * spacing);
-                let df22_dy = (_field[[i, j + 1, 3]] - field[[i, j - 1, 3]])
+                let df22_dy = (field[[i, j + 1, 3]] - field[[i, j - 1, 3]])
                     / (F::from(2.0).unwrap() * spacing);
                 result[[i, j, 3]] = df21_dx - df22_dy;
             }
@@ -455,11 +455,11 @@ pub mod differential_operators {
             for i in 1..(nx - 1) {
                 for j in 1..(ny - 1) {
                     // ∂²F/∂x² + ∂²F/∂y² using finite differences
-                    let d2f_dx2 = (_field[[i + 1, j, comp]]
+                    let d2f_dx2 = (field[[i + 1, j, comp]]
                         - F::from(2.0).unwrap() * field[[i, j, comp]]
                         + field[[i - 1, j, comp]])
                         / spacing_sq;
-                    let d2f_dy2 = (_field[[i, j + 1, comp]]
+                    let d2f_dy2 = (field[[i, j + 1, comp]]
                         - F::from(2.0).unwrap() * field[[i, j, comp]]
                         + field[[i, j - 1, comp]])
                         / spacing_sq;
@@ -495,12 +495,12 @@ pub mod differential_operators {
             for i in 1..(nx - 1) {
                 for j in 1..(ny - 1) {
                     // ∂F/∂x
-                    let df_dx = (_field[[i + 1, j, comp]] - field[[i - 1, j, comp]])
+                    let df_dx = (field[[i + 1, j, comp]] - field[[i - 1, j, comp]])
                         / (F::from(2.0).unwrap() * spacing);
                     result[[i, j, comp, 0]] = df_dx;
 
                     // ∂F/∂y
-                    let df_dy = (_field[[i, j + 1, comp]] - field[[i, j - 1, comp]])
+                    let df_dy = (field[[i, j + 1, comp]] - field[[i, j - 1, comp]])
                         / (F::from(2.0).unwrap() * spacing);
                     result[[i, j, comp, 1]] = df_dy;
                 }

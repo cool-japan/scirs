@@ -179,7 +179,11 @@ where
 
 /// Apply attention mask to scores
 #[allow(dead_code)]
-pub fn apply_mask<F>(scores: &mut Array2<F>, mask: &AttentionMask, batch_idx: usize) -> LinalgResult<()>
+pub fn apply_mask<F>(
+    scores: &mut Array2<F>,
+    mask: &AttentionMask,
+    batch_idx: usize,
+) -> LinalgResult<()>
 where
     F: Float + Add + Mul + Div + Sub + NumAssignOps + Zero + std::fmt::Debug,
 {

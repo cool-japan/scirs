@@ -27,7 +27,7 @@
 // For now, including a basic test to ensure the module structure works
 #[cfg(test)]
 mod basic_smoke_test {
-    use crate::quantization::{QuantizationMethod, quantize_matrix, dequantize_matrix};
+    use crate::quantization::{dequantize_matrix, quantize_matrix, QuantizationMethod};
     use ndarray::array;
 
     #[test]

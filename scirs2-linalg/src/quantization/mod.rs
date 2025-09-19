@@ -88,21 +88,21 @@ pub mod stability;
 pub use self::types::{QuantizationMethod, QuantizationParams, QuantizedDataType};
 
 // Matrix types and functions
-pub use self::matrix::{QuantizedMatrix, QuantizedData2D, get_quantizedmatrix_2d_i8};
+pub use self::matrix::{get_quantizedmatrix_2d_i8, QuantizedData2D, QuantizedMatrix};
 
 // Vector types and functions
-pub use self::vector::{QuantizedVector, QuantizedData1D, get_quantized_vector_1d_i8};
+pub use self::vector::{get_quantized_vector_1d_i8, QuantizedData1D, QuantizedVector};
 
 // Conversion functions
 pub use self::conversions::{
-    quantize_matrix,
-    quantize_matrix_per_channel,
     dequantize_matrix,
     // TODO: Add these when implemented:
     // quantize_vector,
     // dequantize_vector,
     // fake_quantize,
     // fake_quantize_vector,
+    quantize_matrix,
+    quantize_matrix_per_channel,
 };
 
 // Operation functions

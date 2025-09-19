@@ -5,7 +5,7 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero, One};
+use num_traits::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 use super::super::core::{BandSolveWorkItem, WorkItem};
@@ -167,8 +167,7 @@ where
 
         // Convergence check
         let error_matrix = &x_squared - a;
-        let error_norm =
-            parallel_matrix_norm_work_stealing(&error_matrix.view(), "fro", workers)?;
+        let error_norm = parallel_matrix_norm_work_stealing(&error_matrix.view(), "fro", workers)?;
 
         if error_norm < tolerance {
             break;
@@ -289,10 +288,7 @@ where
 }
 
 /// Parallel Frobenius norm computation
-pub fn parallel_frobenius_norm<F>(
-    a: &ArrayView2<F>,
-    workers: usize,
-) -> LinalgResult<F>
+pub fn parallel_frobenius_norm<F>(a: &ArrayView2<F>, workers: usize) -> LinalgResult<F>
 where
     F: Float + NumAssign + Zero + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -329,10 +325,7 @@ where
 }
 
 /// Parallel nuclear norm computation
-pub fn parallel_nuclear_norm<F>(
-    a: &ArrayView2<F>,
-    workers: usize,
-) -> LinalgResult<F>
+pub fn parallel_nuclear_norm<F>(a: &ArrayView2<F>, workers: usize) -> LinalgResult<F>
 where
     F: Float + NumAssign + Zero + One + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -343,10 +336,7 @@ where
 }
 
 /// Parallel matrix 1-norm computation (maximum column sum)
-pub fn parallel_matrix_1_norm<F>(
-    a: &ArrayView2<F>,
-    workers: usize,
-) -> LinalgResult<F>
+pub fn parallel_matrix_1_norm<F>(a: &ArrayView2<F>, workers: usize) -> LinalgResult<F>
 where
     F: Float + NumAssign + Zero + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -360,18 +350,14 @@ where
 
     scheduler.submit_work(work_items)?;
 
-    let results = scheduler.execute(|(j, matrix)| {
-        matrix.column(j).iter().map(|x| x.abs()).sum::<F>()
-    })?;
+    let results =
+        scheduler.execute(|(j, matrix)| matrix.column(j).iter().map(|x| x.abs()).sum::<F>())?;
 
     Ok(results.into_iter().fold(F::zero(), |acc, x| acc.max(x)))
 }
 
 /// Parallel spectral norm computation (largest singular value)
-pub fn parallel_spectral_norm<F>(
-    a: &ArrayView2<F>,
-    workers: usize,
-) -> LinalgResult<F>
+pub fn parallel_spectral_norm<F>(a: &ArrayView2<F>, workers: usize) -> LinalgResult<F>
 where
     F: Float + NumAssign + Zero + One + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -382,10 +368,7 @@ where
 }
 
 /// Parallel matrix infinity norm computation (maximum row sum)
-pub fn parallel_matrix_inf_norm<F>(
-    a: &ArrayView2<F>,
-    workers: usize,
-) -> LinalgResult<F>
+pub fn parallel_matrix_inf_norm<F>(a: &ArrayView2<F>, workers: usize) -> LinalgResult<F>
 where
     F: Float + NumAssign + Zero + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -399,9 +382,8 @@ where
 
     scheduler.submit_work(work_items)?;
 
-    let results = scheduler.execute(|(i, matrix)| {
-        matrix.row(i).iter().map(|x| x.abs()).sum::<F>()
-    })?;
+    let results =
+        scheduler.execute(|(i, matrix)| matrix.row(i).iter().map(|x| x.abs()).sum::<F>())?;
 
     Ok(results.into_iter().fold(F::zero(), |acc, x| acc.max(x)))
 }

@@ -93,25 +93,25 @@
 //! ```
 
 // Sub-modules
-mod utils;
-mod scaled_dot_product;
-mod multi_head;
 mod cross_attention;
+mod multi_head;
+mod scaled_dot_product;
+mod utils;
 
 // Re-export all public items from sub-modules
-pub use utils::{AttentionMask, AttentionConfig, attention, apply_mask};
-pub use scaled_dot_product::{scaled_dot_product_attention, masked_attention, causal_attention};
-pub use multi_head::{multi_head_attention, grouped_query_attention};
 pub use cross_attention::{
-    flash_attention, sparse_attention, attention_with_alibi, rotary_embedding,
-    linear_attention, relative_position_attention, attention_with_rpe
+    attention_with_alibi, attention_with_rpe, flash_attention, linear_attention,
+    relative_position_attention, rotary_embedding, sparse_attention,
 };
+pub use multi_head::{grouped_query_attention, multi_head_attention};
+pub use scaled_dot_product::{causal_attention, masked_attention, scaled_dot_product_attention};
+pub use utils::{apply_mask, attention, AttentionConfig, AttentionMask};
 
 // For backward compatibility, keep these imports available
+use crate::error::LinalgResult;
 use ndarray::{Array3, ArrayView3};
 use num_traits::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
-use crate::error::LinalgResult;
 
 #[cfg(test)]
 mod tests {

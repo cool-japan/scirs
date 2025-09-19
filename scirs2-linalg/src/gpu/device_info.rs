@@ -73,7 +73,7 @@ impl ExtendedDeviceInfo {
     pub fn is_suitable_for_workload(&self, elements: usize, requiresfp64: bool) -> bool {
         // Check memory requirements (assume 8 bytes per element for safety)
         let memory_required = elements * 8;
-        let memory_available = self.basicinfo.total_memory;
+        let memory_available = self.basic_info.total_memory;
 
         if memory_required > memory_available / 2 {
             return false; // Need at least 50% memory available
@@ -98,7 +98,7 @@ impl ExtendedDeviceInfo {
 
     /// Get recommended block size for this device
     pub fn recommended_blocksize(&self) -> (usize, usize) {
-        match self.basicinfo.device_type {
+        match self.basic_info.device_type {
             GpuDeviceType::Cuda => (32, 32),   // Common CUDA block size
             GpuDeviceType::OpenCl => (16, 16), // Conservative OpenCL size
             GpuDeviceType::Rocm => (32, 32),   // Similar to CUDA

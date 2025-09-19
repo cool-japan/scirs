@@ -6,7 +6,10 @@ use ndarray::array;
 #[test]
 fn test_gpu_operation_dispatcher() {
     let dispatcher = super::dispatcher::GpuOperationDispatcher::<f64>::new();
-    assert_eq!(dispatcher.threshold(), super::dispatcher::DEFAULT_GPU_THRESHOLD);
+    assert_eq!(
+        dispatcher.threshold(),
+        super::dispatcher::DEFAULT_GPU_THRESHOLD
+    );
 
     let mut dispatcher = super::dispatcher::GpuOperationDispatcher::<f64>::with_threshold(1000);
     assert_eq!(dispatcher.threshold(), 1000);

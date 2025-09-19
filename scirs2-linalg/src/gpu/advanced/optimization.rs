@@ -354,7 +354,10 @@ impl AdvancedMultiGpuCoordinator {
     }
 
     /// Execute work on a specific GPU
-    fn execute_on_gpu<T>(&self, _work: GpuWorkPartition) -> LinalgResult<Array2<T>> {
+    fn execute_on_gpu<T>(&self, _work: GpuWorkPartition) -> LinalgResult<Array2<T>>
+    where
+        T: Clone + num_traits::Zero,
+    {
         // Simplified GPU execution
         Ok(Array2::zeros((1, 1)))
     }
@@ -566,7 +569,8 @@ impl BandwidthAllocator {
         let allocatable = (available - current).max(0.0);
         let allocated = requested.min(allocatable);
 
-        self.current_allocations.insert(connection, current + allocated);
+        self.current_allocations
+            .insert(connection, current + allocated);
 
         Ok(allocated)
     }

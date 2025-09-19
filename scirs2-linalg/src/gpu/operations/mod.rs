@@ -22,9 +22,9 @@ pub use advanced::AdvancedGpuOperations;
 pub use dispatcher::{GpuOperationDispatcher, DEFAULT_GPU_THRESHOLD};
 pub use hardware::{DeviceProfile, HardwareCapabilityProfiler};
 pub use intelligent::{
-    AdvancedIntelligentGpuDispatcher, DataCharacteristics, DispatchDecision, GpuPerformancePredictor,
-    MemoryAccessPattern, ModelCoefficients, OptimalChoice, PerformancePrediction, WorkloadAnalysis,
-    WorkloadAnalyzer,
+    AdvancedIntelligentGpuDispatcher, DataCharacteristics, DispatchDecision,
+    GpuPerformancePredictor, MemoryAccessPattern, ModelCoefficients, OptimalChoice,
+    PerformancePrediction, WorkloadAnalysis, WorkloadAnalyzer,
 };
 pub use kernels::{AutoTuneResults, BenchmarkResults, GpuKernelManager, OptimizationLevel};
 pub use metrics::{

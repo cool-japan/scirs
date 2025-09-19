@@ -7,8 +7,8 @@ use ndarray::{Array3, ArrayView2, ArrayView3};
 use num_traits::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::error::{LinalgError, LinalgResult};
 use super::utils::{attention, AttentionConfig, AttentionMask};
+use crate::error::{LinalgError, LinalgResult};
 
 /// Multi-Head Attention
 ///

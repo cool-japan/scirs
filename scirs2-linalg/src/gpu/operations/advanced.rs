@@ -1,10 +1,10 @@
 //! Advanced GPU-accelerated linear algebra operations
 
+use super::super::AutoGpuSelector;
 use super::dispatcher::GpuOperationDispatcher;
 use super::kernels::GpuKernelManager;
-use super::optimization::{BatchSizeOptimizer, BatchPerformanceRecord};
+use super::optimization::{BatchPerformanceRecord, BatchSizeOptimizer};
 use super::profiling::GpuPerformanceProfiler;
-use super::super::AutoGpuSelector;
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{Array2, ArrayView2};
 use num_traits::{Float, NumAssign, Zero};

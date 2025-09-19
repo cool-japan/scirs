@@ -37,31 +37,31 @@ pub mod scheduling;
 
 // Re-export main types for convenience
 pub use kernels::{
-    AdvancedGpuKernelFusion, OperationDependencyGraph, OperationNode, GpuOperationType,
-    TensorShape, ElementType, MemoryLayout, MemoryRequirements, KernelSpecification,
-    DependencyEdge, DependencyType, FusionCandidate, KernelFusionEngine, FusionStrategy,
-    FusionRuleSet, PerformanceModel, FusionOptimizationParams,
+    AdvancedGpuKernelFusion, DependencyEdge, DependencyType, ElementType, FusionCandidate,
+    FusionOptimizationParams, FusionRuleSet, FusionStrategy, GpuOperationType, KernelFusionEngine,
+    KernelSpecification, MemoryLayout, MemoryRequirements, OperationDependencyGraph, OperationNode,
+    PerformanceModel, TensorShape,
 };
 
 pub use memory::{
-    GpuMemoryManager, MemoryPool, MemoryBlock, MemoryPoolType, MemoryAllocationStrategy,
-    MemoryGarbageCollector, GCStrategy, GCStats, BandwidthPredictor, BandwidthPredictionModel,
-    BandwidthMeasurement, MemoryAccessPattern, MemoryStats, TensorCorePrecision,
+    BandwidthMeasurement, BandwidthPredictionModel, BandwidthPredictor, GCStats, GCStrategy,
+    GpuMemoryManager, MemoryAccessPattern, MemoryAllocationStrategy, MemoryBlock,
+    MemoryGarbageCollector, MemoryPool, MemoryPoolType, MemoryStats, TensorCorePrecision,
 };
 
 pub use optimization::{
-    AdvancedMultiGpuCoordinator, GpuTopologyMap, GpuInfo, GpuConnection, InterGpuConnectionType,
-    IntelligentPartitioner, PartitioningStrategy, PartitioningCostModel, PartitioningPerformanceRecord,
-    WorkloadCharacteristics, DynamicLoadBalancer, LoadBalancingAlgorithm, LoadMonitor,
-    MigrationPolicy, MigrationTrigger, MigrationCostModel, MigrationStrategy,
-    InterGpuCommOptimizer, CommunicationPattern, CommOptimizationAlgorithm, BandwidthAllocator,
-    BandwidthAllocationPolicy, GpuWorkPartition,
+    AdvancedMultiGpuCoordinator, BandwidthAllocationPolicy, BandwidthAllocator,
+    CommOptimizationAlgorithm, CommunicationPattern, DynamicLoadBalancer, GpuConnection, GpuInfo,
+    GpuTopologyMap, GpuWorkPartition, IntelligentPartitioner, InterGpuCommOptimizer,
+    InterGpuConnectionType, LoadBalancingAlgorithm, LoadMonitor, MigrationCostModel,
+    MigrationPolicy, MigrationStrategy, MigrationTrigger, PartitioningCostModel,
+    PartitioningPerformanceRecord, PartitioningStrategy, WorkloadCharacteristics,
 };
 
 pub use scheduling::{
-    AdvancedGpuTensorCoreScheduler, TensorCoreUnit, TensorCoreSchedulingAlgorithm,
-    TensorCoreOperation, TensorCoreOpType, TensorCorePerformanceMonitor, OperationAnalysis,
-    SchedulingStats,
+    AdvancedGpuTensorCoreScheduler, OperationAnalysis, SchedulingStats, TensorCoreOpType,
+    TensorCoreOperation, TensorCorePerformanceMonitor, TensorCoreSchedulingAlgorithm,
+    TensorCoreUnit,
 };
 
 use crate::error::{LinalgError, LinalgResult};
@@ -69,7 +69,13 @@ use crate::error::{LinalgError, LinalgResult};
 /// Unified advanced GPU acceleration framework
 pub struct AdvancedGpuAccelerationFramework<T>
 where
-    T: num_traits::Float + num_traits::NumAssign + num_traits::Zero + Send + Sync + std::fmt::Debug + 'static,
+    T: num_traits::Float
+        + num_traits::NumAssign
+        + num_traits::Zero
+        + Send
+        + Sync
+        + std::fmt::Debug
+        + 'static,
 {
     /// Kernel fusion engine
     pub fusion_engine: AdvancedGpuKernelFusion<T>,
@@ -85,7 +91,13 @@ where
 
 impl<T> AdvancedGpuAccelerationFramework<T>
 where
-    T: num_traits::Float + num_traits::NumAssign + num_traits::Zero + Send + Sync + std::fmt::Debug + 'static,
+    T: num_traits::Float
+        + num_traits::NumAssign
+        + num_traits::Zero
+        + Send
+        + Sync
+        + std::fmt::Debug
+        + 'static,
 {
     /// Create a new advanced GPU acceleration framework
     pub fn new(gpu_id: usize) -> LinalgResult<Self> {
@@ -121,7 +133,8 @@ where
             scheduling_stats: self.tensor_scheduler.get_performance_stats(),
             memory_stats: self.memory_manager.get_memory_stats(),
             bandwidth_prediction_accuracy: self.bandwidth_predictor.accuracy,
-            total_fusion_candidates: self.fusion_engine
+            total_fusion_candidates: self
+                .fusion_engine
                 .operation_graph
                 .read()
                 .unwrap()
@@ -149,7 +162,13 @@ pub fn initialize_advanced_gpu_acceleration<T>(
     gpu_id: usize,
 ) -> LinalgResult<AdvancedGpuAccelerationFramework<T>>
 where
-    T: num_traits::Float + num_traits::NumAssign + num_traits::Zero + Send + Sync + std::fmt::Debug + 'static,
+    T: num_traits::Float
+        + num_traits::NumAssign
+        + num_traits::Zero
+        + Send
+        + Sync
+        + std::fmt::Debug
+        + 'static,
 {
     AdvancedGpuAccelerationFramework::new(gpu_id)
 }
@@ -164,7 +183,8 @@ pub fn get_optimization_recommendations(
     if stats.memory_stats.fragmentation_count > 100 {
         recommendations.push(OptimizationRecommendation {
             category: RecommendationCategory::Memory,
-            description: "High memory fragmentation detected. Consider running garbage collection.".to_string(),
+            description: "High memory fragmentation detected. Consider running garbage collection."
+                .to_string(),
             priority: RecommendationPriority::High,
             estimated_benefit: 0.3,
         });
@@ -174,7 +194,8 @@ pub fn get_optimization_recommendations(
     if stats.scheduling_stats.tensor_core_utilization < 0.5 {
         recommendations.push(OptimizationRecommendation {
             category: RecommendationCategory::Scheduling,
-            description: "Low tensor core utilization. Consider batching smaller operations.".to_string(),
+            description: "Low tensor core utilization. Consider batching smaller operations."
+                .to_string(),
             priority: RecommendationPriority::Medium,
             estimated_benefit: 0.4,
         });
@@ -184,7 +205,8 @@ pub fn get_optimization_recommendations(
     if stats.bandwidth_prediction_accuracy < 0.7 {
         recommendations.push(OptimizationRecommendation {
             category: RecommendationCategory::Prediction,
-            description: "Low bandwidth prediction accuracy. Consider updating prediction models.".to_string(),
+            description: "Low bandwidth prediction accuracy. Consider updating prediction models."
+                .to_string(),
             priority: RecommendationPriority::Low,
             estimated_benefit: 0.2,
         });
@@ -194,7 +216,9 @@ pub fn get_optimization_recommendations(
     if stats.total_fusion_candidates > 50 {
         recommendations.push(OptimizationRecommendation {
             category: RecommendationCategory::Fusion,
-            description: "Many fusion opportunities available. Enable aggressive fusion optimization.".to_string(),
+            description:
+                "Many fusion opportunities available. Enable aggressive fusion optimization."
+                    .to_string(),
             priority: RecommendationPriority::High,
             estimated_benefit: 0.5,
         });
@@ -278,8 +302,12 @@ mod tests {
         assert!(!recommendations.is_empty());
 
         // Should have memory and scheduling recommendations
-        assert!(recommendations.iter().any(|r| r.category == RecommendationCategory::Memory));
-        assert!(recommendations.iter().any(|r| r.category == RecommendationCategory::Scheduling));
+        assert!(recommendations
+            .iter()
+            .any(|r| r.category == RecommendationCategory::Memory));
+        assert!(recommendations
+            .iter()
+            .any(|r| r.category == RecommendationCategory::Scheduling));
     }
 
     #[test]

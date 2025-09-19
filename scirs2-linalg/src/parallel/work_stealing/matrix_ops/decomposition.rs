@@ -5,7 +5,7 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero, One};
+use num_traits::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 use super::super::core::{QRWorkItem, WorkItem};
@@ -44,9 +44,7 @@ where
 
             // Create work items for remaining elements in column k
             #[allow(clippy::type_complexity)]
-            let work_items: Vec<
-                WorkItem<(usize, usize, Array2<F>, Array2<F>)>,
-            > = (k + 1..n)
+            let work_items: Vec<WorkItem<(usize, usize, Array2<F>, Array2<F>)>> = (k + 1..n)
                 .map(|i| WorkItem::new(i, (i, k, l.clone(), matrix_owned.clone())))
                 .collect();
 
@@ -752,7 +750,14 @@ where
             }
 
             if end > start {
-                parallel_qr_step_with_shift(&mut diagonal, &mut sub_diagonal, q, start, end, workers)?;
+                parallel_qr_step_with_shift(
+                    &mut diagonal,
+                    &mut sub_diagonal,
+                    q,
+                    start,
+                    end,
+                    workers,
+                )?;
             }
 
             start = end + 1;

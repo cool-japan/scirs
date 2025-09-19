@@ -206,14 +206,19 @@ impl GpuMemoryManager {
     }
 
     /// Allocate memory using the current strategy
-    pub fn allocate(&mut self, size: usize, pool_type: MemoryPoolType) -> LinalgResult<MemoryBlock> {
+    pub fn allocate(
+        &mut self,
+        size: usize,
+        pool_type: MemoryPoolType,
+    ) -> LinalgResult<MemoryBlock> {
         // Find appropriate pool index
-        let pool_index = self.memory_pools
+        let pool_index = self
+            .memory_pools
             .iter()
             .position(|p| p.pool_type == pool_type)
-            .ok_or_else(|| LinalgError::ComputationError(
-                format!("No pool found for type {:?}", pool_type)
-            ))?;
+            .ok_or_else(|| {
+                LinalgError::ComputationError(format!("No pool found for type {:?}", pool_type))
+            })?;
 
         // Apply allocation strategy
         let pool = &mut self.memory_pools[pool_index];
@@ -228,13 +233,18 @@ impl GpuMemoryManager {
     }
 
     /// Deallocate memory
-    pub fn deallocate(&mut self, block: MemoryBlock, pool_type: MemoryPoolType) -> LinalgResult<()> {
-        let pool_index = self.memory_pools
+    pub fn deallocate(
+        &mut self,
+        block: MemoryBlock,
+        pool_type: MemoryPoolType,
+    ) -> LinalgResult<()> {
+        let pool_index = self
+            .memory_pools
             .iter()
             .position(|p| p.pool_type == pool_type)
-            .ok_or_else(|| LinalgError::ComputationError(
-                format!("No pool found for type {:?}", pool_type)
-            ))?;
+            .ok_or_else(|| {
+                LinalgError::ComputationError(format!("No pool found for type {:?}", pool_type))
+            })?;
 
         let pool = &mut self.memory_pools[pool_index];
 
@@ -269,8 +279,8 @@ impl GpuMemoryManager {
         self.garbage_collector.stats.memory_reclaimed += total_reclaimed;
         self.garbage_collector.stats.total_gc_time_ms += gc_time;
         self.garbage_collector.stats.avg_collection_time_ms =
-            self.garbage_collector.stats.total_gc_time_ms /
-            self.garbage_collector.stats.collections_performed as f64;
+            self.garbage_collector.stats.total_gc_time_ms
+                / self.garbage_collector.stats.collections_performed as f64;
 
         Ok(total_reclaimed)
     }
@@ -323,7 +333,9 @@ impl GpuMemoryManager {
             }
         }
 
-        Err(LinalgError::ComputationError("No suitable block found".to_string()))
+        Err(LinalgError::ComputationError(
+            "No suitable block found".to_string(),
+        ))
     }
 
     fn allocate_best_fit(pool: &mut MemoryPool, size: usize) -> LinalgResult<MemoryBlock> {
@@ -360,7 +372,9 @@ impl GpuMemoryManager {
             pool.allocated_blocks.push(allocated_block.clone());
             Ok(allocated_block)
         } else {
-            Err(LinalgError::ComputationError("No suitable block found".to_string()))
+            Err(LinalgError::ComputationError(
+                "No suitable block found".to_string(),
+            ))
         }
     }
 
@@ -519,7 +533,11 @@ impl BandwidthPredictor {
         };
 
         // Scale based on data size (simplified model)
-        let size_factor = if data_size > 1024 * 1024 * 1024 { 0.9 } else { 1.0 };
+        let size_factor = if data_size > 1024 * 1024 * 1024 {
+            0.9
+        } else {
+            1.0
+        };
 
         base_bandwidth * size_factor
     }

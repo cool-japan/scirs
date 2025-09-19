@@ -605,7 +605,7 @@ where
     // Populate the unfolded _tensor
     for idx in ndarray::indices(shape) {
         let mode_idx = idx[mode];
-        let idx_vec: Vec<usize> = idx.asarray_view().to_vec();
+        let idx_vec: Vec<usize> = idx.as_array_view().to_vec();
         let col_idx = calc_col_idx(&idx_vec, shape, mode);
         result[[mode_idx, col_idx]] = tensor[idx.clone()];
     }

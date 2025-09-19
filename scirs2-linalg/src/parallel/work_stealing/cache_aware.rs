@@ -5,13 +5,13 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero, One};
-use std::iter::Sum;
-use std::collections::{HashMap, hash_map::DefaultHasher};
+use num_traits::{Float, NumAssign, One, Zero};
+use std::collections::{hash_map::DefaultHasher, HashMap};
 use std::hash::{Hash, Hasher};
+use std::iter::Sum;
 use std::sync::{Arc, Mutex};
 
-use super::core::{WorkItem, MatrixOperationType};
+use super::core::{MatrixOperationType, WorkItem};
 use super::scheduler::WorkStealingScheduler;
 
 /// Cache-aware work-stealing scheduler with memory locality optimization

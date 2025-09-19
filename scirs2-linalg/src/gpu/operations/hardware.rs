@@ -93,13 +93,13 @@ impl HardwareCapabilityProfiler {
         // For now, we'll create a mock profile
 
         let mock_profile = DeviceProfile {
-            peak_flops_sp: 5000.0, // 5 TFLOPS single precision
-            peak_flops_dp: 2500.0, // 2.5 TFLOPS double precision
-            memory_bandwidth: 500.0, // 500 GB/s
-            l1_cachesize: 64 * 1024, // 64KB L1 cache
+            peak_flops_sp: 5000.0,         // 5 TFLOPS single precision
+            peak_flops_dp: 2500.0,         // 2.5 TFLOPS double precision
+            memory_bandwidth: 500.0,       // 500 GB/s
+            l1_cachesize: 64 * 1024,       // 64KB L1 cache
             l2_cachesize: 2 * 1024 * 1024, // 2MB L2 cache
-            shared_memory: 48 * 1024, // 48KB shared memory
-            register_count: 65536, // 64K registers
+            shared_memory: 48 * 1024,      // 48KB shared memory
+            register_count: 65536,         // 64K registers
             tensor_core_support: true,
             mixed_precision_support: true,
         };
@@ -111,7 +111,8 @@ impl HardwareCapabilityProfiler {
         operations.insert("matvec_f32".to_string(), 800.0);
         operations.insert("elementwise_f32".to_string(), 2000.0);
 
-        self.device_profiles.insert(device_id.clone(), mock_profile.clone());
+        self.device_profiles
+            .insert(device_id.clone(), mock_profile.clone());
         self.benchmark_results.insert(device_id.clone(), operations);
 
         // Add capability flags
@@ -155,13 +156,39 @@ impl HardwareCapabilityProfiler {
 
         for (device_id, profile) in &self.device_profiles {
             report.push_str(&format!("Device: {}\n", device_id));
-            report.push_str(&format!("  Peak FP32 FLOPS: {:.1} GFLOPS\n", profile.peak_flops_sp));
-            report.push_str(&format!("  Peak FP64 FLOPS: {:.1} GFLOPS\n", profile.peak_flops_dp));
-            report.push_str(&format!("  Memory Bandwidth: {:.1} GB/s\n", profile.memory_bandwidth));
+            report.push_str(&format!(
+                "  Peak FP32 FLOPS: {:.1} GFLOPS\n",
+                profile.peak_flops_sp
+            ));
+            report.push_str(&format!(
+                "  Peak FP64 FLOPS: {:.1} GFLOPS\n",
+                profile.peak_flops_dp
+            ));
+            report.push_str(&format!(
+                "  Memory Bandwidth: {:.1} GB/s\n",
+                profile.memory_bandwidth
+            ));
             report.push_str(&format!("  L1 Cache: {} KB\n", profile.l1_cachesize / 1024));
-            report.push_str(&format!("  L2 Cache: {} MB\n", profile.l2_cachesize / (1024 * 1024)));
-            report.push_str(&format!("  Tensor Cores: {}\n", if profile.tensor_core_support { "Yes" } else { "No" }));
-            report.push_str(&format!("  Mixed Precision: {}\n", if profile.mixed_precision_support { "Yes" } else { "No" }));
+            report.push_str(&format!(
+                "  L2 Cache: {} MB\n",
+                profile.l2_cachesize / (1024 * 1024)
+            ));
+            report.push_str(&format!(
+                "  Tensor Cores: {}\n",
+                if profile.tensor_core_support {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            ));
+            report.push_str(&format!(
+                "  Mixed Precision: {}\n",
+                if profile.mixed_precision_support {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            ));
 
             if let Some(capabilities) = self.capability_flags.get(device_id) {
                 report.push_str("  Capabilities: ");

@@ -78,7 +78,10 @@ pub mod opencl_impl {
         (CL_SUCCESS, SafeClPtr::new(ptr::null_mut()))
     }
 
-    fn cl_create_command_queue(_context: ClContext, _device: ClDeviceId) -> (ClInt, ClCommandQueue) {
+    fn cl_create_command_queue(
+        _context: ClContext,
+        _device: ClDeviceId,
+    ) -> (ClInt, ClCommandQueue) {
         (CL_SUCCESS, SafeClPtr::new(ptr::null_mut()))
     }
 

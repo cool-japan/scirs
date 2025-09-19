@@ -5,14 +5,14 @@
 //! - Kernel optimization and compilation
 //! - Performance modeling and prediction
 
-use crate::gpu::{GpuBackend, GpuContext, GpuDeviceType};
-use crate::gpu::operations::kernels::GpuKernelManager;
 use crate::error::{LinalgError, LinalgResult};
+use crate::gpu::operations::kernels::GpuKernelManager;
+use crate::gpu::{GpuBackend, GpuContext, GpuDeviceType};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use num_traits::{Float, NumAssign, Zero};
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex, RwLock};
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Advanced-advanced GPU kernel fusion engine
 pub struct AdvancedGpuKernelFusion<T>
@@ -371,7 +371,10 @@ impl KernelFusionEngine {
     fn can_fuse_operations<T>(&self, op1: &OperationNode<T>, op2: &OperationNode<T>) -> bool {
         // Check if operations are compatible for fusion
         match (&op1.op_type, &op2.op_type) {
-            (GpuOperationType::ElementwiseAddition, GpuOperationType::ElementwiseMultiplication) => true,
+            (
+                GpuOperationType::ElementwiseAddition,
+                GpuOperationType::ElementwiseMultiplication,
+            ) => true,
             (GpuOperationType::MatrixMultiplication, GpuOperationType::MatrixAddition) => true,
             (GpuOperationType::MatrixTranspose, GpuOperationType::MatrixMultiplication) => true,
             _ => false,
@@ -380,7 +383,8 @@ impl KernelFusionEngine {
 
     fn estimate_fusion_benefit<T>(&self, op1: &OperationNode<T>, op2: &OperationNode<T>) -> f64 {
         // Simplified performance benefit estimation
-        let memory_transfer_saved = op1.output_shape.dimensions.iter().product::<usize>() as f64 * 4.0;
+        let memory_transfer_saved =
+            op1.output_shape.dimensions.iter().product::<usize>() as f64 * 4.0;
         memory_transfer_saved / 1e9 // Benefit in GB/s saved
     }
 

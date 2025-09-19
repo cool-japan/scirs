@@ -7,125 +7,61 @@
 //! - Pattern recognition for memory access optimization
 
 // Module declarations
-pub mod types;
 pub mod cache;
 pub mod compression;
+pub mod memory_intelligence;
 pub mod numa;
 pub mod patterns;
 pub mod training;
-pub mod memory_intelligence;
+pub mod types;
 
 // Re-export commonly used types
 pub use types::*;
 
 // Re-export main components
 pub use memory_intelligence::{
-    AdvancedMemoryIntelligence,
-    AdvancedMemoryOptimizationReport,
-    OptimizationRecommendation,
-    OptimizationCategory,
-    ComplexityLevel,
+    AdvancedMemoryIntelligence, AdvancedMemoryOptimizationReport, ComplexityLevel,
+    OptimizationCategory, OptimizationRecommendation,
 };
 
 // Re-export cache components
 pub use cache::{
-    NeuralCachePredictionModel,
-    CacheAccessPattern,
-    CachePerformancePrediction,
-    PerformanceBottleneck,
-    BottleneckType,
-    BandwidthMonitor,
-    BandwidthSaturationPrediction,
-    BandwidthMeasurement,
-    NeuralModelParameters,
-    OptimizerType,
-    ConvolutionalLayer,
-    LstmLayer,
-    DenseLayer,
+    BandwidthMeasurement, BandwidthMonitor, BandwidthSaturationPrediction, BottleneckType,
+    CacheAccessPattern, CachePerformancePrediction, ConvolutionalLayer, DenseLayer, LstmLayer,
+    NeuralCachePredictionModel, NeuralModelParameters, OptimizerType, PerformanceBottleneck,
     TrainingMetrics,
 };
 
 // Re-export compression components
 pub use compression::{
-    AdaptiveCompressionEngine,
-    CompressionAlgorithm,
-    CompressionConstraints,
-    CompressionSelectorNetwork,
-    CompressionMetrics,
-    CompressionQualityAssessor,
-    PerceptualQualityModel,
-    QualityMetric,
-    PerceptualFeatureType,
-    QualityPredictionNetwork,
-    AttentionMechanism,
-    FeatureExtractor,
-    FeatureType,
-    ClassificationNetwork,
-    SoftmaxLayer,
-    ConfidenceEstimator,
-    BayesianNetwork,
-    PriorDistribution,
-    VariationalParameters,
-    UncertaintyQuantificationMethod,
+    AdaptiveCompressionEngine, AttentionMechanism, BayesianNetwork, ClassificationNetwork,
+    CompressionAlgorithm, CompressionConstraints, CompressionMetrics, CompressionQualityAssessor,
+    CompressionSelectorNetwork, ConfidenceEstimator, FeatureExtractor, FeatureType,
+    PerceptualFeatureType, PerceptualQualityModel, PriorDistribution, QualityMetric,
+    QualityPredictionNetwork, SoftmaxLayer, UncertaintyQuantificationMethod, VariationalParameters,
 };
 
 // Re-export NUMA components
 pub use numa::{
-    NumaTopologyOptimizer,
-    NumaTopology,
-    NumaNode,
-    MemoryAllocationStrategy,
-    NumaPerformanceMonitor,
-    MemoryAccessSample,
-    NumaPerformanceMetrics,
-    NumaOptimizationPolicy,
-    NumaOptimizationTrigger,
-    NumaOptimizationAction,
-    NumaSuccessCriterion,
+    MemoryAccessSample, MemoryAllocationStrategy, NumaNode, NumaOptimizationAction,
+    NumaOptimizationPolicy, NumaOptimizationTrigger, NumaPerformanceMetrics,
+    NumaPerformanceMonitor, NumaSuccessCriterion, NumaTopology, NumaTopologyOptimizer,
 };
 
 // Re-export pattern components
 pub use patterns::{
-    PatternDatabase,
-    PatternSimilarityIndex,
-    LocalitySensitiveHashing,
-    HashFunction,
-    IndexParameters,
-    MemoryAccessPattern,
-    MemoryAccess,
-    PatternFeatures,
-    PatternPerformance,
+    HashFunction, IndexParameters, LocalitySensitiveHashing, MemoryAccess, MemoryAccessPattern,
+    PatternDatabase, PatternFeatures, PatternPerformance, PatternSimilarityIndex,
 };
 
 // Re-export training components
 pub use training::{
-    AdvancedMemoryPatternLearning,
-    ConvolutionalPatternNetwork,
-    PoolingLayer,
-    PoolingType,
-    EmbeddingLayer,
-    ClassificationHead,
-    ReinforcementLearningAgent,
-    QNetwork,
-    PolicyNetwork,
-    ExperienceReplayBuffer,
-    Experience,
-    RLLearningParameters,
-    GeneticLayoutOptimizer,
-    AdvancedMemoryLayout,
-    GeneticAlgorithmParameters,
-    SelectionMethod,
-    FitnessEvaluator,
-    FitnessMetric,
-    BenchmarkSuite,
-    MemoryBenchmark,
-    BenchmarkResult,
-    OptimizationRecommendations,
-    PrefetchStrategy,
-    PrefetchType,
-    PatternOptimization,
-    OptimizationType,
-    EffortLevel,
+    AdvancedMemoryLayout, AdvancedMemoryPatternLearning, BenchmarkResult, BenchmarkSuite,
+    ClassificationHead, ConvolutionalPatternNetwork, EffortLevel, EmbeddingLayer, Experience,
+    ExperienceReplayBuffer, FitnessEvaluator, FitnessMetric, GeneticAlgorithmParameters,
+    GeneticLayoutOptimizer, MemoryBenchmark, OptimizationRecommendations, OptimizationType,
+    PatternOptimization, PolicyNetwork, PoolingLayer, PoolingType, PrefetchStrategy, PrefetchType,
+    QNetwork, RLLearningParameters, ReinforcementLearningAgent, SelectionMethod,
 };
 
 #[cfg(test)]

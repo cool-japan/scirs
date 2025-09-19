@@ -1,7 +1,7 @@
 //! NUMA topology optimization for neural memory management.
 
-use crate::error::{LinalgError, LinalgResult};
 use super::types::*;
+use crate::error::{LinalgError, LinalgResult};
 use ndarray::Array2;
 use std::collections::{HashMap, VecDeque};
 

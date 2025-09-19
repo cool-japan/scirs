@@ -13,11 +13,7 @@ use crate::error::{LinalgError, LinalgResult};
 use ndarray::{ArrayView1, ArrayView2};
 use std::fmt::Debug;
 
-use super::{
-    matrix_calibration::*,
-    vector_calibration::*,
-    utils::*,
-};
+use super::{matrix_calibration::*, utils::*, vector_calibration::*};
 
 /// Calibration method for determining quantization parameters
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

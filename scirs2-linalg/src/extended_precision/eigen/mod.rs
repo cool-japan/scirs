@@ -38,19 +38,16 @@
 //! println!("Eigenvectors shape: {:?}", eigvecs.shape());
 //! ```
 
-mod standard_eigen;
 mod generalized_eigen;
 mod iterative;
+mod standard_eigen;
 
 // Re-export the main public functions
 pub use standard_eigen::{
-    extended_eigvals, extended_eig, extended_eigvalsh, extended_eigh,
-    EigenResult
+    extended_eig, extended_eigh, extended_eigvals, extended_eigvalsh, EigenResult,
 };
 
-pub use iterative::{
-    advanced_precision_eigh
-};
+pub use iterative::advanced_precision_eigh;
 
 // Internal functions are available to each other
 pub(super) use generalized_eigen::*;

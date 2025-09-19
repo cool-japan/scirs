@@ -7,9 +7,9 @@ use ndarray::{Array3, ArrayView3};
 use num_traits::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
+use super::utils::{attention, AttentionMask};
 use crate::blas_accelerated;
 use crate::error::{check_dimensions, LinalgError, LinalgResult};
-use super::utils::{attention, AttentionMask};
 
 /// Scaled Dot-Product Attention
 ///

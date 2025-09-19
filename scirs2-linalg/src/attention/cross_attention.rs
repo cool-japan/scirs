@@ -8,8 +8,8 @@ use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3};
 use num_traits::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::error::{check_dimensions, LinalgError, LinalgResult};
 use super::utils::{attention, AttentionMask};
+use crate::error::{check_dimensions, LinalgError, LinalgResult};
 
 /// Flash Attention - Memory-efficient attention implementation
 ///

@@ -492,7 +492,10 @@ _kernel void tensor_contract_{{PRECISION}}_{{BLOCK_SIZE}}(
         })
     }
 
-    fn estimate_performance(&self, metadata: &KernelMetadata) -> LinalgResult<KernelPerformanceData> {
+    fn estimate_performance(
+        &self,
+        metadata: &KernelMetadata,
+    ) -> LinalgResult<KernelPerformanceData> {
         // Mock performance estimation
         Ok(KernelPerformanceData {
             compile_time_ms: 150.0,

@@ -1,8 +1,8 @@
 //! Compression engines and algorithm selection for neural memory optimization.
 
-use crate::error::{LinalgError, LinalgResult};
-use super::types::*;
 use super::cache::{DenseLayer, TrainingMetrics};
+use super::types::*;
+use crate::error::{LinalgError, LinalgResult};
 use ndarray::{Array1, Array2, ArrayView2};
 use num_traits::{Float, NumAssign, Zero};
 use std::collections::{HashMap, VecDeque};

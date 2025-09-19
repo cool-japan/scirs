@@ -10,9 +10,9 @@ use std::fmt::Debug;
 
 use crate::error::{LinalgError, LinalgResult};
 
+use super::matrix::{QuantizedData2D, QuantizedMatrix};
 use super::types::{QuantizationMethod, QuantizationParams, QuantizedDataType};
-use super::matrix::{QuantizedMatrix, QuantizedData2D};
-use super::vector::{QuantizedVector, QuantizedData1D};
+use super::vector::{QuantizedData1D, QuantizedVector};
 
 /// Quantize a floating-point matrix to a lower precision representation
 ///

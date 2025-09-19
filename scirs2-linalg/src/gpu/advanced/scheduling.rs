@@ -6,8 +6,8 @@
 //! - Bandwidth prediction and resource management
 //! - Multi-objective scheduling strategies
 
-use super::kernels::{GpuOperationType, TensorShape, ElementType};
-use super::memory::{TensorCorePrecision, MemoryAccessPattern};
+use super::kernels::{ElementType, GpuOperationType, TensorShape};
+use super::memory::{MemoryAccessPattern, TensorCorePrecision};
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::Array2;
 use std::collections::VecDeque;
@@ -223,7 +223,7 @@ impl<T> AdvancedGpuTensorCoreScheduler<T> {
         // Add operations to queue
         for &op_idx in &schedule {
             if let Some(op) = operations.get(op_idx) {
-                self.operation_queue.push_back(op.clone());
+                self.operation_queue.push_back((*op).clone());
             }
         }
 
@@ -231,7 +231,10 @@ impl<T> AdvancedGpuTensorCoreScheduler<T> {
     }
 
     /// Analyze individual operation requirements
-    fn analyze_operation_requirements(&self, operation: &TensorCoreOperation<T>) -> OperationAnalysis {
+    fn analyze_operation_requirements(
+        &self,
+        operation: &TensorCoreOperation<T>,
+    ) -> OperationAnalysis {
         OperationAnalysis {
             compute_intensity: self.calculate_compute_intensity(operation),
             memory_bandwidth_requirement: self.calculate_memory_requirement(operation),
@@ -525,7 +528,10 @@ impl<T> AdvancedGpuTensorCoreScheduler<T> {
         let avg_throughput = if self.performance_monitor.throughput_history.is_empty() {
             0.0
         } else {
-            self.performance_monitor.throughput_history.iter().sum::<f64>()
+            self.performance_monitor
+                .throughput_history
+                .iter()
+                .sum::<f64>()
                 / self.performance_monitor.throughput_history.len() as f64
         };
 
@@ -548,7 +554,10 @@ impl<T> AdvancedGpuTensorCoreScheduler<T> {
         if self.tensor_core_units.is_empty() {
             0.0
         } else {
-            self.tensor_core_units.iter().map(|unit| unit.utilization).sum::<f64>()
+            self.tensor_core_units
+                .iter()
+                .map(|unit| unit.utilization)
+                .sum::<f64>()
                 / self.tensor_core_units.len() as f64
         }
     }
@@ -660,7 +669,9 @@ mod tests {
         let operations = vec![GpuOperationType::MatrixMultiplication];
         let data_sizes = vec![1024];
 
-        let bandwidth = predictor.predict_bandwidth(&operations, &data_sizes).unwrap();
+        let bandwidth = predictor
+            .predict_bandwidth(&operations, &data_sizes)
+            .unwrap();
         assert!(bandwidth > 0.0);
     }
 

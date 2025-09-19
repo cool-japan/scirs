@@ -8,10 +8,10 @@ use ndarray::{Array1, Array2};
 
 use crate::error::{LinalgError, LinalgResult};
 
-use super::types::{QuantizationMethod, QuantizationParams, QuantizedDataType};
-use super::matrix::QuantizedMatrix;
-use super::vector::QuantizedVector;
 use super::conversions::dequantize_matrix;
+use super::matrix::QuantizedMatrix;
+use super::types::{QuantizationMethod, QuantizationParams, QuantizedDataType};
+use super::vector::QuantizedVector;
 
 /// Perform matrix multiplication with two quantized matrices
 ///

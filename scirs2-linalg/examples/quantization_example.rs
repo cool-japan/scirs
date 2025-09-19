@@ -5,8 +5,11 @@
 
 use ndarray::{Array1, Array2};
 use scirs2_linalg::quantization::{
-    dequantize_matrix, quantize_matrix,
-    quantized_matmul, QuantizationMethod, QuantizedData2D,
+    dequantize_matrix,
+    quantize_matrix,
+    quantized_matmul,
+    QuantizationMethod,
+    QuantizedData2D,
     // TODO: The following are not yet implemented:
     // dequantize_vector, fake_quantize, quantize_vector,
     // quantized_dot, quantized_matvec,

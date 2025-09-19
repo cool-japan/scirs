@@ -528,7 +528,7 @@ where
 
         // Skip mode dimension
         if depth == mode {
-            generate_indices_without_mode(shape, current, depth + 1, _mode_dim, all_indices);
+            generate_indices_without_mode(shape, current, depth + 1, mode, _mode_dim, all_indices);
             return;
         }
 
@@ -542,6 +542,7 @@ where
                 shape,
                 current.clone(),
                 depth + 1,
+                mode,
                 _mode_dim,
                 all_indices,
             );

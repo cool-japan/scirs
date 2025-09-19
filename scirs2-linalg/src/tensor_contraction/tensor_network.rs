@@ -121,7 +121,7 @@ where
         }
 
         // Map from current indices to their positions
-        let index_positions: HashMap<_> = self
+        let index_positions: HashMap<_, _> = self
             .indices
             .iter()
             .enumerate()
@@ -269,10 +269,10 @@ where
         for self_idx in ndarray::indices(self.data.shape()) {
             for other_idx in ndarray::indices(other.data.shape()) {
                 let mut result_idx = Vec::new();
-                for &i in self_idx.asarray_view().iter() {
+                for &i in self_idx.as_array_view().iter() {
                     result_idx.push(i);
                 }
-                for &i in other_idx.asarray_view().iter() {
+                for &i in other_idx.as_array_view().iter() {
                     result_idx.push(i);
                 }
 

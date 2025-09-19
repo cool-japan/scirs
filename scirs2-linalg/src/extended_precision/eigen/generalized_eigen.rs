@@ -239,7 +239,11 @@ where
 
 // QR algorithm for computing eigenvalues of a Hessenberg matrix
 #[allow(dead_code)]
-pub(super) fn qr_algorithm<I>(mut a: Array2<I>, maxiter: usize, tol: I) -> Array1<num_complex::Complex<I>>
+pub(super) fn qr_algorithm<I>(
+    mut a: Array2<I>,
+    maxiter: usize,
+    tol: I,
+) -> Array1<num_complex::Complex<I>>
 where
     I: Float + Zero + One + Copy + std::fmt::Debug + std::ops::AddAssign + std::ops::SubAssign,
 {

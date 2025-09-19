@@ -1,12 +1,15 @@
 //! Main AdvancedMemoryIntelligence struct and core logic.
 
-use crate::error::{LinalgError, LinalgResult};
-use super::types::*;
-use super::cache::{NeuralCachePredictionModel, CacheAccessPattern, CachePerformancePrediction, BandwidthMonitor, BandwidthSaturationPrediction};
+use super::cache::{
+    BandwidthMonitor, BandwidthSaturationPrediction, CacheAccessPattern,
+    CachePerformancePrediction, NeuralCachePredictionModel,
+};
 use super::compression::{AdaptiveCompressionEngine, CompressionAlgorithm, CompressionConstraints};
-use super::numa::{NumaTopologyOptimizer, MemoryAllocationStrategy};
-use super::training::{AdvancedMemoryPatternLearning, OptimizationRecommendations};
+use super::numa::{MemoryAllocationStrategy, NumaTopologyOptimizer};
 use super::patterns::MemoryAccessPattern;
+use super::training::{AdvancedMemoryPatternLearning, OptimizationRecommendations};
+use super::types::*;
+use crate::error::{LinalgError, LinalgResult};
 use ndarray::ArrayView2;
 use num_traits::{Float, NumAssign, Zero};
 use std::collections::HashMap;
