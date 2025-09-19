@@ -1378,7 +1378,7 @@ mod tests {
     #[cfg(feature = "lazy")]
     #[test]
     fn test_lazy_bessel() {
-        let input = Array::linspace(0.0, 5.0, 500);
+        let input = Array::linspace(0.0, 5.0, 1500); // Size above lazy threshold
         let config = convenience::lazy_config();
         let result = vectorized::j0_array(&input, &config).unwrap();
 

@@ -701,7 +701,7 @@ where
 
             // Initialize extrema with the first element in the window
             let mut extrema_coords = coords.clone();
-            let mut extrema = padded_input[&*extrema_coords];
+            let mut extrema = padded_input[extrema_coords.as_slice()];
 
             // Generate all window coordinates around this position
             let mut window_coords = vec![0; ndim];

@@ -1173,7 +1173,7 @@ impl RealWorldDatasets {
         let featurenames: Vec<String> = columns
             .iter()
             .filter(|&&_col| Some(_col) != target_col)
-            .map(|&_col| col.to_string())
+            .map(|&col| col.to_string())
             .collect();
 
         // Create metadata

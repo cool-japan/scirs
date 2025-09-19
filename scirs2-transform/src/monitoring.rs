@@ -236,10 +236,10 @@ impl TransformationMonitor {
     ) -> Result<()> {
         self.reference_data = Some(data.clone());
 
-        if let Some(_names) = feature_names {
+        if let Some(names) = feature_names {
             if names.len() != data.ncols() {
                 return Err(TransformError::InvalidInput(
-                    "Number of feature _names must match number of columns".to_string(),
+                    "Number of feature names must match number of columns".to_string(),
                 ));
             }
             self.feature_names = names;
@@ -260,14 +260,14 @@ impl TransformationMonitor {
 
     /// Configure drift detection method for a specific feature
     pub fn set_drift_method(&mut self, featurename: &str, method: DriftMethod) -> Result<()> {
-        if !self.feature_names.contains(&feature_name.to_string()) {
+        if !self.feature_names.contains(&featurename.to_string()) {
             return Err(TransformError::InvalidInput(format!(
-                "Unknown feature _name: {}",
-                feature_name
+                "Unknown feature name: {}",
+                featurename
             )));
         }
 
-        self.drift_methods.insert(feature_name.to_string(), method);
+        self.drift_methods.insert(featurename.to_string(), method);
         Ok(())
     }
 
@@ -289,11 +289,11 @@ impl TransformationMonitor {
         let reference_data = self
             .reference_data
             .as_ref()
-            .ok_or_else(|| TransformError::InvalidInput("Reference _data not set".to_string()))?;
+            .ok_or_else(|| TransformError::InvalidInput("Reference data not set".to_string()))?;
 
         if new_data.ncols() != reference_data.ncols() {
             return Err(TransformError::InvalidInput(
-                "New _data must have same number of features as reference _data".to_string(),
+                "New data must have same number of features as reference data".to_string(),
             ));
         }
 
@@ -306,8 +306,8 @@ impl TransformationMonitor {
                 .get(feature_name)
                 .unwrap_or(&DriftMethod::KolmogorovSmirnov);
 
-            let reference_feature = "reference_data".column(i);
-            let new_feature = "new_data".column(i);
+            let reference_feature = reference_data.column(i);
+            let new_feature = new_data.column(i);
 
             let result = self.detect_feature_drift(
                 &reference_feature,
@@ -369,7 +369,7 @@ impl TransformationMonitor {
 
     /// Get drift detection summary
     pub fn get_drift_summary(&self, lookbackhours: u64) -> Result<HashMap<String, f64>> {
-        let cutoff_time = current_timestamp() - (lookback_hours * 3600);
+        let cutoff_time = current_timestamp() - (lookbackhours * 3600);
         let mut summary = HashMap::new();
 
         for feature_name in &self.feature_names {
@@ -397,7 +397,7 @@ impl TransformationMonitor {
 
     /// Get performance trends
     pub fn get_performance_trends(&self, lookbackhours: u64) -> Result<HashMap<String, f64>> {
-        let cutoff_time = current_timestamp() - (lookback_hours * 3600);
+        let cutoff_time = current_timestamp() - (lookbackhours * 3600);
         let recent_metrics: Vec<_> = self
             .performance_history
             .iter()
@@ -451,7 +451,7 @@ impl TransformationMonitor {
         for &val in reference.iter() {
             if !val.is_finite() {
                 return Err(crate::error::TransformError::DataValidationError(
-                    "Reference _data contains non-finite values".to_string(),
+                    "Reference data contains non-finite values".to_string(),
                 ));
             }
         }
@@ -460,7 +460,7 @@ impl TransformationMonitor {
         for &val in new_data.iter() {
             if !val.is_finite() {
                 return Err(crate::error::TransformError::DataValidationError(
-                    "New _data contains non-finite values".to_string(),
+                    "New data contains non-finite values".to_string(),
                 ));
             }
         }
@@ -917,7 +917,8 @@ impl TransformationMonitor {
     /// Gamma function using Lanczos approximation
     fn gamma(&self, z: f64) -> f64 {
         if z < 0.5 {
-            // Use reflection formula: Γ(z)Γ(1-z) = π/sin(πz), std::f64::consts::PI / (std::f64::consts::PI * z).sin() / self.gamma(1.0 - z)
+            // Use reflection formula: Γ(z)Γ(1-z) = π/sin(πz)
+            std::f64::consts::PI / ((std::f64::consts::PI * z).sin() * self.gamma(1.0 - z))
         } else {
             // Lanczos approximation coefficients
             let g = 7.0;
@@ -1107,7 +1108,8 @@ impl EnsembleAnomalyDetector {
 
     /// Detect ensemble anomalies by combining multiple detector results
     pub fn detect_ensemble_anomalies(
-        self_metrics: &HashMap<String, f64>,
+        &self,
+        metrics: &HashMap<String, f64>,
         _timestamp: u64,
     ) -> Result<Vec<AnomalyRecord>> {
         // Placeholder ensemble detection logic
@@ -1254,12 +1256,12 @@ impl AdvancedAnomalyDetector {
 
     /// Add a statistical detector for a metric
     pub fn add_statistical_detector(&mut self, metricname: String, detector: StatisticalDetector) {
-        self.statistical_detectors.insert(metric_name, detector);
+        self.statistical_detectors.insert(metricname, detector);
     }
 
     /// Add a machine learning detector for a metric
     pub fn add_ml_detector(&mut self, metricname: String, detector: MLAnomalyDetector) {
-        self.ml_detectors.insert(metric_name, detector);
+        self.ml_detectors.insert(metricname, detector);
     }
 
     /// Add a time series detector for a metric
@@ -1326,7 +1328,7 @@ impl AdvancedAnomalyDetector {
 
     /// Get anomaly patterns and insights
     pub fn get_anomaly_insights(&self, lookbackhours: u64) -> AnomalyInsights {
-        let cutoff_time = current_timestamp() - (lookback_hours * 3600);
+        let cutoff_time = current_timestamp() - (lookbackhours * 3600);
         let recent_anomalies: Vec<_> = self
             .anomaly_history
             .iter()
@@ -1361,12 +1363,12 @@ impl AdvancedAnomalyDetector {
         let most_anomalous_metric = metric_frequencies
             .iter()
             .max_by_key(|(_, &count)| count)
-            .map(|(metric_)| metric.clone());
+            .map(|(metric_, _)| metric_.clone());
 
         AnomalyInsights {
             total_anomalies,
             critical_anomalies,
-            anomaly_rate: total_anomalies as f64 / lookback_hours as f64,
+            anomaly_rate: total_anomalies as f64 / lookbackhours as f64,
             metric_frequencies,
             method_frequencies,
             trending_metrics,
@@ -1392,7 +1394,7 @@ impl AdvancedAnomalyDetector {
         recent_counts
             .into_iter()
             .filter(|(_, count)| *count >= 3) // At least 3 anomalies in recent period
-            .map(|(metric_)| metric)
+            .map(|(metric_, _)| metric_)
             .collect()
     }
 
@@ -1447,13 +1449,13 @@ impl AdvancedAnomalyDetector {
 #[cfg(feature = "monitoring")]
 impl StatisticalDetector {
     /// Create a new statistical detector
-    pub fn new(_z_score_threshold: f64, iqr_multiplier: f64, max_windowsize: usize) -> Self {
+    pub fn new(z_score_threshold: f64, iqr_multiplier: f64, max_window_size: usize) -> Self {
         StatisticalDetector {
             z_score_threshold,
             iqr_multiplier,
-            modified_z_threshold: _z_score_threshold * 0.6745, // Median-based
+            modified_z_threshold: z_score_threshold * 0.6745, // Median-based
             data_window: VecDeque::with_capacity(max_window_size),
-            max_window_size,
+            max_window_size: max_window_size,
         }
     }
 
@@ -1756,7 +1758,7 @@ impl TimeSeriesAnomalyDetector {
     }
 
     /// Simple change point detection
-    fn detect_change_point(&self_currentvalue: f64) -> Result<f64> {
+    fn detect_change_point(&self, current_value: f64) -> Result<f64> {
         let window_size = self
             .change_point_config
             .window_size
@@ -1770,7 +1772,7 @@ impl TimeSeriesAnomalyDetector {
             .iter()
             .rev()
             .take(window_size)
-            .map(|p| p._value)
+            .map(|p| p.value)
             .collect();
 
         let half_window = window_size / 2;
@@ -1793,7 +1795,7 @@ impl TimeSeriesAnomalyDetector {
 
         if pooled_std > 0.0 {
             let t_statistic =
-                (mean2 - mean1).abs() / (pooled_std * (2.0 / window_size as f64).sqrt());
+                (mean2 - mean1).abs() / (pooled_std * (2.0_f64 / window_size as f64).sqrt());
             Ok(t_statistic)
         } else {
             Ok(0.0)

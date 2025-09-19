@@ -112,7 +112,7 @@ where
         {
             use scirs2_core::parallel_ops::*;
 
-            let processor_mutex = Mutex::new(processor);
+            let processor_mutex = Mutex::new(&mut *processor);
             chunks
                 .into_par_iter()
                 .map(|position| {

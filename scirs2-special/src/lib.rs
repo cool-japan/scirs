@@ -115,7 +115,7 @@ mod property_tests;
 pub mod python_interop;
 #[cfg(test)]
 mod quickcheck_tests;
-mod simd_ops;
+pub mod simd_ops;
 mod spherical_harmonics;
 mod spheroidal;
 pub mod stability_analysis;

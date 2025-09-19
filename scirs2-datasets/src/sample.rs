@@ -18,7 +18,7 @@ const DATASET_BASE_URL: &str = "https://raw.githubusercontent.com/cool-japan/sci
 /// Load the California Housing dataset
 #[cfg(feature = "download")]
 #[allow(dead_code)]
-pub fn load_california_housing(_forcedownload: bool) -> Result<Dataset> {
+pub fn load_california_housing(force_download: bool) -> Result<Dataset> {
     let url = format!("{DATASET_BASE_URL}/california_housing.csv");
 
     // Download or load from cache
@@ -26,7 +26,7 @@ pub fn load_california_housing(_forcedownload: bool) -> Result<Dataset> {
 
     // Create a temporary file
     use std::io::Write;
-    let tempdir = std::env::tempdir();
+    let tempdir = std::env::temp_dir();
     let temppath = tempdir.join("scirs2_california_housing.csv");
 
     let mut temp_file = std::fs::File::create(&temppath).map_err(DatasetsError::IoError)?;
@@ -106,7 +106,7 @@ pub fn load_california_housing(_forcedownload: bool) -> Result<Dataset> {
 /// Load the Wine dataset
 #[cfg(feature = "download")]
 #[allow(dead_code)]
-pub fn load_wine(_forcedownload: bool) -> Result<Dataset> {
+pub fn load_wine(force_download: bool) -> Result<Dataset> {
     let url = format!("{DATASET_BASE_URL}/wine.csv");
 
     // Download or load from cache
@@ -114,7 +114,7 @@ pub fn load_wine(_forcedownload: bool) -> Result<Dataset> {
 
     // Create a temporary file
     use std::io::Write;
-    let tempdir = std::env::tempdir();
+    let tempdir = std::env::temp_dir();
     let temppath = tempdir.join("scirs2_wine.csv");
 
     let mut temp_file = std::fs::File::create(&temppath).map_err(DatasetsError::IoError)?;

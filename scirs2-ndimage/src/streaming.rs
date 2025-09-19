@@ -717,7 +717,7 @@ where
 
         // Fallback to CPU processing - simplified implementation
         // Process the input directly without adaptive chunking
-        let result = op.apply_chunk(&input, &self.base_config.clone())?;
+        let result = op.apply_chunk(&input)?;
         Ok(result)
     }
 
@@ -910,7 +910,7 @@ where
             }
 
             // Process chunk on GPU
-            let chunk_result = op.apply_chunk_gpu(&chunk_view, &**gpucontext)?;
+            let chunk_result = op.apply_chunk_gpu(&chunk_view, gpucontext.as_ref())?;
 
             // Handle overlapping regions using proper overlap merging
             if overlap.iter().any(|&x| x > 0) {
@@ -1097,7 +1097,7 @@ where
     fn apply_chunk_gpu(
         &self,
         chunk: &ArrayView<T, D>,
-        gpucontext: &GpuContext,
+        gpucontext: &dyn crate::backend::GpuContext,
     ) -> NdimageResult<Array<T, D>>;
 
     /// Check if chunk size is suitable for GPU processing

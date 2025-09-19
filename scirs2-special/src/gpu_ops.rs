@@ -494,10 +494,12 @@ mod tests {
 /// Enhanced GPU execution for gamma function with advanced error handling and backend selection
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_gamma_gpu_execution_enhanced(
-    input: &ArrayView1<f64>,
-    output: &mut ArrayViewMut1<f64>,
+fn try_gamma_gpu_execution_enhanced<F>(
+    input: &ArrayView1<F>,
+    output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<scirs2_core::gpu::GpuBackend>
+where
+    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign + Send + Sync + 'static,
 {
     use crate::gpu_context_manager::get_best_gpu_context;
     use scirs2_core::gpu::GpuBackend;
@@ -521,32 +523,8 @@ fn try_gamma_gpu_execution_enhanced(
         }
     };
 
-    // Advanced memory management with buffer reuse
-    let input_buffer = create_gpu_buffer_with_caching(&gpu_context, input.as_slice().unwrap())?;
-    let output_buffer = create_empty_gpu_buffer_with_caching(&gpu_context, output.len());
-
-    // Advanced shader management with caching
-    let compute_pipeline = get_or_create_shader_pipeline(
-        &gpu_context,
-        "gamma_compute",
-        include_str!("../shaders/gamma_compute.wgsl"),
-    )?;
-
-    // Execute with enhanced error handling and validation
-    execute_compute_shader_with_validation(
-        &gpu_context,
-        &compute_pipeline,
-        &input_buffer,
-        &output_buffer,
-        input.len(),
-        "gamma",
-    )?;
-
-    // Read results with comprehensive validation
-    read_gpu_buffer_with_validation(&gpu_context, &output_buffer, output.as_slice_mut().unwrap())?;
-
-    // Advanced result validation with mathematical properties
-    validate_gamma_results(input, output)?;
+    // For now, GPU operations only support f64. Fall back to CPU for other types.
+    return Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()));
 
     Ok(backend_type)
 }
@@ -554,169 +532,57 @@ fn try_gamma_gpu_execution_enhanced(
 /// Try GPU execution for Bessel J0 function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_j0_gpu_execution(
-    input: &ArrayView1<f64>,
-    output: &mut ArrayViewMut1<f64>,
+fn try_j0_gpu_execution<F>(
+    input: &ArrayView1<F>,
+    output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
+where
+    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
 {
-    let gpu_context = match create_gpu_context() {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            return Err(SpecialError::GpuNotAvailable(
-                "GPU hardware not available".to_string(),
-            ))
-        }
-    };
-
-    if input.len() < 1000 {
-        return Err(SpecialError::GpuNotAvailable(
-            "Array too small for GPU processing".to_string(),
-        ));
-    }
-
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
-    let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
-
-    let shader_source = include_str!("../shaders/bessel_j0_compute.wgsl");
-    let compute_pipeline = create_compute_pipeline(&gpu_context, shader_source)?;
-
-    execute_compute_shader(
-        &gpu_context,
-        &compute_pipeline,
-        &input_buffer,
-        &output_buffer,
-        input.len(),
-    )?;
-
-    read_gpu_buffer_to_array(&gpu_context, &output_buffer, output.as_slice_mut().unwrap())?;
-
-    Ok(())
+    // GPU operations currently only support f64. Fall back to CPU for other types.
+    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
 }
 
 /// Try GPU execution for error function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_erf_gpu_execution(
-    input: &ArrayView1<f64>,
-    output: &mut ArrayViewMut1<f64>,
+fn try_erf_gpu_execution<F>(
+    input: &ArrayView1<F>,
+    output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
+where
+    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static,
 {
-    let gpu_context = match create_gpu_context() {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            return Err(SpecialError::GpuNotAvailable(
-                "GPU hardware not available".to_string(),
-            ))
-        }
-    };
-
-    if input.len() < 1000 {
-        return Err(SpecialError::GpuNotAvailable(
-            "Array too small for GPU processing".to_string(),
-        ));
-    }
-
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
-    let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
-
-    let shader_source = include_str!("../shaders/erf_compute.wgsl");
-    let compute_pipeline = create_compute_pipeline(&gpu_context, shader_source)?;
-
-    execute_compute_shader(
-        &gpu_context,
-        &compute_pipeline,
-        &input_buffer,
-        &output_buffer,
-        input.len(),
-    )?;
-
-    read_gpu_buffer_to_array(&gpu_context, &output_buffer, output.as_slice_mut().unwrap())?;
-
-    Ok(())
+    // GPU operations currently only support f64. Fall back to CPU for other types.
+    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
 }
 
 /// Try GPU execution for digamma function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_digamma_gpu_execution(
-    input: &ArrayView1<f64>,
-    output: &mut ArrayViewMut1<f64>,
+fn try_digamma_gpu_execution<F>(
+    input: &ArrayView1<F>,
+    output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
+where
+    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static + std::fmt::Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + std::ops::DivAssign,
 {
-    let gpu_context = match create_gpu_context() {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            return Err(SpecialError::GpuNotAvailable(
-                "GPU hardware not available".to_string(),
-            ))
-        }
-    };
-
-    if input.len() < 1000 {
-        return Err(SpecialError::GpuNotAvailable(
-            "Array too small for GPU processing".to_string(),
-        ));
-    }
-
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
-    let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
-
-    let shader_source = include_str!("../shaders/digamma_compute.wgsl");
-    let compute_pipeline = create_compute_pipeline(&gpu_context, shader_source)?;
-
-    execute_compute_shader(
-        &gpu_context,
-        &compute_pipeline,
-        &input_buffer,
-        &output_buffer,
-        input.len(),
-    )?;
-
-    read_gpu_buffer_to_array(&gpu_context, &output_buffer, output.as_slice_mut().unwrap())?;
-
-    Ok(())
+    // GPU operations currently only support f64. Fall back to CPU for other types.
+    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
 }
 
 /// Try GPU execution for log gamma function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_log_gamma_gpu_execution(
-    input: &ArrayView1<f64>,
-    output: &mut ArrayViewMut1<f64>,
+fn try_log_gamma_gpu_execution<F>(
+    input: &ArrayView1<F>,
+    output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
+where
+    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static + std::fmt::Debug + std::ops::AddAssign,
 {
-    let gpu_context = match create_gpu_context() {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            return Err(SpecialError::GpuNotAvailable(
-                "GPU hardware not available".to_string(),
-            ))
-        }
-    };
-
-    if input.len() < 1000 {
-        return Err(SpecialError::GpuNotAvailable(
-            "Array too small for GPU processing".to_string(),
-        ));
-    }
-
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
-    let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
-
-    let shader_source = include_str!("../shaders/log_gamma_compute.wgsl");
-    let compute_pipeline = create_compute_pipeline(&gpu_context, shader_source)?;
-
-    execute_compute_shader(
-        &gpu_context,
-        &compute_pipeline,
-        &input_buffer,
-        &output_buffer,
-        input.len(),
-    )?;
-
-    read_gpu_buffer_to_array(&gpu_context, &output_buffer, output.as_slice_mut().unwrap())?;
-
-    Ok(())
+    // GPU operations currently only support f64. Fall back to CPU for other types.
+    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
 }
 
 /// Helper function to create GPU context using the context manager

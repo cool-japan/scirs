@@ -316,7 +316,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             monitor.benchmark_array_function("gamma_simd", size, |arr| {
                 use scirs2_special::simd_ops::gamma_f64_simd;
-                gamma_f64_simd(&arr.view())
+                gamma_f64_simd(&arr.view()).unwrap()
             });
         }
     }

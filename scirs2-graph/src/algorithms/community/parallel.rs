@@ -207,7 +207,7 @@ where
                     }
 
                     // Find most frequent label
-                    if let Some(&most_frequent_label_) =
+                    if let Some((&most_frequent_label_, _)) =
                         label_counts.iter().max_by_key(|&(_, count)| count)
                     {
                         let current_label = labels.get(node).copied().unwrap_or(0);

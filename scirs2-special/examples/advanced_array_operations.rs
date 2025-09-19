@@ -257,7 +257,7 @@ async fn demo_large_array_processing() -> Result<(), Box<dyn std::error::Error>>
         "  Max: {:.6}",
         result.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))
     );
-    println!("  Mean: {:.6}", result.mean().unwrap());
+    println!("  Mean: {:.6}", result.clone().mean());
 
     // Memory usage estimation
     use scirs2_special::array_ops::memory_efficient;

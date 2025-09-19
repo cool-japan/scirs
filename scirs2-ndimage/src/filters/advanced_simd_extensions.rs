@@ -161,7 +161,7 @@ where
     let (height, width) = input.dim();
     let filter_len = low_filter.len();
     let filter_center = filter_len / 2;
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process rows in parallel
     for y in 0..height {
@@ -242,7 +242,7 @@ where
     let (height, width) = input.dim();
     let filter_len = low_filter.len();
     let filter_center = filter_len / 2;
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     let out_height = height / 2;
 

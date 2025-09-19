@@ -653,12 +653,13 @@ where
     let total_elements = input.len();
 
     // Use parallel iteration if the array is large enough
-    #[cfg(feature = "parallel")]
-    {
-        if total_elements > 10000 {
-            return uniform_filter_nd_parallel(input, &padded_input, size, norm_factor, inputshape);
-        }
-    }
+    // Disabled temporarily due to type constraint issues
+    // #[cfg(feature = "parallel")]
+    // {
+    //     if total_elements > 10000 {
+    //         return uniform_filter_nd_parallel(input, &padded_input, size, norm_factor, inputshape);
+    //     }
+    // }
 
     // Sequential implementation for smaller arrays or when parallel feature is disabled
     uniform_filter_nd_sequential(

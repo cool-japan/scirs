@@ -3,7 +3,7 @@
 //! This module provides the most advanced SIMD optimizations using
 //! vectorized instructions and advanced algorithms for maximum performance.
 
-use ndarray::{s, Array, ArrayView2, ArrayViewMut2, Axis, Ix2};
+use ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut2, Axis, Ix2};
 use num_traits::{Float, FromPrimitive};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp;
@@ -39,17 +39,22 @@ where
 
     // Process in cache-friendly tiles
     let tile_size = 64; // Optimize for L1 cache
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     for tile_y in (0..height).step_by(tile_size) {
         let tile_end_y = (tile_y + tile_size).min(height);
 
         for y in tile_y..tile_end_y {
             // Vectorized horizontal convolution
-            let mut row = temp.slice_mut(s![y, ..]);
-            advanced_simd_horizontal_convolution_row(
-                &input, &mut row, y, kernel_h, kh_half, simd_width,
-            );
+            for x in 0..width {
+                let mut sum = T::zero();
+                for (k_idx, &k_val) in kernel_h.iter().enumerate() {
+                    let x_offset = k_idx as isize - kh_half as isize;
+                    let sample_x = (x as isize + x_offset).clamp(0, width as isize - 1) as usize;
+                    sum = sum + input[(y, sample_x)] * k_val;
+                }
+                temp[(y, x)] = sum;
+            }
         }
     }
 
@@ -74,66 +79,6 @@ where
     Ok(output)
 }
 
-/// Highly optimized horizontal convolution for a single row
-#[allow(dead_code)]
-fn advanced_simd_horizontal_convolution_row<T>(
-    input: &ArrayView2<T>,
-    output_row: &mut ArrayViewMut2<T>,
-    y: usize,
-    kernel: &[T],
-    k_half: usize,
-    simd_width: usize,
-) where
-    T: Float + FromPrimitive + Debug + Clone + SimdUnifiedOps,
-{
-    let (_height, width) = input.dim();
-
-    // Process in SIMD chunks with loop unrolling
-    let num_chunks = width / simd_width;
-
-    for chunk_idx in 0..num_chunks {
-        let x_start = chunk_idx * simd_width;
-
-        // Vectorized accumulation
-        let mut sums = vec![T::zero(); simd_width];
-
-        // Unrolled kernel loop for better performance
-        for (k_idx, &k_val) in kernel.iter().enumerate() {
-            let x_offset = k_idx as isize - k_half as isize;
-
-            // Gather input values with SIMD
-            let mut input_vals = vec![T::zero(); simd_width];
-            for i in 0..simd_width {
-                let x = (x_start + i) as isize + x_offset;
-                let clamped_x = x.clamp(0, width as isize - 1) as usize;
-                input_vals[i] = input[(y, clamped_x)];
-            }
-
-            // SIMD multiply-accumulate
-            let kernel_vals = vec![k_val; simd_width];
-            let products = T::simd_mul(&input_vals, &kernel_vals);
-            sums = T::simd_add(&sums, &products);
-        }
-
-        // Store results
-        for i in 0..simd_width {
-            if x_start + i < width {
-                output_row[[0, x_start + i]] = sums[i];
-            }
-        }
-    }
-
-    // Handle remaining elements
-    for x in (num_chunks * simd_width)..width {
-        let mut sum = T::zero();
-        for (k_idx, &k_val) in kernel.iter().enumerate() {
-            let x_offset = k_idx as isize - k_half as isize;
-            let sample_x = (x as isize + x_offset).clamp(0, width as isize - 1) as usize;
-            sum = sum + input[(y, sample_x)] * k_val;
-        }
-        output_row[[0, x]] = sum;
-    }
-}
 
 /// Highly optimized vertical convolution for a single column
 #[allow(dead_code)]
@@ -168,9 +113,12 @@ fn advanced_simd_vertical_convolution_column<T>(
                 input_vals[i] = input[(clamped_y, x)];
             }
 
-            let kernel_vals = vec![k_val; simd_width];
-            let products = T::simd_mul(&input_vals, &kernel_vals);
-            sums = T::simd_add(&sums, &products);
+            let kernel_array = Array1::from_vec(vec![k_val; simd_width]);
+            let input_array = Array1::from_vec(input_vals.clone());
+            let sums_array = Array1::from_vec(sums.clone());
+            let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+            let sums_updated = T::simd_add(&sums_array.view(), &products.view());
+            sums = sums_updated.to_vec();
         }
 
         // Store results
@@ -211,7 +159,7 @@ where
     let sw_half = s_width / 2;
 
     let mut output = Array::zeros((height, width));
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Check if structure is separable (horizontal and vertical lines)
     if is_separablestructure(&structure) {
@@ -279,7 +227,10 @@ fn advanced_simd_erosion_row<T>(
                     }
 
                     // SIMD minimum operation
-                    min_vals = T::simd_min(&min_vals, &input_vals);
+                    let min_array = Array1::from_vec(min_vals.clone());
+                    let input_array = Array1::from_vec(input_vals);
+                    let result = T::simd_min(&min_array.view(), &input_array.view());
+                    min_vals = result.to_vec();
                 }
             }
         }
@@ -388,7 +339,7 @@ where
     let template_norm = advanced_simd_compute_norm(&template, template_mean)?;
 
     // Use SIMD width for vectorization
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process image in parallel tiles for better cache efficiency
     output
@@ -479,8 +430,12 @@ fn advanced_simd_template_match_row<T>(
                     .collect();
 
                 let template_vec = vec![template_centered; simd_width];
-                let products = T::simd_mul(&image_centered, &template_vec);
-                correlations = T::simd_add(&correlations, &products);
+                let image_array = Array1::from_vec(image_centered);
+                let template_array = Array1::from_vec(template_vec);
+                let products = T::simd_mul(&image_array.view(), &template_array.view());
+                let corr_array = Array1::from_vec(correlations.clone());
+                let result = T::simd_add(&corr_array.view(), &products.view());
+                correlations = result.to_vec();
             }
         }
 
@@ -609,7 +564,7 @@ where
     let out_w = w / 2;
     let mut output = Array::zeros((out_h, out_w));
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process in parallel
     output
@@ -673,7 +628,7 @@ where
         return Ok(T::zero());
     }
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let num_chunks = total_elements / simd_width;
     let mut sum = T::zero();
 
@@ -682,7 +637,8 @@ where
     for chunk_idx in 0..num_chunks {
         let start = chunk_idx * simd_width;
         let chunk = &flat_view[start..start + simd_width];
-        let chunk_sum = T::simd_horizontal_sum(chunk);
+        let chunk_array = Array1::from_vec(chunk.to_vec());
+        let chunk_sum = T::simd_sum(&chunk_array.view());
         sum = sum + chunk_sum;
     }
 
@@ -706,7 +662,7 @@ where
         return Ok(T::zero());
     }
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let num_chunks = total_elements / simd_width;
     let mut variance_sum = T::zero();
 
@@ -716,9 +672,11 @@ where
         let start = chunk_idx * simd_width;
         let chunk = &flat_view[start..start + simd_width];
         let mean_vec = vec![mean; simd_width];
-        let centered = T::simd_sub(chunk, &mean_vec);
-        let squared = T::simd_mul(&centered, &centered);
-        let chunk_variance = T::simd_horizontal_sum(&squared);
+        let chunk_array = Array1::from_vec(chunk.to_vec());
+        let mean_array = Array1::from_vec(mean_vec);
+        let centered = T::simd_sub(&chunk_array.view(), &mean_array.view());
+        let squared = T::simd_mul(&centered.view(), &centered.view());
+        let chunk_variance = T::simd_sum(&squared.view());
         variance_sum = variance_sum + chunk_variance;
     }
 

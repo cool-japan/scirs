@@ -249,7 +249,7 @@ impl DistributedCoordinator {
                     .partial_cmp(score_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|(node_)| node_)
+            .map(|(node_, _)| node_)
     }
 
     /// Send task to remote node via HTTP with retry logic and enhanced error handling
@@ -410,10 +410,10 @@ impl DistributedCoordinator {
 
     /// Execute transform task locally or remotely  
     async fn execute_transform_task(data: &[u8], params: &[u8]) -> Result<Vec<u8>> {
-        // Deserialize input _data and parameters
+        // Deserialize input data and parameters
         let input_data: Vec<f64> = bincode::deserialize(data).map_err(|e| {
             TransformError::DistributedError(format!(
-                "Failed to deserialize transform _data: {}",
+                "Failed to deserialize transform data: {}",
                 e
             ))
         })?;
@@ -499,7 +499,7 @@ impl DistributedCoordinator {
                 DistributedTask::Transform { task_id, .. } => task_id.clone(),
                 DistributedTask::Aggregate { task_id, .. } => task_id.clone(),
             },
-            _node_id: node.id.clone(),
+            node_id: node.id.clone(),
             result,
             execution_time_ms: execution_time.as_millis() as u64,
             memory_used_mb,
@@ -511,7 +511,7 @@ impl DistributedCoordinator {
         let base_overhead = 10.0; // Base overhead in MB
         let result_size_mb = result.len() as f64 / (1024.0 * 1024.0);
 
-        match _task {
+        match task {
             DistributedTask::Fit { data_partition, .. } => {
                 // Estimate memory for fit operations (data + intermediate computations)
                 let data_size_mb = (data_partition.len() * std::mem::size_of::<Vec<f64>>()) as f64
@@ -596,8 +596,9 @@ impl DistributedPCA {
         let coordinator = DistributedCoordinator::new(config).await?;
 
         Ok(DistributedPCA {
+            coordinator,
             n_components: _ncomponents,
-            coordinator_components: None,
+            components: None,
             mean: None,
         })
     }
@@ -694,7 +695,7 @@ impl DistributedPCA {
         }
 
         // Reshape to final array
-        let (n_samples_) = x.dim();
+        let (n_samples_, _) = x.dim();
         Array2::from_shape_vec((n_samples_, self.n_components), all_results).map_err(|e| {
             TransformError::ComputationError(format!("Failed to reshape result: {}", e))
         })
@@ -721,7 +722,7 @@ impl DistributedPCA {
         x: &ArrayView2<'_, f64>,
         nodes: &HashMap<NodeId, NodeInfo>,
     ) -> Result<Vec<Vec<Vec<f64>>>> {
-        let (n_samples_) = x.dim();
+        let (n_samples_, _) = x.dim();
         let n_nodes = nodes.len();
 
         if n_nodes == 0 {
@@ -756,7 +757,7 @@ impl DistributedPCA {
                 current_row = end_row;
             }
 
-            if current_row >= n_samples {
+            if current_row >= n_samples_ {
                 break;
             }
         }
@@ -1116,14 +1117,14 @@ enum CircuitBreakerState {
 #[cfg(feature = "distributed")]
 impl CircuitBreaker {
     /// Create a new circuit breaker
-    pub fn new(_failure_threshold: u32, success_threshold: u32, timeoutseconds: u64) -> Self {
+    pub fn new(failure_threshold: u32, success_threshold: u32, timeout_seconds: u64) -> Self {
         CircuitBreaker {
             state: CircuitBreakerState::Closed,
             failure_threshold,
             failure_count: 0,
             success_threshold,
             success_count: 0,
-            timeout_seconds,
+            timeout_seconds: timeout_seconds,
             last_failure_timestamp: 0,
         }
     }
@@ -1227,13 +1228,13 @@ impl EnhancedDistributedCoordinator {
         config: DistributedConfig,
         auto_scaling_config: AutoScalingConfig,
     ) -> Result<Self> {
-        let base_coordinator = DistributedCoordinator::new(_config).await?;
+        let base_coordinator = DistributedCoordinator::new(config).await?;
 
         let mut node_health = HashMap::new();
         let mut circuit_breakers = HashMap::new();
 
         // Initialize health monitoring for all nodes
-        for node in &base_coordinator._config.nodes {
+        for node in &base_coordinator.config.nodes {
             node_health.insert(
                 node.id.clone(),
                 NodeHealth {
@@ -1458,15 +1459,15 @@ impl EnhancedDistributedCoordinator {
         let mut rng = rand::rng();
 
         Ok(NodeHealth {
-            node_id: node_info.id.clone(),
+            node_id: _nodeinfo.id.clone(),
             status: NodeStatus::Healthy,
-            cpu_utilization: rng.gen_range(0.1..0.9)..memory,
-            _utilization: rng.gen_range(0.2..0.8),
-            network_latency_ms: rng.gen_range(1.0..50.0)..error,
-            _rate: rng.gen_range(0.0..0.05),
+            cpu_utilization: rng.gen_range(0.1..0.9),
+            memory_utilization: rng.gen_range(0.2..0.8),
+            network_latency_ms: rng.gen_range(1.0..50.0),
+            error_rate: rng.gen_range(0.0..0.05),
             last_check_timestamp: current_timestamp(),
             consecutive_failures: 0,
-            task_completion_rate: rng.gen_range(10.0..100.0)..,
+            task_completion_rate: rng.gen_range(10.0..100.0),
         })
     }
 
@@ -1512,7 +1513,7 @@ impl EnhancedDistributedCoordinator {
 
     /// Get task ID from distributed task
     fn get_task_id(task: &DistributedTask) -> &str {
-        match _task {
+        match task {
             DistributedTask::Fit { task_id, .. } => task_id,
             DistributedTask::Transform { task_id, .. } => task_id,
             DistributedTask::Aggregate { task_id, .. } => task_id,
@@ -1594,6 +1595,9 @@ impl EnhancedDistributedCoordinator {
                 NodeStatus::Healthy => healthy_nodes += 1,
                 NodeStatus::Degraded => degraded_nodes += 1,
                 NodeStatus::Failed => failed_nodes += 1,
+                NodeStatus::Overloaded => failed_nodes += 1, // Count as failed for metrics
+                NodeStatus::Draining => degraded_nodes += 1, // Count as degraded
+                NodeStatus::Disabled => failed_nodes += 1, // Count as failed
             }
 
             total_cpu_utilization += health.cpu_utilization;

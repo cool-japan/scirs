@@ -1307,7 +1307,7 @@ fn array_operations_tutorial() -> Result<(), Box<dyn std::error::Error>> {
 
         // Run comprehensive benchmark
         println!("\nRunning SIMD performance benchmark...");
-        benchmark_simd_performance();
+        benchmark_simd_performance(10000)?;
     }
 
     #[cfg(not(feature = "simd"))]
@@ -1346,7 +1346,7 @@ fn array_operations_tutorial() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         println!("\nRunning parallel performance benchmark...");
-        benchmark_parallel_performance();
+        benchmark_parallel_performance(10000)?;
     }
 
     #[cfg(not(feature = "parallel"))]
@@ -1491,12 +1491,12 @@ fn advanced_features_tutorial() -> Result<(), Box<dyn std::error::Error>> {
         println!("Computing with arbitrary precision (using rug library):");
 
         // Create precision context
-        let mut ctx = PrecisionContext::new(100); // 100 decimal digits
+        let ctx = PrecisionContext::new(100)?; // 100 decimal digits
 
         // High-precision gamma
         println!("Standard precision: Γ(0.5) = {:.15}", gamma(0.5));
 
-        match gamma_ap(&mut ctx, 0.5) {
+        match gamma_ap(0.5, &ctx) {
             Ok(hp_gamma) => {
                 let hp_f64 = to_f64(&hp_gamma);
                 println!("High precision:     Γ(0.5) = {:.15}", hp_f64);
@@ -1509,7 +1509,7 @@ fn advanced_features_tutorial() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // High-precision comparison
-        match (gamma_ap(&mut ctx, 1.5), gamma_ap(&mut ctx, 0.5)) {
+        match (gamma_ap(1.5, &ctx), gamma_ap(0.5, &ctx)) {
             (Ok(gamma_1_5), Ok(gamma_0_5)) => {
                 println!("Γ(1.5) = 0.5 × Γ(0.5) identity check:");
                 let computed_1_5 = to_f64(&gamma_1_5);
@@ -1610,7 +1610,7 @@ fn advanced_features_tutorial() -> Result<(), Box<dyn std::error::Error>> {
                 let max_diff = cpu_result
                     .iter()
                     .zip(gpu_result.iter())
-                    .map(|(a, b)| (a - b).abs())
+                    .map(|(a, b)| (*a as f64 - *b as f64).abs())
                     .fold(0.0, f64::max);
 
                 println!("Maximum difference from CPU: {:.2e}", max_diff);

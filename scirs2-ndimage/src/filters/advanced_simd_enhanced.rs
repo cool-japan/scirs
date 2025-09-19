@@ -368,9 +368,12 @@ where
                     inputvalues[i] = get_boundary_value_safe(&input, y as isize, input_x, mode)?;
                 }
 
-                let kernel_vec = vec![kernel_val; simd_width];
-                let products = T::simd_mul(&inputvalues, &kernel_vec);
-                results = T::simd_add(&results, &products);
+                let kernel_array = Array1::from_vec(vec![kernel_val; simd_width]);
+                let input_array = Array1::from_vec(inputvalues.clone());
+                let results_array = Array1::from_vec(results.clone());
+                let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+                let results_updated = T::simd_add(&results_array.view(), &products.view());
+                results = results_updated.to_vec();
             }
 
             for i in 0..simd_width {
@@ -432,9 +435,12 @@ where
                         get_boundary_value_safe(&input, input_y, x as isize + i as isize, mode)?;
                 }
 
-                let kernel_vec = vec![kernel_val; simd_width];
-                let products = T::simd_mul(&inputvalues, &kernel_vec);
-                results = T::simd_add(&results, &products);
+                let kernel_array = Array1::from_vec(vec![kernel_val; simd_width]);
+                let input_array = Array1::from_vec(inputvalues.clone());
+                let results_array = Array1::from_vec(results.clone());
+                let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+                let results_updated = T::simd_add(&results_array.view(), &products.view());
+                results = results_updated.to_vec();
             }
 
             for i in 0..simd_width {

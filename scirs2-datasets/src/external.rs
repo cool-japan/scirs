@@ -73,10 +73,10 @@ impl ExternalClient {
         #[cfg(feature = "download")]
         let client = {
             let mut builder = reqwest::Client::builder()
-                .timeout(Duration::from_secs(_config.timeout_seconds))
-                .user_agent(&_config.user_agent);
+                .timeout(Duration::from_secs(config.timeout_seconds))
+                .user_agent(&config.user_agent);
 
-            if !_config.verify_ssl {
+            if !config.verify_ssl {
                 builder = builder.danger_accept_invalid_certs(true);
             }
 
@@ -673,7 +673,7 @@ pub mod convenience {
     #[cfg(feature = "download")]
     pub async fn load_github_dataset(user: &str, repo: &str, path: &str) -> Result<Dataset> {
         let github = GitHubRepository::new()?;
-        github.load_from_repo(_user, repo, path).await
+        github.load_from_repo(user, repo, path).await
     }
 
     /// Load a dataset from GitHub repository synchronously

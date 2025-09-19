@@ -294,7 +294,7 @@ pub fn load_dataset_byname(name: &str, forcedownload: bool) -> Result<crate::uti
         } else if entry.url.starts_with("http") {
             // Remote datasets (when available)
             match name {
-                "california_housing" => crate::sample::load_california_housing(force_download),
+                "california_housing" => crate::sample::load_california_housing(forcedownload),
                 "electrocardiogram" => crate::time_series::electrocardiogram(),
                 "stock_market" => crate::time_series::stock_market(false),
                 "weather" => crate::time_series::weather(None),

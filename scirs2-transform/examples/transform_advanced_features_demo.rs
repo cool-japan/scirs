@@ -125,14 +125,16 @@ async fn demo_distributed_processing(data: &Array2<f64>) -> Result<()> {
         nodes: vec![
             NodeInfo {
                 id: "node1".to_string(),
-                address: "localhost:8001".to_string(),
+                address: "localhost".to_string(),
+                port: 8001,
                 memory_gb: 8.0,
                 cpu_cores: 4,
                 has_gpu: false,
             },
             NodeInfo {
                 id: "node2".to_string(),
-                address: "localhost:8002".to_string(),
+                address: "localhost".to_string(),
+                port: 8002,
                 memory_gb: 16.0,
                 cpu_cores: 8,
                 has_gpu: true,

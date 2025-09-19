@@ -3,7 +3,7 @@
 //! This module provides highly optimized SIMD implementations for
 //! specialized filtering operations that benefit from vectorization.
 
-use ndarray::{s, Array, ArrayView2, ArrayViewMut1, Axis, Ix2};
+use ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut1, Axis, Ix2};
 use num_traits::{Float, FromPrimitive};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
@@ -121,7 +121,7 @@ where
     let range_factor = safe_f64_to_float::<T>(-0.5)? / (range_sigma * range_sigma);
 
     // Process pixels in SIMD chunks
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let num_full_chunks = width / simd_width;
 
     // Process full SIMD chunks
@@ -345,7 +345,7 @@ where
     T: Float + FromPrimitive + Debug + Clone + SimdUnifiedOps,
 {
     let (height, width) = input.dim();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     for x in half_patch..width - half_patch {
         let mut weight_sum = T::zero();
@@ -402,7 +402,7 @@ where
     })?;
 
     let mut sum = T::zero();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let num_chunks = flat1.len() / simd_width;
 
     // Process SIMD chunks
@@ -482,7 +482,7 @@ fn simd_diffusion_row<T>(
     T: Float + FromPrimitive + Debug + Clone + SimdUnifiedOps,
 {
     let (height, width) = input.dim();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process SIMD chunks
     let num_chunks = width / simd_width;
@@ -524,24 +524,30 @@ fn simd_diffusion_row<T>(
         }
 
         // Compute gradients using SIMD
-        let grad_n = T::simd_sub(&north_vals[..], &center_vals[..]);
-        let grad_s = T::simd_sub(&south_vals[..], &center_vals[..]);
-        let grad_e = T::simd_sub(&east_vals[..], &center_vals[..]);
-        let grad_w = T::simd_sub(&west_vals[..], &center_vals[..]);
+        let north_array = Array1::from_vec(north_vals.clone());
+        let south_array = Array1::from_vec(south_vals.clone());
+        let east_array = Array1::from_vec(east_vals.clone());
+        let west_array = Array1::from_vec(west_vals.clone());
+        let center_array = Array1::from_vec(center_vals.clone());
+
+        let grad_n = T::simd_sub(&north_array.view(), &center_array.view());
+        let grad_s = T::simd_sub(&south_array.view(), &center_array.view());
+        let grad_e = T::simd_sub(&east_array.view(), &center_array.view());
+        let grad_w = T::simd_sub(&west_array.view(), &center_array.view());
 
         // Compute diffusion coefficients
-        let coeff_n = compute_diffusion_coeff(&grad_n, kappa_sq, option);
-        let coeff_s = compute_diffusion_coeff(&grad_s, kappa_sq, option);
-        let coeff_e = compute_diffusion_coeff(&grad_e, kappa_sq, option);
-        let coeff_w = compute_diffusion_coeff(&grad_w, kappa_sq, option);
+        let coeff_n = compute_diffusion_coeff(grad_n.as_slice().unwrap(), kappa_sq, option);
+        let coeff_s = compute_diffusion_coeff(grad_s.as_slice().unwrap(), kappa_sq, option);
+        let coeff_e = compute_diffusion_coeff(grad_e.as_slice().unwrap(), kappa_sq, option);
+        let coeff_w = compute_diffusion_coeff(grad_w.as_slice().unwrap(), kappa_sq, option);
 
         // Update values
         for i in 0..simd_width {
             if x_start + i < width {
-                let flux = coeff_n[i] * grad_n[i]
-                    + coeff_s[i] * grad_s[i]
-                    + coeff_e[i] * grad_e[i]
-                    + coeff_w[i] * grad_w[i];
+                let flux = coeff_n[i] * grad_n.as_slice().unwrap()[i]
+                    + coeff_s[i] * grad_s.as_slice().unwrap()[i]
+                    + coeff_e[i] * grad_e.as_slice().unwrap()[i]
+                    + coeff_w[i] * grad_w.as_slice().unwrap()[i];
                 output_row[x_start + i] = center_vals[i] + lambda * flux;
             }
         }
@@ -603,7 +609,8 @@ where
             (-(gradient * gradient) / kappasq).exp()
         }
         2 => {
-            // Quadratic: c(g) = 1 / (1 + (g/kappa)²), T::one() / (T::one() + _gradient * _gradient / kappa_sq)
+            // Quadratic: c(g) = 1 / (1 + (g/kappa)²)
+            T::one() / (T::one() + gradient * gradient / kappasq)
         }
         _ => T::one(),
     }
@@ -642,11 +649,11 @@ pub fn simd_guided_filter<T>(
     epsilon: T,
 ) -> NdimageResult<Array<T, Ix2>>
 where
-    T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps,
+    T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + ndarray::ScalarOperand,
 {
     let (height, width) = input.dim();
     if guide.dim() != (height, width) {
-        return Err(crate::error::NdimageError::ShapeError(
+        return Err(crate::error::NdimageError::InvalidInput(
             "Input and guide must have the same shape".into(),
         ));
     }
@@ -722,7 +729,7 @@ where
     T: Float + FromPrimitive + SimdUnifiedOps,
 {
     let (height, width) = input.dim();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Use sliding window approach for efficiency
     for x in 0..width {
@@ -747,7 +754,8 @@ where
                         "Failed to convert _row slice to contiguous slice".to_string(),
                     )
                 })?;
-                let chunk_sum = T::simd_sum(&slice[start..end]);
+                let slice_array = Array1::from_vec(slice[start..end].to_vec());
+                let chunk_sum = T::simd_sum(&slice_array.view());
                 sum = sum + chunk_sum;
             }
 
@@ -815,7 +823,7 @@ where
     T: Float + FromPrimitive + SimdUnifiedOps,
 {
     let (height, width) = input1.dim();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     for x in 0..width {
         let x_min = x.saturating_sub(radius);
@@ -848,8 +856,10 @@ where
                 let slice1 = &slice1_raw[start..end];
                 let slice2 = &slice2_raw[start..end];
 
-                let products = T::simd_mul(slice1, slice2);
-                let chunk_sum = T::simd_sum(&products);
+                let slice1_array = Array1::from_vec(slice1.to_vec());
+                let slice2_array = Array1::from_vec(slice2.to_vec());
+                let products = T::simd_mul(&slice1_array.view(), &slice2_array.view());
+                let chunk_sum = T::simd_sum(&products.view());
                 sum = sum + chunk_sum;
             }
 
@@ -881,7 +891,7 @@ where
 {
     let (height, width) = input.dim();
     if guide.dim() != (height, width) {
-        return Err(crate::error::NdimageError::ShapeError(
+        return Err(crate::error::NdimageError::InvalidInput(
             "Input and guide must have the same shape".into(),
         ));
     }
@@ -949,7 +959,7 @@ where
 {
     let (height, width) = input.dim();
     let range_factor = safe_f64_to_float::<T>(-0.5)? / (range_sigma * range_sigma);
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     for x in 0..width {
         let guide_center = guide[(y, x)];
