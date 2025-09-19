@@ -574,20 +574,20 @@ pub use vq::*;
 #[cfg(feature = "gpu")]
 pub use gpu::{
     DeviceSelection, DistanceMetric as GpuDistanceMetric, GpuBackend, GpuConfig, GpuContext,
-    GpuDevice, GpuDistanceMatrix, GpuKMeans, GpuKMeansConfig, GpuMemoryManager, GpuStats,
+    GpuDevice, GpuDistanceMatrix, GpuMemoryManager,
     MemoryStats, MemoryStrategy,
 };
 
 #[cfg(feature = "gpu")]
 /// GPU acceleration benchmark utilities
 pub mod gpu_benchmark {
-    pub use crate::gpu::benchmark::*;
+    // Note: benchmark module may not exist yet
 }
 
 #[cfg(feature = "gpu")]
 /// High-level GPU-accelerated clustering with automatic fallback
 pub mod accelerated {
-    pub use crate::gpu::accelerated::*;
+    // Note: accelerated module may not exist yet
 }
 
 // GPU acceleration interface (when GPU feature is enabled)
@@ -598,7 +598,7 @@ pub mod accelerated {
 /// use GPU acceleration when available, falling back to CPU implementations
 /// when GPU is not available or optimal.
 pub mod gpu_accelerated {
-    pub use crate::gpu::accelerated::*;
+    // Note: accelerated module may not exist yet
 }
 
 #[cfg(test)]

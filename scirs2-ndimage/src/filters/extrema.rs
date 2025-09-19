@@ -694,14 +694,28 @@ where
     }
 
     // Collect results in parallel
-    let results: Vec<T> = (0..total_elements)
+    let results: Result<Vec<T>, NdimageError> = (0..total_elements)
         .into_par_iter()
-        .map(|linear_idx| {
+        .map(|linear_idx| -> Result<T, NdimageError> {
             let coords = index_to_coords(linear_idx, inputshape);
 
             // Initialize extrema with the first element in the window
             let mut extrema_coords = coords.clone();
-            let mut extrema = padded_input[extrema_coords.as_slice()];
+            // Convert coordinates to linear index for safe access
+            let mut linear_idx = 0;
+            let mut stride = 1;
+            let shape = padded_input.shape();
+            for i in (0..extrema_coords.len()).rev() {
+                if extrema_coords[i] >= shape[i] {
+                    return Err(NdimageError::InvalidInput("Invalid coordinates for extrema access".to_string()));
+                }
+                linear_idx += extrema_coords[i] * stride;
+                stride *= shape[i];
+            }
+            let flat_view = padded_input.as_slice().ok_or_else(|| {
+                NdimageError::InvalidInput("Cannot access array as flat slice".to_string())
+            })?;
+            let mut extrema = flat_view[linear_idx];
 
             // Generate all window coordinates around this position
             let mut window_coords = vec![0; ndim];
@@ -715,7 +729,20 @@ where
                 }
 
                 // Get value at this window position
-                let val = padded_input[&*actual_coords];
+                // Convert coordinates to linear index for safe access
+                let mut actual_linear_idx = 0;
+                let mut actual_stride = 1;
+                for i in (0..actual_coords.len()).rev() {
+                    if actual_coords[i] >= shape[i] {
+                        continue; // Skip invalid coordinates
+                    }
+                    actual_linear_idx += actual_coords[i] * actual_stride;
+                    actual_stride *= shape[i];
+                }
+                if actual_linear_idx >= flat_view.len() {
+                    continue; // Skip out of bounds
+                }
+                let val = flat_view[actual_linear_idx];
 
                 // Update extrema based on filter _type
                 match filter_type {
@@ -746,9 +773,11 @@ where
                 finished = carry == 1; // All dimensions have wrapped around
             }
 
-            extrema
+            Ok(extrema)
         })
         .collect();
+
+    let results = results?;
 
     // Convert results back to n-dimensional array
     let output = Array::from_shape_vec(input.raw_dim(), results)

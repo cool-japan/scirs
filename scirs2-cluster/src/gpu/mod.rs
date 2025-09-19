@@ -260,7 +260,7 @@ pub struct GpuCapabilities {
 impl GpuCapabilities {
     /// Detect GPU capabilities
     pub fn detect() -> Self {
-        let available_backends = [
+        let available_backends: Vec<GpuBackend> = [
             GpuBackend::Cuda,
             GpuBackend::OpenCl,
             GpuBackend::Rocm,
@@ -278,12 +278,12 @@ impl GpuCapabilities {
         let mut supports_double = false;
 
         // Stub implementation
-        for &backend in &available_backends {
-            if let Some(device) = Self::get_best_device_for_backend(backend) {
+        for backend in available_backends.iter() {
+            if let Some(device) = Self::get_best_device_for_backend(*backend) {
                 total_memory += device.total_memory;
-                supports_unified |= backend == GpuBackend::Cuda; // CUDA typically supports unified memory
+                supports_unified |= *backend == GpuBackend::Cuda; // CUDA typically supports unified memory
                 supports_double |= device.supports_double_precision;
-                best_devices.insert(backend, device);
+                best_devices.insert(*backend, device);
             }
         }
 

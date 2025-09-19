@@ -5,7 +5,7 @@
 //! actual plotting backends to create publication-ready plots.
 
 use crate::error::{ClusteringError, Result};
-use crate::hierarchy::visualization::{create_dendrogram_plot, DendrogramConfig, DendrogramPlot};
+use crate::hierarchy::visualization::{create_dendrogramplot, DendrogramConfig, DendrogramPlot};
 use crate::visualization::{ScatterPlot2D, ScatterPlot3D, VisualizationConfig};
 use ndarray::{Array1, Array2, ArrayView2};
 use std::path::Path;
@@ -72,7 +72,7 @@ pub fn plot_dendrogram<P: AsRef<Path>>(
     output_path: P,
     output_config: &PlotOutput,
 ) -> Result<()> {
-    let _path = output_path.as_ref();
+    let path = output_path.as_ref();
 
     match output_config.format {
         PlotFormat::PNG => plot_dendrogram_png(dendrogram_plot, path, output_config),
@@ -130,8 +130,8 @@ fn plot_dendrogram_png<P: AsRef<Path>>(
 
     // Draw branches
     for (i, branch) in dendrogram_plot.branches.iter().enumerate() {
-        let color_hex = &dendrogram_plot.colors[i];
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(BLACK);
+        let colorhex = &dendrogram_plot.colors[i];
+        let color = parsehex_color_plotters(colorhex).unwrap_or(BLACK);
 
         chart
             .draw_series(std::iter::once(PathElement::new(
@@ -214,8 +214,8 @@ fn plot_dendrogram_svg<P: AsRef<Path>>(
 
     // Draw branches
     for (i, branch) in dendrogram_plot.branches.iter().enumerate() {
-        let color_hex = &dendrogram_plot.colors[i];
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(BLACK);
+        let colorhex = &dendrogram_plot.colors[i];
+        let color = parsehex_color_plotters(colorhex).unwrap_or(BLACK);
 
         chart
             .draw_series(std::iter::once(PathElement::new(
@@ -259,7 +259,7 @@ pub fn plot_scatter_2d<P: AsRef<Path>>(
     output_path: P,
     output_config: &PlotOutput,
 ) -> Result<()> {
-    let _path = output_path.as_ref();
+    let path = output_path.as_ref();
 
     match output_config.format {
         PlotFormat::PNG => plot_scatter_2d_png(scatter_plot, path, output_config),
@@ -316,11 +316,11 @@ fn plot_scatter_2d_png<P: AsRef<Path>>(
     for (i, point) in scatter_plot.points.rows().into_iter().enumerate() {
         let x = point[0];
         let y = point[1];
-        let color_hex = &scatter_plot.colors[i];
+        let colorhex = &scatter_plot.colors[i];
         let size = scatter_plot.sizes[i] as i32;
 
         // Parse hex color
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(RED);
+        let color = parsehex_color_plotters(colorhex).unwrap_or(RED);
 
         chart
             .draw_series(std::iter::once(Circle::new((x, y), size, color.filled())))
@@ -399,11 +399,11 @@ fn plot_scatter_2d_svg<P: AsRef<Path>>(
     for (i, point) in scatter_plot.points.rows().into_iter().enumerate() {
         let x = point[0];
         let y = point[1];
-        let color_hex = &scatter_plot.colors[i];
+        let colorhex = &scatter_plot.colors[i];
         let size = scatter_plot.sizes[i] as i32;
 
         // Parse hex color
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(RED);
+        let color = parsehex_color_plotters(colorhex).unwrap_or(RED);
 
         chart
             .draw_series(std::iter::once(Circle::new((x, y), size, color.filled())))
@@ -475,14 +475,14 @@ impl InteractiveClusteringApp {
     /// Create new interactive app with data
     pub fn new(_scatterplot: ScatterPlot2D) -> Self {
         Self {
-            scatter_plot_2d: Some(_scatter_plot),
+            scatter_plot_2d: Some(_scatterplot),
             ..Default::default()
         }
     }
 
     /// Update the scatter plot data
     pub fn set_data(&mut self, scatterplot: ScatterPlot2D) {
-        self.scatter_plot_2d = Some(scatter_plot);
+        self.scatter_plot_2d = Some(scatterplot);
     }
 }
 
@@ -510,7 +510,7 @@ impl eframe::App for InteractiveClusteringApp {
             if let Some(ref plot) = self.scatter_plot_2d {
                 ui.label("Cluster Information:");
                 for legend_entry in &plot.legend {
-                    let color = parse_hex_color(&legend_entry.color).unwrap_or([255, 0, 0]);
+                    let color = parsehex_color(&legend_entry.color).unwrap_or([255, 0, 0]);
                     let color32 = Color32::from_rgb(color[0], color[1], color[2]);
 
                     ui.horizontal(|ui| {
@@ -539,7 +539,7 @@ impl eframe::App for InteractiveClusteringApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(ref plot) = self.scatter_plot_2d {
-                self.draw_scatter_plot(ui, plot);
+                self.draw_scatterplot(ui, plot);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("No clustering data available");
@@ -551,7 +551,7 @@ impl eframe::App for InteractiveClusteringApp {
 
 #[cfg(feature = "egui")]
 impl InteractiveClusteringApp {
-    fn draw_scatter_plot(&mut self, ui: &mut Ui, plot: &ScatterPlot2D) {
+    fn draw_scatterplot(&mut self, ui: &mut Ui, plot: &ScatterPlot2D) {
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::drag());
 
         let rect = response.rect;
@@ -586,8 +586,8 @@ impl InteractiveClusteringApp {
                 continue; // Skip points outside visible area
             }
 
-            let color_hex = &plot.colors[i];
-            let color = parse_hex_color(color_hex).unwrap_or([255, 0, 0]);
+            let colorhex = &plot.colors[i];
+            let color = parsehex_color(colorhex).unwrap_or([255, 0, 0]);
             let color32 = Color32::from_rgb(color[0], color[1], color[2]);
 
             let radius = plot.sizes[i] * self.zoom;
@@ -644,22 +644,22 @@ impl InteractiveClusteringApp {
 
 /// Utility function to parse hex color to RGB
 #[allow(dead_code)]
-fn parse_hex_color(hex: &str) -> Option<[u8; 3]> {
-    if hex.len() != 7 || !_hex.starts_with('#') {
+fn parsehex_color(hex: &str) -> Option<[u8; 3]> {
+    if hex.len() != 7 || !hex.starts_with('#') {
         return None;
     }
 
-    let r = u8::from_str_radix(&_hex[1..3], 16).ok()?;
-    let g = u8::from_str_radix(&_hex[3..5], 16).ok()?;
-    let b = u8::from_str_radix(&_hex[5..7], 16).ok()?;
+    let r = u8::from_str_radix(&hex[1..3], 16).ok()?;
+    let g = u8::from_str_radix(&hex[3..5], 16).ok()?;
+    let b = u8::from_str_radix(&hex[5..7], 16).ok()?;
 
     Some([r, g, b])
 }
 
 #[cfg(feature = "plotters")]
 #[allow(dead_code)]
-fn parse_hex_color_plotters(hex: &str) -> Option<RGBColor> {
-    let rgb = parse_hex_color(_hex)?;
+fn parsehex_color_plotters(hex: &str) -> Option<RGBColor> {
+    let rgb = parsehex_color(hex)?;
     Some(RGBColor(rgb[0], rgb[1], rgb[2]))
 }
 
@@ -701,7 +701,7 @@ pub fn plot_scatter_3d<P: AsRef<Path>>(
     output_path: P,
     output_config: &PlotOutput,
 ) -> Result<()> {
-    let _path = output_path.as_ref();
+    let path = output_path.as_ref();
 
     match output_config.format {
         PlotFormat::PNG => plot_scatter_3d_png(scatter_plot, path, output_config),
@@ -766,11 +766,11 @@ fn plot_scatter_3d_png<P: AsRef<Path>>(
         let x = point[0];
         let y = point[1];
         let z = point[2];
-        let color_hex = &scatter_plot.colors[i];
+        let colorhex = &scatter_plot.colors[i];
         let size = scatter_plot.sizes[i] as i32;
 
         // Parse hex color
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(RED);
+        let color = parsehex_color_plotters(colorhex).unwrap_or(RED);
 
         chart
             .draw_series(std::iter::once(Circle::new(
@@ -862,11 +862,11 @@ fn plot_scatter_3d_svg<P: AsRef<Path>>(
         let x = point[0];
         let y = point[1];
         let z = point[2];
-        let color_hex = &scatter_plot.colors[i];
+        let colorhex = &scatter_plot.colors[i];
         let size = scatter_plot.sizes[i] as i32;
 
         // Parse hex color
-        let color = parse_hex_color_plotters(color_hex).unwrap_or(RED);
+        let color = parsehex_color_plotters(colorhex).unwrap_or(RED);
 
         chart
             .draw_series(std::iter::once(Circle::new(
@@ -1023,12 +1023,12 @@ mod tests {
     use ndarray::arr2;
 
     #[test]
-    fn test_hex_color_parsing() {
-        assert_eq!(parse_hex_color("#FF0000"), Some([255, 0, 0]));
-        assert_eq!(parse_hex_color("#00FF00"), Some([0, 255, 0]));
-        assert_eq!(parse_hex_color("#0000FF"), Some([0, 0, 255]));
-        assert_eq!(parse_hex_color("FF0000"), None); // Missing #
-        assert_eq!(parse_hex_color("#FG0000"), None); // Invalid hex
+    fn testhex_color_parsing() {
+        assert_eq!(parsehex_color("#FF0000"), Some([255, 0, 0]));
+        assert_eq!(parsehex_color("#00FF00"), Some([0, 255, 0]));
+        assert_eq!(parsehex_color("#0000FF"), Some([0, 0, 255]));
+        assert_eq!(parsehex_color("FF0000"), None); // Missing #
+        assert_eq!(parsehex_color("#FG0000"), None); // Invalid hex
     }
 
     #[test]

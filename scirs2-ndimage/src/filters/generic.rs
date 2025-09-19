@@ -259,7 +259,7 @@ where
 
     // Process rows in parallel
     let row_indices: Vec<usize> = (0..rows).collect();
-    let processed_rows: Vec<Vec<T>> = parallel_map(&row_indices, move |&i| {
+    let row_results: Vec<Result<Vec<T>, NdimageError>> = parallel_map(&row_indices, move |&i| {
         let mut row_result = Vec::with_capacity(cols);
 
         for j in 0..cols {
@@ -284,7 +284,10 @@ where
         }
 
         Ok(row_result)
-    })?;
+    });
+
+    // Collect results and handle errors
+    let processed_rows: Vec<Vec<T>> = row_results.into_iter().collect::<Result<Vec<_>, _>>()?;
 
     // Copy results back to the output array
     for (i, row_data) in processed_rows.into_iter().enumerate() {

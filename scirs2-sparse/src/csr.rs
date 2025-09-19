@@ -5,6 +5,7 @@
 
 use crate::error::{SparseError, SparseResult};
 use num_traits::{Float, Zero};
+use scirs2_core::GpuDataType;
 use std::cmp::PartialEq;
 
 /// Compressed Sparse Row (CSR) matrix
@@ -551,7 +552,7 @@ impl CsrMatrix<f64> {
     pub fn gpu_dot_with_backend(
         &self,
         vec: &[f64],
-        backend: crate::gpu_ops::GpuBackend,
+        backend: scirs2_core::gpu::GpuBackend,
     ) -> SparseResult<Vec<f64>> {
         // Use the GpuSpMV implementation with specified backend
         let gpu_spmv = crate::gpu_spmv_implementation::GpuSpMV::with_backend(backend)?;
@@ -572,7 +573,7 @@ where
         + std::fmt::Debug
         + Copy
         + Default
-        + crate::gpu_ops::GpuDataType
+        + GpuDataType
         + Send
         + Sync
         + 'static,

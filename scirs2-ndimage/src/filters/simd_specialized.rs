@@ -162,12 +162,13 @@ where
                 }
 
                 // Square differences
-                let range_diffs_sq = T::simd_mul(&range_diffs[..], &range_diffs[..]);
+                let range_diffs_array = Array1::from_vec(range_diffs.clone());
+                let range_diffs_sq = T::simd_mul(&range_diffs_array.view(), &range_diffs_array.view());
 
                 // Apply range factor
                 let mut range_exp_args = vec![T::zero(); simd_width];
                 for i in 0..simd_width {
-                    range_exp_args[i] = range_diffs_sq[i] * range_factor;
+                    range_exp_args[i] = range_diffs_sq.as_slice().unwrap()[i] * range_factor;
                 }
 
                 // Compute exponential (approximation for SIMD)
@@ -237,9 +238,9 @@ where
 
     for dy in 0..window_size {
         for dx in 0..window_size {
-            let y_dist = safe_isize_to_float(dy as isize - half_window as isize)?;
-            let x_dist = safe_isize_to_float(dx as isize - half_window as isize)?;
-            let dist_sq = y_dist * y_dist + x_dist * x_dist;
+            let y_dist = safe_isize_to_float::<T>(dy as isize - half_window as isize)?;
+            let x_dist = safe_isize_to_float::<T>(dx as isize - half_window as isize)?;
+            let dist_sq: T = y_dist * y_dist + x_dist * x_dist;
             weights[(dy, dx)] = (dist_sq * factor).exp();
         }
     }
@@ -410,8 +411,10 @@ where
         let start = i * simd_width;
         let end = start + simd_width;
 
-        let diff = T::simd_sub(&flat1[start..end], &flat2[start..end]);
-        let diff_sq = T::simd_mul(&diff, &diff);
+        let flat1_array = Array1::from_vec(flat1[start..end].to_vec());
+        let flat2_array = Array1::from_vec(flat2[start..end].to_vec());
+        let diff = T::simd_sub(&flat1_array.view(), &flat2_array.view());
+        let diff_sq = T::simd_mul(&diff.view(), &diff.view());
 
         for &val in &diff_sq {
             sum = sum + val;

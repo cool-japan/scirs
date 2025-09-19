@@ -26,7 +26,6 @@ pub use opencl::{
 
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
-use crate::gpu_ops::GpuDataType;
 use crate::sparray::SparseArray;
 use ndarray::{Array1, ArrayView1};
 use num_traits::Float;
@@ -441,7 +440,6 @@ pub struct BackendInfo {
 /// Convenient functions for common operations
 pub mod convenience {
     use super::*;
-    use crate::gpu_ops::GpuDataType;
 
     /// Execute sparse matrix-vector multiplication with automatic GPU detection
     pub fn gpu_spmv<T>(matrix: &CsrArray<T>, vector: &ArrayView1<T>) -> SparseResult<Array1<T>>

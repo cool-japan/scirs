@@ -4,15 +4,15 @@
 //! with proper error handling, memory management, and multi-backend support.
 
 use crate::error::{SparseError, SparseResult};
-use crate::gpu_ops::{GpuBackend, GpuDataType, GpuDevice};
 use num_traits::{Float, NumAssign};
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::gpu::{GpuBackend, GpuContext, GpuDataType};
 use std::fmt::Debug;
 
 /// Enhanced GPU-accelerated Sparse Matrix-Vector multiplication implementation
 pub struct GpuSpMV {
     #[allow(dead_code)]
-    device: GpuDevice,
+    context: GpuContext,
     backend: GpuBackend,
 }
 
@@ -20,22 +20,22 @@ impl GpuSpMV {
     /// Create a new GPU SpMV instance with automatic backend detection
     pub fn new() -> SparseResult<Self> {
         // Try to initialize GPU backends in order of preference
-        let (device, backend) = Self::initialize_best_backend()?;
+        let (context, backend) = Self::initialize_best_backend()?;
 
-        Ok(Self { device, backend })
+        Ok(Self { context, backend })
     }
 
     /// Create a new GPU SpMV instance with specified backend
     pub fn with_backend(backend: GpuBackend) -> SparseResult<Self> {
-        let device = GpuDevice::get_default(backend).map_err(|e| {
-            SparseError::ComputationError(format!("Failed to initialize GPU device: {e}"))
+        let context = GpuContext::new(backend).map_err(|e| {
+            SparseError::ComputationError(format!("Failed to initialize GPU context: {e}"))
         })?;
 
-        Ok(Self { device, backend })
+        Ok(Self { context, backend })
     }
 
     /// Initialize the best available GPU backend
-    fn initialize_best_backend() -> SparseResult<(GpuDevice, GpuBackend)> {
+    fn initialize_best_backend() -> SparseResult<(GpuContext, GpuBackend)> {
         // Try backends in order of performance preference
         let backends_to_try = [
             GpuBackend::Cuda,   // Best performance on NVIDIA GPUs
@@ -45,8 +45,8 @@ impl GpuSpMV {
         ];
 
         for &backend in &backends_to_try {
-            if let Ok(device) = GpuDevice::get_default(backend) {
-                return Ok((device, backend));
+            if let Ok(context) = GpuContext::new(backend) {
+                return Ok((context, backend));
             }
         }
 
@@ -76,7 +76,8 @@ impl GpuSpMV {
             + Sync
             + 'static
             + NumAssign
-            + SimdUnifiedOps,
+            + SimdUnifiedOps
+            + std::iter::Sum,
     {
         // Validate input dimensions
         self.validate_spmv_inputs(rows, cols, indptr, indices, data, x)?;
@@ -162,35 +163,35 @@ impl GpuSpMV {
             + Sync
             + 'static
             + NumAssign
-            + SimdUnifiedOps,
+            + SimdUnifiedOps
+            + std::iter::Sum,
     {
         #[cfg(feature = "gpu")]
         {
             use crate::gpu_ops::{GpuBufferExt, SpMVKernel};
 
             // Create GPU buffers
-            let indptr_buffer = self.device.create_buffer(indptr)?;
-            let indices_buffer = self.device.create_buffer(indices)?;
-            let data_buffer = self.device.create_buffer(data)?;
-            let x_buffer = self.device.create_buffer(x)?;
-            let mut y_buffer = self.device.create_buffer_zeros::<T>(rows)?;
+            let indptr_buffer = self.context.create_buffer_from_slice(indptr);
+            let indices_buffer = self.context.create_buffer_from_slice(indices);
+            let data_buffer = self.context.create_buffer_from_slice(data);
+            let x_buffer = self.context.create_buffer_from_slice(x);
+            let mut y_buffer = self.context.create_buffer::<T>(rows);
 
-            // Compile and execute CUDA kernel
-            let kernel = SpMVKernel::new(&self.device, [256, 1, 1])?;
-            kernel.execute(
-                &self.device,
-                rows,
-                x.len(),
-                &indptr_buffer,
-                &indices_buffer,
-                &data_buffer,
-                &x_buffer,
-                &mut y_buffer,
+            // Use unified GPU interface
+            use crate::gpu::GpuSpMatVec;
+            use crate::csr_array::CsrArray;
+
+            // Create CSR matrix from components for unified interface
+            let csr_matrix = CsrArray::new(
+                data.to_vec().into(),
+                indices.to_vec().into(),
+                indptr.to_vec().into(),
+                (rows, x.len()),
             )?;
 
-            // Copy results back to host
-            let result = y_buffer.to_host()?;
-            Ok(result)
+            let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
+            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            Ok(result.to_vec())
         }
 
         #[cfg(not(feature = "gpu"))]
@@ -219,36 +220,28 @@ impl GpuSpMV {
             + Sync
             + 'static
             + NumAssign
-            + SimdUnifiedOps,
+            + SimdUnifiedOps
+            + std::iter::Sum,
     {
         #[cfg(feature = "gpu")]
         {
             use crate::gpu_ops::{GpuBufferExt, SpMVKernel};
 
-            // Create GPU buffers for OpenCL
-            let indptr_buffer = self.device.create_buffer(indptr)?;
-            let indices_buffer = self.device.create_buffer(indices)?;
-            let data_buffer = self.device.create_buffer(data)?;
-            let x_buffer = self.device.create_buffer(x)?;
-            let mut y_buffer = self.device.create_buffer_zeros::<T>(rows)?;
+            // Use unified GPU interface instead of low-level OpenCL
+            use crate::gpu::GpuSpMatVec;
+            use crate::csr_array::CsrArray;
 
-            // Compile and execute OpenCL kernel with workgroup optimization
-            let kernel = SpMVKernel::new(&self.device, [128, 1, 1])?;
-            kernel.execute(
-                &self.device,
-                rows,
-                x.len(),
-                &indptr_buffer,
-                &indices_buffer,
-                &data_buffer,
-                &x_buffer,
-                &mut y_buffer,
+            // Create CSR matrix from components for unified interface
+            let csr_matrix = CsrArray::new(
+                data.to_vec().into(),
+                indices.to_vec().into(),
+                indptr.to_vec().into(),
+                (rows, x.len()),
             )?;
 
-            // Wait for completion and copy results back
-            self.device.finish_queue()?;
-            let result = y_buffer.to_host()?;
-            Ok(result)
+            let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
+            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            Ok(result.to_vec())
         }
 
         #[cfg(not(feature = "gpu"))]
@@ -277,36 +270,35 @@ impl GpuSpMV {
             + Sync
             + 'static
             + NumAssign
-            + SimdUnifiedOps,
+            + SimdUnifiedOps
+            + std::iter::Sum,
     {
         #[cfg(feature = "gpu")]
         {
             use crate::gpu_ops::{GpuBufferExt, SpMVKernel};
 
             // Create GPU buffers for Metal
-            let indptr_buffer = self.device.create_buffer(indptr)?;
-            let indices_buffer = self.device.create_buffer(indices)?;
-            let data_buffer = self.device.create_buffer(data)?;
-            let x_buffer = self.device.create_buffer(x)?;
-            let mut y_buffer = self.device.create_buffer_zeros::<T>(rows)?;
+            let indptr_buffer = self.context.create_buffer_from_slice(indptr);
+            let indices_buffer = self.context.create_buffer_from_slice(indices);
+            let data_buffer = self.context.create_buffer_from_slice(data);
+            let x_buffer = self.context.create_buffer_from_slice(x);
+            let mut y_buffer = self.context.create_buffer::<T>(rows);
 
-            // Compile and execute Metal kernel with simdgroup optimization
-            let kernel = SpMVKernel::new(&self.device, [256, 1, 1])?;
-            kernel.execute(
-                &self.device,
-                rows,
-                x.len(),
-                &indptr_buffer,
-                &indices_buffer,
-                &data_buffer,
-                &x_buffer,
-                &mut y_buffer,
+            // Use unified GPU interface instead of low-level kernel
+            use crate::gpu::GpuSpMatVec;
+            use crate::csr_array::CsrArray;
+
+            // Create CSR matrix from components for unified interface
+            let csr_matrix = CsrArray::new(
+                data.to_vec().into(),
+                indices.to_vec().into(),
+                indptr.to_vec().into(),
+                (rows, x.len()),
             )?;
 
-            // Commit command buffer and wait for completion
-            self.device.commit_and_wait()?;
-            let result = y_buffer.to_host()?;
-            Ok(result)
+            let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
+            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            Ok(result.to_vec())
         }
 
         #[cfg(not(feature = "gpu"))]
@@ -463,7 +455,7 @@ impl Default for GpuSpMV {
         Self::new().unwrap_or_else(|_| {
             // If GPU initialization fails, create CPU-only version
             Self {
-                device: GpuDevice::get_default(GpuBackend::Cpu).unwrap(),
+                context: GpuContext::new(GpuBackend::Cpu).unwrap(),
                 backend: GpuBackend::Cpu,
             }
         })

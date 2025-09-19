@@ -4,7 +4,7 @@
 //! were not yet optimized or can benefit from additional vectorization techniques.
 
 use ndarray::{
-    s, Array, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Dimension,
+    s, Array, Array1, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Dimension,
     Ix2, Zip,
 };
 use num_traits::{Float, FromPrimitive, Zero};
@@ -34,7 +34,7 @@ where
     let sampling_points = compute_circle_sampling_points(radius, n_points)?;
 
     // Process in SIMD-friendly chunks
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width
     let chunk_size = 64; // Cache-friendly processing
 
     for y_chunk in (radius..height - radius).step_by(chunk_size) {
@@ -65,11 +65,17 @@ where
                     }
 
                     // SIMD comparison: neighbor >= center
-                    let comparisons = T::simd_cmp_ge(&neighbor_values, &center_values);
+                    // Convert to arrays for SIMD operations
+                    let neighbor_array = Array1::from_vec(neighbor_values.clone());
+                    let center_array = Array1::from_vec(center_values.clone());
+                    let diff = T::simd_sub(&neighbor_array.view(), &center_array.view());
+
+                    // Create binary mask (1 if neighbor >= center, 0 otherwise)
+                    let comparisons: Vec<u32> = diff.iter().map(|&d| if d >= T::zero() { 1 } else { 0 }).collect();
 
                     // Update LBP codes
                     for i in 0..simd_width {
-                        if comparisons[i] {
+                        if comparisons[i] != 0 {
                             lbp_codes[i] |= 1u32 << point_idx;
                         }
                     }
@@ -130,7 +136,7 @@ where
     let grad_y = simd_separable_convolution_2d(&input, &[T::one()], &kernel_y)?;
 
     // Compute magnitude using SIMD operations
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width
     let total_elements = height * width;
     let num_chunks = total_elements / simd_width;
 
@@ -147,12 +153,14 @@ where
         let gy_chunk = &grad_y_flat[start_idx..start_idx + simd_width];
 
         // SIMD magnitude computation: sqrt(gx² + gy²)
-        let gx_squared = T::simd_mul(gx_chunk, gx_chunk);
-        let gy_squared = T::simd_mul(gy_chunk, gy_chunk);
-        let sum_squares = T::simd_add(&gx_squared, &gy_squared);
-        let magnitudes = T::simd_sqrt(&sum_squares);
+        let gx_array = Array1::from_vec(gx_chunk.to_vec());
+        let gy_array = Array1::from_vec(gy_chunk.to_vec());
+        let gx_squared = T::simd_mul(&gx_array.view(), &gx_array.view());
+        let gy_squared = T::simd_mul(&gy_array.view(), &gy_array.view());
+        let sum_squares = T::simd_add(&gx_squared.view(), &gy_squared.view());
+        let magnitudes = T::simd_sqrt(&sum_squares.view());
 
-        output_flat[start_idx..start_idx + simd_width].copy_from_slice(&magnitudes);
+        output_flat[start_idx..start_idx + simd_width].copy_from_slice(magnitudes.as_slice().unwrap());
     }
 
     // Handle remaining elements
@@ -195,7 +203,7 @@ where
 
     // Process elements in SIMD chunks
     let flat_view = input.as_slice().unwrap();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width
     let num_chunks = flat_view.len() / simd_width;
 
     for chunk_idx in 0..num_chunks {
@@ -203,13 +211,16 @@ where
         let chunk = &flat_view[start_idx..start_idx + simd_width];
 
         // SIMD bin computation
+        let chunk_array = Array1::from_vec(chunk.to_vec());
         let min_vals = vec![min_val; simd_width];
-        let normalized = T::simd_sub(chunk, &min_vals);
+        let min_vals_array = Array1::from_vec(min_vals);
+        let normalized = T::simd_sub(&chunk_array.view(), &min_vals_array.view());
         let inv_widths = vec![inv_bin_width; simd_width];
-        let bin_indices_f = T::simd_mul(&normalized, &inv_widths);
+        let inv_widths_array = Array1::from_vec(inv_widths);
+        let bin_indices_f = T::simd_mul(&normalized.view(), &inv_widths_array.view());
 
         // Convert to integer indices and update histogram
-        for &bin_f in &bin_indices_f {
+        for &bin_f in bin_indices_f.as_slice().unwrap() {
             let bin_idx = bin_f.to_usize().unwrap_or(0).min(bins - 1);
             histogram[bin_idx] += 1;
         }
@@ -273,7 +284,7 @@ where
                 let x_power_row = x_powers.slice(s![i, ..]);
 
                 // SIMD dot product of (_input * x_power) * y_power
-                let simd_width = T::simd_width();
+                let simd_width = 8; // Default SIMD width
                 let num_chunks = width / simd_width;
 
                 let mut row_sum = T::zero();
@@ -287,7 +298,9 @@ where
                     let input_vec = input_chunk.to_vec();
                     let x_power_vec = x_power_chunk.to_vec();
 
-                    let products = T::simd_mul(&input_vec, &x_power_vec);
+                    let input_array = Array1::from_vec(input_vec);
+                    let x_power_array = Array1::from_vec(x_power_vec);
+                    let products = T::simd_mul(&input_array.view(), &x_power_array.view());
                     row_sum = row_sum + products.iter().fold(T::zero(), |acc, &x| acc + x);
                 }
 
@@ -351,7 +364,7 @@ where
 
         for y in y_start..y_end {
             let mut x = 0;
-            let simd_width = T::simd_width();
+            let simd_width = 8; // Default SIMD width
 
             // Process full SIMD chunks
             while x + simd_width <= width {
@@ -377,10 +390,16 @@ where
                     // Update result based on operation type
                     match operation {
                         MorphologicalOperation::Erosion => {
-                            result_values = T::simd_min(&result_values, &neighbor_values);
+                            let result_array = Array1::from_vec(result_values.clone());
+                            let neighbor_array = Array1::from_vec(neighbor_values.clone());
+                            let result_simd = T::simd_min(&result_array.view(), &neighbor_array.view());
+                            result_values = result_simd.to_vec();
                         }
                         MorphologicalOperation::Dilation => {
-                            result_values = T::simd_max(&result_values, &neighbor_values);
+                            let result_array = Array1::from_vec(result_values.clone());
+                            let neighbor_array = Array1::from_vec(neighbor_values.clone());
+                            let result_simd = T::simd_max(&result_array.view(), &neighbor_array.view());
+                            result_values = result_simd.to_vec();
                         }
                     }
                 }
@@ -559,7 +578,7 @@ where
         return Err(NdimageError::InvalidInput("Empty array".to_string()));
     }
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width
     let num_chunks = data.len() / simd_width;
 
     let mut min_val = data[0];
@@ -570,8 +589,9 @@ where
         let start_idx = chunk_idx * simd_width;
         let chunk = &data[start_idx..start_idx + simd_width];
 
-        let chunk_min = T::simd_min_reduce(chunk);
-        let chunk_max = T::simd_max_reduce(chunk);
+        let chunk_array = Array1::from_vec(chunk.to_vec());
+        let chunk_min = T::simd_min_element(&chunk_array.view());
+        let chunk_max = T::simd_max_element(&chunk_array.view());
 
         if chunk_min < min_val {
             min_val = chunk_min;

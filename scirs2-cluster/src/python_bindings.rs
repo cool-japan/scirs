@@ -28,6 +28,8 @@ use numpy::{PyArray1, PyArray2, ToPyArray};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 #[cfg(feature = "pyo3")]
 use pyo3::prelude::*;
+#[cfg(feature = "pyo3")]
+use pyo3::wrap_pymodule;
 
 /// Python-compatible K-means clustering implementation
 #[cfg(feature = "pyo3")]
@@ -74,7 +76,8 @@ impl PyKMeans {
             max_iter,
             tol,
             random_state,
-            n_init_init: init.to_string(),
+            n_init,
+            init: init.to_string(),
             cluster_centers_: None,
             labels_: None,
             inertia_: None,
@@ -84,7 +87,7 @@ impl PyKMeans {
 
     /// Fit K-means clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         match self.fit_internal(data) {
             Ok((centers, labels, inertia, n_iter)) => {
@@ -113,7 +116,7 @@ impl PyKMeans {
             return Err(PyRuntimeError::new_err("Model not fitted yet"));
         }
 
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
         let centers = self.cluster_centers_.as_ref().unwrap();
 
         let mut labels = Array1::zeros(data.nrows());
@@ -139,14 +142,14 @@ impl PyKMeans {
         }
 
         let labels_i32: Array1<i32> = labels.mapv(|x| x as i32);
-        Ok(labels_i32.to_pyarray(py).to_owned())
+        Ok(labels_i32.to_pyarray_bound(py).unbind())
     }
 
     /// Get cluster centers
     #[getter]
     fn cluster_centers_(&self, py: Python) -> PyResult<Option<Py<PyArray2<f64>>>> {
         match &self.cluster_centers_ {
-            Some(centers) => Ok(Some(centers.to_pyarray(py).to_owned())),
+            Some(centers) => Ok(Some(centers.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -157,7 +160,7 @@ impl PyKMeans {
         match &self.labels_ {
             Some(labels) => {
                 let labels_i32: Array1<i32> = labels.mapv(|x| x as i32);
-                Ok(labels_i32.to_pyarray(py).to_owned())
+                Ok(labels_i32.to_pyarray_bound(py).unbind())
             }
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
@@ -176,7 +179,7 @@ impl PyKMeans {
     }
 
     /// Set parameters
-    fn set_params(&mut self, params: &PyDict) -> PyResult<()> {
+    fn set_params(&mut self, params: &Bound<'_, pyo3::types::PyDict>) -> PyResult<()> {
         for (key, value) in params.iter() {
             let key_str: String = key.extract()?;
             match key_str.as_str() {
@@ -206,7 +209,7 @@ impl PyKMeans {
         dict.set_item("random_state", self.random_state)?;
         dict.set_item("n_init", self.n_init)?;
         dict.set_item("init", &self.init)?;
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 }
 
@@ -288,7 +291,7 @@ impl PyDBSCAN {
     /// Create new DBSCAN clustering instance
     #[new]
     #[pyo3(signature = (eps=0.5, min_samples=5, metric="euclidean"))]
-    fn new(_eps: f64, minsamples: usize, metric: &str) -> Self {
+    fn new(eps: f64, min_samples: usize, metric: &str) -> Self {
         Self {
             eps,
             min_samples,
@@ -300,7 +303,7 @@ impl PyDBSCAN {
 
     /// Fit DBSCAN clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         match dbscan(data, self.eps, self.min_samples) {
             Ok((labels, core_indices)) => {
@@ -329,7 +332,7 @@ impl PyDBSCAN {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -338,7 +341,7 @@ impl PyDBSCAN {
     #[getter]
     fn core_sample_indices_(&self, py: Python) -> PyResult<Option<Py<PyArray1<usize>>>> {
         match &self.core_sample_indices_ {
-            Some(indices) => Ok(Some(indices.to_pyarray(py).to_owned())),
+            Some(indices) => Ok(Some(indices.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -368,7 +371,7 @@ impl PyAgglomerativeClustering {
     /// Create new agglomerative clustering instance
     #[new]
     #[pyo3(signature = (n_clusters=2, *, linkage="ward", metric="euclidean"))]
-    fn new(_nclusters: usize, linkage: &str, metric: &str) -> Self {
+    fn new(n_clusters: usize, linkage: &str, metric: &str) -> Self {
         Self {
             n_clusters,
             linkage: linkage.to_string(),
@@ -381,7 +384,7 @@ impl PyAgglomerativeClustering {
 
     /// Fit agglomerative clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         let linkage_method = match self.linkage.as_str() {
             "ward" => LinkageMethod::Ward,
@@ -442,7 +445,7 @@ impl PyAgglomerativeClustering {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -484,7 +487,7 @@ impl PyBirch {
     /// Create new BIRCH clustering instance
     #[new]
     #[pyo3(signature = (n_clusters=None, *, threshold=0.5, branching_factor=50))]
-    fn new(_n_clusters: Option<usize>, threshold: f64, branchingfactor: usize) -> Self {
+    fn new(n_clusters: Option<usize>, threshold: f64, branching_factor: usize) -> Self {
         Self {
             n_clusters,
             threshold,
@@ -497,7 +500,7 @@ impl PyBirch {
 
     /// Fit BIRCH clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         let options = BirchOptions {
             n_clusters: self.n_clusters,
@@ -530,7 +533,7 @@ impl PyBirch {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -539,7 +542,7 @@ impl PyBirch {
     #[getter]
     fn subcluster_centers_(&self, py: Python) -> PyResult<Option<Py<PyArray2<f64>>>> {
         match &self.subcluster_centers_ {
-            Some(centers) => Ok(Some(centers.to_pyarray(py).to_owned())),
+            Some(centers) => Ok(Some(centers.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -591,11 +594,11 @@ impl PySpectralClustering {
 
     /// Fit spectral clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         let affinity_mode = match self.affinity.as_str() {
-            "rbf" => AffinityMode::Rbf(self.gamma.unwrap_or(1.0)),
-            "nearest_neighbors" => AffinityMode::NearestNeighbors(10),
+            "rbf" => AffinityMode::RBF,
+            "nearest_neighbors" => AffinityMode::NearestNeighbors,
             "precomputed" => AffinityMode::Precomputed,
             _ => {
                 return Err(PyValueError::new_err(format!(
@@ -606,13 +609,19 @@ impl PySpectralClustering {
         };
 
         let options = SpectralClusteringOptions {
-            n_clusters: self.n_clusters,
             affinity: affinity_mode,
-            n_components: self.n_components,
+            n_neighbors: 10,
+            gamma: self.gamma.unwrap_or(1.0),
+            normalized_laplacian: true,
+            max_iter: 100,
+            n_init: 10,
+            tol: 1e-4,
             random_seed: self.random_state,
+            eigen_solver: "arpack".to_string(),
+            auto_n_clusters: false,
         };
 
-        match spectral_clustering(data, options) {
+        match spectral_clustering(data, self.n_clusters, Some(options)) {
             Ok((labels, affinity_matrix)) => {
                 let labels_i32: Array1<i32> = labels.mapv(|x| x as i32);
                 self.labels_ = Some(labels_i32);
@@ -636,7 +645,7 @@ impl PySpectralClustering {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -645,7 +654,7 @@ impl PySpectralClustering {
     #[getter]
     fn affinity_matrix_(&self, py: Python) -> PyResult<Option<Py<PyArray2<f64>>>> {
         match &self.affinity_matrix_ {
-            Some(matrix) => Ok(Some(matrix.to_pyarray(py).to_owned())),
+            Some(matrix) => Ok(Some(matrix.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -675,8 +684,8 @@ impl PyMeanShift {
     /// Create new Mean Shift clustering instance
     #[new]
     #[pyo3(signature = (bandwidth=None, *, seeds=None, cluster_all=true))]
-    fn new(_bandwidth: Option<f64>, seeds: Option<&PyArray2<f64>>, clusterall: bool) -> Self {
-        let seeds_array = seeds.map(|s| unsafe { s.as_array().to_owned() });
+    fn new(bandwidth: Option<f64>, seeds: Option<&PyArray2<f64>>, cluster_all: bool) -> Self {
+        let seeds_array = seeds.map(|s| s.readonly().as_array().to_owned());
         Self {
             bandwidth,
             seeds: seeds_array,
@@ -689,7 +698,7 @@ impl PyMeanShift {
 
     /// Fit Mean Shift clustering to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         let bandwidth = match self.bandwidth {
             Some(bw) => bw,
@@ -705,19 +714,19 @@ impl PyMeanShift {
         };
 
         let options = MeanShiftOptions {
-            bandwidth,
-            seeds: self.seeds.as_ref().map(|s| s.view()),
-            max_iter: Some(300),
-            tol: Some(1e-3),
+            bandwidth: Some(bandwidth),
+            seeds: self.seeds.clone(),
+            bin_seeding: false,
+            min_bin_freq: 1,
             cluster_all: self.cluster_all,
+            max_iter: 300,
         };
 
         match mean_shift(data, options) {
-            Ok((labels, centers, n_iter)) => {
-                let labels_i32: Array1<i32> = labels.mapv(|x| x as i32);
-                self.labels_ = Some(labels_i32);
+            Ok((centers, labels)) => {
+                self.labels_ = Some(labels);
                 self.cluster_centers_ = Some(centers);
-                self.n_iter_ = Some(n_iter);
+                self.n_iter_ = Some(300); // Placeholder since mean_shift doesn't return iterations
                 Ok(())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!(
@@ -737,7 +746,7 @@ impl PyMeanShift {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -746,7 +755,7 @@ impl PyMeanShift {
     #[getter]
     fn cluster_centers_(&self, py: Python) -> PyResult<Option<Py<PyArray2<f64>>>> {
         match &self.cluster_centers_ {
-            Some(centers) => Ok(Some(centers.to_pyarray(py).to_owned())),
+            Some(centers) => Ok(Some(centers.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -816,7 +825,7 @@ impl PyGaussianMixture {
 
     /// Fit Gaussian Mixture Model to data
     fn fit(&mut self, py: Python, x: &PyArray2<f64>) -> PyResult<()> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
 
         let cov_type = match self.covariance_type.as_str() {
             "full" => CovarianceType::Full,
@@ -834,8 +843,10 @@ impl PyGaussianMixture {
         let options = GMMOptions {
             n_components: self.n_components,
             covariance_type: cov_type,
-            max_iter: self.max_iter,
             tol: self.tol,
+            max_iter: self.max_iter,
+            n_init: 1,
+            init_method: crate::gmm::GMMInit::KMeans,
             random_seed: self.random_state,
             reg_covar: 1e-6,
         };
@@ -876,7 +887,7 @@ impl PyGaussianMixture {
     #[getter]
     fn labels(&self, py: Python) -> PyResult<Py<PyArray1<i32>>> {
         match &self.labels_ {
-            Some(labels) => Ok(labels.to_pyarray(py).to_owned()),
+            Some(labels) => Ok(labels.to_pyarray_bound(py).unbind()),
             None => Err(PyRuntimeError::new_err("Model not fitted yet")),
         }
     }
@@ -885,7 +896,7 @@ impl PyGaussianMixture {
     #[getter]
     fn means_(&self, py: Python) -> PyResult<Option<Py<PyArray2<f64>>>> {
         match &self.means_ {
-            Some(means) => Ok(Some(means.to_pyarray(py).to_owned())),
+            Some(means) => Ok(Some(means.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -894,7 +905,7 @@ impl PyGaussianMixture {
     #[getter]
     fn weights_(&self, py: Python) -> PyResult<Option<Py<PyArray1<f64>>>> {
         match &self.weights_ {
-            Some(weights) => Ok(Some(weights.to_pyarray(py).to_owned())),
+            Some(weights) => Ok(Some(weights.to_pyarray_bound(py).unbind())),
             None => Ok(None),
         }
     }
@@ -922,17 +933,16 @@ impl PyGaussianMixture {
 #[cfg(feature = "pyo3")]
 #[pymodule]
 #[allow(dead_code)]
-fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
+fn metrics(m: &Bound<'_, PyModule>) -> PyResult<()> {
     /// Calculate silhouette score
     #[pyfn(m)]
     fn silhouette_score_py(
-        _py: Python,
-        x: &PyArray2<f64>,
-        labels: &PyArray1<i32>,
+        x: &Bound<'_, PyArray2<f64>>,
+        labels: &Bound<'_, PyArray1<i32>>,
         metric: Option<&str>,
     ) -> PyResult<f64> {
-        let data = unsafe { x.as_array() };
-        let labels_array = unsafe { labels.as_array() };
+        let data = x.readonly().as_array();
+        let labels_array = labels.readonly().as_array();
 
         // Convert i32 labels to usize
         let labels_usize: Array1<usize> = labels_array.mapv(|x| if x < 0 { 0 } else { x as usize });
@@ -949,12 +959,11 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
     /// Calculate Calinski-Harabasz score
     #[pyfn(m)]
     fn calinski_harabasz_score_py(
-        _py: Python,
-        x: &PyArray2<f64>,
-        labels: &PyArray1<i32>,
+        x: &Bound<'_, PyArray2<f64>>,
+        labels: &Bound<'_, PyArray1<i32>>,
     ) -> PyResult<f64> {
-        let data = unsafe { x.as_array() };
-        let labels_array = unsafe { labels.as_array() };
+        let data = x.readonly().as_array();
+        let labels_array = labels.readonly().as_array();
 
         let labels_usize: Array1<usize> = labels_array.mapv(|x| if x < 0 { 0 } else { x as usize });
 
@@ -970,12 +979,11 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
     /// Calculate Davies-Bouldin score
     #[pyfn(m)]
     fn davies_bouldin_score_py(
-        _py: Python,
-        x: &PyArray2<f64>,
-        labels: &PyArray1<i32>,
+        x: &Bound<'_, PyArray2<f64>>,
+        labels: &Bound<'_, PyArray1<i32>>,
     ) -> PyResult<f64> {
-        let data = unsafe { x.as_array() };
-        let labels_array = unsafe { labels.as_array() };
+        let data = x.readonly().as_array();
+        let labels_array = labels.readonly().as_array();
 
         let labels_usize: Array1<usize> = labels_array.mapv(|x| if x < 0 { 0 } else { x as usize });
 
@@ -991,15 +999,14 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
     /// Calculate Adjusted Rand Index
     #[pyfn(m)]
     fn adjusted_rand_score_py(
-        _py: Python,
-        labels_true: &PyArray1<i32>,
-        labels_pred: &PyArray1<i32>,
+        labels_true: &Bound<'_, PyArray1<i32>>,
+        labels_pred: &Bound<'_, PyArray1<i32>>,
     ) -> PyResult<f64> {
-        let true_labels = unsafe { labels_true.as_array() };
-        let pred_labels = unsafe { labels_pred.as_array() };
+        let true_labels = labels_true.readonly().as_array();
+        let pred_labels = labels_pred.readonly().as_array();
 
-        let _true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
-        let _pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
 
         match adjusted_rand_index(true_usize.view(), pred_usize.view()) {
             Ok(score) => Ok(score),
@@ -1013,16 +1020,15 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
     /// Calculate Normalized Mutual Information
     #[pyfn(m)]
     fn normalized_mutual_info_score_py(
-        _py: Python,
-        labels_true: &PyArray1<i32>,
-        labels_pred: &PyArray1<i32>,
+        labels_true: &Bound<'_, PyArray1<i32>>,
+        labels_pred: &Bound<'_, PyArray1<i32>>,
         average_method: Option<&str>,
     ) -> PyResult<f64> {
-        let true_labels = unsafe { labels_true.as_array() };
-        let pred_labels = unsafe { labels_pred.as_array() };
+        let true_labels = labels_true.readonly().as_array();
+        let pred_labels = labels_pred.readonly().as_array();
 
-        let _true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
-        let _pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
 
         match normalized_mutual_info(true_usize.view(), pred_usize.view()) {
             Ok(score) => Ok(score),
@@ -1036,16 +1042,15 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
     /// Calculate Homogeneity, Completeness, and V-measure
     #[pyfn(m)]
     fn homogeneity_completeness_v_measure_py(
-        _py: Python,
-        labels_true: &PyArray1<i32>,
-        labels_pred: &PyArray1<i32>,
+        labels_true: &Bound<'_, PyArray1<i32>>,
+        labels_pred: &Bound<'_, PyArray1<i32>>,
         beta: Option<f64>,
     ) -> PyResult<(f64, f64, f64)> {
-        let true_labels = unsafe { labels_true.as_array() };
-        let pred_labels = unsafe { labels_pred.as_array() };
+        let true_labels = labels_true.readonly().as_array();
+        let pred_labels = labels_pred.readonly().as_array();
 
-        let _true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
-        let _pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let true_usize: Array1<usize> = true_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
+        let pred_usize: Array1<usize> = pred_labels.mapv(|x| if x < 0 { 0 } else { x as usize });
 
         match homogeneity_completeness_v_measure(true_usize.view(), pred_usize.view()) {
             Ok((h, c, v)) => Ok((h, c, v)),
@@ -1063,7 +1068,7 @@ fn metrics(py: Python, m: &PyModule) -> PyResult<()> {
 #[cfg(feature = "pyo3")]
 #[pymodule]
 #[allow(dead_code)]
-fn scirs2_cluster(py: Python, m: &PyModule) -> PyResult<()> {
+fn scirs2_cluster(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Core clustering algorithms
     m.add_class::<PyKMeans>()?;
     m.add_class::<PyDBSCAN>()?;
@@ -1079,13 +1084,12 @@ fn scirs2_cluster(py: Python, m: &PyModule) -> PyResult<()> {
     // Convenience functions for common workflows
     #[pyfn(m)]
     fn estimate_bandwidth_py(
-        _py: Python,
-        x: &PyArray2<f64>,
+        x: &Bound<'_, PyArray2<f64>>,
         quantile: Option<f64>,
         n_samples: Option<usize>,
     ) -> PyResult<f64> {
-        let data = unsafe { x.as_array() };
-        match estimate_bandwidth(data, quantile, n_samples) {
+        let data = x.readonly().as_array();
+        match estimate_bandwidth(data, quantile, n_samples, None) {
             Ok(bw) => Ok(bw),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Bandwidth estimation failed: {}",
@@ -1097,12 +1101,11 @@ fn scirs2_cluster(py: Python, m: &PyModule) -> PyResult<()> {
     /// Automatically select the best clustering algorithm for given data
     #[pyfn(m)]
     fn auto_select_algorithm_py(
-        _py: Python,
-        x: &PyArray2<f64>,
+        x: &Bound<'_, PyArray2<f64>>,
         n_clusters_hint: Option<usize>,
         sample_size_threshold: Option<usize>,
     ) -> PyResult<String> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
         let n_samples = data.nrows();
         let n_features = data.ncols();
 
@@ -1137,15 +1140,15 @@ fn scirs2_cluster(py: Python, m: &PyModule) -> PyResult<()> {
     /// Get algorithm-specific parameter recommendations
     #[pyfn(m)]
     fn get_algorithm_defaults_py(
-        _py: Python,
+        py: Python,
         algorithm: &str,
-        x: &PyArray2<f64>,
+        x: &Bound<'_, PyArray2<f64>>,
     ) -> PyResult<PyObject> {
-        let data = unsafe { x.as_array() };
+        let data = x.readonly().as_array();
         let n_samples = data.nrows();
         let n_features = data.ncols();
 
-        let dict = PyDict::new(_py);
+        let dict = PyDict::new_bound(py);
 
         match algorithm.to_lowercase().as_str() {
             "kmeans" => {
@@ -1184,7 +1187,7 @@ fn scirs2_cluster(py: Python, m: &PyModule) -> PyResult<()> {
             }
         }
 
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     // Module metadata

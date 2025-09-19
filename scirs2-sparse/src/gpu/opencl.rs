@@ -3,7 +3,7 @@
 //! This module provides OpenCL-specific implementations for sparse matrix operations.
 
 use crate::csr_array::CsrArray;
-use crate::error::SparseResult;
+use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
 use ndarray::{Array1, ArrayView1};
 use num_traits::Float;

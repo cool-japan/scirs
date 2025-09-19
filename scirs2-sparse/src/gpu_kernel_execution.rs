@@ -7,8 +7,9 @@
 
 #[allow(unused_imports)]
 use crate::gpu_ops::{
-    GpuBackend, GpuBuffer, GpuBufferExt, GpuDataType, GpuDevice, GpuError, GpuKernelHandle,
+    GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle,
 };
+use scirs2_core::GpuDataType;
 use num_traits::Float;
 use std::fmt::Debug;
 
@@ -307,7 +308,7 @@ where
 
     // Calculate shared memory size based on block size and data type
     let shared_memory_size = match config.memory_strategy {
-        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * block_size_,
+        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * block_size,
     };
 
     // Enhanced kernel arguments with CUDA-specific optimizations
@@ -372,7 +373,7 @@ where
 
     // Calculate local memory size for work-group sharing
     let local_memory_size = match config.memory_strategy {
-        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * optimal_local_size_,
+        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * optimal_local_size,
     };
 
     // Enhanced OpenCL kernel arguments
@@ -439,7 +440,7 @@ where
 
     // Threadgroup memory size for Metal
     let threadgroup_memory_size = match config.memory_strategy {
-        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * aligned_threadgroup_size_,
+        MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * aligned_threadgroup_size,
     };
 
     // Enhanced Metal kernel arguments
@@ -973,15 +974,15 @@ impl GpuMemoryManager {
         let buffer = match self.device.backend() {
             #[cfg(feature = "gpu")]
             GpuBackend::Cuda => {
-                self.transfer_data_cuda_optimized(host_data, transfer_size_priority)
+                self.transfer_data_cuda_optimized(host_data, transfer_size)
             }
             #[cfg(feature = "gpu")]
             GpuBackend::OpenCL => {
-                self.transfer_data_opencl_optimized(host_data, transfer_size_priority)
+                self.transfer_data_opencl_optimized(host_data, transfer_size)
             }
             #[cfg(feature = "gpu")]
             GpuBackend::Metal => {
-                self.transfer_data_metal_optimized(host_data, transfer_size_priority)
+                self.transfer_data_metal_optimized(host_data, transfer_size)
             }
             _ => {
                 // Standard transfer for CPU or when GPU not available
@@ -1010,7 +1011,7 @@ impl GpuMemoryManager {
     where
         T: GpuDataType + Copy,
     {
-        match (transfer_size_priority) {
+        match (transfer_size) {
             // Large high-_priority transfers: use pinned memory and async transfer
             (size, TransferPriority::High | TransferPriority::Critical)
                 if size > 4 * 1024 * 1024 =>
@@ -1019,7 +1020,7 @@ impl GpuMemoryManager {
                 self.device.create_buffer(host_data) // Would use cudaHostAlloc in real implementation
             }
             // Medium transfers: use memory coalescing
-            (size_) if size > 64 * 1024 => self.device.create_buffer(host_data),
+            (size) if size > 64 * 1024 => self.device.create_buffer(host_data),
             // Small transfers: standard approach
             _ => self.device.create_buffer(host_data),
         }

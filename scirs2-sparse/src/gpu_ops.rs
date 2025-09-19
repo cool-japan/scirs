@@ -142,14 +142,8 @@ impl GpuDevice {
     }
 }
 
-// GPU data type trait
-pub trait GpuDataType: Send + Sync + Copy + 'static {}
-
-impl GpuDataType for f32 {}
-impl GpuDataType for f64 {}
-impl GpuDataType for usize {}
-impl GpuDataType for u32 {}
-impl GpuDataType for i32 {}
+// GPU data type implementations for compatibility with scirs2-core
+// Note: GpuDataType trait is provided by scirs2-core
 
 // Re-export unified GPU interface
 pub use crate::gpu::{BackendInfo, GpuSpMatVec, OptimizationHint};
@@ -265,7 +259,7 @@ pub struct SpMVKernel {
 
 impl SpMVKernel {
     pub fn new(_device: &GpuDevice, _workgroupsize: [u32; 3]) -> Result<Self, GpuError> {
-        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::other(format!("{:?}", e)))?;
+        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::Other(format!("{:?}", e)))?;
         Ok(Self { gpu_handler })
     }
 
@@ -280,7 +274,7 @@ impl SpMVKernel {
     {
         self.gpu_handler
             .spmv(matrix, vector, Some(device))
-            .map_err(|e| GpuError::other(format!("{:?}", e)))
+            .map_err(|e| GpuError::Other(format!("{:?}", e)))
     }
 }
 
@@ -300,7 +294,7 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
         if range.end <= full_data.len() {
             Ok(full_data[range].to_vec())
         } else {
-            Err(GpuError::invalid_parameter(
+            Err(GpuError::InvalidParameter(
                 "Range out of bounds".to_string(),
             ))
         }
@@ -333,7 +327,11 @@ mod tests {
 
     #[test]
     fn test_gpu_spmv_kernel() {
+        #[cfg(feature = "gpu")]
+        let device = scirs2_core::gpu::GpuDevice::new(GpuBackend::Cpu, 0);
+        #[cfg(not(feature = "gpu"))]
         let device = GpuDevice::new(GpuBackend::Cpu).unwrap();
+
         let kernel = SpMVKernel::new(&device, [1, 1, 1]);
         assert!(kernel.is_ok());
     }

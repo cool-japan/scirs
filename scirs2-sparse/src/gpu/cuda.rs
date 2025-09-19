@@ -3,7 +3,7 @@
 //! This module provides CUDA-specific implementations for sparse matrix operations.
 
 use crate::csr_array::CsrArray;
-use crate::error::SparseResult;
+use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
 use ndarray::{Array1, ArrayView1};
 use num_traits::Float;
@@ -352,7 +352,7 @@ impl CudaMemoryManager {
         device: &super::GpuDevice,
     ) -> Result<CudaMatrixBuffers<T>, super::GpuError>
     where
-        T: super::GpuDataType + Copy,
+        T: super::GpuDataType + Copy + Float + Debug,
     {
         let indptr_buffer = device.create_buffer(&matrix.indptr)?;
         let indices_buffer = device.create_buffer(&matrix.indices)?;
@@ -374,7 +374,7 @@ impl CudaMemoryManager {
         access_pattern: MemoryAccessPattern,
     ) -> Result<super::GpuBuffer<T>, super::GpuError>
     where
-        T: super::GpuDataType + Copy,
+        T: super::GpuDataType + Copy + Float + Debug,
     {
         match access_pattern {
             MemoryAccessPattern::Sequential => {
