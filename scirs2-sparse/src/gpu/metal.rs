@@ -150,54 +150,80 @@ kernel void spmv_csr_neural_engine_prep_kernel(
 "#;
 
 /// Metal sparse matrix operations
-#[derive()]
 pub struct MetalSpMatVec {
-    kernel_handle: Option<super::GpuKernelHandle>,
-    simdgroup_kernel: Option<super::GpuKernelHandle>,
-    apple_silicon_kernel: Option<super::GpuKernelHandle>,
-    neural_engine_kernel: Option<super::GpuKernelHandle>,
+    context: Option<scirs2_core::gpu::GpuContext>,
+    kernel_handle: Option<scirs2_core::gpu::GpuKernelHandle>,
+    simdgroup_kernel: Option<scirs2_core::gpu::GpuKernelHandle>,
+    apple_silicon_kernel: Option<scirs2_core::gpu::GpuKernelHandle>,
+    neural_engine_kernel: Option<scirs2_core::gpu::GpuKernelHandle>,
     device_info: MetalDeviceInfo,
 }
 
 impl MetalSpMatVec {
     /// Create a new Metal sparse matrix-vector multiplication handler
     pub fn new() -> SparseResult<Self> {
-        Ok(Self {
+        // Try to create Metal context
+        #[cfg(feature = "gpu")]
+        let context = match scirs2_core::gpu::GpuContext::new(scirs2_core::gpu::GpuBackend::Metal) {
+            Ok(ctx) => Some(ctx),
+            Err(_) => None, // Metal not available, will use CPU fallback
+        };
+        #[cfg(not(feature = "gpu"))]
+        let context = None;
+
+        let mut handler = Self {
+            context,
             kernel_handle: None,
             simdgroup_kernel: None,
             apple_silicon_kernel: None,
             neural_engine_kernel: None,
             device_info: MetalDeviceInfo::detect(),
-        })
+        };
+
+        // Compile kernels if context is available
+        #[cfg(feature = "gpu")]
+        if handler.context.is_some() {
+            let _ = handler.compile_kernels();
+        }
+
+        Ok(handler)
     }
 
     /// Compile Metal shaders for sparse matrix operations
     #[cfg(feature = "gpu")]
-    pub fn compile_shaders(&mut self, device: &super::GpuDevice) -> Result<(), super::GpuError> {
-        // Compile basic kernel
-        self.kernel_handle =
-            Some(device.compile_metal_shader(METAL_SPMV_SHADER_SOURCE, "spmv_csr_kernel")?);
+    pub fn compile_kernels(&mut self) -> Result<(), scirs2_core::gpu::GpuError> {
+        if let Some(ref context) = self.context {
+            // Compile kernels using the context
+            self.kernel_handle =
+                context.execute(|compiler| compiler.compile(METAL_SPMV_SHADER_SOURCE).ok());
 
-        // Compile SIMD group kernel for better performance
-        self.simdgroup_kernel = Some(
-            device.compile_metal_shader(METAL_SPMV_SHADER_SOURCE, "spmv_csr_simdgroup_kernel")?,
-        );
+            self.simdgroup_kernel =
+                context.execute(|compiler| compiler.compile(METAL_SPMV_SHADER_SOURCE).ok());
 
-        // Apple Silicon specific optimizations
-        if self.device_info.is_apple_silicon {
-            self.apple_silicon_kernel = Some(device.compile_metal_shader(
-                METAL_APPLE_SILICON_SHADER_SOURCE,
-                "spmv_csr_apple_silicon_kernel",
-            )?);
+            // Apple Silicon specific optimizations
+            if self.device_info.is_apple_silicon {
+                self.apple_silicon_kernel = context
+                    .execute(|compiler| compiler.compile(METAL_APPLE_SILICON_SHADER_SOURCE).ok());
 
-            // Neural Engine preparation kernel (for future optimization)
-            self.neural_engine_kernel = Some(device.compile_metal_shader(
-                METAL_APPLE_SILICON_SHADER_SOURCE,
-                "spmv_csr_neural_engine_prep_kernel",
-            )?);
+                // Neural Engine kernel would compile the same shader separately
+                if self.device_info.has_neural_engine {
+                    self.neural_engine_kernel = context
+                        .execute(|compiler| compiler.compile(METAL_APPLE_SILICON_SHADER_SOURCE).ok());
+                }
+            }
+
+            if self.kernel_handle.is_some() {
+                Ok(())
+            } else {
+                Err(scirs2_core::gpu::GpuError::KernelCompilationError(
+                    "Failed to compile Metal kernels".to_string(),
+                ))
+            }
+        } else {
+            Err(scirs2_core::gpu::GpuError::BackendNotAvailable(
+                "Metal".to_string(),
+            ))
         }
-
-        Ok(())
     }
 
     /// Execute Metal sparse matrix-vector multiplication
@@ -206,10 +232,10 @@ impl MetalSpMatVec {
         &self,
         matrix: &CsrArray<T>,
         vector: &ArrayView1<T>,
-        device: &super::GpuDevice,
+        _device: &super::GpuDevice,
     ) -> SparseResult<Array1<T>>
     where
-        T: Float + Debug + Copy + super::GpuDataType,
+        T: Float + Debug + Copy + scirs2_core::gpu::GpuDataType,
     {
         let (rows, cols) = matrix.shape();
         if cols != vector.len() {
@@ -219,38 +245,73 @@ impl MetalSpMatVec {
             });
         }
 
-        // Upload data to GPU using Metal buffers
-        let indptr_gpu = device.create_metal_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_metal_buffer(&matrix.indices)?;
-        let data_gpu = device.create_metal_buffer(&matrix.data)?;
-        let vector_gpu = device.create_metal_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_metal_buffer(&vec![T::zero(); rows])?;
+        if let Some(ref context) = self.context {
+            // Select the best kernel based on device capabilities
+            let kernel = if self.device_info.is_apple_silicon {
+                self.apple_silicon_kernel
+                    .as_ref()
+                    .or(self.simdgroup_kernel.as_ref())
+                    .or(self.kernel_handle.as_ref())
+            } else {
+                self.simdgroup_kernel
+                    .as_ref()
+                    .or(self.kernel_handle.as_ref())
+            };
 
-        // Select optimal kernel based on device capabilities
-        let kernel = self.select_optimal_kernel(rows, &matrix)?;
+            if let Some(kernel) = kernel {
+                // Upload data to GPU
+                let indptr_buffer =
+                    context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+                let indices_buffer =
+                    context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+                let data_buffer =
+                    context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
+                let vector_buffer = context.create_buffer_from_slice(vector.as_slice().unwrap());
+                let result_buffer = context.create_buffer::<T>(rows);
 
-        // Configure threadgroup size for Metal
-        let threadgroup_size = self.device_info.max_threadgroup_size.min(256);
-        let grid_size = (rows + threadgroup_size - 1) / threadgroup_size;
+                // Set kernel parameters
+                kernel.set_buffer("indptr", &indptr_buffer);
+                kernel.set_buffer("indices", &indices_buffer);
+                kernel.set_buffer("data", &data_buffer);
+                kernel.set_buffer("x", &vector_buffer);
+                kernel.set_buffer("y", &result_buffer);
+                kernel.set_u32("num_rows", rows as u32);
 
-        // Launch Metal compute shader
-        device.launch_metal_shader(
-            &kernel,
-            grid_size,
-            threadgroup_size,
-            &[
-                &indptr_gpu,
-                &indices_gpu,
-                &data_gpu,
-                &vector_gpu,
-                &mut result_gpu,
-                &(rows as i32),
-            ],
-        )?;
+                // Configure threadgroup size for Metal
+                let threadgroup_size = self.device_info.max_threadgroup_size.min(256);
+                let grid_size = ((rows + threadgroup_size - 1) / threadgroup_size, 1, 1);
+                let block_size = (threadgroup_size, 1, 1);
 
-        // Download result from GPU
-        let result_host = result_gpu.to_host()?;
-        Ok(Array1::from_vec(result_host))
+                // Execute kernel
+                let args = vec![scirs2_core::gpu::DynamicKernelArg::U32(rows as u32)];
+
+                context
+                    .launch_kernel("spmv_csr_kernel", grid_size, block_size, &args)
+                    .map_err(|e| {
+                        SparseError::ComputationError(format!(
+                            "Metal kernel execution failed: {:?}",
+                            e
+                        ))
+                    })?;
+
+                // Read result back
+                let mut result_vec = vec![T::zero(); rows];
+                result_buffer.copy_to_host(&mut result_vec).map_err(|e| {
+                    SparseError::ComputationError(format!(
+                        "Failed to copy result from GPU: {:?}",
+                        e
+                    ))
+                })?;
+                Ok(Array1::from_vec(result_vec))
+            } else {
+                Err(SparseError::ComputationError(
+                    "Metal kernel not compiled".to_string(),
+                ))
+            }
+        } else {
+            // Fallback to CPU implementation
+            matrix.dot_vector(vector)
+        }
     }
 
     /// Execute optimized Metal sparse matrix-vector multiplication
@@ -306,8 +367,8 @@ impl MetalSpMatVec {
         &self,
         matrix: &CsrArray<T>,
         vector: &ArrayView1<T>,
-        device: &super::GpuDevice,
-        kernel: &super::GpuKernelHandle,
+        _device: &super::GpuDevice,
+        _kernel: &super::GpuKernelHandle,
         optimization_level: MetalOptimizationLevel,
     ) -> SparseResult<Array1<T>>
     where
@@ -315,66 +376,60 @@ impl MetalSpMatVec {
     {
         let (rows, _) = matrix.shape();
 
-        // Upload data to GPU
-        let indptr_gpu = device.create_metal_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_metal_buffer(&matrix.indices)?;
-        let data_gpu = device.create_metal_buffer(&matrix.data)?;
-        let vector_gpu = device.create_metal_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_metal_buffer(&vec![T::zero(); rows])?;
+        if let Some(ref context) = self.context {
+            // Upload data to GPU using context
+            let indptr_gpu = context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+            let indices_gpu = context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+            let data_gpu = context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
+            let vector_gpu = context.create_buffer_from_slice(vector.as_slice().unwrap());
+            let result_gpu = context.create_buffer::<T>(rows);
 
-        // Configure launch parameters based on optimization level
-        let (threadgroup_size, uses_shared_memory) = match optimization_level {
-            MetalOptimizationLevel::Basic => (self.device_info.max_threadgroup_size.min(64), false),
-            MetalOptimizationLevel::SimdGroup => {
-                (self.device_info.max_threadgroup_size.min(128), false)
-            }
-            MetalOptimizationLevel::AppleSilicon => {
-                (self.device_info.max_threadgroup_size.min(256), true)
-            }
-            MetalOptimizationLevel::NeuralEngine => {
-                // Optimize for Neural Engine pipeline
-                (self.device_info.max_threadgroup_size.min(128), false)
-            }
-        };
+            // Configure launch parameters based on optimization level
+            let (threadgroup_size, _uses_shared_memory) = match optimization_level {
+                MetalOptimizationLevel::Basic => (self.device_info.max_threadgroup_size.min(64), false),
+                MetalOptimizationLevel::SimdGroup => {
+                    (self.device_info.max_threadgroup_size.min(128), false)
+                }
+                MetalOptimizationLevel::AppleSilicon => {
+                    (self.device_info.max_threadgroup_size.min(256), true)
+                }
+                MetalOptimizationLevel::NeuralEngine => {
+                    // Optimize for Neural Engine pipeline
+                    (self.device_info.max_threadgroup_size.min(128), false)
+                }
+            };
 
-        let grid_size = (rows + threadgroup_size - 1) / threadgroup_size;
+            let grid_size = (rows + threadgroup_size - 1) / threadgroup_size;
 
-        // Launch Metal compute shader with appropriate configuration
-        if uses_shared_memory {
-            let shared_memory_size = threadgroup_size * std::mem::size_of::<f32>();
-            device.launch_metal_shader_with_shared_memory(
-                kernel,
-                grid_size,
-                threadgroup_size,
-                shared_memory_size,
-                &[
-                    &indptr_gpu,
-                    &indices_gpu,
-                    &data_gpu,
-                    &vector_gpu,
-                    &mut result_gpu,
-                    &(rows as i32),
-                ],
-            )?;
+            // Launch kernel using context
+            let args = vec![
+                scirs2_core::gpu::DynamicKernelArg::U32(rows as u32),
+            ];
+
+            // Use appropriate kernel based on optimization level
+            let kernel_name = match optimization_level {
+                MetalOptimizationLevel::Basic => "spmv_csr_kernel",
+                MetalOptimizationLevel::SimdGroup => "spmv_csr_simdgroup_kernel",
+                MetalOptimizationLevel::AppleSilicon => "spmv_csr_apple_silicon_kernel",
+                MetalOptimizationLevel::NeuralEngine => "spmv_csr_neural_engine_kernel",
+            };
+
+            context.launch_kernel(
+                kernel_name,
+                (grid_size, 1, 1),
+                (threadgroup_size, 1, 1),
+                &args,
+            ).map_err(|e| SparseError::ComputationError(format!("Metal kernel execution failed: {:?}", e)))?;
+
+            // Download result
+            let mut result_vec = vec![T::zero(); rows];
+            result_gpu.copy_to_host(&mut result_vec)
+                .map_err(|e| SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e)))?;
+            Ok(Array1::from_vec(result_vec))
         } else {
-            device.launch_metal_shader(
-                kernel,
-                grid_size,
-                threadgroup_size,
-                &[
-                    &indptr_gpu,
-                    &indices_gpu,
-                    &data_gpu,
-                    &vector_gpu,
-                    &mut result_gpu,
-                    &(rows as i32),
-                ],
-            )?;
+            // Fallback to CPU implementation
+            matrix.dot_vector(vector)
         }
-
-        // Download result
-        let result_host = result_gpu.to_host()?;
-        Ok(Array1::from_vec(result_host))
     }
 
     /// Select optimal kernel based on device and matrix characteristics
@@ -387,7 +442,7 @@ impl MetalSpMatVec {
     where
         T: Float + Debug + Copy,
     {
-        let avg_nnz_per_row = matrix.data.len() as f64 / rows as f64;
+        let avg_nnz_per_row = matrix.get_data().len() as f64 / rows as f64;
 
         // Select kernel based on device capabilities and matrix characteristics
         if self.device_info.is_apple_silicon && avg_nnz_per_row > 16.0 {
@@ -443,6 +498,7 @@ impl MetalSpMatVec {
 impl Default for MetalSpMatVec {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| Self {
+            context: None,
             kernel_handle: None,
             simdgroup_kernel: None,
             apple_silicon_kernel: None,
@@ -472,7 +528,7 @@ impl Default for MetalOptimizationLevel {
 }
 
 /// Metal device information for optimization
-#[derive()]
+#[derive(Debug)]
 pub struct MetalDeviceInfo {
     pub max_threadgroup_size: usize,
     pub shared_memory_size: usize,
@@ -539,33 +595,17 @@ impl MetalMemoryManager {
     #[cfg(feature = "gpu")]
     pub fn allocate_sparse_matrix<T>(
         &mut self,
-        matrix: &CsrArray<T>,
-        device: &super::GpuDevice,
+        _matrix: &CsrArray<T>,
+        _device: &super::GpuDevice,
     ) -> Result<MetalMatrixBuffers<T>, super::GpuError>
     where
         T: super::GpuDataType + Copy + Float + Debug,
     {
-        // Use Metal's unified memory architecture efficiently
-        let storage_mode = if self.device_info.is_apple_silicon {
-            // On Apple Silicon, use shared memory for better performance
-            MetalStorageMode::Shared
-        } else {
-            // On Intel Macs with discrete GPUs, use managed memory
-            MetalStorageMode::Managed
-        };
-
-        let indptr_buffer =
-            device.create_metal_buffer_with_storage_mode(&matrix.indptr, storage_mode)?;
-        let indices_buffer =
-            device.create_metal_buffer_with_storage_mode(&matrix.indices, storage_mode)?;
-        let data_buffer =
-            device.create_metal_buffer_with_storage_mode(&matrix.data, storage_mode)?;
-
-        Ok(MetalMatrixBuffers {
-            indptr: indptr_buffer,
-            indices: indices_buffer,
-            data: data_buffer,
-        })
+        // This functionality should use GpuContext instead of GpuDevice
+        // For now, return an error indicating this needs proper implementation
+        Err(super::GpuError::BackendNotImplemented(
+            super::GpuBackend::Metal,
+        ))
     }
 
     /// Get optimal threadgroup size for the current device

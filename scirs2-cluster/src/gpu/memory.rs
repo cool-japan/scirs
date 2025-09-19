@@ -250,7 +250,7 @@ impl MemoryStats {
 
     /// Check if there are potential memory leaks
     pub fn has_potential_leaks(&self) -> bool {
-        self.allocation_count > self.deallocation_count + 10 // Some tolerance
+        self.allocation_count > self.deallocation_count // Any unmatched allocation is a potential leak
     }
 }
 

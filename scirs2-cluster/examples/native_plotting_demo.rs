@@ -6,6 +6,7 @@
 use ndarray::Array2;
 use scirs2_cluster::preprocess::standardize;
 use scirs2_cluster::vq::{kmeans, kmeans2, vq};
+use scirs2_cluster::{BoundaryType, ColorScheme, DimensionalityReduction};
 
 #[cfg(feature = "plotters")]
 use scirs2_cluster::{save_clustering_plot, PlotFormat, PlotOutput};
@@ -39,7 +40,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(42),   // random_seed
     )?;
     // Generate labels using vq
-    let (labels, _) = vq(standardized.view(), centroids.view())?;
+    let (labels_usize, _) = vq(standardized.view(), centroids.view())?;
+    // Convert labels from usize to i32 for plotting functions
+    let labels = labels_usize.mapv(|x| x as i32);
 
     println!("K-means clustering completed with {} clusters", k);
 

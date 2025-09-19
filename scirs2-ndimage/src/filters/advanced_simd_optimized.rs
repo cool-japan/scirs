@@ -499,9 +499,9 @@ where
     pyramid.push(current.clone());
 
     for level in 1..levels {
-        // Check minimum size
+        // Check minimum size (allow down to 1x1)
         let (h, w) = current.dim();
-        if h < 4 || w < 4 {
+        if h < 2 || w < 2 {
             break;
         }
 
@@ -631,19 +631,25 @@ where
     let num_chunks = total_elements / simd_width;
     let mut sum = T::zero();
 
-    // SIMD accumulation
-    let flat_view = array.as_slice().unwrap_or(&[]);
-    for chunk_idx in 0..num_chunks {
-        let start = chunk_idx * simd_width;
-        let chunk = &flat_view[start..start + simd_width];
-        let chunk_array = Array1::from_vec(chunk.to_vec());
-        let chunk_sum = T::simd_sum(&chunk_array.view());
-        sum = sum + chunk_sum;
-    }
+    // SIMD accumulation - ensure we have a proper flattened view
+    if let Some(flat_view) = array.as_slice() {
+        for chunk_idx in 0..num_chunks {
+            let start = chunk_idx * simd_width;
+            let chunk = &flat_view[start..start + simd_width];
+            let chunk_array = Array1::from_vec(chunk.to_vec());
+            let chunk_sum = T::simd_sum(&chunk_array.view());
+            sum = sum + chunk_sum;
+        }
 
-    // Handle remaining elements
-    for i in (num_chunks * simd_width)..total_elements {
-        sum = sum + flat_view[i];
+        // Handle remaining elements
+        for i in (num_chunks * simd_width)..total_elements {
+            sum = sum + flat_view[i];
+        }
+    } else {
+        // Fallback for non-contiguous arrays
+        for elem in array.iter() {
+            sum = sum + *elem;
+        }
     }
 
     let count = T::from_usize(total_elements).unwrap_or(T::one());
@@ -665,24 +671,31 @@ where
     let num_chunks = total_elements / simd_width;
     let mut variance_sum = T::zero();
 
-    // SIMD variance computation
-    let flat_view = array.as_slice().unwrap_or(&[]);
-    for chunk_idx in 0..num_chunks {
-        let start = chunk_idx * simd_width;
-        let chunk = &flat_view[start..start + simd_width];
-        let mean_vec = vec![mean; simd_width];
-        let chunk_array = Array1::from_vec(chunk.to_vec());
-        let mean_array = Array1::from_vec(mean_vec);
-        let centered = T::simd_sub(&chunk_array.view(), &mean_array.view());
-        let squared = T::simd_mul(&centered.view(), &centered.view());
-        let chunk_variance = T::simd_sum(&squared.view());
-        variance_sum = variance_sum + chunk_variance;
-    }
+    // SIMD variance computation - ensure we have a proper flattened view
+    if let Some(flat_view) = array.as_slice() {
+        for chunk_idx in 0..num_chunks {
+            let start = chunk_idx * simd_width;
+            let chunk = &flat_view[start..start + simd_width];
+            let mean_vec = vec![mean; simd_width];
+            let chunk_array = Array1::from_vec(chunk.to_vec());
+            let mean_array = Array1::from_vec(mean_vec);
+            let centered = T::simd_sub(&chunk_array.view(), &mean_array.view());
+            let squared = T::simd_mul(&centered.view(), &centered.view());
+            let chunk_variance = T::simd_sum(&squared.view());
+            variance_sum = variance_sum + chunk_variance;
+        }
 
-    // Handle remaining elements
-    for i in (num_chunks * simd_width)..total_elements {
-        let diff = flat_view[i] - mean;
-        variance_sum = variance_sum + diff * diff;
+        // Handle remaining elements
+        for i in (num_chunks * simd_width)..total_elements {
+            let diff = flat_view[i] - mean;
+            variance_sum = variance_sum + diff * diff;
+        }
+    } else {
+        // Fallback for non-contiguous arrays
+        for elem in array.iter() {
+            let diff = *elem - mean;
+            variance_sum = variance_sum + diff * diff;
+        }
     }
 
     let count = T::from_usize(total_elements - 1).unwrap_or(T::one());

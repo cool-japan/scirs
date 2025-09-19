@@ -154,13 +154,8 @@ fn benchmark_connected_components(c: &mut Criterion) {
                     let mut processor = create_advanced_processor();
                     b.iter(|| {
                         black_box(
-                            execute_with_advanced(
-                                &mut processor,
-                                g,
-                                "connected_components",
-                                |graph| Ok(connected_components(graph)),
-                            )
-                            .unwrap(),
+                            execute_with_advanced(g, |graph| Ok(connected_components(graph)))
+                                .unwrap(),
                         )
                     })
                 },
@@ -201,15 +196,10 @@ fn benchmark_shortest_paths(c: &mut Criterion) {
                         let mut processor = create_advanced_processor();
                         b.iter(|| {
                             black_box(
-                                execute_with_advanced(
-                                    &mut processor,
-                                    g,
-                                    "dijkstra_path",
-                                    |graph| {
-                                        let target = (*start + 1) % (graph.node_count() as i32);
-                                        dijkstra_path(graph, *start, &target)
-                                    },
-                                )
+                                execute_with_advanced(g, |graph| {
+                                    let target = (*start + 1) % (graph.node_count() as i32);
+                                    dijkstra_path(graph, *start, &target)
+                                })
                                 .unwrap(),
                             )
                         })
@@ -248,7 +238,7 @@ fn benchmark_pagerank(c: &mut Criterion) {
                     let mut processor = create_advanced_processor();
                     b.iter(|| {
                         black_box(
-                            execute_with_advanced(&mut processor, g, "pagerank", |graph| {
+                            execute_with_advanced(g, |graph| {
                                 pagerank_centrality(graph, 0.85, 1e-6)
                             })
                             .unwrap(),
@@ -288,13 +278,8 @@ fn benchmark_community_detection(c: &mut Criterion) {
                     let mut processor = create_advanced_processor();
                     b.iter(|| {
                         black_box(
-                            execute_with_advanced(
-                                &mut processor,
-                                g,
-                                "louvain_communities",
-                                |graph| Ok(louvain_communities_result(graph)),
-                            )
-                            .unwrap(),
+                            execute_with_advanced(g, |graph| Ok(louvain_communities_result(graph)))
+                                .unwrap(),
                         )
                     })
                 },
@@ -332,12 +317,9 @@ fn benchmark_centrality(c: &mut Criterion) {
                     let mut processor = create_advanced_processor();
                     b.iter(|| {
                         black_box(
-                            execute_with_advanced(
-                                &mut processor,
-                                g,
-                                "betweenness_centrality",
-                                |graph| Ok(betweenness_centrality(graph, false)),
-                            )
+                            execute_with_advanced(g, |graph| {
+                                Ok(betweenness_centrality(graph, false))
+                            })
                             .unwrap(),
                         )
                     })
@@ -397,11 +379,10 @@ fn benchmark_advanced_comprehensive(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("advanced_config", config_name),
             &(&graph, &config),
-            |b, (g, cfg)| {
-                let mut processor = AdvancedProcessor::new(cfg.clone().clone());
+            |b, (g, _cfg)| {
                 b.iter(|| {
                     black_box(
-                        execute_with_advanced(&mut processor, g, "comprehensive_test", |graph| {
+                        execute_with_advanced(g, |graph| {
                             // Run multiple algorithms in sequence
                             let _components = connected_components(graph);
                             let _pagerank = pagerank_centrality(graph, 0.85, 1e-6)?;
@@ -448,12 +429,9 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
                 b.iter_custom(|iters| {
                     let start = Instant::now();
                     for _ in 0..iters {
-                        let _result = execute_with_advanced(
-                            &mut processor,
-                            g,
-                            "pagerank_memory_test",
-                            |graph| pagerank_centrality(graph, 0.85, 1e-6),
-                        );
+                        let _result = execute_with_advanced(g, |graph| {
+                            pagerank_centrality(graph, 0.85, 1e-6)
+                        });
                         black_box(_result);
                     }
                     start.elapsed()

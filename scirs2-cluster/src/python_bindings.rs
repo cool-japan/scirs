@@ -235,13 +235,15 @@ impl PyKMeans {
 
         // Run multiple initializations
         for _ in 0..self.n_init {
-            match kmeans(
+            match kmeans2(
                 data,
                 self.n_clusters,
                 Some(self.max_iter),
                 Some(self.tol),
                 None,
                 None,
+                Some(true),
+                self.random_state,
             ) {
                 Ok((centers, labels)) => {
                     // Calculate inertia
@@ -645,10 +647,11 @@ impl PySpectralClustering {
         };
 
         match spectral_clustering(data, self.n_clusters, Some(options)) {
-            Ok((labels, affinity_matrix)) => {
+            Ok((embeddings, labels)) => {
                 let labels_i32: Array1<i32> = labels.mapv(|x| x as i32);
                 self.labels_ = Some(labels_i32);
-                self.affinity_matrix_ = Some(affinity_matrix);
+                // We don't have the affinity matrix from this function
+                self.affinity_matrix_ = None;
                 Ok(())
             }
             Err(e) => Err(PyRuntimeError::new_err(format!(
@@ -734,7 +737,7 @@ impl PyMeanShift {
 
         let bandwidth = match self.bandwidth {
             Some(bw) => bw,
-            None => match estimate_bandwidth(data, None, None) {
+            None => match estimate_bandwidth(&data, None, None, None) {
                 Ok(bw) => bw,
                 Err(e) => {
                     return Err(PyRuntimeError::new_err(format!(

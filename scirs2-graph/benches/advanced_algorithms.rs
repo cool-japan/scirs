@@ -266,7 +266,7 @@ fn bench_flow_algorithms(c: &mut Criterion) {
         // Min cost flow
         group.bench_with_input(BenchmarkId::new("min_cost_flow", size), &digraph, |b, g| {
             b.iter(|| {
-                let result = min_cost_max_flow(g, &source, &sink, |_| 1.0);
+                let result = min_cost_max_flow(g, &source, &sink, |_, _| 1.0);
                 black_box(result)
             });
         });

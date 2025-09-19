@@ -949,7 +949,15 @@ fn plot_spherical_bessel() {
     println!("x     | j₀(x)    | j₁(x)    | j₂(x)    | sin(x)/x");
     println!("------|----------|----------|----------|----------");
 
-    for &x in [1.0f64, 3.14159, 6.28, 9.42, 12.57].iter() {
+    for &x in [
+        1.0f64,
+        std::f64::consts::PI,
+        std::f64::consts::TAU,
+        3.0 * std::f64::consts::PI,
+        4.0 * std::f64::consts::PI,
+    ]
+    .iter()
+    {
         if x <= xmax {
             let j0_val = spherical_jn(0, x);
             let j1_val = spherical_jn(1, x);

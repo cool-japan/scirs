@@ -116,43 +116,71 @@ __kernel void spmv_csr_vectorized_kernel(
 "#;
 
 /// OpenCL sparse matrix operations
-#[derive(Debug, Clone)]
 pub struct OpenCLSpMatVec {
-    kernel_handle: Option<super::GpuKernelHandle>,
-    workgroup_kernel: Option<super::GpuKernelHandle>,
-    vectorized_kernel: Option<super::GpuKernelHandle>,
+    context: Option<scirs2_core::gpu::GpuContext>,
+    kernel_handle: Option<scirs2_core::gpu::GpuKernelHandle>,
+    workgroup_kernel: Option<scirs2_core::gpu::GpuKernelHandle>,
+    vectorized_kernel: Option<scirs2_core::gpu::GpuKernelHandle>,
     platform_info: OpenCLPlatformInfo,
 }
 
 impl OpenCLSpMatVec {
     /// Create a new OpenCL sparse matrix-vector multiplication handler
     pub fn new() -> SparseResult<Self> {
-        Ok(Self {
+        // Try to create OpenCL context
+        #[cfg(feature = "gpu")]
+        let context = match scirs2_core::gpu::GpuContext::new(scirs2_core::gpu::GpuBackend::OpenCL) {
+            Ok(ctx) => Some(ctx),
+            Err(_) => None, // OpenCL not available, will use CPU fallback
+        };
+        #[cfg(not(feature = "gpu"))]
+        let context = None;
+
+        let mut handler = Self {
+            context,
             kernel_handle: None,
             workgroup_kernel: None,
             vectorized_kernel: None,
             platform_info: OpenCLPlatformInfo::detect(),
-        })
+        };
+
+        // Compile kernels if context is available
+        #[cfg(feature = "gpu")]
+        if handler.context.is_some() {
+            let _ = handler.compile_kernels();
+        }
+
+        Ok(handler)
     }
 
     /// Compile OpenCL kernels for sparse matrix operations
     #[cfg(feature = "gpu")]
-    pub fn compile_kernels(&mut self, device: &super::GpuDevice) -> Result<(), super::GpuError> {
-        // Compile basic kernel
-        self.kernel_handle =
-            Some(device.compile_kernel(OPENCL_SPMV_KERNEL_SOURCE, "spmv_csr_kernel")?);
+    pub fn compile_kernels(&mut self) -> Result<(), scirs2_core::gpu::GpuError> {
+        if let Some(ref context) = self.context {
+            // Compile basic kernel
+            self.kernel_handle =
+                context.execute(|compiler| compiler.compile(OPENCL_SPMV_KERNEL_SOURCE).ok());
 
-        // Compile workgroup-optimized kernel
-        self.workgroup_kernel =
-            Some(device.compile_kernel(OPENCL_SPMV_KERNEL_SOURCE, "spmv_csr_workgroup_kernel")?);
+            // Compile workgroup-optimized kernel
+            self.workgroup_kernel =
+                context.execute(|compiler| compiler.compile(OPENCL_SPMV_KERNEL_SOURCE).ok());
 
-        // Compile vectorized kernel
-        self.vectorized_kernel = Some(device.compile_kernel(
-            OPENCL_VECTORIZED_KERNEL_SOURCE,
-            "spmv_csr_vectorized_kernel",
-        )?);
+            // Compile vectorized kernel
+            self.vectorized_kernel =
+                context.execute(|compiler| compiler.compile(OPENCL_VECTORIZED_KERNEL_SOURCE).ok());
 
-        Ok(())
+            if self.kernel_handle.is_some() {
+                Ok(())
+            } else {
+                Err(scirs2_core::gpu::GpuError::KernelCompilationError(
+                    "Failed to compile OpenCL kernels".to_string(),
+                ))
+            }
+        } else {
+            Err(scirs2_core::gpu::GpuError::BackendNotAvailable(
+                "OpenCL".to_string(),
+            ))
+        }
     }
 
     /// Execute OpenCL sparse matrix-vector multiplication
@@ -161,10 +189,10 @@ impl OpenCLSpMatVec {
         &self,
         matrix: &CsrArray<T>,
         vector: &ArrayView1<T>,
-        device: &super::GpuDevice,
+        _device: &super::GpuDevice,
     ) -> SparseResult<Array1<T>>
     where
-        T: Float + Debug + Copy + super::GpuDataType,
+        T: Float + Debug + Copy + scirs2_core::gpu::GpuDataType,
     {
         let (rows, cols) = matrix.shape();
         if cols != vector.len() {
@@ -174,38 +202,61 @@ impl OpenCLSpMatVec {
             });
         }
 
-        // Upload data to GPU
-        let indptr_gpu = device.create_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_buffer(&matrix.indices)?;
-        let data_gpu = device.create_buffer(&matrix.data)?;
-        let vector_gpu = device.create_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_buffer(&vec![T::zero(); rows])?;
+        if let Some(ref context) = self.context {
+            if let Some(ref kernel) = self.kernel_handle {
+                // Upload data to GPU
+                let indptr_buffer =
+                    context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+                let indices_buffer =
+                    context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+                let data_buffer =
+                    context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
+                let vector_buffer = context.create_buffer_from_slice(vector.as_slice().unwrap());
+                let result_buffer = context.create_buffer::<T>(rows);
 
-        // Select optimal kernel based on platform capabilities
-        let kernel = self.select_optimal_kernel(rows, &matrix)?;
+                // Set kernel parameters
+                kernel.set_buffer("indptr", &indptr_buffer);
+                kernel.set_buffer("indices", &indices_buffer);
+                kernel.set_buffer("data", &data_buffer);
+                kernel.set_buffer("vector", &vector_buffer);
+                kernel.set_buffer("result", &result_buffer);
+                kernel.set_u32("rows", rows as u32);
 
-        // Configure work group size based on platform
-        let work_group_size = self.platform_info.max_work_group_size.min(256);
-        let global_work_size = ((rows + work_group_size - 1) / work_group_size) * work_group_size;
+                // Configure work group size based on platform
+                let work_group_size = self.platform_info.max_work_group_size.min(256);
+                let grid_size = ((rows + work_group_size - 1) / work_group_size, 1, 1);
+                let block_size = (work_group_size, 1, 1);
 
-        // Launch kernel
-        device.launch_kernel_opencl(
-            &kernel,
-            global_work_size,
-            work_group_size,
-            &[
-                &(rows as i32),
-                &indptr_gpu,
-                &indices_gpu,
-                &data_gpu,
-                &vector_gpu,
-                &mut result_gpu,
-            ],
-        )?;
+                // Execute kernel
+                let args = vec![scirs2_core::gpu::DynamicKernelArg::U32(rows as u32)];
 
-        // Download result from GPU
-        let result_host = result_gpu.to_host()?;
-        Ok(Array1::from_vec(result_host))
+                context
+                    .launch_kernel("spmv_csr_kernel", grid_size, block_size, &args)
+                    .map_err(|e| {
+                        SparseError::ComputationError(format!(
+                            "OpenCL kernel execution failed: {:?}",
+                            e
+                        ))
+                    })?;
+
+                // Read result back
+                let mut result_vec = vec![T::zero(); rows];
+                result_buffer.copy_to_host(&mut result_vec).map_err(|e| {
+                    SparseError::ComputationError(format!(
+                        "Failed to copy result from GPU: {:?}",
+                        e
+                    ))
+                })?;
+                Ok(Array1::from_vec(result_vec))
+            } else {
+                Err(SparseError::ComputationError(
+                    "OpenCL kernel not compiled".to_string(),
+                ))
+            }
+        } else {
+            // Fallback to CPU implementation
+            matrix.dot_vector(vector)
+        }
     }
 
     /// Execute optimized OpenCL sparse matrix-vector multiplication
@@ -249,8 +300,8 @@ impl OpenCLSpMatVec {
         &self,
         matrix: &CsrArray<T>,
         vector: &ArrayView1<T>,
-        device: &super::GpuDevice,
-        kernel: &super::GpuKernelHandle,
+        _device: &super::GpuDevice,
+        _kernel: &super::GpuKernelHandle,
         optimization_level: OpenCLOptimizationLevel,
     ) -> SparseResult<Array1<T>>
     where
@@ -258,62 +309,56 @@ impl OpenCLSpMatVec {
     {
         let (rows, _) = matrix.shape();
 
-        // Upload data to GPU
-        let indptr_gpu = device.create_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_buffer(&matrix.indices)?;
-        let data_gpu = device.create_buffer(&matrix.data)?;
-        let vector_gpu = device.create_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_buffer(&vec![T::zero(); rows])?;
+        if let Some(ref context) = self.context {
+            // Upload data to GPU using context
+            let indptr_gpu = context.create_buffer_from_slice(matrix.get_indptr().as_slice().unwrap());
+            let indices_gpu = context.create_buffer_from_slice(matrix.get_indices().as_slice().unwrap());
+            let data_gpu = context.create_buffer_from_slice(matrix.get_data().as_slice().unwrap());
+            let vector_gpu = context.create_buffer_from_slice(vector.as_slice().unwrap());
+            let result_gpu = context.create_buffer::<T>(rows);
 
-        // Configure work group parameters based on optimization level
-        let (work_group_size, local_memory_size) = match optimization_level {
-            OpenCLOptimizationLevel::Basic => (self.platform_info.max_work_group_size.min(64), 0),
-            OpenCLOptimizationLevel::Workgroup => {
-                let wg_size = self.platform_info.max_work_group_size.min(128);
-                (wg_size, wg_size * std::mem::size_of::<f32>())
-            }
-            OpenCLOptimizationLevel::Vectorized => {
-                (self.platform_info.max_work_group_size.min(256), 0)
-            }
-        };
+            // Configure work group parameters based on optimization level
+            let (work_group_size, _local_memory_size) = match optimization_level {
+                OpenCLOptimizationLevel::Basic => (self.platform_info.max_work_group_size.min(64), 0),
+                OpenCLOptimizationLevel::Workgroup => {
+                    let wg_size = self.platform_info.max_work_group_size.min(128);
+                    (wg_size, wg_size * std::mem::size_of::<f32>())
+                }
+                OpenCLOptimizationLevel::Vectorized => {
+                    (self.platform_info.max_work_group_size.min(256), 0)
+                }
+            };
 
-        let global_work_size = ((rows + work_group_size - 1) / work_group_size) * work_group_size;
+            let global_work_size = ((rows + work_group_size - 1) / work_group_size) * work_group_size;
 
-        // Launch kernel with optimization parameters
-        if local_memory_size > 0 {
-            device.launch_kernel_opencl_with_local_memory(
-                kernel,
-                global_work_size,
-                work_group_size,
-                local_memory_size,
-                &[
-                    &(rows as i32),
-                    &indptr_gpu,
-                    &indices_gpu,
-                    &data_gpu,
-                    &vector_gpu,
-                    &mut result_gpu,
-                ],
-            )?;
+            // Launch kernel using context
+            let args = vec![
+                scirs2_core::gpu::DynamicKernelArg::U32(rows as u32),
+            ];
+
+            // Use appropriate kernel based on optimization level
+            let kernel_name = match optimization_level {
+                OpenCLOptimizationLevel::Basic => "spmv_csr_kernel",
+                OpenCLOptimizationLevel::Workgroup => "spmv_csr_workgroup_kernel",
+                OpenCLOptimizationLevel::Vectorized => "spmv_csr_vectorized_kernel",
+            };
+
+            context.launch_kernel(
+                kernel_name,
+                (global_work_size, 1, 1),
+                (work_group_size, 1, 1),
+                &args,
+            ).map_err(|e| SparseError::ComputationError(format!("OpenCL kernel execution failed: {:?}", e)))?;
+
+            // Download result
+            let mut result_vec = vec![T::zero(); rows];
+            result_gpu.copy_to_host(&mut result_vec)
+                .map_err(|e| SparseError::ComputationError(format!("Failed to copy result from GPU: {:?}", e)))?;
+            Ok(Array1::from_vec(result_vec))
         } else {
-            device.launch_kernel_opencl(
-                kernel,
-                global_work_size,
-                work_group_size,
-                &[
-                    &(rows as i32),
-                    &indptr_gpu,
-                    &indices_gpu,
-                    &data_gpu,
-                    &vector_gpu,
-                    &mut result_gpu,
-                ],
-            )?;
+            // Fallback to CPU implementation
+            matrix.dot_vector(vector)
         }
-
-        // Download result
-        let result_host = result_gpu.to_host()?;
-        Ok(Array1::from_vec(result_host))
     }
 
     /// Select optimal kernel based on matrix characteristics
@@ -327,7 +372,7 @@ impl OpenCLSpMatVec {
         T: Float + Debug + Copy,
     {
         // Calculate average non-zeros per row
-        let avg_nnz_per_row = matrix.data.len() as f64 / rows as f64;
+        let avg_nnz_per_row = matrix.get_data().len() as f64 / rows as f64;
 
         // Select kernel based on sparsity pattern and platform capabilities
         if avg_nnz_per_row < 5.0 && self.platform_info.supports_vectorization {
@@ -381,6 +426,7 @@ impl OpenCLSpMatVec {
 impl Default for OpenCLSpMatVec {
     fn default() -> Self {
         Self::new().unwrap_or_else(|_| Self {
+            context: None,
             kernel_handle: None,
             workgroup_kernel: None,
             vectorized_kernel: None,
@@ -407,7 +453,7 @@ impl Default for OpenCLOptimizationLevel {
 }
 
 /// OpenCL platform information for optimization
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct OpenCLPlatformInfo {
     pub max_work_group_size: usize,
     pub local_memory_size: usize,
@@ -468,22 +514,17 @@ impl OpenCLMemoryManager {
     #[cfg(feature = "gpu")]
     pub fn allocate_sparse_matrix<T>(
         &mut self,
-        matrix: &CsrArray<T>,
-        device: &super::GpuDevice,
+        _matrix: &CsrArray<T>,
+        _device: &super::GpuDevice,
     ) -> Result<OpenCLMatrixBuffers<T>, super::GpuError>
     where
         T: super::GpuDataType + Copy + Float + Debug,
     {
-        // Use read-only buffers for matrix data since it doesn't change
-        let indptr_buffer = device.create_buffer_read_only(&matrix.indptr)?;
-        let indices_buffer = device.create_buffer_read_only(&matrix.indices)?;
-        let data_buffer = device.create_buffer_read_only(&matrix.data)?;
-
-        Ok(OpenCLMatrixBuffers {
-            indptr: indptr_buffer,
-            indices: indices_buffer,
-            data: data_buffer,
-        })
+        // This functionality should use GpuContext instead of GpuDevice
+        // For now, return an error indicating this needs proper implementation
+        Err(super::GpuError::BackendNotImplemented(
+            super::GpuBackend::OpenCL,
+        ))
     }
 
     /// Get optimal work group size for the current platform

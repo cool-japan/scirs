@@ -190,6 +190,7 @@ pub enum GpuError {
 }
 
 /// GPU device abstraction
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GpuDevice {
     backend: GpuBackend,
     device_id: usize,
@@ -447,6 +448,7 @@ impl<T: GpuDataType> GpuBuffer<T> {
 }
 
 /// GPU kernel handle
+#[derive(Clone)]
 pub struct GpuKernelHandle {
     inner: Arc<dyn GpuKernelImpl>,
 }

@@ -296,11 +296,7 @@ fn cuModuleLoadData(_module: *mut *mut c_void, _image: *const c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
-fn cuModuleGetFunction(
-    _hfunc: *mut *mut c_void,
-    _hmod: *mut c_void,
-    _name: *const c_char,
-) -> i32 {
+fn cuModuleGetFunction(_hfunc: *mut *mut c_void, _hmod: *mut c_void, _name: *const c_char) -> i32 {
     unsafe {
         *_hfunc = 0x3 as *mut c_void; // Dummy function pointer
     }
@@ -325,6 +321,24 @@ fn cuLaunchKernel(
     _kernel_params: *mut *mut c_void,
     _extra: *mut *mut c_void,
 ) -> i32 {
+    CUDA_SUCCESS
+}
+
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
+fn cudaMemcpy(_dst: *mut c_void, _src: *const c_void, _count: usize, _kind: i32) -> i32 {
+    CUDA_SUCCESS
+}
+
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
+fn cudaSetDevice(_device: i32) -> i32 {
     CUDA_SUCCESS
 }
 

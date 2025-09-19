@@ -448,7 +448,7 @@ impl PoolStats {
 }
 
 /// Memory type for different allocation strategies
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryType {
     Device,  // GPU device memory
     Unified, // Unified memory (accessible by both CPU and GPU)

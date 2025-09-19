@@ -171,7 +171,6 @@ pub use crate::gpu::{BackendInfo, GpuSpMatVec, OptimizationHint};
 pub use crate::gpu::convenience::{available_backends, gpu_spmv, gpu_spmv_optimized};
 
 // Legacy types for backward compatibility
-#[derive(Debug, Clone)]
 pub struct AdvancedGpuOps {
     gpu_handler: GpuSpMatVec,
 }
@@ -197,7 +196,6 @@ pub struct GpuProfiler {
     enabled: bool,
 }
 
-#[derive(Debug, Clone)]
 pub struct OptimizedGpuOps {
     gpu_handler: GpuSpMatVec,
 }
@@ -280,7 +278,7 @@ pub struct SpMVKernel {
 
 impl SpMVKernel {
     pub fn new(_device: &GpuDevice, _workgroupsize: [u32; 3]) -> Result<Self, GpuError> {
-        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::other(format!("{:?}", e)))?;
+        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::Other(format!("{:?}", e)))?;
         Ok(Self { gpu_handler })
     }
 
@@ -295,7 +293,7 @@ impl SpMVKernel {
     {
         self.gpu_handler
             .spmv(matrix, vector, Some(device))
-            .map_err(|e| GpuError::other(format!("{:?}", e)))
+            .map_err(|e| GpuError::Other(format!("{:?}", e)))
     }
 }
 
@@ -315,7 +313,7 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
         if range.end <= full_data.len() {
             Ok(full_data[range].to_vec())
         } else {
-            Err(GpuError::invalid_parameter(
+            Err(GpuError::InvalidParameter(
                 "Range out of bounds".to_string(),
             ))
         }
@@ -379,9 +377,10 @@ mod tests {
 
         is_gpu_data_type::<f32>();
         is_gpu_data_type::<f64>();
-        is_gpu_data_type::<usize>();
         is_gpu_data_type::<u32>();
+        is_gpu_data_type::<u64>();
         is_gpu_data_type::<i32>();
+        is_gpu_data_type::<i64>();
     }
 
     #[test]

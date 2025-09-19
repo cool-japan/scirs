@@ -57,18 +57,8 @@ pub use metal::MetalBackend;
 #[cfg(feature = "rocm")]
 pub use rocm::RocmBackend;
 
-// Provide stubs for backends when features are disabled
-#[cfg(not(feature = "cuda"))]
-pub use cuda::CudaBackend;
-
-#[cfg(not(feature = "opencl"))]
-pub use opencl::OpenClBackend;
-
-#[cfg(not(feature = "metal"))]
-pub use metal::MetalBackend;
-
-#[cfg(not(feature = "rocm"))]
-pub use rocm::RocmBackend;
+// Note: When features are disabled, these backends are not available.
+// The select_best_backend() function will fall back to CPU implementation.
 
 /// Automatically select the best available GPU backend
 pub fn select_best_backend() -> Box<dyn GpuBackend> {

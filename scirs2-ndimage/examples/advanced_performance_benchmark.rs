@@ -346,20 +346,20 @@ fn benchmark_edge_detection(
         ];
 
         for (method_name, benchmark_fn) in edge_methods {
-        let mut durations = Vec::new();
+            let mut durations = Vec::new();
 
-        for _ in 0..config.iterations {
-            let start = Instant::now();
-            let _result = benchmark_fn(image)?;
-            durations.push(start.elapsed());
-        }
+            for _ in 0..config.iterations {
+                let start = Instant::now();
+                let _result = benchmark_fn(image)?;
+                durations.push(start.elapsed());
+            }
 
-        let result = BenchmarkResult::new(method_name.to_string(), image.dim(), &durations);
+            let result = BenchmarkResult::new(method_name.to_string(), image.dim(), &durations);
 
-        if config.verbose {
-            result.display();
-        }
-        results.push(result);
+            if config.verbose {
+                result.display();
+            }
+            results.push(result);
         }
     }
 

@@ -7,6 +7,8 @@
 
 #[allow(unused_imports)]
 use crate::gpu_ops::{GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle};
+#[cfg(feature = "gpu")]
+use scirs2_core::gpu::GpuContext;
 use num_traits::Float;
 use scirs2_core::GpuDataType;
 use std::fmt::Debug;
@@ -307,6 +309,7 @@ where
     // Calculate shared memory size based on block size and data type
     let shared_memory_size = match config.memory_strategy {
         MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * block_size,
+        MemoryStrategy::Standard | MemoryStrategy::Coalesced | MemoryStrategy::TextureMemory => 0,
     };
 
     // Enhanced kernel arguments with CUDA-specific optimizations
@@ -325,16 +328,9 @@ where
     let cuda_global_size = &[grid_size, 1, 1];
     let cuda_local_size = &[block_size, 1, 1];
 
-    // Execute with CUDA-optimized parameters
-    device.execute_kernel_with_args(kernel, cuda_global_size, cuda_local_size, cuda_args)?;
-
-    // CUDA synchronization for timing accuracy
-    if cfg!(debug_assertions) {
-        // In debug mode, synchronize to catch errors early
-        device.synchronize()?;
-    }
-
-    Ok(())
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::Cuda))
 }
 
 /// Execute OpenCL-specific SpMV kernel
@@ -363,8 +359,8 @@ where
     // - Implement vectorization when possible
 
     // Query device capabilities for optimal work-group size
-    let max_work_group_size = device.get_max_work_group_size().unwrap_or(256);
-    let optimal_local_size = local_size[0].min(max_work_group_size);
+    // let max_work_group_size = device.get_max_work_group_size().unwrap_or(256);
+    let optimal_local_size = local_size[0].min(256); // Use default max work group size
 
     // Calculate global work size (must be multiple of local work size in OpenCL)
     let aligned_global_size = rows.div_ceil(optimal_local_size) * optimal_local_size;
@@ -372,6 +368,7 @@ where
     // Calculate local memory size for work-group sharing
     let local_memory_size = match config.memory_strategy {
         MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * optimal_local_size,
+        MemoryStrategy::Standard | MemoryStrategy::Coalesced | MemoryStrategy::TextureMemory => 0,
     };
 
     // Enhanced OpenCL kernel arguments
@@ -390,13 +387,9 @@ where
     let opencl_global_size = &[aligned_global_size, 1, 1];
     let opencl_local_size = &[optimal_local_size, 1, 1];
 
-    // Execute with OpenCL-optimized parameters
-    device.execute_kernel_with_args(kernel, opencl_global_size, opencl_local_size, opencl_args)?;
-
-    // OpenCL finish for proper synchronization
-    device.finish_queue()?;
-
-    Ok(())
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::OpenCL))
 }
 
 /// Execute Metal-specific SpMV kernel
@@ -426,8 +419,8 @@ where
 
     // Metal threadgroup sizing (optimal for Apple GPU architectures)
     let simdgroup_size = 32; // Apple GPU simdgroup size
-    let max_threads_per_group = device.get_max_threads_per_threadgroup().unwrap_or(1024);
-    let optimal_threadgroup_size = local_size[0].min(max_threads_per_group);
+    // let max_threads_per_group = device.get_max_threads_per_threadgroup().unwrap_or(1024);
+    let optimal_threadgroup_size = local_size[0].min(1024); // Use default max threads per threadgroup
 
     // Align with simdgroup boundaries for optimal performance
     let aligned_threadgroup_size =
@@ -439,6 +432,7 @@ where
     // Threadgroup memory size for Metal
     let threadgroup_memory_size = match config.memory_strategy {
         MemoryStrategy::SharedMemory => std::mem::size_of::<T>() * aligned_threadgroup_size,
+        MemoryStrategy::Standard | MemoryStrategy::Coalesced | MemoryStrategy::TextureMemory => 0,
     };
 
     // Enhanced Metal kernel arguments
@@ -458,13 +452,9 @@ where
     let metal_global_size = &[num_threadgroups * aligned_threadgroup_size, 1, 1];
     let metal_local_size = &[aligned_threadgroup_size, 1, 1];
 
-    // Execute with Metal-optimized parameters
-    device.execute_kernel_with_args(kernel, metal_global_size, metal_local_size, metal_args)?;
-
-    // Metal command _buffer commit and wait
-    device.commit_and_wait()?;
-
-    Ok(())
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::Metal))
 }
 
 /// CPU fallback implementation for SpMV
@@ -525,20 +515,9 @@ fn execute_cuda_symmetric_spmv<T>(
 where
     T: Float + Debug + Copy + 'static + GpuDataType,
 {
-    // CUDA symmetric SpMV with optimized memory access
-    device.execute_kernel_with_args(
-        kernel,
-        global_size,
-        local_size,
-        &[
-            Box::new(rows as u32) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indptr_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indices_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *data_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *x_buffer) as Box<dyn std::any::Any>,
-            Box::new(std::ptr::addr_of!(*y_buffer) as *mut GpuBuffer<T>) as Box<dyn std::any::Any>,
-        ],
-    )
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::Cuda))
 }
 
 #[cfg(feature = "gpu")]
@@ -560,19 +539,9 @@ fn execute_opencl_symmetric_spmv<T>(
 where
     T: Float + Debug + Copy + 'static + GpuDataType,
 {
-    device.execute_kernel_with_args(
-        kernel,
-        global_size,
-        local_size,
-        &[
-            Box::new(rows as u32) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indptr_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indices_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *data_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *x_buffer) as Box<dyn std::any::Any>,
-            Box::new(std::ptr::addr_of!(*y_buffer) as *mut GpuBuffer<T>) as Box<dyn std::any::Any>,
-        ],
-    )
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::OpenCL))
 }
 
 #[cfg(feature = "gpu")]
@@ -594,19 +563,9 @@ fn execute_metal_symmetric_spmv<T>(
 where
     T: Float + Debug + Copy + 'static + GpuDataType,
 {
-    device.execute_kernel_with_args(
-        kernel,
-        global_size,
-        local_size,
-        &[
-            Box::new(rows as u32) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indptr_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *indices_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *data_buffer) as Box<dyn std::any::Any>,
-            Box::new(&raw const *x_buffer) as Box<dyn std::any::Any>,
-            Box::new(std::ptr::addr_of!(*y_buffer) as *mut GpuBuffer<T>) as Box<dyn std::any::Any>,
-        ],
-    )
+    // This function requires GpuDevice methods that don't exist in the current API
+    // Return error indicating this needs proper implementation with GpuContext
+    Err(GpuError::BackendNotImplemented(GpuBackend::Metal))
 }
 
 #[allow(dead_code)]
@@ -706,19 +665,11 @@ where
             b_buffer,
             x_buffer,
         ),
-        _ => device.execute_kernel_with_args(
-            kernel,
-            &global_size,
-            &local_size,
-            &[
-                Box::new(n as u32) as Box<dyn std::any::Any>,
-                Box::new(&raw const *indptr_buffer) as Box<dyn std::any::Any>,
-                Box::new(&raw const *indices_buffer) as Box<dyn std::any::Any>,
-                Box::new(&raw const *data_buffer) as Box<dyn std::any::Any>,
-                Box::new(&raw const *b_buffer) as Box<dyn std::any::Any>,
-                Box::new(&raw const *x_buffer) as Box<dyn std::any::Any>,
-            ],
-        ),
+        _ => {
+            // This function requires GpuDevice methods that don't exist in the current API
+            // Return error indicating this needs proper implementation with GpuContext
+            Err(GpuError::BackendNotImplemented(device.backend()))
+        }
     }
 }
 
@@ -767,7 +718,7 @@ where
         if diag_val != T::zero() {
             x[i] = (b[i] - sum) / diag_val;
         } else {
-            return Err(GpuError::invalid_parameter(
+            return Err(GpuError::InvalidParameter(
                 "Singular matrix in triangular solve".to_string(),
             ));
         }
@@ -779,6 +730,8 @@ where
 /// Advanced GPU memory management and optimization utilities with smart caching
 pub struct GpuMemoryManager {
     device: GpuDevice,
+    #[cfg(feature = "gpu")]
+    context: Option<GpuContext>,
     buffer_pool: std::collections::HashMap<(usize, std::any::TypeId), Vec<Box<dyn std::any::Any>>>,
     /// Memory usage statistics for optimization
     memory_stats: GpuMemoryStats,
@@ -837,7 +790,7 @@ pub enum MemoryLayout {
 
 impl GpuMemoryManager {
     pub fn new(backend: GpuBackend) -> Result<Self, GpuError> {
-        let device = GpuDevice::get_default(backend)?;
+        let device = GpuDevice::new(backend, 0);
 
         let alignment_preference = match backend {
             GpuBackend::Cuda => 128,  // CUDA prefers 128-byte alignment
@@ -848,8 +801,17 @@ impl GpuMemoryManager {
             GpuBackend::Wgpu => 32,   // WebGPU standard alignment
         };
 
+        #[cfg(feature = "gpu")]
+        let context = if device.backend() != GpuBackend::Cpu {
+            GpuContext::new(device.backend()).ok()
+        } else {
+            None
+        };
+
         Ok(Self {
             device,
+            #[cfg(feature = "gpu")]
+            context,
             buffer_pool: std::collections::HashMap::new(),
             memory_stats: GpuMemoryStats::default(),
             transfer_queue: std::collections::VecDeque::new(),
@@ -881,7 +843,22 @@ impl GpuMemoryManager {
         self.memory_stats.pool_misses += 1;
         self.memory_stats.allocation_count += 1;
 
-        let buffer = self.device.create_buffer_zeros::<T>(aligned_size)?;
+        #[cfg(feature = "gpu")]
+        let buffer = if let Some(ref context) = self.context {
+            let buffer = context.create_buffer::<T>(aligned_size);
+            // Initialize to zeros
+            let zeros = vec![T::default(); aligned_size];
+            buffer.copy_from_host(&zeros)?;
+            buffer
+        } else {
+            // Cannot create GPU buffer without context when GPU feature is enabled
+            return Err(GpuError::BackendNotAvailable("No GPU context available".to_string()));
+        };
+
+        #[cfg(not(feature = "gpu"))]
+        let buffer = GpuBuffer {
+            data: vec![T::default(); aligned_size],
+        };
 
         // Update memory statistics
         let allocation_size = aligned_size * std::mem::size_of::<T>();
@@ -971,14 +948,27 @@ impl GpuMemoryManager {
 
         let buffer = match self.device.backend() {
             #[cfg(feature = "gpu")]
-            GpuBackend::Cuda => self.transfer_data_cuda_optimized(host_data, transfer_size),
+            GpuBackend::Cuda => self.transfer_data_cuda_optimized(host_data, transfer_size, _priority),
             #[cfg(feature = "gpu")]
-            GpuBackend::OpenCL => self.transfer_data_opencl_optimized(host_data, transfer_size),
+            GpuBackend::OpenCL => self.transfer_data_opencl_optimized(host_data, transfer_size, _priority),
             #[cfg(feature = "gpu")]
-            GpuBackend::Metal => self.transfer_data_metal_optimized(host_data, transfer_size),
+            GpuBackend::Metal => self.transfer_data_metal_optimized(host_data, transfer_size, _priority),
             _ => {
                 // Standard transfer for CPU or when GPU not available
-                self.device.create_buffer(host_data)
+                #[cfg(feature = "gpu")]
+                {
+                    if let Some(ref context) = self.context {
+                        let buffer = context.create_buffer_from_slice(host_data);
+                        Ok(buffer)
+                    } else {
+                        // Cannot create GPU buffer without context when GPU feature is enabled
+                        Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
+                    }
+                }
+                #[cfg(not(feature = "gpu"))]
+                Ok(GpuBuffer {
+                    data: host_data.to_vec(),
+                })
             }
         }?;
 
@@ -998,23 +988,29 @@ impl GpuMemoryManager {
         &self,
         host_data: &[T],
         transfer_size: usize,
-        _priority: TransferPriority,
+        priority: TransferPriority,
     ) -> Result<GpuBuffer<T>, GpuError>
     where
         T: GpuDataType + Copy,
     {
-        match (transfer_size) {
-            // Large high-_priority transfers: use pinned memory and async transfer
-            (size, TransferPriority::High | TransferPriority::Critical)
-                if size > 4 * 1024 * 1024 =>
+        // Create buffer based on priority and size
+        if let Some(ref context) = self.context {
+            if matches!(priority, TransferPriority::High | TransferPriority::Critical)
+                && transfer_size > 4 * 1024 * 1024
             {
                 // Use pinned host memory for faster transfers
-                self.device.create_buffer(host_data) // Would use cudaHostAlloc in real implementation
+                // In real implementation, would use cudaHostAlloc
+                Ok(context.create_buffer_from_slice(host_data))
+            } else if transfer_size > 64 * 1024 {
+                // Medium transfers: use memory coalescing
+                Ok(context.create_buffer_from_slice(host_data))
+            } else {
+                // Small transfers: standard approach
+                Ok(context.create_buffer_from_slice(host_data))
             }
-            // Medium transfers: use memory coalescing
-            (size) if size > 64 * 1024 => self.device.create_buffer(host_data),
-            // Small transfers: standard approach
-            _ => self.device.create_buffer(host_data),
+        } else {
+            // Cannot create GPU buffer without context when GPU feature is enabled
+            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
         }
     }
 
@@ -1029,11 +1025,16 @@ impl GpuMemoryManager {
     where
         T: GpuDataType + Copy,
     {
-        if transfer_size > 1024 * 1024 {
-            // Use mapped memory for large transfers
-            self.device.create_buffer(host_data)
+        if let Some(ref context) = self.context {
+            if transfer_size > 1024 * 1024 {
+                // Use mapped memory for large transfers
+                Ok(context.create_buffer_from_slice(host_data))
+            } else {
+                Ok(context.create_buffer_from_slice(host_data))
+            }
         } else {
-            self.device.create_buffer(host_data)
+            // Cannot create GPU buffer without context when GPU feature is enabled
+            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
         }
     }
 
@@ -1048,12 +1049,17 @@ impl GpuMemoryManager {
     where
         T: GpuDataType + Copy,
     {
-        // Metal uses unified memory, so transfers are more efficient
-        if transfer_size > 2 * 1024 * 1024 {
-            // Use shared memory mode for large transfers
-            self.device.create_buffer(host_data)
+        if let Some(ref context) = self.context {
+            // Metal uses unified memory, so transfers are more efficient
+            if transfer_size > 2 * 1024 * 1024 {
+                // Use shared memory mode for large transfers
+                Ok(context.create_buffer_from_slice(host_data))
+            } else {
+                Ok(context.create_buffer_from_slice(host_data))
+            }
         } else {
-            self.device.create_buffer(host_data)
+            // Cannot create GPU buffer without context when GPU feature is enabled
+            Err(GpuError::BackendNotAvailable("No GPU context available".to_string()))
         }
     }
 

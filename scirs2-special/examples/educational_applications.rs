@@ -468,7 +468,7 @@ fn statistics_applications() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------------------------");
 
     for &n in &samplesizes {
-        for &sigma in &sigma_levels {
+        if let Some(&sigma) = sigma_levels.first() {
             let factor = sigma / (n as f64).sqrt();
             let lcl = -factor;
             let ucl = factor;
@@ -476,7 +476,6 @@ fn statistics_applications() -> Result<(), Box<dyn std::error::Error>> {
                 "{:2}    {:8.4}    {:8.4}   {:6.3}   {:6.3}",
                 n, factor, factor, lcl, ucl
             );
-            break; // Only show first sigma level for cleanliness
         }
     }
 

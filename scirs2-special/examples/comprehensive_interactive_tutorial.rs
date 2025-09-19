@@ -1918,7 +1918,6 @@ impl TutorialSystem {
             // Simple expression evaluation (would need proper parser for full implementation)
             println!("🔄 Expression evaluation requires advanced parsing...");
             println!("For now, use the function calculator for individual function calls.");
-            break;
         }
 
         Ok(())

@@ -146,7 +146,7 @@ impl UnifiedGpuProcessor {
         UnifiedGpuStats {
             backend: backend_caps.backend,
             compression_stats,
-            memory_stats,
+            memory_stats: memory_stats.clone(),
             overall_efficiency: self.calculate_efficiency_score(&memory_stats),
         }
     }
@@ -155,10 +155,10 @@ impl UnifiedGpuProcessor {
     pub fn maintenance(&mut self) -> Result<MaintenanceReport> {
         let freed_buffers = self.memory_manager.garbage_collect_all()?;
 
-        MaintenanceReport {
+        Ok(MaintenanceReport {
             freed_buffers,
             timestamp: std::time::Instant::now(),
-        }
+        })
     }
 
     /// Optimize processor for specific workload

@@ -5,7 +5,6 @@
 
 use crate::error::{SparseError, SparseResult};
 use num_traits::Zero;
-#[cfg(feature = "gpu")]
 use scirs2_core::GpuDataType;
 use std::cmp::PartialEq;
 

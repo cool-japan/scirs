@@ -36,7 +36,6 @@ use std::fmt::Debug;
 // GpuDataType is already available from the pub use statements above
 
 /// Unified GPU sparse matrix operations interface
-#[derive()]
 pub struct GpuSpMatVec {
     backend: GpuBackend,
     cuda_handler: Option<CudaSpMatVec>,
@@ -432,7 +431,7 @@ impl Default for OptimizationHint {
 }
 
 /// GPU backend information
-#[derive()]
+#[derive(Debug, Clone)]
 pub struct BackendInfo {
     pub name: String,
     pub version: String,
