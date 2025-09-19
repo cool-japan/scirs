@@ -8,6 +8,7 @@ Cargo.lock
 **/*_old.rs
 **/*_backup.rs
 **/*.rs.old
+**/*.rs.backup
 
 # IDE files
 .idea/
