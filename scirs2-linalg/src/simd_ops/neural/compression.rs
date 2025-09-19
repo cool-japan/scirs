@@ -533,6 +533,15 @@ where
     }
 }
 
+impl<T> Default for VariationalParameters<T>
+where
+    T: Float + NumAssign + Zero + Send + Sync + Debug + 'static,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> VariationalParameters<T>
 where
     T: Float + NumAssign + Zero + Send + Sync + Debug + 'static,
@@ -543,6 +552,12 @@ where
             num_samples: 10,
             epsilon: T::from(0.001).unwrap(),
         }
+    }
+}
+
+impl Default for RealTimeCompressionSwitcher {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -557,6 +572,12 @@ impl RealTimeCompressionSwitcher {
     }
 }
 
+impl Default for CompressionPerformancePredictor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CompressionPerformancePredictor {
     pub fn new() -> Self {
         Self {
@@ -564,6 +585,12 @@ impl CompressionPerformancePredictor {
             ensemble: ModelEnsemble::new(),
             accuracy: 0.85,
         }
+    }
+}
+
+impl Default for ModelEnsemble {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

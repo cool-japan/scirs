@@ -139,8 +139,7 @@ where
         + Zero
         + Copy,
 {
-    let n = a.nrows();
-    let mut result = Array1::<T>::zeros(n);
+    let _n = a.nrows();
 
     // For now, use a simplified band solver
     // In a full implementation, this would use optimized band LU decomposition

@@ -141,7 +141,7 @@ where
 
         // Find the knot span using proper algorithm
         let m = self.knots.len() - 1;
-        let mut k = degree;
+        let mut k;
 
         // Handle edge cases
         if x <= self.knots[degree] {

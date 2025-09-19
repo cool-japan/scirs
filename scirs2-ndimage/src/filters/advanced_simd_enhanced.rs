@@ -4,7 +4,7 @@
 //! performance for the most compute-intensive ndimage operations. These implementations
 //! use advanced vectorization techniques and platform-specific optimizations.
 
-use ndarray::{Array, ArrayView1, ArrayView2, Dimension, Ix2};
+use ndarray::{Array, Array1, ArrayView1, ArrayView2, Dimension, Ix2};
 use num_traits::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp::Ordering;
@@ -39,7 +39,7 @@ where
         ));
     }
 
-    let mut output = Array::zeros((input_height, input_width));
+    let mut output: Array<T, Ix2> = Array::zeros((input_height, input_width));
 
     // Use specialized implementations based on kernel size
     if kernel_height == 3 && kernel_width == 3 {
@@ -63,12 +63,12 @@ where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + PartialOrd,
 {
     let (height, width) = input.dim();
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
     // Pre-flatten kernel for faster access
     let kernel_flat: Vec<T> = kernel.iter().cloned().collect();
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let tile_size = 64; // Cache-friendly tile size
 
     // Process image in tiles for better cache locality
@@ -101,9 +101,12 @@ where
                             }
 
                             // SIMD multiply-accumulate
-                            let kernel_vec = vec![kernel_val; simd_width];
-                            let products = T::simd_mul(&inputvalues, &kernel_vec);
-                            results = T::simd_add(&results, &products);
+                            let kernel_array = Array1::from_vec(vec![kernel_val; simd_width]);
+                            let input_array = Array1::from_vec(inputvalues.clone());
+                            let results_array = Array1::from_vec(results.clone());
+                            let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            results = results_updated.to_vec();
                         }
                     }
 
@@ -150,10 +153,10 @@ where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + PartialOrd,
 {
     let (height, width) = input.dim();
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
     let kernel_flat: Vec<T> = kernel.iter().cloned().collect();
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Larger tile size for 5x5 kernels
     let tile_size = 32;
@@ -183,9 +186,12 @@ where
                                     get_boundary_value_safe(&input, input_y, input_x, mode)?;
                             }
 
-                            let kernel_vec = vec![kernel_val; simd_width];
-                            let products = T::simd_mul(&inputvalues, &kernel_vec);
-                            results = T::simd_add(&results, &products);
+                            let kernel_array = Array1::from_vec(vec![kernel_val; simd_width]);
+                            let input_array = Array1::from_vec(inputvalues.clone());
+                            let results_array = Array1::from_vec(results.clone());
+                            let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            results = results_updated.to_vec();
                         }
                     }
 
@@ -231,11 +237,11 @@ where
 {
     let (height, width) = input.dim();
     let (kernel_height, kernel_width) = kernel.dim();
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
     let kernel_center_y = kernel_height / 2;
     let kernel_center_x = kernel_width / 2;
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Adaptive tile size based on kernel size
     let tile_size = (128 / kernel_height.max(kernel_width)).max(16);
@@ -265,9 +271,12 @@ where
                                     get_boundary_value_safe(&input, input_y, input_x, mode)?;
                             }
 
-                            let kernel_vec = vec![kernel_val; simd_width];
-                            let products = T::simd_mul(&inputvalues, &kernel_vec);
-                            results = T::simd_add(&results, &products);
+                            let kernel_array = Array1::from_vec(vec![kernel_val; simd_width]);
+                            let input_array = Array1::from_vec(inputvalues.clone());
+                            let results_array = Array1::from_vec(results.clone());
+                            let products = T::simd_mul(&input_array.view(), &kernel_array.view());
+                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            results = results_updated.to_vec();
                         }
                     }
 
@@ -338,9 +347,9 @@ where
     let (height, width) = input.dim();
     let kernel_size = kernel.len();
     let kernel_center = kernel_size / 2;
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process each row
     for y in 0..height {
@@ -401,9 +410,9 @@ where
     let (height, width) = input.dim();
     let kernel_size = kernel.len();
     let kernel_center = kernel_size / 2;
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     // Process each row
     for y in 0..height {
@@ -467,7 +476,7 @@ where
 {
     let (height, width) = input.dim();
     let (kernel_height, kernel_width) = size;
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
     let kernel_center_y = kernel_height / 2;
     let kernel_center_x = kernel_width / 2;
@@ -481,7 +490,7 @@ where
     }
 
     // General case with partial sorting optimization
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
     let tile_size = 32;
 
     for tile_y in (0..height).step_by(tile_size) {
@@ -530,9 +539,9 @@ where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + PartialOrd,
 {
     let (height, width) = input.dim();
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
-    let simd_width = T::simd_width();
+    let simd_width = 8; // Default SIMD width for vectorization
 
     for y in 0..height {
         let mut x = 0;
@@ -572,7 +581,7 @@ where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + PartialOrd,
 {
     let (height, width) = input.dim();
-    let mut output = Array::zeros((height, width));
+    let mut output: Array<T, Ix2> = Array::zeros((height, width));
 
     for y in 0..height {
         for x in 0..width {

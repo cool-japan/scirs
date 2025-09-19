@@ -67,7 +67,9 @@ fn test_performance_profiler() {
     profiler.record("matmul", 0.2);
     profiler.record("matvec", 0.05);
 
-    assert_eq!(profiler.average_time("matmul"), Some(0.15));
+    // Use approximate comparisons for floating point values
+    let avg_matmul = profiler.average_time("matmul").unwrap();
+    assert!((avg_matmul - 0.15).abs() < 1e-10);
     assert_eq!(profiler.best_time("matmul"), Some(0.1));
     assert_eq!(profiler.average_time("matvec"), Some(0.05));
 

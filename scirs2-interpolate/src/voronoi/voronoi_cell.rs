@@ -325,9 +325,9 @@ impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand> VoronoiCell<F> {
 
             Ok((intersection_vertices, volume.abs()))
         } else {
-            return Err(InterpolateError::UnsupportedOperation(format!(
+            Err(InterpolateError::UnsupportedOperation(format!(
                 "Intersection for {dim}-dimensional Voronoi cells not yet implemented"
-            )));
+            )))
         }
     }
 }
@@ -985,9 +985,9 @@ impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> Vorono
 
             Ok(weights)
         } else {
-            return Err(InterpolateError::UnsupportedOperation(format!(
+            Err(InterpolateError::UnsupportedOperation(format!(
                 "Natural neighbor computation for {dim}-dimensional diagrams not yet implemented"
-            )));
+            )))
         }
     }
 }

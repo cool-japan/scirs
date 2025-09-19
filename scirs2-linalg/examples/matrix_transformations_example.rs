@@ -133,7 +133,7 @@ mod example {
         println!("Gradient of projection sum with respect to A:");
         println!("{:?}", a.tensor.grad());
         */
- // End of disabled code
+        // End of disabled code
 
         Ok(())
     }

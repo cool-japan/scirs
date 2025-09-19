@@ -131,9 +131,6 @@ mod tests {
 
         // Test loading model (will use mock/default config)
         let config = manager.load_model("test-model");
-        if let Err(e) = &config {
-            eprintln!("Error loading model: {}", e);
-        }
         assert!(config.is_ok());
 
         // Test caching

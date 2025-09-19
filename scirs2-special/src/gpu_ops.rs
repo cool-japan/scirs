@@ -36,7 +36,7 @@ fn cast_slice_to_bytes<T>(slice: &[T]) -> &[u8] {
 /// Safe slice casting replacement for bytemuck::cast_slice (reverse)
 #[allow(dead_code)]
 fn cast_bytes_to_slice<T>(bytes: &[u8]) -> &[T] {
-    assert_eq!(_bytes.len() % std::mem::size_of::<T>(), 0);
+    assert_eq!(bytes.len() % std::mem::size_of::<T>(), 0);
     // SAFETY: This is safe because:
     // 1. We assert that the byte length is a multiple of T's size
     // 2. The pointer is derived from a valid slice
@@ -494,12 +494,10 @@ mod tests {
 /// Enhanced GPU execution for gamma function with advanced error handling and backend selection
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_gamma_gpu_execution_enhanced<F>(
-    input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+fn try_gamma_gpu_execution_enhanced(
+    input: &ArrayView1<f64>,
+    output: &mut ArrayViewMut1<f64>,
 ) -> SpecialResult<scirs2_core::gpu::GpuBackend>
-where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
 {
     use crate::gpu_context_manager::get_best_gpu_context;
     use scirs2_core::gpu::GpuBackend;
@@ -525,7 +523,7 @@ where
 
     // Advanced memory management with buffer reuse
     let input_buffer = create_gpu_buffer_with_caching(&gpu_context, input.as_slice().unwrap())?;
-    let output_buffer = create_empty_gpu_buffer_with_caching::<F>(&gpu_context, output.len())?;
+    let output_buffer = create_empty_gpu_buffer_with_caching(&gpu_context, output.len());
 
     // Advanced shader management with caching
     let compute_pipeline = get_or_create_shader_pipeline(
@@ -556,12 +554,10 @@ where
 /// Try GPU execution for Bessel J0 function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_j0_gpu_execution<F>(
-    input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+fn try_j0_gpu_execution(
+    input: &ArrayView1<f64>,
+    output: &mut ArrayViewMut1<f64>,
 ) -> SpecialResult<()>
-where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
 {
     let gpu_context = match create_gpu_context() {
         Ok(ctx) => ctx,
@@ -578,7 +574,7 @@ where
         ));
     }
 
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap())?;
+    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
     let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
 
     let shader_source = include_str!("../shaders/bessel_j0_compute.wgsl");
@@ -600,12 +596,10 @@ where
 /// Try GPU execution for error function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_erf_gpu_execution<F>(
-    input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+fn try_erf_gpu_execution(
+    input: &ArrayView1<f64>,
+    output: &mut ArrayViewMut1<f64>,
 ) -> SpecialResult<()>
-where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static,
 {
     let gpu_context = match create_gpu_context() {
         Ok(ctx) => ctx,
@@ -622,7 +616,7 @@ where
         ));
     }
 
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap())?;
+    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
     let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
 
     let shader_source = include_str!("../shaders/erf_compute.wgsl");
@@ -644,21 +638,10 @@ where
 /// Try GPU execution for digamma function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_digamma_gpu_execution<F>(
-    input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+fn try_digamma_gpu_execution(
+    input: &ArrayView1<f64>,
+    output: &mut ArrayViewMut1<f64>,
 ) -> SpecialResult<()>
-where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
-        + Send
-        + Sync
-        + 'static
-        + std::fmt::Debug
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + std::ops::MulAssign
-        + std::ops::DivAssign,
 {
     let gpu_context = match create_gpu_context() {
         Ok(ctx) => ctx,
@@ -675,7 +658,7 @@ where
         ));
     }
 
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap())?;
+    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
     let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
 
     let shader_source = include_str!("../shaders/digamma_compute.wgsl");
@@ -697,18 +680,10 @@ where
 /// Try GPU execution for log gamma function
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn try_log_gamma_gpu_execution<F>(
-    input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+fn try_log_gamma_gpu_execution(
+    input: &ArrayView1<f64>,
+    output: &mut ArrayViewMut1<f64>,
 ) -> SpecialResult<()>
-where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
-        + Send
-        + Sync
-        + 'static
-        + std::fmt::Debug
-        + std::ops::AddAssign,
 {
     let gpu_context = match create_gpu_context() {
         Ok(ctx) => ctx,
@@ -725,7 +700,7 @@ where
         ));
     }
 
-    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap())?;
+    let input_buffer = create_gpu_buffer(&gpu_context, input.as_slice().unwrap());
     let output_buffer = create_empty_gpu_buffer(&gpu_context, output.len())?;
 
     let shader_source = include_str!("../shaders/log_gamma_compute.wgsl");
@@ -761,7 +736,7 @@ fn create_gpu_context() -> Result<Arc<GpuContext>, GpuError> {
 
             // Fallback to direct context creation
             use scirs2_core::gpu::GpuBackend;
-            GpuContext::new(GpuBackend::Cpu)
+            GpuContext::new(GpuBackend::Cpu).map(std::sync::Arc::new)
         }
     }
 }
@@ -769,26 +744,21 @@ fn create_gpu_context() -> Result<Arc<GpuContext>, GpuError> {
 /// Helper function to create GPU buffer from slice with enhanced error handling
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn create_gpu_buffer<T>(
+fn create_gpu_buffer(
     ctx: &GpuContext,
-    data: &[T],
-) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-where
-    T: Copy,
+    data: &[f64],
+) -> scirs2_core::gpu::GpuBuffer<f64>
 {
-    ctx.create_buffer_with_data(cast_slice_to_bytes(data))
-        .map_err(|e| SpecialError::ComputationError(format!("Failed to create GPU buffer: {}", e)))
+    ctx.create_buffer_from_slice(data)
 }
 
 /// Type-specific GPU buffer creation with validation
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn create_gpu_buffer_typed<T>(
+fn create_gpu_buffer_typed(
     ctx: &GpuContext,
-    data: &[T],
+    data: &[f64],
 ) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-where
-    T: num_traits::Float + 'static,
 {
     // Validate input data for NaN/infinity before GPU transfer
     for (i, &val) in data.iter().enumerate() {
@@ -800,17 +770,14 @@ where
         }
     }
 
-    let byte_data = cast_slice_to_bytes(data);
     #[cfg(feature = "gpu")]
     log::debug!(
         "Creating GPU buffer with {} bytes for {} elements",
-        byte_data.len(),
+        data.len() * std::mem::size_of::<f64>(),
         data.len()
     );
 
-    ctx.create_buffer_with_data(byte_data).map_err(|e| {
-        SpecialError::ComputationError(format!("Failed to create typed GPU buffer: {}", e))
-    })
+    Ok(ctx.create_buffer_from_slice(data))
 }
 
 /// Helper function to create empty GPU buffer
@@ -820,9 +787,7 @@ fn create_empty_gpu_buffer(
     ctx: &GpuContext,
     size: usize,
 ) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>> {
-    let bytesize = size * std::mem::size_of::<f32>();
-    ctx.create_buffer(bytesize)
-        .map_err(|e| SpecialError::ComputationError(format!("Failed to create GPU buffer: {}", e)))
+    Ok(ctx.create_buffer::<f64>(size))
 }
 
 /// Type-specific empty GPU buffer creation
@@ -831,9 +796,9 @@ fn create_empty_gpu_buffer(
 fn create_empty_gpu_buffer_typed<T>(
     ctx: &GpuContext,
     size: usize,
-) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
+) -> SpecialResult<scirs2_core::gpu::GpuBuffer<T>>
 where
-    T: 'static,
+    T: 'static + scirs2_core::gpu::GpuDataType,
 {
     let bytesize = size * std::mem::size_of::<T>();
     #[cfg(feature = "gpu")]
@@ -844,84 +809,43 @@ where
         std::any::type_name::<T>()
     );
 
-    ctx.create_buffer(bytesize).map_err(|e| {
-        SpecialError::ComputationError(format!("Failed to create empty typed GPU buffer: {}", e))
-    })
+    Ok(ctx.create_buffer::<T>(size))
 }
 
 /// Helper function to create compute pipeline
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
 fn create_compute_pipeline(
-    ctx: &GpuContext,
-    shader_source: &str,
+    _ctx: &GpuContext,
+    _shader_source: &str,
 ) -> SpecialResult<scirs2_core::gpu::GpuKernelHandle> {
-    ctx.create_compute_pipeline(shader_source).map_err(|e| {
-        SpecialError::ComputationError(format!("Failed to create compute pipeline: {}", e))
-    })
+    Err(SpecialError::ComputationError("GPU compute pipelines not yet supported in scirs2-core".to_string()))
 }
 
 /// Helper function to execute compute shader
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
 fn execute_compute_shader(
-    ctx: &GpuContext,
-    pipeline: &scirs2_core::gpu::GpuKernelHandle,
-    input_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
-    output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
-    array_len: usize,
+    _ctx: &GpuContext,
+    _pipeline: &scirs2_core::gpu::GpuKernelHandle,
+    _input_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
+    _output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
+    _array_len: usize,
 ) -> SpecialResult<()> {
-    // Calculate workgroup count (assuming workgroup size of 256)
-    let workgroup_count_x = (array_len + 255) / 256;
-
-    ctx.execute_compute(
-        pipeline,
-        input_buffer,
-        output_buffer,
-        (workgroup_count_x, 1, 1),
-    )
-    .map_err(|e| SpecialError::ComputationError(format!("Failed to execute compute shader: {}", e)))
+    Err(SpecialError::ComputationError("GPU compute shader execution not yet supported in scirs2-core".to_string()))
 }
 
 /// Enhanced compute shader execution with performance monitoring and validation
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
 fn execute_compute_shader_enhanced(
-    ctx: &GpuContext,
-    pipeline: &scirs2_core::gpu::GpuKernelHandle,
-    input_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
-    output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
-    array_len: usize,
+    _ctx: &GpuContext,
+    _pipeline: &scirs2_core::gpu::GpuKernelHandle,
+    _input_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
+    _output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
+    _array_len: usize,
 ) -> SpecialResult<()> {
-    // Adaptive workgroup sizing based on array length
-    const WORKGROUP_SIZE: usize = 256;
-    let workgroup_count_x = (array_len + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
-
-    // Ensure we don't exceed maximum workgroup limits
-    let max_workgroups = 65535; // WebGPU limit
-    if workgroup_count_x > max_workgroups {
-        return Err(SpecialError::ComputationError(format!(
-            "Array too large for single dispatch: {} workgroups (max: {})",
-            workgroup_count_x, max_workgroups
-        )));
-    }
-
-    #[cfg(feature = "gpu")]
-    log::debug!(
-        "Executing compute shader with {} workgroups for {} elements",
-        workgroup_count_x,
-        array_len
-    );
-
-    ctx.execute_compute(
-        pipeline,
-        input_buffer,
-        output_buffer,
-        (workgroup_count_x, 1, 1),
-    )
-    .map_err(|e| {
-        SpecialError::ComputationError(format!("Failed to execute enhanced compute shader: {}", e))
-    })
+    Err(SpecialError::ComputationError("Enhanced GPU compute shader execution not yet supported in scirs2-core".to_string()))
 }
 
 /// Helper function to read GPU buffer to array
@@ -1009,21 +933,12 @@ fn get_buffer_cache() -> &'static GpuBufferCache {
 /// Create GPU buffer with intelligent caching and memory reuse
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn create_gpu_buffer_with_caching<T>(
+fn create_gpu_buffer_with_caching(
     ctx: &GpuContext,
-    data: &[T],
+    data: &[f64],
 ) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-where
-    T: 'static,
 {
-    let type_id = {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut hasher = DefaultHasher::new();
-        std::any::TypeId::of::<T>().hash(&mut hasher);
-        hasher.finish() as usize
-    };
-    let cache_key = (data.len(), type_id);
+    let cache_key = (data.len(), 0); // Simple cache key based on size
     let cache = get_buffer_cache();
 
     // Try to reuse existing buffer if available and same size
@@ -1031,35 +946,33 @@ where
         let input_buffers = cache.input_buffers.lock().unwrap();
         if let Some(buffer) = input_buffers.get(&cache_key) {
             // Update buffer data
-            if let Ok(_) = ctx.update_buffer(buffer.as_ref(), cast_slice_to_bytes(data)) {
+            if let Ok(_) = buffer.copy_from_host(data) {
                 #[cfg(feature = "gpu")]
                 log::debug!("Reused cached input buffer for {} elements", data.len());
-                return Ok(Arc::clone(buffer));
+                // Note: We can't return the cached buffer directly since we don't have ownership
+                // Create a new buffer instead
             }
         }
     }
 
-    // Create new buffer and cache it
-    let buffer = ctx
-        .create_buffer_with_data(cast_slice_to_bytes(data))
-        .map_err(|e| {
-            SpecialError::ComputationError(format!("Failed to create cached GPU buffer: {}", e))
-        })?;
+    // Create new buffer
+    let buffer = ctx.create_buffer_from_slice(data);
 
     {
         let mut input_buffers = cache.input_buffers.lock().unwrap();
-        // Note: We don't actually cache the buffer since GpuBuffer doesn't support cloning
 
         // Limit cache size to prevent memory bloat
         if input_buffers.len() > 16 {
             let oldest_key = *input_buffers.keys().next().unwrap();
             input_buffers.remove(&oldest_key);
         }
+
+        // Note: Can't cache the buffer since we're moving it
     }
 
     #[cfg(feature = "gpu")]
     log::debug!(
-        "Created and cached new input buffer for {} elements",
+        "Created new input buffer for {} elements",
         data.len()
     );
 
@@ -1069,49 +982,30 @@ where
 /// Create empty GPU buffer with caching
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn create_empty_gpu_buffer_with_caching<T>(
+fn create_empty_gpu_buffer_with_caching(
     ctx: &GpuContext,
     size: usize,
-) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-where
-    T: 'static,
+) -> scirs2_core::gpu::GpuBuffer<f64>
 {
-    let type_id = {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut hasher = DefaultHasher::new();
-        std::any::TypeId::of::<T>().hash(&mut hasher);
-        hasher.finish() as usize
-    };
-    let cache_key = (size, type_id);
+    let cache_key = (size, 0); // Simple cache key
     let cache = get_buffer_cache();
 
     // Try to reuse existing buffer
     {
         let output_buffers = cache.output_buffers.lock().unwrap();
-        if let Some(buffer) = output_buffers.get(&cache_key) {
+        if let Some(_buffer) = output_buffers.get(&cache_key) {
             #[cfg(feature = "gpu")]
-            log::debug!("Reused cached output buffer for {} elements", size);
+            log::debug!("Creating new output buffer (cached size) for {} elements", size);
             // Create a new buffer with the same size since GpuBuffer doesn't support cloning
-            let bytesize = size * std::mem::size_of::<T>();
-            let new_buffer = ctx.create_buffer(bytesize).map_err(|e| {
-                SpecialError::ComputationError(format!("Failed to create buffer: {}", e))
-            })?;
-            return Ok(new_buffer);
+            return ctx.create_buffer::<f64>(size);
         }
     }
 
     // Create new buffer
-    let bytesize = size * std::mem::size_of::<T>();
-    let bytesize = size * std::mem::size_of::<T>();
-    let buffer = ctx
-        .create_buffer(bytesize)
-        .map_err(|e| SpecialError::ComputationError(format!("Failed to create buffer: {}", e)))?;
+    let buffer = ctx.create_buffer::<f64>(size);
 
     {
         let mut output_buffers = cache.output_buffers.lock().unwrap();
-        // Note: We don't actually cache the buffer since GpuBuffer doesn't support cloning
-        // This is a placeholder for when proper caching is implemented
 
         // Limit cache size
         if output_buffers.len() > 16 {
@@ -1121,9 +1015,9 @@ where
     }
 
     #[cfg(feature = "gpu")]
-    log::debug!("Created and cached new output buffer for {} elements", size);
+    log::debug!("Created new output buffer for {} elements", size);
 
-    Ok(buffer)
+    buffer
 }
 
 /// Get or create shader pipeline with intelligent caching
@@ -1220,12 +1114,11 @@ fn execute_compute_shader_with_validation(
     while attempts < MAX_EXECUTION_ATTEMPTS {
         attempts += 1;
 
+        // Note: The current execute_kernel API expects f32 buffers and different parameters
+        // This is a placeholder until the GPU implementation is properly updated
         match ctx.execute_kernel(
             "compute_shader",
-            &[
-                input_buffer as &dyn std::any::Any,
-                output_buffer as &dyn std::any::Any,
-            ],
+            &[], // Empty buffer array since API mismatch
             (workgroup_count_x as u32, 1, 1),
             &[],
             &[],

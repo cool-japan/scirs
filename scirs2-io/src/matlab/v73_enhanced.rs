@@ -3,10 +3,12 @@
 //! This module provides comprehensive support for MATLAB v7.3+ files,
 //! which are based on HDF5 format with MATLAB-specific conventions.
 
+use crate::error::{IoError, Result};
 use crate::matlab::MatType;
 #[allow(unused_imports)]
 use ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
+use std::path::Path;
 
 #[cfg(feature = "hdf5")]
 use crate::hdf5::{AttributeValue, CompressionOptions, DatasetOptions, FileMode, HDF5File};
@@ -324,10 +326,14 @@ impl V73MatFile {
         dt_array: &DateTimeArray,
     ) -> Result<()> {
         // Create dataset for datetime data
-        file.create_dataset_from_array(name, &dt_array.data, Some(DatasetOptions {
-            compression: self.compression.clone().unwrap_or_default(),
-            ..Default::default()
-        }))?;
+        file.create_dataset_from_array(
+            name,
+            &dt_array.data,
+            Some(DatasetOptions {
+                compression: self.compression.clone().unwrap_or_default(),
+                ..Default::default()
+            }),
+        )?;
 
         file.set_attribute(
             name,

@@ -203,7 +203,7 @@ impl GpuContextPool {
         match GpuContext::new(GpuBackend::OpenCL) {
             Ok(context) => {
                 // Query OpenCL device properties if possible
-                let info = self.query_opencl_device_info(&context).unwrap_or_else(|_| {
+                let info = self.query_opencl_device_info(&std::sync::Arc::new(context)).unwrap_or_else(|_| {
                     // Fallback to conservative defaults
                     GpuDeviceInfo {
                         device_id: 0,
@@ -247,7 +247,7 @@ impl GpuContextPool {
         match GpuContext::new(GpuBackend::Cuda) {
             Ok(context) => {
                 // Query CUDA device properties if possible
-                let info = self.query_cuda_device_info(&context).unwrap_or_else(|_| {
+                let info = self.query_cuda_device_info(&std::sync::Arc::new(context)).unwrap_or_else(|_| {
                     // Fallback to conservative defaults for CUDA
                     GpuDeviceInfo {
                         device_id: 0,
@@ -290,7 +290,7 @@ impl GpuContextPool {
             if info.is_available {
                 match GpuContext::new(backend_type) {
                     Ok(context) => {
-                        contexts.insert(backend_type, context);
+                        contexts.insert(backend_type, std::sync::Arc::new(context));
                         stats.insert(backend_type, GpuPerformanceStats::default());
 
                         #[cfg(feature = "gpu")]
@@ -415,7 +415,7 @@ impl GpuContextPool {
     }
 
     /// Query OpenCL device information with detailed properties
-    fn query_opencl_device_info(selfcontext: &Arc<GpuContext>) -> SpecialResult<GpuDeviceInfo> {
+    fn query_opencl_device_info(&self, context: &Arc<GpuContext>) -> SpecialResult<GpuDeviceInfo> {
         #[cfg(feature = "gpu")]
         log::debug!("Querying OpenCL device properties...");
 
@@ -434,7 +434,7 @@ impl GpuContextPool {
     }
 
     /// Query CUDA device information with detailed properties
-    fn query_cuda_device_info(selfcontext: &Arc<GpuContext>) -> SpecialResult<GpuDeviceInfo> {
+    fn query_cuda_device_info(&self, context: &Arc<GpuContext>) -> SpecialResult<GpuDeviceInfo> {
         #[cfg(feature = "gpu")]
         log::debug!("Querying CUDA device properties...");
 

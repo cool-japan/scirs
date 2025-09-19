@@ -50,8 +50,8 @@ impl GpuPCA {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(_ncomponents: usize) -> Result<Self> {
-        check_positive(_n_components, "_n_components")?;
+    pub fn new(n_components: usize) -> Result<Self> {
+        check_positive(n_components, "n_components")?;
 
         let gpu_context = GpuContext::new(GpuBackend::preferred()).map_err(|e| {
             TransformError::ComputationError(format!("Failed to initialize GPU: {}", e))
@@ -239,8 +239,8 @@ pub struct GpuTSNE {
 #[cfg(feature = "gpu")]
 impl GpuTSNE {
     /// Create new GPU t-SNE instance
-    pub fn new(_ncomponents: usize) -> Result<Self> {
-        check_positive(_n_components, "_n_components")?;
+    pub fn new(n_components: usize) -> Result<Self> {
+        check_positive(n_components, "n_components")?;
 
         let gpu_context = GpuContext::new(GpuBackend::preferred()).map_err(|e| {
             TransformError::ComputationError(format!("Failed to initialize GPU: {}", e))
@@ -262,13 +262,13 @@ impl GpuTSNE {
     }
 
     /// Set learning rate
-    pub fn with_learning_rate(mut self, learningrate: f64) -> Self {
+    pub fn with_learning_rate(mut self, learning_rate: f64) -> Self {
         self.learning_rate = learning_rate;
         self
     }
 
     /// Set maximum iterations
-    pub fn with_max_iter(mut self, maxiter: usize) -> Self {
+    pub fn with_max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }

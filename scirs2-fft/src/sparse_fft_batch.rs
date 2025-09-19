@@ -284,7 +284,7 @@ where
 {
     let config = batchconfig.unwrap_or_default();
     let window = window_function.unwrap_or(WindowFunction::Hann); // Default to Hann for spectral flatness
-    let device = device_id.unwrap_or(0);
+    let device = device_id.unwrap_or(-1);  // -1 indicates CPU
 
     // Calculate batch sizes
     let total_signals = signals.len();

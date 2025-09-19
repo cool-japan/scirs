@@ -182,12 +182,12 @@ pub fn basis_funs_derivatives<F: crate::traits::InterpolationFloat>(
             for j in j1..=j2 {
                 a[[s2, j]] = (a[[s1, j]] - a[[s1, j - 1]])
                     / ndu[[(pk + 1) as usize, (rk + j as isize) as usize]];
-                d = d + a[[s2, j]] * ndu[[(rk + j as isize) as usize, pk as usize]];
+                d += a[[s2, j]] * ndu[[(rk + j as isize) as usize, pk as usize]];
             }
 
             if r as isize <= pk {
                 a[[s2, m]] = -a[[s1, m - 1]] / ndu[[(pk + 1) as usize, r]];
-                d = d + a[[s2, m]] * ndu[[r, pk as usize]];
+                d += a[[s2, m]] * ndu[[r, pk as usize]];
             }
 
             derivs[[m, r]] = d;
@@ -201,9 +201,9 @@ pub fn basis_funs_derivatives<F: crate::traits::InterpolationFloat>(
     let mut fac = F::from_usize(k).unwrap();
     for j in 1..=n {
         for i in 0..=k {
-            derivs[[j, i]] = derivs[[j, i]] * fac;
+            derivs[[j, i]] *= fac;
         }
-        fac = fac * F::from_usize(k - j).unwrap();
+        fac *= F::from_usize(k - j).unwrap();
     }
 
     derivs

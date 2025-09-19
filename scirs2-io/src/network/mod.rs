@@ -125,12 +125,12 @@ impl NetworkClient {
 
     /// Download a file from URL to local path
     #[cfg(feature = "reqwest")]
-    pub async fn download<P: AsRef<Path>>(&self, url: &str, local_path: P) -> Result<()> {
+    pub async fn download<P: AsRef<Path>>(&self, url: &str, localpath: P) -> Result<()> {
         if let Some(_client) = &self.http_client {
             // Create HttpClient with current config and use it for download
             let mut http_client = http::HttpClient::new(self.config.clone());
             http_client.init()?;
-            http_client.download(url, local_path).await
+            http_client.download(url, localpath).await
         } else {
             Err(IoError::ConfigError(
                 "HTTP client not configured".to_string(),
@@ -145,7 +145,7 @@ impl NetworkClient {
             // Create HttpClient with current config and use it for upload
             let mut http_client = http::HttpClient::new(self.config.clone());
             http_client.init()?;
-            http_client.upload(local_path, url).await
+            http_client.upload(localpath, url).await
         } else {
             Err(IoError::ConfigError(
                 "HTTP client not configured".to_string(),
@@ -156,11 +156,11 @@ impl NetworkClient {
     /// Download a file to cloud storage
     pub async fn upload_to_cloud<P: AsRef<Path>>(
         &self,
-        local_path: P,
+        localpath: P,
         remote_path: &str,
     ) -> Result<()> {
         if let Some(ref provider) = self.cloud_provider {
-            provider.upload_file(local_path, remote_path).await
+            provider.upload_file(localpath, remote_path).await
         } else {
             Err(IoError::ConfigError(
                 "No cloud provider configured".to_string(),
@@ -172,10 +172,10 @@ impl NetworkClient {
     pub async fn download_from_cloud<P: AsRef<Path>>(
         &self,
         remote_path: &str,
-        local_path: P,
+        localpath: P,
     ) -> Result<()> {
         if let Some(ref provider) = self.cloud_provider {
-            provider.download_file(remote_path, local_path).await
+            provider.download_file(remote_path, localpath).await
         } else {
             Err(IoError::ConfigError(
                 "No cloud provider configured".to_string(),
@@ -262,28 +262,28 @@ impl NetworkClient {
 #[cfg(feature = "reqwest")]
 pub async fn download_file<P: AsRef<Path>>(url: &str, localpath: P) -> Result<()> {
     let client = NetworkClient::new();
-    client.download(url, local_path).await
+    client.download(url, localpath).await
 }
 
 /// Upload a file to URL using default client
 #[cfg(feature = "reqwest")]
 pub async fn upload_file<P: AsRef<Path>>(localpath: P, url: &str) -> Result<()> {
     let client = NetworkClient::new();
-    client.upload(local_path, url).await
+    client.upload(localpath, url).await
 }
 
 /// Download a file with caching support
 #[cfg(feature = "reqwest")]
 pub async fn download_with_cache<P: AsRef<Path>>(
     url: &str,
-    local_path: P,
+    localpath: P,
     cache_dir: Option<&str>,
 ) -> Result<()> {
     let mut client = NetworkClient::new();
     if let Some(cache) = cache_dir {
         client = client.with_cache_dir(cache);
     }
-    client.download(url, local_path).await
+    client.download(url, localpath).await
 }
 
 /// Create a network client with cloud provider
@@ -298,8 +298,8 @@ pub async fn batch_download(downloads: Vec<(&str, &str)>) -> Result<Vec<Result<(
     let client = NetworkClient::new();
     let mut results = Vec::new();
 
-    for (url, local_path) in _downloads {
-        let result = client.download(url, local_path).await;
+    for (url, localpath) in downloads {
+        let result = client.download(url, localpath).await;
         results.push(result);
     }
 
@@ -313,8 +313,8 @@ pub async fn batch_upload_to_cloud(
 ) -> Result<Vec<Result<()>>> {
     let mut results = Vec::new();
 
-    for (local_path, remote_path) in uploads {
-        let result = client.upload_to_cloud(local_path, remote_path).await;
+    for (localpath, remote_path) in uploads {
+        let result = client.upload_to_cloud(localpath, remote_path).await;
         results.push(result);
     }
 

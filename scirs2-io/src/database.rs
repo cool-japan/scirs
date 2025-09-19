@@ -928,11 +928,11 @@ struct PostgreSQLConnection {
 impl PostgreSQLConnection {
     async fn new(config: &DatabaseConfig) -> Result<Self> {
         // Create actual PostgreSQL connection pool
-        let connection_string = Self::build_connection_string(_config);
+        let connection_string = Self::build_connection_string(config);
 
         let pool = PgPoolOptions::new()
             .max_connections(
-                _config
+                config
                     .options
                     .get("max_connections")
                     .and_then(|s| s.parse().ok())
@@ -1340,11 +1340,11 @@ struct MySQLConnection {
 impl MySQLConnection {
     async fn new(config: &DatabaseConfig) -> Result<Self> {
         // Create actual MySQL connection pool
-        let connection_string = Self::build_connection_string(_config);
+        let connection_string = Self::build_connection_string(config);
 
         let pool = MySqlPoolOptions::new()
             .max_connections(
-                _config
+                config
                     .options
                     .get("max_connections")
                     .and_then(|s| s.parse().ok())

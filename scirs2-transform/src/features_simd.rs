@@ -236,7 +236,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
     /// Adds terms of a specific degree
     fn add_degree_terms(
         &self,
-        sample: &Array1<F>,
+        sample: &ArrayView1<F>,
         output: &mut Array1<F>,
         mut output_idx: usize,
         degree: usize,
@@ -552,7 +552,8 @@ where
 
             // Use SIMD comparison where available
             // Fallback: element-wise comparison since simd_greater_than is not available
-            let comparison_result = chunk_slice.mapv(|x| if x > threshold { F::one() } else { F::zero() });
+            let comparison_result =
+                chunk_slice.mapv(|x| if x > threshold { F::one() } else { F::zero() });
 
             for (j, &cmp_result) in comparison_result.iter().enumerate() {
                 result[[i, chunk_start + j]] = if cmp_result > F::zero() {

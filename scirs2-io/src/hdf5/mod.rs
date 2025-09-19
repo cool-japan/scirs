@@ -472,7 +472,7 @@ impl HDF5File {
         use hdf5::types::TypeDescriptor;
 
         // Load all datasets in the current group
-        let dataset_names = _file
+        let dataset_names = file
             .dataset_names()
             .map_err(|e| IoError::FormatError(format!("Failed to get dataset names: {e}")))?;
 
@@ -517,7 +517,7 @@ impl HDF5File {
         }
 
         // Load all subgroups recursively
-        let group_names = _file
+        let group_names = file
             .group_names()
             .map_err(|e| IoError::FormatError(format!("Failed to get group names: {e}")))?;
 
@@ -644,7 +644,7 @@ impl HDF5File {
     fn read_attribute_value(attr: &hdf5::Attribute) -> Result<AttributeValue> {
         use hdf5::types::TypeDescriptor;
 
-        let dtype = _attr
+        let dtype = attr
             .dtype()
             .map_err(|e| IoError::FormatError(format!("Failed to get attribute dtype: {e}")))?;
 
@@ -699,7 +699,7 @@ impl HDF5File {
             }
             _ => {
                 // Fallback: treat as string
-                let value: String = _attr
+                let value: String = attr
                     .read_scalar()
                     .unwrap_or_else(|_| "unknown".to_string());
                 Ok(AttributeValue::String(value))
@@ -893,7 +893,7 @@ impl HDF5File {
             if let Some(ref file) = self.native_file {
                 // For HDF5, writing happens automatically when datasets are created
                 // So we just need to flush any pending operations
-                _file
+                file
                     .flush()
                     .map_err(|e| IoError::FormatError(format!("Failed to flush HDF5 file: {e}")))?;
             }
@@ -1034,6 +1034,47 @@ impl HDF5File {
         }
 
         Ok(())
+    }
+
+    /// Create a group in the root - delegation method
+    pub fn create_group(&mut self, name: &str) -> Result<()> {
+        self.root.create_group(name);
+        Ok(())
+    }
+
+    /// Set an attribute on the file root - delegation method
+    pub fn set_attribute(&mut self, name: &str, key: &str, value: AttributeValue) -> Result<()> {
+        if name == "/" || name.is_empty() {
+            self.root.set_attribute(key, value);
+        } else {
+            // Navigate to the specified group/dataset
+            let parts: Vec<&str> = name.split('/').filter(|s| !s.is_empty()).collect();
+            let mut current_group = &mut self.root;
+
+            for &group_name in &parts {
+                current_group = current_group.groups.get_mut(group_name)
+                    .ok_or_else(|| IoError::FormatError(format!("Group '{}' not found", group_name)))?;
+            }
+            current_group.set_attribute(key, value);
+        }
+        Ok(())
+    }
+
+    /// Get an attribute from the file root - delegation method
+    pub fn get_attribute(&self, name: &str, key: &str) -> Result<Option<&AttributeValue>> {
+        if name == "/" || name.is_empty() {
+            Ok(self.root.get_attribute(key))
+        } else {
+            // Navigate to the specified group/dataset
+            let parts: Vec<&str> = name.split('/').filter(|s| !s.is_empty()).collect();
+            let mut current_group = &self.root;
+
+            for &group_name in &parts {
+                current_group = current_group.groups.get(group_name)
+                    .ok_or_else(|| IoError::FormatError(format!("Group '{}' not found", group_name)))?;
+            }
+            Ok(current_group.get_attribute(key))
+        }
     }
 }
 

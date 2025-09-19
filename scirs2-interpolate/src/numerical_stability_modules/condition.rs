@@ -176,10 +176,6 @@ where
     // For demonstration, we'll use a simplified SVD approximation
     // In a full implementation, this would use actual SVD computation
 
-    // Compute matrix norms as proxies for singular values
-    let mut max_norm = F::zero();
-    let mut min_norm = F::infinity();
-
     // Estimate largest singular value using power iteration
     let max_singular = power_iteration_max_eigenvalue(matrix)?;
 

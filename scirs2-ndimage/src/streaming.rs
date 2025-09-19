@@ -715,8 +715,10 @@ where
             }
         }
 
-        // Fallback to CPU processing
-        self.process_adaptive(input, op)
+        // Fallback to CPU processing - simplified implementation
+        // Process the input directly without adaptive chunking
+        let result = op.apply_chunk(&input, &self.base_config.clone())?;
+        Ok(result)
     }
 
     /// Extract chunk with proper boundary handling
@@ -908,7 +910,7 @@ where
             }
 
             // Process chunk on GPU
-            let chunk_result = op.apply_chunk_gpu(&chunk_view, &gpucontext)?;
+            let chunk_result = op.apply_chunk_gpu(&chunk_view, &**gpucontext)?;
 
             // Handle overlapping regions using proper overlap merging
             if overlap.iter().any(|&x| x > 0) {

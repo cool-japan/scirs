@@ -1050,7 +1050,7 @@ where
         match kernel {
             KernelType::Standard(k) => Self::evaluate_standard_kernel(r, epsilon, k),
             KernelType::Enhanced(k) => Self::evaluate_enhanced_kernel(r, epsilon, k),
-            KernelType::Custom(__, _) => {
+            KernelType::Custom(_custom_func, _) => {
                 // In a real implementation, we would call a registered custom kernel function
                 // For now, default to a basic Gaussian
                 (-r * r / (epsilon * epsilon)).exp()
@@ -1349,7 +1349,7 @@ where
             KernelType::Enhanced(EnhancedRBFKernel::BeckertWendland(a)) => {
                 format!("Beckert-Wendland (α={a})")
             }
-            KernelType::Custom(__, _) => "Custom".to_string(),
+            KernelType::Custom(_custom_func, _) => "Custom".to_string(),
         };
 
         let scale_str = if self.use_multiscale {

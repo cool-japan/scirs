@@ -440,7 +440,7 @@ impl ModelServer {
 
         {
             let mut model = self.model.write().await;
-            *model = new_model;
+            *model = newmodel;
         }
 
         // Update metrics

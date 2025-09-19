@@ -176,7 +176,7 @@ pub mod gamma_plots {
             .add_function(Box::new(|x| gammaln(x)), "ln Γ(x)")
             .add_function(Box::new(|x| digamma(x)), "ψ(x)")
             .set_x_range(0.1, 5.0)
-            .plot(_path)
+            .plot(path)
     }
 
     /// Create a heatmap of gamma function in complex plane
@@ -184,7 +184,7 @@ pub mod gamma_plots {
     pub fn plot_gamma_complex<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
         use crate::gamma::complex::gamma_complex;
 
-        let root = BitMapBackend::new(_path.as_ref(), (800, 600)).into_drawing_area();
+        let root = BitMapBackend::new(path.as_ref(), (800, 600)).into_drawing_area();
         root.fill(&WHITE)?;
 
         let mut chart = ChartBuilder::on(&root)
@@ -244,7 +244,7 @@ pub mod bessel_plots {
             .add_function(Box::new(|x| jn(2, x)), "J₂(x)")
             .add_function(Box::new(|x| jn(3, x)), "J₃(x)")
             .set_x_range(0.0, 20.0)
-            .plot(_path)
+            .plot(path)
     }
 
     /// Plot zeros of Bessel functions
@@ -253,7 +253,7 @@ pub mod bessel_plots {
 
         #[cfg(feature = "plotting")]
         {
-            let root = BitMapBackend::new(_path.as_ref(), (800, 600)).into_drawing_area();
+            let root = BitMapBackend::new(path.as_ref(), (800, 600)).into_drawing_area();
             root.fill(&WHITE)?;
 
             let mut chart = ChartBuilder::on(&root)
@@ -323,7 +323,7 @@ pub mod error_function_plots {
                 "erfinv(x)",
             )
             .set_x_range(-3.0, 3.0)
-            .plot(_path)
+            .plot(path)
     }
 }
 
@@ -335,17 +335,17 @@ pub mod polynomial_plots {
     /// Plot Legendre polynomials
     pub fn plot_legendre<P: AsRef<Path>>(path: P, maxn: usize) -> Result<(), Box<dyn Error>> {
         let config = PlotConfig {
-            title: format!("Legendre Polynomials P_n(x) for _n = 0..{}", max_n),
+            title: format!("Legendre Polynomials P_n(x) for _n = 0..{}", maxn),
             ..Default::default()
         };
 
         let mut plot = MultiPlot::new(config).set_x_range(-1.0, 1.0);
 
-        for _n in 0..=max_n {
-            plot = plot.add_function(Box::new(move |x| legendre(_n, x)), &format!("P_{}", n));
+        for _n in 0..=maxn {
+            plot = plot.add_function(Box::new(move |x| legendre(_n, x)), &format!("P_{}", _n));
         }
 
-        plot.plot(_path)
+        plot.plot(path)
     }
 
     /// Create an animated visualization of orthogonal polynomials
@@ -367,7 +367,7 @@ pub mod surface_plots {
         P: AsRef<Path>,
         F: Fn(f64, f64) -> f64,
     {
-        let root = BitMapBackend::new(_path.as_ref(), (800, 600)).into_drawing_area();
+        let root = BitMapBackend::new(path.as_ref(), (800, 600)).into_drawing_area();
         root.fill(&WHITE)?;
 
         let mut chart = ChartBuilder::on(&root)

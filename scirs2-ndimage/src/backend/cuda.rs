@@ -1143,7 +1143,7 @@ mod tests {
     #[test]
     #[ignore] // Ignore by default as it requires CUDA
     fn test_cuda_buffer_allocation() {
-        let buffer: Result<CudaBuffer<f32>> = CudaBuffer::new(1024);
+        let buffer = CudaBuffer::<f32>::new(1024);
         assert!(buffer.is_ok());
 
         if let Ok(buf) = buffer {

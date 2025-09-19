@@ -131,6 +131,12 @@ pub struct PatternPerformance {
 }
 
 // Implementations
+impl<T> Default for PatternDatabase<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> PatternDatabase<T> {
     pub fn new() -> Self {
         Self {
@@ -142,6 +148,12 @@ impl<T> PatternDatabase<T> {
     }
 }
 
+impl Default for PatternSimilarityIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PatternSimilarityIndex {
     pub fn new() -> Self {
         Self {
@@ -149,6 +161,12 @@ impl PatternSimilarityIndex {
             similarity_threshold: 0.8,
             index_params: IndexParameters::default(),
         }
+    }
+}
+
+impl Default for LocalitySensitiveHashing {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

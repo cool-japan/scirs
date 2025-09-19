@@ -1,6 +1,8 @@
 use super::*;
 use crate::tensor_ops::*;
-use crate::tensor_ops::{BlasIF, CblasRowMajor, CblasNoTrans, CblasTrans, cblas_sgemm, cblas_dgemm};
+use crate::tensor_ops::{
+    cblas_dgemm, cblas_sgemm, BlasIF, CblasNoTrans, CblasRowMajor, CblasTrans,
+};
 
 pub struct Conv2DTranspose {
     pub pad: usize,

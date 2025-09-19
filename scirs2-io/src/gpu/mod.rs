@@ -11,8 +11,7 @@ pub mod memory_management;
 
 // Re-export key types for easy access
 pub use backend_management::{
-    BackendCapabilities, BackendPerformanceProfile, GpuIoProcessor,
-    GpuWorkloadType,
+    BackendCapabilities, BackendPerformanceProfile, GpuIoProcessor, GpuWorkloadType,
 };
 
 pub use compression::{CompressionStats, GpuCompressionProcessor};

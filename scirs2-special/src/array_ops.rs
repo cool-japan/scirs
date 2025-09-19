@@ -317,21 +317,16 @@ pub mod gpu {
     impl GpuBuffer {
         /// Create a new GPU buffer
         #[cfg(feature = "gpu")]
-        pub fn new<T>(ctx: &scirs2_core::gpu::GpuContext, data: &[T]) -> SpecialResult<Self>
-        where
-            T: 'static,
+        pub fn new(ctx: &scirs2_core::gpu::GpuContext, data: &[f64]) -> SpecialResult<Self>
         {
-            let byte_data = cast_slice_to_bytes(data);
-            let buffer = ctx.create_buffer_with_data(byte_data).map_err(|e| {
-                SpecialError::ComputationError(format!("GPU buffer creation failed: {}", e))
-            })?;
+            let buffer = ctx.create_buffer_from_slice(data);
 
             Ok(Self {
-                buffer: Some(buffer),
+                buffer: Some(std::sync::Arc::new(buffer)),
                 size: data.len(),
-                elementsize: std::mem::size_of::<T>(),
+                elementsize: std::mem::size_of::<f64>(),
                 shape: vec![data.len()],
-                allocatedsize: byte_data.len(),
+                allocatedsize: data.len() * std::mem::size_of::<f64>(),
             })
         }
 
@@ -381,21 +376,8 @@ pub mod gpu {
 
             let mut pipelines = std::collections::HashMap::new();
 
-            // Pre-load commonly used shaders
-            let gamma_shader = include_str!("../shaders/gamma_compute.wgsl");
-            if let Ok(pipeline) = context.create_compute_pipeline(gamma_shader) {
-                pipelines.insert("gamma".to_string(), pipeline);
-            }
-
-            let bessel_shader = include_str!("../shaders/bessel_j0_compute.wgsl");
-            if let Ok(pipeline) = context.create_compute_pipeline(bessel_shader) {
-                pipelines.insert("bessel_j0".to_string(), pipeline);
-            }
-
-            let erf_shader = include_str!("../shaders/erf_compute.wgsl");
-            if let Ok(pipeline) = context.create_compute_pipeline(erf_shader) {
-                pipelines.insert("erf".to_string(), pipeline);
-            }
+            // Note: GPU pipelines not currently supported in scirs2-core
+            // Pre-compiled kernels would be loaded here when available
 
             Ok(Self {
                 context: Some(context),
@@ -414,7 +396,7 @@ pub mod gpu {
             output: &mut [T],
         ) -> SpecialResult<std::time::Duration>
         where
-            T: Clone,
+            T: Clone + Copy + scirs2_core::gpu::GpuDataType,
         {
             let start_time = std::time::Instant::now();
 
@@ -427,38 +409,13 @@ pub mod gpu {
             })?;
 
             // Create GPU buffers
-            let input_buffer = context
-                .create_buffer_with_data(cast_slice_to_bytes(input))
-                .map_err(|e| {
-                    SpecialError::ComputationError(format!("Input buffer creation failed: {}", e))
-                })?;
+            let input_buffer = context.create_buffer_from_slice(input);
 
-            let output_buffer = context
-                .create_buffer(output.len() * std::mem::size_of::<T>())
-                .map_err(|e| {
-                    SpecialError::ComputationError(format!("Output buffer creation failed: {}", e))
-                })?;
+            let output_buffer = context.create_buffer::<T>(output.len());
 
-            // Execute kernel
-            let workgroup_count = (input.len() + 255) / 256;
-            context
-                .execute_compute(
-                    pipeline.as_ref(),
-                    input_buffer.as_ref(),
-                    output_buffer.as_ref(),
-                    (workgroup_count, 1, 1),
-                )
-                .map_err(|e| {
-                    SpecialError::ComputationError(format!("Kernel execution failed: {}", e))
-                })?;
-
-            // Read results
-            let result_data = context.read_buffer(output_buffer.as_ref()).map_err(|e| {
-                SpecialError::ComputationError(format!("Buffer read failed: {}", e))
-            })?;
-
-            let typed_result = cast_bytes_to_slice::<T>(&result_data);
-            output.copy_from_slice(typed_result);
+            // Note: Direct kernel execution not currently supported in scirs2-core
+            // Fall back to CPU computation for now
+            return Err(SpecialError::ComputationError("GPU kernel execution not yet implemented".to_string()));
 
             let elapsed = start_time.elapsed();
 
@@ -516,7 +473,7 @@ pub mod gpu {
                 self.execute_kernel("gamma", &flattened, &mut output)?;
 
                 let result = Array::from_vec(output)
-                    .toshape(input.dim())
+                    .to_shape(input.dim())
                     .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                     .into_owned();
 
@@ -536,7 +493,7 @@ pub mod gpu {
             self.execute_kernel("bessel_j0", &flattened, &mut output)?;
 
             let result = Array::from_vec(output)
-                .toshape(input.dim())
+                .to_shape(input.dim())
                 .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                 .into_owned();
 
@@ -555,7 +512,7 @@ pub mod gpu {
             self.execute_kernel("erf", &flattened, &mut output)?;
 
             let result = Array::from_vec(output)
-                .toshape(input.dim())
+                .to_shape(input.dim())
                 .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                 .into_owned();
 
@@ -724,7 +681,7 @@ pub mod vectorized {
                 let data: Vec<f64> = input.iter().copied().collect();
                 let result: Vec<f64> = data.par_iter().map(|&x| crate::gamma::gamma(x)).collect();
                 let result_array = Array::from_vec(result)
-                    .toshape(input.dim())
+                    .to_shape(input.dim())
                     .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                     .into_owned();
                 return Ok(GammaResult::Immediate(result_array));
@@ -778,7 +735,7 @@ pub mod vectorized {
                 let data: Vec<f64> = input.iter().copied().collect();
                 let result: Vec<f64> = data.par_iter().map(|&x| crate::erf::erf(x)).collect();
                 return Ok(Array::from_vec(result)
-                    .toshape(input.dim())
+                    .to_shape(input.dim())
                     .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                     .into_owned());
             }
@@ -805,7 +762,7 @@ pub mod vectorized {
                     .map(|&x| crate::combinatorial::factorial(x).unwrap_or(f64::NAN))
                     .collect();
                 return Ok(Array::from_vec(result)
-                    .toshape(input.dim())
+                    .to_shape(input.dim())
                     .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                     .into_owned());
             }
@@ -930,7 +887,7 @@ pub mod vectorized {
     //     af_result.host(&mut result_vec);
     //
     //     let result = Array::from_vec(result_vec)
-    //         .toshape(input.dim())
+    //         .to_shape(input.dim())
     //         .map_err(|e| SpecialError::ComputationError(format!("Shape conversion error: {}", e)))?
     //         .into_owned();
     //
@@ -1043,7 +1000,7 @@ pub mod vectorized {
             let data: Vec<T> = input.iter().cloned().collect();
             let processed: Vec<T> = data.into_par_iter().map(operation).collect();
             let result = Array::from_vec(processed)
-                .toshape(input.dim())
+                .to_shape(input.dim())
                 .map_err(|e| SpecialError::ComputationError(format!("Shape error: {}", e)))?
                 .into_owned();
             return Ok(result);

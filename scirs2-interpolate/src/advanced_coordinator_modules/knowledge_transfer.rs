@@ -526,7 +526,7 @@ impl<F: Float> TransferLearningModel<F> {
         let weight =
             performance.accuracy * 0.8 + (1.0 - performance.execution_time_ms / 10000.0) * 0.2;
         self.transfer_weights
-            .insert(domain.to_string(), weight.max(0.0).min(1.0));
+            .insert(domain.to_string(), weight.clamp(0.0, 1.0));
 
         Ok(())
     }
@@ -549,8 +549,8 @@ impl<F: Float> TransferLearningModel<F> {
                 method: method.clone(),
                 confidence: *confidence,
                 reasoning: format!(
-                    "Method {} showed good performance in source domain {}",
-                    format!("{:?}", method),
+                    "Method {:?} showed good performance in source domain {}",
+                    method,
                     source_domain
                 ),
                 estimated_improvement: confidence * 0.2,
@@ -583,6 +583,12 @@ pub struct SourceModel<F: Float> {
     pub accuracy: F,
     /// Model complexity
     pub complexity: usize,
+}
+
+impl<F: Float> Default for SourceModel<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float> SourceModel<F> {

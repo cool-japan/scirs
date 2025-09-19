@@ -347,6 +347,12 @@ impl BandwidthMonitor {
     }
 }
 
+impl Default for SaturationDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SaturationDetector {
     pub fn new() -> Self {
         Self {
@@ -355,6 +361,12 @@ impl SaturationDetector {
             current_saturation: 0.0,
             saturation_history: VecDeque::new(),
         }
+    }
+}
+
+impl Default for BandwidthPredictor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

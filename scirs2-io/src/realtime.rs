@@ -424,7 +424,7 @@ impl<'a, T: ScientificNumber + Clone> StreamProcessor<'a, T> {
         let mut results = Vec::new();
 
         // Process streaming data with proper implementation
-        while results.len() < max_items {
+        while results.len() < maxitems {
             // Receive data from stream
             if let Some(ref mut connection) = self.client.connection {
                 match connection.receive().await {
@@ -488,7 +488,7 @@ impl<'a, T: ScientificNumber + Clone> StreamProcessor<'a, T> {
     fn parse_data(&self, rawdata: &[u8]) -> Result<Array1<T>> {
         // Implementation depends on _data format and type T
         // For now, create a simple array with default values
-        let size = raw_data.len().min(10);
+        let size = rawdata.len().min(10);
         let _data: Vec<T> = (0..size).map(|_| T::zero()).collect();
         Ok(Array1::from_vec(_data))
     }
@@ -545,7 +545,7 @@ impl StreamConnection for WebSocketConnection {
             .map_err(|_| IoError::TimeoutError("WebSocket connection timeout".to_string()))?
             .map_err(|e| IoError::NetworkError(format!("WebSocket connection failed: {}", e)))?;
 
-        self.ws_stream = Some(ws_stream);
+        self.ws_stream = Some(ws_stream_response);
         self.connected = true;
         Ok(())
     }
@@ -772,7 +772,7 @@ struct SSEConnection {
     connected: bool,
     event_buffer: VecDeque<String>,
     #[cfg(feature = "sse")]
-    client: Option<eventsource_client::Client>,
+    client: Option<Box<dyn eventsource_client::Client>>,
     #[cfg(feature = "sse")]
     receiver: Option<tokio::sync::mpsc::Receiver<eventsource_client::SSE>>,
 }
@@ -1455,7 +1455,7 @@ impl StreamSynchronizer {
     pub fn new(syncstrategy: SyncStrategy) -> Self {
         Self {
             streams: Vec::new(),
-            sync_strategy,
+            syncstrategy,
             buffer_size: 1000,
             output_rate: None,
         }
@@ -1644,9 +1644,9 @@ impl<T: Clone> TimeSeriesBuffer<T> {
     /// Create a new time series buffer
     pub fn new(maxsize: usize) -> Self {
         Self {
-            max_size,
+            maxsize,
             window_duration: None,
-            data: VecDeque::with_capacity(_max_size),
+            data: VecDeque::with_capacity(maxsize),
             stats: BufferStats::default(),
         }
     }

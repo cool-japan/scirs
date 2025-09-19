@@ -3,7 +3,7 @@
 //! This module provides functions for applying uniform filters (also known as box filters)
 //! to n-dimensional arrays.
 
-use ndarray::{s, Array, Array1, Array2, Dimension, IxDyn};
+use ndarray::{s, Array, Array1, Array2, Dimension, IxDyn, IxDynImpl, Dim, NdIndex};
 use num_traits::{Float, FromPrimitive};
 use scirs2_core::validation::{check_1d, check_2d, check_positive};
 use std::fmt::Debug;
@@ -258,7 +258,8 @@ where
         if window_end <= padded_data.len() {
             // Use SIMD sum operation for the window
             let window_slice = &padded_data[window_start..window_end];
-            let sum = f32::simd_sum(window_slice);
+            let window_array = Array1::from_vec(window_slice.to_vec());
+            let sum = f32::simd_sum(&window_array.view());
             output[i] = sum * norm_factor;
         } else {
             // Fallback for edge cases
@@ -434,7 +435,8 @@ where
                 let window_slice = &padded_row.as_slice().unwrap()[row_start..row_end];
 
                 // Use SIMD sum for the row segment
-                sum += f32::simd_sum(window_slice);
+                let window_array = Array1::from_vec(window_slice.to_vec());
+                sum += f32::simd_sum(&window_array.view());
             }
 
             // Normalize
@@ -753,7 +755,7 @@ fn uniform_filter_nd_parallel<T, D>(
 ) -> NdimageResult<Array<T, D>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + Send + Sync,
-    D: Dimension + 'static,
+    D: Dimension + 'static, Dim<IxDynImpl>: NdIndex<D>,
 {
     use scirs2_core::parallel_ops::*;
 

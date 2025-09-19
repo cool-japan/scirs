@@ -181,6 +181,12 @@ impl NumaTopology {
     }
 }
 
+impl Default for NumaPerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NumaPerformanceMonitor {
     pub fn new() -> Self {
         Self {

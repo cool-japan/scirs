@@ -246,7 +246,7 @@ impl<T: Float + FromPrimitive + Debug + Clone> GaussianFilterOp<T> {
 
 impl<T, D> BackendOp<T, D> for GaussianFilterOp<T>
 where
-    T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+    T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     D: Dimension + 'static,
 {
     fn execute_cpu(&self, input: &ArrayView<T, D>) -> NdimageResult<Array<T, D>> {
@@ -292,7 +292,7 @@ fn cuda_gaussian_filter<T, D>(
     _truncate: Option<T>,
 ) -> NdimageResult<Array<T, D>>
 where
-    T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
+    T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     D: Dimension,
 {
     // Currently only support 2D arrays for GPU acceleration

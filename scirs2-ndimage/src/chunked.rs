@@ -7,6 +7,7 @@
 use ndarray::{Array, ArrayView, Dimension, IxDyn};
 use num_traits::{Float, FromPrimitive, NumCast, Zero};
 use std::fmt::Debug;
+use std::sync::Mutex;
 
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::BorderMode;
@@ -77,7 +78,7 @@ pub fn process_chunked<T, D, P>(
 where
     T: Float + FromPrimitive + NumCast + Debug + Clone + Send + Sync,
     D: Dimension,
-    P: ChunkProcessor<T, D>,
+    P: ChunkProcessor<T, D> + Send + Sync,
 {
     let shape = input.shape();
     let ndim = input.ndim();
@@ -111,11 +112,15 @@ where
         {
             use scirs2_core::parallel_ops::*;
 
+            let processor_mutex = Mutex::new(processor);
             chunks
                 .into_par_iter()
                 .map(|position| {
                     let chunk = extract_chunk(input, &position)?;
-                    let result = processor.process_chunk(chunk.view(), &position)?;
+                    let result = {
+                        let mut proc = processor_mutex.lock().unwrap();
+                        proc.process_chunk(chunk.view(), &position)?
+                    };
                     Ok((result, position))
                 })
                 .collect::<Result<Vec<_>, NdimageError>>()?

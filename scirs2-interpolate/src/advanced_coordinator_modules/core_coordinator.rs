@@ -431,7 +431,7 @@ impl<
         method: &InterpolationMethodType,
     ) -> InterpolateResult<AccuracyPrediction<F>> {
         if self.config.enable_error_prediction {
-            let mut optimizer = self.accuracy_optimizer.lock().map_err(|_| {
+            let optimizer = self.accuracy_optimizer.lock().map_err(|_| {
                 InterpolateError::InvalidState("Failed to lock accuracy optimizer".to_string())
             })?;
 

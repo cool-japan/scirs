@@ -569,8 +569,8 @@ impl<T: NurbsFloat> NurbsCurve<T> {
             .unwrap_or_else(|| Array1::zeros(self.dimension));
 
         // Use Brent's method for root finding
-        let mut bracket_a = a;
-        let mut bracket_b = b;
+        let bracket_a = a;
+        let bracket_b = b;
 
         // Evaluate function at endpoints
         let fa = self.distance_to_point(bracket_a, &target_point.view())?;

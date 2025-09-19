@@ -10,7 +10,7 @@
 
 use crate::error::{IoError, Result};
 use crate::matlab::{read_mat, write_mat, MatType};
-use ndarray::ArrayD;
+use ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -540,7 +540,7 @@ impl EnhancedMatFile {
                 .zip(&sparse.coo.values)
                 .map(|((r, c), v)| (*c, *r, v.clone()))
                 .collect();
-            entries.sort_by_key(|(c, r_)| (*c, *r));
+            entries.sort_by_key(|(c, r_)| (*c, *r_));
 
             let mut current_col = 0;
             for (col, row, val) in entries {
@@ -826,7 +826,7 @@ impl MatV73Sparse {
     pub fn write_sparse<P: AsRef<Path>>(
         path: P,
         name: &str,
-        data: &crate::sparse::SparseMatrix,
+        data: &crate::sparse::SparseMatrix<f64>,
     ) -> Result<()> {
         let mut file = HDF5File::create(path)?;
 
@@ -854,7 +854,7 @@ impl MatV73Sparse {
         let data_path = format!("{}/data", name); // non-zero values
 
         // Convert to MATLAB's CSC format - use existing methods
-        let csc = if let Some(ref csc_data) = sparse.csc {
+        let csc = if let Some(ref csc_data) = data.csc {
             csc_data.clone()
         } else {
             // Convert COO to CSC
@@ -863,15 +863,15 @@ impl MatV73Sparse {
             let mut values = Vec::new();
 
             // Sort by column, then by row
-            let mut entries: Vec<_> = sparse
+            let mut entries: Vec<_> = data
                 .coo
                 .row_indices
                 .iter()
-                .zip(&sparse.coo.col_indices)
-                .zip(&sparse.coo.values)
+                .zip(&data.coo.col_indices)
+                .zip(&data.coo.values)
                 .map(|((r, c), v)| (*c, *r, v.clone()))
                 .collect();
-            entries.sort_by_key(|(c, r_)| (*c, *r));
+            entries.sort_by_key(|(c, r_)| (*c, *r_));
 
             let mut current_col = 0;
             for (col, row, val) in entries {
@@ -882,13 +882,13 @@ impl MatV73Sparse {
                 row_indices.push(row);
                 values.push(val);
             }
-            while col_ptrs.len() <= sparse.shape.1 {
+            while col_ptrs.len() <= data.shape.1 {
                 col_ptrs.push(values.len());
             }
 
             crate::serialize::SparseMatrixCSC {
-                nrows: sparse.shape.0,
-                ncols: sparse.shape.1,
+                nrows: data.shape.0,
+                ncols: data.shape.1,
                 col_ptrs,
                 row_indices,
                 values,
@@ -918,7 +918,7 @@ impl MatV73Sparse {
     pub fn read_sparse<P: AsRef<Path>>(
         _path: P,
         name: &str,
-    ) -> Result<crate::sparse::SparseMatrix> {
+    ) -> Result<crate::sparse::SparseMatrix<f64>> {
         let file = HDF5File::open(_path, FileMode::ReadOnly)?;
 
         // Read sparse matrix metadata
