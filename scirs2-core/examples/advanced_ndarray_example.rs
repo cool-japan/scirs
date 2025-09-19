@@ -48,7 +48,7 @@ fn main() {
     let angles = array![[0.0, PI / 6.0, PI / 4.0, PI / 3.0, PI / 2.0]];
 
     // Demonstrate matrix creation functions
-    print_section("Matrix Creation");
+    println!("\n=== Matrix Creation ===");
 
     let identity = eye::<f64>(3);
     println!("Identity matrix (3x3):");
@@ -89,7 +89,7 @@ fn main() {
     println!("{}", tridiag);
 
     // Demonstrate array manipulation functions
-    print_section("Array Manipulation");
+    println!("\n=== Array Manipulation ===");
 
     println!("Original array a:");
     println!("{}", a);
@@ -123,7 +123,7 @@ fn main() {
     println!("{}", vstacked);
 
     // Demonstrate mathematical operations
-    print_section("Mathematical Functions");
+    println!("\n=== Mathematical Functions ===");
 
     println!("Original angles (in radians):");
     println!("{}", angles_1d);
@@ -177,7 +177,7 @@ fn main() {
     println!("{}", degrees);
 
     // Demonstrate statistical operations
-    print_section("Statistical Functions");
+    println!("\n=== Statistical Functions ===");
 
     let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
     println!("Data matrix:");
@@ -204,7 +204,7 @@ fn main() {
     println!("\nMaximum value: {}", max_all[0]);
 
     // Demonstrate a complete data analysis workflow
-    print_section("Complete Data Analysis Workflow");
+    println!("\n=== Complete Data Analysis Workflow ===");
 
     // Create a dataset with some noise
     let measurements = array![

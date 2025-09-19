@@ -43,12 +43,41 @@
 use ndarray::{Array, Dimension, IxDyn};
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 use rand_distr::{Distribution, Uniform};
 use std::cell::RefCell;
 
 // Re-export traits for external use
-pub use rand::{Rng, RngCore};
+pub use rand::{Rng, RngCore, SeedableRng};
+
+// Re-export for compatibility with optirs-core
+pub use rand::rngs;
+pub use rand_distr as distributions;
+pub use rand::prelude;
+
+// Re-export ndarray-rand RandomExt trait if available
+#[cfg(feature = "random")]
+pub use ndarray_rand::RandomExt;
+
+// When random feature is not available, provide a minimal RandomExt trait
+#[cfg(not(feature = "random"))]
+pub trait RandomExt<T, D> {
+    fn random_using<R: rand::Rng>(shape: D, distribution: impl Distribution<T>, rng: &mut R) -> Self;
+}
+
+#[cfg(not(feature = "random"))]
+impl<T, D> RandomExt<T, D> for ndarray::ArrayBase<ndarray::OwnedRepr<T>, D>
+where
+    D: ndarray::Dimension,
+{
+    fn random_using<R: rand::Rng>(shape: D, distribution: impl Distribution<T>, rng: &mut R) -> Self {
+        let size = shape.size();
+        let mut data = Vec::with_capacity(size);
+        for _ in 0..size {
+            data.push(distribution.sample(rng));
+        }
+        Self::from_shape_vec(shape, data).unwrap()
+    }
+}
 
 /// Compatibility wrapper for updated rand API
 /// In rand 0.9, provides a convenient alias for rng() wrapped in Random
@@ -58,9 +87,25 @@ pub fn rng() -> Random<rand::rngs::ThreadRng> {
     Random { rng: rand::rng() }
 }
 
+/// Generate a random f64 value between 0.0 and 1.0 (convenience function)
+pub fn f64() -> f64 {
+    rand::random::<f64>()
+}
+
+/// Generate a random f32 value between 0.0 and 1.0 (convenience function)
+pub fn f32() -> f32 {
+    rand::random::<f32>()
+}
+
+/// Generate a random usize value in the given range (convenience function)
+pub fn usize(range: std::ops::Range<usize>) -> usize {
+    rand::thread_rng().gen_range(range)
+}
+
+
 /// Wrapper around the rand crate's RNG for a consistent interface
 #[derive(Debug)]
-pub struct Random<R: Rng + ?Sized = rand::rngs::ThreadRng> {
+pub struct Random<R: rand::Rng + ?Sized = rand::rngs::ThreadRng> {
     rng: R,
 }
 
@@ -70,7 +115,7 @@ impl Default for Random {
     }
 }
 
-impl<R: Rng + Clone> Clone for Random<R> {
+impl<R: rand::Rng + Clone> Clone for Random<R> {
     fn clone(&self) -> Self {
         Self {
             rng: self.rng.clone(),
@@ -78,7 +123,7 @@ impl<R: Rng + Clone> Clone for Random<R> {
     }
 }
 
-impl<R: Rng> Random<R> {
+impl<R: rand::Rng> Random<R> {
     /// Sample a value from a distribution
     pub fn sample<D, T>(&mut self, distribution: D) -> T
     where
@@ -199,7 +244,7 @@ pub trait DistributionExt<T>: Distribution<T> + Sized {
     /// Create a random array with values from this distribution
     fn random_array<U, Sh>(&self, rng: &mut Random<U>, shape: Sh) -> Array<T, IxDyn>
     where
-        U: Rng,
+        U: rand::Rng,
         Sh: Into<IxDyn>,
         Self: Copy,
     {
@@ -209,7 +254,7 @@ pub trait DistributionExt<T>: Distribution<T> + Sized {
     /// Create a random vector with values from this distribution
     fn random_vec<U>(&self, rng: &mut Random<U>, size: usize) -> Vec<T>
     where
-        U: Rng,
+        U: rand::Rng,
         Self: Copy,
     {
         rng.sample_vec(*self, size)
@@ -225,38 +270,38 @@ pub mod sampling {
     use rand_distr as rdistr;
 
     /// Sample uniformly from [0, 1)
-    pub fn random_uniform01<R: Rng>(rng: &mut Random<R>) -> f64 {
+    pub fn random_uniform01<R: rand::Rng>(rng: &mut Random<R>) -> f64 {
         Uniform::new(0.0_f64, 1.0_f64).unwrap().sample(&mut rng.rng)
     }
 
     /// Sample from a standard normal distribution (mean 0, std dev 1)
-    pub fn random_standard_normal<R: Rng>(rng: &mut Random<R>) -> f64 {
+    pub fn random_standard_normal<R: rand::Rng>(rng: &mut Random<R>) -> f64 {
         rdistr::Normal::new(0.0_f64, 1.0_f64)
             .unwrap()
             .sample(&mut rng.rng)
     }
 
     /// Sample from a normal distribution with given mean and standard deviation
-    pub fn random_normal<R: Rng>(rng: &mut Random<R>, mean: f64, stddev: f64) -> f64 {
+    pub fn random_normal<R: rand::Rng>(rng: &mut Random<R>, mean: f64, stddev: f64) -> f64 {
         rdistr::Normal::new(mean, stddev)
             .unwrap()
             .sample(&mut rng.rng)
     }
 
     /// Sample from a log-normal distribution
-    pub fn randomlognormal<R: Rng>(rng: &mut Random<R>, mean: f64, stddev: f64) -> f64 {
+    pub fn randomlognormal<R: rand::Rng>(rng: &mut Random<R>, mean: f64, stddev: f64) -> f64 {
         rdistr::LogNormal::new(mean, stddev)
             .unwrap()
             .sample(&mut rng.rng)
     }
 
     /// Sample from an exponential distribution
-    pub fn random_exponential<R: Rng>(rng: &mut Random<R>, lambda: f64) -> f64 {
+    pub fn random_exponential<R: rand::Rng>(rng: &mut Random<R>, lambda: f64) -> f64 {
         rdistr::Exp::new(lambda).unwrap().sample(&mut rng.rng)
     }
 
     /// Generate an array of random integers in a range
-    pub fn random_integers<R: Rng, Sh>(
+    pub fn random_integers<R: rand::Rng, Sh>(
         rng: &mut Random<R>,
         min: i64,
         max: i64,
@@ -269,7 +314,7 @@ pub mod sampling {
     }
 
     /// Generate an array of random floating-point values in a range
-    pub fn random_floats<R: Rng, Sh>(
+    pub fn random_floats<R: rand::Rng, Sh>(
         rng: &mut Random<R>,
         min: f64,
         max: f64,
@@ -282,7 +327,7 @@ pub mod sampling {
     }
 
     /// Sample indices for bootstrapping (sampling with replacement)
-    pub fn bootstrap_indices<R: Rng>(
+    pub fn bootstrap_indices<R: rand::Rng>(
         rng: &mut Random<R>,
         data_size: usize,
         sample_size: usize,
@@ -292,7 +337,7 @@ pub mod sampling {
     }
 
     /// Sample indices without replacement (for random subsampling)
-    pub fn sample_without_replacement<R: Rng>(
+    pub fn sample_without_replacement<R: rand::Rng>(
         rng: &mut Random<R>,
         data_size: usize,
         sample_size: usize,
@@ -517,12 +562,12 @@ pub mod quasi_monte_carlo {
 
     /// Latin Hypercube Sampling generator
     #[derive(Debug)]
-    pub struct LatinHypercubeSampling<R: Rng> {
+    pub struct LatinHypercubeSampling<R: rand::Rng> {
         dimensions: usize,
         rng: Random<R>,
     }
 
-    impl<R: Rng> LatinHypercubeSampling<R> {
+    impl<R: rand::Rng> LatinHypercubeSampling<R> {
         /// Create a new Latin Hypercube sampler
         pub fn dimensions(dimensions: usize, rng: Random<R>) -> Self {
             Self { dimensions, rng }
@@ -660,13 +705,13 @@ pub mod variance_reduction {
 
     /// Antithetic variate sampling for variance reduction
     #[derive(Debug)]
-    pub struct AntitheticSampling<R: Rng> {
+    pub struct AntitheticSampling<R: rand::Rng> {
         rng: Random<R>,
         #[allow(dead_code)]
         stored_samples: HashMap<usize, Vec<f64>>,
     }
 
-    impl<R: Rng> AntitheticSampling<R> {
+    impl<R: rand::Rng> AntitheticSampling<R> {
         /// Create a new antithetic sampling generator
         pub fn rng(rng: Random<R>) -> Self {
             Self {
@@ -782,11 +827,11 @@ pub mod importance_sampling {
 
     /// Importance sampling estimator
     #[derive(Debug)]
-    pub struct ImportanceSampler<R: Rng> {
+    pub struct ImportanceSampler<R: rand::Rng> {
         rng: Random<R>,
     }
 
-    impl<R: Rng> ImportanceSampler<R> {
+    impl<R: rand::Rng> ImportanceSampler<R> {
         /// Create a new importance sampler
         pub fn rng(rng: Random<R>) -> Self {
             Self { rng }
@@ -1078,7 +1123,7 @@ pub mod specialized_distributions {
         }
 
         /// Sample from the multivariate normal distribution
-        pub fn sample<R: Rng>(&self, rng: &mut Random<R>) -> Vec<f64> {
+        pub fn sample<R: rand::Rng>(&self, rng: &mut Random<R>) -> Vec<f64> {
             let standard_normal = Normal::new(0.0, 1.0).unwrap();
             let z: Vec<f64> = (0..self.dimensions)
                 .map(|_| rng.sample(standard_normal))
@@ -1097,7 +1142,7 @@ pub mod specialized_distributions {
         }
 
         /// Generate multiple samples
-        pub fn sample_array<R: Rng>(
+        pub fn sample_array<R: rand::Rng>(
             &self,
             rng: &mut Random<R>,
             count: usize,
@@ -1162,7 +1207,7 @@ pub mod specialized_distributions {
         }
 
         /// Sample from the Dirichlet distribution
-        pub fn sample<R: Rng>(&self, rng: &mut Random<R>) -> Vec<f64> {
+        pub fn sample<R: rand::Rng>(&self, rng: &mut Random<R>) -> Vec<f64> {
             let gamma_samples: Vec<f64> = self
                 .gamma_distributions
                 .iter()
@@ -1174,7 +1219,7 @@ pub mod specialized_distributions {
         }
 
         /// Generate multiple samples
-        pub fn sample_array<R: Rng>(
+        pub fn sample_array<R: rand::Rng>(
             &self,
             rng: &mut Random<R>,
             count: usize,
@@ -1264,7 +1309,7 @@ pub mod specialized_distributions {
         }
 
         /// Generate multiple samples
-        pub fn sample_vec<R: Rng>(&self, rng: &mut Random<R>, count: usize) -> Vec<f64> {
+        pub fn sample_vec<R: rand::Rng>(&self, rng: &mut Random<R>, count: usize) -> Vec<f64> {
             (0..count).map(|_| self.sample(rng)).collect()
         }
     }

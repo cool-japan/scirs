@@ -53,7 +53,7 @@ fn basic_validation_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a schema for user data
     let schema = ValidationSchema::new()
-        .name(\"user_profile\")
+        .name("user_profile")
         .require_field("username", DataType::String)
         .require_field("age", DataType::Integer)
         .require_field("email", DataType::String)
@@ -185,7 +185,7 @@ fn statistical_validation_example() -> Result<(), Box<dyn std::error::Error>> {
     let stats_constraints = StatisticalConstraints::new()
         .with_mean_range(20.0, 30.0)  // Expected temperature range
         .with_std_range(0.5, 5.0)     // Expected variability
-        .with_distribution(\"normal\"); // Expected distribution
+        .with_distribution("normal"); // Expected distribution
 
     let schema = ValidationSchema::new()
         .name("temperature_readings")
@@ -245,7 +245,7 @@ fn shape_validation_example() -> Result<(), Box<dyn std::error::Error>> {
         .require_square();
 
     let schema = ValidationSchema::new()
-        .name(correlationmatrix)
+        .name("correlation_matrix")
         .require_field(
             "matrix",
             DataType::Array(Box::new(DataType::Array(Box::new(DataType::Float64)))),

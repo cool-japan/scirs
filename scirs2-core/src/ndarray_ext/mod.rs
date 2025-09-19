@@ -7,9 +7,15 @@
 
 /// Re-export essential ndarray types for convenience
 pub use ndarray::{
-    Array, ArrayBase, ArrayView, ArrayViewMut, Axis, Dim, Dimension, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6,
-    IxDyn, OwnedRepr, ShapeBuilder, SliceInfo, ViewRepr,
+    Array, ArrayBase, ArrayView, ArrayViewMut, Axis, Data, DataMut, Dim, Dimension, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6,
+    IxDyn, OwnedRepr, RemoveAxis, ScalarOperand, ShapeBuilder, ShapeError, SliceInfo, ViewRepr, Zip, s,
 };
+
+// Re-export type aliases for common array sizes
+pub use ndarray::{Array0, Array1, Array2, Array3, Array4, Array5, Array6, ArrayD};
+pub use ndarray::{ArrayView0, ArrayView1, ArrayView2, ArrayView3, ArrayView4, ArrayView5, ArrayView6, ArrayViewD};
+pub use ndarray::{ArrayViewMut0, ArrayViewMut1, ArrayViewMut2, ArrayViewMut3, ArrayViewMut4, ArrayViewMut5, ArrayViewMut6, ArrayViewMutD};
+pub use ndarray::{ArcArray1, ArcArray2};
 
 /// Advanced indexing operations (`NumPy`-like boolean masking, fancy indexing, etc.)
 pub mod indexing;

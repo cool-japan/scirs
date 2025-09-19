@@ -23,6 +23,7 @@ cached = { workspace = true, optional = true }  # Memoization and caching
 chrono = { workspace = true, features = ["serde"] }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+ndarray-rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }  # Serialization
 serde_json = { workspace = true, optional = true }  # JSON serialization
 uuid = { workspace = true, features = ["serde"] }  # Used for unique identifiers
@@ -116,7 +117,6 @@ blas-src = { workspace = true, optional = true }
 approx = { workspace = true }
 criterion = { workspace = true }
 tempfile = { workspace = true }
-ndarray-rand = { workspace = true }
 
 [features]
 default = ["array", "serialization"]  # Enable array module by default
@@ -151,7 +151,7 @@ array = []  # Scientific array types (MaskedArray, RecordArray)
 memory_visualization = ["memory_metrics"]  # Memory usage visualization
 memory_call_stack = ["memory_metrics"]  # Capture call stacks for memory events
 profiling = ["num_cpus"]  # Performance profiling tools
-random = []  # Random number generation utilities
+random = ["dep:ndarray-rand"]  # Random number generation utilities with ndarray support
 types = []  # Type conversion utilities
 ufuncs = []  # Universal Functions (ufuncs) system
 testing = ["tempfile", "serde", "serde_json", "quickcheck"]  # Testing framework for production systems
