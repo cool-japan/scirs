@@ -5,6 +5,7 @@
 
 use crate::error::{SparseError, SparseResult};
 use num_traits::{Float, Zero};
+#[cfg(feature = "gpu")]
 use scirs2_core::GpuDataType;
 use std::cmp::PartialEq;
 
@@ -569,14 +570,7 @@ impl CsrMatrix<f64> {
 
 impl<T> CsrMatrix<T>
 where
-    T: num_traits::Float
-        + std::fmt::Debug
-        + Copy
-        + Default
-        + GpuDataType
-        + Send
-        + Sync
-        + 'static,
+    T: num_traits::Float + std::fmt::Debug + Copy + Default + GpuDataType + Send + Sync + 'static,
 {
     /// GPU-accelerated matrix-vector multiplication for generic floating-point types
     ///

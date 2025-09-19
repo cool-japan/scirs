@@ -316,7 +316,7 @@ impl<F: Float + FromPrimitive + Send + Sync> GpuDistanceMatrix<F> {
     }
 
     /// CPU fallback for distance matrix computation
-    fn compute_distance_matrix_cpu(&self, data: ArrayView2<F>) -> Result<Array2<F>> {
+    pub fn compute_distance_matrix_cpu(&self, data: ArrayView2<F>) -> Result<Array2<F>> {
         let n_samples = data.nrows();
         let mut result = Array2::zeros((n_samples, n_samples));
 

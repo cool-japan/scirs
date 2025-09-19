@@ -499,7 +499,13 @@ fn try_gamma_gpu_execution_enhanced<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<scirs2_core::gpu::GpuBackend>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign + Send + Sync + 'static,
+    F: num_traits::Float
+        + num_traits::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign
+        + Send
+        + Sync
+        + 'static,
 {
     use crate::gpu_context_manager::get_best_gpu_context;
     use scirs2_core::gpu::GpuBackend;
@@ -524,7 +530,9 @@ where
     };
 
     // For now, GPU operations only support f64. Fall back to CPU for other types.
-    return Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()));
+    return Err(SpecialError::GpuNotAvailable(
+        "GPU operations currently only support f64 type".to_string(),
+    ));
 
     Ok(backend_type)
 }
@@ -540,7 +548,9 @@ where
     F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
-    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
+    Err(SpecialError::GpuNotAvailable(
+        "GPU operations currently only support f64 type".to_string(),
+    ))
 }
 
 /// Try GPU execution for error function
@@ -554,7 +564,9 @@ where
     F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
-    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
+    Err(SpecialError::GpuNotAvailable(
+        "GPU operations currently only support f64 type".to_string(),
+    ))
 }
 
 /// Try GPU execution for digamma function
@@ -565,10 +577,21 @@ fn try_digamma_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static + std::fmt::Debug + std::ops::AddAssign + std::ops::SubAssign + std::ops::MulAssign + std::ops::DivAssign,
+    F: num_traits::Float
+        + num_traits::FromPrimitive
+        + Send
+        + Sync
+        + 'static
+        + std::fmt::Debug
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::MulAssign
+        + std::ops::DivAssign,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
-    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
+    Err(SpecialError::GpuNotAvailable(
+        "GPU operations currently only support f64 type".to_string(),
+    ))
 }
 
 /// Try GPU execution for log gamma function
@@ -579,10 +602,18 @@ fn try_log_gamma_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static + std::fmt::Debug + std::ops::AddAssign,
+    F: num_traits::Float
+        + num_traits::FromPrimitive
+        + Send
+        + Sync
+        + 'static
+        + std::fmt::Debug
+        + std::ops::AddAssign,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
-    Err(SpecialError::GpuNotAvailable("GPU operations currently only support f64 type".to_string()))
+    Err(SpecialError::GpuNotAvailable(
+        "GPU operations currently only support f64 type".to_string(),
+    ))
 }
 
 /// Helper function to create GPU context using the context manager
@@ -610,11 +641,7 @@ fn create_gpu_context() -> Result<Arc<GpuContext>, GpuError> {
 /// Helper function to create GPU buffer from slice with enhanced error handling
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
-fn create_gpu_buffer(
-    ctx: &GpuContext,
-    data: &[f64],
-) -> scirs2_core::gpu::GpuBuffer<f64>
-{
+fn create_gpu_buffer(ctx: &GpuContext, data: &[f64]) -> scirs2_core::gpu::GpuBuffer<f64> {
     ctx.create_buffer_from_slice(data)
 }
 
@@ -624,8 +651,7 @@ fn create_gpu_buffer(
 fn create_gpu_buffer_typed(
     ctx: &GpuContext,
     data: &[f64],
-) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-{
+) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>> {
     // Validate input data for NaN/infinity before GPU transfer
     for (i, &val) in data.iter().enumerate() {
         if !val.is_finite() {
@@ -685,7 +711,9 @@ fn create_compute_pipeline(
     _ctx: &GpuContext,
     _shader_source: &str,
 ) -> SpecialResult<scirs2_core::gpu::GpuKernelHandle> {
-    Err(SpecialError::ComputationError("GPU compute pipelines not yet supported in scirs2-core".to_string()))
+    Err(SpecialError::ComputationError(
+        "GPU compute pipelines not yet supported in scirs2-core".to_string(),
+    ))
 }
 
 /// Helper function to execute compute shader
@@ -698,7 +726,9 @@ fn execute_compute_shader(
     _output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
     _array_len: usize,
 ) -> SpecialResult<()> {
-    Err(SpecialError::ComputationError("GPU compute shader execution not yet supported in scirs2-core".to_string()))
+    Err(SpecialError::ComputationError(
+        "GPU compute shader execution not yet supported in scirs2-core".to_string(),
+    ))
 }
 
 /// Enhanced compute shader execution with performance monitoring and validation
@@ -711,7 +741,9 @@ fn execute_compute_shader_enhanced(
     _output_buffer: &scirs2_core::gpu::GpuBuffer<f64>,
     _array_len: usize,
 ) -> SpecialResult<()> {
-    Err(SpecialError::ComputationError("Enhanced GPU compute shader execution not yet supported in scirs2-core".to_string()))
+    Err(SpecialError::ComputationError(
+        "Enhanced GPU compute shader execution not yet supported in scirs2-core".to_string(),
+    ))
 }
 
 /// Helper function to read GPU buffer to array
@@ -802,8 +834,7 @@ fn get_buffer_cache() -> &'static GpuBufferCache {
 fn create_gpu_buffer_with_caching(
     ctx: &GpuContext,
     data: &[f64],
-) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>>
-{
+) -> SpecialResult<scirs2_core::gpu::GpuBuffer<f64>> {
     let cache_key = (data.len(), 0); // Simple cache key based on size
     let cache = get_buffer_cache();
 
@@ -837,10 +868,7 @@ fn create_gpu_buffer_with_caching(
     }
 
     #[cfg(feature = "gpu")]
-    log::debug!(
-        "Created new input buffer for {} elements",
-        data.len()
-    );
+    log::debug!("Created new input buffer for {} elements", data.len());
 
     Ok(buffer)
 }
@@ -851,8 +879,7 @@ fn create_gpu_buffer_with_caching(
 fn create_empty_gpu_buffer_with_caching(
     ctx: &GpuContext,
     size: usize,
-) -> scirs2_core::gpu::GpuBuffer<f64>
-{
+) -> scirs2_core::gpu::GpuBuffer<f64> {
     let cache_key = (size, 0); // Simple cache key
     let cache = get_buffer_cache();
 
@@ -861,7 +888,10 @@ fn create_empty_gpu_buffer_with_caching(
         let output_buffers = cache.output_buffers.lock().unwrap();
         if let Some(_buffer) = output_buffers.get(&cache_key) {
             #[cfg(feature = "gpu")]
-            log::debug!("Creating new output buffer (cached size) for {} elements", size);
+            log::debug!(
+                "Creating new output buffer (cached size) for {} elements",
+                size
+            );
             // Create a new buffer with the same size since GpuBuffer doesn't support cloning
             return ctx.create_buffer::<f64>(size);
         }

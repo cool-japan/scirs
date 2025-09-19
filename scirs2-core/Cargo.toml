@@ -74,8 +74,8 @@ async-trait = { workspace = true, optional = true }  # For object-safe async tra
 
 # GPU backend dependencies
 # Note: metal and objc2-metal-performance-shaders are macOS-specific, moved to target-specific section
-cudarc = { workspace = true, optional = true, features = ["cuda-12000"] }  # CUDA runtime
-opencl3 = { workspace = true, optional = true }  # OpenCL runtime  
+# Note: cudarc is only available on x86_64 Linux and Windows, moved to target-specific section
+opencl3 = { workspace = true, optional = true }  # OpenCL runtime
 wgpu = { workspace = true, optional = true }  # WebGPU runtime
 pollster = { workspace = true, optional = true }  # Async runtime for WebGPU
 
@@ -113,6 +113,10 @@ blas-src = { workspace = true, optional = true }
 openblas-src = { workspace = true, optional = true }
 blas-src = { workspace = true, optional = true }
 
+# CUDA support - only available on x86_64 Linux and Windows
+[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))'.dependencies]
+cudarc = { workspace = true, optional = true }  # CUDA runtime
+
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
@@ -128,11 +132,12 @@ cross_platform = ["libc", "sysinfo"]  # Cross-platform validation and compatibil
 logging = ["log"]  # Structured logging and diagnostics
 async = ["tokio", "async-trait"]  # Async error handling and recovery mechanisms
 gpu = []  # GPU acceleration abstractions
-cuda = ["gpu", "dep:cudarc"]  # CUDA-specific GPU acceleration
 opencl = ["gpu", "dep:opencl3"]  # OpenCL-specific GPU acceleration
 metal = ["gpu", "dep:metal", "dep:objc2", "dep:objc2-foundation", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple)
 wgpu_backend = ["gpu", "dep:wgpu", "dep:pollster"]  # WebGPU-specific GPU acceleration
 rocm = ["gpu"]  # ROCm-specific GPU acceleration (AMD)
+# CUDA feature is platform-conditional - only works on x86_64 Linux and Windows
+cuda = ["gpu"]  # CUDA-specific GPU acceleration (platform-conditional)
 memory_management = ["bincode", "tempfile"]  # Advanced memory management
 memory_efficient = ["tempfile", "bincode", "memmap2", "rayon"]  # Memory-efficient operations
 memory_efficient_all_types = ["memory_efficient", "float32", "float64", "all_ints"]  # Full type support for memory-efficient operations

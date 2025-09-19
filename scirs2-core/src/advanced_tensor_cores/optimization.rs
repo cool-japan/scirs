@@ -986,7 +986,7 @@ impl QuantumInspiredOptimizer {
     fn calculate_quantum_uncertainty(&self, gradient: &[f64]) -> CoreResult<f64> {
         let mut uncertainty = 0.0;
 
-        for (_, &grad) in gradient.iter().enumerate() {
+        for &grad in gradient.iter() {
             if let Some(&amplitude) = self.quantum_state.amplitudes.first() {
                 // Heisenberg-like uncertainty relation
                 uncertainty += amplitude.abs() * grad.abs() * 0.1;

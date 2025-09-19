@@ -699,9 +699,7 @@ impl HDF5File {
             }
             _ => {
                 // Fallback: treat as string
-                let value: String = attr
-                    .read_scalar()
-                    .unwrap_or_else(|_| "unknown".to_string());
+                let value: String = attr.read_scalar().unwrap_or_else(|_| "unknown".to_string());
                 Ok(AttributeValue::String(value))
             }
         }
@@ -893,8 +891,7 @@ impl HDF5File {
             if let Some(ref file) = self.native_file {
                 // For HDF5, writing happens automatically when datasets are created
                 // So we just need to flush any pending operations
-                file
-                    .flush()
+                file.flush()
                     .map_err(|e| IoError::FormatError(format!("Failed to flush HDF5 file: {e}")))?;
             }
         }
@@ -1052,8 +1049,9 @@ impl HDF5File {
             let mut current_group = &mut self.root;
 
             for &group_name in &parts {
-                current_group = current_group.groups.get_mut(group_name)
-                    .ok_or_else(|| IoError::FormatError(format!("Group '{}' not found", group_name)))?;
+                current_group = current_group.groups.get_mut(group_name).ok_or_else(|| {
+                    IoError::FormatError(format!("Group '{}' not found", group_name))
+                })?;
             }
             current_group.set_attribute(key, value);
         }
@@ -1070,8 +1068,9 @@ impl HDF5File {
             let mut current_group = &self.root;
 
             for &group_name in &parts {
-                current_group = current_group.groups.get(group_name)
-                    .ok_or_else(|| IoError::FormatError(format!("Group '{}' not found", group_name)))?;
+                current_group = current_group.groups.get(group_name).ok_or_else(|| {
+                    IoError::FormatError(format!("Group '{}' not found", group_name))
+                })?;
             }
             Ok(current_group.get_attribute(key))
         }

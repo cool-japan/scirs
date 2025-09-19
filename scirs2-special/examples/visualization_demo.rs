@@ -85,8 +85,14 @@ fn create_custom_plot() -> Result<(), Box<dyn std::error::Error>> {
     MultiPlot::new(config)
         .add_function(Box::new(|x| ai(x)), "Airy Ai(x)")
         .add_function(Box::new(|x| bi(x)), "Airy Bi(x)")
-        .add_function(Box::new(|x| si(x).unwrap_or(f64::NAN)), "Sine integral Si(x)")
-        .add_function(Box::new(|x| ci(x).unwrap_or(f64::NAN)), "Cosine integral Ci(x)")
+        .add_function(
+            Box::new(|x| si(x).unwrap_or(f64::NAN)),
+            "Sine integral Si(x)",
+        )
+        .add_function(
+            Box::new(|x| ci(x).unwrap_or(f64::NAN)),
+            "Cosine integral Ci(x)",
+        )
         .set_x_range(-5.0, 5.0)
         .plot("plots/custom_special_functions.png")
 }

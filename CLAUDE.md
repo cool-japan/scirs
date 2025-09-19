@@ -53,6 +53,22 @@ When implementing SciPy-compatible functionality, directly read these source fil
 - Performance benchmarks for critical operations
 - DOC tests for all public APIs
 
+### PyTorch Compatibility (scirs2-transform)
+**Known Issue**: The `auto-feature-engineering` feature in scirs2-transform requires PyTorch 2.0.0 but may conflict with newer PyTorch versions (2.5+).
+
+**Current Workaround**:
+```bash
+# Run tests excluding auto-feature-engineering
+cargo nextest run --nff --features simd,gpu,distributed,monitoring
+
+# To use auto-feature-engineering feature:
+# 1. Install PyTorch 2.0.0, OR
+# 2. Set environment variables:
+#    LIBTORCH_USE_PYTORCH=1 LIBTORCH_BYPASS_VERSION_CHECK=1
+```
+
+**Status**: Main functionality works without the auto-feature-engineering feature. Full PyTorch integration requires compatible PyTorch version or environment variable workarounds.
+
 ### API Updates
 - rand 0.9.x: Update API calls (gen_range → random_range, thread_rng → rng)
 - Maintain SciPy API compatibility where reasonable

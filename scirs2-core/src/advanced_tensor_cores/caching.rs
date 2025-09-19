@@ -867,6 +867,12 @@ impl CacheOptimizer {
     }
 }
 
+impl Default for AccessPatternAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccessPatternAnalyzer {
     pub fn new() -> Self {
         Self {

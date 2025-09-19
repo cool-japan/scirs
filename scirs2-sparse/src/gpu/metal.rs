@@ -150,7 +150,7 @@ kernel void spmv_csr_neural_engine_prep_kernel(
 "#;
 
 /// Metal sparse matrix operations
-#[derive(Debug, Clone)]
+#[derive()]
 pub struct MetalSpMatVec {
     kernel_handle: Option<super::GpuKernelHandle>,
     simdgroup_kernel: Option<super::GpuKernelHandle>,
@@ -472,7 +472,7 @@ impl Default for MetalOptimizationLevel {
 }
 
 /// Metal device information for optimization
-#[derive(Debug, Clone)]
+#[derive()]
 pub struct MetalDeviceInfo {
     pub max_threadgroup_size: usize,
     pub shared_memory_size: usize,
@@ -543,7 +543,7 @@ impl MetalMemoryManager {
         device: &super::GpuDevice,
     ) -> Result<MetalMatrixBuffers<T>, super::GpuError>
     where
-        T: super::GpuDataType + Copy,
+        T: super::GpuDataType + Copy + Float + Debug,
     {
         // Use Metal's unified memory architecture efficiently
         let storage_mode = if self.device_info.is_apple_silicon {

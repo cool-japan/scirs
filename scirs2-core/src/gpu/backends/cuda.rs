@@ -8,32 +8,80 @@ use std::sync::{Arc, Mutex};
 
 use crate::gpu::{GpuBufferImpl, GpuCompilerImpl, GpuContextImpl, GpuError, GpuKernelImpl};
 
-#[cfg(feature = "cuda")]
+#[cfg(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+))]
 use cudarc::driver::sys::{CUcontext, CUdevice, CUdeviceptr};
-#[cfg(feature = "cuda")]
+#[cfg(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+))]
 use cudarc::driver::{CudaDevice, DevicePtr};
-#[cfg(feature = "cuda")]
+#[cfg(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+))]
 use cudarc::nvrtc::Ptx;
 
 // CUDA API types - use real CUDA when available, fallback types otherwise
-#[cfg(feature = "cuda")]
+#[cfg(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+))]
 type CudaDeviceHandle = Arc<CudaDevice>;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CudaDeviceHandle = i32;
 
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUdevice = i32;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUcontext = *mut c_void;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUmodule = *mut c_void;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUfunction = *mut c_void;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type Ptx = String;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUdeviceptr = u64;
-#[cfg(not(feature = "cuda"))]
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
 type CUresult = i32;
 
 #[cfg(not(feature = "cuda"))]
@@ -174,13 +222,39 @@ extern "C" __global__ void lamb_update_f32(
 }
 "#;
 
+// Define a constant for CUDA platform support
+#[cfg(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+))]
+const CUDA_PLATFORM_SUPPORTED: bool = true;
+#[cfg(not(all(
+    feature = "cuda",
+    target_arch = "x86_64",
+    any(target_os = "linux", target_os = "windows")
+)))]
+const CUDA_PLATFORM_SUPPORTED: bool = false;
+
 /// CUDA context wrapper
 pub struct CudaContext {
-    #[cfg(feature = "cuda")]
+    #[cfg(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    ))]
     device: CudaDeviceHandle,
-    #[cfg(not(feature = "cuda"))]
+    #[cfg(not(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    )))]
     device: CUdevice,
-    #[cfg(not(feature = "cuda"))]
+    #[cfg(not(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    )))]
     context: CUcontext,
     compiled_kernels: Arc<Mutex<HashMap<String, CudaKernel>>>,
     memory_pool: Arc<Mutex<CudaMemoryPool>>,
@@ -193,7 +267,11 @@ unsafe impl Sync for CudaContext {}
 impl CudaContext {
     /// Create a new CUDA context
     pub fn new() -> Result<Self, GpuError> {
-        #[cfg(feature = "cuda")]
+        #[cfg(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        ))]
         {
             // Real CUDA implementation
             let device = CudaDevice::new(0)
@@ -205,7 +283,11 @@ impl CudaContext {
                 memory_pool: Arc::new(Mutex::new(CudaMemoryPool::new(1024 * 1024 * 1024))), // 1GB pool
             })
         }
-        #[cfg(not(feature = "cuda"))]
+        #[cfg(not(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        )))]
         {
             // Fallback implementation
             let device = Self::initialize_cuda()?;
@@ -266,7 +348,11 @@ impl CudaContext {
 
     /// Check if CUDA is available and working
     pub fn is_available() -> bool {
-        #[cfg(feature = "cuda")]
+        #[cfg(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        ))]
         {
             // Use panic::catch_unwind to handle dynamic library loading failures
             use std::panic;
@@ -284,7 +370,11 @@ impl CudaContext {
                 Err(_) => false, // If it panicked (e.g., library not found), CUDA is not available
             }
         }
-        #[cfg(not(feature = "cuda"))]
+        #[cfg(not(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        )))]
         {
             // Fallback: return false since we don't have real CUDA
             false
@@ -323,7 +413,11 @@ impl CudaContext {
     /// Compile CUDA source to PTX using nvrtc
     #[allow(dead_code)]
     fn compile_to_ptx(source: &str, name: &str) -> Result<Ptx, GpuError> {
-        #[cfg(feature = "cuda")]
+        #[cfg(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        ))]
         {
             // Real NVRTC implementation
             use cudarc::nvrtc::compile_ptx;
@@ -331,7 +425,11 @@ impl CudaContext {
             compile_ptx(source)
                 .map_err(|e| GpuError::Other(format!("NVRTC compilation failed for {name}: {e}")))
         }
-        #[cfg(not(feature = "cuda"))]
+        #[cfg(not(all(
+            feature = "cuda",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "windows")
+        )))]
         {
             // Fallback implementation - return mock PTX
             let ptx_str = format!(
@@ -375,7 +473,11 @@ impl CudaContext {
     }
 
     /// Allocate device memory
-    #[cfg(feature = "cuda")]
+    #[cfg(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    ))]
     pub fn allocate_device_memory(&self, size: usize) -> Result<u64, GpuError> {
         let buffer = self
             .device
@@ -385,21 +487,33 @@ impl CudaContext {
     }
 
     /// Allocate device memory (fallback)
-    #[cfg(not(feature = "cuda"))]
-    pub fn allocate_device_memory_2(&self, size: usize) -> Result<CUdeviceptr, GpuError> {
+    #[cfg(not(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    )))]
+    pub fn allocate_device_memory(&self, size: usize) -> Result<CUdeviceptr, GpuError> {
         // Fallback implementation: return a simulated device pointer
         Ok(0x1000 + size as CUdeviceptr) // Simulate unique device addresses
     }
 
     /// Free device memory
-    #[cfg(feature = "cuda")]
+    #[cfg(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    ))]
     pub fn free_device_memory(&self, ptr: u64) -> Result<(), GpuError> {
         // DevicePtr automatically deallocates when dropped
         Ok(())
     }
 
     /// Free device memory (fallback)
-    #[cfg(not(feature = "cuda"))]
+    #[cfg(not(all(
+        feature = "cuda",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "windows")
+    )))]
     pub fn free_device_memory(&self, ptr: CUdeviceptr) -> Result<(), GpuError> {
         // Fallback implementation: just validate pointer
         if ptr == 0 {

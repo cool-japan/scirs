@@ -112,6 +112,9 @@ pub enum Metric {
     /// Maximum distance (L∞ norm)
     Chebyshev,
 
+    /// Cosine distance (1 - cosine similarity)
+    Cosine,
+
     /// Correlation distance (1 - correlation)
     Correlation,
 }
@@ -171,6 +174,31 @@ fn compute_distances<F: Float + FromPrimitive>(data: ArrayView2<F>, metric: Metr
                         }
                     }
                     max_diff
+                }
+                Metric::Cosine => {
+                    // Cosine distance
+                    // Formula: 1 - cosine similarity
+                    let mut dot_product = F::zero();
+                    let mut norm_i = F::zero();
+                    let mut norm_j = F::zero();
+
+                    for k in 0..n_features {
+                        let val_i = data[[i, k]];
+                        let val_j = data[[j, k]];
+
+                        dot_product = dot_product + val_i * val_j;
+                        norm_i = norm_i + val_i * val_i;
+                        norm_j = norm_j + val_j * val_j;
+                    }
+
+                    let norm_product = (norm_i * norm_j).sqrt();
+
+                    if norm_product < F::from_f64(1e-10).unwrap() {
+                        // If either vector is zero, distance is 1
+                        F::one()
+                    } else {
+                        F::one() - (dot_product / norm_product)
+                    }
                 }
                 Metric::Correlation => {
                     // Correlation distance

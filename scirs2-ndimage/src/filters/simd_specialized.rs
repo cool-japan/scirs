@@ -163,7 +163,8 @@ where
 
                 // Square differences
                 let range_diffs_array = Array1::from_vec(range_diffs.clone());
-                let range_diffs_sq = T::simd_mul(&range_diffs_array.view(), &range_diffs_array.view());
+                let range_diffs_sq =
+                    T::simd_mul(&range_diffs_array.view(), &range_diffs_array.view());
 
                 // Apply range factor
                 let mut range_exp_args = vec![T::zero(); simd_width];
@@ -652,7 +653,14 @@ pub fn simd_guided_filter<T>(
     epsilon: T,
 ) -> NdimageResult<Array<T, Ix2>>
 where
-    T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + ndarray::ScalarOperand,
+    T: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + Send
+        + Sync
+        + SimdUnifiedOps
+        + ndarray::ScalarOperand,
 {
     let (height, width) = input.dim();
     if guide.dim() != (height, width) {

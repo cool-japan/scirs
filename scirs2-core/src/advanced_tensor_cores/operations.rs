@@ -242,7 +242,7 @@ pub enum AllocationStrategy {
 
 /// Resource utilization tracking
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ResourceUtilization {
     /// Compute utilization
     pub compute_utilization: HashMap<GpuBackend, f64>,
@@ -976,7 +976,7 @@ impl PriorityManager {
             let adjustment_record = PriorityAdjustment {
                 task_id: task_id.to_string(),
                 old_priority,
-                new_priority: (old_priority as i16 + adjustment as i16).max(0).min(255) as u8,
+                new_priority: (old_priority as i16 + adjustment as i16).clamp(0, 255) as u8,
                 reason,
                 timestamp: Instant::now(),
             };
@@ -1006,17 +1006,6 @@ impl Default for ResourceRequirements {
             bandwidth_gbps: 10.0,
             energy_budget_joules: 100.0,
             max_latency_ms: 100.0,
-        }
-    }
-}
-
-impl Default for ResourceUtilization {
-    fn default() -> Self {
-        Self {
-            compute_utilization: HashMap::new(),
-            memory_utilization: HashMap::new(),
-            bandwidth_utilization: HashMap::new(),
-            power_utilization: HashMap::new(),
         }
     }
 }

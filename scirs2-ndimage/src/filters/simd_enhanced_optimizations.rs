@@ -4,8 +4,8 @@
 //! were not yet optimized or can benefit from additional vectorization techniques.
 
 use ndarray::{
-    s, Array, Array1, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Dimension,
-    Ix2, Zip,
+    s, Array, Array1, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
+    Dimension, Ix2, Zip,
 };
 use num_traits::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
@@ -71,7 +71,10 @@ where
                     let diff = T::simd_sub(&neighbor_array.view(), &center_array.view());
 
                     // Create binary mask (1 if neighbor >= center, 0 otherwise)
-                    let comparisons: Vec<u32> = diff.iter().map(|&d| if d >= T::zero() { 1 } else { 0 }).collect();
+                    let comparisons: Vec<u32> = diff
+                        .iter()
+                        .map(|&d| if d >= T::zero() { 1 } else { 0 })
+                        .collect();
 
                     // Update LBP codes
                     for i in 0..simd_width {
@@ -160,7 +163,8 @@ where
         let sum_squares = T::simd_add(&gx_squared.view(), &gy_squared.view());
         let magnitudes = T::simd_sqrt(&sum_squares.view());
 
-        output_flat[start_idx..start_idx + simd_width].copy_from_slice(magnitudes.as_slice().unwrap());
+        output_flat[start_idx..start_idx + simd_width]
+            .copy_from_slice(magnitudes.as_slice().unwrap());
     }
 
     // Handle remaining elements
@@ -392,13 +396,15 @@ where
                         MorphologicalOperation::Erosion => {
                             let result_array = Array1::from_vec(result_values.clone());
                             let neighbor_array = Array1::from_vec(neighbor_values.clone());
-                            let result_simd = T::simd_min(&result_array.view(), &neighbor_array.view());
+                            let result_simd =
+                                T::simd_min(&result_array.view(), &neighbor_array.view());
                             result_values = result_simd.to_vec();
                         }
                         MorphologicalOperation::Dilation => {
                             let result_array = Array1::from_vec(result_values.clone());
                             let neighbor_array = Array1::from_vec(neighbor_values.clone());
-                            let result_simd = T::simd_max(&result_array.view(), &neighbor_array.view());
+                            let result_simd =
+                                T::simd_max(&result_array.view(), &neighbor_array.view());
                             result_values = result_simd.to_vec();
                         }
                     }

@@ -6,11 +6,9 @@
 #![allow(dead_code)]
 
 #[allow(unused_imports)]
-use crate::gpu_ops::{
-    GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle,
-};
-use scirs2_core::GpuDataType;
+use crate::gpu_ops::{GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle};
 use num_traits::Float;
+use scirs2_core::GpuDataType;
 use std::fmt::Debug;
 
 /// High-performance GPU kernel configuration
@@ -973,17 +971,11 @@ impl GpuMemoryManager {
 
         let buffer = match self.device.backend() {
             #[cfg(feature = "gpu")]
-            GpuBackend::Cuda => {
-                self.transfer_data_cuda_optimized(host_data, transfer_size)
-            }
+            GpuBackend::Cuda => self.transfer_data_cuda_optimized(host_data, transfer_size),
             #[cfg(feature = "gpu")]
-            GpuBackend::OpenCL => {
-                self.transfer_data_opencl_optimized(host_data, transfer_size)
-            }
+            GpuBackend::OpenCL => self.transfer_data_opencl_optimized(host_data, transfer_size),
             #[cfg(feature = "gpu")]
-            GpuBackend::Metal => {
-                self.transfer_data_metal_optimized(host_data, transfer_size)
-            }
+            GpuBackend::Metal => self.transfer_data_metal_optimized(host_data, transfer_size),
             _ => {
                 // Standard transfer for CPU or when GPU not available
                 self.device.create_buffer(host_data)

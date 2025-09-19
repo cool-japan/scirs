@@ -17,6 +17,25 @@ pub use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext, GpuDataType, GpuKe
 pub use scirs2_core::GpuError;
 
 // Fallback types when GPU feature is not enabled
+
+// Fallback trait for GpuDataType when GPU feature is not enabled
+#[cfg(not(feature = "gpu"))]
+pub trait GpuDataType: Copy + Send + Sync + 'static {}
+
+// Implement GpuDataType for common numeric types
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for f32 {}
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for f64 {}
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for i32 {}
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for i64 {}
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for u32 {}
+#[cfg(not(feature = "gpu"))]
+impl GpuDataType for u64 {}
+
 #[cfg(not(feature = "gpu"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GpuBackend {
@@ -190,6 +209,8 @@ use ndarray::{Array1, ArrayView1};
 use num_traits::Float;
 use std::fmt::Debug;
 
+// GpuDataType is already defined above in this module
+
 /// GPU sparse matrix-vector multiplication (legacy interface)
 ///
 /// This function provides backward compatibility with the original API.
@@ -259,7 +280,7 @@ pub struct SpMVKernel {
 
 impl SpMVKernel {
     pub fn new(_device: &GpuDevice, _workgroupsize: [u32; 3]) -> Result<Self, GpuError> {
-        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::Other(format!("{:?}", e)))?;
+        let gpu_handler = GpuSpMatVec::new().map_err(|e| GpuError::other(format!("{:?}", e)))?;
         Ok(Self { gpu_handler })
     }
 
@@ -274,7 +295,7 @@ impl SpMVKernel {
     {
         self.gpu_handler
             .spmv(matrix, vector, Some(device))
-            .map_err(|e| GpuError::Other(format!("{:?}", e)))
+            .map_err(|e| GpuError::other(format!("{:?}", e)))
     }
 }
 
@@ -294,7 +315,7 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
         if range.end <= full_data.len() {
             Ok(full_data[range].to_vec())
         } else {
-            Err(GpuError::InvalidParameter(
+            Err(GpuError::invalid_parameter(
                 "Range out of bounds".to_string(),
             ))
         }

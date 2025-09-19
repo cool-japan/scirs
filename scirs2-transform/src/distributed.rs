@@ -412,10 +412,7 @@ impl DistributedCoordinator {
     async fn execute_transform_task(data: &[u8], params: &[u8]) -> Result<Vec<u8>> {
         // Deserialize input data and parameters
         let input_data: Vec<f64> = bincode::deserialize(data).map_err(|e| {
-            TransformError::DistributedError(format!(
-                "Failed to deserialize transform data: {}",
-                e
-            ))
+            TransformError::DistributedError(format!("Failed to deserialize transform data: {}", e))
         })?;
 
         let fit_params: Vec<f64> = bincode::deserialize(params).map_err(|e| {
@@ -703,7 +700,7 @@ impl DistributedPCA {
 
     /// Partition data for distributed processing using intelligent strategies
     async fn partition_data(&self, x: &ArrayView2<'_, f64>) -> Result<Vec<Vec<Vec<f64>>>> {
-        let (_n_samples_n_features) = x.dim();
+        let _n_samples_n_features = x.dim();
         let nodes = self.coordinator.nodes.read().await;
 
         match &self.coordinator.config.partitioning_strategy {
@@ -1124,7 +1121,7 @@ impl CircuitBreaker {
             failure_count: 0,
             success_threshold,
             success_count: 0,
-            timeout_seconds: timeout_seconds,
+            timeout_seconds,
             last_failure_timestamp: 0,
         }
     }
@@ -1597,7 +1594,7 @@ impl EnhancedDistributedCoordinator {
                 NodeStatus::Failed => failed_nodes += 1,
                 NodeStatus::Overloaded => failed_nodes += 1, // Count as failed for metrics
                 NodeStatus::Draining => degraded_nodes += 1, // Count as degraded
-                NodeStatus::Disabled => failed_nodes += 1, // Count as failed
+                NodeStatus::Disabled => failed_nodes += 1,   // Count as failed
             }
 
             total_cpu_utilization += health.cpu_utilization;

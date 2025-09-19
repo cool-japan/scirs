@@ -538,8 +538,8 @@ impl eframe::App for InteractiveClusteringApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(ref plot) = self.scatter_plot_2d {
-                self.draw_scatterplot(ui, plot);
+            if let Some(plot) = self.scatter_plot_2d.clone() {
+                self.draw_scatterplot(ui, &plot);
             } else {
                 ui.centered_and_justified(|ui| {
                     ui.label("No clustering data available");
@@ -672,11 +672,13 @@ pub fn save_dendrogram_plot<P: AsRef<Path>>(
     dendrogram_config: Option<&DendrogramConfig<f64>>,
     output_config: Option<&PlotOutput>,
 ) -> Result<()> {
-    let dend_config = dendrogram_config.unwrap_or(&DendrogramConfig::default());
-    let out_config = output_config.unwrap_or(&PlotOutput::default());
+    let default_dend_config = DendrogramConfig::default();
+    let default_out_config = PlotOutput::default();
+    let dend_config = dendrogram_config.unwrap_or(&default_dend_config);
+    let out_config = output_config.unwrap_or(&default_out_config);
 
     // Create dendrogram plot data
-    let dendrogram_plot = create_dendrogram_plot(linkage_matrix, labels, dend_config.clone())?;
+    let dendrogram_plot = create_dendrogramplot(linkage_matrix, labels, dend_config.clone())?;
 
     #[cfg(feature = "plotters")]
     {
@@ -914,8 +916,10 @@ pub fn save_clustering_plot<P: AsRef<Path>>(
     config: Option<&VisualizationConfig>,
     output_config: Option<&PlotOutput>,
 ) -> Result<()> {
-    let vis_config = config.unwrap_or(&VisualizationConfig::default());
-    let out_config = output_config.unwrap_or(&PlotOutput::default());
+    let default_vis_config = VisualizationConfig::default();
+    let default_out_config = PlotOutput::default();
+    let vis_config = config.unwrap_or(&default_vis_config);
+    let out_config = output_config.unwrap_or(&default_out_config);
 
     // Create scatter plot data
     let scatter_plot =
@@ -946,8 +950,10 @@ pub fn save_clustering_plot_3d<P: AsRef<Path>>(
     config: Option<&VisualizationConfig>,
     output_config: Option<&PlotOutput>,
 ) -> Result<()> {
-    let vis_config = config.unwrap_or(&VisualizationConfig::default());
-    let out_config = output_config.unwrap_or(&PlotOutput::default());
+    let default_vis_config = VisualizationConfig::default();
+    let default_out_config = PlotOutput::default();
+    let vis_config = config.unwrap_or(&default_vis_config);
+    let out_config = output_config.unwrap_or(&default_out_config);
 
     // Create 3D scatter plot data
     let scatter_plot =
@@ -977,7 +983,8 @@ pub fn launch_interactive_visualization(
     centroids: Option<&Array2<f64>>,
     config: Option<&VisualizationConfig>,
 ) -> Result<()> {
-    let vis_config = config.unwrap_or(&VisualizationConfig::default());
+    let default_vis_config = VisualizationConfig::default();
+    let vis_config = config.unwrap_or(&default_vis_config);
 
     // Create scatter plot data
     let scatter_plot =

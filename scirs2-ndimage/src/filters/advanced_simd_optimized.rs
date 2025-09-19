@@ -79,7 +79,6 @@ where
     Ok(output)
 }
 
-
 /// Highly optimized vertical convolution for a single column
 #[allow(dead_code)]
 fn advanced_simd_vertical_convolution_column<T>(

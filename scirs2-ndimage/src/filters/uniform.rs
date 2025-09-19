@@ -3,7 +3,7 @@
 //! This module provides functions for applying uniform filters (also known as box filters)
 //! to n-dimensional arrays.
 
-use ndarray::{s, Array, Array1, Array2, Dimension, IxDyn, IxDynImpl, Dim, NdIndex};
+use ndarray::{s, Array, Array1, Array2, Dim, Dimension, IxDyn, IxDynImpl, NdIndex};
 use num_traits::{Float, FromPrimitive};
 use scirs2_core::validation::{check_1d, check_2d, check_positive};
 use std::fmt::Debug;
@@ -756,7 +756,8 @@ fn uniform_filter_nd_parallel<T, D>(
 ) -> NdimageResult<Array<T, D>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + Send + Sync,
-    D: Dimension + 'static, Dim<IxDynImpl>: NdIndex<D>,
+    D: Dimension + 'static,
+    Dim<IxDynImpl>: NdIndex<D>,
 {
     use scirs2_core::parallel_ops::*;
 

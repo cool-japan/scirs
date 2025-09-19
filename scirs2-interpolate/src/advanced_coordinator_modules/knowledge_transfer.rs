@@ -550,8 +550,7 @@ impl<F: Float> TransferLearningModel<F> {
                 confidence: *confidence,
                 reasoning: format!(
                     "Method {:?} showed good performance in source domain {}",
-                    method,
-                    source_domain
+                    method, source_domain
                 ),
                 estimated_improvement: confidence * 0.2,
             });

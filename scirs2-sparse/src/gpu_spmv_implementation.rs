@@ -5,8 +5,8 @@
 
 use crate::error::{SparseError, SparseResult};
 use num_traits::{Float, NumAssign};
-use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::gpu::{GpuBackend, GpuContext, GpuDataType};
+use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
 /// Enhanced GPU-accelerated Sparse Matrix-Vector multiplication implementation
@@ -178,8 +178,8 @@ impl GpuSpMV {
             let mut y_buffer = self.context.create_buffer::<T>(rows);
 
             // Use unified GPU interface
-            use crate::gpu::GpuSpMatVec;
             use crate::csr_array::CsrArray;
+            use crate::gpu::GpuSpMatVec;
 
             // Create CSR matrix from components for unified interface
             let csr_matrix = CsrArray::new(
@@ -228,8 +228,8 @@ impl GpuSpMV {
             use crate::gpu_ops::{GpuBufferExt, SpMVKernel};
 
             // Use unified GPU interface instead of low-level OpenCL
-            use crate::gpu::GpuSpMatVec;
             use crate::csr_array::CsrArray;
+            use crate::gpu::GpuSpMatVec;
 
             // Create CSR matrix from components for unified interface
             let csr_matrix = CsrArray::new(
@@ -285,8 +285,8 @@ impl GpuSpMV {
             let mut y_buffer = self.context.create_buffer::<T>(rows);
 
             // Use unified GPU interface instead of low-level kernel
-            use crate::gpu::GpuSpMatVec;
             use crate::csr_array::CsrArray;
+            use crate::gpu::GpuSpMatVec;
 
             // Create CSR matrix from components for unified interface
             let csr_matrix = CsrArray::new(

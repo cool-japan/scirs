@@ -66,7 +66,7 @@ pub use optimization::*;
 #[cfg(feature = "gpu")]
 /// Resource utilization tracking
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ResourceUtilization {
     /// Compute utilization
     pub compute_utilization: HashMap<GpuBackend, f64>,
@@ -76,18 +76,6 @@ pub struct ResourceUtilization {
     pub bandwidth_utilization: HashMap<GpuBackend, f64>,
     /// Power utilization
     pub power_utilization: HashMap<GpuBackend, f64>,
-}
-
-#[cfg(feature = "gpu")]
-impl Default for ResourceUtilization {
-    fn default() -> Self {
-        Self {
-            compute_utilization: HashMap::new(),
-            memory_utilization: HashMap::new(),
-            bandwidth_utilization: HashMap::new(),
-            power_utilization: HashMap::new(),
-        }
-    }
 }
 
 #[cfg(feature = "gpu")]

@@ -707,7 +707,9 @@ where
             let shape = padded_input.shape();
             for i in (0..extrema_coords.len()).rev() {
                 if extrema_coords[i] >= shape[i] {
-                    return Err(NdimageError::InvalidInput("Invalid coordinates for extrema access".to_string()));
+                    return Err(NdimageError::InvalidInput(
+                        "Invalid coordinates for extrema access".to_string(),
+                    ));
                 }
                 linear_idx += extrema_coords[i] * stride;
                 stride *= shape[i];

@@ -564,7 +564,7 @@ impl GpuRandomGenerator {
 
             normal_samples.push(mean + std_dev * r * theta.cos());
 
-            if 0 + 1 < len {
+            if 1 < len {
                 normal_samples.push(mean + std_dev * r * theta.sin());
             }
         }

@@ -317,8 +317,7 @@ pub mod gpu {
     impl GpuBuffer {
         /// Create a new GPU buffer
         #[cfg(feature = "gpu")]
-        pub fn new(ctx: &scirs2_core::gpu::GpuContext, data: &[f64]) -> SpecialResult<Self>
-        {
+        pub fn new(ctx: &scirs2_core::gpu::GpuContext, data: &[f64]) -> SpecialResult<Self> {
             let buffer = ctx.create_buffer_from_slice(data);
 
             Ok(Self {
@@ -415,7 +414,9 @@ pub mod gpu {
 
             // Note: Direct kernel execution not currently supported in scirs2-core
             // Fall back to CPU computation for now
-            return Err(SpecialError::ComputationError("GPU kernel execution not yet implemented".to_string()));
+            return Err(SpecialError::ComputationError(
+                "GPU kernel execution not yet implemented".to_string(),
+            ));
 
             let elapsed = start_time.elapsed();
 

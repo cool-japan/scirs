@@ -574,8 +574,7 @@ pub use vq::*;
 #[cfg(feature = "gpu")]
 pub use gpu::{
     DeviceSelection, DistanceMetric as GpuDistanceMetric, GpuBackend, GpuConfig, GpuContext,
-    GpuDevice, GpuDistanceMatrix, GpuMemoryManager,
-    MemoryStats, MemoryStrategy,
+    GpuDevice, GpuDistanceMatrix, GpuMemoryManager, MemoryStats, MemoryStrategy,
 };
 
 #[cfg(feature = "gpu")]

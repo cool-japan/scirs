@@ -668,7 +668,7 @@ mod tests {
 
         assert!(result.success);
         assert!(result.fun < 10.0); // More lenient with fewer generations
-        // Don't check exact convergence with limited generations
+                                    // Don't check exact convergence with limited generations
         assert!(stats.total_completed > 0);
     }
 

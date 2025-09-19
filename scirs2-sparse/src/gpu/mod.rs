@@ -15,7 +15,9 @@ pub use scirs2_core::gpu::{
 
 // Fallback types when GPU feature is not enabled
 #[cfg(not(feature = "gpu"))]
-pub use crate::gpu_ops::{GpuBackend, GpuBuffer, GpuDevice, GpuError, GpuKernelHandle};
+pub use crate::gpu_ops::{
+    GpuBackend, GpuBuffer, GpuDataType, GpuDevice, GpuError, GpuKernelHandle,
+};
 
 // Re-export backend-specific modules
 pub use cuda::{CudaMemoryManager, CudaOptimizationLevel, CudaSpMatVec};
@@ -31,8 +33,10 @@ use ndarray::{Array1, ArrayView1};
 use num_traits::Float;
 use std::fmt::Debug;
 
+// GpuDataType is already available from the pub use statements above
+
 /// Unified GPU sparse matrix operations interface
-#[derive(Debug, Clone)]
+#[derive()]
 pub struct GpuSpMatVec {
     backend: GpuBackend,
     cuda_handler: Option<CudaSpMatVec>,
@@ -428,7 +432,7 @@ impl Default for OptimizationHint {
 }
 
 /// GPU backend information
-#[derive(Debug, Clone)]
+#[derive()]
 pub struct BackendInfo {
     pub name: String,
     pub version: String,

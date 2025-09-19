@@ -1455,7 +1455,7 @@ impl StatisticalDetector {
             iqr_multiplier,
             modified_z_threshold: z_score_threshold * 0.6745, // Median-based
             data_window: VecDeque::with_capacity(max_window_size),
-            max_window_size: max_window_size,
+            max_window_size,
         }
     }
 

@@ -316,7 +316,7 @@ mod tests {
 
         // Record some usage patterns that will trigger suggestions
         optimizer.record_usage(3000);
-        optimizer.record_usage(6000);  // This will be > 5000 (10000/2)
+        optimizer.record_usage(6000); // This will be > 5000 (10000/2)
         optimizer.record_usage(4500);
 
         let efficiency = optimizer.efficiency_score(10000);

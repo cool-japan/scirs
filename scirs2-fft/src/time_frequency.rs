@@ -821,17 +821,26 @@ mod tests {
         // Use the middle time point
         let mid_time = result.times.len() / 2;
 
-        eprintln!("Test CWT: Available frequencies: {:?}", &result.frequencies[..result.frequencies.len().min(16)]);
+        eprintln!(
+            "Test CWT: Available frequencies: {:?}",
+            &result.frequencies[..result.frequencies.len().min(16)]
+        );
 
         // Only check frequencies that were actually computed (limited by max_freqs)
         let computed_freqs = result.coefficients.shape()[0];
-        eprintln!("Test CWT: Number of computed frequencies: {}", computed_freqs);
+        eprintln!(
+            "Test CWT: Number of computed frequencies: {}",
+            computed_freqs
+        );
 
-        for scale in 0..computed_freqs
-        {
+        for scale in 0..computed_freqs {
             let energy = result.coefficients[[scale, mid_time]].norm_sqr();
-            if scale < 16 {  // Debug output for first 16
-                eprintln!("  Freq[{}] = {:.1} Hz, Energy = {:.6}", scale, result.frequencies[scale], energy);
+            if scale < 16 {
+                // Debug output for first 16
+                eprintln!(
+                    "  Freq[{}] = {:.1} Hz, Energy = {:.6}",
+                    scale, result.frequencies[scale], energy
+                );
             }
             if energy > max_energy {
                 max_energy = energy;
@@ -840,10 +849,18 @@ mod tests {
         }
 
         let peak_freq = result.frequencies[peak_scale];
-        eprintln!("Test CWT: Expected freq: {}, Found peak freq: {}, Error: {:.2}%",
-                  freq, peak_freq, ((peak_freq - freq).abs() / freq * 100.0));
-        assert!((peak_freq - freq).abs() / freq < 0.35,
-                "Peak frequency {} is too far from expected {} (error: {:.2}%)",
-                peak_freq, freq, ((peak_freq - freq).abs() / freq * 100.0)); // Allow 35% margin due to scale resolution
+        eprintln!(
+            "Test CWT: Expected freq: {}, Found peak freq: {}, Error: {:.2}%",
+            freq,
+            peak_freq,
+            ((peak_freq - freq).abs() / freq * 100.0)
+        );
+        assert!(
+            (peak_freq - freq).abs() / freq < 0.35,
+            "Peak frequency {} is too far from expected {} (error: {:.2}%)",
+            peak_freq,
+            freq,
+            ((peak_freq - freq).abs() / freq * 100.0)
+        ); // Allow 35% margin due to scale resolution
     }
 }

@@ -105,7 +105,8 @@ where
                             let input_array = Array1::from_vec(inputvalues.clone());
                             let results_array = Array1::from_vec(results.clone());
                             let products = T::simd_mul(&input_array.view(), &kernel_array.view());
-                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            let results_updated =
+                                T::simd_add(&results_array.view(), &products.view());
                             results = results_updated.to_vec();
                         }
                     }
@@ -190,7 +191,8 @@ where
                             let input_array = Array1::from_vec(inputvalues.clone());
                             let results_array = Array1::from_vec(results.clone());
                             let products = T::simd_mul(&input_array.view(), &kernel_array.view());
-                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            let results_updated =
+                                T::simd_add(&results_array.view(), &products.view());
                             results = results_updated.to_vec();
                         }
                     }
@@ -275,7 +277,8 @@ where
                             let input_array = Array1::from_vec(inputvalues.clone());
                             let results_array = Array1::from_vec(results.clone());
                             let products = T::simd_mul(&input_array.view(), &kernel_array.view());
-                            let results_updated = T::simd_add(&results_array.view(), &products.view());
+                            let results_updated =
+                                T::simd_add(&results_array.view(), &products.view());
                             results = results_updated.to_vec();
                         }
                     }

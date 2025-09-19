@@ -472,7 +472,7 @@ impl OpenCLMemoryManager {
         device: &super::GpuDevice,
     ) -> Result<OpenCLMatrixBuffers<T>, super::GpuError>
     where
-        T: super::GpuDataType + Copy,
+        T: super::GpuDataType + Copy + Float + Debug,
     {
         // Use read-only buffers for matrix data since it doesn't change
         let indptr_buffer = device.create_buffer_read_only(&matrix.indptr)?;

@@ -1203,7 +1203,7 @@ impl VisualizationEngine {
             Ok(chart_data)
         } else {
             Err(CoreError::InvalidInput(crate::error::ErrorContext::new(
-                &format!("Chart '{}' not found", chart_name),
+                format!("Chart '{}' not found", chart_name),
             )))
         }
     }

@@ -131,20 +131,15 @@ impl CudaSpMatVec {
 
     /// Compile CUDA kernels for sparse matrix operations
     #[cfg(feature = "gpu")]
-    pub fn compile_kernels(&mut self, device: &super::GpuDevice) -> Result<(), super::GpuError> {
-        // Compile standard kernel
-        self.kernel_handle =
-            Some(device.compile_kernel(CUDA_SPMV_KERNEL_SOURCE, "spmv_csr_kernel")?);
+    pub fn compile_kernels(&mut self, _device: &super::GpuDevice) -> Result<(), super::GpuError> {
+        // TODO: Fix kernel compilation API mismatch
+        // The device.compile_kernel() returns GpuKernel but we need GpuKernelHandle
+        // This needs to be updated to use the correct GPU context API
 
-        // Compile vectorized kernel
-        self.vectorized_kernel =
-            Some(device.compile_kernel(CUDA_SPMV_KERNEL_SOURCE, "spmv_csr_vectorized_kernel")?);
-
-        // Compile warp-level kernel
-        self.warp_kernel =
-            Some(device.compile_kernel(CUDA_WARP_SPMV_KERNEL_SOURCE, "spmv_csr_warp_kernel")?);
-
-        Ok(())
+        // For now, return an error indicating this needs proper implementation
+        Err(super::GpuError::KernelCompilationError(
+            "CUDA kernel compilation needs API update".to_string(),
+        ))
     }
 
     /// Execute CUDA sparse matrix-vector multiplication
@@ -166,40 +161,11 @@ impl CudaSpMatVec {
             });
         }
 
-        // Upload data to GPU
-        let indptr_gpu = device.create_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_buffer(&matrix.indices)?;
-        let data_gpu = device.create_buffer(&matrix.data)?;
-        let vector_gpu = device.create_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_buffer(&vec![T::zero(); rows])?;
-
-        // Launch kernel
-        if let Some(ref kernel) = self.kernel_handle {
-            let grid_size = (rows + 255) / 256;
-            let block_size = 256;
-
-            device.launch_kernel(
-                kernel,
-                [grid_size as u32, 1, 1],
-                [block_size as u32, 1, 1],
-                &[
-                    &(rows as i32),
-                    &indptr_gpu,
-                    &indices_gpu,
-                    &data_gpu,
-                    &vector_gpu,
-                    &mut result_gpu,
-                ],
-            )?;
-        } else {
-            return Err(SparseError::ComputationError(
-                "CUDA kernel not compiled".to_string(),
-            ));
-        }
-
-        // Download result from GPU
-        let result_host = result_gpu.to_host()?;
-        Ok(Array1::from_vec(result_host))
+        // Placeholder implementation - CUDA support needs proper API integration
+        // TODO: Implement proper CUDA sparse matrix-vector multiplication
+        Err(SparseError::ComputationError(
+            "GPU CUDA implementation requires proper context setup".to_string(),
+        ))
     }
 
     /// Execute optimized CUDA sparse matrix-vector multiplication
@@ -241,24 +207,23 @@ impl CudaSpMatVec {
     #[cfg(feature = "gpu")]
     fn execute_kernel_with_optimization<T>(
         &self,
-        matrix: &CsrArray<T>,
-        vector: &ArrayView1<T>,
-        device: &super::GpuDevice,
-        kernel: &super::GpuKernelHandle,
-        optimization_level: CudaOptimizationLevel,
+        _matrix: &CsrArray<T>,
+        _vector: &ArrayView1<T>,
+        _device: &super::GpuDevice,
+        _kernel: &super::GpuKernelHandle,
+        _optimization_level: CudaOptimizationLevel,
     ) -> SparseResult<Array1<T>>
     where
         T: Float + Debug + Copy + super::GpuDataType,
     {
-        let (rows, _) = matrix.shape();
+        // Placeholder implementation - CUDA optimized execution needs proper API integration
+        Err(SparseError::ComputationError(
+            "CUDA optimized execution not yet implemented".to_string(),
+        ))
 
-        // Upload data to GPU with memory optimization
-        let indptr_gpu = device.create_buffer(&matrix.indptr)?;
-        let indices_gpu = device.create_buffer(&matrix.indices)?;
-        let data_gpu = device.create_buffer(&matrix.data)?;
-        let vector_gpu = device.create_buffer(vector.as_slice().unwrap())?;
-        let mut result_gpu = device.create_buffer(&vec![T::zero(); rows])?;
-
+        // TODO: Implement actual CUDA kernel execution
+        // The following code is commented out as it needs proper GPU buffer setup:
+        /*
         // Configure launch parameters based on optimization level
         let (grid_size, block_size, shared_memory) = match optimization_level {
             CudaOptimizationLevel::Basic => ((rows + 255) / 256, 256, 0),
@@ -287,6 +252,7 @@ impl CudaSpMatVec {
         // Download result
         let result_host = result_gpu.to_host()?;
         Ok(Array1::from_vec(result_host))
+        */
     }
 
     /// CPU fallback implementation
