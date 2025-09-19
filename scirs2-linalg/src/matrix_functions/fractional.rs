@@ -245,11 +245,63 @@ where
         }
     }
 
-    // For SPD matrices, a simplified approach would be needed
-    // A full implementation would require proper eigenvalue handling
-    Err(LinalgError::ImplementationError(
-        "SPD matrix function is not yet fully implemented".to_string(),
-    ))
+    // Check if matrix is positive definite if requested
+    if check_spd {
+        // Quick check: diagonal elements should be positive
+        for i in 0..n {
+            if a[[i, i]] <= F::zero() {
+                return Err(LinalgError::InvalidInputError(
+                    "Matrix must be positive definite".to_string(),
+                ));
+            }
+        }
+    }
+
+    // For diagonal matrices, apply function directly to diagonal elements
+    let mut is_diagonal = true;
+    for i in 0..n {
+        for j in 0..n {
+            if i != j && a[[i, j]].abs() > F::epsilon() {
+                is_diagonal = false;
+                break;
+            }
+        }
+        if !is_diagonal {
+            break;
+        }
+    }
+
+    if is_diagonal {
+        let mut result = Array2::zeros((n, n));
+        for i in 0..n {
+            result[[i, i]] = f(a[[i, i]]);
+        }
+        return Ok(result);
+    }
+
+    // For general SPD matrices, use eigendecomposition
+    // Note: For real symmetric matrices, eigenvalues are real
+    let (eigenvalues, eigenvectors) = eig(a, true)?;
+
+    // Apply function to eigenvalues
+    let mut diag = Array2::zeros((n, n));
+    for i in 0..n {
+        let eigenval = eigenvalues[i].re;
+        if check_spd && eigenval <= F::zero() {
+            return Err(LinalgError::InvalidInputError(
+                "Matrix is not positive definite (negative eigenvalue found)".to_string(),
+            ));
+        }
+        diag[[i, i]] = f(F::from(eigenval).unwrap_or(F::zero()));
+    }
+
+    // Reconstruct: A_f = V * diag(f(λ)) * V^T
+    let v_real = eigenvectors.mapv(|x| F::from(x.re).unwrap_or(F::zero()));
+    let temp = v_real.dot(&diag);
+    let v_t = v_real.t();
+    let result = temp.dot(&v_t);
+
+    Ok(result)
 }
 
 /// Helper function to check if a floating point number is close to an integer

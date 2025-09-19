@@ -5,7 +5,7 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero, One, Sum};
+use num_traits::{Float, NumAssign, Zero, One};
 use std::iter::Sum;
 
 use super::super::core::{QRWorkItem, WorkItem};

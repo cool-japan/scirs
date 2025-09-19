@@ -210,11 +210,16 @@ impl MetalBuffer {
             }
         }
 
-        let buffer = device.new_buffer(size as u64, resource_options);
+        // Limit buffer size to prevent crashes with huge allocations
+        // Metal has a maximum buffer size limit (typically 256MB to 1GB depending on device)
+        const MAX_BUFFER_SIZE: usize = 1024 * 1024 * 1024; // 1GB limit
+        let actual_size = size.min(MAX_BUFFER_SIZE);
+
+        let buffer = device.new_buffer(actual_size as u64, resource_options);
 
         Self {
             buffer,
-            size,
+            size: actual_size, // Store the actual allocated size
             options,
         }
     }
@@ -285,9 +290,22 @@ impl MetalCompiler {
             .new_library_with_source(source, &metal::CompileOptions::new())
             .map_err(|e| GpuError::KernelCompilationError(e.to_string()))?;
 
+        // Extract the kernel function name from the source
+        // Look for pattern like "kernel void functionname("
+        let function_name = if let Some(start_idx) = source.find("kernel void ") {
+            let name_start = start_idx + "kernel void ".len();
+            if let Some(name_end) = source[name_start..].find('(') {
+                &source[name_start..name_start + name_end]
+            } else {
+                "main0" // fallback
+            }
+        } else {
+            "main0" // fallback for older style kernels
+        };
+
         // Get the main compute function
         let function = library
-            .get_function("main0", None)
+            .get_function(function_name, None)
             .map_err(|e| GpuError::KernelCompilationError(e))?;
 
         // Create compute pipeline

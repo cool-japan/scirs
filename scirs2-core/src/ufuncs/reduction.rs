@@ -4,7 +4,7 @@
 //! (sum, mean, etc.) as universal functions for efficient
 //! array reductions along specified axes.
 
-use ndarray::{Array, Array1, ArrayView, Axis, Dimension, Ix1, IxDyn, ShapeBuilder};
+use ndarray::{Array, Array1, ArrayView, ArrayViewMut, Axis, Dimension, Ix1, IxDyn, ShapeBuilder};
 use crate::ufuncs::core::{UFunc, UFuncKind, apply_reduction, register_ufunc};
 use std::sync::Once;
 
@@ -39,10 +39,7 @@ impl UFunc for SumUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Sum requires exactly one input array");
         }
@@ -50,7 +47,7 @@ impl UFunc for SumUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply sum reduction along all dimensions
             let mut sum = 0.0;
@@ -78,10 +75,7 @@ impl UFunc for ProductUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Product requires exactly one input array");
         }
@@ -89,7 +83,7 @@ impl UFunc for ProductUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply product reduction along all dimensions
             let mut product = 1.0;
@@ -117,10 +111,7 @@ impl UFunc for MeanUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Mean requires exactly one input array");
         }
@@ -128,7 +119,7 @@ impl UFunc for MeanUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply mean reduction along all dimensions
             let mut sum = 0.0;
@@ -162,10 +153,7 @@ impl UFunc for StdUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Std requires exactly one input array");
         }
@@ -173,7 +161,7 @@ impl UFunc for StdUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply standard deviation reduction along all dimensions
             let mut sum = 0.0;
@@ -212,10 +200,7 @@ impl UFunc for VarUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Var requires exactly one input array");
         }
@@ -223,7 +208,7 @@ impl UFunc for VarUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply variance reduction along all dimensions
             let mut sum = 0.0;
@@ -262,10 +247,7 @@ impl UFunc for MinUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Min requires exactly one input array");
         }
@@ -273,7 +255,7 @@ impl UFunc for MinUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply minimum reduction along all dimensions
             if input_view.len() == 0 {
@@ -307,10 +289,7 @@ impl UFunc for MaxUFunc {
         UFuncKind::Reduction
     }
 
-    fn apply<D>(&self, inputs: &[&ndarray::ArrayBase<ndarray::Data, D>], output: &mut ndarray::ArrayBase<ndarray::Data, D>) -> Result<(), &'static str>
-    where
-        D: Dimension,
-    {
+    fn apply(&self, inputs: &[ArrayView<f64, IxDyn>], output: &mut ArrayViewMut<f64, IxDyn>) -> Result<(), &'static str> {
         if inputs.len() != 1 {
             return Err("Max requires exactly one input array");
         }
@@ -318,7 +297,7 @@ impl UFunc for MaxUFunc {
         // Not a proper implementation of the reduction operation
         // Just a placeholder for the full implementation
         if let Some(output1d) = output.as_slice_mut() {
-            let input_view = inputs[0];
+            let input_view = &inputs[0];
 
             // Apply maximum reduction along all dimensions
             if input_view.len() == 0 {
@@ -342,7 +321,7 @@ impl UFunc for MaxUFunc {
 
 // Helper function to prepare the output array for reduction
 #[allow(dead_code)]
-fn prepare_reduction_output<D>(input: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> (Array<f64, Ix1>, Vec<usize>)
+fn prepare_reduction_output<D>(input: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> (Array<f64, Ix1>, Vec<usize>)
 where
     D: Dimension,
 {
@@ -355,16 +334,16 @@ where
             // For reduction along a specific axis, the output shape is the input shape
             // with the specified axis removed
             let mut outshape = Vec::with_capacity(input.ndim() - 1);
-            let mut output_size = 1;
+            let mut outputsize = 1;
 
-            for (0, &dim) in input.shape().iter().enumerate() {
-                if 0 != ax {
+            for (i, &dim) in input.shape().iter().enumerate() {
+                if i != ax {
                     outshape.push(dim);
-                    output_size *= dim;
+                    outputsize *= dim;
                 }
             }
 
-            (Array::<f64>::zeros(output_size), outshape)
+            (Array::<f64>::zeros(outputsize), outshape)
         },
         None => {
             // For reduction over the entire array, the output shape is [1]
@@ -395,41 +374,37 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Sum over all elements
-/// let result = sum(&a, None);
+/// let result = sum(&a.view(), None);
 /// assert_eq!(result, array![21.0]);
 ///
 /// // Sum along axis 0 (columns)
-/// let result = sum(&a, Some(0));
+/// let result = sum(&a.view(), Some(0));
 /// assert_eq!(result, array![5.0, 7.0, 9.0]);
 ///
 /// // Sum along axis 1 (rows)
-/// let result = sum(&a, Some(1));
+/// let result = sum(&a.view(), Some(1));
 /// assert_eq!(result, array![6.0, 15.0]);
 /// ```
 #[allow(dead_code)]
-pub fn sum<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn sum<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
-    // Initialize the ufuncs registry if needed
-    init_reduction_ufuncs();
+    use ndarray::Axis;
 
-    // Prepare the output array
-    let mut output = prepare_reduction_output(array, axis);
-
-    // Apply the sum function along the specified axis
     match axis {
         Some(ax) => {
-            apply_reduction(array, &mut output, Some(ax), Some(0.0),
-                            |acc, &x| acc + x).unwrap();
+            // Sum along a specific axis
+            let result = array.sum_axis(Axis(ax));
+            // Convert to 1D array
+            Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
         },
         None => {
-            apply_reduction(array, &mut output, None, Some(0.0),
-                            |acc, &x| acc + x).unwrap();
+            // Sum all elements
+            let total = array.iter().sum::<f64>();
+            Array::from_elem(1, total)
         }
     }
-
-    output
 }
 
 /// Compute the product of array elements
@@ -452,41 +427,37 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Product over all elements
-/// let result = product(&a, None);
+/// let result = product(&a.view(), None);
 /// assert_eq!(result, array![720.0]);
 ///
 /// // Product along axis 0 (columns)
-/// let result = product(&a, Some(0));
+/// let result = product(&a.view(), Some(0));
 /// assert_eq!(result, array![4.0, 10.0, 18.0]);
 ///
 /// // Product along axis 1 (rows)
-/// let result = product(&a, Some(1));
+/// let result = product(&a.view(), Some(1));
 /// assert_eq!(result, array![6.0, 120.0]);
 /// ```
 #[allow(dead_code)]
-pub fn product<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn product<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
-    // Initialize the ufuncs registry if needed
-    init_reduction_ufuncs();
+    use ndarray::Axis;
 
-    // Prepare the output _array
-    let (mut output_) = prepare_reduction_output(_array, axis);
-
-    // Apply the product function along the specified axis
     match axis {
         Some(ax) => {
-            apply_reduction(_array, &mut output, Some(ax), Some(1.0),
-                            |acc, &x| acc * x).unwrap();
+            // Product along a specific axis
+            let result = array.map_axis(Axis(ax), |lane| lane.iter().product());
+            // Convert to 1D array
+            Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
         },
         None => {
-            apply_reduction(_array, &mut output, None, Some(1.0),
-                            |acc, &x| acc * x).unwrap();
+            // Product of all elements
+            let total = array.iter().product::<f64>();
+            Array::from_elem(1, total)
         }
     }
-
-    output
 }
 
 /// Compute the mean of array elements
@@ -509,26 +480,26 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Mean over all elements
-/// let result = mean(&a, None);
+/// let result = mean(&a.view(), None);
 /// assert_eq!(result, array![3.5]);
 ///
 /// // Mean along axis 0 (columns)
-/// let result = mean(&a, Some(0));
+/// let result = mean(&a.view(), Some(0));
 /// assert_eq!(result, array![2.5, 3.5, 4.5]);
 ///
 /// // Mean along axis 1 (rows)
-/// let result = mean(&a, Some(1));
+/// let result = mean(&a.view(), Some(1));
 /// assert_eq!(result, array![2.0, 5.0]);
 /// ```
 #[allow(dead_code)]
-pub fn mean<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn mean<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
     // Initialize the ufuncs registry if needed
     init_reduction_ufuncs();
 
-    let sum_result = sum(_array, axis.clone());
+    let sum_result = sum(array, axis);
 
     match axis {
         Some(ax) => {
@@ -564,21 +535,21 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Standard deviation over all elements
-/// let result = std(&a, None);
+/// let result = std(&a.view(), None);
 /// assert!((result[0] - 1.870829).abs() < 1e-6);
 ///
 /// // Standard deviation along axis 0 (columns)
-/// let result = std(&a, Some(0));
+/// let result = std(&a.view(), Some(0));
 /// assert!((result[0] - 1.5).abs() < 1e-10);
 /// assert!((result[1] - 1.5).abs() < 1e-10);
 /// assert!((result[2] - 1.5).abs() < 1e-10);
 /// ```
 #[allow(dead_code)]
-pub fn std<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn std<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
-    let var_result = var(_array, axis);
+    let var_result = var(array, axis);
     var_result.map(|&x| x.sqrt())
 }
 
@@ -602,86 +573,43 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Variance over all elements
-/// let result = var(&a, None);
+/// let result = var(&a.view(), None);
 /// assert!((result[0] - 3.5).abs() < 1e-10);
 ///
 /// // Variance along axis 0 (columns)
-/// let result = var(&a, Some(0));
+/// let result = var(&a.view(), Some(0));
 /// assert_eq!(result, array![2.25, 2.25, 2.25]);
 /// ```
 #[allow(dead_code)]
-pub fn var<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn var<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
+    use ndarray::Axis;
     // Initialize the ufuncs registry if needed
     init_reduction_ufuncs();
 
-    // Compute the mean
-    let mean_result = mean(_array, axis.clone());
-
-    // Prepare the output _array for variance
-    let (mut output_) = prepare_reduction_output(_array, axis.clone());
-
-    // Compute the variance
     match axis {
         Some(ax) => {
-            // Calculate the squared deviations from the mean
-            let axis_len = array.len_of(ndarray::Axis(ax)) as f64;
-
-            // Use the apply_reduction function from the core module
-            // This is a simplified implementation that only handles 2D arrays
-            if array.ndim() == 2 {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
-
-                if ax == 0 {
-                    // Reduce along rows
-                    for j in 0..cols {
-                        let mean_val = mean_result[j];
-                        let mut sum_sq_diff = 0.0;
-
-                        for i in 0..rows {
-                            let diff = array[[0, j]] - mean_val;
-                            sum_sq_diff += diff * diff;
-                        }
-
-                        output[j] = sum_sq_diff / axis_len;
-                    }
-                } else {
-                    // Reduce along columns
-                    for i in 0..rows {
-                        let mean_val = mean_result[0];
-                        let mut sum_sq_diff = 0.0;
-
-                        for j in 0..cols {
-                            let diff = array[[0, j]] - mean_val;
-                            sum_sq_diff += diff * diff;
-                        }
-
-                        output[0] = sum_sq_diff / axis_len;
-                    }
-                }
-            } else {
-                // This simplified implementation only handles 2D arrays
-                panic!("This simplified implementation only supports 2D arrays");
-            }
+            // Variance along a specific axis
+            let n = array.len_of(Axis(ax)) as f64;
+            let result = array.map_axis(Axis(ax), |lane| {
+                let m = lane.mean().unwrap_or(0.0);
+                lane.iter().map(|&x| (x - m).powi(2)).sum::<f64>() / n
+            });
+            // Convert to 1D array
+            Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
         },
         None => {
-            // Compute variance over the entire _array
-            let mean_val = mean_result[0];
-            let total_elements = array.len() as f64;
-            let mut sum_sq_diff = 0.0;
-
-            for &val in array.iter() {
-                let diff = val - mean_val;
-                sum_sq_diff += diff * diff;
-            }
-
-            output[0] = sum_sq_diff / total_elements;
+            // Variance of all elements
+            let mean_val = array.mean().unwrap_or(0.0);
+            let n = array.len() as f64;
+            let var_val = array.iter()
+                .map(|&x| (x - mean_val).powi(2))
+                .sum::<f64>() / n;
+            Array::from_elem(1, var_val)
         }
     }
-
-    output
 }
 
 /// Compute the minimum of array elements
@@ -704,82 +632,46 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Minimum over all elements
-/// let result = min(&a, None);
+/// let result = min(&a.view(), None);
 /// assert_eq!(result, array![1.0]);
 ///
 /// // Minimum along axis 0 (columns)
-/// let result = min(&a, Some(0));
+/// let result = min(&a.view(), Some(0));
 /// assert_eq!(result, array![1.0, 2.0, 3.0]);
 ///
 /// // Minimum along axis 1 (rows)
-/// let result = min(&a, Some(1));
+/// let result = min(&a.view(), Some(1));
 /// assert_eq!(result, array![1.0, 4.0]);
 /// ```
 #[allow(dead_code)]
-pub fn min<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn min<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
+    use ndarray::Axis;
     // Initialize the ufuncs registry if needed
     init_reduction_ufuncs();
 
-    // Prepare the output _array
-    let (mut output_) = prepare_reduction_output(_array, axis);
-
-    // Compute the minimum
     match axis {
         Some(ax) => {
-            // This is a simplified implementation that only handles 2D arrays
-            if array.ndim() == 2 {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
-
-                if ax == 0 {
-                    // Reduce along rows
-                    for j in 0..cols {
-                        let mut min_val = f64::INFINITY;
-
-                        for i in 0..rows {
-                            if array[[0, j]] < min_val {
-                                min_val = array[[0, j]];
-                            }
-                        }
-
-                        output[j] = min_val;
-                    }
-                } else {
-                    // Reduce along columns
-                    for i in 0..rows {
-                        let mut min_val = f64::INFINITY;
-
-                        for j in 0..cols {
-                            if array[[0, j]] < min_val {
-                                min_val = array[[0, j]];
-                            }
-                        }
-
-                        output[0] = min_val;
-                    }
-                }
-            } else {
-                // This simplified implementation only handles 2D arrays
-                panic!("This simplified implementation only supports 2D arrays");
-            }
+            // Min along a specific axis
+            let result = array.map_axis(Axis(ax), |lane| {
+                *lane.iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(&f64::INFINITY)
+            });
+            // Convert to 1D array
+            Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
         },
         None => {
-            // Find minimum over the entire _array
-            let mut min_val = f64::INFINITY;
-
-            for &val in array.iter() {
-                if val < min_val {
-                    min_val = val;
-                }
-            }
-
-            output[0] = min_val;
+            // Min of all elements
+            let min_val = array.iter()
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .copied()
+                .unwrap_or(f64::INFINITY);
+            Array::from_elem(1, min_val)
         }
     }
-
-    output
 }
 
 /// Compute the maximum of array elements
@@ -802,82 +694,46 @@ where
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Maximum over all elements
-/// let result = max(&a, None);
+/// let result = max(&a.view(), None);
 /// assert_eq!(result, array![6.0]);
 ///
 /// // Maximum along axis 0 (columns)
-/// let result = max(&a, Some(0));
+/// let result = max(&a.view(), Some(0));
 /// assert_eq!(result, array![4.0, 5.0, 6.0]);
 ///
 /// // Maximum along axis 1 (rows)
-/// let result = max(&a, Some(1));
+/// let result = max(&a.view(), Some(1));
 /// assert_eq!(result, array![3.0, 6.0]);
 /// ```
 #[allow(dead_code)]
-pub fn max<D>(array: &ndarray::ArrayBase<ndarray::Data, D>, axis: Option<usize>) -> Array<f64, Ix1>
+pub fn max<D>(array: &ndarray::ArrayView<f64, D>, axis: Option<usize>) -> Array<f64, Ix1>
 where
-    D: Dimension,
+    D: Dimension + ndarray::RemoveAxis,
 {
+    use ndarray::Axis;
     // Initialize the ufuncs registry if needed
     init_reduction_ufuncs();
 
-    // Prepare the output _array
-    let (mut output_) = prepare_reduction_output(_array, axis);
-
-    // Compute the maximum
     match axis {
         Some(ax) => {
-            // This is a simplified implementation that only handles 2D arrays
-            if array.ndim() == 2 {
-                let (rows, cols) = (_array.shape()[0], array.shape()[1]);
-
-                if ax == 0 {
-                    // Reduce along rows
-                    for j in 0..cols {
-                        let mut max_val = f64::NEG_INFINITY;
-
-                        for i in 0..rows {
-                            if array[[0, j]] > max_val {
-                                max_val = array[[0, j]];
-                            }
-                        }
-
-                        output[j] = max_val;
-                    }
-                } else {
-                    // Reduce along columns
-                    for i in 0..rows {
-                        let mut max_val = f64::NEG_INFINITY;
-
-                        for j in 0..cols {
-                            if array[[0, j]] > max_val {
-                                max_val = array[[0, j]];
-                            }
-                        }
-
-                        output[0] = max_val;
-                    }
-                }
-            } else {
-                // This simplified implementation only handles 2D arrays
-                panic!("This simplified implementation only supports 2D arrays");
-            }
+            // Max along a specific axis
+            let result = array.map_axis(Axis(ax), |lane| {
+                *lane.iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(&f64::NEG_INFINITY)
+            });
+            // Convert to 1D array
+            Array::from_shape_vec(result.len(), result.into_raw_vec()).unwrap()
         },
         None => {
-            // Find maximum over the entire _array
-            let mut max_val = f64::NEG_INFINITY;
-
-            for &val in array.iter() {
-                if val > max_val {
-                    max_val = val;
-                }
-            }
-
-            output[0] = max_val;
+            // Max of all elements
+            let max_val = array.iter()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .copied()
+                .unwrap_or(f64::NEG_INFINITY);
+            Array::from_elem(1, max_val)
         }
     }
-
-    output
 }
 
 #[cfg(test)]
@@ -890,15 +746,15 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Sum over all elements
-        let result = sum(&a, None);
+        let result = sum(&a.view(), None);
         assert_eq!(result, array![21.0]);
 
         // Sum along axis 0 (columns)
-        let result = sum(&a, Some(0));
+        let result = sum(&a.view(), Some(0));
         assert_eq!(result, array![5.0, 7.0, 9.0]);
 
         // Sum along axis 1 (rows)
-        let result = sum(&a, Some(1));
+        let result = sum(&a.view(), Some(1));
         assert_eq!(result, array![6.0, 15.0]);
     }
 
@@ -907,15 +763,15 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Product over all elements
-        let result = product(&a, None);
+        let result = product(&a.view(), None);
         assert_eq!(result, array![720.0]);
 
         // Product along axis 0 (columns)
-        let result = product(&a, Some(0));
+        let result = product(&a.view(), Some(0));
         assert_eq!(result, array![4.0, 10.0, 18.0]);
 
         // Product along axis 1 (rows)
-        let result = product(&a, Some(1));
+        let result = product(&a.view(), Some(1));
         assert_eq!(result, array![6.0, 120.0]);
     }
 
@@ -924,15 +780,15 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Mean over all elements
-        let result = mean(&a, None);
+        let result = mean(&a.view(), None);
         assert_eq!(result, array![3.5]);
 
         // Mean along axis 0 (columns)
-        let result = mean(&a, Some(0));
+        let result = mean(&a.view(), Some(0));
         assert_eq!(result, array![2.5, 3.5, 4.5]);
 
         // Mean along axis 1 (rows)
-        let result = mean(&a, Some(1));
+        let result = mean(&a.view(), Some(1));
         assert_eq!(result, array![2.0, 5.0]);
     }
 
@@ -941,11 +797,11 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Standard deviation over all elements
-        let result = std(&a, None);
+        let result = std(&a.view(), None);
         assert!((result[0] - 1.870829).abs() < 1e-6);
 
         // Standard deviation along axis 0 (columns)
-        let result = std(&a, Some(0));
+        let result = std(&a.view(), Some(0));
         assert!((result[0] - 1.5).abs() < 1e-10);
         assert!((result[1] - 1.5).abs() < 1e-10);
         assert!((result[2] - 1.5).abs() < 1e-10);
@@ -956,11 +812,11 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Variance over all elements
-        let result = var(&a, None);
+        let result = var(&a.view(), None);
         assert!((result[0] - 3.5).abs() < 1e-10);
 
         // Variance along axis 0 (columns)
-        let result = var(&a, Some(0));
+        let result = var(&a.view(), Some(0));
         assert_eq!(result, array![2.25, 2.25, 2.25]);
     }
 
@@ -969,15 +825,15 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Minimum over all elements
-        let result = min(&a, None);
+        let result = min(&a.view(), None);
         assert_eq!(result, array![1.0]);
 
         // Minimum along axis 0 (columns)
-        let result = min(&a, Some(0));
+        let result = min(&a.view(), Some(0));
         assert_eq!(result, array![1.0, 2.0, 3.0]);
 
         // Minimum along axis 1 (rows)
-        let result = min(&a, Some(1));
+        let result = min(&a.view(), Some(1));
         assert_eq!(result, array![1.0, 4.0]);
     }
 
@@ -986,15 +842,15 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Maximum over all elements
-        let result = max(&a, None);
+        let result = max(&a.view(), None);
         assert_eq!(result, array![6.0]);
 
         // Maximum along axis 0 (columns)
-        let result = max(&a, Some(0));
+        let result = max(&a.view(), Some(0));
         assert_eq!(result, array![4.0, 5.0, 6.0]);
 
         // Maximum along axis 1 (rows)
-        let result = max(&a, Some(1));
+        let result = max(&a.view(), Some(1));
         assert_eq!(result, array![3.0, 6.0]);
     }
 }

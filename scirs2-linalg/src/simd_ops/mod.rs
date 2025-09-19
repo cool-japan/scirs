@@ -7,7 +7,7 @@
 pub mod elementwise;
 pub mod gemm;
 pub mod hardware_specific;
-pub mod neural_memory_optimization;
+pub mod neural;
 pub mod norms;
 pub mod simd_memory_ops;
 pub mod transpose;

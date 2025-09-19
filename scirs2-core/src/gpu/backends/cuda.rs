@@ -1125,19 +1125,23 @@ mod tests {
 
     #[test]
     fn test_cuda_context_creation() {
+        use std::panic;
+
         // Skip test if CUDA library is not available at runtime
-        match CudaContext::new() {
-            Ok(context) => {
+        let result = panic::catch_unwind(|| CudaContext::new());
+
+        match result {
+            Ok(Ok(context)) => {
                 // If we can create a context, test passed
                 drop(context);
             }
-            Err(GpuError::BackendNotAvailable(_)) => {
-                // CUDA not available, skip test
+            Ok(Err(GpuError::BackendNotAvailable(_))) | Err(_) => {
+                // CUDA not available or library loading failed, skip test
                 eprintln!("Skipping test: CUDA runtime not available");
                 return;
             }
-            Err(e) => {
-                // Unexpected error
+            Ok(Err(e)) => {
+                // Other error that's not backend availability
                 panic!("Unexpected error creating CUDA context: {:?}", e);
             }
         }

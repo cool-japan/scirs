@@ -5,7 +5,7 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero, One, Sum};
+use num_traits::{Float, NumAssign, Zero, One};
 use std::iter::Sum;
 
 use super::super::core::{BandSolveWorkItem, WorkItem};
@@ -339,7 +339,7 @@ where
     // Nuclear norm is the sum of singular values
     use super::decomposition::parallel_svd_work_stealing;
     let (_, s, _) = parallel_svd_work_stealing(a, workers)?;
-    Ok(s.iter().sum())
+    Ok(s.iter().cloned().sum())
 }
 
 /// Parallel matrix 1-norm computation (maximum column sum)
@@ -416,8 +416,8 @@ where
     F: Float + NumAssign + Zero + One + Sum + Send + Sync + ScalarOperand + 'static,
 {
     let n = a.nrows();
-    let mut result = Array2::eye(n);
-    let mut power = Array2::eye(n);
+    let mut result = Array2::<F>::eye(n);
+    let mut power = Array2::<F>::eye(n);
 
     // Compute powers of A and coefficients in parallel
     for k in 1..=degree {
@@ -425,7 +425,7 @@ where
 
         // Padé coefficient (simplified)
         let coeff = F::from(1.0).unwrap() / F::from(factorial(k)).unwrap();
-        result += &power * coeff;
+        result = result + power.mapv(|x| x * coeff);
     }
 
     Ok(result)

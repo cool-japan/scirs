@@ -10,6 +10,7 @@ use num_traits::{Float, NumAssign, Zero};
 use std::fmt::Debug;
 
 pub mod acceleration;
+pub mod advanced;
 pub mod backends;
 pub mod device_info;
 pub mod memory;

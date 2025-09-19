@@ -8,6 +8,10 @@ use crate::error::{CoreError, CoreResult};
 use ndarray::{Array, ArrayView, Ix1, Ix2};
 use std::ops;
 
+// External module declarations
+pub mod core;
+pub mod reduction;
+
 /// Common mathematical operations for numerical arrays (1D)
 pub mod math {
     use super::*;
@@ -610,13 +614,14 @@ pub mod binary2d {
 }
 
 /// Reduction operations for arrays
-pub mod reduction {
+// Module for 2D-specific reduction operations with error handling
+pub mod reduction2d {
     use super::*;
     use crate::error::{ErrorContext, ErrorLocation};
     use num_traits::{Float, FromPrimitive, One, Zero};
 
-    /// Sum of array elements
-    pub fn sum<T>(array: &ArrayView<T, Ix2>, axis: Option<usize>) -> CoreResult<Array<T, Ix1>>
+    /// Sum of 2D array elements with error handling
+    pub fn sum_2d<T>(array: &ArrayView<T, Ix2>, axis: Option<usize>) -> CoreResult<Array<T, Ix1>>
     where
         T: Clone + Default + ops::Add<Output = T> + Zero,
     {
@@ -1010,8 +1015,8 @@ pub use math2d::{
     reciprocal, round, sign, sin, sinh, sqrt, square, tan, tanh, trunc,
 };
 
-// Export reduction operations directly
-pub use reduction::{max, mean, min, product, std, sum, var};
+// Export reduction operations directly from the external module
+pub use reduction::{sum, mean, product, std, var, min, max};
 
 #[cfg(test)]
 mod tests {
@@ -1061,19 +1066,19 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Test sum reduction
-        let result = reduction::sum(&a.view(), None).unwrap();
+        let result = sum(&a.view(), None);
         assert_eq!(result, array![21.0]);
 
         // Test sum along axis 0
-        let result = reduction::sum(&a.view(), Some(0)).unwrap();
+        let result = sum(&a.view(), Some(0));
         assert_eq!(result, array![5.0, 7.0, 9.0]);
 
         // Test sum along axis 1
-        let result = reduction::sum(&a.view(), Some(1)).unwrap();
+        let result = sum(&a.view(), Some(1));
         assert_eq!(result, array![6.0, 15.0]);
 
         // Test mean reduction
-        let result = reduction::mean(&a.view(), None);
+        let result = mean(&a.view(), None);
         assert_eq!(result, array![3.5]);
     }
 }
