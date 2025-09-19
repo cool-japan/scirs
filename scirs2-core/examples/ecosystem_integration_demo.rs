@@ -84,7 +84,7 @@ fn main() -> CoreResult<()> {
             println!("═══════════════════════════════════════════════════════");
 
             // Display summary results
-            display_ecosystem_summary(&result);
+            display_ecosystem_summary(result);
 
             // Generate and display comprehensive report
             println!("\n📋 Generating Comprehensive Ecosystem Report...");
@@ -98,7 +98,7 @@ fn main() -> CoreResult<()> {
             }
 
             // Display final assessment
-            display_final_assessment(&result);
+            display_release_assessment(result);
         }
         Err(e) => {
             println!("\n❌ Ecosystem Integration Testing Failed: {:?}", e);

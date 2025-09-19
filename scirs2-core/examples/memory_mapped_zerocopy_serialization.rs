@@ -29,7 +29,7 @@ struct Complex64 {
 }
 
 impl Complex64 {
-    fn real(real: f64, imag: f64) -> Self {
+    fn new(real: f64, imag: f64) -> Self {
         Self { real, imag }
     }
 
@@ -278,7 +278,7 @@ fn basic_serialization_example(tempdir: &Path) -> Result<(), Box<dyn std::error:
 
 /// Example demonstrating working with metadata in zero-copy serialized files
 #[allow(dead_code)]
-fn metadata_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn metadata_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n2. Working with Metadata Example");
     println!("--------------------------------");
 
@@ -341,13 +341,13 @@ fn metadata_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("\nMetadata after update:");
     println!("  Description: {}", updated["description"]);
     println!("  Version: {}", updated["version"]);
-    println!("  Updated: {}", updated[updated]);
+    println!("  Updated: {}", updated["updated"]);
     println!(
         "  Calibration factor: {}",
         updated["properties"]["calibration_factor"]
     );
     println!("  Processing: {}", updated["properties"]["processing"]);
-    println!("  Tags: {}", updated[tags]);
+    println!("  Tags: {}", updated["tags"]);
 
     // Load the array and verify data wasn't affected by metadata update
     let loaded = MemoryMappedArray::<f32>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
@@ -373,7 +373,7 @@ fn multidimensional_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Er
     println!("Created a 3D array with shape {:?}", data.shape());
 
     // Set up file path for saving
-    let file_path = temp_dir.join("3d_array.bin");
+    let file_path = tempdir.join("3d_array.bin");
 
     // Save with zero-copy serialization
     MemoryMappedArray::<i32>::save_array(&data, &file_path, None)?;
@@ -417,7 +417,7 @@ fn multidimensional_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Er
         val as f64
     });
 
-    let dyn_file_path = temp_dir.join("dyn_array.bin");
+    let dyn_file_path = tempdir.join("dyn_array.bin");
     MemoryMappedArray::<f64>::save_array(&dyn_data, &dyn_file_path, None)?;
 
     // Load dynamic array
@@ -468,13 +468,13 @@ fn performance_comparison(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
     );
 
     // 1. Zero-copy serialization
-    let zero_copy_path = temp_dir.join("zero_copy_perf.bin");
+    let zero_copy_path = tempdir.join("zero_copy_perf.bin");
     let start = Instant::now();
     MemoryMappedArray::<f64>::save_array(&data, &zero_copy_path, None)?;
     let zero_copy_save_time = start.elapsed();
 
     // 2. Traditional serialization (using bincode)
-    let traditional_path = temp_dir.join("traditional_perf.bin");
+    let traditional_path = tempdir.join("traditional_perf.bin");
     let start = Instant::now();
     let serialized = bincode::serialize(&data)?;
     let mut file = File::create(&traditional_path)?;
@@ -592,7 +592,7 @@ fn performance_comparison(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
 
 /// Example demonstrating updating data in a zero-copy serialized file
 #[allow(dead_code)]
-fn updating_data_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn updating_data_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n5. Updating Data Example");
     println!("------------------------");
 
@@ -601,7 +601,7 @@ fn updating_data_example(_tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
     println!("Created a 10x10 array");
 
     // Set up file path for saving
-    let file_path = temp_dir.join("updateable_array.bin");
+    let file_path = tempdir.join("updateable_array.bin");
 
     // Save with zero-copy serialization
     MemoryMappedArray::<f32>::save_array(&data, &file_path, None)?;

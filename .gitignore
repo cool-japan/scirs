@@ -3,6 +3,11 @@ target/
 **/*.rs.bk
 Cargo.lock
 
+# Backup files
+**/*.rs.bak
+**/*_old.rs
+**/*_backup.rs
+
 # IDE files
 .idea/
 .vscode/
