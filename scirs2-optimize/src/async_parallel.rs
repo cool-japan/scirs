@@ -8,6 +8,7 @@ use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
 use ndarray::{Array1, Array2};
 use rand::Rng;
+use std::cmp::min;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -104,7 +105,7 @@ impl Default for AsyncOptimizationConfig {
             max_workers,
             evaluation_timeout: Some(Duration::from_secs(300)), // 5 minutes
             completion_timeout: Some(Duration::from_secs(60)),  // 1 minute
-            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min, fraction: 0.8 },
+            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min_fraction: 0.8 },
             min_evaluations: 10,
         }
     }
@@ -403,7 +404,7 @@ impl AsyncDifferentialEvolution {
                 loop {
                     // Get next evaluation request
                     let request = {
-                        let mut _rx = request_rx.lock().await;
+                        let mut rx = request_rx.lock().await;
                         rx.recv().await
                     };
 
@@ -497,7 +498,8 @@ impl AsyncDifferentialEvolution {
 
     /// Check if we should proceed with partial results
     async fn should_proceed_with_partial_results(
-        self_stats: &Arc<RwLock<AsyncOptimizationStats>>,
+        &self,
+        _stats: &Arc<RwLock<AsyncOptimizationStats>>,
         completed: usize,
     ) -> bool {
         match self.config.slow_evaluation_strategy {
@@ -514,7 +516,7 @@ impl AsyncDifferentialEvolution {
     }
 
     /// Handle incomplete generation by filling missing fitness values
-    fn handle_incomplete_generation(&self, fitnessvalues: &mut [f64], completed: usize) {
+    fn handle_incomplete_generation(&self, fitness_values: &mut [f64], completed: usize) {
         // Fill incomplete evaluations with a penalty value
         let max_completed_fitness = fitness_values[..completed]
             .iter()
@@ -533,7 +535,7 @@ impl AsyncDifferentialEvolution {
     }
 
     /// Check convergence based on fitness variance
-    fn check_convergence(&self, fitnessvalues: &[f64]) -> bool {
+    fn check_convergence(&self, fitness_values: &[f64]) -> bool {
         let finite_fitness: Vec<f64> = fitness_values
             .iter()
             .filter(|&&f| f.is_finite())
@@ -590,7 +592,7 @@ impl AsyncDifferentialEvolution {
             // Create mutant vector
             let mut mutant = Array1::zeros(self.dimensions);
             for j in 0..self.dimensions {
-                mutant[j] = current_population[[indices[0]..j]]
+                mutant[j] = current_population[[indices[0], j]]
                     + self.mutation_factor
                         * (current_population[[indices[1], j]]
                             - current_population[[indices[2], j]]);
@@ -642,7 +644,7 @@ mod tests {
             x.iter().map(|&xi| xi.powi(2)).sum::<f64>()
         };
 
-        let bounds_lower = Array1::from_vec(vec![-5.0..-5.0]);
+        let bounds_lower = Array1::from_vec(vec![-5.0, -5.0]);
         let bounds_upper = Array1::from_vec(vec![5.0, 5.0]);
 
         let optimizer = AsyncDifferentialEvolution::new(2, Some(20), None)
@@ -669,7 +671,7 @@ mod tests {
         // Function with varying evaluation times
         let objective = |x: Array1<f64>| async move {
             // Simulate varying computation times (10ms to 100ms)
-            let delay = rand::rng().random_range(10..=100);
+            let delay = rand::rng().gen_range(10..=100);
             sleep(Duration::from_millis(delay)).await;
 
             // Rosenbrock function (2D)
@@ -678,14 +680,14 @@ mod tests {
             a.powi(2) + 100.0 * b.powi(2)
         };
 
-        let bounds_lower = Array1::from_vec(vec![-2.0..-2.0]);
+        let bounds_lower = Array1::from_vec(vec![-2.0, -2.0]);
         let bounds_upper = Array1::from_vec(vec![2.0, 2.0]);
 
         let config = AsyncOptimizationConfig {
             max_workers: 4,
             evaluation_timeout: Some(Duration::from_millis(200)),
             completion_timeout: Some(Duration::from_secs(5)),
-            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min, fraction: 0.7 },
+            slow_evaluation_strategy: SlowEvaluationStrategy::UsePartial { min_fraction: 0.7 },
             min_evaluations: 5,
         };
 

@@ -134,7 +134,22 @@ impl HfHub {
         for file in &files {
             let file_path = download_dir.join(file);
             if !file_path.exists() {
-                std::fs::write(&file_path, format!("# Placeholder {file} for {model_id}"))
+                let content = if file == &"config.json" {
+                    // Create a valid JSON config for testing
+                    r#"{
+  "architectures": ["BertModel"],
+  "model_type": "bert",
+  "num_attention_heads": 12,
+  "hidden_size": 768,
+  "intermediate_size": 3072,
+  "num_hidden_layers": 12,
+  "vocab_size": 30522,
+  "max_position_embeddings": 512
+}"#.to_string()
+                } else {
+                    format!("# Placeholder {file} for {model_id}")
+                };
+                std::fs::write(&file_path, content)
                     .map_err(|e| TextError::IoError(format!("Failed to create {file}: {e}")))?;
             }
         }

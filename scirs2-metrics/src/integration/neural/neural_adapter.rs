@@ -87,12 +87,25 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
         Self::new(
             "precision",
             Box::new(|preds, targets| {
-                // Convert to f64, calculate, and then convert back to F
-                let preds_f64 = preds.mapv(|x| x.to_f64().unwrap_or(0.0));
-                let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
+                // Convert to 1D f64 arrays safely
+                let preds_1d = preds.to_shape(preds.len()).unwrap();
+                let targets_1d = targets.to_shape(targets.len()).unwrap();
+
+                let preds_f64: Vec<f64> = preds_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+                let targets_f64: Vec<f64> = targets_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+
+                let preds_arr = ndarray::Array1::from(preds_f64);
+                let targets_arr = ndarray::Array1::from(targets_f64);
+
                 let pos_label = 1.0;
                 let result =
-                    crate::classification::precision_score(&targets_f64, &preds_f64, pos_label)?;
+                    crate::classification::precision_score(&targets_arr, &preds_arr, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )
@@ -103,12 +116,25 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
         Self::new(
             "recall",
             Box::new(|preds, targets| {
-                // Convert to f64, calculate, and then convert back to F
-                let preds_f64 = preds.mapv(|x| x.to_f64().unwrap_or(0.0));
-                let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
+                // Convert to 1D f64 arrays safely
+                let preds_1d = preds.to_shape(preds.len()).unwrap();
+                let targets_1d = targets.to_shape(targets.len()).unwrap();
+
+                let preds_f64: Vec<f64> = preds_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+                let targets_f64: Vec<f64> = targets_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+
+                let preds_arr = ndarray::Array1::from(preds_f64);
+                let targets_arr = ndarray::Array1::from(targets_f64);
+
                 let pos_label = 1.0;
                 let result =
-                    crate::classification::recall_score(&targets_f64, &preds_f64, pos_label)?;
+                    crate::classification::recall_score(&targets_arr, &preds_arr, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )
@@ -119,11 +145,24 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
         Self::new(
             "f1_score",
             Box::new(|preds, targets| {
-                // Convert to f64, calculate, and then convert back to F
-                let preds_f64 = preds.mapv(|x| x.to_f64().unwrap_or(0.0));
-                let targets_f64 = targets.mapv(|x| x.to_f64().unwrap_or(0.0));
+                // Convert to 1D f64 arrays safely
+                let preds_1d = preds.to_shape(preds.len()).unwrap();
+                let targets_1d = targets.to_shape(targets.len()).unwrap();
+
+                let preds_f64: Vec<f64> = preds_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+                let targets_f64: Vec<f64> = targets_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+
+                let preds_arr = ndarray::Array1::from(preds_f64);
+                let targets_arr = ndarray::Array1::from(targets_f64);
+
                 let pos_label = 1.0;
-                let result = crate::classification::f1_score(&targets_f64, &preds_f64, pos_label)?;
+                let result = crate::classification::f1_score(&targets_arr, &preds_arr, pos_label)?;
                 Ok(F::from(result).unwrap())
             }),
         )
@@ -239,7 +278,8 @@ mod neural_trait_impl {
 
         fn result(&self) -> F {
             if let (Some(preds), Some(targets)) = (&self.predictions, &self.targets) {
-                self.compute(preds, targets).unwrap_or(F::zero())
+                // Directly call the metric function to avoid potential recursion
+                (self.metric_fn)(preds, targets).unwrap_or(F::zero())
             } else {
                 F::zero()
             }

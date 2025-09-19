@@ -594,6 +594,7 @@ impl PerfUtils {
 
 /// Processing strategy recommendation
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "distributed", derive(serde::Serialize, serde::Deserialize))]
 pub enum ProcessingStrategy {
     /// Standard sequential processing
     Standard,

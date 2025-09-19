@@ -171,11 +171,7 @@ where
 
 /// Compute Short-Time Fourier Transform (STFT)
 #[allow(dead_code)]
-fn compute_stft<T>(
-    _signal: &[T],
-    config: &TFConfig,
-    sample_rate: Option<f64>,
-) -> FFTResult<TFResult>
+fn compute_stft<T>(signal: &[T], config: &TFConfig, sample_rate: Option<f64>) -> FFTResult<TFResult>
 where
     T: NumCast + Copy + Debug,
 {
@@ -196,7 +192,7 @@ where
     let window = window::get_window(window_type, window_size, true)?;
 
     // Calculate number of frames based on _signal length, window size, and hop size
-    let num_frames = ((_signal.len() - window_size) / hop_size) + 1;
+    let num_frames = ((signal.len() - window_size) / hop_size) + 1;
 
     // Limit number of frames for testing to avoid timeouts
     let num_frames = num_frames.min(config.max_size / window_size);
@@ -246,7 +242,7 @@ where
 
         // Copy frame and apply window
         for i in 0..window_size {
-            let _signal_val: f64 = NumCast::from(_signal[start + i]).ok_or_else(|| {
+            let _signal_val: f64 = NumCast::from(signal[start + i]).ok_or_else(|| {
                 FFTError::ValueError("Failed to convert _signal value to f64".to_string())
             })?;
             windowed_frame.push(Complex64::new(_signal_val * window[i], 0.0));
@@ -290,7 +286,7 @@ where
 
 /// Compute Continuous Wavelet Transform (CWT)
 #[allow(dead_code)]
-fn compute_cwt<T>(_signal: &[T], config: &TFConfig, samplerate: Option<f64>) -> FFTResult<TFResult>
+fn compute_cwt<T>(signal: &[T], config: &TFConfig, sample_rate: Option<f64>) -> FFTResult<TFResult>
 where
     T: NumCast + Copy + Debug,
 {
@@ -603,7 +599,7 @@ fn compute_synchrosqueezed_wt(
                 / 2.0;
 
             // Find nearest frequency bin
-            let inst_freq = phase_diff / (2.0 * PI) * sample_rate.unwrap_or(1.0);
+            let inst_freq = phase_diff / (2.0 * std::f64::consts::PI) * sample_rate.unwrap_or(1.0);
             let closest_bin = cwt_result
                 .frequencies
                 .iter()
@@ -688,7 +684,7 @@ where
 
 /// Extract ridge (maximum energy path) from a time-frequency representation
 #[allow(dead_code)]
-pub fn extract_ridge(_tfresult: &TFResult) -> Vec<(f64, f64)> {
+pub fn extract_ridge(tf_result: &TFResult) -> Vec<(f64, f64)> {
     let num_times = tf_result.times.len();
     let num_freqs = tf_result.frequencies.len();
 
@@ -711,7 +707,7 @@ pub fn extract_ridge(_tfresult: &TFResult) -> Vec<(f64, f64)> {
         }
 
         // Add (time, frequency) point to ridge
-        ridge.push((_tf_result.times[j], tf_result.frequencies[max_freq_idx]));
+        ridge.push((tf_result.times[j], tf_result.frequencies[max_freq_idx]));
     }
 
     ridge
@@ -733,7 +729,7 @@ mod tests {
         let mut signal = Vec::with_capacity(n);
         for i in 0..n {
             let t = i as f64 / sample_rate;
-            signal.push((2.0 * PI * freq * t).sin());
+            signal.push((2.0 * std::f64::consts::PI * freq * t).sin());
         }
 
         // Create STFT configuration
@@ -787,7 +783,7 @@ mod tests {
         let mut signal = Vec::with_capacity(n);
         for i in 0..n {
             let t = i as f64 / sample_rate;
-            signal.push((2.0 * PI * freq * t).sin());
+            signal.push((2.0 * std::f64::consts::PI * freq * t).sin());
         }
 
         // Create CWT configuration

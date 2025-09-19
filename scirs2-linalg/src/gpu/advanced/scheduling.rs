@@ -15,7 +15,10 @@ use std::time::Instant;
 
 /// Advanced GPU tensor core scheduler
 #[derive(Debug)]
-pub struct AdvancedGpuTensorCoreScheduler<T> {
+pub struct AdvancedGpuTensorCoreScheduler<T>
+where
+    T: Clone,
+{
     /// Tensor core units
     tensor_core_units: Vec<TensorCoreUnit>,
     /// Scheduling algorithm
@@ -64,7 +67,10 @@ pub enum TensorCoreSchedulingAlgorithm {
 
 /// Tensor core operation
 #[derive(Debug, Clone)]
-pub struct TensorCoreOperation<T> {
+pub struct TensorCoreOperation<T>
+where
+    T: Clone,
+{
     /// Operation ID
     pub id: usize,
     /// Operation type
@@ -169,7 +175,10 @@ pub struct BandwidthMeasurement {
     pub data_size: usize,
 }
 
-impl<T> AdvancedGpuTensorCoreScheduler<T> {
+impl<T> AdvancedGpuTensorCoreScheduler<T>
+where
+    T: Clone,
+{
     /// Create a new tensor core scheduler
     pub fn new() -> LinalgResult<Self> {
         Ok(Self {

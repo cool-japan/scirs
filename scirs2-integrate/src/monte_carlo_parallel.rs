@@ -16,8 +16,12 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use scirs2_core::num_threads;
 #[cfg(feature = "parallel")]
 use scirs2_core::parallel_ops::ThreadPoolBuilder;
+use scirs2_core::parallel_ops::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+};
 
 /// Options for parallel Monte Carlo integration
 #[derive(Debug, Clone)]
@@ -546,7 +550,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::monte_carlo::{ErrorEstimationMethod, MonteCarloOptions};
     use approx::assert_relative_eq;
+    use ndarray::ArrayView1;
+    use std::marker::PhantomData;
 
     #[test]
     #[cfg(feature = "parallel")]

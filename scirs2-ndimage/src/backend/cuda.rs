@@ -109,17 +109,20 @@ fn cuda_error_string(error: i32) -> String {
 }
 
 /// CUDA-specific GPU buffer implementation
-pub struct CudaBuffer<T> {
+pub struct CudaBuffer<T>
+where
+    T: Send + Sync,
+{
     device_ptr: *mut c_void,
     size: usize,
     phantom: std::marker::PhantomData<T>,
 }
 
 // CUDA device pointers are thread-safe as long as the CUDA context is properly managed
-unsafe impl<T> Send for CudaBuffer<T> {}
-unsafe impl<T> Sync for CudaBuffer<T> {}
+unsafe impl<T: Send + Sync> Send for CudaBuffer<T> {}
+unsafe impl<T: Send + Sync> Sync for CudaBuffer<T> {}
 
-impl<T> CudaBuffer<T> {
+impl<T: Send + Sync + 'static> CudaBuffer<T> {
     pub fn new(size: usize) -> NdimageResult<Self> {
         let mut device_ptr: *mut c_void = ptr::null_mut();
         let byte_size = size * std::mem::size_of::<T>();
@@ -141,13 +144,13 @@ impl<T> CudaBuffer<T> {
     }
 
     pub fn from_host_data(data: &[T]) -> NdimageResult<Self> {
-        let buffer = Self::new(data.len())?;
+        let mut buffer = Self::new(data.len())?;
         buffer.copy_from_host(data)?;
         Ok(buffer)
     }
 }
 
-impl<T> Drop for CudaBuffer<T> {
+impl<T: Send + Sync> Drop for CudaBuffer<T> {
     fn drop(&mut self) {
         unsafe {
             if !self.device_ptr.is_null() {
@@ -157,7 +160,7 @@ impl<T> Drop for CudaBuffer<T> {
     }
 }
 
-impl<T: Send + Sync> GpuBuffer<T> for CudaBuffer<T> {
+impl<T: Send + Sync + 'static> GpuBuffer<T> for CudaBuffer<T> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -279,15 +282,15 @@ impl CudaContext {
         };
 
         let max_threads_per_block = match compute_capability {
-            (8_) => 1024, // Ampere
-            (7_) => 1024, // Turing/Volta
-            _ => 512,     // Older architectures
+            (8, _) => 1024, // Ampere
+            (7, _) => 1024, // Turing/Volta
+            _ => 512,       // Older architectures
         };
 
         let max_shared_memory = match compute_capability {
-            (8_) => 99328,   // Ampere: 96KB + 3KB
+            (8, _) => 99328, // Ampere: 96KB + 3KB
             (7, 5) => 65536, // Turing: 64KB
-            (7_) => 49152,   // Volta: 48KB
+            (7, _) => 49152, // Volta: 48KB
             _ => 32768,      // Older: 32KB
         };
 
@@ -342,7 +345,7 @@ impl CudaContext {
             })?;
             if let Some(kernel) = cache.get(kernelname) {
                 return Ok(CudaKernel {
-                    _name: kernel._name.clone(),
+                    name: kernel.name.clone(),
                     module: kernel.module,
                     function: kernel.function,
                     ptx_code: kernel.ptx_code.clone(),
@@ -434,7 +437,7 @@ impl CudaContext {
             }
 
             let kernel = CudaKernel {
-                _name: kernelname.to_string(),
+                name: kernelname.to_string(),
                 module,
                 function,
                 ptx_code: ptx_code[..ptx_size - 1].to_vec(), // Remove null terminator
@@ -450,7 +453,7 @@ impl CudaContext {
                 cache.insert(
                     kernelname.to_string(),
                     CudaKernel {
-                        _name: kernel._name.clone(),
+                        name: kernel.name.clone(),
                         module: kernel.module,
                         function: kernel.function,
                         ptx_code: kernel.ptx_code.clone(),
@@ -547,7 +550,7 @@ impl Drop for CudaExecutor {
 
 impl<T> GpuKernelExecutor<T> for CudaExecutor
 where
-    T: Float + FromPrimitive + Debug + Clone + Send + Sync,
+    T: Float + FromPrimitive + Debug + Clone + Send + Sync + 'static,
 {
     fn execute_kernel(
         &self,

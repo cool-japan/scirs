@@ -335,7 +335,10 @@ impl AdvancedMultiGpuCoordinator {
     pub fn execute_multi_gpu_fusion<T>(
         &mut self,
         fusion_plan: &[super::kernels::FusionCandidate],
-    ) -> LinalgResult<Vec<Array2<T>>> {
+    ) -> LinalgResult<Vec<Array2<T>>>
+    where
+        T: Clone + num_traits::Zero,
+    {
         // Simplified multi-GPU execution
         let mut results = Vec::new();
 

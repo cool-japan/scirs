@@ -1,17 +1,24 @@
 #[cfg(feature = "autograd")]
 #[allow(unused_imports)]
 mod example {
-    use ndarray::array;
+    // use ndarray::array;  // Temporarily disabled
     use scirs2_autograd::error::Result as AutogradResult;
-    use scirs2_autograd::variable::Variable;
+    // use scirs2_autograd::variable::Variable;  // Temporarily disabled
     // Import the implemented autograd transformations
-    use scirs2_linalg::autograd::transformations::variable::{
-        project, reflectionmatrix, rotationmatrix_2d, scalingmatrix, shearmatrix,
-    };
+    // use scirs2_linalg::autograd::transformations::variable::{
+    //     project, reflectionmatrix, rotationmatrix_2d, scalingmatrix, shearmatrix,
+    // };  // Temporarily disabled
 
     pub fn run() -> AutogradResult<()> {
         println!("Matrix Transformations with Autograd Example");
         println!("--------------------------------------------\n");
+
+        // Note: This example is temporarily disabled due to API mismatch.
+        // The Variable type in scirs2_autograd is RefCell<NdArray<F>>, not a struct with tensor field.
+        // The transformation functions in autograd::transformations::variable expect a different Variable type.
+        println!("Autograd transformations are temporarily disabled due to API mismatch.");
+
+        /* Disabled code - needs API fix
         // Example 1: 2D Rotation Matrix
         println!("Example 1: 2D Rotation Matrix");
 
@@ -125,6 +132,8 @@ mod example {
 
         println!("Gradient of projection sum with respect to A:");
         println!("{:?}", a.tensor.grad());
+        */
+ // End of disabled code
 
         Ok(())
     }

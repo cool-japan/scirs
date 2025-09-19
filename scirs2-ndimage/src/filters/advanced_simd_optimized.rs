@@ -475,7 +475,7 @@ fn advanced_simd_template_match_row<T>(
                 let image_centered: Vec<T> = image_vals
                     .iter()
                     .zip(image_means.iter())
-                    .map(|(&img_val, &_mean)| img_val - mean)
+                    .map(|(&img_val, &mean)| img_val - mean)
                     .collect();
 
                 let template_vec = vec![template_centered; simd_width];

@@ -53,7 +53,7 @@ fn demo_basic_derivatives() {
         println!("dz/dy = {:?}", grads[1].eval(ctx));
 
         // dz/dx = 4x (requires feeding x value)
-        let feed = ag::ndarray::arr0(2.0);
+        let feed = ag::ndarray::arr0(2.0).into_dyn();
         let gx_val = ctx.evaluator().push(&grads[0]).feed(x, feed.view()).run()[0].clone();
         println!("dz/dx at x=2 = {:?}", gx_val);
 
@@ -93,22 +93,22 @@ fn demomatrix_operations() {
         let grad_results = ctx
             .evaluator()
             .extend(&grads)
-            .feed(a, a_val.view())
-            .feed(b, b_val.view())
+            .feed(a, a_val.view().into_dyn())
+            .feed(b, b_val.view().into_dyn())
             .run();
 
         println!("grad(trace(A*B))/dA = \n{:?}", grad_results[0]);
         println!("grad(trace(A*B))/dB = \n{:?}", grad_results[1]);
 
         // Frobenius norm squared
-        let norm_squared = T::scalar_sum(T::square(c));
+        let norm_squared = T::sum_all(T::square(c));
         let norm_grads = T::grad(&[norm_squared], &[a, b]);
 
         let norm_grad_results = ctx
             .evaluator()
             .extend(&norm_grads)
-            .feed(a, a_val.view())
-            .feed(b, b_val.view())
+            .feed(a, a_val.view().into_dyn())
+            .feed(b, b_val.view().into_dyn())
             .run();
 
         println!("\ngrad(||A*B||²)/dA = \n{:?}", norm_grad_results[0]);
@@ -139,38 +139,22 @@ fn demo_composite_functions() {
         // Feed value
         let a_val = ag::ndarray::arr2(&[[1.0, 2.0], [3.0, 4.0]]);
 
-        let result = ctx.evaluator().push(grad_f).feed(a, a_val.view()).run()[0].clone();
-
-        println!("grad(trace(A^T * A))/dA = \n{:?}", result);
-
-        // Another composite: g(A) = det(A) (for 2x2 only)
-        // Using a manual implementation since autograd might not have det
-        let det_a = a.at(&[0, 0]) * a.at(&[1, 1]) - a.at(&[0, 1]) * a.at(&[1, 0]);
-        let grad_det = &T::grad(&[det_a], &[a])[0];
-
-        let det_grad_result = ctx.evaluator().push(grad_det).feed(a, a_val.view()).run()[0].clone();
-
-        println!("\ngrad(det(A))/dA = \n{:?}", det_grad_result);
-
-        // Matrix inverse gradient (simplified for 2x2)
-        let det_inv = T::scalar_inv(det_a);
-        let adj_00 = a.at(&[1, 1]);
-        let adj_01 = -a.at(&[0, 1]);
-        let adj_10 = -a.at(&[1, 0]);
-        let adj_11 = a.at(&[0, 0]);
-
-        // Just trace of inverse as example
-        let inv_trace = det_inv * (adj_00 + adj_11);
-        let grad_inv_trace = &T::grad(&[inv_trace], &[a])[0];
-
-        let inv_trace_result = ctx
+        let result = ctx
             .evaluator()
-            .push(grad_inv_trace)
-            .feed(a, a_val.view())
+            .push(grad_f)
+            .feed(a, a_val.view().into_dyn())
             .run()[0]
             .clone();
 
-        println!("\ngrad(trace(A^(-1)))/dA = \n{:?}", inv_trace_result);
+        println!("grad(trace(A^T * A))/dA = \n{:?}", result);
+
+        // Note: Determinant gradient example disabled due to element access API changes
+        // The 'at' method for accessing individual elements is not currently available
+        println!("\nDeterminant gradient example skipped (element access API not available)");
+
+        // Note: Matrix inverse gradient example disabled due to element access API changes
+        // The 'at' method for accessing individual elements is not currently available
+        println!("\nMatrix inverse gradient example skipped (element access API not available)");
     });
 
     println!();

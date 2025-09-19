@@ -1007,7 +1007,9 @@ impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand>
 
                 // Compute correlation
                 let correlation = self.compute_correlation_arrays(&model_i, &model_j)?;
-                let diversity = F::one() - correlation.abs(); // Diversity = 1 - |correlation|
+                // Clamp correlation to [-1, 1] to handle numerical precision issues
+                let clamped_correlation = correlation.max(-F::one()).min(F::one());
+                let diversity = F::one() - clamped_correlation.abs(); // Diversity = 1 - |correlation|
 
                 total_diversity = total_diversity + diversity;
                 count += 1;

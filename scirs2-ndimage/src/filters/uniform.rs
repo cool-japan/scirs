@@ -1144,7 +1144,7 @@ where
         orig.to_vec()
     } else {
         // Default to centered filter
-        vec![(_size[0] / 2) as isize, (_size[1] / 2) as isize]
+        vec![(size[0] / 2) as isize, (size[1] / 2) as isize]
     };
 
     // Calculate padding for overlap between chunks

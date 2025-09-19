@@ -334,7 +334,7 @@ mod tests {
 
         let extended_info = ExtendedDeviceInfo::from_basic(basic_info);
 
-        assert_eq!(extended_info.basicinfo.device_type, GpuDeviceType::Cuda);
+        assert_eq!(extended_info.basic_info.device_type, GpuDeviceType::Cuda);
         assert_eq!(extended_info.capabilities.warpsize, 32);
         assert!(extended_info.performance.peak_gflops_fp32 > 0.0);
     }

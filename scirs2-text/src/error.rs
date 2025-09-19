@@ -62,3 +62,10 @@ impl From<scirs2_core::CoreError> for TextError {
         TextError::RuntimeError(err.to_string())
     }
 }
+
+/// Implement From trait for converting serde_json::Error to TextError
+impl From<serde_json::Error> for TextError {
+    fn from(err: serde_json::Error) -> Self {
+        TextError::InvalidInput(format!("JSON parsing error: {}", err))
+    }
+}

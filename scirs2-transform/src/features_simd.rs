@@ -20,8 +20,8 @@ pub struct SimdPolynomialFeatures<F: Float + NumCast + SimdUnifiedOps> {
 
 impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
     /// Creates a new SIMD-accelerated polynomial features generator
-    pub fn new(_degree: usize, include_bias: bool, interactiononly: bool) -> Result<Self> {
-        if _degree == 0 {
+    pub fn new(degree: usize, include_bias: bool, interactiononly: bool) -> Result<Self> {
+        if degree == 0 {
             return Err(TransformError::InvalidInput(
                 "Degree must be at least 1".to_string(),
             ));
@@ -52,32 +52,32 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         }
 
         let n_samples = x.shape()[0];
-        let n_features = x.shape()[1];
+        let nfeatures = x.shape()[1];
 
-        if n_samples == 0 || n_features == 0 {
+        if n_samples == 0 || nfeatures == 0 {
             return Err(TransformError::InvalidInput("Empty input data".to_string()));
         }
 
-        if n_features > 1000 {
+        if nfeatures > 1000 {
             return Err(TransformError::InvalidInput(
                 "Too many features for polynomial expansion (>1000)".to_string(),
             ));
         }
 
         // Calculate output dimensions with overflow check
-        let n_output_features = self.calculate_n_output_features(n_features)?;
+        let n_outputfeatures = self.calculate_n_outputfeatures(nfeatures)?;
 
         // Check for memory constraints
-        if n_samples > 100_000 && n_output_features > 10_000 {
+        if n_samples > 100_000 && n_outputfeatures > 10_000 {
             return Err(TransformError::ComputationError(
                 "Output matrix would be too large (>1B elements)".to_string(),
             ));
         }
 
-        let mut output = Array2::zeros((n_samples, n_output_features));
+        let mut output = Array2::zeros((n_samples, n_outputfeatures));
 
         // Process samples in batches for better cache locality
-        let batch_size = self.calculate_optimal_batch_size(n_samples, n_output_features);
+        let batch_size = self.calculate_optimal_batch_size(n_samples, n_outputfeatures);
         for batch_start in (0..n_samples).step_by(batch_size) {
             let batch_end = (batch_start + batch_size).min(n_samples);
 
@@ -86,7 +86,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
                 let poly_features = self.transform_sample_simd(&sample)?;
 
                 // Use SIMD copy if available
-                if poly_features.len() == n_output_features {
+                if poly_features.len() == n_outputfeatures {
                     let mut output_row = output.row_mut(i);
                     for (j, &val) in poly_features.iter().enumerate() {
                         output_row[j] = val;
@@ -104,9 +104,9 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
 
     /// Transforms a single sample using SIMD operations
     fn transform_sample_simd(&self, sample: &ArrayView1<F>) -> Result<Array1<F>> {
-        let n_features = sample.len();
-        let n_output_features = self.calculate_n_output_features(n_features)?;
-        let mut output = Array1::zeros(n_output_features);
+        let nfeatures = sample.len();
+        let n_outputfeatures = self.calculate_n_outputfeatures(nfeatures)?;
+        let mut output = Array1::zeros(n_outputfeatures);
         let mut output_idx = 0;
 
         // Include bias term if requested
@@ -116,7 +116,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         }
 
         // Copy original features
-        for j in 0..n_features {
+        for j in 0..nfeatures {
             output[output_idx] = sample[j];
             output_idx += 1;
         }
@@ -142,20 +142,20 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         output: &mut Array1<F>,
         mut output_idx: usize,
     ) -> Result<usize> {
-        let n_features = sample.len();
+        let nfeatures = sample.len();
 
         // For degree 2, use SIMD for efficient computation
         if self.degree == 2 {
             // Squared terms using SIMD
             let squared = F::simd_mul(&sample.view(), &sample.view());
-            for j in 0..n_features {
+            for j in 0..nfeatures {
                 output[output_idx] = squared[j];
                 output_idx += 1;
             }
 
             // Cross terms with vectorized operations where possible
-            for j in 0..n_features {
-                let remaining_features = n_features - j - 1;
+            for j in 0..nfeatures {
+                let remaining_features = nfeatures - j - 1;
                 if remaining_features > 0 {
                     // Use SIMD for remaining cross products
                     let sample_j = sample[j];
@@ -190,12 +190,12 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         mut output_idx: usize,
         degree: usize,
     ) -> Result<usize> {
-        let n_features = sample.len();
+        let nfeatures = sample.len();
 
         if degree == 2 {
             // Pairwise interactions with SIMD optimization
-            for j in 0..n_features {
-                let remaining_features = n_features - j - 1;
+            for j in 0..nfeatures {
+                let remaining_features = nfeatures - j - 1;
                 if remaining_features > 0 {
                     let sample_j = sample[j];
                     let remaining_slice = sample.slice(ndarray::s![j + 1..]);
@@ -210,7 +210,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
                     }
                 } else {
                     // Fallback for remaining elements
-                    for k in j + 1..n_features {
+                    for k in j + 1..nfeatures {
                         output[output_idx] = sample[j] * sample[k];
                         output_idx += 1;
                     }
@@ -218,7 +218,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
             }
         } else {
             // Higher-order interactions
-            let indices = self.generate_interaction_indices(n_features, degree);
+            let indices = self.generate_interaction_indices(nfeatures, degree);
             for idx_set in indices {
                 let mut prod = F::one();
                 for &_idx in &idx_set {
@@ -240,8 +240,8 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         mut output_idx: usize,
         degree: usize,
     ) -> Result<usize> {
-        let n_features = sample.len();
-        let indices = self.generate_degree_indices(n_features, degree);
+        let nfeatures = sample.len();
+        let indices = self.generate_degree_indices(nfeatures, degree);
 
         for idx_vec in indices {
             let mut prod = F::one();
@@ -262,10 +262,10 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
 
         // Target: keep one batch worth of data in L1 cache
         let elements_per_batch = L1_CACHE_SIZE / element_size / 2; // Conservative estimate
-        let max_batch_size = elements_per_batch / n_output_features.max(1);
+        let max_batch_size = elements_per_batch / n_outputfeatures.max(1);
 
         // Adaptive batch size based on data characteristics
-        let optimal_batch_size = if n_output_features > 1000 {
+        let optimal_batch_size = if n_outputfeatures > 1000 {
             // Large feature count: smaller batches
             16.max(max_batch_size).min(64)
         } else if n_samples > 50_000 {
@@ -280,19 +280,19 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
     }
 
     /// Calculates the number of output features
-    fn calculate_n_output_features(&self, nfeatures: usize) -> Result<usize> {
+    fn calculate_n_outputfeatures(&self, nfeatures: usize) -> Result<usize> {
         let mut count = if self.include_bias { 1 } else { 0 };
-        count += n_features; // Original _features
+        count += nfeatures; // Original _features
 
         if self.degree > 1 {
             if self.interaction_only {
                 // Only interaction terms
                 for d in 2..=self.degree {
-                    count += self.n_choose_k(n_features, d);
+                    count += self.n_choose_k(nfeatures, d);
                 }
             } else {
                 // All polynomial combinations
-                count += self.n_polynomial_features(n_features, self.degree) - n_features;
+                count += self.n_polynomial_features(nfeatures, self.degree) - nfeatures;
                 if self.include_bias {
                     count -= 1;
                 }
@@ -320,7 +320,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
 
     /// Calculates the number of polynomial features
     fn n_polynomial_features(&self, nfeatures: usize, degree: usize) -> usize {
-        self.n_choose_k(n_features + degree, degree)
+        self.n_choose_k(nfeatures + degree, degree)
     }
 
     /// Generates indices for interaction terms
@@ -336,7 +336,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
             let mut i = degree - 1;
             loop {
                 current[i] += 1;
-                if current[i] < n_features - (degree - 1 - i) {
+                if current[i] < nfeatures - (degree - 1 - i) {
                     // Reset all elements to the right
                     for j in i + 1..degree {
                         current[j] = current[j - 1] + 1;
@@ -364,7 +364,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
             let mut i = degree - 1;
             loop {
                 current[i] += 1;
-                if current[i] < n_features {
+                if current[i] < nfeatures {
                     // Reset all elements to the right to the same value
                     for j in i + 1..degree {
                         current[j] = current[i];
@@ -393,7 +393,7 @@ where
     match method {
         "box-cox" => {
             // Check for negative values
-            let min_val = F::simd_min_element(&_data.view());
+            let min_val = F::simd_min_element(&data.view());
             if min_val <= F::zero() {
                 return Err(TransformError::InvalidInput(
                     "Box-Cox requires strictly positive values".to_string(),
@@ -408,7 +408,7 @@ where
             } else {
                 // General Box-Cox: (x^lambda - 1) / lambda
                 let ones = Array1::from_elem(n, F::one());
-                let powered = simd_array_pow(_data, lambda)?;
+                let powered = simd_array_pow(data, lambda)?;
                 let numerator = F::simd_sub(&powered.view(), &ones.view());
                 let lambda_array = Array1::from_elem(n, lambda);
                 result = F::simd_div(&numerator.view(), &lambda_array.view());
@@ -468,7 +468,7 @@ where
     // For common exponents, use optimized SIMD operations
     if (exponent - F::from(2.0).unwrap()).abs() < F::from(1e-10).unwrap() {
         // Square using SIMD multiplication
-        result = F::simd_mul(&_data.view(), &_data.view());
+        result = F::simd_mul(&data.view(), &data.view());
     } else if (exponent - F::from(0.5).unwrap()).abs() < F::from(1e-10).unwrap() {
         // Square root using SIMD - check for non-negative values first
         for &val in data.iter() {
@@ -478,11 +478,11 @@ where
                 ));
             }
         }
-        result = F::simd_sqrt(&_data.view());
+        result = F::simd_sqrt(&data.view());
     } else if (exponent - F::from(3.0).unwrap()).abs() < F::from(1e-10).unwrap() {
         // Cube: x^3 = x * x * x
-        let squared = F::simd_mul(&_data.view(), &_data.view());
-        result = F::simd_mul(&squared.view(), &_data.view());
+        let squared = F::simd_mul(&data.view(), &data.view());
+        result = F::simd_mul(&squared.view(), &data.view());
     } else if (exponent - F::from(1.0).unwrap()).abs() < F::from(1e-10).unwrap() {
         // Identity: x^1 = x
         result = data.clone();
@@ -492,7 +492,7 @@ where
     } else {
         // General case: use vectorized exponentiation
         let exponent_array = Array1::from_elem(n, exponent);
-        result = F::simd_pow(&_data.view(), &exponent_array.view());
+        result = F::simd_pow(&data.view(), &exponent_array.view());
 
         // Validate results
         for &val in result.iter() {
@@ -513,7 +513,7 @@ pub fn simd_binarize<F>(data: &Array2<F>, threshold: F) -> Result<Array2<F>>
 where
     F: Float + NumCast + SimdUnifiedOps,
 {
-    check_not_empty(_data, "_data")?;
+    check_not_empty(data, "data")?;
 
     // Check finite values
     for &val in data.iter() {
@@ -533,7 +533,7 @@ where
     let shape = data.shape();
     let mut result = Array2::zeros((shape[0], shape[1]));
 
-    // Calculate adaptive chunk size based on _data dimensions
+    // Calculate adaptive chunk size based on data dimensions
     let chunk_size = calculate_adaptive_chunk_size(shape[0], shape[1]);
 
     for i in 0..shape[0] {
@@ -566,7 +566,7 @@ where
 
 /// Calculate adaptive chunk size for optimal SIMD performance
 #[allow(dead_code)]
-fn calculate_adaptive_chunk_size(_n_rows: usize, ncols: usize) -> usize {
+fn calculate_adaptive_chunk_size(n_rows: usize, ncols: usize) -> usize {
     const L1_CACHE_SIZE: usize = 32_768;
     const F64_SIZE: usize = 8; // Conservative estimate for element size
 
@@ -574,7 +574,7 @@ fn calculate_adaptive_chunk_size(_n_rows: usize, ncols: usize) -> usize {
     let cache_elements = L1_CACHE_SIZE / F64_SIZE / 4; // Conservative factor
 
     // Adaptive chunk size based on matrix dimensions
-    let chunk_size = if n_cols > cache_elements {
+    let chunk_size = if ncols > cache_elements {
         // Wide matrix: use smaller chunks
         32
     } else if n_rows > 10_000 {
@@ -586,7 +586,7 @@ fn calculate_adaptive_chunk_size(_n_rows: usize, ncols: usize) -> usize {
     };
 
     // Ensure chunk size is reasonable and aligned
-    chunk_size.min(n_cols).max(16)
+    chunk_size.min(ncols).max(16)
 }
 
 /// Advanced SIMD polynomial features with memory optimization
@@ -653,14 +653,14 @@ where
     let first_chunk_size = max_rows_per_chunk.min(shape[0]);
     let first_chunk = data.slice(ndarray::s![0..first_chunk_size, ..]);
     let first_result = poly_features.transform(&first_chunk)?;
-    let n_output_features = first_result.shape()[1];
+    let n_outputfeatures = first_result.shape()[1];
 
     // Initialize full output matrix
-    let mut output = Array2::zeros((shape[0], n_output_features));
+    let mut output = Array2::zeros((shape[0], n_outputfeatures));
 
     // Copy first chunk result
     for i in 0..first_chunk_size {
-        for j in 0..n_output_features {
+        for j in 0..n_outputfeatures {
             output[[i, j]] = first_result[[i, j]];
         }
     }
@@ -672,7 +672,7 @@ where
         let chunk_result = poly_features.transform(&chunk)?;
 
         for (i_local, i_global) in (chunk_start..chunk_end).enumerate() {
-            for j in 0..n_output_features {
+            for j in 0..n_outputfeatures {
                 output[[i_global, j]] = chunk_result[[i_local, j]];
             }
         }

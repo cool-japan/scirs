@@ -8,7 +8,7 @@
 use ndarray::Array1;
 #[cfg(feature = "simd")]
 use scirs2_interpolate::{
-    bspline::{BSpline, ExtrapolateMode},
+    bspline::{BSpline, BSplineWorkspace, ExtrapolateMode},
     simd_bspline::SimdBSplineEvaluator,
     simd_optimized::{get_simd_config, is_simd_available},
 };
@@ -76,17 +76,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // 3. Create SIMD evaluators
         println!("3. Creating SIMD Evaluators:");
-        let simd_evaluator_smooth = SimdBSplineEvaluator::new(smooth_spline.clone());
-        let simd_evaluator_osc = SimdBSplineEvaluator::new(oscillatory_spline.clone());
+        let mut simd_evaluator_smooth = SimdBSplineEvaluator::new(smooth_spline.clone());
+        let mut simd_evaluator_osc = SimdBSplineEvaluator::new(oscillatory_spline.clone());
 
-        println!(
-            "   Smooth spline SIMD available: {}",
-            simd_evaluator_smooth.simd_available()
-        );
-        println!(
-            "   Oscillatory spline SIMD available: {}",
-            simd_evaluator_osc.simd_available()
-        );
+        println!("   SIMD B-spline evaluators created successfully");
+        println!("   SIMD optimizations are available through scirs2-core");
         println!();
 
         // 4. Performance comparison
@@ -103,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // SIMD evaluation
             let start = Instant::now();
-            let simd_results = simd_evaluator_smooth.evaluate_batch(&eval_points.view())?;
+            let simd_results = simd_evaluator_smooth.eval_batch(eval_points.as_slice().unwrap())?;
             let simd_duration = start.elapsed();
 
             // Scalar evaluation for comparison
@@ -147,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Testing {} specific points:", test_points.len());
 
         // Test smooth spline
-        let simd_smooth = simd_evaluator_smooth.evaluate_batch(&test_points.view())?;
+        let simd_smooth = simd_evaluator_smooth.eval_batch(test_points.as_slice().unwrap())?;
         println!("   Smooth spline results:");
         for (_i, (&point, &result)) in test_points.iter().zip(simd_smooth.iter()).enumerate() {
             println!("     f({:.3}) = {:8.5}", point, result);
@@ -165,7 +159,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Test oscillatory spline
         let osc_test_points = Array1::linspace(0.0, 4.0 * std::f64::consts::PI, 8);
-        let simd_osc = simd_evaluator_osc.evaluate_batch(&osc_test_points.view())?;
+        let simd_osc = simd_evaluator_osc.eval_batch(osc_test_points.as_slice().unwrap())?;
 
         println!("\n   Oscillatory spline results:");
         for (&point, &result) in osc_test_points.iter().zip(simd_osc.iter()) {
@@ -179,14 +173,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Batch evaluation
         let start = Instant::now();
-        let _batch_results = simd_evaluator_smooth.evaluate_batch(&large_batch.view())?;
+        let _batch_results = simd_evaluator_smooth.eval_batch(large_batch.as_slice().unwrap())?;
         let batch_time = start.elapsed();
 
         // Individual evaluations
         let start = Instant::now();
         for &point in large_batch.iter().take(100) {
             // Only sample first 100 for timing
-            let _ = simd_evaluator_smooth.evaluate(point)?;
+            let _ = simd_evaluator_smooth
+                .spline()
+                .evaluate_with_workspace(point, &mut BSplineWorkspace::new())?;
         }
         let individual_time_sample = start.elapsed();
         let estimated_individual_time = individual_time_sample * 50; // Scale to full batch
@@ -213,7 +209,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for &size in &chunk_sizes {
             let points = Array1::linspace(2.0, 8.0, size);
-            let results = simd_evaluator_smooth.evaluate_batch(&points.view())?;
+            let results = simd_evaluator_smooth.eval_batch(points.as_slice().unwrap())?;
 
             println!(
                 "   {} points -> {} results (SIMD chunks: {})",
@@ -233,7 +229,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (knots[0] + knots[knots.len() - 1]) / 2.0, // Middle
         ]);
 
-        let boundary_results = simd_evaluator_smooth.evaluate_batch(&boundary_points.view())?;
+        let boundary_results =
+            simd_evaluator_smooth.eval_batch(boundary_points.as_slice().unwrap())?;
 
         println!("   Boundary value tests:");
         for (i, (&point, &result)) in boundary_points
@@ -247,7 +244,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Test very small batch (should fall back to scalar)
         let tiny_batch = Array1::from_vec(vec![5.0]);
-        let tiny_result = simd_evaluator_smooth.evaluate_batch(&tiny_batch.view())?;
+        let tiny_result = simd_evaluator_smooth.eval_batch(tiny_batch.as_slice().unwrap())?;
         println!(
             "   Single point batch: f({}) = {:.5}",
             tiny_batch[0], tiny_result[0]

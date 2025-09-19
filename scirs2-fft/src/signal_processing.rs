@@ -83,7 +83,7 @@ impl Default for FilterSpec {
 ///
 /// * Filtered signal
 #[allow(dead_code)]
-pub fn frequency_filter<T>(_signal: &[T], filterspec: &FilterSpec) -> FFTResult<Vec<f64>>
+pub fn frequency_filter<T>(signal: &[T], filterspec: &FilterSpec) -> FFTResult<Vec<f64>>
 where
     T: NumCast + Copy + Debug,
 {
@@ -92,7 +92,7 @@ where
     let limit = signal.len().min(max_size);
 
     // Convert input to f64
-    let input: Vec<f64> = _signal
+    let input: Vec<f64> = signal
         .iter()
         .take(limit)
         .map(|&val| {
@@ -105,7 +105,7 @@ where
     let spectrum = fft(&input, None)?;
 
     // Design frequency response
-    let freq_response = design_frequency_response(filter_spec, spectrum.len())?;
+    let freq_response = design_frequency_response(filterspec, spectrum.len())?;
 
     // Apply filter in frequency domain
     let filtered_spectrum: Vec<Complex64> = spectrum
@@ -134,7 +134,7 @@ where
 ///
 /// * Filter frequency response
 #[allow(dead_code)]
-fn design_frequency_response(_filterspec: &FilterSpec, size: usize) -> FFTResult<Vec<f64>> {
+fn design_frequency_response(filter_spec: &FilterSpec, size: usize) -> FFTResult<Vec<f64>> {
     if let Some(ref coeffs) = filter_spec.custom_coeffs {
         if filter_spec.filter_type == FilterType::Custom {
             // Use custom coefficients directly
@@ -206,11 +206,11 @@ fn design_frequency_response(_filterspec: &FilterSpec, size: usize) -> FFTResult
 /// * `response` - Filter response to modify
 /// * `filter_spec` - Filter specification
 #[allow(dead_code)]
-fn apply_window_to_response(_response: &mut [f64], filterspec: &FilterSpec) {
+fn apply_window_to_response(response: &mut [f64], filterspec: &FilterSpec) {
     // This is a simplified implementation
     let size = response.len();
 
-    match filter_spec.window {
+    match filterspec.window {
         FilterWindow::Rectangular => {
             // No windowing needed
         }
@@ -242,7 +242,7 @@ fn apply_window_to_response(_response: &mut [f64], filterspec: &FilterSpec) {
             }
         }
         FilterWindow::Kaiser => {
-            let beta = filter_spec.kaiser_beta.unwrap_or(3.0);
+            let beta = filterspec.kaiser_beta.unwrap_or(3.0);
             // Simplified Kaiser window implementation
             for i in 0..size {
                 if response[i] > 0.0 {
@@ -311,7 +311,7 @@ where
     let result_len = signal_len + kernel_len - 1;
 
     // Convert inputs to f64
-    let _signal_f64: Vec<f64> = _signal
+    let signal_f64: Vec<f64> = signal
         .iter()
         .take(signal_len)
         .map(|&val| {
@@ -377,7 +377,7 @@ where
     let result_len = signal1_len + signal2_len - 1;
 
     // Convert inputs to f64
-    let _signal1_f64: Vec<f64> = _signal1
+    let signal1_f64: Vec<f64> = signal1
         .iter()
         .map(|&val| {
             NumCast::from(val)
@@ -429,7 +429,7 @@ where
 ///
 /// * Filter coefficients
 #[allow(dead_code)]
-pub fn design_fir_filter(_filterspec: &FilterSpec) -> FFTResult<Vec<f64>> {
+pub fn design_fir_filter(filter_spec: &FilterSpec) -> FFTResult<Vec<f64>> {
     let order = filter_spec.order;
 
     // Ensure order is odd for Type I filter (symmetric)
@@ -485,7 +485,7 @@ pub fn design_fir_filter(_filterspec: &FilterSpec) -> FFTResult<Vec<f64>> {
             }
         }
         FilterWindow::Kaiser => {
-            let beta = filter_spec.kaiser_beta.unwrap_or(3.0);
+            let beta = filterspec.kaiser_beta.unwrap_or(3.0);
             for i in 0..adjusted_order {
                 let x = 2.0 * i as f64 / (adjusted_order - 1) as f64 - 1.0;
                 window[i] = bessel_i0(beta * (1.0 - x * x).sqrt()) / bessel_i0(beta);
@@ -520,11 +520,11 @@ pub fn design_fir_filter(_filterspec: &FilterSpec) -> FFTResult<Vec<f64>> {
 ///
 /// * Filtered signal
 #[allow(dead_code)]
-pub fn fir_filter<T>(_signal: &[T], filtercoeffs: &[f64]) -> FFTResult<Vec<f64>>
+pub fn fir_filter<T>(signal: &[T], filtercoeffs: &[f64]) -> FFTResult<Vec<f64>>
 where
     T: NumCast + Copy + Debug,
 {
-    convolve(_signal, filter_coeffs)
+    convolve(signal, filtercoeffs)
 }
 
 #[cfg(test)]

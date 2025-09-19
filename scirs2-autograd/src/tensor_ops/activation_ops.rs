@@ -30,30 +30,17 @@ pub struct Softmax {
 #[cfg(feature = "blas")]
 #[allow(dead_code)]
 fn fast_sigmoid_impl<F: Float>(x: &NdArrayView<F>) -> NdArray<F> {
+    use crate::same_type;
+
     let half = F::from(0.5).unwrap();
-    unsafe {
-        if same_type::<F, f32>() {
-            let mut y = x.mapv(move |x| x * half);
-            vsTanh(
-                y.len() as MklInt,
-                y.as_ptr() as *const f32,
-                y.as_mut_ptr() as *mut f32,
-            );
-            y.mapv_inplace(move |x2| half * (x2 + F::one()));
-            y
-        } else if same_type::<F, f64>() {
-            let mut y = x.mapv(move |x| x * half);
-            vdTanh(
-                y.len() as MklInt,
-                y.as_ptr() as *const f64,
-                y.as_mut_ptr() as *mut f64,
-            );
-            y.mapv_inplace(move |x2| half * (x2 + F::one()));
-            y
-        } else {
-            x.mapv(move |a| ((a * half).tanh() * half) + half)
-        }
-    }
+
+    // Use standard tanh implementation since MKL vectorized functions are no longer available
+    // This provides a fast sigmoid approximation: sigmoid(x) ≈ 0.5 * (tanh(0.5 * x) + 1)
+    let y = x.mapv(move |x_val| {
+        let tanh_result = (x_val * half).tanh();
+        half * (tanh_result + F::one())
+    });
+    y
 }
 
 #[inline]

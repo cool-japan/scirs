@@ -446,21 +446,21 @@ impl OptimizedFFT {
         // Ensure we don't exceed the maximum _size limit
         let actual_max = max_size.min(self.config.max_fft_size);
 
-        for _size in (min_size..=actual_max).step_by(step) {
+        for size in (min_size..=actual_max).step_by(step) {
             // Generate test data
-            let data: Vec<f64> = (0.._size).map(|i| (i as f64).sin()).collect();
+            let data: Vec<f64> = (0..size).map(|i| (i as f64).sin()).collect();
 
             // Perform FFT
             let start = Instant::now();
-            let _ = self.fft(&data, Some(_size))?;
+            let _ = self.fft(&data, Some(size))?;
             let duration = start.elapsed();
 
             // Calculate MFLOPS
-            let op_count = 5.0 * _size as f64 * (_size as f64).log2();
+            let op_count = 5.0 * size as f64 * (size as f64).log2();
             let mflops = op_count / duration.as_secs_f64() / 1_000_000.0;
 
             // Store metrics
-            let algorithm = self.select_algorithm(_size);
+            let algorithm = self.select_algorithm(size);
             let metrics = PerformanceMetrics {
                 algorithm,
                 size,
@@ -469,7 +469,7 @@ impl OptimizedFFT {
                 optimization_level: self.config.optimization_level,
             };
 
-            results.insert(_size, metrics);
+            results.insert(size, metrics);
         }
 
         // Restore original metrics collection setting
@@ -655,29 +655,29 @@ impl OptimizedFFT {
     /// Suggest the optimal FFT size near the requested size
     pub fn suggest_optimal_size(&self, requestedsize: usize) -> usize {
         // Find the next power of two
-        let next_pow2 = requested_size.next_power_of_two();
+        let next_pow2 = requestedsize.next_power_of_two();
 
         // For optimal FFT performance, powers of 2 are generally best
         // But for this simplified implementation, we'll also consider other factors
 
         // If requested _size is already a power of 2, use it
-        if requested_size.is_power_of_two() {
-            return requested_size;
+        if requestedsize.is_power_of_two() {
+            return requestedsize;
         }
 
         // If we're close to a power of 2, use that
-        if next_pow2 < requested_size * 2 {
+        if next_pow2 < requestedsize * 2 {
             return next_pow2;
         }
 
         // Otherwise, try to find a _size with small prime factors
-        let mut best_size = requested_size;
+        let mut best_size = requestedsize;
         let mut best_score = usize::MAX;
 
         // Check sizes in the range [requested_size, next_pow2]
-        for _size in requested_size..=next_pow2 {
+        for size in requestedsize..=next_pow2 {
             // Compute a "complexity score" based on prime factorization
-            let score = self.complexity_score(_size);
+            let score = self.complexity_score(size);
 
             if score < best_score {
                 best_score = score;

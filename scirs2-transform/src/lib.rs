@@ -135,7 +135,7 @@ pub use time_series::{FourierFeatures, LagFeatures, TimeSeriesFeatures, WaveletF
 #[cfg(feature = "simd")]
 pub use normalize_simd::{
     simd_l2_normalize_1d, simd_maxabs_normalize_1d, simd_minmax_normalize_1d,
-    simd_normalize_adaptive, simd_normalize_array, simd_normalize_batch, simd_zscore_normalize_1d,
+    simd_normalize_adaptive, simd_normalizearray, simd_normalize_batch, simd_zscore_normalize_1d,
     AdaptiveBlockSizer,
 };
 

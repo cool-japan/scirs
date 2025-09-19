@@ -50,6 +50,23 @@ pub struct CudaContext {
 }
 
 #[cfg(feature = "cuda")]
+impl CudaContext {
+    pub fn new(device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
+        use crate::error::NdimageError;
+
+        let device_id = device_id.unwrap_or(0) as i32;
+
+        // This is a simplified implementation
+        // In a real implementation, you would initialize CUDA context properly
+        Ok(Self {
+            context: 0, // Placeholder
+            device_id,
+            stream: 0, // Placeholder
+        })
+    }
+}
+
+#[cfg(feature = "cuda")]
 #[derive(Debug, Clone)]
 pub struct CudaDeviceProperties {
     /// Device name
@@ -93,6 +110,24 @@ pub struct OpenCLContext {
 }
 
 #[cfg(feature = "opencl")]
+impl OpenCLContext {
+    pub fn new(device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
+        use crate::error::NdimageError;
+
+        let device_id = device_id.unwrap_or(0);
+
+        // This is a simplified implementation
+        // In a real implementation, you would initialize OpenCL context properly
+        Ok(Self {
+            context: 0, // Placeholder
+            device: device_id,
+            queue: 0,    // Placeholder
+            platform: 0, // Placeholder
+        })
+    }
+}
+
+#[cfg(feature = "opencl")]
 #[derive(Debug, Clone)]
 pub struct OpenCLDeviceProperties {
     /// Device name
@@ -117,7 +152,9 @@ impl CudaBackend {
         // Initialize CUDA runtime
         let device_count = Self::get_device_count()?;
         if device_count == 0 {
-            return Err(NdimageError::GpuNotAvailable);
+            return Err(NdimageError::GpuNotAvailable(
+                "No CUDA devices found".to_string(),
+            ));
         }
 
         // Use device 0 by default
@@ -914,5 +951,47 @@ mod tests {
             // Should either succeed or fail gracefully
             assert!(result.is_ok() || result.is_err());
         }
+    }
+}
+
+#[cfg(feature = "cuda")]
+impl crate::backend::GpuContext for CudaContext {
+    fn name(&self) -> &str {
+        "CUDA"
+    }
+
+    fn device_count(&self) -> usize {
+        // Placeholder implementation
+        1
+    }
+
+    fn current_device(&self) -> usize {
+        self.device_id as usize
+    }
+
+    fn memory_info(&self) -> (usize, usize) {
+        // Placeholder implementation
+        (0, 1024 * 1024 * 1024) // 1GB total, 0 used
+    }
+}
+
+#[cfg(feature = "opencl")]
+impl crate::backend::GpuContext for OpenCLContext {
+    fn name(&self) -> &str {
+        "OpenCL"
+    }
+
+    fn device_count(&self) -> usize {
+        // Placeholder implementation
+        1
+    }
+
+    fn current_device(&self) -> usize {
+        self.device
+    }
+
+    fn memory_info(&self) -> (usize, usize) {
+        // Placeholder implementation
+        (0, 1024 * 1024 * 1024) // 1GB total, 0 used
     }
 }

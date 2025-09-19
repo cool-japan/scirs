@@ -3,7 +3,7 @@
 //! This module provides SIMD-accelerated implementations of FFT operations
 //! for real-valued inputs, using the unified SIMD abstraction layer from scirs2-core.
 
-use crate::error::FFTResult;
+use crate::error::{FFTError, FFTResult};
 use crate::rfft::{irfft as irfft_basic, rfft as rfft_basic};
 use num_complex::Complex64;
 use num_traits::NumCast;
@@ -196,124 +196,29 @@ where
 /// GPU-accelerated RFFT implementation
 #[cfg(feature = "cuda")]
 #[allow(dead_code)]
-fn rfft_gpu<T>(input: &[T], n: Option<usize>, norm: Option<&str>) -> FFTResult<Vec<Complex64>>
+fn rfft_gpu<T>(_input: &[T], _n: Option<usize>, _norm: Option<&str>) -> FFTResult<Vec<Complex64>>
 where
     T: NumCast + Copy + Debug + 'static,
 {
-    use scirs2_core::gpu::kernels::{DataType, KernelParams};
-    use scirs2_core::gpu::{GpuContext, GpuDataType};
-
-    // Get GPU context
-    let context = GpuContext::new()?;
-    let device = context.default_device()?;
-
-    // Convert _input to f32 for GPU processing
-    let _input_f32: Vec<f32> = input.iter().filter_map(|&x| NumCast::from(x)).collect();
-
-    let size = n.unwrap_or(input_f32.len());
-
-    // Create kernel parameters for FFT
-    let params = KernelParams::new(DataType::Float32)
-        .with_input_dims(vec![size])
-        .with_string_param("direction", "forward")
-        .with_string_param("dimension", "1d");
-
-    // Get specialized FFT kernel
-    let kernel_registry = device.kernel_registry();
-    let fft_kernel = kernel_registry.get_specialized("fft_1d_forward", &params)?;
-
-    // Convert real _input to complex format for GPU FFT
-    let complex_input: Vec<[f32; 2]> = input_f32.iter().map(|&x| [x, 0.0]).collect();
-
-    // Create GPU buffers
-    let input_buffer = device.create_buffer_from_slice(&complex_input)?;
-    let output_size = size / 2 + 1; // RFFT output size
-    let output_buffer = device.create_buffer::<[f32; 2]>(output_size)?;
-
-    // Execute FFT kernel
-    let global_size = [size, 1, 1];
-    let local_size = [256.min(size), 1, 1];
-
-    device.execute_kernel_with_buffers(
-        &*fft_kernel,
-        &global_size,
-        &local_size,
-        &[&input_buffer, &output_buffer],
-        &[size],
-    )?;
-
-    // Read back results
-    let output_data = output_buffer.read_to_host()?;
-
-    // Convert to Complex64
-    let result: Vec<Complex64> = output_data
-        .iter()
-        .map(|&[real, imag]| Complex64::new(real as f64, imag as f64))
-        .collect();
-
-    Ok(result)
+    // GPU implementation is simplified for now due to API incompatibilities
+    // Will be properly implemented when GPU support is fully integrated
+    Err(FFTError::NotImplementedError(
+        "GPU-accelerated RFFT is not yet fully implemented".to_string(),
+    ))
 }
 
 /// GPU-accelerated IRFFT implementation
 #[cfg(feature = "cuda")]
 #[allow(dead_code)]
-fn irfft_gpu<T>(input: &[T], n: Option<usize>, norm: Option<&str>) -> FFTResult<Vec<f64>>
+fn irfft_gpu<T>(_input: &[T], _n: Option<usize>, _norm: Option<&str>) -> FFTResult<Vec<f64>>
 where
     T: NumCast + Copy + Debug + 'static,
 {
-    use scirs2_core::gpu::kernels::{DataType, KernelParams};
-    use scirs2_core::gpu::{GpuContext, GpuDataType};
-
-    // Get GPU context
-    let context = GpuContext::new()?;
-    let device = context.default_device()?;
-
-    // For complex input, we need to handle the conversion properly
-    // This is a simplified implementation - a real one would handle complex types better
-    let size = n.unwrap_or_else(|| input.len() * 2 - 2);
-
-    // Create kernel parameters for inverse FFT
-    let params = KernelParams::new(DataType::Float32)
-        .with_input_dims(vec![_input.len()])
-        .with_output_dims(vec![size])
-        .with_string_param("direction", "inverse")
-        .with_string_param("dimension", "1d");
-
-    // Get specialized inverse FFT kernel
-    let kernel_registry = device.kernel_registry();
-    let ifft_kernel = kernel_registry.get_specialized("fft_1d_inverse", &params)?;
-
-    // Convert _input to complex format for GPU processing
-    // This is simplified - real implementation would handle complex _input properly
-    let complex_input: Vec<[f32; 2]> = _input
-        .iter()
-        .map(|x| {
-            let val: f32 = NumCast::from(*x).unwrap_or(0.0);
-            [val, 0.0]
-        })
-        .collect();
-
-    // Create GPU buffers
-    let input_buffer = device.create_buffer_from_slice(&complex_input)?;
-    let output_buffer = device.create_buffer::<[f32; 2]>(size)?;
-
-    // Execute inverse FFT kernel
-    let global_size = [size, 1, 1];
-    let local_size = [256.min(size), 1, 1];
-
-    device.execute_kernel_with_buffers(
-        &*ifft_kernel,
-        &global_size,
-        &local_size,
-        &[&input_buffer, &output_buffer],
-        &[size],
-    )?;
-
-    // Read back results and extract real part
-    let output_data = output_buffer.read_to_host()?;
-    let result: Vec<f64> = output_data.iter().map(|&[real_imag]| real as f64).collect();
-
-    Ok(result)
+    // GPU implementation is simplified for now due to API incompatibilities
+    // Will be properly implemented when GPU support is fully integrated
+    Err(FFTError::NotImplementedError(
+        "GPU-accelerated IRFFT is not yet fully implemented".to_string(),
+    ))
 }
 
 /// Fallback implementations when GPU feature is not enabled

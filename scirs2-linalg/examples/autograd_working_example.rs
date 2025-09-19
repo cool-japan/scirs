@@ -175,7 +175,7 @@ fn demo_linalg_ops() {
         // Matrix exponential approximation (first 3 terms of Taylor series)
         let i = eye(2, ctx);
         let a_sq = matmul(a, a);
-        let exp_approx = i + a + scalar_mul(0.5, &a_sq);
+        let exp_approx = i + a + scalar_mul(&a_sq, 0.5);
 
         // Sum all elements
         let exp_sum = sum_all(&exp_approx);

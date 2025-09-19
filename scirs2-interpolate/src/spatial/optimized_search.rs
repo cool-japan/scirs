@@ -66,23 +66,15 @@ impl SimdDistanceOps {
     {
         assert_eq!(a.len(), b.len(), "Vectors must have the same dimension");
 
-        if F::simd_available() && a.len() >= 4 {
-            // Use SIMD for larger vectors
-            let a_arr = Array1::from_vec(a.to_vec());
-            let b_arr = Array1::from_vec(b.to_vec());
-            let diff = F::simd_sub(&a_arr.view(), &b_arr.view());
-            let squared = F::simd_mul(&diff.view(), &diff.view());
-            F::simd_sum(&squared.view())
-        } else {
-            // Fallback to scalar computation for small vectors
-            a.iter()
-                .zip(b.iter())
-                .map(|(&x, &y)| {
-                    let diff = x - y;
-                    diff * diff
-                })
-                .fold(F::zero(), |acc, x| acc + x)
-        }
+        // Use scalar computation to avoid stack overflow in SIMD operations
+        // TODO: Fix SIMD implementation in scirs2-core
+        a.iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| {
+                let diff = x - y;
+                diff * diff
+            })
+            .fold(F::zero(), |acc, x| acc + x)
     }
 
     /// Enhanced batch distance computation with SIMD optimization for better memory access patterns

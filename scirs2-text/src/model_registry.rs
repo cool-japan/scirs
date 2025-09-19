@@ -277,7 +277,7 @@ impl ModelRegistry {
             })?;
 
             // Update file path to current directory
-            metadata.file_path = model_dir.to_path_buf();
+            metadata.file_path = modeldir.to_path_buf();
             Ok(metadata)
         }
 

@@ -22,7 +22,7 @@ fn safe_float_to_usize<T: Float>(value: T) -> NdimageResult<usize> {
 /// Helper function for safe isize conversion
 #[allow(dead_code)]
 fn safe_isize_to_float<T: Float + FromPrimitive>(value: isize) -> NdimageResult<T> {
-    T::from_isize(_value).ok_or_else(|| {
+    T::from_isize(value).ok_or_else(|| {
         NdimageError::ComputationError(format!("Failed to convert isize {} to float type", value))
     })
 }
@@ -30,7 +30,7 @@ fn safe_isize_to_float<T: Float + FromPrimitive>(value: isize) -> NdimageResult<
 /// Helper function for safe usize conversion
 #[allow(dead_code)]
 fn safe_usize_to_float<T: Float + FromPrimitive>(value: usize) -> NdimageResult<T> {
-    T::from_usize(_value).ok_or_else(|| {
+    T::from_usize(value).ok_or_else(|| {
         NdimageError::ComputationError(format!("Failed to convert usize {} to float type", value))
     })
 }
@@ -59,7 +59,7 @@ where
 {
     let (height, width) = input.dim();
     let window_size = match window_size {
-        Some(_size) => size,
+        Some(size) => size,
         None => {
             // Automatically determine window _size based on spatial _sigma
             let three = safe_f64_to_float::<T>(3.0)?;
@@ -227,16 +227,16 @@ where
 
 /// Compute spatial weights for bilateral filter
 #[allow(dead_code)]
-fn compute_spatial_weights<T>(_windowsize: usize, sigma: T) -> NdimageResult<Array<T, Ix2>>
+fn compute_spatial_weights<T>(window_size: usize, sigma: T) -> NdimageResult<Array<T, Ix2>>
 where
     T: Float + FromPrimitive,
 {
-    let half_window = _window_size / 2;
+    let half_window = window_size / 2;
     let factor = safe_f64_to_float::<T>(-0.5)? / (sigma * sigma);
-    let mut weights = Array::zeros((_window_size, window_size));
+    let mut weights = Array::zeros((window_size, window_size));
 
-    for dy in 0.._window_size {
-        for dx in 0.._window_size {
+    for dy in 0..window_size {
+        for dx in 0..window_size {
             let y_dist = safe_isize_to_float(dy as isize - half_window as isize)?;
             let x_dist = safe_isize_to_float(dx as isize - half_window as isize)?;
             let dist_sq = y_dist * y_dist + x_dist * x_dist;
@@ -257,7 +257,7 @@ where
     // This is accurate for small _values (which we have after multiplying by range_factor)
     let mut result = vec![T::one(); values.len()];
 
-    for i in 0.._values.len() {
+    for i in 0..values.len() {
         let x = values[i];
         let x2 = x * x;
         let x3 = x2 * x;
@@ -587,20 +587,20 @@ where
 {
     _gradients
         .iter()
-        .map(|&g| compute_single_diffusion_coeff(g, kappa_sq, option))
+        .map(|&g| compute_single_diffusion_coeff(g, kappasq, option))
         .collect()
 }
 
 /// Compute single diffusion coefficient
 #[allow(dead_code)]
-fn compute_single_diffusion_coeff<T>(_gradient: T, kappasq: T, option: usize) -> T
+fn compute_single_diffusion_coeff<T>(gradient: T, kappasq: T, option: usize) -> T
 where
     T: Float + FromPrimitive,
 {
     match option {
         1 => {
             // Exponential: c(g) = exp(-(g/kappa)²)
-            (-(_gradient * gradient) / kappa_sq).exp()
+            (-(gradient * gradient) / kappasq).exp()
         }
         2 => {
             // Quadratic: c(g) = 1 / (1 + (g/kappa)²), T::one() / (T::one() + _gradient * _gradient / kappa_sq)
@@ -698,7 +698,7 @@ where
 
             for (local_y, mut row) in chunk.axis_iter_mut(Axis(0)).enumerate() {
                 let y = y_start + local_y;
-                if let Err(e) = simd_box_filter_row(_input, &mut row, y, radius, norm) {
+                if let Err(e) = simd_box_filter_row(input, &mut row, y, radius, norm) {
                     // For parallel processing, we can't propagate errors directly
                     // Log error and continue with default values
                     eprintln!("Warning: box filter row processing failed: {:?}", e);
@@ -887,7 +887,7 @@ where
     }
 
     let window_size = match window_size {
-        Some(_size) => size,
+        Some(size) => size,
         None => {
             let three = safe_f64_to_float::<T>(3.0)?;
             let radius = safe_float_to_usize(spatial_sigma * three)?;

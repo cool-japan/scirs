@@ -912,10 +912,10 @@ where
             // Each thread gets its own QRNG instance with different seed
             let mut local_qrng = qrng.new_from_seed(rand::random());
 
-            // Sample _points
-            let _points = local_qrng.random(n_points);
+            // Sample points
+            let points = local_qrng.random(n_points);
 
-            // Transform _points to integration domain and evaluate function
+            // Transform points to integration domain and evaluate function
             let mut sum = 0.0;
 
             for i in 0..n_points {

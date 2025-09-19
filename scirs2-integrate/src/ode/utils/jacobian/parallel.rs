@@ -17,6 +17,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::num_threads;
 
 #[cfg(feature = "parallel_jacobian")]
 use scirs2_core::parallel_ops::*;
@@ -356,11 +357,11 @@ fn greedy_coloring(_sparsitypattern: &Array2<bool>) -> Vec<usize> {
 ///
 /// True if parallel computation is likely beneficial
 #[allow(dead_code)]
-pub fn should_use_parallel_jacobian(_n_dim: usize, is_sparse: bool, numthreads: usize) -> bool {
+pub fn should_use_parallel_jacobian(n_dim: usize, is_sparse: bool, numthreads: usize) -> bool {
     // Check if parallel_jacobian feature is enabled
     #[cfg(not(feature = "parallel_jacobian"))]
     {
-        let _ = _n_dim;
+        let _ = n_dim;
         let _ = is_sparse;
         let _ = numthreads;
         false // Parallel computation not available without the feature
@@ -369,7 +370,7 @@ pub fn should_use_parallel_jacobian(_n_dim: usize, is_sparse: bool, numthreads: 
     #[cfg(feature = "parallel_jacobian")]
     {
         // Don't parallelize if only 1 thread available
-        if num_threads <= 1 {
+        if num_threads() <= 1 {
             return false;
         }
 

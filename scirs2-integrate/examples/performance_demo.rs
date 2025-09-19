@@ -292,7 +292,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ranges = vec![(-2.0, 2.0), (-2.0, 2.0)];
 
         // Sequential
-        let (seq_time_seq_result) = time_function(
+        let (seq_time, _seq_result) = time_function(
             || {
                 let opts = MonteCarloOptions {
                     n_samples,
@@ -304,7 +304,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         // Parallel
-        let (par_time_par_result) = time_function(
+        let (par_time, _par_result) = time_function(
             || {
                 let opts = ParallelMonteCarloOptions {
                     n_samples,

@@ -660,7 +660,7 @@ impl CloudDeploymentOrchestrator {
     }
 
     /// Select the best instance for a job based on resource requirements
-    fn select_best_instance(selfjob: &CloudTimeSeriesJob) -> Result<&InstanceInfo> {
+    fn select_best_instance(&self, selfjob: &CloudTimeSeriesJob) -> Result<&InstanceInfo> {
         // Simple selection based on lowest CPU utilization
         self.deployment_state
             .active_instances
@@ -688,6 +688,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute forecasting job
     fn execute_forecasting_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -699,6 +700,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute anomaly detection job
     fn execute_anomaly_detection_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -712,6 +714,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute decomposition job
     fn execute_decomposition_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -725,6 +728,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute feature extraction job
     fn execute_feature_extraction_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -738,6 +742,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute clustering job
     fn execute_clustering_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -748,6 +753,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute change point detection job
     fn execute_changepoint_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -761,6 +767,7 @@ impl CloudDeploymentOrchestrator {
 
     /// Execute neural training job
     fn execute_neural_training_job(
+        &self,
         self_job: &CloudTimeSeriesJob,
         instance: &InstanceInfo,
     ) -> Result<()> {
@@ -1076,7 +1083,7 @@ mod tests {
         let config = DeploymentConfig::development();
         assert_eq!(config.environment, "development");
         assert_eq!(config.resources.min_instances, 1);
-        assert_eq!(_config.resources.max_instances, 2);
+        assert_eq!(config.resources.max_instances, 2);
     }
 
     #[test]

@@ -236,7 +236,7 @@ impl DistributedFFT {
 
         // For testing purposes, we'll just return the local _result
         if self.config.node_count == 1 || self.config.rank == 0 {
-            return Ok(local_result.clone());
+            return Ok(localresult.clone());
         }
 
         // When multiple nodes are involved, we'd use the communicator
@@ -244,22 +244,22 @@ impl DistributedFFT {
         match self.config.communication {
             CommunicationPattern::AllToAll => {
                 // Flatten the _data for communication
-                let flattened: Vec<Complex64> = local_result.iter().copied().collect();
+                let flattened: Vec<Complex64> = localresult.iter().copied().collect();
 
                 // In a real implementation, this would do an all-to-all exchange
                 let _result = self.communicator.all_to_all(&flattened)?;
 
                 // For testing, just return the local _result
-                Ok(local_result.clone())
+                Ok(localresult.clone())
             }
             CommunicationPattern::PointToPoint => {
                 // For point-to-point, we'd do a series of sends and receives
                 // This is a placeholder
-                Ok(local_result.clone())
+                Ok(localresult.clone())
             }
             _ => {
                 // Other patterns would have specific implementations
-                Ok(local_result.clone())
+                Ok(localresult.clone())
             }
         }
     }
@@ -707,7 +707,7 @@ impl DistributedFFT {
     /// Create a mock instance for testing
     #[cfg(test)]
     pub fn new_mock(config: DistributedConfig) -> Self {
-        let communicator = Arc::new(MockCommunicator::new(_config.node_count, config.rank));
+        let communicator = Arc::new(MockCommunicator::new(config.node_count, config.rank));
         Self {
             config,
             communicator,
@@ -732,7 +732,8 @@ impl BasicCommunicator {
 }
 
 impl Communicator for BasicCommunicator {
-    fn send(&self, data: &[Complex64], dest: usize) -> FFTResult<()> {
+    fn send(&self, data: &[Complex64], dest: usize, tag: usize) -> FFTResult<()> {
+        let _ = tag; // Unused in this simplified implementation
         if dest >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid destination rank: {} (size: {})",
@@ -749,7 +750,8 @@ impl Communicator for BasicCommunicator {
         Ok(())
     }
 
-    fn recv(&self, src: usize, size: usize) -> FFTResult<Vec<Complex64>> {
+    fn recv(&self, src: usize, tag: usize, size: usize) -> FFTResult<Vec<Complex64>> {
+        let _ = tag; // Unused in this simplified implementation
         if src >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid source rank: {} (size: {})",
@@ -765,7 +767,7 @@ impl Communicator for BasicCommunicator {
     fn all_to_all(&self, senddata: &[Complex64]) -> FFTResult<Vec<Complex64>> {
         // In a real implementation, this would perform an all-to-all communication
         // For demonstration, we'll just return the same _data
-        Ok(send_data.to_vec())
+        Ok(senddata.to_vec())
     }
 
     fn barrier(&self) -> FFTResult<()> {
@@ -798,7 +800,8 @@ impl MockCommunicator {
 }
 
 impl Communicator for MockCommunicator {
-    fn send(&self, data: &[Complex64], dest: usize) -> FFTResult<()> {
+    fn send(&self, data: &[Complex64], dest: usize, tag: usize) -> FFTResult<()> {
+        let _ = tag; // Unused in this simplified implementation
         if dest >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid destination rank: {} (size: {})",
@@ -810,7 +813,8 @@ impl Communicator for MockCommunicator {
         Ok(())
     }
 
-    fn recv(&self, src: usize, size: usize) -> FFTResult<Vec<Complex64>> {
+    fn recv(&self, src: usize, tag: usize, size: usize) -> FFTResult<Vec<Complex64>> {
+        let _ = tag; // Unused in this simplified implementation
         if src >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid source rank: {} (size: {})",
@@ -824,7 +828,7 @@ impl Communicator for MockCommunicator {
 
     fn all_to_all(&self, senddata: &[Complex64]) -> FFTResult<Vec<Complex64>> {
         // Mock implementation, return a copy
-        Ok(send_data.to_vec())
+        Ok(senddata.to_vec())
     }
 
     fn barrier(&self) -> FFTResult<()> {

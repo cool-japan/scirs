@@ -440,7 +440,7 @@ fn compute_circle_sampling_points(
     radius: usize,
     n_points: usize,
 ) -> NdimageResult<Vec<(f64, f64)>> {
-    let mut _points = Vec::with_capacity(n_points);
+    let mut points = Vec::with_capacity(n_points);
     let radius_f = radius as f64;
 
     for i in 0..n_points {
@@ -450,7 +450,7 @@ fn compute_circle_sampling_points(
         points.push((dx, dy));
     }
 
-    Ok(_points)
+    Ok(points)
 }
 
 #[allow(dead_code)]
@@ -487,7 +487,7 @@ fn get_gradient_kernels<T>(operator: GradientOperator) -> NdimageResult<(Vec<T>,
 where
     T: Float + FromPrimitive,
 {
-    let kernel_x = match _operator {
+    let kernel_x = match operator {
         GradientOperator::Sobel => vec![
             T::from_f64(-1.0).unwrap(),
             T::from_f64(0.0).unwrap(),
@@ -505,7 +505,7 @@ where
         ],
     };
 
-    let kernel_y = match _operator {
+    let kernel_y = match operator {
         GradientOperator::Sobel => vec![
             T::from_f64(1.0).unwrap(),
             T::from_f64(2.0).unwrap(),
@@ -542,7 +542,7 @@ where
 
     // Simplified convolution (would be replaced with optimized version)
     for _y in 0..height {
-        for _x in 0..width {
+        for x in 0..width {
             output[(_y, x)] = input[(_y, x)]; // Placeholder
         }
     }
@@ -568,7 +568,7 @@ where
     // Process SIMD chunks
     for chunk_idx in 0..num_chunks {
         let start_idx = chunk_idx * simd_width;
-        let chunk = &_data[start_idx..start_idx + simd_width];
+        let chunk = &data[start_idx..start_idx + simd_width];
 
         let chunk_min = T::simd_min_reduce(chunk);
         let chunk_max = T::simd_max_reduce(chunk);
@@ -582,7 +582,7 @@ where
     }
 
     // Handle remaining elements
-    for &value in &_data[(num_chunks * simd_width)..] {
+    for &value in &data[(num_chunks * simd_width)..] {
         if value < min_val {
             min_val = value;
         }

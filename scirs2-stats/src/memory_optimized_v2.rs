@@ -379,7 +379,7 @@ impl MemoryMappedStats {
 
         let file = OpenOptions::new()
             .read(true)
-            .open(_path)
+            .open(path)
             .map_err(|e| StatsError::computation(format!("Failed to open file: {}", e)))?;
 
         let metadata = file

@@ -532,6 +532,10 @@ pub fn shearmatrix<F: Float + Debug + Send + Sync + 'static>(
 }
 
 /// High-level interface for matrix transformations with autodiff suppor
+// Note: The variable module is temporarily disabled due to API mismatch.
+// Variable in scirs2_autograd is a type alias for RefCell<NdArray<F>>,
+// not a struct with a tensor field. This module needs redesign.
+/*
 pub mod variable {
     use super::*;
     use scirs2_autograd::variable::Variable;
@@ -590,3 +594,4 @@ pub mod variable {
         })
     }
 }
+*/

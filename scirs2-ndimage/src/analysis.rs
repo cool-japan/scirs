@@ -911,11 +911,12 @@ where
     const BINS: usize = 256;
 
     // Find min and max values in parallel
-    let (min_val, max_val) = image
-        .iter()
-        .parallel_fold(
+    let values: Vec<T> = image.iter().cloned().collect();
+    let (min_val, max_val) = values
+        .into_par_iter()
+        .fold(
             || (T::infinity(), T::neg_infinity()),
-            |(min_acc, max_acc), &val| (min_acc.min(val), max_acc.max(val)),
+            |(min_acc, max_acc), val| (min_acc.min(val), max_acc.max(val)),
         )
         .reduce(
             || (T::infinity(), T::neg_infinity()),
@@ -930,9 +931,10 @@ where
     let range = max_val - min_val;
     let bin_size = range / safe_usize_to_float(BINS)?;
 
-    let histogram = image
-        .iter()
-        .parallel_map(|&pixel| {
+    let pixel_values: Vec<T> = image.iter().cloned().collect();
+    let histogram = pixel_values
+        .into_par_iter()
+        .map(|pixel| {
             let normalized = (pixel - min_val) / bin_size;
             safe_float_to_usize(normalized).unwrap_or(0).min(BINS - 1)
         })
@@ -998,10 +1000,10 @@ where
     {
         use scirs2_core::parallel_ops::*;
 
-        results = referenceimages
-            .iter()
-            .zip(testimages.iter())
-            .parallel_map(|(ref_img, test_img)| image_quality_assessment(ref_img, test_img))
+        let paired_images: Vec<_> = referenceimages.iter().zip(testimages.iter()).collect();
+        results = paired_images
+            .into_par_iter()
+            .map(|(ref_img, test_img)| image_quality_assessment(ref_img, test_img))
             .collect::<Result<Vec<_>>>()?;
     }
 

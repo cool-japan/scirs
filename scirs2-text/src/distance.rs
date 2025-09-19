@@ -172,8 +172,8 @@ pub fn cosine_similarity(v1: ArrayView1<f64>, v2: ArrayView1<f64>) -> Result<f64
         use scirs2_core::simd_ops::SimdUnifiedOps;
 
         // Use SIMD operations for dot product and norms
-        let dot_product = f64::simd_dot(&_v1, &v2);
-        let norm1 = f64::simd_norm(&_v1);
+        let dot_product = f64::simd_dot(&v1, &v2);
+        let norm1 = f64::simd_norm(&v1);
         let norm2 = f64::simd_norm(&v2);
 
         if norm1 == 0.0 || norm2 == 0.0 {

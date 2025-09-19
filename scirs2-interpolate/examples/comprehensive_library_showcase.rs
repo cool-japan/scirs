@@ -255,14 +255,14 @@ fn demonstrate_simd_optimizations() -> InterpolateResult<()> {
             ExtrapolateMode::Extrapolate,
         )?;
 
-        let simd_evaluator = SimdBSplineEvaluator::new(spline.clone());
+        let mut simd_evaluator = SimdBSplineEvaluator::new(spline.clone());
 
         // Large batch for SIMD optimization
         let large_batch = Array1::linspace(0.5, 4.5, 1000);
 
         // Time SIMD evaluation
         let start = Instant::now();
-        let simd_results = simd_evaluator.eval_batch(&large_batch.view())?;
+        let simd_results = simd_evaluator.eval_batch(large_batch.as_slice().unwrap())?;
         let simd_time = start.elapsed();
 
         // Time scalar evaluation for comparison

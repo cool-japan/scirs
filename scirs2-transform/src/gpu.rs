@@ -6,7 +6,7 @@
 use crate::error::{Result, TransformError};
 use ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::gpu::{GpuBackend, GpuContext};
-use scirs2_core::validation::{check_array_finite, check_not_empty, check_positive};
+use scirs2_core::validation::{checkarray_finite, check_not_empty, check_positive};
 
 /// GPU-accelerated Principal Component Analysis
 #[cfg(feature = "gpu")]
@@ -95,7 +95,7 @@ impl GpuPCA {
     /// ```
     pub fn fit(&mut self, x: &ArrayView2<f64>) -> Result<()> {
         check_not_empty(x, "x")?;
-        check_array_finite(x, "x")?;
+        checkarray_finite(x, "x")?;
 
         // Validate input
         let (n_samples, n_features) = x.dim();
@@ -129,7 +129,7 @@ impl GpuPCA {
     /// Returns an error indicating that GPU PCA is not fully implemented yet
     pub fn transform(&self, x: &ArrayView2<f64>) -> Result<Array2<f64>> {
         check_not_empty(x, "x")?;
-        check_array_finite(x, "x")?;
+        checkarray_finite(x, "x")?;
 
         Err(TransformError::NotImplemented(
             "GPU-accelerated PCA transform is not yet fully implemented. Use CPU PCA instead."
