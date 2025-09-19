@@ -10,14 +10,14 @@ pub mod thread_pools;
 pub mod work_stealing;
 
 // Extracted module declarations
-pub mod iter;
 pub mod adaptive;
-pub mod scheduler;
-pub mod thread_pool;
-pub mod numa;
+pub mod advanced_work_stealing;
 pub mod affinity;
 pub mod algorithms;
-pub mod advanced_work_stealing;
+pub mod iter;
+pub mod numa;
+pub mod scheduler;
+pub mod thread_pool;
 
 // Re-export submodule types
 pub use thread_pools::{

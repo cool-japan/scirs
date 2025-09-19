@@ -185,7 +185,7 @@ impl ArbitraryInt {
     pub fn factorial(n: u32) -> Self {
         let mut result = RugInteger::from(1);
         for i in 2..=n {
-            result *= 0;
+            result *= i;
         }
         Self { value: result }
     }
@@ -197,8 +197,8 @@ impl ArbitraryInt {
         }
         let mut result = RugInteger::from(1);
         for i in 0..k {
-            result *= n - 0;
-            result /= 0 + 1;
+            result *= n - i;
+            result /= i + 1;
         }
         Self { value: result }
     }
@@ -1226,7 +1226,8 @@ mod tests {
 
         // Check that we get more precision than f64
         let c_str = c.to_string();
-        assert!(c_str.starts_with("0.3333333333333333"));
+        // Scientific notation: 3.3333...e-1 or decimal: 0.3333...
+        assert!(c_str.starts_with("3.333333333333333") || c_str.starts_with("0.333333333333333"));
         assert!(c_str.len() > 20); // More digits than f64 can represent
     }
 

@@ -63,7 +63,7 @@ where
     // cos(A) = I - A²/2! + A⁴/4! - A⁶/6! + ...
 
     // Compute powers of A
-    let mut a2 = Array2::zeros((n, n));
+    let mut a2 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -72,7 +72,7 @@ where
         }
     }
 
-    let mut a4 = Array2::zeros((n, n));
+    let mut a4 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -81,7 +81,7 @@ where
         }
     }
 
-    let mut a6 = Array2::zeros((n, n));
+    let mut a6 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -169,14 +169,14 @@ where
     }
 
     if is_zero {
-        return Ok(Array2::zeros((n, n))); // sin(0) = 0
+        return Ok(Array2::<F>::zeros((n, n))); // sin(0) = 0
     }
 
     // For small matrices, use series expansion
     // sin(A) = A - A³/3! + A⁵/5! - A⁷/7! + ...
 
     // Compute powers of A
-    let mut a2 = Array2::zeros((n, n));
+    let mut a2 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -185,7 +185,7 @@ where
         }
     }
 
-    let mut a3 = Array2::zeros((n, n));
+    let mut a3 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -194,7 +194,7 @@ where
         }
     }
 
-    let mut a5 = Array2::zeros((n, n));
+    let mut a5 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -203,7 +203,7 @@ where
         }
     }
 
-    let mut a7 = Array2::zeros((n, n));
+    let mut a7 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -327,7 +327,7 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             let val = a[[i, i]];
             if val.abs() > F::one() {
@@ -396,7 +396,7 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             let val = a[[i, i]];
             if val.abs() > F::one() {
@@ -465,7 +465,7 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             result[[i, i]] = a[[i, i]].atan();
         }

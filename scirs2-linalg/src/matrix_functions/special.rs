@@ -43,7 +43,7 @@ where
         ));
     }
 
-    let mut result = Array2::zeros((nrows, ncols));
+    let mut result = Array2::<F>::zeros((nrows, ncols));
 
     match axis {
         None => {
@@ -163,7 +163,7 @@ where
     F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
 {
     let (nrows, ncols) = a.dim();
-    let mut result = Array2::zeros((nrows, ncols));
+    let mut result = Array2::<F>::zeros((nrows, ncols));
 
     for i in 0..nrows {
         for j in 0..ncols {
@@ -239,7 +239,7 @@ where
     }
 
     if is_zero {
-        return Ok(Array2::zeros((n, n))); // sign(0) = 0
+        return Ok(Array2::<F>::zeros((n, n))); // sign(0) = 0
     }
 
     // Special case for diagonal matrix
@@ -257,7 +257,7 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             let val = a[[i, i]];
             if val > F::zero() {
@@ -271,50 +271,9 @@ where
         return Ok(result);
     }
 
-    // For general matrices, use eigendecomposition
-    let (eigenvals, eigenvecs) = eig(a)?;
-
-    // Check for zero eigenvalues
-    for &val in eigenvals.iter() {
-        if val.abs() < F::epsilon() {
-            return Err(LinalgError::InvalidInputError(
-                "Matrix sign function is undefined for singular matrices".to_string(),
-            ));
-        }
-    }
-
-    // Compute sign(D) where D is the diagonal matrix of eigenvalues
-    let mut sign_eigenvals = Array2::zeros((n, n));
-    for i in 0..n {
-        if eigenvals[i] > F::zero() {
-            sign_eigenvals[[i, i]] = F::one();
-        } else {
-            sign_eigenvals[[i, i]] = -F::one();
-        }
-    }
-
-    // Compute sign(A) = V * sign(D) * V^{-1}
-    // First compute sign(D) * V^{-1}
-    let v_inv = solve_multiple(&eigenvecs.view(), &Array2::eye(n).view(), None)?;
-
-    let mut temp = Array2::zeros((n, n));
-    for i in 0..n {
-        for j in 0..n {
-            for k in 0..n {
-                temp[[i, j]] += sign_eigenvals[[i, k]] * v_inv[[k, j]];
-            }
-        }
-    }
-
-    // Then compute V * (sign(D) * V^{-1})
-    let mut result = Array2::zeros((n, n));
-    for i in 0..n {
-        for j in 0..n {
-            for k in 0..n {
-                result[[i, j]] += eigenvecs[[i, k]] * temp[[k, j]];
-            }
-        }
-    }
-
-    Ok(result)
+    // For general matrices, return a simplified error for now
+    // A full implementation would require complex eigenvalue handling
+    Err(LinalgError::ImplementationError(
+        "Matrix sign function for general matrices is not yet fully implemented".to_string(),
+    ))
 }

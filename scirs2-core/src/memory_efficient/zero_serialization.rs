@@ -1624,9 +1624,9 @@ mod tests {
         for i in 0..5 {
             for j in 0..5 {
                 if i == 2 && j == 2 {
-                    assert_eq!(loaded_array[[0, j]], 999.0);
+                    assert_eq!(loaded_array[[i, j]], 999.0);
                 } else {
-                    assert_eq!(loaded_array[[0, j]], data[[0, j]]);
+                    assert_eq!(loaded_array[[i, j]], data[[i, j]]);
                 }
             }
         }

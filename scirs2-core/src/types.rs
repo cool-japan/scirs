@@ -1562,7 +1562,8 @@ mod enhanced_tests {
         let b = scientific::FixedPoint::<3>::from_float(std::f64::consts::E);
         let sum = a.add(b);
 
-        assert!((sum.to_float() - 5.859).abs() < 0.001);
+        // PI + E = 5.859874... which rounds to 5.860 with 3 decimal places
+        assert!((sum.to_float() - 5.860).abs() < 0.001);
     }
 
     #[test]

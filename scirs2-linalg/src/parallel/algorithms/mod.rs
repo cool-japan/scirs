@@ -705,8 +705,7 @@ where
             let mut w_new = w.clone();
             for i in 0..=j {
                 h[[i, j]] = vector_ops::parallel_dot(&w.view(), &v[i].view(), config)?;
-                w_new =
-                    vector_ops::parallel_axpy(-h[[i, j]], &v[i].view(), &w_new.view(), config)?;
+                w_new = vector_ops::parallel_axpy(-h[[i, j]], &v[i].view(), &w_new.view(), config)?;
             }
 
             h[[j + 1, j]] = vector_ops::parallel_norm(&w_new.view(), config)?;

@@ -268,10 +268,20 @@ impl CudaContext {
     pub fn is_available() -> bool {
         #[cfg(feature = "cuda")]
         {
-            // Real CUDA implementation - try to create a device
-            match CudaDevice::new(0) {
-                Ok(_) => true,
-                Err(_) => false,
+            // Use panic::catch_unwind to handle dynamic library loading failures
+            use std::panic;
+
+            let result = panic::catch_unwind(|| {
+                // Real CUDA implementation - try to create a device
+                match CudaDevice::new(0) {
+                    Ok(_) => true,
+                    Err(_) => false,
+                }
+            });
+
+            match result {
+                Ok(available) => available,
+                Err(_) => false, // If it panicked (e.g., library not found), CUDA is not available
             }
         }
         #[cfg(not(feature = "cuda"))]
@@ -1115,10 +1125,22 @@ mod tests {
 
     #[test]
     fn test_cuda_context_creation() {
-        // This test would fail in real implementation without CUDA
-        // but works with our stub
-        let context = CudaContext::new();
-        assert!(context.is_ok());
+        // Skip test if CUDA library is not available at runtime
+        match CudaContext::new() {
+            Ok(context) => {
+                // If we can create a context, test passed
+                drop(context);
+            }
+            Err(GpuError::BackendNotAvailable(_)) => {
+                // CUDA not available, skip test
+                eprintln!("Skipping test: CUDA runtime not available");
+                return;
+            }
+            Err(e) => {
+                // Unexpected error
+                panic!("Unexpected error creating CUDA context: {:?}", e);
+            }
+        }
     }
 
     #[test]

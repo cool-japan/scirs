@@ -1137,7 +1137,7 @@ kernel void arithmetic_op(global {input_type}* input, global {output_type}* outp
         );
 
         KernelSource {
-            id: format!("{operation}"),
+            id: format!("arithmetic_{operation}"),
             source,
             language: KernelLanguage::OpenCl,
             entry_point: "arithmetic_op".to_string(),
@@ -1181,7 +1181,7 @@ kernel void reduction_op(global {datatype}* input, global {datatype}* output, in
         );
 
         KernelSource {
-            id: format!("{operation}"),
+            id: format!("reduction_{operation}"),
             source,
             language: KernelLanguage::OpenCl,
             entry_point: "reduction_op".to_string(),

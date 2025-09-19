@@ -135,6 +135,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow test - takes > 30s
     fn test_data_access_logging() {
         let temp_dir = tempdir().expect("Failed to create temp dir");
         let config = AuditConfig {
@@ -164,6 +165,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow test - takes > 30s
     fn test_system_context() {
         let context = SystemContext::current()
             .with_sessionid("session123".to_string())

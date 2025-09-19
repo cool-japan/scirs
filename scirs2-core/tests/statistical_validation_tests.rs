@@ -201,9 +201,10 @@ fn test_statistical_constraint_non_numeric() {
     );
 
     let errors = result.errors();
+    // Check that we have type mismatch errors expecting "number" type
     assert!(errors
         .iter()
-        .any(|e| e.message.contains("Expected numeric value")));
+        .any(|e| e.expected == Some("number".to_string())));
 }
 
 #[cfg(all(feature = "data_validation", feature = "serde"))]

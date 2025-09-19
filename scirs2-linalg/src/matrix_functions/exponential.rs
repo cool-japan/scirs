@@ -57,7 +57,7 @@ where
 
     // Special case for 1x1 matrix
     if n == 1 {
-        let mut result = Array2::zeros((1, 1));
+        let mut result = Array2::<F>::zeros((1, 1));
         result[[0, 0]] = a[[0, 0]].exp();
         return Ok(result);
     }
@@ -77,7 +77,7 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             result[[i, i]] = a[[i, i]].exp();
         }
@@ -91,7 +91,7 @@ where
     let s = F::from(2.0_f64.powi(-scaling)).unwrap_or(F::one());
 
     // Scale the matrix
-    let mut a_scaled = Array2::zeros((n, n));
+    let mut a_scaled = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             a_scaled[[i, j]] = a[[i, j]] * s;
@@ -109,7 +109,7 @@ where
     ];
 
     // Compute powers of A
-    let mut a2 = Array2::zeros((n, n));
+    let mut a2 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -118,7 +118,7 @@ where
         }
     }
 
-    let mut a4 = Array2::zeros((n, n));
+    let mut a4 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -128,7 +128,7 @@ where
     }
 
     // Compute the numerator of the Padé approximant: N = I + c_1*A + c_2*A^2 + ...
-    let mut n_pade = Array2::zeros((n, n));
+    let mut n_pade = Array2::<F>::zeros((n, n));
     for i in 0..n {
         n_pade[[i, i]] = c[0]; // Add identity matrix * c[0]
     }
@@ -148,7 +148,7 @@ where
     }
 
     // Add c[3] * A^3
-    let mut a3 = Array2::zeros((n, n));
+    let mut a3 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -171,7 +171,7 @@ where
     }
 
     // Add c[5] * A^5
-    let mut a5 = Array2::zeros((n, n));
+    let mut a5 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -187,7 +187,7 @@ where
     }
 
     // Compute the denominator of the Padé approximant: D = I - c_1*A + c_2*A^2 - ...
-    let mut d_pade = Array2::zeros((n, n));
+    let mut d_pade = Array2::<F>::zeros((n, n));
     for i in 0..n {
         d_pade[[i, i]] = c[0]; // Add identity matrix * c[0]
     }
@@ -234,7 +234,7 @@ where
     let mut exp_a = result;
 
     for _ in 0..scaling as usize {
-        let mut temp = Array2::zeros((n, n));
+        let mut temp = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -310,7 +310,7 @@ where
             ));
         }
 
-        let mut result = Array2::zeros((1, 1));
+        let mut result = Array2::<F>::zeros((1, 1));
         result[[0, 0]] = val.ln();
         return Ok(result);
     }
@@ -340,7 +340,7 @@ where
             }
         }
 
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             result[[i, i]] = a[[i, i]].ln();
         }
@@ -364,7 +364,7 @@ where
 
     // log(I) = 0
     if is_identity {
-        return Ok(Array2::zeros((n, n)));
+        return Ok(Array2::<F>::zeros((n, n)));
     }
 
     // Special case for 2x2 diagonal matrix
@@ -378,7 +378,7 @@ where
             ));
         }
 
-        let mut result = Array2::zeros((2, 2));
+        let mut result = Array2::<F>::zeros((2, 2));
         result[[0, 0]] = a00.ln();
         result[[1, 1]] = a11.ln();
         return Ok(result);
@@ -451,7 +451,7 @@ where
         }
 
         // Now compute log(A^(1/2^k)) using the series
-        let mut x_scaled = Array2::zeros((n, n));
+        let mut x_scaled = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 let expected = if i == j { F::one() } else { F::zero() };
@@ -460,7 +460,7 @@ where
         }
 
         // Compute powers of X for the series (use more terms for better accuracy)
-        let mut x2 = Array2::zeros((n, n));
+        let mut x2 = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -469,7 +469,7 @@ where
             }
         }
 
-        let mut x3 = Array2::zeros((n, n));
+        let mut x3 = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -478,7 +478,7 @@ where
             }
         }
 
-        let mut x4 = Array2::zeros((n, n));
+        let mut x4 = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -487,7 +487,7 @@ where
             }
         }
 
-        let mut x5 = Array2::zeros((n, n));
+        let mut x5 = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -496,7 +496,7 @@ where
             }
         }
 
-        let mut x6 = Array2::zeros((n, n));
+        let mut x6 = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
                 for k in 0..n {
@@ -507,7 +507,7 @@ where
 
         // Compute log(A^(1/2^k)) using the series with more terms
         // log(1 + X) = X - X²/2 + X³/3 - X⁴/4 + X⁵/5 - X⁶/6 + ...
-        let mut log_scaled = Array2::zeros((n, n));
+        let mut log_scaled = Array2::<F>::zeros((n, n));
         let half = F::from(0.5).unwrap();
         let third = F::from(1.0 / 3.0).unwrap();
         let fourth = F::from(0.25).unwrap();
@@ -536,7 +536,7 @@ where
 
     // For matrices close to I, we can use the series: log(I + X) = X - X²/2 + X³/3 - X⁴/4 + ...
     // where X = A - I
-    let mut x = Array2::zeros((n, n));
+    let mut x = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             x[[i, j]] = a[[i, j]] - identity[[i, j]];
@@ -544,7 +544,7 @@ where
     }
 
     // Compute X^2, X^3, X^4, X^5, X^6 for the series
-    let mut x2 = Array2::zeros((n, n));
+    let mut x2 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -553,7 +553,7 @@ where
         }
     }
 
-    let mut x3 = Array2::zeros((n, n));
+    let mut x3 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -562,7 +562,7 @@ where
         }
     }
 
-    let mut x4 = Array2::zeros((n, n));
+    let mut x4 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -571,7 +571,7 @@ where
         }
     }
 
-    let mut x5 = Array2::zeros((n, n));
+    let mut x5 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -580,7 +580,7 @@ where
         }
     }
 
-    let mut x6 = Array2::zeros((n, n));
+    let mut x6 = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
@@ -590,7 +590,7 @@ where
     }
 
     // Compute log(A) using the series log(I + X) = X - X²/2 + X³/3 - X⁴/4 + X⁵/5 - X⁶/6 + ...
-    let mut result = Array2::zeros((n, n));
+    let mut result = Array2::<F>::zeros((n, n));
     let half = F::from(0.5).unwrap();
     let third = F::from(1.0 / 3.0).unwrap();
     let fourth = F::from(0.25).unwrap();
@@ -724,7 +724,7 @@ where
                 "Cannot compute real square root of negative number".to_string(),
             ));
         }
-        let mut result = Array2::zeros((1, 1));
+        let mut result = Array2::<F>::zeros((1, 1));
         result[[0, 0]] = val.sqrt();
         return Ok(result);
     }
@@ -744,11 +744,12 @@ where
     }
 
     if is_diagonal {
-        let mut result = Array2::zeros((n, n));
+        let mut result = Array2::<F>::zeros((n, n));
         for i in 0..n {
             if a[[i, i]] < F::zero() {
                 return Err(LinalgError::InvalidInputError(
-                    "Cannot compute real square root of matrix with negative eigenvalues".to_string(),
+                    "Cannot compute real square root of matrix with negative eigenvalues"
+                        .to_string(),
                 ));
             }
             result[[i, i]] = a[[i, i]].sqrt();
@@ -773,8 +774,8 @@ where
         let x_inv = solve_multiple(&x.view(), &Array2::eye(n).view(), None)?;
 
         // Update X and Y
-        let mut x_new = Array2::zeros((n, n));
-        let mut y_new = Array2::zeros((n, n));
+        let mut x_new = Array2::<F>::zeros((n, n));
+        let mut y_new = Array2::<F>::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
@@ -883,6 +884,34 @@ where
         return Ok(a.to_owned());
     }
 
+    // Special case for diagonal matrix
+    let mut is_diagonal = true;
+    for i in 0..n {
+        for j in 0..n {
+            if i != j && a[[i, j]].abs() > F::epsilon() {
+                is_diagonal = false;
+                break;
+            }
+        }
+        if !is_diagonal {
+            break;
+        }
+    }
+
+    if is_diagonal {
+        let mut result = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            let val = a[[i, i]];
+            if val < F::zero() && !is_integer(p) {
+                return Err(LinalgError::InvalidInputError(
+                    "Cannot compute real fractional power of negative number".to_string(),
+                ));
+            }
+            result[[i, i]] = val.powf(p);
+        }
+        return Ok(result);
+    }
+
     // Special case for integer powers
     if is_integer(p) {
         let int_p = p.to_i32().unwrap_or(0);
@@ -895,7 +924,7 @@ where
             while exp > 0 {
                 if exp % 2 == 1 {
                     // Multiply result by base
-                    let mut temp = Array2::zeros((n, n));
+                    let mut temp = Array2::<F>::zeros((n, n));
                     for i in 0..n {
                         for j in 0..n {
                             for k in 0..n {
@@ -906,7 +935,7 @@ where
                     result = temp;
                 }
                 // Square the base
-                let mut temp = Array2::zeros((n, n));
+                let mut temp = Array2::<F>::zeros((n, n));
                 for i in 0..n {
                     for j in 0..n {
                         for k in 0..n {
@@ -921,49 +950,12 @@ where
         }
     }
 
-    // For non-integer powers, use eigendecomposition approach
-    // A^p = V * D^p * V^{-1} where A = V * D * V^{-1}
-    let (eigenvals, eigenvecs) = eig(a)?;
-
-    // Check for negative eigenvalues
-    for &val in eigenvals.iter() {
-        if val < F::zero() {
-            return Err(LinalgError::InvalidInputError(
-                "Cannot compute real matrix power of matrix with negative eigenvalues".to_string(),
-            ));
-        }
-    }
-
-    // Compute D^p (power of diagonal matrix)
-    let mut pow_eigenvals = Array2::zeros((n, n));
-    for i in 0..n {
-        pow_eigenvals[[i, i]] = eigenvals[i].powf(p);
-    }
-
-    // Compute A^p = V * D^p * V^{-1}
-    // First compute D^p * V^{-1}
-    let v_inv = solve_multiple(&eigenvecs.view(), &Array2::eye(n).view(), None)?;
-
-    let mut temp = Array2::zeros((n, n));
-    for i in 0..n {
-        for j in 0..n {
-            for k in 0..n {
-                temp[[i, j]] += pow_eigenvals[[i, k]] * v_inv[[k, j]];
-            }
-        }
-    }
-
-    // Then compute V * (D^p * V^{-1})
-    let mut result = Array2::zeros((n, n));
-    for i in 0..n {
-        for j in 0..n {
-            for k in 0..n {
-                result[[i, j]] += eigenvecs[[i, k]] * temp[[k, j]];
-            }
-        }
-    }
-
-    Ok(result)
+    // For non-integer powers on general matrices, return a simplified error for now
+    // A full implementation would require complex eigenvalue handling
+    Err(LinalgError::ImplementationError(
+        "Matrix power for non-integer powers on general matrices is not yet fully implemented"
+            .to_string(),
+    ))
 }
 
 /// Helper function to check if a floating point number is close to an integer

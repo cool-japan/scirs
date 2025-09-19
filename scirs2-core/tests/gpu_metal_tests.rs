@@ -321,7 +321,7 @@ fn test_metal_buffer_overflow() {
 
     let buffer = context.create_buffer::<f32>(4);
     let data = vec![1.0f32; 8]; // Too large
-    buffer.copy_from_host(&data); // Should panic
+    buffer.copy_from_host(&data).unwrap(); // Should panic
 }
 
 mod benchmarks {

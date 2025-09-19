@@ -447,9 +447,7 @@ impl AdvancedWorkStealingScheduler {
     {
         match config.strategy {
             ChunkStrategy::Sequential => self.execute_sequential_chunks(items, f, config.size),
-            ChunkStrategy::Interleaved => {
-                self.execute_interleaved_chunks(items, f, config.size)
-            }
+            ChunkStrategy::Interleaved => self.execute_interleaved_chunks(items, f, config.size),
             ChunkStrategy::Dynamic => self.execute_dynamic_chunks(items, f, config.size),
         }
     }

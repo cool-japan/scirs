@@ -1068,7 +1068,6 @@ impl MLPipeline {
             }
         }
 
-        order.reverse();
         Ok(order)
     }
 

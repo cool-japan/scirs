@@ -507,10 +507,7 @@ pub struct TaskFeatures {
 
 impl TaskFeatures {
     /// Create task features for matrix operation
-    pub fn formatrix_operation(
-        matrix_dims: (usize, usize),
-        operation: MatrixOperation,
-    ) -> Self {
+    pub fn formatrix_operation(matrix_dims: (usize, usize), operation: MatrixOperation) -> Self {
         let (rows, cols) = matrix_dims;
         let datasize = rows * cols;
 

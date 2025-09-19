@@ -414,17 +414,17 @@ where
     // Initialize the ufuncs registry if needed
     init_reduction_ufuncs();
 
-    // Prepare the output _array
-    let (mut output_) = prepare_reduction_output(_array, axis);
+    // Prepare the output array
+    let mut output = prepare_reduction_output(array, axis);
 
     // Apply the sum function along the specified axis
     match axis {
         Some(ax) => {
-            apply_reduction(_array, &mut output, Some(ax), Some(0.0),
+            apply_reduction(array, &mut output, Some(ax), Some(0.0),
                             |acc, &x| acc + x).unwrap();
         },
         None => {
-            apply_reduction(_array, &mut output, None, Some(0.0),
+            apply_reduction(array, &mut output, None, Some(0.0),
                             |acc, &x| acc + x).unwrap();
         }
     }
