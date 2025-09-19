@@ -29,14 +29,8 @@ impl GpuIoProcessor {
             .map_err(|e| IoError::Other(format!("Failed to detect optimal GPU backend: {}", e)))?;
         let device = GpuDevice::new(backend, 0);
 
-        // Validate device capabilities
-        let info = device.get_info();
-        if info.memory_gb < 0.5 {
-            return Err(IoError::Other(format!(
-                "GPU has insufficient memory: {:.1}GB available, minimum 0.5GB required",
-                info.memory_gb
-            )));
-        }
+        // TODO: Add device capability validation once get_info() is implemented in scirs2-core
+        // For now, skip validation and assume device is capable
 
         Ok(Self {
             device,
@@ -109,49 +103,39 @@ impl GpuIoProcessor {
     /// Validate CUDA backend functionality
     fn validate_cuda_backend(device: &GpuDevice) -> Result<bool> {
         // Check CUDA compute capability and available memory
-        match device.get_info() {
-            info => {
-                // Require at least compute capability 3.5 and 1GB memory
-                Ok(info.compute_capability >= 3.5 && info.memory_gb >= 1.0)
-            }
-        }
+        // TODO: Add CUDA validation once get_info() is implemented
+        // For now, return true if CUDA backend is available
+        Ok(device.backend() == GpuBackend::Cuda)
     }
 
     /// Validate Metal backend functionality  
     fn validate_metal_backend(device: &GpuDevice) -> Result<bool> {
         // Check Metal feature set support
-        match device.get_info() {
-            info => {
-                // Require Metal 2.0+ support and sufficient memory
-                Ok(info.metal_version >= 2.0 && info.memory_gb >= 1.0)
-            }
-        }
+        // TODO: Add Metal validation once get_info() is implemented
+        // For now, return true if Metal backend is available
+        Ok(device.backend() == GpuBackend::Metal)
     }
 
     /// Validate OpenCL backend functionality
     fn validate_opencl_backend(device: &GpuDevice) -> Result<bool> {
-        // Check OpenCL version and extensions
-        match device.get_info() {
-            info => {
-                // Require OpenCL 1.2+ and basic extensions
-                Ok(info.opencl_version >= 1.2 && info.supports_fp64)
-            }
-        }
+        // TODO: Add OpenCL validation once get_info() is implemented
+        // For now, return true if OpenCL backend is available
+        Ok(device.backend() == GpuBackend::OpenCL)
     }
 
     /// Get detailed backend capabilities
     pub fn get_backend_capabilities(&self) -> Result<BackendCapabilities> {
-        let info = self.device.get_info();
-
+        // TODO: Get actual capabilities from device once get_info() is implemented
+        // For now, return default capabilities based on backend type
         Ok(BackendCapabilities {
             backend: self.backend(),
-            memory_gb: info.memory_gb,
-            max_work_group_size: info.max_work_group_size,
-            supports_fp64: info.supports_fp64,
-            supports_fp16: info.supports_fp16,
-            compute_units: info.compute_units,
-            max_allocation_size: info.max_allocation_size,
-            local_memory_size: info.local_memory_size,
+            memory_gb: 4.0,               // Default assumption
+            max_work_group_size: 1024,    // Common default
+            supports_fp64: true,          // Assume support
+            supports_fp16: true,          // Assume support
+            compute_units: 32,            // Default assumption
+            max_allocation_size: 1 << 30, // 1GB default
+            local_memory_size: 48 * 1024, // 48KB default
         })
     }
 

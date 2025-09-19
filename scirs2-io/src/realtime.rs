@@ -174,7 +174,7 @@ trait StreamConnection: Send + Sync {
 }
 
 /// Stream metrics for monitoring
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct StreamMetrics {
     /// Total messages received
     pub messages_received: u64,
@@ -283,7 +283,7 @@ impl StreamClient {
 
     /// Get current metrics
     pub async fn metrics(&self) -> StreamMetrics {
-        self.metrics.read().await.clone()
+        (*self.metrics.read().await).clone()
     }
 }
 
@@ -1087,7 +1087,7 @@ struct MqttConnection {
     #[cfg(feature = "mqtt")]
     client: Option<rumqttc::AsyncClient>,
     #[cfg(feature = "mqtt")]
-    eventloop: Option<rumqttc::EventLoop>,
+    eventloop: Option<Arc<tokio::sync::Mutex<rumqttc::EventLoop>>>,
 }
 
 impl MqttConnection {
@@ -1146,7 +1146,6 @@ impl StreamConnection for MqttConnection {
             }
 
             mqttoptions.set_keep_alive(Duration::from_secs(60));
-            mqttoptions.set_connection_timeout(self.config.timeout);
 
             let (client, eventloop) = rumqttc::AsyncClient::new(mqttoptions, 10);
 
@@ -1157,7 +1156,7 @@ impl StreamConnection for MqttConnection {
                 .map_err(|e| IoError::NetworkError(format!("MQTT subscribe error: {}", e)))?;
 
             self.client = Some(client);
-            self.eventloop = Some(eventloop);
+            self.eventloop = Some(Arc::new(tokio::sync::Mutex::new(eventloop)));
             self.connected = true;
             Ok(())
         }
@@ -1178,7 +1177,8 @@ impl StreamConnection for MqttConnection {
 
         #[cfg(feature = "mqtt")]
         {
-            if let Some(eventloop) = &mut self.eventloop {
+            if let Some(eventloop_arc) = &self.eventloop {
+                let mut eventloop = eventloop_arc.lock().await;
                 match tokio::time::timeout(self.config.timeout, eventloop.poll()).await {
                     Ok(Ok(event)) => {
                         match event {
@@ -1455,7 +1455,7 @@ impl StreamSynchronizer {
     pub fn new(syncstrategy: SyncStrategy) -> Self {
         Self {
             streams: Vec::new(),
-            syncstrategy,
+            sync_strategy: syncstrategy,
             buffer_size: 1000,
             output_rate: None,
         }
@@ -1483,11 +1483,11 @@ impl StreamSynchronizer {
         F: FnMut(Vec<(&str, &[u8])>) -> Result<()>,
     {
         // Start receiving from all streams
-        let mut handles = Vec::new();
         let mut last_sync_time = Instant::now();
 
         loop {
             let mut synchronized_data = Vec::new();
+            let mut collected_data: Vec<(String, Vec<u8>)> = Vec::new();
             let mut has_data = false;
 
             // Collect data from all streams
@@ -1557,10 +1557,7 @@ impl StreamSynchronizer {
                             if let Some(front) = stream_info.buffer.front() {
                                 if front.timestamp <= target_time + tolerance {
                                     if let Some(data) = stream_info.buffer.pop_front() {
-                                        synchronized_data.push((
-                                            stream_info.name.as_str(),
-                                            data.data.as_slice(),
-                                        ));
+                                        collected_data.push((stream_info.name.clone(), data.data));
                                     }
                                 }
                             }
@@ -1571,8 +1568,7 @@ impl StreamSynchronizer {
                     // Simple round-robin collection
                     for stream_info in &mut self.streams {
                         if let Some(data) = stream_info.buffer.pop_front() {
-                            synchronized_data
-                                .push((stream_info.name.as_str(), data.data.as_slice()));
+                            collected_data.push((stream_info.name.clone(), data.data));
                         }
                     }
                 }
@@ -1580,11 +1576,15 @@ impl StreamSynchronizer {
                     // Collect any available data
                     for stream_info in &mut self.streams {
                         while let Some(data) = stream_info.buffer.pop_front() {
-                            synchronized_data
-                                .push((stream_info.name.as_str(), data.data.as_slice()));
+                            collected_data.push((stream_info.name.clone(), data.data));
                         }
                     }
                 }
+            }
+
+            // Convert collected data to references for processing
+            for (name, data) in &collected_data {
+                synchronized_data.push((name.as_str(), data.as_slice()));
             }
 
             // Process synchronized data if available
@@ -1644,7 +1644,7 @@ impl<T: Clone> TimeSeriesBuffer<T> {
     /// Create a new time series buffer
     pub fn new(maxsize: usize) -> Self {
         Self {
-            maxsize,
+            max_size: maxsize,
             window_duration: None,
             data: VecDeque::with_capacity(maxsize),
             stats: BufferStats::default(),

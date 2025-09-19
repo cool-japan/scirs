@@ -4,7 +4,7 @@
 //! management, and fragmentation prevention for optimal performance.
 
 use crate::error::{IoError, Result};
-use scirs2_core::gpu::{GpuBuffer, GpuDataType, GpuDevice};
+use scirs2_core::gpu::{GpuBuffer, GpuContext, GpuDataType, GpuDevice};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -170,8 +170,10 @@ impl AdvancedGpuMemoryPool {
             )));
         }
 
-        let buffer = GpuBuffer::<u8>::zeros(&self.device, size)
-            .map_err(|e| IoError::Other(format!("Failed to allocate GPU buffer: {}", e)))?;
+        // Create a GPU context and allocate buffer through it
+        let context = GpuContext::new(self.device.backend())
+            .map_err(|e| IoError::Other(format!("Failed to create GPU context: {}", e)))?;
+        let buffer: GpuBuffer<u8> = context.create_buffer(size);
 
         let buffer_id = self.buffer_id_counter;
         self.buffer_id_counter += 1;
@@ -249,7 +251,6 @@ pub struct BufferMetadata {
 }
 
 /// Buffer wrapper with lifecycle tracking
-#[derive(Debug)]
 pub struct PooledBuffer {
     pub buffer: GpuBuffer<u8>,
     pub metadata: BufferMetadata,
@@ -258,10 +259,22 @@ pub struct PooledBuffer {
     pub use_count: usize,
 }
 
+impl std::fmt::Debug for PooledBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PooledBuffer")
+            .field("buffer_size", &self.buffer.len())
+            .field("metadata", &self.metadata)
+            .field("created_at", &self.created_at)
+            .field("last_used", &self.last_used)
+            .field("use_count", &self.use_count)
+            .finish()
+    }
+}
+
 impl PooledBuffer {
     fn new(buffer: GpuBuffer<u8>, id: usize, allocation_source: String) -> Self {
         let now = Instant::now();
-        let size = buffer.size();
+        let size = buffer.len();
 
         Self {
             buffer,

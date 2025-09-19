@@ -44,6 +44,8 @@ pub enum IoError {
     NetworkError(String),
     /// Database error
     DatabaseError(String),
+    /// Timeout error
+    TimeoutError(String),
     /// Other error
     Other(String),
 }
@@ -72,6 +74,7 @@ impl fmt::Display for IoError {
             IoError::ConfigError(msg) => write!(f, "Configuration error: {msg}"),
             IoError::NetworkError(msg) => write!(f, "Network error: {msg}"),
             IoError::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+            IoError::TimeoutError(msg) => write!(f, "Timeout error: {msg}"),
             IoError::Other(msg) => write!(f, "Error: {msg}"),
         }
     }
@@ -103,6 +106,7 @@ impl Clone for IoError {
             IoError::ConfigError(msg) => IoError::ConfigError(msg.clone()),
             IoError::NetworkError(msg) => IoError::NetworkError(msg.clone()),
             IoError::DatabaseError(msg) => IoError::DatabaseError(msg.clone()),
+            IoError::TimeoutError(msg) => IoError::TimeoutError(msg.clone()),
             IoError::Other(msg) => IoError::Other(msg.clone()),
         }
     }
@@ -141,6 +145,7 @@ impl PartialEq for IoError {
             (IoError::ConfigError(a), IoError::ConfigError(b)) => a == b,
             (IoError::NetworkError(a), IoError::NetworkError(b)) => a == b,
             (IoError::DatabaseError(a), IoError::DatabaseError(b)) => a == b,
+            (IoError::TimeoutError(a), IoError::TimeoutError(b)) => a == b,
             (IoError::Other(a), IoError::Other(b)) => a == b,
             _ => false,
         }
@@ -190,6 +195,7 @@ impl Ord for IoError {
             (IoError::ConfigError(a), IoError::ConfigError(b)) => a.cmp(b),
             (IoError::NetworkError(a), IoError::NetworkError(b)) => a.cmp(b),
             (IoError::DatabaseError(a), IoError::DatabaseError(b)) => a.cmp(b),
+            (IoError::TimeoutError(a), IoError::TimeoutError(b)) => a.cmp(b),
             (IoError::Other(a), IoError::Other(b)) => a.cmp(b),
 
             // Different variants, order by enum variant position
@@ -231,6 +237,8 @@ impl Ord for IoError {
             (_, IoError::NetworkError(_)) => Ordering::Greater,
             (IoError::DatabaseError(_), _) => Ordering::Less,
             (_, IoError::DatabaseError(_)) => Ordering::Greater,
+            (IoError::TimeoutError(_), _) => Ordering::Less,
+            (_, IoError::TimeoutError(_)) => Ordering::Greater,
             // Other is last
         }
     }

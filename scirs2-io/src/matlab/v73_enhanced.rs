@@ -312,7 +312,7 @@ impl V73MatFile {
         )?;
 
         // Write ordered flag
-        file.set_attribute(name, "ordered", AttributeValue::Bool(cat_array.ordered))?;
+        file.set_attribute(name, "ordered", AttributeValue::Boolean(cat_array.ordered))?;
 
         Ok(())
     }
@@ -447,7 +447,7 @@ impl V73MatFile {
             "MATLAB_class",
             AttributeValue::String(object.class_name.clone()),
         )?;
-        file.set_attribute(name, "MATLAB_object", AttributeValue::Bool(true))?;
+        file.set_attribute(name, "MATLAB_object", AttributeValue::Boolean(true))?;
 
         // Write properties
         let props_group = format!("{}/properties", name);
@@ -486,7 +486,7 @@ impl V73MatFile {
             "MATLAB_class",
             AttributeValue::String("double".to_string()),
         )?;
-        file.set_attribute(name, "MATLAB_complex", AttributeValue::Bool(true))?;
+        file.set_attribute(name, "MATLAB_complex", AttributeValue::Boolean(true))?;
 
         // Write real and imaginary parts
         file.create_dataset_from_array(
@@ -528,7 +528,7 @@ impl V73MatFile {
             "MATLAB_class",
             AttributeValue::String("single".to_string()),
         )?;
-        file.set_attribute(name, "MATLAB_complex", AttributeValue::Bool(true))?;
+        file.set_attribute(name, "MATLAB_complex", AttributeValue::Boolean(true))?;
 
         // Write real and imaginary parts
         file.create_dataset_from_array(
@@ -579,7 +579,7 @@ impl V73MatFile {
                         "function_handle" => self.read_function_handle(file, name),
                         _ => {
                             // Check if it's an object
-                            if let Ok(AttributeValue::Bool(true)) =
+                            if let Ok(AttributeValue::Boolean(true)) =
                                 file.get_attribute(name, "MATLAB_object")
                             {
                                 self.read_object(file, name)

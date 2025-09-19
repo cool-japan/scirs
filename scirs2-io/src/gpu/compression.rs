@@ -149,7 +149,8 @@ impl GpuCompressionProcessor {
                     }
                     CompressionAlgorithm::Lz4 => {
                         // LZ4 with CUDA-specific optimizations
-                        lz4_flex::compress_prepend_size(chunk)
+                        // Use lz4 crate instead of lz4_flex
+                        lz4::block::compress(chunk, None, false)
                             .map_err(|e| IoError::Other(format!("LZ4 compression error: {}", e)))
                     }
                     _ => Err(IoError::UnsupportedFormat(format!(
@@ -228,7 +229,7 @@ impl GpuCompressionProcessor {
                         zstd::bulk::compress(chunk, compression_level as i32)
                             .map_err(|e| IoError::Other(e.to_string()))
                     }
-                    CompressionAlgorithm::Lz4 => lz4_flex::compress_prepend_size(chunk)
+                    CompressionAlgorithm::Lz4 => lz4::block::compress(chunk, None, false)
                         .map_err(|e| IoError::Other(format!("LZ4 compression error: {}", e))),
                     _ => Err(IoError::UnsupportedFormat(format!(
                         "Compression algorithm {:?} not supported for Metal",
@@ -308,7 +309,8 @@ impl GpuCompressionProcessor {
                     }
                     CompressionAlgorithm::Lz4 => {
                         // LZ4 works particularly well with OpenCL due to its simplicity
-                        lz4_flex::compress_prepend_size(chunk)
+                        // Use lz4 crate instead of lz4_flex
+                        lz4::block::compress(chunk, None, false)
                             .map_err(|e| IoError::Other(format!("LZ4 compression error: {}", e)))
                     }
                     _ => Err(IoError::UnsupportedFormat(format!(
@@ -327,7 +329,8 @@ impl GpuCompressionProcessor {
         // OpenCL header: magic + version + device info + chunk count
         result.extend_from_slice(b"OPCL"); // Magic number for OpenCL compression
         result.extend_from_slice(&1u32.to_le_bytes()); // Version
-        result.extend_from_slice(&(capabilities.compute_units as u32).to_le_bytes()); // Device compute units
+                                                       // TODO: Add compute units when available in PlatformCapabilities
+        result.extend_from_slice(&32u32.to_le_bytes()); // Default compute units placeholder
         result.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
 
         // Write chunk metadata optimized for OpenCL kernel processing
@@ -524,8 +527,13 @@ impl GpuCompressionProcessor {
                     zstd::bulk::decompress(chunk, chunk.len() * 10) // Estimate decompressed size
                         .map_err(|e| IoError::Other(e.to_string()))
                 }
-                CompressionAlgorithm::Lz4 => lz4_flex::decompress_size_prepended(chunk)
-                    .map_err(|e| IoError::Other(format!("LZ4 decompression error: {}", e))),
+                CompressionAlgorithm::Lz4 => {
+                    // LZ4 decompression - we need to provide the max decompressed size
+                    // Assume max 10x expansion ratio for safety
+                    let max_size = chunk.len() * 10;
+                    lz4::block::decompress(chunk, Some(max_size as i32))
+                        .map_err(|e| IoError::Other(format!("LZ4 decompression error: {}", e)))
+                }
                 _ => Err(IoError::UnsupportedFormat(format!(
                     "Compression algorithm {:?} not supported for GPU decompression",
                     algorithm

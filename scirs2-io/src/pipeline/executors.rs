@@ -101,9 +101,8 @@ where
     fn execute(&self, pipeline: &Pipeline<I, O>, input: I) -> Result<O> {
         self.runtime.block_on(async {
             // Execute pipeline in async context
-            tokio::task::spawn_blocking(move || pipeline.execute(input))
-                .await
-                .map_err(|e| IoError::Other(format!("Async execution error: {}", e)))?
+            // Note: We execute directly without spawn_blocking since Pipeline doesn't implement Send
+            pipeline.execute(input)
         })
     }
 

@@ -284,18 +284,10 @@ impl EnhancedHDF5File {
         // For now, we convert the generic array to the appropriate _type and delegate to base file
         match data_type {
             ExtendedDataType::Float64 => {
-                // Convert array elements to f64 if needed
-                let f64_array = if array.len() > 0 {
-                    let shape = array.shape().to_vec();
-                    let data: Vec<f64> = array.iter().map(|x| x.clone().into()).collect();
-                    ArrayD::from_shape_vec(IxDyn(&shape), data)
-                        .map_err(|e| IoError::FormatError(e.to_string()))?
-                } else {
-                    ArrayD::zeros(IxDyn(array.shape()))
-                };
                 // For production use, implement direct HDF5 dataset writing here
-                // For now, use a simplified approach
-                let _data_size = f64_array.len();
+                // The actual writing would need to handle type conversion or
+                // verify that A::Elem is f64
+                let _data_size = array.len();
             }
             ExtendedDataType::Float32 => {
                 // Similar approach for f32

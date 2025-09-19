@@ -351,12 +351,14 @@ impl EnhancedMatFile {
         // First, check if it's a group (struct or cell array)
         if file.is_group(name) {
             // Get the MATLAB class attribute
-            if let Some(AttributeValue::String(class)) = file.get_attribute(name, "MATLAB_class") {
+            if let Ok(Some(AttributeValue::String(class))) =
+                file.get_attribute(name, "MATLAB_class")
+            {
                 match class.as_str() {
                     "cell" => {
                         // Read cell array
                         let mut cells = Vec::new();
-                        if let Some(AttributeValue::Array(dims)) =
+                        if let Ok(Some(AttributeValue::Array(dims))) =
                             file.get_attribute(name, "MATLAB_dims")
                         {
                             let num_cells = dims[0] as usize;
@@ -371,7 +373,7 @@ impl EnhancedMatFile {
                     "struct" => {
                         // Read struct
                         let mut fields = HashMap::new();
-                        if let Some(AttributeValue::StringArray(field_names)) =
+                        if let Ok(Some(AttributeValue::StringArray(field_names))) =
                             file.get_attribute(name, "MATLAB_fields")
                         {
                             for field_name in field_names {
@@ -396,56 +398,58 @@ impl EnhancedMatFile {
             }
         } else {
             // It's a dataset
-            if let Some(AttributeValue::String(class)) = file.get_attribute(name, "MATLAB_class") {
+            if let Ok(Some(AttributeValue::String(class))) =
+                file.get_attribute(name, "MATLAB_class")
+            {
                 match class.as_str() {
                     "double" => {
-                        let array: ArrayD<f64> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<f64>(name)?;
                         Ok(MatType::Double(array))
                     }
                     "single" => {
-                        let array: ArrayD<f32> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<f32>(name)?;
                         Ok(MatType::Single(array))
                     }
                     "int8" => {
-                        let array: ArrayD<i8> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<i8>(name)?;
                         Ok(MatType::Int8(array))
                     }
                     "int16" => {
-                        let array: ArrayD<i16> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<i16>(name)?;
                         Ok(MatType::Int16(array))
                     }
                     "int32" => {
-                        let array: ArrayD<i32> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<i32>(name)?;
                         Ok(MatType::Int32(array))
                     }
                     "int64" => {
-                        let array: ArrayD<i64> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<i64>(name)?;
                         Ok(MatType::Int64(array))
                     }
                     "uint8" => {
-                        let array: ArrayD<u8> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u8>(name)?;
                         Ok(MatType::UInt8(array))
                     }
                     "uint16" => {
-                        let array: ArrayD<u16> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u16>(name)?;
                         Ok(MatType::UInt16(array))
                     }
                     "uint32" => {
-                        let array: ArrayD<u32> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u32>(name)?;
                         Ok(MatType::UInt32(array))
                     }
                     "uint64" => {
-                        let array: ArrayD<u64> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u64>(name)?;
                         Ok(MatType::UInt64(array))
                     }
                     "logical" => {
-                        let array: ArrayD<u8> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u8>(name)?;
                         let bool_array = array.mapv(|x| x != 0);
                         Ok(MatType::Logical(bool_array))
                     }
                     "char" => {
                         // Read UTF-16 data
-                        let array: ArrayD<u16> = file.read_dataset(name)?;
+                        let array = file.read_dataset_typed::<u16>(name)?;
                         let utf16_data: Vec<u16> = array.iter().cloned().collect();
                         let string = String::from_utf16(&utf16_data).map_err(|_| {
                             IoError::Other("Invalid UTF-16 string data".to_string())
@@ -454,7 +458,7 @@ impl EnhancedMatFile {
                     }
                     _ => {
                         // Check if it's a sparse matrix
-                        if let Some(AttributeValue::Integer(is_sparse)) =
+                        if let Ok(Some(AttributeValue::Integer(is_sparse))) =
                             file.get_attribute(name, "MATLAB_sparse")
                         {
                             if is_sparse == 1 {
@@ -490,7 +494,7 @@ impl EnhancedMatFile {
             } else {
                 // No class attribute, try to infer from data type
                 // Default to double for backward compatibility
-                let array: ArrayD<f64> = file.read_dataset(name)?;
+                let array = file.read_dataset_typed::<f64>(name)?;
                 Ok(MatType::Double(array))
             }
         }
@@ -556,11 +560,12 @@ impl EnhancedMatFile {
             }
 
             crate::serialize::SparseMatrixCSC {
-                nrows: sparse.shape.0,
-                ncols: sparse.shape.1,
+                rows: sparse.shape.0,
+                cols: sparse.shape.1,
                 col_ptrs,
                 row_indices,
                 values,
+                metadata: std::collections::HashMap::new(),
             }
         };
 
@@ -591,14 +596,15 @@ impl EnhancedMatFile {
         T: Clone + std::fmt::Debug,
     {
         // Read matrix dimensions
-        let dims =
-            if let Some(AttributeValue::Array(dims)) = file.get_attribute(name, "MATLAB_dims") {
-                (dims[0] as usize, dims[1] as usize)
-            } else {
-                return Err(IoError::FormatError(
-                    "Missing sparse matrix dimensions".to_string(),
-                ));
-            };
+        let dims = if let Ok(Some(AttributeValue::Array(dims))) =
+            file.get_attribute(name, "MATLAB_dims")
+        {
+            (dims[0] as usize, dims[1] as usize)
+        } else {
+            return Err(IoError::FormatError(
+                "Missing sparse matrix dimensions".to_string(),
+            ));
+        };
 
         // Read CSC data
         let ir: ndarray::Array1<usize> = file.read_dataset(&format!("{}/ir", name))?;
@@ -621,11 +627,12 @@ impl EnhancedMatFile {
         }
 
         let coo = crate::serialize::SparseMatrixCOO {
-            nrows: dims.0,
-            ncols: dims.1,
+            rows: dims.0,
+            cols: dims.1,
             row_indices,
             col_indices,
             values,
+            metadata: std::collections::HashMap::new(),
         };
 
         Ok(crate::sparse::SparseMatrix {
@@ -635,11 +642,12 @@ impl EnhancedMatFile {
             coo,
             csr: None,
             csc: Some(crate::serialize::SparseMatrixCSC {
-                nrows: dims.0,
-                ncols: dims.1,
+                rows: dims.0,
+                cols: dims.1,
                 col_ptrs: jc.to_vec(),
                 row_indices: ir.to_vec(),
                 values: data.to_vec(),
+                metadata: std::collections::HashMap::new(),
             }),
             metadata: std::collections::HashMap::new(),
         })
@@ -721,10 +729,12 @@ impl MatV73Features {
         let mut file = HDF5File::create(path)?;
 
         let mut options = DatasetOptions::default();
-        options.chunkshape = Some(chunk_size.to_vec());
+        options.chunk_size = Some(chunk_size.to_vec());
         options.compression = Some(CompressionOptions {
-            algorithm: "gzip".to_string(),
-            level: Some(6),
+            gzip: Some(6),
+            szip: None,
+            lzf: false,
+            shuffle: false,
         });
 
         // Create an empty dataset with the specified shape
@@ -887,11 +897,12 @@ impl MatV73Sparse {
             }
 
             crate::serialize::SparseMatrixCSC {
-                nrows: data.shape.0,
-                ncols: data.shape.1,
+                rows: data.shape.0,
+                cols: data.shape.1,
                 col_ptrs,
                 row_indices,
                 values,
+                metadata: std::collections::HashMap::new(),
             }
         };
 
