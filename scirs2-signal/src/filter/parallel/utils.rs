@@ -443,7 +443,7 @@ pub fn welch_psd_estimate(
         let window_data = &signal[start..end];
 
         // Apply Hanning window
-        let mut windowed: Vec<f64> = window_data
+        let windowed: Vec<f64> = window_data
             .iter()
             .enumerate()
             .map(|(i, &x)| {

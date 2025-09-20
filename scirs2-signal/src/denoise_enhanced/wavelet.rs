@@ -37,19 +37,19 @@ pub fn denoise_wavelet_2d(
     let levels = config.levels.unwrap_or(max_levels.min(4));
 
     // Store results for each level
-    let mut all_h_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let mut all_v_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let mut all_d_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let mut all_h_retention: Vec<f64> = Vec::with_capacity(levels);
-    let mut all_v_retention: Vec<f64> = Vec::with_capacity(levels);
-    let mut all_d_retention: Vec<f64> = Vec::with_capacity(levels);
+    let all_h_thresholds: Vec<f64> = Vec::with_capacity(levels);
+    let all_v_thresholds: Vec<f64> = Vec::with_capacity(levels);
+    let all_d_thresholds: Vec<f64> = Vec::with_capacity(levels);
+    let all_h_retention: Vec<f64> = Vec::with_capacity(levels);
+    let all_v_retention: Vec<f64> = Vec::with_capacity(levels);
+    let all_d_retention: Vec<f64> = Vec::with_capacity(levels);
 
     // Start with the image
-    let mut current = image.clone();
-    let mut approximations: Vec<Array2<f64>> = Vec::new();
-    let mut h_details: Vec<Array2<f64>> = Vec::new();
-    let mut v_details: Vec<Array2<f64>> = Vec::new();
-    let mut d_details: Vec<Array2<f64>> = Vec::new();
+    let current = image.clone();
+    let approximations: Vec<Array2<f64>> = Vec::new();
+    let h_details: Vec<Array2<f64>> = Vec::new();
+    let v_details: Vec<Array2<f64>> = Vec::new();
+    let d_details: Vec<Array2<f64>> = Vec::new();
 
     // TODO: Enable when dwt2d module is available
     // Multilevel decomposition with thresholding would go here

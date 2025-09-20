@@ -210,7 +210,7 @@ fn combine_adaptive_weighting(
     let n_freq = combined_psd.len();
 
     for i in 0..n_freq {
-        let mut values: Vec<f64> = spectra.iter().map(|s| s.psd[i]).collect();
+        let values: Vec<f64> = spectra.iter().map(|s| s.psd[i]).collect();
         let mean = values.iter().sum::<f64>() / values.len() as f64;
 
         // Compute weights based on deviation from mean

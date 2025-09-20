@@ -251,9 +251,9 @@ pub fn simd_cross_correlation(
     let caps = PlatformCapabilities::detect();
 
     if caps.avx2_available && config.use_advanced {
-        unsafe { scalar_cross_correlation(signal1, signal2, &mut result, mode) }?;
+        scalar_cross_correlation(signal1, signal2, &mut result, mode)?;
     } else if caps.simd_available {
-        unsafe { scalar_cross_correlation(signal1, signal2, &mut result, mode) }?;
+        scalar_cross_correlation(signal1, signal2, &mut result, mode)?;
     } else {
         scalar_cross_correlation(signal1, signal2, &mut result, mode)?;
         return Ok(result);
@@ -314,9 +314,9 @@ pub fn simd_complex_fft_butterfly(
     let caps = PlatformCapabilities::detect();
 
     if caps.avx2_available && config.use_advanced {
-        unsafe { scalar_complex_butterfly(data, twiddles) }
+        scalar_complex_butterfly(data, twiddles)
     } else if caps.simd_available {
-        unsafe { scalar_complex_butterfly(data, twiddles) }
+        scalar_complex_butterfly(data, twiddles)
     } else {
         scalar_complex_butterfly(data, twiddles)
     }
@@ -748,7 +748,7 @@ unsafe fn sse_autocorrelation(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_cross_correlation(
+unsafe fn avx2_cross_correlation(
     _signal1: &[f64],
     _signal2: &[f64],
     _result: &mut [f64],
@@ -760,7 +760,7 @@ unsafe fn scalar_cross_correlation(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_cross_correlation(
+unsafe fn sse_cross_correlation(
     _signal1: &[f64],
     _signal2: &[f64],
     _result: &mut [f64],
@@ -772,7 +772,7 @@ unsafe fn scalar_cross_correlation(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_complex_butterfly(
+unsafe fn avx2_complex_butterfly(
     _data: &mut [Complex64],
     _twiddles: &[Complex64],
 ) -> SignalResult<()> {
@@ -782,7 +782,7 @@ unsafe fn scalar_complex_butterfly(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_complex_butterfly(
+unsafe fn sse_complex_butterfly(
     _data: &mut [Complex64],
     _twiddles: &[Complex64],
 ) -> SignalResult<()> {
@@ -792,7 +792,7 @@ unsafe fn scalar_complex_butterfly(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f")]
-unsafe fn scalar_apply_window(
+unsafe fn avx512_apply_window(
     _signal: &[f64],
     _window: &[f64],
     _output: &mut [f64],
@@ -803,7 +803,7 @@ unsafe fn scalar_apply_window(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn scalar_apply_window(
+unsafe fn avx2_apply_window(
     _signal: &[f64],
     _window: &[f64],
     _output: &mut [f64],
@@ -814,7 +814,7 @@ unsafe fn scalar_apply_window(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn scalar_apply_window(
+unsafe fn sse_apply_window(
     _signal: &[f64],
     _window: &[f64],
     _output: &mut [f64],
