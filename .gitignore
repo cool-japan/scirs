@@ -12,6 +12,7 @@ Cargo.lock
 
 # HDF5 files
 **/*.nc
+**/*.nc.json
 
 # IDE files
 .idea/

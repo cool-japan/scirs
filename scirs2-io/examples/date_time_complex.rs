@@ -2,9 +2,14 @@ use scirs2_io::csv::{read_csv_typed, write_csv_typed, ColumnType};
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
+use std::env;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
+    // Use environment variable or temp directory for output
+    let output_dir = env::var("SCIRS2_EXAMPLE_OUTPUT_DIR")
+        .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string());
+
     // Create a CSV file with the advanced data types
     println!("Creating CSV files with date, time, and complex number data types...");
 
@@ -20,12 +25,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 "0i""#;
 
     // Write test CSV files
-    let mut date_time_file =
-        File::create("/media/kitasan/Backup/scirs/scirs2-io/examples/date_time.csv")?;
+    let date_time_path = format!("{}/scirs2_date_time.csv", output_dir);
+    let mut date_time_file = File::create(&date_time_path)?;
     date_time_file.write_all(date_time_csv.as_bytes())?;
 
-    let mut complex_file =
-        File::create("/media/kitasan/Backup/scirs/scirs2-io/examples/complex.csv")?;
+    let complex_path = format!("{}/scirs2_complex.csv", output_dir);
+    let mut complex_file = File::create(&complex_path)?;
     complex_file.write_all(complex_csv.as_bytes())?;
 
     // Read date and time CSV file
@@ -34,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let date_time_types = vec![ColumnType::Date, ColumnType::Time, ColumnType::DateTime];
 
     let (headers, data) = read_csv_typed(
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/date_time.csv",
+        &date_time_path,
         None,
         Some(&date_time_types),
         None,
@@ -48,8 +53,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Test writing date/time data back to CSV
     println!("\nWriting date and time data back to CSV...");
 
-    let output_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/date_time_output.csv";
-    write_csv_typed(output_path, &data, Some(&headers), None)?;
+    let output_path = format!("{}/scirs2_date_time_output.csv", output_dir);
+    write_csv_typed(&output_path, &data, Some(&headers), None)?;
 
     println!("Date/time data written to: {}", output_path);
 
@@ -59,7 +64,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let complex_types = vec![ColumnType::Complex];
 
     let (headers, data) = read_csv_typed(
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/complex.csv",
+        &complex_path,
         None,
         Some(&complex_types),
         None,
@@ -73,8 +78,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Test writing complex data back to CSV
     println!("\nWriting complex number data back to CSV...");
 
-    let output_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/complex_output.csv";
-    write_csv_typed(output_path, &data, Some(&headers), None)?;
+    let output_path = format!("{}/scirs2_complex_output.csv", output_dir);
+    write_csv_typed(&output_path, &data, Some(&headers), None)?;
 
     println!("Complex number data written to: {}", output_path);
 
@@ -83,7 +88,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read date/time file with auto detection
     let (headers, data) = read_csv_typed(
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/date_time.csv",
+        &date_time_path,
         None,
         None,
         None,
@@ -97,7 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Read complex file with auto detection
     let (headers, data) = read_csv_typed(
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/complex.csv",
+        &complex_path,
         None,
         None,
         None,
