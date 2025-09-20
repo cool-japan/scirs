@@ -11,7 +11,9 @@
 use scirs2_io::network::cloud::{
     create_mock_metadata, validate_config, AzureConfig, CloudProvider, GcsConfig, S3Config,
 };
-use scirs2_io::network::http::{calculate_speed, format_file_size, format_speed, HttpClient};
+use scirs2_io::network::http::{
+    calculate_speed, format_file_size, format_speed, HttpClient, HttpMethod,
+};
 use scirs2_io::network::streaming::{
     copy_with_progress, ChunkedReader, ChunkedWriter, StreamConfig, StreamProgress,
 };
@@ -120,7 +122,7 @@ async fn demonstrate_http_operations() -> Result<(), Box<dyn std::error::Error>>
     // Test HTTP client creation and configuration
     println!("  🔹 Creating HTTP client:");
     let config = NetworkConfig::default();
-    let http_client = HttpClient::new(config);
+    let mut http_client = HttpClient::new(config);
 
     // Initialize client (only works with reqwest feature)
     println!("  🔹 Testing HTTP functionality:");
@@ -436,13 +438,7 @@ async fn demonstrate_batch_operations() -> Result<(), Box<dyn std::error::Error>
     #[cfg(feature = "reqwest")]
     {
         println!("  🔹 Testing batch download:");
-        let download_results = batch_download(
-            download_tasks
-                .into_iter()
-                .map(|(url, file)| (url.to_string(), file.to_string()))
-                .collect(),
-        )
-        .await?;
+        let download_results = batch_download(download_tasks.to_vec()).await?;
 
         let mut successful = 0;
         let mut failed = 0;
@@ -493,9 +489,9 @@ async fn demonstrate_batch_operations() -> Result<(), Box<dyn std::error::Error>
 
     let upload_tasks: Vec<(String, String)> = upload_files
         .iter()
-        .map(|(filename_)| {
+        .map(|(filename, _content)| {
             let local_path = temp_dir.path().join(filename).to_string_lossy().to_string();
-            (local_path, format!("uploads/{filename}"))
+            (local_path, format!("uploads/{}", filename))
         })
         .collect();
 

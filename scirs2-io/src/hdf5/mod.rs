@@ -18,7 +18,9 @@
 use crate::error::{IoError, Result};
 use ndarray::{ArrayBase, ArrayD, IxDyn};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::Path;
+use std::str::FromStr;
 
 #[cfg(feature = "hdf5")]
 use hdf5::File;
@@ -475,6 +477,17 @@ impl HDF5File {
     fn load_group_structure(file: &File, group: &mut Group) -> Result<()> {
         use hdf5::types::TypeDescriptor;
 
+        // Load attributes for the root/file level
+        if let Ok(attr_names) = file.attr_names() {
+            for attr_name in attr_names {
+                if let Ok(attr) = file.attr(&attr_name) {
+                    if let Ok(attr_value) = Self::read_attribute_value(&attr) {
+                        group.attributes.insert(attr_name, attr_value);
+                    }
+                }
+            }
+        }
+
         // Load all datasets in the current group
         let datasets = file
             .datasets()
@@ -547,6 +560,232 @@ impl HDF5File {
             // Self::load_group_structure(&h5_group, &mut subgroup)?;
 
             group.groups.insert(group_name.to_string(), subgroup);
+        }
+
+        Ok(())
+    }
+
+    /// Write a group (and all its contents) to the HDF5 file
+    #[cfg(feature = "hdf5")]
+    fn write_group_to_hdf5(file: &File, group: &Group, path_prefix: &str) -> Result<()> {
+        // Write attributes for this group
+        for (attr_name, attr_value) in &group.attributes {
+            Self::write_attribute_to_hdf5(file, path_prefix, attr_name, attr_value)?;
+        }
+
+        // Write all datasets in this group
+        for (dataset_name, dataset) in &group.datasets {
+            let dataset_path = if path_prefix.is_empty() {
+                dataset_name.clone()
+            } else {
+                format!("{}/{}", path_prefix, dataset_name)
+            };
+            Self::write_dataset_to_hdf5(file, &dataset_path, dataset)?;
+        }
+
+        // Recursively write subgroups
+        for (subgroup_name, subgroup) in &group.groups {
+            let subgroup_path = if path_prefix.is_empty() {
+                subgroup_name.clone()
+            } else {
+                format!("{}/{}", path_prefix, subgroup_name)
+            };
+
+            // Create the subgroup in HDF5
+            if let Err(_) = file.group(&subgroup_path) {
+                // Group doesn't exist, create it
+                file.create_group(&subgroup_path).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create group {}: {}", subgroup_path, e))
+                })?;
+            }
+
+            // Write the subgroup contents
+            Self::write_group_to_hdf5(file, subgroup, &subgroup_path)?;
+        }
+
+        Ok(())
+    }
+
+    /// Write an attribute to the HDF5 file
+    #[cfg(feature = "hdf5")]
+    fn write_attribute_to_hdf5(
+        file: &File,
+        path: &str,
+        name: &str,
+        value: &AttributeValue,
+    ) -> Result<()> {
+        use hdf5::types::VarLenUnicode;
+
+        // For now, we only write attributes at the file level
+        // Group attributes would need proper group creation and handling
+        if !path.is_empty() {
+            // Skip group attributes for now - focus on file-level attributes
+            return Ok(());
+        }
+
+        // Write the attribute to file root
+        match value {
+            AttributeValue::Integer(v) => {
+                let attr = file.new_attr::<i64>().create(name).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create integer attribute: {}", e))
+                })?;
+                attr.write_scalar(v).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write integer attribute: {}", e))
+                })?;
+            }
+            AttributeValue::Float(v) => {
+                let attr = file.new_attr::<f64>().create(name).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create float attribute: {}", e))
+                })?;
+                attr.write_scalar(v).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write float attribute: {}", e))
+                })?;
+            }
+            AttributeValue::String(v) => {
+                let vlen_str = VarLenUnicode::from_str(v).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
+                })?;
+                let attr = file.new_attr::<VarLenUnicode>().create(name).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create string attribute: {}", e))
+                })?;
+                attr.write_scalar(&vlen_str).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write string attribute: {}", e))
+                })?;
+            }
+            AttributeValue::IntegerArray(v) => {
+                let attr = file
+                    .new_attr::<i64>()
+                    .shape([v.len()])
+                    .create(name)
+                    .map_err(|e| {
+                        IoError::FormatError(format!(
+                            "Failed to create integer array attribute: {}",
+                            e
+                        ))
+                    })?;
+                attr.write(v).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write integer array attribute: {}", e))
+                })?;
+            }
+            AttributeValue::FloatArray(v) => {
+                let attr = file
+                    .new_attr::<f64>()
+                    .shape([v.len()])
+                    .create(name)
+                    .map_err(|e| {
+                        IoError::FormatError(format!(
+                            "Failed to create float array attribute: {}",
+                            e
+                        ))
+                    })?;
+                attr.write(v).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write float array attribute: {}", e))
+                })?;
+            }
+            AttributeValue::StringArray(v) => {
+                let mut vlen_strings = Vec::new();
+                for s in v {
+                    let vlen = VarLenUnicode::from_str(s).map_err(|e| {
+                        IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
+                    })?;
+                    vlen_strings.push(vlen);
+                }
+                let attr = file
+                    .new_attr::<VarLenUnicode>()
+                    .shape([v.len()])
+                    .create(name)
+                    .map_err(|e| {
+                        IoError::FormatError(format!(
+                            "Failed to create string array attribute: {}",
+                            e
+                        ))
+                    })?;
+                attr.write(&vlen_strings).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write string array attribute: {}", e))
+                })?;
+            }
+            AttributeValue::Boolean(v) => {
+                let int_val = if *v { 1i64 } else { 0i64 };
+                let attr = file.new_attr::<i64>().create(name).map_err(|e| {
+                    IoError::FormatError(format!("Failed to create boolean attribute: {}", e))
+                })?;
+                attr.write_scalar(&int_val).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write boolean attribute: {}", e))
+                })?;
+            }
+            AttributeValue::Array(_) => {
+                // Skip complex arrays for now - would need proper type handling
+                eprintln!("Warning: Skipping complex array attribute '{}'", name);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write a dataset to the HDF5 file
+    #[cfg(feature = "hdf5")]
+    fn write_dataset_to_hdf5(file: &File, path: &str, dataset: &Dataset) -> Result<()> {
+        // Create the dataset based on its data type
+        match &dataset.data {
+            DataArray::Float(data) => {
+                let h5_dataset = file
+                    .new_dataset::<f64>()
+                    .shape(&dataset.shape)
+                    .create(path)
+                    .map_err(|e| {
+                        IoError::FormatError(format!("Failed to create float dataset: {}", e))
+                    })?;
+                // Use write_raw to write the flat data directly
+                h5_dataset.write_raw(data).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write float dataset: {}", e))
+                })?;
+            }
+            DataArray::Integer(data) => {
+                let h5_dataset = file
+                    .new_dataset::<i64>()
+                    .shape(&dataset.shape)
+                    .create(path)
+                    .map_err(|e| {
+                        IoError::FormatError(format!("Failed to create integer dataset: {}", e))
+                    })?;
+                // Use write_raw to write the flat data directly
+                h5_dataset.write_raw(data).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write integer dataset: {}", e))
+                })?;
+            }
+            DataArray::String(data) => {
+                use hdf5::types::VarLenUnicode;
+                let mut vlen_strings = Vec::new();
+                for s in data {
+                    let vlen = VarLenUnicode::from_str(s).map_err(|e| {
+                        IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
+                    })?;
+                    vlen_strings.push(vlen);
+                }
+                let h5_dataset = file
+                    .new_dataset::<VarLenUnicode>()
+                    .shape(&dataset.shape)
+                    .create(path)
+                    .map_err(|e| {
+                        IoError::FormatError(format!("Failed to create string dataset: {}", e))
+                    })?;
+                h5_dataset.write(&vlen_strings).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write string dataset: {}", e))
+                })?;
+            }
+            DataArray::Binary(data) => {
+                // Write binary data as u8 array
+                let h5_dataset = file
+                    .new_dataset::<u8>()
+                    .shape(&dataset.shape)
+                    .create(path)
+                    .map_err(|e| {
+                        IoError::FormatError(format!("Failed to create binary dataset: {}", e))
+                    })?;
+                h5_dataset.write(data).map_err(|e| {
+                    IoError::FormatError(format!("Failed to write binary dataset: {}", e))
+                })?;
+            }
         }
 
         Ok(())
@@ -911,8 +1150,10 @@ impl HDF5File {
         #[cfg(feature = "hdf5")]
         {
             if let Some(ref file) = self.native_file {
-                // For HDF5, writing happens automatically when datasets are created
-                // So we just need to flush any pending operations
+                // Write the in-memory structure to the HDF5 file
+                Self::write_group_to_hdf5(file, &self.root, "")?;
+
+                // Flush any pending operations
                 file.flush()
                     .map_err(|e| IoError::FormatError(format!("Failed to flush HDF5 file: {e}")))?;
             }

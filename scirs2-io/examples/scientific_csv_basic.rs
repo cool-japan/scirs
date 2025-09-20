@@ -1,11 +1,16 @@
 use ndarray::{Array1, Array2};
 use scirs2_io::csv::{read_csv_numeric, write_csv, CsvReaderConfig};
+use std::env;
 use std::error::Error;
 
 /// This example demonstrates using CSV functionality for scientific data conversion
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
     println!("=== Scientific CSV Basic Example ===\n");
+
+    // Use environment variable or temp directory for output
+    let output_dir = env::var("SCIRS2_EXAMPLE_OUTPUT_DIR")
+        .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string());
 
     // Create sample scientific data
     let mut data = Array2::from_elem((10, 4), 0.0);
@@ -32,9 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
 
     // Write data to CSV file
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_basic.csv";
+    let file_path = format!("{}/scirs2_scientific_basic.csv", output_dir);
     println!("Writing scientific data to CSV file...");
-    write_csv(file_path, &data, Some(&headers), None)?;
+    write_csv(&file_path, &data, Some(&headers), None)?;
     println!("Data written to {}", file_path);
 
     // Read back the data
@@ -44,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let (csv_headers, csv_data) = read_csv_numeric(file_path, Some(config))?;
+    let (csv_headers, csv_data) = read_csv_numeric(&file_path, Some(config))?;
 
     println!("Headers: {:?}", csv_headers);
     println!("Data shape: {:?}", csv_data.shape());
@@ -75,11 +80,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
 
     // Write converted data to CSV file
-    let converted_path =
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_basic_converted.csv";
+    let converted_path = format!("{}/scirs2_scientific_basic_converted.csv", output_dir);
     println!("Writing converted data to CSV file...");
     write_csv(
-        converted_path,
+        &converted_path,
         &converted_data,
         Some(&converted_headers),
         None,

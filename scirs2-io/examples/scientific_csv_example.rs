@@ -1,6 +1,7 @@
 use scirs2_io::csv::{read_csv_typed, write_csv_typed, ColumnType, CsvReaderConfig, DataValue};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -11,17 +12,21 @@ use std::io::{BufWriter, Write};
 fn main() -> Result<(), Box<dyn Error>> {
     println!("=== Scientific Data CSV Example ===\n");
 
+    // Use environment variable or temp directory for output
+    let output_dir = env::var("SCIRS2_EXAMPLE_OUTPUT_DIR")
+        .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string());
+
     // Create sample scientific data file with metadata header
-    create_sample_scientific_data()?;
+    create_sample_scientific_data(&output_dir)?;
 
     // Read the file including metadata
-    read_scientific_data_with_metadata()?;
+    read_scientific_data_with_metadata(&output_dir)?;
 
     // Convert data and apply unit conversions
-    convert_scientific_data_with_units()?;
+    convert_scientific_data_with_units(&output_dir)?;
 
     // Process time series data from CSV
-    process_time_series_data()?;
+    process_time_series_data(&output_dir)?;
 
     println!("\nScientific CSV example completed successfully!");
     Ok(())
@@ -29,12 +34,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 /// Create a sample scientific data file with metadata
 #[allow(dead_code)]
-fn create_sample_scientific_data() -> Result<(), Box<dyn Error>> {
+fn create_sample_scientific_data(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("Creating sample scientific data file...");
 
     // Create a file with metadata in comments at the top
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data.csv";
-    let file = File::create(file_path)?;
+    let file_path = format!("{}/scirs2_scientific_data.csv", output_dir);
+    let file = File::create(&file_path)?;
     let mut writer = BufWriter::new(file);
 
     // Write metadata as comments
@@ -109,12 +114,12 @@ fn extract_metadata_from_file(_filepath: &str) -> Result<HashMap<String, String>
 
 /// Read scientific data file with metadata
 #[allow(dead_code)]
-fn read_scientific_data_with_metadata() -> Result<(), Box<dyn Error>> {
+fn read_scientific_data_with_metadata(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("\nReading scientific data file with metadata...");
 
     // Extract metadata from comments
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data.csv";
-    let metadata = extract_metadata_from_file(file_path)?;
+    let file_path = format!("{}/scirs2_scientific_data.csv", output_dir);
+    let metadata = extract_metadata_from_file(&file_path)?;
 
     println!("Metadata:");
     for (key, value) in &metadata {
@@ -138,7 +143,7 @@ fn read_scientific_data_with_metadata() -> Result<(), Box<dyn Error>> {
         ColumnType::Boolean, // Valid
     ];
 
-    let (_headers, data) = read_csv_typed(file_path, Some(config), Some(&col_types), None)?;
+    let (_headers, data) = read_csv_typed(&file_path, Some(config), Some(&col_types), None)?;
 
     println!("\nData headers: Time, Temperature, Pressure, Concentration, Energy, Material, Valid");
     println!("Number of data rows: {}", data.len());
@@ -213,11 +218,11 @@ fn read_scientific_data_with_metadata() -> Result<(), Box<dyn Error>> {
 
 /// Convert scientific data with unit conversions
 #[allow(dead_code)]
-fn convert_scientific_data_with_units() -> Result<(), Box<dyn Error>> {
+fn convert_scientific_data_with_units(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("\nConverting scientific data with unit conversions...");
 
     // Read the original data
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data.csv";
+    let file_path = format!("{}/scirs2_scientific_data.csv", output_dir);
     let config = CsvReaderConfig {
         comment_char: Some('#'),
         has_header: true,
@@ -234,7 +239,7 @@ fn convert_scientific_data_with_units() -> Result<(), Box<dyn Error>> {
         ColumnType::Boolean, // Valid
     ];
 
-    let (_headers, data) = read_csv_typed(file_path, Some(config), Some(&col_types), None)?;
+    let (_headers, data) = read_csv_typed(&file_path, Some(config), Some(&col_types), None)?;
 
     // Perform unit conversions
     let mut converted_data = Vec::new();
@@ -298,10 +303,9 @@ fn convert_scientific_data_with_units() -> Result<(), Box<dyn Error>> {
     }
 
     // Write converted data to a new file
-    let output_path =
-        "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data_converted.csv";
+    let output_path = format!("{}/scirs2_scientific_data_converted.csv", output_dir);
 
-    write_csv_typed(output_path, &converted_data, Some(&new_headers), None)?;
+    write_csv_typed(&output_path, &converted_data, Some(&new_headers), None)?;
 
     println!("Converted data written to {}", output_path);
     println!("Unit conversions performed:");
@@ -316,11 +320,11 @@ fn convert_scientific_data_with_units() -> Result<(), Box<dyn Error>> {
 
 /// Process time series data from CSV
 #[allow(dead_code)]
-fn process_time_series_data() -> Result<(), Box<dyn Error>> {
+fn process_time_series_data(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("\nProcessing time series data...");
 
     // Read the original data, focusing on time and temperature
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data.csv";
+    let file_path = format!("{}/scirs2_scientific_data.csv", output_dir);
     let config = CsvReaderConfig {
         comment_char: Some('#'),
         has_header: true,
@@ -337,7 +341,7 @@ fn process_time_series_data() -> Result<(), Box<dyn Error>> {
         ColumnType::Boolean, // Valid
     ];
 
-    let (_headers, data) = read_csv_typed(file_path, Some(config), Some(&col_types), None)?;
+    let (_headers, data) = read_csv_typed(&file_path, Some(config), Some(&col_types), None)?;
 
     // Group data by material to separate time series
     let mut time_series = HashMap::new();
@@ -418,8 +422,8 @@ fn process_time_series_data() -> Result<(), Box<dyn Error>> {
         "Temperature Moving Avg (°C)".to_string(),
     ];
 
-    let output_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_data_derived.csv";
-    write_csv_typed(output_path, &derived_data, Some(&derived_headers), None)?;
+    let output_path = format!("{}/scirs2_scientific_data_derived.csv", output_dir);
+    write_csv_typed(&output_path, &derived_data, Some(&derived_headers), None)?;
 
     println!("Derived time series data written to {}", output_path);
     println!("Derived measurements include:");

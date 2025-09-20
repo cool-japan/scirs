@@ -1,6 +1,7 @@
 use ndarray::Array2;
 use scirs2_io::csv::{read_csv, write_csv, CsvReaderConfig, CsvWriterConfig};
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -11,14 +12,18 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 fn main() -> Result<(), Box<dyn Error>> {
     println!("=== Scientific CSV Simple Example ===\n");
 
+    // Use environment variable or temp directory for output
+    let output_dir = env::var("SCIRS2_EXAMPLE_OUTPUT_DIR")
+        .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string());
+
     // Create sample scientific data file with metadata
-    create_sample_scientific_data()?;
+    create_sample_scientific_data(&output_dir)?;
 
     // Read and process the scientific data
-    read_and_process_scientific_data()?;
+    read_and_process_scientific_data(&output_dir)?;
 
     // Convert units and create a derived data file
-    convert_units_and_create_derived_data()?;
+    convert_units_and_create_derived_data(&output_dir)?;
 
     println!("\nScientific CSV simple example completed successfully!");
     Ok(())
@@ -26,12 +31,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 /// Create a sample scientific data file with metadata
 #[allow(dead_code)]
-fn create_sample_scientific_data() -> Result<(), Box<dyn Error>> {
+fn create_sample_scientific_data(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("Creating sample scientific data file...");
 
     // Create a file with metadata in comments at the top
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_simple.csv";
-    let file = File::create(file_path)?;
+    let file_path = format!("{}/scirs2_scientific_simple.csv", output_dir);
+    let file = File::create(&file_path)?;
     let mut writer = BufWriter::new(file);
 
     // Write metadata as comments
@@ -100,12 +105,12 @@ fn extract_metadata_from_file(_filepath: &str) -> Result<HashMap<String, String>
 
 /// Read and process the scientific data
 #[allow(dead_code)]
-fn read_and_process_scientific_data() -> Result<(), Box<dyn Error>> {
+fn read_and_process_scientific_data(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("\nReading and processing scientific data...");
 
     // Extract metadata from comments
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_simple.csv";
-    let metadata = extract_metadata_from_file(file_path)?;
+    let file_path = format!("{}/scirs2_scientific_simple.csv", output_dir);
+    let metadata = extract_metadata_from_file(&file_path)?;
 
     println!("Metadata:");
     for (key, value) in &metadata {
@@ -119,7 +124,7 @@ fn read_and_process_scientific_data() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let (headers, data) = read_csv(file_path, Some(config))?;
+    let (headers, data) = read_csv(&file_path, Some(config))?;
 
     println!("\nData headers: {:?}", headers);
     println!("Number of data rows: {}", data.shape()[0]);
@@ -223,18 +228,18 @@ fn read_and_process_scientific_data() -> Result<(), Box<dyn Error>> {
 
 /// Convert units and create a derived data file
 #[allow(dead_code)]
-fn convert_units_and_create_derived_data() -> Result<(), Box<dyn Error>> {
+fn convert_units_and_create_derived_data(output_dir: &str) -> Result<(), Box<dyn Error>> {
     println!("\nConverting units and creating derived data...");
 
     // Read the original data
-    let file_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_simple.csv";
+    let file_path = format!("{}/scirs2_scientific_simple.csv", output_dir);
     let config = CsvReaderConfig {
         comment_char: Some('#'),
         has_header: true,
         ..Default::default()
     };
 
-    let (_headers, data) = read_csv(file_path, Some(config))?;
+    let (_headers, data) = read_csv(&file_path, Some(config))?;
 
     // Create new array for converted data
     let rows = data.shape()[0];
@@ -324,10 +329,10 @@ fn convert_units_and_create_derived_data() -> Result<(), Box<dyn Error>> {
     }
 
     // Write converted data to file
-    let output_path = "/media/kitasan/Backup/scirs/scirs2-io/examples/scientific_derived.csv";
+    let output_path = format!("{}/scirs2_scientific_derived.csv", output_dir);
 
     // Add metadata as comments
-    let file = File::create(output_path)?;
+    let file = File::create(&output_path)?;
     let mut writer = BufWriter::new(file);
 
     writeln!(
@@ -365,7 +370,7 @@ fn convert_units_and_create_derived_data() -> Result<(), Box<dyn Error>> {
     };
 
     write_csv(
-        output_path,
+        &output_path,
         &converted_data,
         Some(&converted_headers),
         Some(write_config),

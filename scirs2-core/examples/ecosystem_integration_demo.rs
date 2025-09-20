@@ -31,8 +31,13 @@ fn main() -> CoreResult<()> {
     println!("=====================================================================");
 
     // Configure ecosystem testing for comprehensive validation
+    // Use environment variable or current directory for workspace path
+    let workspace_path = std::env::var("SCIRS2_WORKSPACE_PATH")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
     let config = EcosystemTestConfig {
-        workspace_path: PathBuf::from("/media/kitasan/Backup/scirs"),
+        workspace_path,
         auto_discover_modules: true,
         included_modules: HashSet::new(), // Include all discovered modules
         excluded_modules: {

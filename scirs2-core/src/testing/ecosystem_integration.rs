@@ -76,9 +76,14 @@ pub struct EcosystemTestConfig {
 
 impl Default for EcosystemTestConfig {
     fn default() -> Self {
+        // Use environment variable or current directory for workspace path
+        let workspace_path = std::env::var("SCIRS2_WORKSPACE_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
         Self {
             base: TestConfig::default().with_timeout(Duration::from_secs(300)), // 5 minutes
-            workspace_path: PathBuf::from("/media/kitasan/Backup/scirs"),
+            workspace_path,
             auto_discover_modules: true,
             included_modules: HashSet::new(),
             excluded_modules: HashSet::new(),

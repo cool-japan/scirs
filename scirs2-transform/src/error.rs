@@ -107,6 +107,11 @@ pub enum TransformError {
     #[error("Parse error: {0}")]
     ParseError(String),
 
+    /// PyTorch/tch error
+    #[cfg(feature = "auto-feature-engineering")]
+    #[error("PyTorch error: {0}")]
+    TchError(#[from] tch::TchError),
+
     /// Other error
     #[error("Error: {0}")]
     Other(String),
@@ -196,6 +201,9 @@ impl TransformError {
 
             #[cfg(feature = "distributed")]
             TransformError::SerializationError(_) => ErrorKind::External,
+
+            #[cfg(feature = "auto-feature-engineering")]
+            TransformError::TchError(_) => ErrorKind::Computation,
         }
     }
 

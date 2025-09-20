@@ -310,9 +310,12 @@ fn scientific_data_example() -> Result<(), Box<dyn std::error::Error>> {
     let precip_data = file.read_dataset("climate_data/precipitation")?;
 
     println!("Temperature data shape: {:?}", temp_data.shape());
-    println!("Mean temperature: {:.2}°C", temp_data.mean().unwrap());
+    let mean_temp = temp_data.mean();
+    println!("Mean temperature: {:.2}°C", mean_temp);
+
     println!("Precipitation data shape: {:?}", precip_data.shape());
-    println!("Mean precipitation: {:.2} mm", precip_data.mean().unwrap());
+    let mean_precip = precip_data.mean();
+    println!("Mean precipitation: {:.2} mm", mean_precip);
 
     println!();
     Ok(())

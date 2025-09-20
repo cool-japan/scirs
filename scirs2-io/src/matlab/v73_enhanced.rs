@@ -241,9 +241,11 @@ impl V73MatFile {
             .iter()
             .flat_map(|s| s.encode_utf16())
             .collect();
-        file.create_dataset(
+        // Convert Vec to ArrayD and use create_dataset_from_array
+        let var_names_array = ndarray::Array1::from_vec(var_names_data).into_dyn();
+        file.create_dataset_from_array(
             &format!("{}/varnames", name),
-            &var_names_data,
+            &var_names_array,
             Some(DatasetOptions::default()),
         )?;
 
@@ -257,9 +259,10 @@ impl V73MatFile {
         if let Some(ref row_names) = table.row_names {
             let row_names_data: Vec<u16> =
                 row_names.iter().flat_map(|s| s.encode_utf16()).collect();
-            file.create_dataset(
+            let row_names_array = ndarray::Array1::from_vec(row_names_data).into_dyn();
+            file.create_dataset_from_array(
                 &format!("{}/rownames", name),
-                &row_names_data,
+                &row_names_array,
                 Some(DatasetOptions::default()),
             )?;
         }
@@ -298,9 +301,10 @@ impl V73MatFile {
             .iter()
             .flat_map(|s| s.encode_utf16())
             .collect();
-        file.create_dataset(
+        let cats_array = ndarray::Array1::from_vec(cats_data).into_dyn();
+        file.create_dataset_from_array(
             &format!("{}/categories", name),
-            &cats_data,
+            &cats_array,
             Some(DatasetOptions::default()),
         )?;
 
@@ -375,9 +379,10 @@ impl V73MatFile {
         // Write each string as a separate dataset
         for (i, string) in strings.iter().enumerate() {
             let string_data: Vec<u16> = string.encode_utf16().collect();
-            file.create_dataset(
+            let string_array = ndarray::Array1::from_vec(string_data).into_dyn();
+            file.create_dataset_from_array(
                 &format!("{}/string_{}", name, i),
-                &string_data,
+                &string_array,
                 Some(DatasetOptions::default()),
             )?;
         }
@@ -410,9 +415,10 @@ impl V73MatFile {
 
         // Write function string
         let func_data: Vec<u16> = func_handle.function.encode_utf16().collect();
-        file.create_dataset(
+        let func_array = ndarray::Array1::from_vec(func_data).into_dyn();
+        file.create_dataset_from_array(
             &format!("{}/function", name),
-            &func_data,
+            &func_array,
             Some(DatasetOptions::default()),
         )?;
 
@@ -568,7 +574,7 @@ impl V73MatFile {
     #[cfg(feature = "hdf5")]
     fn read_extended_type(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         // Check MATLAB_class attribute to determine type
-        if let Ok(class_attr) = file.get_attribute(name, "MATLAB_class") {
+        if let Ok(Some(class_attr)) = file.get_attribute(name, "MATLAB_class") {
             match class_attr {
                 AttributeValue::String(class_name) => {
                     match class_name.as_str() {
@@ -579,7 +585,7 @@ impl V73MatFile {
                         "function_handle" => self.read_function_handle(file, name),
                         _ => {
                             // Check if it's an object
-                            if let Ok(AttributeValue::Boolean(true)) =
+                            if let Ok(Some(AttributeValue::Boolean(true))) =
                                 file.get_attribute(name, "MATLAB_object")
                             {
                                 self.read_object(file, name)

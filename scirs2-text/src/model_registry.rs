@@ -558,7 +558,7 @@ impl ModelRegistry {
 
         // For now, just check if versions match exactly
         // In practice, this would use semantic versioning
-        Ok(current_version >= min_version)
+    Ok(current_version >= min_version.as_str())
     }
 
     /// Get model statistics

@@ -198,8 +198,8 @@ async fn demonstrate_concurrent_processing() -> Result<(), Box<dyn std::error::E
 
     // Analyze results
     let total_chunks = results.len();
-    let total_checksum: u64 = results.iter().map(|(_, checksum_)| checksum).sum();
-    let total_bytes: usize = results.iter().map(|(__, size)| size).sum();
+    let total_checksum: u64 = results.iter().map(|(_, checksum, _)| *checksum).sum();
+    let total_bytes: usize = results.iter().map(|(_, _, size)| *size).sum();
 
     println!("     📊 Concurrent Processing Results:");
     println!("       {}", stats.summary());

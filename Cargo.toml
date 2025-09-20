@@ -250,7 +250,7 @@ rusqlite = { version = "0.32" }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
 duckdb = { version = "1.4.0" } # Must update to this version
 mongodb = { version = "2.8" }
-redis = { version = "0.24" }
+redis = { version = "0.32" }
 
 # Real-time streaming
 tokio-tungstenite = { version = "0.21" }
@@ -276,7 +276,7 @@ serde-wasm-bindgen = { version = "0.6" }
 console_error_panic_hook = { version = "0.1" }
 
 # Machine learning
-tch = { version = "0.18" }
+tch = { version = "0.20" } # Must
 
 # Monitoring
 prometheus = { version = "0.13" }
