@@ -1,4 +1,4 @@
-# API Stability Assessment for scirs2-graph v0.1.0-beta.1
+# API Stability Assessment for scirs2-graph v0.1.0-beta.2
 
 ## Executive Summary
 

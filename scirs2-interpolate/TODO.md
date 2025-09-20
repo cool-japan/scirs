@@ -1,6 +1,6 @@
 # scirs2-interpolate TODO - Post Alpha 5 Release Planning
 
-**Status**: Production-ready alpha release (0.1.0-beta.1) - Final alpha before 0.1.0 stable
+**Status**: Production-ready alpha release (0.1.0-beta.2) - Final alpha before 0.1.0 stable
 
 ## 🎯 0.1.0 Stable Release Goals
 

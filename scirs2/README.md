@@ -36,23 +36,23 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0-beta.1"  # Main package with default features
+scirs2 = "0.1.0-beta.2"  # Main package with default features
 ```
 
 You can enable only the features you need:
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.1.0-beta.1", features = ["linalg", "stats", "optimize"] }
+scirs2 = { version = "0.1.0-beta.2", features = ["linalg", "stats", "optimize"] }
 ```
 
 Or use specific modules directly:
 
 ```toml
 [dependencies]
-scirs2-core = "0.1.0-beta.1"
-scirs2-linalg = "0.1.0-beta.1"
-scirs2-stats = "0.1.0-beta.1"
+scirs2-core = "0.1.0-beta.2"
+scirs2-linalg = "0.1.0-beta.2"
+scirs2-stats = "0.1.0-beta.2"
 ```
 
 Basic usage examples:

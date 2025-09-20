@@ -1035,7 +1035,7 @@ impl<
             "attention_layers": layers_data,
             "export_timestamp": chrono::Utc::now().to_rfc3339(),
             "framework": "scirs2-neural",
-            "version": "0.1.0-beta.1"
+            "version": "0.1.0-beta.2"
         });
         serde_json::to_string_pretty(&export_data)
             .map_err(|e| NeuralError::ComputationError(format!("JSON serialization error: {}", e)))

@@ -494,7 +494,7 @@ impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOpe
                     "version": model.opset_version
             ],
             "producer_name": "scirs2-neural",
-            "producer_version": "0.1.0-beta.1",
+            "producer_version": "0.1.0-beta.2",
             "domain": "ai.scirs2",
             "model_version": 1,
             "doc_string": model.metadata.description,
@@ -507,7 +507,7 @@ impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOpe
                 "doc_string": "Neural network model exported from scirs2-neural"
             "metadata_props": [
                     "key": "scirs2_version",
-                    "value": "0.1.0-beta.1"
+                    "value": "0.1.0-beta.2"
                 },
                     "key": "source_framework",
                     "value": format!("{:?}", model.metadata.source_framework)

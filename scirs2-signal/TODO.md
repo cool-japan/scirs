@@ -30,7 +30,7 @@ This module provides signal processing functionality similar to SciPy's signal m
 
 ---
 
-## Production-Ready Features (v0.1.0-beta.1)
+## Production-Ready Features (v0.1.0-beta.2)
 
 ### Core Signal Processing ✅
 - [x] Module structure and error handling
@@ -78,7 +78,7 @@ This module provides signal processing functionality similar to SciPy's signal m
 
 ## Planned for Future Releases
 
-### Next Priority (v0.1.0-beta.1)
+### Next Priority (v0.1.0-beta.2)
 - [ ] Enhanced spectral analysis
   - [ ] Multitaper spectral estimation (refine and validate)
   - [ ] Lomb-Scargle periodogram (add more validation)

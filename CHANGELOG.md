@@ -1,4 +1,38 @@
-# SciRS2 0.1.0-beta.1 Release Notes
+# SciRS2 0.1.0-beta.2 Release Notes (2025-09-20)
+
+We are thrilled to announce the second beta release of SciRS2! This release addresses all compilation issues from beta.1 and includes the strategic separation of the ML optimization module into the independent OptiRS project for better modularity.
+
+## 🔧 v0.1.0-beta.2 - Compilation Fixes & OptiRS Separation
+
+### ✅ Critical Fixes
+- **Compilation Errors Resolved**: Fixed all build errors that prevented beta.1 from compiling from crates.io
+- **Variable Naming Consistency**: Resolved inconsistencies in variable names across modules
+- **Pattern Matching**: Fixed SIMD loop patterns and indexing logic issues
+- **Function Conflicts**: Resolved duplicate function definitions and type references
+
+### 🔄 Project Restructure
+- **OptiRS Separation**: ML optimization module (470k+ lines) moved to independent [OptiRS](https://github.com/cool-japan/optirs) project
+- **Simplified Architecture**: SciRS2 now focuses purely on core scientific computing
+- **Better Modularity**: Allows independent development cycles for optimization research
+
+### 📊 Results
+- ✅ 100% Compilation Success across all crates
+- ✅ Zero Warnings with clean builds
+- ✅ Reduced complexity for better maintainability
+- ✅ No API Changes - backward compatible
+
+### 📦 Installation
+
+```toml
+[dependencies]
+scirs2 = "0.1.0-beta.2"
+```
+
+---
+
+# Previous Releases
+
+## SciRS2 0.1.0-beta.1 Release Notes
 
 We are excited to announce the first beta release of SciRS2! This release marks a significant milestone in our journey to create a comprehensive scientific computing and AI/ML ecosystem in Rust. With over 1.5 million lines of code and 6,500+ tests, SciRS2 beta.1 delivers production-ready features with enhanced performance and stability.
 
@@ -84,16 +118,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0-beta.1"
+scirs2 = "0.1.0-beta.2"
 ```
 
 For specific modules:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.1.0-beta.1", features = ["parallel", "arbitrary_precision"] }
-scirs2-linalg = "0.1.0-beta.1"
-scirs2-stats = "0.1.0-beta.1"
+scirs2-core = { version = "0.1.0-beta.2", features = ["parallel", "arbitrary_precision"] }
+scirs2-linalg = "0.1.0-beta.2"
+scirs2-stats = "0.1.0-beta.2"
 # ... other modules
 ```
 
@@ -114,33 +148,11 @@ This beta release represents months of dedicated work on performance, stability,
 
 ---
 
-# Previous Releases
+# Previous Releases (Final Alpha)
 
-## SciRS2 0.1.0-alpha.5 Release Notes
+## SciRS2 0.1.0-alpha.6 Release Notes
 
-## 🚀 Major Features Added
-
-### Enhanced Memory Metrics System
-- **Advanced Memory Analytics**: Sophisticated memory leak detection using linear regression analysis
-- **Real-time Memory Profiler**: Background monitoring with configurable intervals and session management
-- **Pattern Recognition**: Automatic detection of allocation patterns (steady growth, periodic cycles, burst allocations, plateaus)
-- **Performance Impact Analysis**: Memory bandwidth utilization and cache miss estimation
-- **Optimization Recommendations**: Automated suggestions for buffer pooling, allocation batching, and memory-efficient structures
-- **Risk Assessment**: Health scoring and risk evaluation for memory usage
-
-### GPU Kernel Library Completion
-- **Comprehensive Kernel Collection**: Complete set of reduction, transform, and ML kernels
-- **FFT and Convolution Kernels**: Advanced transform operations for signal processing
-- **ML Kernels**: Tanh, Softmax, Pooling operations for neural networks
-- **Performance Optimizations**: SIMD-accelerated GPU computations
-- **Memory Management**: Efficient GPU memory allocation and deallocation tracking
-
-### Progress Visualization System
-- **Multi-style Visualization**: ASCII art, bar charts, percentage indicators, and spinners
-- **Real-time Updates**: Live progress tracking with ETA calculations
-- **Multi-progress Support**: Concurrent tracking of multiple operations
-- **Integration**: Seamless integration with existing logging infrastructure
-- **Customizable Themes**: Support for different visual styles and colors
+(skip)
 
 ## 🛠️ Improvements
 
@@ -220,16 +232,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0-alpha.5"
+scirs2 = "0.1.0-beta.2"
 ```
 
 For specific modules:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.1.0-alpha.5", features = ["memory_management"] }
-scirs2-linalg = "0.1.0-alpha.5"
-scirs2-fft = "0.1.0-alpha.5"
+scirs2-core = { version = "0.1.0-beta.2", features = ["memory_management"] }
+scirs2-linalg = "0.1.0-beta.2"
+scirs2-fft = "0.1.0-beta.2"
 # ... other modules
 ```
 

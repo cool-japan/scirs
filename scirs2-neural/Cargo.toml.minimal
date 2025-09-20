@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-neural"
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.2"
 edition = "2021"
 authors = ["SciRS2 Team"]
 description = "Neural network building blocks module for SciRS2 (scirs2-neural) - Minimal Version"

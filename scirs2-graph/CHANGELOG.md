@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory efficiency improvements for large graphs
 - Numerical accuracy issues in certain edge cases
 
-## [0.1.0-beta.1] - 2024-01-26
+## [0.1.0-beta.2] - 2024-01-26
 
 ### Added
 - Complete graph data structures:

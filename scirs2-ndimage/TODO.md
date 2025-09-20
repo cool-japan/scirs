@@ -1,10 +1,10 @@
 # scirs2-ndimage Development Status
 
-**Status: PRODUCTION READY - Version 0.1.0-beta.1 (Final Alpha)**
+**Status: PRODUCTION READY - Version 0.1.0-beta.2 (Beta 2)**
 
 This module provides comprehensive multidimensional image processing functionality similar to SciPy's ndimage module. It includes functions for filtering, interpolation, measurements, and morphological operations on n-dimensional arrays.
 
-## Release Status - 0.1.0-beta.1 (Final Alpha)
+## Release Status - 0.1.0-beta.2 (Beta 2)
 
 This is the **final alpha release** before the first stable release. All core functionality has been implemented, tested, and optimized.
 
@@ -38,7 +38,7 @@ This is the **final alpha release** before the first stable release. All core fu
   - [x] Reorganization into specialized submodules
   - [x] Clear API boundaries and exports
 
-## Recently Completed (Version 0.1.0-beta.1 Improvements)
+## Recently Completed (Version 0.1.0-beta.2 Improvements)
 
 ### Latest Session Implementations (December 2024)
 
@@ -109,7 +109,7 @@ This is the **final alpha release** before the first stable release. All core fu
   - [x] Integration with scirs2-core parallel operations
   - [x] Thread-local worker information tracking
 
-## Recently Completed (Version 0.1.0-beta.1 Improvements)
+## Recently Completed (Version 0.1.0-beta.2 Improvements)
 
 - [x] Generic Filter Framework
   - [x] Implemented generic_filter function with custom function support
@@ -444,7 +444,7 @@ This is the **final alpha release** before the first stable release. All core fu
 - **Test Coverage**: 100% function coverage with edge case and error condition testing
 - **Documentation**: Complete tutorial coverage for all major functionality
 
-## Production Release Summary (0.1.0-beta.1)
+## Production Release Summary (0.1.0-beta.2)
 
 ### ✅ Core Implementation Status
 - **Complete n-dimensional image processing suite**
@@ -568,7 +568,7 @@ This is the **final alpha release** before the first stable release. All core fu
 
 ## Module Status Summary
 
-🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.1 
+🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.2 
 
 ### Release Highlights
 - **142 unit tests + 39 doctests**: All passing with zero warnings
@@ -798,4 +798,4 @@ These implementations represent a significant leap in performance, usability, an
 
 ## 📋 Module Status Summary
 
-🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.1 with **Next-Generation Ultrathink Enhancements**
+🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.2 with **Next-Generation Ultrathink Enhancements**

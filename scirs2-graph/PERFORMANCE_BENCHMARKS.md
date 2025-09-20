@@ -323,4 +323,4 @@ This benchmark suite will be updated regularly with:
 
 **Benchmark Version**: 1.0  
 **Last Updated**: 2024-06-30  
-**scirs2-graph Version**: 0.1.0-beta.1
+**scirs2-graph Version**: 0.1.0-beta.2

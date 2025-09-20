@@ -1,6 +1,6 @@
 # TODO List for scirs2-transform
 
-**Version: 0.1.0-beta.1 (Production Ready)**
+**Version: 0.1.0-beta.2 (Production Ready)**
 
 ## Production Ready Features ✅
 
@@ -78,7 +78,7 @@
 
 ## API Stability Commitment 📝
 
-For the 0.1.0-beta.1 release, the following APIs are **stable** and backwards compatible:
+For the 0.1.0-beta.2 release, the following APIs are **stable** and backwards compatible:
 - All normalization and scaling transformers
 - Feature engineering utilities (polynomial, power transforms, discretization)
 - Dimensionality reduction algorithms (PCA, SVD, LDA, t-SNE)  

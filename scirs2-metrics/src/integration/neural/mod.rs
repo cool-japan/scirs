@@ -10,7 +10,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-metrics = { version = "0.1.0-alpha.3", features = ["neural_common"] }
+//! scirs2-metrics = { version = "0.1.0-beta.2", features = ["neural_common"] }
 //! ```
 //!
 //! # Metric Adapters

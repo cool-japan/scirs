@@ -1,8 +1,8 @@
-# scirs2-optimize v0.1.0-beta.1 Release Status
+# scirs2-optimize v0.1.0-beta.2 Release Status
 
 This module provides comprehensive optimization algorithms similar to SciPy's optimize module, implemented in Rust with full production support.
 
-## ✅ Production-Ready Features (v0.1.0-beta.1)
+## ✅ Production-Ready Features (v0.1.0-beta.2)
 
 ### Core Optimization Methods
 - **Unconstrained Optimization**: Nelder-Mead, BFGS, L-BFGS, Powell, Conjugate Gradient
@@ -23,7 +23,7 @@ This module provides comprehensive optimization algorithms similar to SciPy's op
 - **Parallel Computing**: Multi-threaded evaluation, parallel global optimization
 - **Memory Efficiency**: Large-scale sparse matrix handling, memory-efficient algorithms
 - **JIT Compilation**: Just-in-time optimization for performance-critical functions
-- **SIMD Operations**: Migrated to scirs2-core unified SIMD abstraction layer (v0.1.0-beta.1)
+- **SIMD Operations**: Migrated to scirs2-core unified SIMD abstraction layer (v0.1.0-beta.2)
 - **Automatic Differentiation**: Forward and reverse mode AD support
 
 ### Specialized Capabilities
@@ -32,7 +32,7 @@ This module provides comprehensive optimization algorithms similar to SciPy's op
 - **Multi-start Strategies**: Clustering-based and systematic restart methods
 - **Weighted/Bounded/Total Least Squares**: Extended least squares variants
 
-## 🔄 Recent Changes (v0.1.0-beta.1)
+## 🔄 Recent Changes (v0.1.0-beta.2)
 
 ### SIMD Migration
 - [x] Migrated all SIMD operations to use scirs2-core unified abstraction layer
@@ -61,7 +61,7 @@ This module provides comprehensive optimization algorithms similar to SciPy's op
 - [x] Self-tuning parameter selection
 - [x] Specialized ML optimizers (L1/group regularization)
 
-## 🚀 Ultrathink Mode (v0.1.0-beta.1)
+## 🚀 Ultrathink Mode (v0.1.0-beta.2)
 
 ### Core Ultrathink Features
 - [x] **Unified Ultrathink Coordinator**: Intelligent coordination between optimization strategies

@@ -553,7 +553,7 @@ impl ModelRegistry {
             .ok_or_else(|| TextError::InvalidInput(format!("Model not found: {model_id}")))?;
 
         // Simple version comparison (in practice, this would be more sophisticated)
-        let current_version = "0.1.0-beta.1"; // Use hardcoded version
+        let current_version = "0.1.0-beta.2"; // Use hardcoded version
         let min_version = &metadata.min_api_version;
 
         // For now, just check if versions match exactly

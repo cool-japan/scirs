@@ -7,7 +7,7 @@
 
 ## 🚀 Production-Ready Linear Algebra for Rust
 
-**v0.1.0-beta.1** - The first beta release, ready for production use.
+**v0.1.0-beta.2** - The first beta release, ready for production use.
 
 `scirs2-linalg` delivers comprehensive linear algebra functionality comparable to NumPy/SciPy's linalg module, providing a robust mathematical foundation for scientific computing, machine learning, and data analysis in Rust. With 549 passing tests and comprehensive feature coverage, this library is production-ready for demanding applications.
 
@@ -71,7 +71,7 @@ Add scirs2-linalg to your Cargo.toml:
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.1.0-beta.1"
+scirs2-linalg = "0.1.0-beta.2"
 ndarray = "0.16.1"
 ```
 
@@ -79,9 +79,9 @@ For accelerated performance with native BLAS/LAPACK:
 
 ```toml
 [dependencies]
-scirs2-linalg = { version = "0.1.0-beta.1", features = ["openblas"] }
+scirs2-linalg = { version = "0.1.0-beta.2", features = ["openblas"] }
 # Or use Intel MKL:
-# scirs2-linalg = { version = "0.1.0-beta.1", features = ["mkl"] }
+# scirs2-linalg = { version = "0.1.0-beta.2", features = ["mkl"] }
 ```
 
 ## Quick Start
@@ -286,13 +286,13 @@ The library supports multiple BLAS/LAPACK backends:
 
 ```toml
 # OpenBLAS (default, good general performance)
-scirs2-linalg = { version = "0.1.0-beta.1", features = ["openblas"] }
+scirs2-linalg = { version = "0.1.0-beta.2", features = ["openblas"] }
 
 # Intel MKL (best for Intel CPUs)
-scirs2-linalg = { version = "0.1.0-beta.1", features = ["mkl"] }
+scirs2-linalg = { version = "0.1.0-beta.2", features = ["mkl"] }
 
 # Netlib (reference implementation)
-scirs2-linalg = { version = "0.1.0-beta.1", features = ["netlib"] }
+scirs2-linalg = { version = "0.1.0-beta.2", features = ["netlib"] }
 ```
 
 ### Optimization Features

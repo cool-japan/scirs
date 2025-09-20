@@ -36,14 +36,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.1.0-beta.1"
+scirs2-spatial = "0.1.0-beta.2"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.1.0-beta.1", features = ["parallel"] }
+scirs2-spatial = { version = "0.1.0-beta.2", features = ["parallel"] }
 ```
 
 ## Usage
@@ -461,7 +461,7 @@ let tree = KDTree::build_with_distance(&points, MyCustomDistance {}).unwrap();
 
 ## Production Status ✅
 
-**scirs2-spatial v0.1.0-beta.1** is production-ready with:
+**scirs2-spatial v0.1.0-beta.2** is production-ready with:
 
 - **✅ 272 passing tests** with zero failures
 - **✅ Zero compilation warnings** in release mode

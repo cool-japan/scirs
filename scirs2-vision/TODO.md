@@ -1,4 +1,4 @@
-# scirs2-vision - Production Status (0.1.0-beta.1)
+# scirs2-vision - Production Status (0.1.0-beta.2)
 
 Computer vision module for SciRS2 - **PRODUCTION READY** for final alpha release.
 
@@ -65,7 +65,7 @@ Computer vision module for SciRS2 - **PRODUCTION READY** for final alpha release
 - [x] **Template Matching**: Cross-correlation methods
 - [x] **Optical Flow**: Dense optical flow computation
 
-### ✅ Performance Optimizations (NEW - 0.1.0-beta.1)
+### ✅ Performance Optimizations (NEW - 0.1.0-beta.2)
 - [x] **SIMD Acceleration**: Implemented SIMD-optimized operations using scirs2-core
   - [x] SIMD convolution for 2-4x speedup
   - [x] SIMD Sobel gradients with orientation
@@ -94,7 +94,7 @@ Computer vision module for SciRS2 - **PRODUCTION READY** for final alpha release
 - [x] **Algorithm References**: Include references to papers/algorithms where applicable
 - [x] **Thread Safety**: Document thread-safety considerations for parallel operations
 
-## Ultrathink Mode Enhancements (NEW - 0.1.0-beta.1)
+## Ultrathink Mode Enhancements (NEW - 0.1.0-beta.2)
 
 ### ✅ Neural-Quantum Hybrid Processing
 - [x] **Quantum-Inspired Streaming**: Superposition, entanglement, and interference algorithms
@@ -165,7 +165,7 @@ The following features are planned for future releases but are **NOT** part of t
 
 ## Production Release Notes
 
-**Version 0.1.0-beta.1** represents a comprehensive computer vision library with:
+**Version 0.1.0-beta.2** represents a comprehensive computer vision library with:
 
 - **217+ unit tests** covering all implemented functionality
 - **Working examples** demonstrating real-world usage

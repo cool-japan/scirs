@@ -1,6 +1,6 @@
 # Algorithm Complexity Reference - scirs2-graph
 
-**Version**: v0.1.0-beta.1  
+**Version**: v0.1.0-beta.2  
 **Last Updated**: January 21, 2025  
 
 This document provides comprehensive time and space complexity analysis for all algorithms in scirs2-graph, along with performance characteristics and optimization recommendations.
@@ -623,4 +623,4 @@ Reference implementations for comparison:
 
 **Validation**: All complexity claims have been empirically validated through comprehensive benchmarking on graphs ranging from 100 to 10,000,000 nodes.
 
-**Last Verified**: January 21, 2025 with scirs2-graph v0.1.0-beta.1
+**Last Verified**: January 21, 2025 with scirs2-graph v0.1.0-beta.2

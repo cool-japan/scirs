@@ -37,7 +37,7 @@ println!("Result: {:.2}", result);
 
 ## 🔧 v0.1.0-beta.2 - Critical Compilation Fixes
 
-**⚠️ Important:** v0.1.0-beta.1 had compilation errors when downloaded from crates.io. v0.1.0-beta.2 fixes all issues:
+**⚠️ Important:** v0.1.0-beta.2 had compilation errors when downloaded from crates.io. v0.1.0-beta.2 fixes all issues:
 
 ### ✅ Fixed Issues:
 - **Variable Name Inconsistencies**: Resolved `chunk_size`/`chunksize`, `op_name`/`opname`, `target_unit`/`targetunit` mismatches
@@ -52,7 +52,7 @@ println!("Result: {:.2}", result);
 - ✅ **Publication Ready**: `cargo publish --dry-run` successful
 - ✅ **Verified Build**: Tested across all feature combinations
 
-**Migration:** Simply update your `Cargo.toml` from `0.1.0-beta.1` to `0.1.0-beta.2`. No API changes required.
+**Migration:** Simply update your `Cargo.toml` from `0.1.0-beta.2` to `0.1.0-beta.2`. No API changes required.
 
 ## ✨ Key Features
 

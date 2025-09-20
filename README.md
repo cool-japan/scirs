@@ -541,11 +541,11 @@ Initial benchmarks on core operations show performance comparable to or exceedin
 
 ## Important: Beta 2 Release Notes
 
-**⚠️ Critical Update:** v0.1.0-beta.1 had compilation errors when downloaded from crates.io and has been **yanked**. Please use v0.1.0-beta.2 instead.
+**⚠️ Critical Update:** v0.1.0-beta.2 had compilation errors when downloaded from crates.io and has been **yanked**. Please use v0.1.0-beta.2 instead.
 
-### 🔧 v0.1.0-beta.2 (2025-09-16) - Compilation Fixes & OptiRS Separation
+### 🔧 v0.1.0-beta.2 (2025-09-20) - Compilation Fixes & OptiRS Separation
 
-This release resolves all compilation errors that prevented v0.1.0-beta.1 from building successfully:
+This release resolves all compilation errors that prevented v0.1.0-beta.2 from building successfully:
 
 #### ✅ Fixed Issues:
 - **Variable name inconsistencies**: Resolved `chunk_size`/`chunksize`, `op_name`/`opname`, `target_unit`/`targetunit` mismatches
@@ -566,7 +566,7 @@ This release resolves all compilation errors that prevented v0.1.0-beta.1 from b
 - ✅ **No API Changes**: Existing scientific computing APIs unchanged
 
 **Migration:**
-- Update `Cargo.toml` from `0.1.0-beta.1` to `0.1.0-beta.2`
+- Update `Cargo.toml` from `0.1.0-beta.2` to `0.1.0-beta.2`
 - For ML optimization features, add the independent `optirs` crate
 
 ## Known Limitations (Beta Release)

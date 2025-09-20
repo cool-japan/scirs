@@ -6,9 +6,9 @@
 
 A comprehensive clustering module for the SciRS2 scientific computing library in Rust. This crate provides production-ready implementations of various clustering algorithms with a focus on performance, SciPy compatibility, and idiomatic Rust code.
 
-## Production Readiness - Final Alpha Release
+## Production Readiness - Beta 2 Release
 
-🎯 **Version 0.1.0-beta.1** is the first beta release, ready for production use with:
+🎯 **Version 0.1.0-beta.2** is the first beta release, ready for production use with:
 - **189+ comprehensive tests** covering all algorithms and edge cases
 - **Zero warnings policy** enforced across all code and examples  
 - **Full SciPy API compatibility** maintained for seamless migration
@@ -78,7 +78,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.1.0-beta.1"
+scirs2-cluster = "0.1.0-beta.2"
 ndarray = "0.15"
 ```
 
@@ -86,7 +86,7 @@ To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.1.0-beta.1", features = ["parallel", "simd"] }
+scirs2-cluster = { version = "0.1.0-beta.2", features = ["parallel", "simd"] }
 ```
 
 ## Usage

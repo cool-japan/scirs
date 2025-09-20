@@ -35,7 +35,7 @@ This guide provides comprehensive instructions for deploying SciRS2 in productio
 ```toml
 # Cargo.toml dependencies for production
 [dependencies]
-scirs2-core = { version = "0.1.0-beta.1", features = [
+scirs2-core = { version = "0.1.0-beta.2", features = [
     "production",
     "monitoring",
     "security",

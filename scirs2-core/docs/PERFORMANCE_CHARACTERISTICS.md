@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides comprehensive performance characteristics, benchmarking results, and known limitations for SciRS2 Core (scirs2-core) version 0.1.0-beta.1. This information is critical for understanding performance expectations, optimization opportunities, and deployment considerations.
+This document provides comprehensive performance characteristics, benchmarking results, and known limitations for SciRS2 Core (scirs2-core) version 0.1.0-beta.2. This information is critical for understanding performance expectations, optimization opportunities, and deployment considerations.
 
 ## Table of Contents
 
@@ -605,5 +605,5 @@ For the most up-to-date performance benchmarks and optimization guides, consult 
 ---
 
 *Last Updated: 2025-06-28*  
-*Version: 0.1.0-beta.1*  
+*Version: 0.1.0-beta.2*  
 *Next Update: Beta 2 release*

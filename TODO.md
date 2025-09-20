@@ -499,7 +499,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] 100% Compilation Success: All files compile without errors
   - [x] Zero Warnings: Clean `cargo clippy` output across all feature combinations
   - [x] Publication Ready: `cargo publish --dry-run` successful
-  - [x] Version Updates: Updated all version references from 0.1.0-beta.1 to 0.1.0-beta.2
+  - [x] Version Updates: Updated all version references from 0.1.0-beta.2 to 0.1.0-beta.2
   - [x] Workspace Inheritance: Ensured consistent version management across all crates
 - [x] **Documentation Updates**
   - [x] Updated RELEASE_NOTES.md with comprehensive beta.2 information
@@ -507,7 +507,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
   - [x] Added migration guidance and impact assessment
   - [x] Updated installation instructions and version references
 - [x] **Impact Assessment and Resolution**
-  - [x] Before: scirs2-core v0.1.0-beta.1 failed to compile from crates.io (20+ errors)
+  - [x] Before: scirs2-core v0.1.0-beta.2 failed to compile from crates.io (20+ errors)
   - [x] After: scirs2-core v0.1.0-beta.2 compiles successfully with zero errors
   - [x] Downstream Compatibility: All dependent crates can now build successfully
   - [x] No API Breaking Changes: Migration requires only version number updates
@@ -651,7 +651,7 @@ This document outlines the comprehensive development plan for the SciRS2 project
 ## Milestones
 
 - **0.1.0-alpha.5** ✅: Advanced core features implementation with error handling, benchmarking, optimization frameworks, computer vision registration algorithms, and comprehensive quality improvements
-- **0.1.0-beta.1** ✅: Parallel processing enhancements, arbitrary precision arithmetic, numerical stability improvements (YANKED due to compilation errors)
+- **0.1.0-beta.2** ✅: Parallel processing enhancements, arbitrary precision arithmetic, numerical stability improvements (YANKED due to compilation errors)
 - **0.1.0-beta.2** ✅: Critical compilation fixes, 100% build success, zero warnings, crates.io publication ready
 - **0.1.0-beta.3**: API stabilization, cross-module integration improvements, and performance optimizations
 - **0.1.0**: First stable release with full SciPy feature parity in core modules and production-ready quality

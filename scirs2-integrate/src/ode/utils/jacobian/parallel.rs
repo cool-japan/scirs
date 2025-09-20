@@ -6,7 +6,7 @@
 //! To enable parallel Jacobian computation, activate the "parallel_jacobian" feature:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = { version = "0.1.0-alpha.3", features = ["parallel_jacobian"] }
+//! scirs2-integrate = { version = "0.1.0-beta.2", features = ["parallel_jacobian"] }
 //! ```
 //!
 //! Parallel computation is especially beneficial for:

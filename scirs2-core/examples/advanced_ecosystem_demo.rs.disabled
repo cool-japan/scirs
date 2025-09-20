@@ -37,7 +37,7 @@ impl MockNeuralUltrathinkModule {
     fn new() -> Self {
         Self {
             name: "neural-advanced".to_string(),
-            version: "0.1.0-beta.1".to_string(),
+            version: "0.1.0-beta.2".to_string(),
             initialized: false,
             performance_metrics: ModulePerformanceMetrics {
                 avg_processing_time: Duration::from_millis(50),
@@ -195,7 +195,7 @@ impl MockClusteringUltrathinkModule {
     fn new() -> Self {
         Self {
             name: "clustering-ultrathink".to_string(),
-            version: "0.1.0-beta.1".to_string(),
+            version: "0.1.0-beta.2".to_string(),
             initialized: false,
             operation_count: 0,
         }
@@ -352,7 +352,7 @@ impl MockIoUltrathinkModule {
     fn new() -> Self {
         Self {
             name: "io-ultrathink".to_string(),
-            version: "0.1.0-beta.1".to_string(),
+            version: "0.1.0-beta.2".to_string(),
             initialized: false,
             operation_count: 0,
         }

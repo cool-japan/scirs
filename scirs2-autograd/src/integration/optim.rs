@@ -645,7 +645,7 @@ impl<F: Float> SciRS2Integration for OptimizerState<'_, F> {
     }
 
     fn module_version() -> &'static str {
-        "0.1.0-beta.1"
+        "0.1.0-beta.2"
     }
 
     fn check_compatibility() -> Result<(), IntegrationError> {

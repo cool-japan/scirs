@@ -74,7 +74,7 @@ This document outlines the strategy for the SciRS2 0.1.0 release, including scop
   - Collected community feedback
   - Fixed critical issues
 - **Beta Release**: 🚀 Current Phase
-  - Published 0.1.0-beta.1 to crates.io (June 2025)
+  - Published 0.1.0-beta.2 to crates.io (June 2025)
   - Enhanced parallel processing capabilities
   - Added arbitrary precision arithmetic
   - Improved numerical stability
@@ -88,12 +88,12 @@ This document outlines the strategy for the SciRS2 0.1.0 release, including scop
 ## Versioning Strategy
 
 ### Core Modules
-- Version: **0.1.0-beta.1**
+- Version: **0.1.0-beta.2**
 - API Stability: Relatively stable, avoid breaking changes in 0.1.x
 - Beta Status: API mostly finalized, gathering final feedback
 
 ### Preview Modules
-- Version: **0.1.0-beta.1**
+- Version: **0.1.0-beta.2**
 - API Stability: May undergo minor changes based on feedback
 - Beta Status: Feature complete, stabilizing APIs
 

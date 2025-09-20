@@ -1,17 +1,17 @@
-# Release Checklist for v0.1.0-beta.1
+# Release Checklist for v0.1.0-beta.2
 
 ## Pre-Release Verification ✅
 
 ### Code Quality
 - [x] All regular tests passing (~6,500 tests)
 - [x] No compilation warnings in release build
-- [x] Version numbers consistent across all modules (0.1.0-beta.1)
+- [x] Version numbers consistent across all modules (0.1.0-beta.2)
 - [x] GPU tests have proper fallbacks for CPU-only systems
 
 ### Documentation
 - [x] README.md updated with Known Limitations section
 - [x] Release notes created (RELEASE_NOTES.md)
-- [x] Release notes archived in docs/releases/v0.1.0-beta.1.md
+- [x] Release notes archived in docs/releases/v0.1.0-beta.2.md
 - [x] Known issues documented
 
 ### Test Status
@@ -35,11 +35,11 @@ Ignored: ~595 (documented reasons)
 ### 2. Git Operations
 ```bash
 # Ensure on correct branch
-git checkout 0.1.0-beta.1
+git checkout 0.1.0-beta.2
 
 # Commit any remaining changes
 git add -A
-git commit -m "Prepare for 0.1.0-beta.1 release
+git commit -m "Prepare for 0.1.0-beta.2 release
 
 - Added comprehensive Known Limitations to README
 - Fixed GPU tests with adaptive fallbacks
@@ -47,18 +47,18 @@ git commit -m "Prepare for 0.1.0-beta.1 release
 - All tests passing"
 
 # Create release tag
-git tag -a v0.1.0-beta.1 -m "SciRS2 v0.1.0-beta.1 - First Beta Release"
+git tag -a v0.1.0-beta.2 -m "SciRS2 v0.1.0-beta.2 - First Beta Release"
 
 # Push to origin
-git push origin 0.1.0-beta.1
-git push origin v0.1.0-beta.1
+git push origin 0.1.0-beta.2
+git push origin v0.1.0-beta.2
 ```
 
 ### 3. GitHub Release
 - [ ] Go to https://github.com/cool-japan/scirs/releases
 - [ ] Click "Create a new release"
-- [ ] Select tag: v0.1.0-beta.1
-- [ ] Title: "SciRS2 v0.1.0-beta.1 - First Beta Release"
+- [ ] Select tag: v0.1.0-beta.2
+- [ ] Title: "SciRS2 v0.1.0-beta.2 - First Beta Release"
 - [ ] Copy content from RELEASE_NOTES.md
 - [ ] Check "This is a pre-release"
 - [ ] Publish release
@@ -92,10 +92,10 @@ cargo publish
 If critical issues are discovered:
 ```bash
 # Delete the tag locally
-git tag -d v0.1.0-beta.1
+git tag -d v0.1.0-beta.2
 
 # Delete the tag remotely
-git push origin :refs/tags/v0.1.0-beta.1
+git push origin :refs/tags/v0.1.0-beta.2
 
 # Fix issues and re-tag when ready
 ```

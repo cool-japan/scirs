@@ -106,7 +106,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.1.0-beta.1", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.1.0-beta.2", features = ["parallel", "simd"] }
 ndarray = "0.16"
 ```
 

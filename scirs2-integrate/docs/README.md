@@ -121,7 +121,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.1.0-beta.1", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.1.0-beta.2", features = ["parallel", "simd"] }
 ndarray = "0.16"
 ```
 
@@ -180,4 +180,4 @@ This documentation represents Phase 1 of the usability improvements outlined in 
 
 **Happy integrating!** 🚀
 
-*This documentation is generated for scirs2-integrate v0.1.0-beta.1 - Production-Ready Final Alpha Release*
+*This documentation is generated for scirs2-integrate v0.1.0-beta.2 - Production-Ready Beta 2 Release*

@@ -175,7 +175,7 @@ For questions about API stability or migration:
 ## Version History
 
 - **1.0.0** - Initial stable release with frozen API
-- **0.1.0-beta.1** - Final beta before API freeze
+- **0.1.0-beta.2** - Final beta before API freeze
 
 ---
 

@@ -108,7 +108,7 @@ All public APIs now include stability attributes:
 
 ```rust
 // Stable APIs
-stable!("graph_core", "0.1.0-beta.1");
+stable!("graph_core", "0.1.0-beta.2");
 pub use algorithms::{
     dijkstra_path, louvain_communities_result, label_propagation_result,
     // ... other stable functions

@@ -110,7 +110,7 @@ impl DocumentationSite {
             description:
                 "Comprehensive documentation for SciRS2 N-dimensional image processing library"
                     .to_string(),
-            version: "0.1.0-beta.1".to_string(),
+            version: "0.1.0-beta.2".to_string(),
             base_url: "https://scirs2.github.io/ndimage".to_string(),
             modules: Vec::new(),
             tutorials: Vec::new(),
@@ -323,7 +323,7 @@ mod tests {
     fn test_documentation_site_creation() {
         let site = DocumentationSite::new();
         assert_eq!(site.title, "SciRS2 NDImage Documentation");
-        assert_eq!(site.version, "0.1.0-beta.1");
+        assert_eq!(site.version, "0.1.0-beta.2");
         assert!(site.modules.is_empty());
         assert!(site.tutorials.is_empty());
         assert!(site.examples.is_empty());

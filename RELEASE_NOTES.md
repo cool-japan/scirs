@@ -4,7 +4,7 @@
 
 ### 🚨 Emergency Release - Fixes crates.io Compilation Errors
 
-This is a critical hotfix release that resolves all compilation errors present in v0.1.0-beta.1 when downloaded from crates.io.
+This is a critical hotfix release that resolves all compilation errors present in v0.1.0-beta.2 when downloaded from crates.io.
 
 #### 🔥 Fixed Compilation Errors (100% resolved):
 - **Variable Name Inconsistencies**: Fixed `chunk_size`/`chunksize`, `op_name`/`opname`, `target_unit`/`targetunit` mismatches
@@ -21,7 +21,7 @@ This is a critical hotfix release that resolves all compilation errors present i
 - **Publication Ready**: ✅ `cargo publish --dry-run` successful
 
 #### 🎯 Impact:
-- **Before**: scirs2-core v0.1.0-beta.1 failed to compile from crates.io
+- **Before**: scirs2-core v0.1.0-beta.2 failed to compile from crates.io
 - **After**: scirs2-core v0.1.0-beta.2 compiles successfully with zero errors
 - **Downstream Compatibility**: All dependent crates can now build successfully
 
@@ -32,11 +32,11 @@ scirs2-core = "0.1.0-beta.2"  # Fixed version
 scirs2 = "0.1.0-beta.2"
 ```
 
-**Important**: v0.1.0-beta.1 has been yanked from crates.io due to compilation failures. Please upgrade to v0.1.0-beta.2 immediately.
+**Important**: v0.1.0-beta.2 has been yanked from crates.io due to compilation failures. Please upgrade to v0.1.0-beta.2 immediately.
 
 ---
 
-## 🎉 v0.1.0-beta.1 (Previous Release) - First Beta Release!
+## 🎉 v0.1.0-beta.2 (Previous Release) - First Beta Release!
 
 We are excited to announce the first beta release of SciRS2, a comprehensive scientific computing and AI/ML infrastructure in Rust. After months of development, we've reached a significant milestone with over 2 million lines of code and 9,000+ tests.
 

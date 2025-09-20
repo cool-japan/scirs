@@ -85,14 +85,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.1.0-beta.1"
+scirs2-optimize = "0.1.0-beta.2"
 ```
 
 For advanced features, enable optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-optimize = { version = "0.1.0-beta.1", features = ["async"] }
+scirs2-optimize = { version = "0.1.0-beta.2", features = ["async"] }
 ```
 
 ## Quick Start

@@ -2,7 +2,7 @@ name: Cross-Platform Build Verification
 
 on:
   push:
-    branches: [ "main", "master", "0.1.0-beta.1" ]
+    branches: [ "main", "master", "0.1.0-beta.2" ]
   pull_request:
     branches: [ "main", "master" ]
   schedule:

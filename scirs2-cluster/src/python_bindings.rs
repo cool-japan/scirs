@@ -1244,7 +1244,7 @@ fn scirs2_cluster(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
 
     // Module metadata
-    m.add("__version__", "0.1.0-beta.1")?;
+    m.add("__version__", "0.1.0-beta.2")?;
     m.add("__author__", "SciRS2 Team")?;
     m.add(
         "__description__",

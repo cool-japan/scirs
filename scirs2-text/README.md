@@ -9,7 +9,7 @@
 
 **Production-ready text processing module** for SciRS2 (Scientific Computing in Rust - Next Generation). This crate provides comprehensive, high-performance text processing, natural language processing, and machine learning text utilities optimized for scientific and industrial applications.
 
-> **🚀 Production Status**: Version 0.1.0-beta.1 is the first beta release and is **production-ready** with stable APIs, comprehensive test coverage, and proven performance.
+> **🚀 Production Status**: Version 0.1.0-beta.2 is the first beta release and is **production-ready** with stable APIs, comprehensive test coverage, and proven performance.
 
 ## Why Choose scirs2-text?
 
@@ -85,7 +85,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-text = "0.1.0-beta.1"
+scirs2-text = "0.1.0-beta.2"
 ```
 
 ## Quick Start

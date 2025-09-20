@@ -42,7 +42,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.1.0-beta.1"
+scirs2-autograd = "0.1.0-beta.2"
 ```
 
 ### Optional Features
@@ -51,7 +51,7 @@ Enable performance optimizations and additional backends:
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.1.0-beta.1", features = ["blas", "simd"] }
+scirs2-autograd = { version = "0.1.0-beta.2", features = ["blas", "simd"] }
 ```
 
 **Available Features:**
@@ -250,7 +250,7 @@ T::CheckpointProfiler::reset_statistics();
 
 ## 🚀 Production Readiness
 
-SciRS2 Autograd v0.1.0-beta.1 is the **first beta release** and is **production-ready**:
+SciRS2 Autograd v0.1.0-beta.2 is the **first beta release** and is **production-ready**:
 
 - ✅ **Stable API:** No breaking changes expected before v1.0
 - ✅ **Comprehensive Testing:** All core functionality thoroughly tested

@@ -4,7 +4,7 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-fft)](https://docs.rs/scirs2-fft)
 
-**Production-Ready Fast Fourier Transform Module (v0.1.0-beta.1 - First Beta)**
+**Production-Ready Fast Fourier Transform Module (v0.1.0-beta.2 - First Beta)**
 
 Fast Fourier Transform implementation and related functionality for the SciRS2 scientific computing library. This module provides comprehensive FFT implementations with **world-class GPU acceleration**, multi-device processing, specialized hardware support, and extensive optimization capabilities.
 
@@ -81,21 +81,21 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-fft = "0.1.0-beta.1"
+scirs2-fft = "0.1.0-beta.2"
 
 # Optional: Enable parallel processing
-scirs2-fft = { version = "0.1.0-beta.1", features = ["parallel"] }
+scirs2-fft = { version = "0.1.0-beta.2", features = ["parallel"] }
 
 # GPU acceleration options
-scirs2-fft = { version = "0.1.0-beta.1", features = ["cuda"] }     # NVIDIA GPUs
-scirs2-fft = { version = "0.1.0-beta.1", features = ["hip"] }      # AMD GPUs  
-scirs2-fft = { version = "0.1.0-beta.1", features = ["sycl"] }     # Cross-platform GPUs
+scirs2-fft = { version = "0.1.0-beta.2", features = ["cuda"] }     # NVIDIA GPUs
+scirs2-fft = { version = "0.1.0-beta.2", features = ["hip"] }      # AMD GPUs  
+scirs2-fft = { version = "0.1.0-beta.2", features = ["sycl"] }     # Cross-platform GPUs
 
 # Enable all GPU backends for maximum hardware support
-scirs2-fft = { version = "0.1.0-beta.1", features = ["cuda", "hip", "sycl"] }
+scirs2-fft = { version = "0.1.0-beta.2", features = ["cuda", "hip", "sycl"] }
 
 # Full acceleration stack with parallel processing and all GPU backends
-scirs2-fft = { version = "0.1.0-beta.1", features = ["parallel", "cuda", "hip", "sycl"] }
+scirs2-fft = { version = "0.1.0-beta.2", features = ["parallel", "cuda", "hip", "sycl"] }
 ```
 
 Basic usage examples:
@@ -773,7 +773,7 @@ See the [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
 
 ## 🎯 Production Status
 
-**🚀 FIRST BETA - PRODUCTION READY (v0.1.0-beta.1)**
+**🚀 FIRST BETA - PRODUCTION READY (v0.1.0-beta.2)**
 
 This SciRS2-FFT module represents a **complete, production-ready implementation** with:
 
