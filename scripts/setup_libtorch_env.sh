@@ -12,8 +12,8 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 fi
 
 if ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
-import importlib.util
-raise SystemExit(1) if importlib.util.find_spec('torch') is None else None
+import importlib.util, sys
+sys.exit(1 if importlib.util.find_spec("torch") is None else 0)
 PY
 then
   echo "Error: Python package 'torch' not found. Install it, e.g.:" >&2

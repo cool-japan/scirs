@@ -590,9 +590,9 @@ impl HDF5File {
                     .to_string();
                 if let Ok(h5_dataset) = h5_group.dataset(&ds_key) {
                     let shape: Vec<usize> = h5_dataset.shape().to_vec();
-                    let dtype = h5_dataset
-                        .dtype()
-                        .map_err(|e| IoError::FormatError(format!("Failed to get dataset dtype: {e}")))?;
+                    let dtype = h5_dataset.dtype().map_err(|e| {
+                        IoError::FormatError(format!("Failed to get dataset dtype: {e}"))
+                    })?;
                     let internal_dtype = Self::convert_hdf5_datatype(&dtype)?;
                     let data = Self::read_dataset_data(&h5_dataset, &dtype)?;
 
@@ -723,9 +723,12 @@ impl HDF5File {
                 let vlen_str = VarLenUnicode::from_str(v).map_err(|e| {
                     IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
                 })?;
-                let attr = target_group.new_attr::<VarLenUnicode>().create(name).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create string attribute: {}", e))
-                })?;
+                let attr = target_group
+                    .new_attr::<VarLenUnicode>()
+                    .create(name)
+                    .map_err(|e| {
+                        IoError::FormatError(format!("Failed to create string attribute: {}", e))
+                    })?;
                 attr.write_scalar(&vlen_str).map_err(|e| {
                     IoError::FormatError(format!("Failed to write string attribute: {}", e))
                 })?;

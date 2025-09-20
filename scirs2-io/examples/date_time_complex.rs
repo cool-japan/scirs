@@ -1,8 +1,8 @@
 use scirs2_io::csv::{read_csv_typed, write_csv_typed, ColumnType};
+use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::env;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
@@ -38,12 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let date_time_types = vec![ColumnType::Date, ColumnType::Time, ColumnType::DateTime];
 
-    let (headers, data) = read_csv_typed(
-        &date_time_path,
-        None,
-        Some(&date_time_types),
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&date_time_path, None, Some(&date_time_types), None)?;
 
     println!("Headers: {:?}", headers);
     for (i, row) in data.iter().enumerate() {
@@ -63,12 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let complex_types = vec![ColumnType::Complex];
 
-    let (headers, data) = read_csv_typed(
-        &complex_path,
-        None,
-        Some(&complex_types),
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&complex_path, None, Some(&complex_types), None)?;
 
     println!("Headers: {:?}", headers);
     for (i, row) in data.iter().enumerate() {
@@ -87,12 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("\nTesting automatic type detection...");
 
     // Read date/time file with auto detection
-    let (headers, data) = read_csv_typed(
-        &date_time_path,
-        None,
-        None,
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&date_time_path, None, None, None)?;
 
     println!("Auto-detected date/time types:");
     println!("Headers: {:?}", headers);
@@ -101,12 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Read complex file with auto detection
-    let (headers, data) = read_csv_typed(
-        &complex_path,
-        None,
-        None,
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&complex_path, None, None, None)?;
 
     println!("Auto-detected complex types:");
     println!("Headers: {:?}", headers);

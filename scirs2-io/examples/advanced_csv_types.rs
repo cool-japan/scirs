@@ -1,6 +1,6 @@
 use scirs2_io::csv::{read_csv_typed, write_csv_typed, ColumnType, CsvWriterConfig};
-use std::error::Error;
 use std::env;
+use std::error::Error;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
@@ -13,12 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Reading CSV file with advanced data types...");
 
     // Read the CSV file with automatic type detection
-    let (headers, data) = read_csv_typed(
-        &input_path,
-        None,
-        None,
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&input_path, None, None, None)?;
 
     println!("Headers: {:?}", headers);
     println!("Detected types:");
@@ -38,12 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\nReading with explicit types...");
 
-    let (headers, data) = read_csv_typed(
-        &input_path,
-        None,
-        Some(&col_types),
-        None,
-    )?;
+    let (headers, data) = read_csv_typed(&input_path, None, Some(&col_types), None)?;
 
     println!("Headers: {:?}", headers);
 
@@ -64,23 +54,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let output_path = format!("{}/scirs2_advanced_types_output.csv", output_dir);
 
-    write_csv_typed(
-        &output_path,
-        &data,
-        Some(&headers),
-        Some(writer_config),
-    )?;
+    write_csv_typed(&output_path, &data, Some(&headers), Some(writer_config))?;
 
     println!("Data written to {}", output_path);
 
     println!("\nReading back the written file for verification...");
 
-    let (output_headers, output_data) = read_csv_typed(
-        &output_path,
-        None,
-        Some(&col_types),
-        None,
-    )?;
+    let (output_headers, output_data) = read_csv_typed(&output_path, None, Some(&col_types), None)?;
 
     println!("Output headers: {:?}", output_headers);
 
