@@ -494,8 +494,14 @@ impl HDF5File {
             .map_err(|e| IoError::FormatError(format!("Failed to get datasets: {e}")))?;
 
         for dataset in datasets {
-            let dataset_name = dataset.name();
-            if let Ok(h5_dataset) = file.dataset(&dataset_name) {
+            let dataset_name_full = dataset.name();
+            let dataset_key = dataset_name_full
+                .rsplit('/')
+                .next()
+                .unwrap_or(&dataset_name_full)
+                .trim_start_matches('/')
+                .to_string();
+            if let Ok(h5_dataset) = file.dataset(&dataset_name_full) {
                 // Get dataset metadata
                 let shape: Vec<usize> = h5_dataset.shape().to_vec();
                 let dtype = h5_dataset.dtype().map_err(|e| {
@@ -522,7 +528,7 @@ impl HDF5File {
 
                 // Create dataset
                 let dataset = Dataset {
-                    name: dataset_name.clone(),
+                    name: dataset_key.clone(),
                     dtype: internal_dtype,
                     shape,
                     data,
@@ -530,7 +536,7 @@ impl HDF5File {
                     options: DatasetOptions::default(),
                 };
 
-                group.datasets.insert(dataset_name, dataset);
+                group.datasets.insert(dataset_key, dataset);
             }
         }
 
@@ -540,26 +546,95 @@ impl HDF5File {
             .map_err(|e| IoError::FormatError(format!("Failed to get groups: {e}")))?;
 
         for h5_group in groups {
-            let group_name = h5_group.name();
-            let mut subgroup = Group::new(group_name.clone());
+            let group_name_full = h5_group.name();
+            let group_key = group_name_full
+                .rsplit('/')
+                .next()
+                .unwrap_or(&group_name_full)
+                .trim_start_matches('/')
+                .to_string();
+            let mut subgroup = Group::new(group_key.clone());
 
-            // Read group attributes
-            if let Ok(attr_names) = h5_group.attr_names() {
-                for attr_name in attr_names {
-                    if let Ok(attr) = h5_group.attr(&attr_name) {
-                        if let Ok(attr_value) = Self::read_attribute_value(&attr) {
-                            subgroup.attributes.insert(attr_name, attr_value);
-                        }
+            // Recursively load this group's structure
+            Self::load_subgroup_structure(&h5_group, &mut subgroup)?;
+
+            group.groups.insert(group_key, subgroup);
+        }
+
+        Ok(())
+    }
+
+    /// Recursively load structure for an HDF5 group
+    #[cfg(feature = "hdf5")]
+    fn load_subgroup_structure(h5_group: &hdf5::Group, group: &mut Group) -> Result<()> {
+        // Load attributes
+        if let Ok(attr_names) = h5_group.attr_names() {
+            for attr_name in attr_names {
+                if let Ok(attr) = h5_group.attr(&attr_name) {
+                    if let Ok(attr_value) = Self::read_attribute_value(&attr) {
+                        group.attributes.insert(attr_name, attr_value);
                     }
                 }
             }
+        }
 
-            // Recursively load subgroup structure (convert Group to File reference)
-            // TODO: This needs a different approach as we can't convert Group to File
-            // For now, skip recursive loading
-            // Self::load_group_structure(&h5_group, &mut subgroup)?;
+        // Load datasets in this group
+        if let Ok(datasets) = h5_group.datasets() {
+            for ds in datasets {
+                let ds_name_full = ds.name();
+                let ds_key = ds_name_full
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(&ds_name_full)
+                    .trim_start_matches('/')
+                    .to_string();
+                if let Ok(h5_dataset) = h5_group.dataset(&ds_key) {
+                    let shape: Vec<usize> = h5_dataset.shape().to_vec();
+                    let dtype = h5_dataset
+                        .dtype()
+                        .map_err(|e| IoError::FormatError(format!("Failed to get dataset dtype: {e}")))?;
+                    let internal_dtype = Self::convert_hdf5_datatype(&dtype)?;
+                    let data = Self::read_dataset_data(&h5_dataset, &dtype)?;
 
-            group.groups.insert(group_name.to_string(), subgroup);
+                    // Read dataset attributes
+                    let mut attributes = HashMap::new();
+                    if let Ok(attr_names) = h5_dataset.attr_names() {
+                        for attr_name in attr_names {
+                            if let Ok(attr) = h5_dataset.attr(&attr_name) {
+                                if let Ok(attr_value) = Self::read_attribute_value(&attr) {
+                                    attributes.insert(attr_name, attr_value);
+                                }
+                            }
+                        }
+                    }
+
+                    let dataset = Dataset {
+                        name: ds_key.clone(),
+                        dtype: internal_dtype,
+                        shape,
+                        data,
+                        attributes,
+                        options: DatasetOptions::default(),
+                    };
+                    group.datasets.insert(ds_key, dataset);
+                }
+            }
+        }
+
+        // Recurse into subgroups
+        if let Ok(subgroups) = h5_group.groups() {
+            for sub in subgroups {
+                let sub_name_full = sub.name();
+                let sub_key = sub_name_full
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(&sub_name_full)
+                    .trim_start_matches('/')
+                    .to_string();
+                let mut child = Group::new(sub_key.clone());
+                Self::load_subgroup_structure(&sub, &mut child)?;
+                group.groups.insert(sub_key, child);
+            }
         }
 
         Ok(())
@@ -616,17 +691,20 @@ impl HDF5File {
     ) -> Result<()> {
         use hdf5::types::VarLenUnicode;
 
-        // For now, we only write attributes at the file level
-        // Group attributes would need proper group creation and handling
-        if !path.is_empty() {
-            // Skip group attributes for now - focus on file-level attributes
-            return Ok(());
-        }
+        // Resolve target: root file group or a subgroup
+        let target_group = if path.is_empty() {
+            file.as_group()
+                .map_err(|e| IoError::FormatError(format!("Failed to access root group: {e}")))?
+        } else {
+            file.group(path).map_err(|e| {
+                IoError::FormatError(format!("Failed to access group '{path}': {e}"))
+            })?
+        };
 
-        // Write the attribute to file root
+        // Write the attribute to the resolved group
         match value {
             AttributeValue::Integer(v) => {
-                let attr = file.new_attr::<i64>().create(name).map_err(|e| {
+                let attr = target_group.new_attr::<i64>().create(name).map_err(|e| {
                     IoError::FormatError(format!("Failed to create integer attribute: {}", e))
                 })?;
                 attr.write_scalar(v).map_err(|e| {
@@ -634,7 +712,7 @@ impl HDF5File {
                 })?;
             }
             AttributeValue::Float(v) => {
-                let attr = file.new_attr::<f64>().create(name).map_err(|e| {
+                let attr = target_group.new_attr::<f64>().create(name).map_err(|e| {
                     IoError::FormatError(format!("Failed to create float attribute: {}", e))
                 })?;
                 attr.write_scalar(v).map_err(|e| {
@@ -645,7 +723,7 @@ impl HDF5File {
                 let vlen_str = VarLenUnicode::from_str(v).map_err(|e| {
                     IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
                 })?;
-                let attr = file.new_attr::<VarLenUnicode>().create(name).map_err(|e| {
+                let attr = target_group.new_attr::<VarLenUnicode>().create(name).map_err(|e| {
                     IoError::FormatError(format!("Failed to create string attribute: {}", e))
                 })?;
                 attr.write_scalar(&vlen_str).map_err(|e| {
@@ -653,7 +731,7 @@ impl HDF5File {
                 })?;
             }
             AttributeValue::IntegerArray(v) => {
-                let attr = file
+                let attr = target_group
                     .new_attr::<i64>()
                     .shape([v.len()])
                     .create(name)
@@ -668,7 +746,7 @@ impl HDF5File {
                 })?;
             }
             AttributeValue::FloatArray(v) => {
-                let attr = file
+                let attr = target_group
                     .new_attr::<f64>()
                     .shape([v.len()])
                     .create(name)
@@ -690,7 +768,7 @@ impl HDF5File {
                     })?;
                     vlen_strings.push(vlen);
                 }
-                let attr = file
+                let attr = target_group
                     .new_attr::<VarLenUnicode>()
                     .shape([v.len()])
                     .create(name)
@@ -706,7 +784,7 @@ impl HDF5File {
             }
             AttributeValue::Boolean(v) => {
                 let int_val = if *v { 1i64 } else { 0i64 };
-                let attr = file.new_attr::<i64>().create(name).map_err(|e| {
+                let attr = target_group.new_attr::<i64>().create(name).map_err(|e| {
                     IoError::FormatError(format!("Failed to create boolean attribute: {}", e))
                 })?;
                 attr.write_scalar(&int_val).map_err(|e| {
@@ -1161,8 +1239,25 @@ impl HDF5File {
 
         #[cfg(not(feature = "hdf5"))]
         {
-            // Placeholder implementation
-            println!("Writing HDF5 file to: {} (placeholder)", self.path);
+            // Minimal persistence for tests without native hdf5:
+            // Serialize structure to a simple JSON alongside the filename.
+            let sidecar = format!("{}.json", self.path);
+            let mut obj = serde_json::json!({
+                "groups": serde_json::Value::Object(serde_json::Map::new()),
+                "datasets": serde_json::Value::Object(serde_json::Map::new()),
+            });
+            // Flatten root datasets
+            if let serde_json::Value::Object(ref mut map) = obj["datasets"] {
+                for (k, ds) in &self.root.datasets {
+                    map.insert(k.clone(), serde_json::json!({
+                        "shape": ds.shape,
+                        "data": match &ds.data { DataArray::Float(v)=>serde_json::json!(v), DataArray::Integer(v)=>serde_json::json!(v), _=>serde_json::json!([])},
+                    }));
+                }
+            }
+            // Write file
+            std::fs::write(&sidecar, serde_json::to_vec(&obj).unwrap())
+                .map_err(|e| IoError::FormatError(format!("Failed to persist mock HDF5: {e}")))?;
         }
 
         Ok(())
@@ -1287,6 +1382,8 @@ impl HDF5File {
     pub fn close(self) -> Result<()> {
         #[cfg(feature = "hdf5")]
         {
+            // Ensure data is written before closing
+            let _ = self.write();
             if let Some(file) = self.native_file {
                 // File is automatically closed when dropped
                 drop(file);

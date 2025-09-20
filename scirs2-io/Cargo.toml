@@ -65,7 +65,7 @@ brotli = { workspace = true }
 # Database drivers
 rusqlite = { workspace = true, optional = true }
 sqlx = { workspace = true, optional = true, features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
-duckdb = { workspace = true, optional = true }
+duckdb = { workspace = true, optional = true, features = ["bundled"] }
 mongodb = { workspace = true, optional = true }
 redis = { workspace = true, optional = true }
 # Real-time streaming

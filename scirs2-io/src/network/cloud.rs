@@ -733,7 +733,14 @@ mod tests {
         assert!(!url.unwrap().is_empty());
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(
+        feature = "async",
+        not(any(
+            feature = "aws-sdk-s3",
+            feature = "google-cloud-storage",
+            feature = "azure-storage-blobs"
+        ))
+    ))]
     #[tokio::test]
     async fn test_cloud_provider_operations_without_features() {
         let s3_config = CloudProvider::S3(S3Config::new("bucket", "region", "key", "secret"));

@@ -74,10 +74,8 @@ impl GpuIoProcessor {
                 }
             }
         }
-
-        Err(IoError::Other(
-            "No suitable GPU backend available".to_string(),
-        ))
+        // Fallback to CPU when no GPU backend is available
+        Ok(GpuBackend::Cpu)
     }
 
     /// Validate that a backend is functional (not just available)
@@ -151,11 +149,16 @@ impl GpuIoProcessor {
 
     /// List all available backends on the system
     pub fn list_available_backends() -> Vec<GpuBackend> {
-        [GpuBackend::Cuda, GpuBackend::Metal, GpuBackend::OpenCL]
+        let mut list: Vec<GpuBackend> = [GpuBackend::Cuda, GpuBackend::Metal, GpuBackend::OpenCL]
             .iter()
             .filter(|&&backend| Self::is_backend_available(backend))
             .copied()
-            .collect()
+            .collect();
+        // Ensure CPU is always present as a safe fallback
+        if !list.contains(&GpuBackend::Cpu) {
+            list.push(GpuBackend::Cpu);
+        }
+        list
     }
 
     /// Get optimal backend for specific workload type
@@ -163,7 +166,7 @@ impl GpuIoProcessor {
         let available_backends = Self::list_available_backends();
 
         if available_backends.is_empty() {
-            return Err(IoError::Other("No GPU backends available".to_string()));
+            return Ok(GpuBackend::Cpu);
         }
 
         // Choose backend based on workload characteristics

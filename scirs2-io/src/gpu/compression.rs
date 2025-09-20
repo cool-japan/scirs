@@ -20,16 +20,18 @@ pub struct GpuCompressionProcessor {
 impl GpuCompressionProcessor {
     /// Create a new GPU compression processor
     pub fn new() -> Result<Self> {
+        let gpu = GpuIoProcessor::new().unwrap_or_default();
         Ok(Self {
-            gpu_processor: GpuIoProcessor::new()?,
+            gpu_processor: gpu,
             compression_threshold: 10 * 1024 * 1024, // 10MB threshold
         })
     }
 
     /// Create with custom compression threshold
     pub fn with_threshold(threshold: usize) -> Result<Self> {
+        let gpu = GpuIoProcessor::new().unwrap_or_default();
         Ok(Self {
-            gpu_processor: GpuIoProcessor::new()?,
+            gpu_processor: gpu,
             compression_threshold: threshold,
         })
     }
@@ -97,7 +99,7 @@ impl GpuCompressionProcessor {
     }
 
     /// Determine if GPU should be used based on data size
-    fn should_use_gpu(&self, size: usize) -> bool {
+    pub(crate) fn should_use_gpu(&self, size: usize) -> bool {
         size > self.compression_threshold
     }
 
