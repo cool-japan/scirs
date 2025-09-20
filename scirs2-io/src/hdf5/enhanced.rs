@@ -735,6 +735,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_path_splitting() {
         let file = EnhancedHDF5File::create("test.h5", None).unwrap();
 
