@@ -81,9 +81,9 @@ rand_chacha = "0.9.0"
 fastrand = "2.0.1"
 
 # Development and testing
-thiserror = "1.0.69"
+thiserror = "2.0.16"
 approx = "0.5.1"
-criterion = "0.6.0"
+criterion = "0.7.0"
 once_cell = "1.21.3"
 tempfile = "3.20.0"
 tokio-test = "0.4.4"
@@ -91,7 +91,7 @@ tokio-test = "0.4.4"
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-bincode = "1.3.3"
+bincode = "2.0.1"
 chrono = "0.4.42"
 
 # Python bindings (optional)
@@ -99,7 +99,7 @@ pyo3 = { version = "0.26.0", features = ["extension-module", "auto-initialize"] 
 numpy = { version = "0.26.0" }
 
 # Linear algebra and math (heavy dependencies - minimize features)
-nalgebra = { version = "0.33.2", default-features = false }
+nalgebra = { version = "0.34.0", default-features = false }
 rustfft = { version = "6.4.0", default-features = false }
 argmin = { version = "0.10.0", default-features = false }
 sprs = { version = "0.11.3", default-features = false }
@@ -110,7 +110,7 @@ ndarray-linalg = { version = "0.17.0", default-features = false }
 
 # BLAS backends (mutually exclusive) - used conditionally by individual crates
 openblas-src = { version = "0.10.11", features = ["cblas", "lapacke"], default-features = false }
-blas-src = { version = "0.10", default-features = false }
+blas-src = { version = "0.12", default-features = false }
 cblas-sys = { version = "0.1.4", default-features = false }
 blas = { version = "0.23.0", default-features = false }
 # NOTE: intel-mkl-src removed to avoid conflicts with openblas-src
@@ -126,33 +126,33 @@ flate2 = "1.0"
 blake3 = "1.8.2"
 regex = "1.11.1"
 libc = "0.2.174"
-cached = "0.54.0"
+cached = "0.56.0"
 byteorder = "1.4"
 rmp-serde = "1.3"
 lz4 = "1.28"
 zstd = "0.13.3"
-bzip2 = "0.5.0"
+bzip2 = "0.6.0"
 sha2 = "0.10"
 crc32fast = "1.4"
 hex = "0.4"
 digest = "0.10"
 data-encoding = "2.6"
 glob = "0.3"
-zip = "2.2"
+zip = "5.1"
 dirs = "6.0.0"
 urlencoding = "2.1"
 url = "2.5.0"
-cron = "0.12"
+cron = "0.15"
 
 # ML specific
-tokenizers = "0.21.2"
+tokenizers = "0.22.1"
 autograd = "1.1.1"
 smallvec = "1.15.1"
 uuid = { version = "1.17.0", features = ["v4"] }
 rustc-hash = "2.1.1"
 matrixmultiply = "0.3.9"
 num = "0.4.3"
-special = "0.10.2"
+special = "0.11.4"
 special-11 = { package = "special", version = "0.11.4" }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.12"
@@ -170,29 +170,29 @@ crossbeam-channel = { version = "0.5.13" }
 memmap2 = { version = "0.9.5" }
 bytemuck = { version = "1.21", features = ["derive"] }
 snap = { version = "1.1.1" }
-brotli = { version = "7.0.0" }
-cranelift-module = { version = "0.121.1" }
-cranelift-jit = { version = "0.121.1" }
-cranelift-frontend = { version = "0.121.1" }
-plotly = { version = "0.12.1" }
+brotli = { version = "8.0.2" }
+cranelift-module = { version = "0.123.2" }
+cranelift-jit = { version = "0.123.2" }
+cranelift-frontend = { version = "0.123.2" }
+plotly = { version = "0.13.5" }
 plotters = { version = "0.3.7" }
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 
 # Math libraries
 libm = "0.2"
 array-init = "2.1.0"
-netcdf3 = "0.5.2"
+netcdf3 = "0.6.0"
 sobol = "1.0.2"
 halton = "0.2.1"
-ordered-float = "3.9.2"
-kamadak-exif = "0.5"
+ordered-float = "5.0.0"
+kamadak-exif = "0.6"
 hdf5 = "0.8.1"
 friedrich = "0.5.0"
-ureq = "2.9"
+ureq = "3.1"
 qhull = "0.4.0"
 parking_lot = "0.12.4"
 serde_yaml = "0.9"
-toml = "0.8"
+toml = "0.9"
 ciborium = "0.2"
 serde_cbor = "0.11.2"
 
@@ -222,21 +222,21 @@ async-trait = "0.1.83"
 log = "0.4"
 
 # System information
-sysinfo = "0.35.2"
+sysinfo = "0.37.0"
 
 # GPU backends
-metal = "0.31.0"
+metal = "0.32.0"
 objc2 = { version = "0.6.2"}
 objc2-foundation = "0.3.0"
 objc2-metal-performance-shaders = "0.3.0"
-opencl3 = { version = "0.11" }
-wgpu = { version = "22.1" }
+opencl3 = { version = "0.12" }
+wgpu = { version = "26.0" }
 pollster = { version = "0.4" }
-cudarc = { version = "0.12", features = ["cuda-12000"] }
+cudarc = { version = "0.17", features = ["cuda-12000"] }
 
 
 # Development and testing additions
-ctor = { version = "0.2" }
+ctor = { version = "0.5" }
 quickcheck = { version = "1.0" }
 quickcheck_macros = { version = "1.0" }
 instant = { version = "0.1" }
@@ -247,7 +247,7 @@ indexmap = { version = "2.7" }
 ahash = { version = "0.8" }
 
 # Database drivers
-rusqlite = { version = "0.32" }
+rusqlite = { version = "0.37" }
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite"] }
 duckdb = { version = "1.4.0" } # Must update to this version
 mongodb = { version = "2.8" }
