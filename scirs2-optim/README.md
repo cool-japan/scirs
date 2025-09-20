@@ -25,8 +25,6 @@ optirs-nas = "0.1.0"
 
 **OptiRS Project**: [`https://github.com/cool-japan/optirs`](https://github.com/cool-japan/optirs)
 
-**Local Development**: `/Users/kitasan/work/optirs/`
-
 ## 🎯 Why the Move?
 
 - **Focus**: Dedicated optimization research and development

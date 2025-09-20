@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         comment_char: Some('#'),
         ..Default::default()
     };
-    let (headers, data) = read_csv(data_path, Some(config))?;
+    let (headers, data) = read_csv(&data_path, Some(config))?;
     println!("Headers: {:?}", headers);
     println!("Data shape: {:?}", data.shape());
     println!("First row: {:?}", data.row(0));
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         has_header: true,
         ..Default::default()
     };
-    let (_headers, data) = read_csv(data_path, Some(config))?;
+    let (_headers, data) = read_csv(&data_path, Some(config))?;
     println!("Number of rows read: {}", data.shape()[0]);
 
     println!("\nReading CSV file as numeric data...");
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
     // Read the full file first to get headers
-    let (all_headers, string_data) = read_csv(data_path, Some(config.clone()))?;
+    let (all_headers, string_data) = read_csv(&data_path, Some(config.clone()))?;
 
     // Extract numeric columns
     let numeric_columns = vec![1, 2, 3]; // Age, Height, Weight columns
