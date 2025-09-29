@@ -99,7 +99,7 @@ numpy = { version = "0.26.0" }
 # Linear algebra and math (heavy dependencies - minimize features)
 nalgebra = { version = "0.34.1", default-features = false }
 rustfft = { version = "6.4.1", default-features = false }
-argmin = { version = "0.10.0", default-features = false }
+argmin = { version = "0.11.0", default-features = false }
 sprs = { version = "0.11.3", default-features = false }
 
 # Platform-specific BLAS/LAPACK backends
