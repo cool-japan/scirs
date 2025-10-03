@@ -233,7 +233,7 @@ objc2 = { version = "0.6.2"}
 objc2-foundation = "0.3.1"
 objc2-metal-performance-shaders = "0.3.1"
 opencl3 = { version = "0.12" }
-wgpu = { version = "26.0" }
+wgpu = { version = "27.0" }
 pollster = { version = "0.4" }
 cudarc = { version = "0.17", features = ["cuda-12000"] }
 
